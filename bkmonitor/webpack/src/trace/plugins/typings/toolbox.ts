@@ -23,73 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-export enum SearchType {
-  Profiling = 'profiling',
-  Upload = 'upload',
-}
-
-export enum ConditionType {
-  /** 对比项 */
-  Comparison = 'comparison',
-  /** 查询项 */
-  Where = 'where',
-}
-
-export interface IConditionItem {
-  key: string;
-  method: 'eq';
-  value: string | string[];
-}
-export interface RetrievalFormData {
-  /** 查询类型 */
-  type: SearchType;
-  /** 是否开启对比模式 */
-  isComparison: boolean;
-  /** 时间对比 */
-  dateComparison: {
-    /** 开关 */
-    enable: boolean;
-    start?: number;
-    end?: number;
-    diffStart?: number;
-    diffEnd?: number;
-  };
-  /** 应用/服务 */
-  server: {
-    app_name: string;
-    service_name: string;
-  };
-  /** 查询项条件 */
-  where: IConditionItem[];
-  /** 对比项条件 */
-  comparisonWhere: IConditionItem[];
-  /** 上传 profiling 用于上传文件查询的开始和结束时间 */
-  startTime?: number;
-  endTime?: number;
-}
-
-export interface DataTypeItem {
-  key: string;
-  name: string;
-}
-
-export interface ServiceItem {
-  id: number;
-  name: string;
-  has_data: boolean;
-}
-
-export interface ApplicationItem {
-  bk_biz_id: number;
-  application_id: number;
-  app_name: string;
-  app_alias: string;
-  description: string;
-  services: ServiceItem[];
-}
-
-export interface ApplicationList {
-  normal: ApplicationItem[];
-  no_data: ApplicationItem[];
+export enum Toolbox {
+  Brush = 'brush',
+  DataZoom = 'dataZoom',
 }

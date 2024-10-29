@@ -177,7 +177,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 # 补充快照记录并写入ES
                 self.generate_alert_operations(incident_document.snapshot, snapshot)
                 incident_document.snapshot = snapshot
-                incident_document.status_order = IncidentStatus(incident_document.status).order
                 incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 self.generate_incident_labels(incident_document, snapshot_model)
@@ -216,6 +215,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         )
                 setattr(incident_document, incident_key, update_info["to"])
 
+            incident_document.status_order = IncidentStatus(incident_document.status).order
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)

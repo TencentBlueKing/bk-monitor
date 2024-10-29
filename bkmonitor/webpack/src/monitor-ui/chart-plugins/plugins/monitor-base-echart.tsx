@@ -126,17 +126,16 @@ class MonitorBaseEchart extends BaseEchart {
   }
   initChart() {
     if (!(this as any).instance) {
-      setTimeout(() => {
-        if (!this.chartRef) return;
-        (this as any).instance = echarts.init(this.chartRef);
-        (this as any).instance.setOption(this.getMonitorEchartOptions());
-        this.initPropsWatcher();
-        this.initChartEvent();
-        this.initChartAction();
-        (this as any).curChartOption = (this as any).instance.getOption();
-        this.groupId && ((this as any).instance.group = this.groupId);
-        (this as any).instance.on('dataZoom', this.handleDataZoom);
-      }, 100);
+      if (!this.chartRef) return;
+      (this as any).instance = echarts.init(this.chartRef);
+      (this as any).instance.setOption(this.getMonitorEchartOptions());
+      this.initPropsWatcher();
+      this.initChartEvent();
+      this.initChartAction();
+      (this as any).curChartOption = (this as any).instance.getOption();
+      this.groupId && ((this as any).instance.group = this.groupId);
+      (this as any).instance.on('dataZoom', this.handleDataZoom);
+      this.$emit('loaded');
     }
   }
   handleDataZoom(event) {
@@ -188,7 +187,7 @@ class MonitorBaseEchart extends BaseEchart {
       () => {
         this.initChart();
         (this as any).instance.setOption(this.getMonitorEchartOptions(), {
-          notMerge: true,
+          notMerge: this.notMerge,
           lazyUpdate: false,
           silent: true,
         });
