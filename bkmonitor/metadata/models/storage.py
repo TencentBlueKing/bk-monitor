@@ -2954,7 +2954,6 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_delete():
             return
         # 获取所有的写入别名
-
         now_datetime_str = self.now.strftime(self.date_format)
 
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
@@ -2968,7 +2967,10 @@ class ESStorage(models.Model, StorageResultTable):
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
                 logger.info(
-                    "table_id->[%s] index->[%s] contains now_time_datetime_str ,skip", self.table_id, index_name
+                    "clean_index_v2:table_id->[%s] index->[%s] contains now_datetime_str->[%s] ,skip",
+                    self.table_id,
+                    index_name,
+                    now_datetime_str,
                 )
                 continue
 
@@ -2976,13 +2978,13 @@ class ESStorage(models.Model, StorageResultTable):
                 if alias_info["expired_alias"]:
                     # 如果存在已过期的别名，则将别名删除
                     logger.info(
-                        "table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
                     self.es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
                     logger.warning(
-                        "table_id->[%s] delete_alias_list->[%s] is deleted.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is deleted.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
@@ -2990,7 +2992,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 如果已经不存在未过期的别名，则将索引删除
             # 等待所有别名过期删除索引，防止删除别名快照时，丢失数据
             logger.info(
-                "table_id->[%s] has not alias need to keep, will delete the index->[%s].",
+                "clean_index_v2:table_id->[%s] has not alias need to keep, will delete the index->[%s].",
                 self.table_id,
                 index_name,
             )
@@ -3002,7 +3004,9 @@ class ESStorage(models.Model, StorageResultTable):
                 elasticsearch6.ElasticsearchException,
             ):
                 logger.warning(
-                    "table_id->[%s] index->[%s] delete failed, index maybe doing snapshot", self.table_id, index_name
+                    "clean_index_v2::table_id->[%s] index->[%s] delete failed, index maybe doing snapshot",
+                    self.table_id,
+                    index_name,
                 )
                 continue
             logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)

@@ -8,13 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import time
+from unittest import mock
 
 import pytest
 
 from metadata import models
 from metadata.models.constants import EsSourceType
-from metadata.task.config_refresh import refresh_es_storage_v2
+from metadata.task import manage_es_storage
+from metadata.task.config_refresh import refresh_es_storage
 
 
 @pytest.fixture
@@ -22,30 +23,6 @@ def create_or_delete_records():
     # 集群一
     models.ESStorage.objects.create(
         table_id='1001_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=1,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='1002_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=1,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='1003_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=1,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='1004_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=1,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='1005_test_bklog.table',
         source_type=EsSourceType.LOG.value,
         storage_cluster_id=1,
         need_create_index=True,
@@ -58,30 +35,6 @@ def create_or_delete_records():
         storage_cluster_id=2,
         need_create_index=True,
     )
-    models.ESStorage.objects.create(
-        table_id='2002_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=2,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='2003_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=2,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='2004_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=2,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='2005_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=2,
-        need_create_index=True,
-    )
 
     # 集群三
     models.ESStorage.objects.create(
@@ -90,45 +43,76 @@ def create_or_delete_records():
         storage_cluster_id=3,
         need_create_index=True,
     )
-    models.ESStorage.objects.create(
-        table_id='3002_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=3,
-        need_create_index=True,
+
+    models.ResultTable.objects.create(
+        table_id='1001_test_bklog.table',
+        is_enable=True,
+        is_deleted=False,
+        table_name_zh="test_1001",
+        is_custom_table=True,
+        schema_type="free",
+        default_storage="influxdb",
+        bk_biz_id=0,
     )
-    models.ESStorage.objects.create(
-        table_id='3003_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=3,
-        need_create_index=True,
+    models.ResultTable.objects.create(
+        table_id='2001_test_bklog.table',
+        is_enable=True,
+        is_deleted=False,
+        table_name_zh="test_2001",
+        is_custom_table=True,
+        schema_type="free",
+        default_storage="influxdb",
+        bk_biz_id=0,
     )
-    models.ESStorage.objects.create(
-        table_id='3004_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=3,
-        need_create_index=True,
-    )
-    models.ESStorage.objects.create(
-        table_id='3005_test_bklog.table',
-        source_type=EsSourceType.LOG.value,
-        storage_cluster_id=3,
-        need_create_index=True,
+    models.ResultTable.objects.create(
+        table_id='3001_test_bklog.table',
+        is_enable=True,
+        is_deleted=False,
+        table_name_zh="test_3001",
+        is_custom_table=True,
+        schema_type="free",
+        default_storage="influxdb",
+        bk_biz_id=0,
     )
 
     yield
     models.ESStorage.objects.all().delete()
+    models.ResultTable.objects.all().delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_refresh_es_storage_v2(create_or_delete_records, mocker):
+def test_refresh_es_storage(create_or_delete_records, mocker):
     """
     测试新版ES轮转周期任务能否正常执行
-    1. 测试线程池是否正常并发工作，预期应该存在3个线程分别处理3个集群的采集项
     """
 
-    start_time = time.time()
-    refresh_es_storage_v2()
-    end_time = time.time()
+    # MOCK白名单
+    mocker.patch("metadata.task.config_refresh.settings.ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [1])
 
-    execution_time = end_time - start_time
-    assert 10 < execution_time < 22
+    # MOCK过程中调用的逻辑
+    mocker.patch("metadata.task.config_refresh._manage_es_storage")
+    mocker.patch.object(manage_es_storage, 'delay')
+    mock_logger = mocker.patch("metadata.task.config_refresh.logger")
+
+    # 执行
+    refresh_es_storage()
+
+    # 根据打印日志情况，判断是否如期工作
+    log_message_found = any(
+        call == mock.call("refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", 1, 1)
+        for call in mock_logger.info.call_args_list
+    )
+
+    log_message_not_found_es2 = any(
+        call == mock.call("refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", 2, 1)
+        for call in mock_logger.info.call_args_list
+    )
+
+    log_message_not_found_es3 = any(
+        call == mock.call("refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", 3, 1)
+        for call in mock_logger.info.call_args_list
+    )
+
+    assert log_message_found
+    assert not log_message_not_found_es2
+    assert not log_message_not_found_es3
