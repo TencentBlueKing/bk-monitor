@@ -567,4 +567,8 @@
       color: #3a84ff;
     }
   }
+
+  tr.bk-table-row {
+    content-visibility: auto;
+  }
 </style>

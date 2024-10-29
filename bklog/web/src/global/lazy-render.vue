@@ -109,6 +109,7 @@
     display: flex;
     align-items: center;
     min-height: 40px;
+    content-visibility: auto;
 
     /* overflow: hidden; */
   }
