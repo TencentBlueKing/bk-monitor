@@ -552,7 +552,7 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart'].includes(this.type);
+    return ['graph', 'performance-chart', 'apm-timeseries-chart'].includes(this.type);
   }
   public updateChecked(v: boolean) {
     this.checked = v;
