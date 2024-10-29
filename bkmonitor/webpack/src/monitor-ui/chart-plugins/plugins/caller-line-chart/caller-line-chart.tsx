@@ -250,7 +250,13 @@ class CallerLineChart extends CommonSimpleChart {
           if (primaryKey) {
             paramsArr.push(primaryKey);
           }
-          paramsArr.push(newParams);
+          paramsArr.push({
+            ...newParams,
+            unify_query_param: {
+              ...newParams.unify_query_param,
+              down_sample_range,
+            },
+          });
           // console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {

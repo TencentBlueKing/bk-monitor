@@ -496,10 +496,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-    console.log(
-      curColumn.columns.slice().map(item => item.label),
-      'curColumn'
-    );
     return (curColumn.columns || []).map((item, index) => (
       <bk-table-column
         key={index}

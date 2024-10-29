@@ -39,6 +39,7 @@ import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { reviewInterval } from '../../utils/utils';
 import { VariablesService } from '../../utils/variable';
+import { intervalLowBound } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -90,7 +91,7 @@ class ApmHeatmap extends CommonSimpleChart {
       }
       const down_sample_range = this.downSampleRangeComputed('auto', [startTime, endTime], 'unifyQuery');
       const [v] = down_sample_range.split('s');
-      const interval = Math.ceil((+v * 4) / 60);
+      const interval = intervalLowBound(Math.ceil((+v * 4) / 60));
       this.collectIntervalDisplay = `${interval}m`;
       const params = variablesService.transformVariables(item.data, {
         ...this.viewOptions.filters,
