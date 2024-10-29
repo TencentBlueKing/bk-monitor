@@ -13,7 +13,6 @@ import json
 import logging
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from confluent_kafka import TopicCollection
 from confluent_kafka.admin import AdminClient
@@ -29,7 +28,7 @@ from metadata.config import (
     PERIODIC_TASK_DEFAULT_TTL,
 )
 from metadata.models.constants import EsSourceType
-from metadata.task.tasks import _manage_es_storage, manage_es_storage
+from metadata.task.tasks import manage_es_storage
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
