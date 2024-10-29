@@ -219,7 +219,9 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <template v-else>
               <div
                 v-if="statusMap[row.status]"
@@ -335,7 +337,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <span
               v-else
               :style="{
@@ -375,7 +379,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
@@ -397,7 +403,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
@@ -419,7 +427,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
@@ -441,7 +451,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
@@ -463,7 +475,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
@@ -494,7 +508,9 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <div v-html='skeletonItem' v-if="instanceLoading" />
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <div
               v-else
               class="process-module"
@@ -710,15 +726,6 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       url: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
     },
   };
-
-  // 生成一段 骨架屏 字符串
-  get skeletonItem(): string {
-    return `
-      <div class='table-skeleton-item'>
-        <div class='skeleton-element' />
-      </div>
-    `;
-  }
 
   selectList = [
     {
