@@ -2569,16 +2569,15 @@ class ESStorage(models.Model, StorageResultTable):
                     )
 
                 # 2.6 组装需要新增或删除的索引和别名的关联关系
-                add_actions = [
+                actions = [
                     {"add": {"index": last_index_name, "alias": round_alias_name}},
                     {"add": {"index": last_index_name, "alias": round_read_alias_name}},
                 ]
-                delete_actions = []
 
                 # 2.7 如果需要删除的列表不为空，则添加对应的 `remove` 操作
                 if delete_list:
                     for _index in delete_list:
-                        delete_actions.append({"remove": {"index": _index, "alias": round_alias_name}})
+                        actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
                         "create_or_update_aliases:table_id->[%s],last_index->[%s],index->[%s],alias->[%s] need delete",
                         self.table_id,
@@ -2587,35 +2586,14 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                if delete_actions:
-                    # 2.8 先执行删除索引-别名绑定关系操作
-                    logger.info(
-                        "create_or_update_aliases: table_id->[%s] try to delete old index binding,actions->[%s]",
-                        self.table_id,
-                        delete_actions,
-                    )
-                    try:
-                        self._update_aliases_with_retry(actions=delete_actions, new_index_name=last_index_name)
-                        logger.info(
-                            "create_or_update_aliases: table_id->[%s] delete old index binding success", self.table_id
-                        )
-                    except Exception as e:  # pylint: disable=broad-except
-                        logger.error(
-                            "create_or_update_aliases: table_id->[%s] try to delete old index binding failed,"
-                            "error->[%s]",
-                            self.table_id,
-                            e,
-                        )
-                        raise e
-
-                # 2.9 执行索引-别名绑定关系建立操作
+                # 2.8 执行索引-别名绑定关系建立操作
                 logger.info(
                     "create_or_update_aliases: table_id->[%s] try to add new index binding,actions->[%s]",
                     self.table_id,
-                    add_actions,
+                    actions,
                 )
                 try:
-                    self._update_aliases_with_retry(actions=add_actions, new_index_name=last_index_name)
+                    self._update_aliases_with_retry(actions=actions, new_index_name=last_index_name)
                     logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error(
@@ -2671,6 +2649,12 @@ class ESStorage(models.Model, StorageResultTable):
             # 获取索引的健康状态
             logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
             health = self.es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
+            logger.info(
+                "is_index_ready:table_id->[%s],index_name->[%s],index_health_detail->[%s]",
+                self.table_id,
+                index_name,
+                health,
+            )
             index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
 
             # 检查索引健康状态是否为 green
@@ -2713,7 +2697,7 @@ class ESStorage(models.Model, StorageResultTable):
         )
         return True
 
-    def update_index_v2(self):
+    def update_index_v2(self, force_rotate: bool = False):
         """
         判断index是否需要分裂，并提前建立index别名的功能
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
@@ -2809,6 +2793,11 @@ class ESStorage(models.Model, StorageResultTable):
                 )
                 should_create = True
 
+        # 5.5 根据参数决定是否强制轮转
+        if force_rotate:
+            logger.info("update_index_v2:table_id->[%s],enable force rotate", self.table_id)
+            should_create = True
+
         # 6. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
@@ -2842,6 +2831,9 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
+            elif force_rotate:
+                new_index = current_index_info["index"] + 1
+                logger.info("update_index_v2:table_id>[%s],index->[%s],will force_rotate", self.table_id, new_index)
             # 7.2 若上一轮次发起创建的index还没有绑定的别名（未就绪 / 已就绪但还未进行别名切换），跳过本次轮转，等候其别名绑定
             elif bounded_not_expired_alias_length == 0:
                 logger.info(
@@ -2900,7 +2892,7 @@ class ESStorage(models.Model, StorageResultTable):
                 actions,
                 new_index_name,
             )
-            return
+            raise elasticsearch5.NotFoundError(new_index_name)
 
         try:
             response = self.es_client.indices.update_aliases(
