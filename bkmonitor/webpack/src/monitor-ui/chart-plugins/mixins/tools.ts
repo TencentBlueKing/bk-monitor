@@ -78,46 +78,51 @@ export default class ToolsMixin extends Vue {
   ) {
     try {
       let result: any = null;
-      const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
-      const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
-      const interval = reviewInterval(
-        scopedVars.interval,
-        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval
-      );
-      const variablesService = new VariablesService({ ...scopedVars, interval });
-      if (isAll) {
-        result = {
-          expression: '',
-          query_configs: [],
-        };
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        targets.forEach(target => {
-          // biome-ignore lint/complexity/noForEach: <explanation>
-          target.data?.query_configs?.forEach(queryConfig => {
-            const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
-            if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
-            }
-          });
-        });
+      const strategyConfig = panel?.toStrategy?.(metric, isAll);
+      if (strategyConfig) {
+        result = strategyConfig;
       } else {
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        targets.forEach(target => {
+        const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
+        const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
+        const interval = reviewInterval(
+          scopedVars.interval,
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          panel.collect_interval
+        );
+        const variablesService = new VariablesService({ ...scopedVars, interval });
+        if (isAll) {
+          result = {
+            expression: '',
+            query_configs: [],
+          };
           // biome-ignore lint/complexity/noForEach: <explanation>
-          target.data?.query_configs?.forEach(queryConfig => {
-            if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result = {
-                ...target.data,
-                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
-              };
-            }
+          targets.forEach(target => {
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            target.data?.query_configs?.forEach(queryConfig => {
+              const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
+              if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+                let config = deepClone(queryConfig);
+                config = variablesService.transformVariables(config);
+                result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+              }
+            });
           });
-        });
+        } else {
+          // biome-ignore lint/complexity/noForEach: <explanation>
+          targets.forEach(target => {
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            target.data?.query_configs?.forEach(queryConfig => {
+              if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
+                let config = deepClone(queryConfig);
+                config = variablesService.transformVariables(config);
+                result = {
+                  ...target.data,
+                  query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
+                };
+              }
+            });
+          });
+        }
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId

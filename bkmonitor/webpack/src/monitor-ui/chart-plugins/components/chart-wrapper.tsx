@@ -34,9 +34,12 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
+import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
+import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
@@ -65,7 +68,7 @@ import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 
-import type { ChartTitleMenuType, PanelModel } from '../typings';
+import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -85,6 +88,7 @@ interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
   onCollectChart?: () => void;
+  onZrClick?: (event: ZrClickEvent) => void;
   onDimensionsOfSeries?: string[];
 }
 interface IChartWrapperEvent {
@@ -93,6 +97,7 @@ interface IChartWrapperEvent {
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
   onDblClick?: () => void;
+  onZrClick?: (event: ZrClickEvent) => void;
 }
 @Component({
   components: {
@@ -226,6 +231,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   handleDblClick() {
     this.$emit('dblClick');
+  }
+  @Emit('zrClick')
+  handleZrClick(event: ZrClickEvent) {
+    return event;
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -516,8 +525,33 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'relation-graph':
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
+      case 'apm-service-caller-callee':
+        return <ApmServiceCallerCallee panel={this.panel} />;
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
+      case 'apm_heatmap':
+        return (
+          <ApmHeatmap
+            panel={this.panel}
+            onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
+          />
+        );
+      case 'caller-line-chart':
+        return (
+          <ApmCallerLineChart
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
+          />
+        );
       // 不需要报错显示
       // case 'graph':
       default:
@@ -532,6 +566,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onErrorMsg={this.handleErrorMsgChange}
             onFullScreen={this.handleFullScreen}
             onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
           />
         );
     }

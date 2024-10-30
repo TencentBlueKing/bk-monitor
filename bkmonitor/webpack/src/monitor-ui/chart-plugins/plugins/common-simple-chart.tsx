@@ -126,6 +126,48 @@ export class CommonSimpleChart
   async getPanelData(start_time?: string, end_time?: string) {
     this.beforeGetPanelData(start_time, end_time);
   }
+  /* 粒度计算 */
+  downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
+    if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
+      return undefined;
+    }
+    if (downSampleRange === 'auto') {
+      let width = 1;
+      if (this.$refs.chart) {
+        width = (this.$refs.chart as Element).clientWidth;
+      } else {
+        width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
+      }
+      const size = (timeRange[1] - timeRange[0]) / width;
+      return size > 0 ? `${Math.ceil(size)}s` : undefined;
+    }
+    return downSampleRange;
+  }
+  commonChartTooltipsPosition(pos, params, dom, rect, size: any) {
+    const { contentSize } = size;
+    const chartRect = this.$el.getBoundingClientRect();
+    const posRect = {
+      x: chartRect.x + +pos[0],
+      y: chartRect.y + +pos[1],
+    };
+    const position = {
+      left: 0,
+      top: 0,
+    };
+    const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
+    if (canSetBootom > 0) {
+      position.top = +pos[1] - Math.min(20, canSetBootom);
+    } else {
+      position.top = +pos[1] + canSetBootom - 20;
+    }
+    const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
+    if (canSetLeft > 0) {
+      position.left = +pos[0] + Math.min(20, canSetLeft);
+    } else {
+      position.left = +pos[0] - contentSize[0] - 20;
+    }
+    return position;
+  }
   render() {
     return <div />;
   }
