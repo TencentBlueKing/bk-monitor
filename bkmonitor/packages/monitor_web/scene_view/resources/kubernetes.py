@@ -1682,7 +1682,7 @@ class GetKubernetesClusterChoices(KubernetesResource):
         data = []
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCI.value)
+            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
             if not space:
                 return data
             bk_biz_id = space.bk_biz_id
