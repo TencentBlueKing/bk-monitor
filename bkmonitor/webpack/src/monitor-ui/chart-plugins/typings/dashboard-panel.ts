@@ -27,7 +27,7 @@ import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
 import { filterDictConvertedToWhere } from '../utils/utils';
 
-import type { MonitorEchartOptions } from './index';
+import type { IExtendMetricData, MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
@@ -579,7 +579,6 @@ export class PanelModel implements IPanelModel {
     const queries = this.targets
       .map(set => {
         if (this.rawTargetQueryMap.has(set)) {
-          console.info('toDashboardPanels', this.rawTargetQueryMap.get(set), '========');
           const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
           return {
             alias: set.alias || '',
@@ -616,6 +615,22 @@ export class PanelModel implements IPanelModel {
       .filter(Boolean);
     if (!targets.length) return undefined;
     return targets;
+  }
+  public toStrategy(metric: IExtendMetricData, isAll = false) {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            expression: set.expression || 'A',
+            query_configs: filterDictConvertedToWhere(config.query_configs),
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return queries[0];
   }
   public updateChecked(v: boolean) {
     this.checked = v;
