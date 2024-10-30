@@ -62,7 +62,7 @@ import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import TopoTools from './topo-tools';
-import { getNodeAttrs, truncateText } from './utils';
+import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
 
 import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
 
@@ -157,6 +157,7 @@ export default defineComponent({
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
+    const aggregateCluster = ref(true);
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
@@ -299,7 +300,7 @@ export default defineComponent({
               width: 24,
               height: 24,
               cursor: 'pointer', // 手势类型
-              img: NODE_TYPE_SVG[entity.entity_type],
+              img: NODE_TYPE_SVG[getApmServiceType(entity)],
             },
             draggable: true,
             name: 'topo-node-img',
@@ -520,7 +521,7 @@ export default defineComponent({
           group.addShape('text', {
             zIndex: 12,
             attrs: {
-              opacity: 0,
+              opacity: 1,
               x: 0,
               y: 14,
               cursor: 'default',
@@ -535,15 +536,15 @@ export default defineComponent({
           });
           return rect;
         },
-        setState(name, value, item) {
-          if (name === 'hover') {
-            const group = item.getContainer();
-            const label = group.find(e => e.get('name') === 'service-label');
-            label.attr({
-              opacity: value ? 1 : 0,
-            });
-          }
-        },
+        // setState(name, value, item) {
+        //   if (name === 'hover') {
+        //     const group = item.getContainer();
+        //     const label = group.find(e => e.get('name') === 'service-label');
+        //     label.attr({
+        //       opacity: value ? 1 : 0,
+        //     });
+        //   }
+        // },
       });
     };
     /** 画布自定义边 */
@@ -553,9 +554,9 @@ export default defineComponent({
         {
           afterDraw(cfg, group) {
             const shape = group.get('children')[0];
-            const { is_anomaly, anomaly_score, events } = cfg;
+            const { is_anomaly, anomaly_score, events, edge_type } = cfg;
             const lineDash = anomaly_score === 0 ? [6] : [10];
-            if (is_anomaly) {
+            if (is_anomaly && events[0] && edge_type === 'ebpf_call') {
               const { direction } = events[0];
               let index = 0;
               // 这里改为定时器执行，自带的动画流动速度控制不了
@@ -1102,10 +1103,12 @@ export default defineComponent({
     /** 获取数据 */
     const getGraphData = async (isAutoRefresh = false) => {
       loading.value = !isAutoRefresh;
+      if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
       const renderData = await incidentTopology({
         id: incidentId.value,
         auto_aggregate: autoAggregate.value,
+        aggregate_cluster: aggregateCluster.value ?? false,
         aggregate_config: aggregateConfig.value,
         only_diff: true,
         start_time: isAutoRefresh
@@ -1381,7 +1384,7 @@ export default defineComponent({
                 },
                 labelCfg: {
                   style: {
-                    opacity: 0,
+                    opacity: 1,
                   },
                 },
               }
@@ -1403,25 +1406,25 @@ export default defineComponent({
         setTimeout(toFrontAnomalyEdge, 500);
       });
       /** serverCombo 移动展示name */
-      graph.on('combo:mouseenter', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', true);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 1); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseenter', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', true);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 1); // 悬停时显示标签
+      //   }
+      // });
       /** serverCombo 移出隐藏name */
-      graph.on('combo:mouseleave', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', false);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 0); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseleave', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', false);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 0); // 悬停时显示标签
+      //   }
+      // });
 
       graph.on('node:mouseenter', e => {
         const { item } = e;
@@ -1431,10 +1434,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 1); // 悬停时显示标签
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 1); // 悬停时显示标签
+          // }
           combo && graph.setItemState(combo, 'hover', true);
         }
         return;
@@ -1453,10 +1456,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 0);
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 0);
+          // }
         }
         graph.setItemState(nodeItem, 'hover', false);
       });
@@ -1593,6 +1596,7 @@ export default defineComponent({
     const handleUpdateAggregateConfig = async config => {
       aggregateConfig.value = config.aggregate_config;
       autoAggregate.value = config.auto_aggregate;
+      aggregateCluster.value = config.aggregate_cluster;
       await getGraphData();
       renderGraph();
     };

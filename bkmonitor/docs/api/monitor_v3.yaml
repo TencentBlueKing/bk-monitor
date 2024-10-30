@@ -1383,6 +1383,17 @@
   path: /v2/monitor_v3/search_alarm_strategy_v3/
   suggest_method: POST
 
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/switch_by_labels/
+  is_hidden: false
+  label: 根据标签批量启停告警策略
+  label_en: switch alarm strategy by labels
+  name: switch_alarm_strategy_by_labels
+  path: /v2/monitor_v3/switch_alarm_strategy_by_labels/
+  suggest_method: POST
+
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST

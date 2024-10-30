@@ -61,6 +61,7 @@
         :exclude-data-ids="excludeDataIds"
         :selections-count="selectionsCount"
         :empty-status-type="emptyStatusType"
+        :instance-loading="tableInstance.loading"
         @sort-change="handleSortChange"
         @limit-change="handleLimitChange"
         @page-change="handlePageChange"

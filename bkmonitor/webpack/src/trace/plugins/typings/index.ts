@@ -34,4 +34,5 @@ export * from './pie-chart';
 export * from './status-map';
 export * from './status-map';
 export * from './time-series';
+export * from './toolbox';
 export * from 'monitor-pc/pages/monitor-k8s/typings/book-mark';

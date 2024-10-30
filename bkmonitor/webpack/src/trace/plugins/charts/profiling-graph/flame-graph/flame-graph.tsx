@@ -148,7 +148,9 @@ export default defineComponent({
     const scaleValue = ref(100);
     const localIsCompared = ref(false);
 
-    const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
+    const diffPercentList = computed(() =>
+      COMPARE_DIFF_COLOR_LIST.map(val => `${val.value > 0 ? '+' : ''}${val.value}%`)
+    );
 
     watch(
       () => props.textDirection,
@@ -166,7 +168,7 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : (
+            : ((
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -181,7 +183,7 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.flame_data ?? false;
+              )?.flame_data ?? false);
 
           if (data) {
             if (props.diffTraceId) {

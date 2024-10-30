@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type MonitorEchartOptions, echarts } from '../typings/index';
+import { type MonitorEchartOptions, type ZrClickEvent, echarts } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';
@@ -42,6 +42,8 @@ export interface IChartProps {
   hoverAllTooltips?: boolean;
   // 禁用右键菜单默认事件
   isContextmenuPreventDefault?: boolean;
+  notMerge?: boolean;
+  toolbox?: string[];
 }
 export interface IChartEvent {
   // mouseover 事件
@@ -57,6 +59,10 @@ export interface IChartEvent {
   // contextmenu 事件
   onContextmenu?: (v: any) => void;
   onUpdateAxisPointer?: (v: any) => void;
+  onZrClick: (p: ZrClickEvent) => void;
+  onBrush?: (v: any) => void;
+  onBrushEnd?: (v: any) => void;
+  onLoaded?: () => void;
 }
 const MOUSE_EVENTS = [
   'click',
@@ -71,6 +77,9 @@ const MOUSE_EVENTS = [
   'updateAxisPointer',
   'showTip',
   'hideTip',
+  'brushEnd',
+  'brush',
+  'brushselected',
 ];
 @Component
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
@@ -83,6 +92,8 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Prop() width: number;
   // 禁用右键菜单默认事件
   @Prop({ default: false }) isContextmenuPreventDefault: boolean;
+  @Prop({ default: true }) notMerge: boolean;
+  @Prop({ default: () => ['dataZoom'] }) toolbox: string[];
   // 当前图表配置
   // curChartOption: MonitorEchartOptions = null;
   // // echarts 实例
@@ -147,6 +158,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       (this as any).instance.setOption(this.options);
       this.initPropsWatcher();
       this.initChartAction();
+      this.$emit('loaded');
     }
   }
   // resize
@@ -171,7 +183,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       'options',
       v => {
         this.initChart();
-        (this as any).instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
+        (this as any).instance.setOption(v, { notMerge: this.notMerge, lazyUpdate: false, silent: true });
         (this as any).curChartOption = (this as any).instance.getOption();
       },
       { deep: false }
@@ -179,11 +191,22 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   // 初始化chart Action
   initChartAction() {
-    this.dispatchAction({
-      type: 'takeGlobalCursor',
-      key: 'dataZoomSelect',
-      dataZoomSelectActive: true,
-    });
+    if (this.toolbox.includes('dataZoom')) {
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: true,
+      });
+    }
+    if (this.toolbox.includes('brush')) {
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'brush',
+        brushOption: {
+          brushType: 'lineX', // 指定选框类型
+        },
+      });
+    }
   }
   initChartEvent() {
     this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
@@ -204,17 +227,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.delegateMethod('dispose');
     (this as any).instance = null;
     this.isMouseOver = false;
-  }
-  handleDblClick(e: MouseEvent) {
-    e.preventDefault();
-    clearTimeout(this.clickTimer);
-    this.$emit('dblClick', e);
-  }
-  handleClick(e: MouseEvent) {
-    clearTimeout(this.clickTimer);
-    this.clickTimer = setTimeout(() => {
-      this.$emit('click', e);
-    }, 300);
   }
   handleMouseover() {
     this.isMouseOver = true;
@@ -238,8 +250,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
         class='chart-base'
-        onClick={this.handleClick}
-        onDblclick={this.handleDblClick}
         onMouseleave={this.handleMouseleave}
         onMouseover={this.handleMouseover}
       />

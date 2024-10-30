@@ -141,7 +141,7 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
-const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
+const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime', 'callOptions'];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -477,8 +477,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     );
   }
   /* 当前单图模式下dashboard-panel是否需要padding */
+  /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    return this.isSingleChart && this.localPanels?.[0]?.type === 'apm-relation-graph';
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee'];
+    return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
+    // return (
+    //   this.isSingleChart &&
+    //   (this.localPanels?.[0]?.type ===  ||
+    //     this.localPanels?.[0]?.type === 'apm-service-caller-callee')
+    // );
   }
   /** 是否含overviewPanels */
   get hasOverviewPanels() {
@@ -790,6 +797,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    */
   async handleTabChange(id: string, needLoading = true) {
     needLoading && (this.loading = true);
+    // variables 内的变量是当前tab页的筛选变量所以在tab切换后应该清空
+    if (this.dashboardId !== id) {
+      this.variables = {};
+    }
     this.dashboardId = id;
     this.handleGetPanelData(id, needLoading);
   }
@@ -1241,7 +1252,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.filters?.[key] ||
           this.viewOptions?.filters?.[key] ||
           this.$route.query[`filter-${key}`] ||
-          this.$route.query[`var-${key}`] ||
           this.defaultViewOptions?.filters?.[key];
       }
       this.filters = filters;
@@ -1265,9 +1275,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   handleResetRouteQuery() {
     const filters = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.variables).forEach(key => {
       filters[`var-${key}`] = this.variables[key];
     });
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.filters).forEach(key => {
       const value = this.filters[key];
       filters[`filter-${key}`] = typeof value === 'object' ? JSON.stringify(value) : value;
@@ -1275,6 +1287,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
     /** queryData无变更的字段则不同步到路由参数 */
     const queryData = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.queryData).forEach(key => {
       const isArrayVal = Array.isArray(this.queryData[key]);
       const targetVal = this.queryData[key];
@@ -1488,7 +1501,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.queryData.search = [];
       }
     }
-    this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
       this.isSceneDataError = false;

@@ -87,7 +87,7 @@ from apps.models import (
 )
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -376,6 +376,8 @@ class LogIndexSet(SoftDeleteModel):
     sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
 
     result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
+
+    max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
 
     def get_name(self):
         return self.index_set_name
@@ -1409,6 +1411,7 @@ class StorageClusterRecord(SoftDeleteModel):
 
 class UserIndexSetCustomConfig(models.Model):
     """用户索引集自定义配置"""
+
     username = models.CharField(_("用户name"), max_length=256)
     index_set_id = models.IntegerField(_("索引集ID"), null=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)

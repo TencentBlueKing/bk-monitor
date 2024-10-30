@@ -230,7 +230,7 @@ class BaseStatusResource(Resource):
 
     def get_metrics_json(self) -> List[Dict]:
         """查询采集插件配置的指标维度信息"""
-        metric_json = copy.deepcopy(self.collect_config.deployment_config.metrics)
+        metric_json: List[dict] = copy.deepcopy(self.collect_config.deployment_config.metrics)
         plugin = self.collect_config.plugin
         # 如果插件id在time_series_group能查到，则可以认为是分表的，否则走原有逻辑
         group_list = api.metadata.query_time_series_group(

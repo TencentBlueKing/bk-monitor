@@ -229,7 +229,33 @@
       align-items: center;
       font-size: 12px;
       $statusColors: #eb3635 #ff9c00 #3a84ff;
-
+      $namedStatusColors: (
+        ERROR: 1,
+        WARN: 2,
+        INFO: 3
+      );
+      @each $status, $index in $namedStatusColors {
+        // 基于状态名称的样式
+        .item-status-#{$status} {
+          $color: nth($statusColors, $index);
+          position: relative;
+          padding-left: 8px;
+          color: $color;
+      
+          &::before {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 4px;
+            height: 16px;
+            line-height: 32px;
+            content: '';
+            background-color: $color;
+            border-radius: 1px;
+            transform: translateY(-50%);
+          }
+        }
+      }
       @for $i from 1 through length($statusColors) {
         .item-status-#{$i} {
           position: relative;

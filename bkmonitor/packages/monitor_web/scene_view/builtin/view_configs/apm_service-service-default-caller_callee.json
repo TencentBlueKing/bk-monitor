@@ -1,0 +1,1496 @@
+{
+  "id": "caller_callee",
+  "type": "overview",
+  "mode": "custom",
+  "name": "调用分析",
+  "variables": [],
+  "panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "CallerCallee",
+      "type": "apm-service-caller-callee",
+      "instant": true,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "extra_panels": [
+        {
+          "id": "request_total",
+          "title": "请求量",
+          "type": "caller-line-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 1,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "请求量",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "fill_empty_dimensions": true,
+                "group_by_limit": {
+                  "method": "${method}",
+                  "metric_group_name": "trpc",
+                  "metric_cal_type": "${metric_cal_type}",
+                  "limit": "${limit}",
+                  "where": [
+                    {
+                      "key": "${server}",
+                      "method": "eq",
+                      "value": [
+                        "${service_name}"
+                      ],
+                      "condition": "and"
+                    }
+                  ],
+                  "options": {
+                    "trpc": {
+                      "kind": "${kind}",
+                      "temporality": "${temporality}"
+                    }
+                  }
+                },
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "table": "${table_id}",
+                    "metrics": [
+                      {
+                        "field": "${rpc_handled_total}",
+                        "method": "SUM",
+                        "alias": "A"
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "display": true,
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "extra_filter_dict": {},
+                "unify_query_param": {
+                  "expression": "A",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "table": "${table_id}",
+                      "metrics": [
+                        {
+                          "field": "${rpc_handled_total}",
+                          "method": "SUM",
+                          "alias": "A"
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "display": true,
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "",
+            "is_support_group_by": true,
+            "is_support_compare": true
+          }
+        },
+        {
+          "id": "success_rate",
+          "title": "成功率",
+          "type": "caller-line-chart",
+          "gridPos": {
+            "x": 8,
+            "y": 1,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "成功率",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "(a or b < bool  0) /  b * 100",
+                "fill_empty_dimensions": true,
+                "group_by_limit": {
+                  "method": "${method}",
+                  "metric_group_name": "trpc",
+                  "metric_cal_type": "${metric_cal_type}",
+                  "limit": "${limit}",
+                  "where": [
+                    {
+                      "key": "${server}",
+                      "method": "eq",
+                      "value": [
+                        "${service_name}"
+                      ],
+                      "condition": "and"
+                    }
+                  ],
+                  "options": {
+                    "trpc": {
+                      "kind": "${kind}",
+                      "temporality": "${temporality}"
+                    }
+                  }
+                },
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_total}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      },
+                      {
+                        "key": "code_type",
+                        "method": "eq",
+                        "value": [
+                          "success"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "b",
+                        "field": "${rpc_handled_total}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "extra_filter_dict": {},
+                "unify_query_param": {
+                  "expression": "(a or b < bool  0) /  b * 100",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_total}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        },
+                        {
+                          "key": "code_type",
+                          "method": "eq",
+                          "value": [
+                            "success"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    },
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "b",
+                          "field": "${rpc_handled_total}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "percent",
+            "is_support_group_by": true,
+            "is_support_compare": true
+          }
+        },
+        {
+          "id": "timeout_rate",
+          "title": "超时率",
+          "type": "caller-line-chart",
+          "gridPos": {
+            "x": 16,
+            "y": 1,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "超时率",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "(a or b < bool  0) /  b * 100",
+                "fill_empty_dimensions": true,
+                "group_by_limit": {
+                  "method": "${method}",
+                  "metric_group_name": "trpc",
+                  "metric_cal_type": "${metric_cal_type}",
+                  "limit": "${limit}",
+                  "where": [
+                    {
+                      "key": "${server}",
+                      "method": "eq",
+                      "value": [
+                        "${service_name}"
+                      ],
+                      "condition": "and"
+                    }
+                  ],
+                  "options": {
+                    "trpc": {
+                      "kind": "${kind}",
+                      "temporality": "${temporality}"
+                    }
+                  }
+                },
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_total}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      },
+                      {
+                        "key": "code_type",
+                        "method": "eq",
+                        "value": [
+                          "timeout"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "b",
+                        "field": "${rpc_handled_total}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "extra_filter_dict": {},
+                "unify_query_param": {
+                  "expression": "(a or b < bool  0) /  b * 100",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_total}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        },
+                        {
+                          "key": "code_type",
+                          "method": "eq",
+                          "value": [
+                            "timeout"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    },
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "b",
+                          "field": "${rpc_handled_total}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "percent",
+            "is_support_group_by": true,
+            "is_support_compare": true
+          }
+        },
+        {
+          "id": "avg_duration",
+          "title": "平均耗时",
+          "type": "caller-line-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 7,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "平均耗时",
+              "fill_empty_dimensions": true,
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "a / b",
+                "fill_empty_dimensions": true,
+                "group_by_limit": {
+                  "method": "${method}",
+                  "metric_group_name": "trpc",
+                  "metric_cal_type": "${metric_cal_type}",
+                  "limit": "${limit}",
+                  "where": [
+                    {
+                      "key": "${server}",
+                      "method": "eq",
+                      "value": [
+                        "${service_name}"
+                      ],
+                      "condition": "and"
+                    }
+                  ],
+                  "options": {
+                    "trpc": {
+                      "kind": "${kind}",
+                      "temporality": "${temporality}"
+                    }
+                  }
+                },
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_sum}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": false,
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": "${group_by}",
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "b",
+                        "field": "${rpc_handled_seconds_count}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "extra_filter_dict": {},
+                "unify_query_param": {
+                  "expression": "a / b",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_sum}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    },
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": false,
+                      "functions": [
+                        {
+                          "id": "time_shift",
+                          "params": [
+                            {
+                              "id": "n",
+                              "value": "$time_shift"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": "${group_by}",
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "b",
+                          "field": "${rpc_handled_seconds_count}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "s",
+            "is_support_group_by": true,
+            "is_support_compare": true
+          }
+        },
+        {
+          "id": "pxx_duration",
+          "title": "耗时分布",
+          "type": "caller-line-chart",
+          "gridPos": {
+            "x": 8,
+            "y": 7,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "P99",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": true,
+                    "functions": [
+                      {
+                        "id": "histogram_quantile",
+                        "params": [
+                          {
+                            "id": "scalar",
+                            "value": "0.99"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": [
+                      "le"
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_bucket}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "unify_query_param": {
+                  "expression": "A",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": true,
+                      "functions": [
+                        {
+                          "id": "histogram_quantile",
+                          "params": [
+                            {
+                              "id": "scalar",
+                              "value": "0.99"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": [
+                        "le"
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_bucket}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "P95",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": true,
+                    "functions": [
+                      {
+                        "id": "histogram_quantile",
+                        "params": [
+                          {
+                            "id": "scalar",
+                            "value": "0.95"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": [
+                      "le"
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_bucket}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "unify_query_param": {
+                  "expression": "A",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": true,
+                      "functions": [
+                        {
+                          "id": "histogram_quantile",
+                          "params": [
+                            {
+                              "id": "scalar",
+                              "value": "0.95"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": [
+                        "le"
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_bucket}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "P90",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": true,
+                    "functions": [
+                      {
+                        "id": "histogram_quantile",
+                        "params": [
+                          {
+                            "id": "scalar",
+                            "value": "0.90"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": [
+                      "le"
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_bucket}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "unify_query_param": {
+                  "expression": "A",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": true,
+                      "functions": [
+                        {
+                          "id": "histogram_quantile",
+                          "params": [
+                            {
+                              "id": "scalar",
+                              "value": "0.90"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": [
+                        "le"
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_bucket}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "alias": "P50",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": true,
+                    "functions": [
+                      {
+                        "id": "histogram_quantile",
+                        "params": [
+                          {
+                            "id": "scalar",
+                            "value": "0.50"
+                          }
+                        ]
+                      }
+                    ],
+                    "group_by": [
+                      "le"
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_bucket}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "unify_query_param": {
+                  "expression": "A",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": true,
+                      "functions": [
+                        {
+                          "id": "histogram_quantile",
+                          "params": [
+                            {
+                              "id": "scalar",
+                              "value": "0.50"
+                            }
+                          ]
+                        }
+                      ],
+                      "group_by": [
+                        "le"
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_bucket}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "s",
+            "is_support_group_by": false,
+            "is_support_compare": false
+          }
+        },
+        {
+          "id": "duration_heatmap",
+          "title": "耗时热力图",
+          "type": "apm_heatmap",
+          "gridPos": {
+            "x": 16,
+            "y": 7,
+            "w": 8,
+            "h": 6
+          },
+          "targets": [
+            {
+              "data_type": "time_series",
+              "api": "apm_metric.dynamicUnifyQuery",
+              "datasource": "time_series",
+              "data": {
+                "app_name": "${app_name}",
+                "expression": "A",
+                "query_configs": [
+                  {
+                    "data_source_label": "custom",
+                    "data_type_label": "time_series",
+                    "display": true,
+                    "functions": [],
+                    "group_by": [
+                      "le"
+                    ],
+                    "interval": 60,
+                    "interval_unit": "s",
+                    "metrics": [
+                      {
+                        "alias": "a",
+                        "field": "${rpc_handled_seconds_bucket}",
+                        "method": "SUM"
+                      }
+                    ],
+                    "table": "${table_id}",
+                    "time_field": "time",
+                    "filter_dict": {},
+                    "where": [
+                      {
+                        "key": "${server}",
+                        "method": "eq",
+                        "value": [
+                          "${service_name}"
+                        ],
+                        "condition": "and"
+                      }
+                    ]
+                  }
+                ],
+                "stack": "all",
+                "unify_query_param": {
+                  "expression": "A",
+                  "format": "heatmap",
+                  "query_configs": [
+                    {
+                      "data_source_label": "custom",
+                      "data_type_label": "time_series",
+                      "display": true,
+                      "functions": [],
+                      "group_by": [
+                        "le"
+                      ],
+                      "interval": 60,
+                      "interval_unit": "s",
+                      "metrics": [
+                        {
+                          "alias": "a",
+                          "field": "${rpc_handled_seconds_bucket}",
+                          "method": "SUM"
+                        }
+                      ],
+                      "table": "${table_id}",
+                      "time_field": "time",
+                      "filter_dict": {},
+                      "where": [
+                        {
+                          "key": "${server}",
+                          "method": "eq",
+                          "value": [
+                            "${service_name}"
+                          ],
+                          "condition": "and"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "options": {
+            "time_series": {
+              "hoverAllTooltips": true
+            },
+            "unit": "s",
+            "is_support_group_by": false,
+            "is_support_compare": false
+          }
+        }
+      ],
+      "options": {
+        "enable_group": false,
+        "show_panel_count": false,
+        "enable_index_list": true,
+        "common": {
+          "drawer": {
+            "total": {
+              "title": "请求量",
+              "panels": [
+                "request_total"
+              ]
+            },
+            "rate": {
+              "title": "成功异常超时率",
+              "panels": [
+                "success_rate",
+                "timeout_rate"
+              ]
+            },
+            "duration": {
+              "title": "耗时",
+              "panels": [
+                "avg_duration",
+                "pxx_duration"
+              ]
+            }
+          },
+          "time": {
+            "text": "时间",
+            "value": "time",
+            "interval": 60
+          },
+          "angle": {},
+          "statistics": {
+            "api": "apm_metric.calculateByRange",
+            "supported_calculation_types": [],
+            "data": {
+              "app_name": "${app_name}",
+              "metric_group_name": "trpc",
+              "metric_cal_type": "${metric_cal_type}",
+              "baseline": "a",
+              "where": [
+                {
+                  "key": "${server}",
+                  "method": "eq",
+                  "value": [
+                    "${service_name}"
+                  ],
+                  "condition": "and"
+                }
+              ],
+              "group_by": "${group_by}",
+              "time_shifts": [],
+              "options": {
+                "trpc": {
+                  "kind": "${kind}",
+                  "temporality": "${temporality}"
+                }
+              }
+            }
+          },
+          "group_by": {
+            "api": "apm_metric.queryDimensionsByLimit",
+            "supported_methods": [],
+            "supported_calculation_types": [],
+            "data": {
+              "app_name": "${app_name}",
+              "cal_type": "${method}",
+              "metric_group_name": "trpc",
+              "metric_cal_type": "${metric_cal_type}",
+              "limit": "${limit}",
+              "where": [
+                {
+                  "key": "${server}",
+                  "method": "eq",
+                  "value": [
+                    "${service_name}"
+                  ],
+                  "condition": "and"
+                }
+              ],
+              "group_by": "${group_by}",
+              "options": {
+                "trpc": {
+                  "kind": "${kind}",
+                  "temporality": "${temporality}"
+                }
+              }
+            }
+          },
+          "variables": {
+            "api": "apm_metric.getFieldOptionValues",
+            "data": {
+              "app_name": "${app_name}",
+              "field": "${field}",
+              "metric_field": "${rpc_handled_total}",
+              "where": [
+                {
+                  "key": "${server}",
+                  "method": "eq",
+                  "value": [
+                    "${service_name}"
+                  ],
+                  "condition": "and"
+                }
+              ],
+              "filter_dict": {}
+            }
+          }
+        },
+        "panel_tool": {
+          "method_select": false,
+          "compare_select": false,
+          "columns_toggle": false,
+          "interval_select": false,
+          "split_switcher": false
+        }
+      }
+    }
+  ],
+  "order": []
+}

@@ -219,18 +219,23 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <div
-              v-if="statusMap[row.status]"
-              class="status-col"
-            >
-              <span :class="'status-' + statusMap[row.status].status" />
-              <span
-                class="status-name"
-                @mouseenter="handleTipsMouseenter($event, row, 'Host')"
-                >{{ statusMap[row.status].name }}</span
-              >
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
             </div>
-            <span v-else>--</span>
+            <template v-else>
+              <div
+                v-if="statusMap[row.status]"
+                class="status-col"
+              >
+                <span :class="'status-' + statusMap[row.status].status" />
+                <span
+                  class="status-name"
+                  @mouseenter="handleTipsMouseenter($event, row, 'Host')"
+                  >{{ statusMap[row.status].name }}</span
+                >
+              </div>
+              <span v-else>--</span>
+            </template>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -332,7 +337,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
             <span
+              v-else
               :style="{
                 backgroundColor: getStatusLabelBgColor(row.alarm_count),
               }"
@@ -370,7 +379,10 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div v-else>
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
@@ -391,7 +403,10 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div v-else>
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
@@ -412,7 +427,10 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div v-else>
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
               </div>
@@ -433,7 +451,10 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div v-else>
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
@@ -454,7 +475,10 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div v-else>
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
@@ -484,7 +508,13 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <div class="process-module">
+            <div v-if="instanceLoading" class='table-skeleton-item'>
+              <div class='skeleton-element' />
+            </div>
+            <div
+              v-else
+              class="process-module"
+            >
               <div
                 v-if="row.component?.length"
                 class="process-module-wrap"
@@ -650,6 +680,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   @Prop({ default: () => [], type: Array }) readonly excludeDataIds: string[];
   @Prop({ default: 0, type: Number }) readonly selectionsCount: number;
   @Prop() readonly emptyStatusType: EmptyStatusType;
+  @Prop({ default: false, type: Boolean }) readonly instanceLoading;
 
   @Ref('table') readonly tableRef!: any;
   @Ref('tipsTpl') readonly tipsTplTef: any;
@@ -1328,6 +1359,18 @@ $processColors: #ea3636 #c4c6cc #63656e;
     &-pagination {
       flex: 1;
     }
+  }
+}
+
+// 二级骨架屏样式
+.table-skeleton-item {
+  position: relative;
+  height: 22px;
+  padding-right: 50px;
+
+  & > div {
+    min-width: 19px;
+    height: 100%;
   }
 }
 </style>

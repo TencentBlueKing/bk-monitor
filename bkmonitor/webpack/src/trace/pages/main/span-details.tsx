@@ -106,7 +106,7 @@ export default defineComponent({
     const showOriginalData = ref(false);
 
     /** 原始数据 */
-    const originalData = ref<Record<string, any> | null>(null);
+    const originalData = ref<null | Record<string, any>>(null);
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
@@ -115,7 +115,7 @@ export default defineComponent({
 
     const bizId = computed(() => useAppStore().bizId || 0);
 
-    const countOfInfo = ref<Record<TabName, number> | object>({});
+    const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
 
     // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
@@ -221,7 +221,7 @@ export default defineComponent({
         message,
         /* eslint-disable-next-line @typescript-eslint/naming-convention */
         stage_duration,
-      } = props.spanDetails as Span | any;
+      } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
       const originalDataList = [...store.traceData.original_data, ...store.compareTraceOriginalData];
@@ -525,7 +525,7 @@ export default defineComponent({
           }
         });
         return newData;
-      } catch (error) {
+      } catch {
         return obj;
       }
     }
@@ -691,7 +691,7 @@ export default defineComponent({
       if (typeof str === 'string') {
         try {
           return typeof JSON.parse(str) === 'object';
-        } catch (e) {
+        } catch {
           return false;
         }
       }
@@ -909,6 +909,14 @@ export default defineComponent({
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
+        if (result?.overview_panels?.length) {
+          result.overview_panels[0].options = {
+            ...result.overview_panels[0].options,
+            related_log_chart: {
+              defaultKeyword: traceId.value || '',
+            },
+          };
+        }
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {

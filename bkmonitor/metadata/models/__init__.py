@@ -16,6 +16,7 @@ from .bcs import (
     ReplaceConfig,
     ServiceMonitorInfo,
 )
+from .bkdata import BkBaseResultTable
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
@@ -153,4 +154,5 @@ __all__ = [
     # record rule
     "RecordRule",
     "ResultTableFlow",
+    "BkBaseResultTable",
 ]

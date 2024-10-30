@@ -1,0 +1,79 @@
+.tab-btn-group {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 0 2px 2px 0;
+  display: flex;
+  .tab-btn-group-item {
+    font-size: 12px;
+    height: 100%;
+    width: 50%;
+    cursor: pointer;
+    text-align: center;
+    color: #63656e;
+    border: 1px solid #c4c6cc;
+    margin: 0 0 0 -1px;
+    .tab-row-icon {
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    &:first-child {
+      border-radius: 2px 0 0 2px;
+    }
+    &:last-child {
+      border-left: none;
+      border-radius: 0 2px 2px 0;
+    }
+    &.active {
+      background: #e1ecff;
+      border: 1px solid #3a84ff;
+      color: #3a84ff;
+    }
+  }
+  &.group-block {
+    border: 1px solid #dcdee5;
+    padding: 1px;
+    border-radius: 2px;
+    .tab-btn-group-item {
+      border: none;
+      margin: 0;
+    }
+    .active {
+      background: #3a84ff;
+      border-radius: 2px;
+      color: #fff;
+    }
+  }
+  &.group-tab {
+    background: #fafbfd;
+    .tab-btn-group-item {
+      border: none;
+      margin: 0;
+      border-top: 2px solid #fafbfd;
+      position: relative;
+      margin-left: -1px;
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 1px;
+        height: 16px;
+        background: #dcdee5;
+        position: absolute;
+        top: 13px;
+        right: 0;
+      }
+      &:last-child {
+        &::before {
+          width: 0;
+        }
+      }
+    }
+    .active {
+      background: #e1ecff;
+      border-top: 2px solid #3a84ff;
+      color: #3a84ff;
+      &::before {
+        background: #e1ecff;
+      }
+    }
+  }
+}

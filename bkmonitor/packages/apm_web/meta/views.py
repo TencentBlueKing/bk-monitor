@@ -49,6 +49,7 @@ from apm_web.meta.resources import (
     QueryExceptionEventResource,
     QueryExceptionTypeGraphResource,
     SamplingOptionsResource,
+    ServiceConfigResource,
     ServiceDetailResource,
     ServiceListResource,
     SetupResource,
@@ -235,4 +236,5 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", CustomServiceDataSourceResource, endpoint="custom_service_url_list"),
         ResourceRoute("GET", GETDataEncodingResource, endpoint="data_encoding"),
         ResourceRoute("POST", SimpleServiceList, endpoint="simple_service_list"),
+        ResourceRoute("POST", ServiceConfigResource, endpoint="service_config"),
     ]

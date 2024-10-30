@@ -124,6 +124,11 @@ class GetSceneViewListResource(ApiAuthResource):
 
             for view in specific_views:
                 view_config = get_view_config(view, params)
+
+                hidden: bool = view_config.get("hidden") or False
+                if hidden:
+                    continue
+
                 result.append(
                     {
                         "id": view.id,

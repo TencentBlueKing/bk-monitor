@@ -349,7 +349,7 @@ class SearchHandler(object):
     @property
     def index_set(self):
         if not hasattr(self, "_index_set"):
-            self._index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
     def fields(self, scope="default"):
@@ -551,7 +551,7 @@ class SearchHandler(object):
             target_config, *_ = target_config
             return True, {**config.get("trace_config"), "field": target_config["field"]}
 
-    def search(self, search_type="default"):
+    def search(self, search_type="default", is_export=False):
         """
         search
         @param search_type:
@@ -574,6 +574,10 @@ class SearchHandler(object):
         if new_sort_list:
             self.sort_list = new_sort_list
 
+        # 下载操作
+        if is_export:
+            once_size = MAX_RESULT_WINDOW
+            self.size = MAX_RESULT_WINDOW
         result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
@@ -890,6 +894,9 @@ class SearchHandler(object):
     def _save_history(self, result, search_type):
         # 避免回显尴尬, 检索历史存原始未增强的query_string
         params = {"keyword": self.origin_query_string, "ip_chooser": self.ip_chooser, "addition": self.addition}
+        # 全局查询不记录
+        if (not self.origin_query_string or self.origin_query_string == "*") and not self.addition:
+            return
         self._cache_history(
             username=self.request_username,
             index_set_id=self.index_set_id,
@@ -1900,6 +1907,8 @@ class SearchHandler(object):
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
+        if self.index_set and self.index_set.max_analyzed_offset:
+            highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:
             highlight = {}

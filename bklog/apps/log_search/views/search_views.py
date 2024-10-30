@@ -538,7 +538,7 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(
             index_set_id, search_dict=data, export_fields=export_fields, export_log=True
         )
-        result = search_handler.search()
+        result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
             output.write(f"{json.dumps(item, ensure_ascii=False)}\n")

@@ -4,7 +4,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
 .profiling-flame-graph {
   &.has-diff-legend {
-    top: 32px;
     height: calc(100% - 20px);
   }
 
@@ -32,11 +31,10 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     user-select: none;
   }
 
-
   rect {
     &:hover {
       cursor: pointer;
-      opacity: .5;
+      opacity: 0.5;
     }
   }
 
@@ -83,7 +81,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       text-overflow: clip;
       white-space: nowrap;
     }
-
   }
 
   &-label {
@@ -108,9 +105,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 }
 
 .flame-graph-wrapper {
-  position: relative;
-  top: 0;
-  left: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -299,7 +293,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   display: flex;
   width: 1px;
   background-color: #eee;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .flame-graph-aside {
@@ -307,15 +301,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 }
 
 .profiling-compare-legend {
-  position: absolute;
-  z-index: 99;
   display: flex;
   padding: 8px 16px 0;
-  visibility: hidden;
-
-  &.is-show {
-    visibility: visible;
-  }
 
   .tag {
     width: 66px;
@@ -336,13 +323,14 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .percent-queue {
+    flex: 1;
     margin: 0 4px;
     border-radius: 2px;
 
     @include flex-center;
 
     .percent-tag {
-      width: 40px;
+      flex: 1;
       height: 22px;
       font-size: 12px;
       color: #000;

@@ -556,6 +556,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = []
+# APM V4 链路 metric data status 配置
+APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -1386,8 +1388,17 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
-ES_INDEX_ROTATION_SLEEP_INTERVAL = 30
+
+# 启用新版ES索引轮转的ES集群名单
+ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []
+# ES索引轮转间隔等待数值
+ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS = 3
+# ES索引轮转步长
 ES_INDEX_ROTATION_STEP = 50
+# ES采集项整体偏移量（小时）
+ES_STORAGE_OFFSET_HOURS = 8
+# ES请求默认超时时间（秒）
+METADATA_REQUEST_ES_TIMEOUT_SECONDS = 10
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
@@ -1399,7 +1410,7 @@ ENABLED_ACCESS_DATA_BATCH_PROCESS = False
 ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
 ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 
-# metadta请求es超时配置, 单位为秒，默认10秒
+# metadata请求es超时配置, 单位为秒，默认10秒
 # 格式: {default: 10, 集群域名: 20}
 METADATA_REQUEST_ES_TIMEOUT = {}
 
@@ -1424,8 +1435,12 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 
-# 集群内operator服务默认名称
-K8S_OPERATOR_SERVICE_NAME = "bkmonitor-operator-stack-operator"
+# 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": "bkmonitor-operator-bkte",
+#     "BCS-K8S-00001": "bkmonitor-operator",
+# }
+K8S_OPERATOR_DEPLOY_NAMESPACE = {}
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""

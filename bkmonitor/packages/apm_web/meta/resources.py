@@ -53,6 +53,7 @@ from apm_web.constants import (
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
+from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
@@ -245,7 +246,7 @@ class CreateApplicationResource(Resource):
 class CheckDuplicateNameResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"[0-9a-zA-Z_]")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
 
     class ResponseSerializer(serializers.Serializer):
         exists = serializers.BooleanField(label="是否存在")
@@ -1653,7 +1654,16 @@ class DataSamplingResource(Resource):
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
-        resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        try:
+            resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        except Exception as e:  # pylint: disable=broad-except
+            # APM 应用详情数据状态采样示例接口, 采样为空无需暴露底层具体错误信息给用户, 日志后台记录即可
+            logger.warning(
+                _("获取app: {app_id} {data_type} 采样数据失败, 详情: {detail}").format(
+                    app_id=app.application_id, data_type=telemetry_data_type, detail=e
+                )
+            )
+            return []
         return resp if resp else []
 
     def perform_request(self, validated_request_data):
@@ -1719,7 +1729,7 @@ class StorageStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).storage_status
                         else StorageStatus.ERROR
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = StorageStatus.ERROR
                     logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
@@ -1750,7 +1760,7 @@ class DataStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).get_data_count(start_time, end_time)
                         else DataStatus.NO_DATA
                     )
-                except ValueError as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = getattr(
                         app, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA
                     )
@@ -3073,3 +3083,21 @@ class SimpleServiceList(Resource):
             }
             for service in services
         ]
+
+
+class ServiceConfigResource(Resource):
+    bk_biz_id = serializers.IntegerField(label="业务id")
+    app_name = serializers.CharField(label="应用名称")
+    service_name = serializers.CharField(label="应用名称")
+    start_time = serializers.IntegerField(label="开始时间", required=False)
+    end_time = serializers.IntegerField(label="结束时间", required=False)
+
+    def perform_request(self, validate_data):
+        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+            metric_group.GroupEnum.TRPC, validate_data["bk_biz_id"], validate_data["app_name"]
+        )
+        return group.get_server_config(
+            server=validate_data["service_name"],
+            start_time=validate_data.get("start_time"),
+            end_time=validate_data.get("end_time"),
+        )

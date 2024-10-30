@@ -320,8 +320,6 @@ class UnifyQueryHandler(object):
         condition_list = []
         new_addition = self._combine_addition_ip_chooser(index_info=index_info)
         for addition in new_addition:
-            if len(field_list) != 0:
-                condition_list.append("and")
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
                 value_list = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
@@ -334,6 +332,8 @@ class UnifyQueryHandler(object):
                 if new_value_list:
                     self.query_string = " OR ".join(new_value_list)
                 continue
+            if field_list:
+                condition_list.append("and")
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
                     {

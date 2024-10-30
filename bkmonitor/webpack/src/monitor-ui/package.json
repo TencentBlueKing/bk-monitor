@@ -21,7 +21,7 @@
     "@toast-ui/editor": "^3.2.2",
     "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "big.js": "^6.2.1",
-    "bk-magic-vue": "2.5.9-beta.38",
+    "bk-magic-vue": "2.5.9-beta.45",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",
