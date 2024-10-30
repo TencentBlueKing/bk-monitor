@@ -246,7 +246,7 @@ class CreateApplicationResource(Resource):
 class CheckDuplicateNameResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
 
     class ResponseSerializer(serializers.Serializer):
         exists = serializers.BooleanField(label="是否存在")
