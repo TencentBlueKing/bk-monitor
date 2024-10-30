@@ -25,6 +25,8 @@ from django.db.models.aggregates import Avg, Sum
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
@@ -1677,7 +1679,14 @@ class GetKubernetesClusterChoices(KubernetesResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        # todo 空间支持
+        data = []
+        if bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCI.value)
+            if not space:
+                return data
+            bk_biz_id = space.bk_biz_id
+
         cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
         data = []
         for item in cluster_list:
