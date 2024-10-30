@@ -301,4 +301,6 @@ export default {
   原始大小: 'Original size',
   查看完整接口: 'View complete interface',
   已禁用: 'Disabled',
+  '存在表达式依赖，不能删除': 'Expression dependency exists, cannot be deleted',
+  '存在表达式,暂不支持转换': 'Expression exists, conversion is not supported temporarily',
 };

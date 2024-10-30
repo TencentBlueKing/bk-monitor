@@ -225,15 +225,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     );
   }
 
-  /** 是否填写了表达式 */
-  get useExpression() {
-    return this.isShowExpress && !!(this.expression.length || this.expFunctions.length);
-  }
-
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'Edit') {
-      if (this.useExpression) return false;
+      if (this.isShowExpress) return false;
       return this.metricData
         .filter(item => !!item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
@@ -634,8 +629,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <span
                   class={['metric-tab-right', { 'mode-disable': this.dataMode === 'realtime' || !this.canToPromql }]}
                   v-bk-tooltips={{
-                    content: this.useExpression
-                      ? this.$t('使用了表达式后无法切换PromQL')
+                    content: this.isShowExpress
+                      ? this.$t('存在表达式,暂不支持转换')
                       : this.$t('目前仅支持{0}切换PromQL', [
                           `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
                         ]),
