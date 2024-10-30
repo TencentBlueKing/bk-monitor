@@ -209,6 +209,8 @@
     }
 
     &.is-json {
+      display: flex;
+
       .bklog-root-field {
         display: inline-flex;
       }
