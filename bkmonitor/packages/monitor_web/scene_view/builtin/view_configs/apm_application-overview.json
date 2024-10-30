@@ -87,6 +87,7 @@
           "alias": "主调",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -179,6 +180,7 @@
           "alias": "被调",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -295,6 +297,7 @@
           "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -661,6 +664,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -763,6 +767,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -865,6 +870,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",

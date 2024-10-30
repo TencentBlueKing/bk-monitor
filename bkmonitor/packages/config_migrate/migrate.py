@@ -323,6 +323,10 @@ class ConfigMigrator:
                 "children"
             ]
         }
+        dynamic_groups: Dict[str, Dict] = {
+            dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
+            for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=self.bk_biz_id, bk_obj_id="host")
+        }
 
         # 将策略配置转换为yaml格式
         p = StrategyConfigParser(
@@ -332,6 +336,7 @@ class ConfigMigrator:
             topo_nodes=topo_nodes,
             service_templates=service_templates,
             set_templates=set_templates,
+            dynamic_groups=dynamic_groups,
         )
 
         strategies = {}

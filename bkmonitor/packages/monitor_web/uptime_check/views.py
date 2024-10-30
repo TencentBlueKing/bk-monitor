@@ -22,7 +22,9 @@ from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor.models import ApplicationConfig
 from monitor_api.filtersets import get_filterset
+from monitor_web.commons.data_access import UptimecheckDataAccessor
 from monitor_web.models.uptime_check import (
     UptimeCheckGroup,
     UptimeCheckNode,
@@ -295,6 +297,22 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
     _, filter_class = get_filterset(UptimeCheckTask)
     serializer_class = UptimeCheckTaskSerializer
+
+    def create(self, request, *args, **kwargs):
+        result = super().create(request, *args, **kwargs)
+        # 任务创建成功后，根据任务的协议类型，自动进行数据接入
+        task = UptimeCheckTask.objects.get(id=result.data["id"])
+        da = UptimecheckDataAccessor(task)
+        if not da.use_custom_report():
+            return result
+
+        config = ApplicationConfig.objects.filter(
+            bk_biz_id=task.bk_biz_id, key=f"access_uptime_check_{task.protocol}_biz_dataid"
+        ).first()
+        if not config or config.value != UptimecheckDataAccessor.version:
+            da.access()
+
+        return result
 
     def retrieve(self, request, *args, **kwargs):
         """
