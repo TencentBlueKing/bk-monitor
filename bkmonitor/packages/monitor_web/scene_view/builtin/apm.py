@@ -12,6 +12,7 @@ import copy
 import json
 from typing import Any, Dict, List, Optional, Set
 
+import arrow
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -30,6 +31,8 @@ from constants.apm import (
     TRPCMetricTag,
     TrpcTagDrillOperation,
 )
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -62,6 +65,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
+        "apm_service-service-default-custom_metric",
         "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
@@ -78,6 +82,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-topo",
         "service-default-db",
         "service-default-caller_callee",
+        "service-default-custom_metric",
     ]
     APM_TRACE_PREFIX = "apm_trace"
 
@@ -217,7 +222,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             ]
 
         # APM自定义指标
-        if builtin_view == "apm_application-custom_metric" and app_name:
+        if builtin_view == "apm_service-service-default-custom_metric" and app_name:
             try:
                 application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
                 result_table_id = application.fetch_datasource_info(
@@ -226,22 +231,96 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             except Application.DoesNotExist:
                 raise ValueError("Application does not exist")
 
-            overview_panels = []
-            overview_panel_template = view_config["overview_panels"][0]
-            for idx, i in enumerate(MetricListCache.objects.filter(result_table_id=result_table_id)):
+            metric_group_mapping = dict()
+            group_panel_template = view_config["overview_panels"][0]
+            metric_panel_template = group_panel_template["panels"].pop(0)
+
+            monitor_name_mapping = cls.get_monitor_name(bk_biz_id, result_table_id)
+            for idx, i in enumerate(
+                MetricListCache.objects.filter(
+                    result_table_id=result_table_id,
+                    data_source_label=DataSourceLabel.CUSTOM,
+                    data_type_label=DataTypeLabel.TIME_SERIES,
+                )
+            ):
+                # 过滤内置指标
+                if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
+                    continue
+
+                metric_type = "OpenTelemetry" if "scope_name" in [dim["id"] for dim in i.dimensions] else "Galileo"
                 variables = {
-                    "id": idx,
+                    "id": f"idx_{idx}",
                     "table_id": i.result_table_id,
                     "metric_field": i.metric_field,
+                    "readable_name": i.readable_name,
                     "data_source_label": i.data_source_label,
                     "data_type_label": i.data_type_label,
                 }
-                overview_panel = copy.deepcopy(overview_panel_template)
+                if metric_type == "Galileo":
+                    variables.update(
+                        {
+                            "filter_key_name": "target",
+                        }
+                    )
+                metric_panel = copy.deepcopy(metric_panel_template)
                 for var_name, var_value in variables.items():
-                    overview_panel = cls._replace_variable(overview_panel, "${{{}}}".format(var_name), var_value)
-                overview_panels.append(overview_panel)
-            view_config["overview_panels"] = overview_panels
+                    metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
+
+                # 根据dimension获取monitor_name监控项
+                monitor_name = monitor_name_mapping.get(i.metric_field)
+                if not monitor_name:
+                    continue
+                if monitor_name not in metric_group_mapping:
+                    group_id = len(metric_group_mapping)
+                    group_panel = copy.deepcopy(group_panel_template)
+                    group_variables = {
+                        "group_id": group_id,
+                        "group_name": monitor_name,
+                    }
+                    for var_name, var_value in group_variables.items():
+                        group_panel = cls._replace_variable(group_panel, "${{{}}}".format(var_name), var_value)
+                    metric_group_mapping[monitor_name] = group_panel
+                metric_group_mapping[monitor_name]["panels"].append(metric_panel)
+            view_config["overview_panels"] = list(metric_group_mapping.values())
         return view_config
+
+    @classmethod
+    def get_monitor_name(cls, bk_biz_id, result_table_id) -> dict:
+        promql = f"count by (scope_name, monitor_name, __name__) ({{__name__=~\"{result_table_id}:.*\"}})"
+        end_time = int(arrow.now().timestamp)
+        start_time = end_time - 3600
+        request_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.CUSTOM,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": promql,
+                    "interval": "auto",
+                    "alias": "a",
+                    "filter_dict": {},
+                }
+            ],
+            "slimit": 1000,
+            "expression": "",
+            "alias": "a",
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+
+        monitor_name_mapping = {}
+        try:
+            series = resource.grafana.graph_unify_query(request_params)["series"]
+            for metric in series:
+                metric_field = metric.get("dimensions", {}).get("__name__")
+                if metric_field:
+                    monitor_name_mapping[metric_field] = metric["dimensions"].get("monitor_name") or metric[
+                        "dimensions"
+                    ].get("scope_name")
+        except Exception:  # pylint: disable=broad-except
+            # Todo： 加日志
+            pass
+        return monitor_name_mapping
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
