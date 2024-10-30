@@ -31,7 +31,7 @@ class ActionProcessor(BaseActionProcessor):
         try:
             body = template_detail.get("body")
             body["content"] = json.loads(body.get("content"))
-        except BaseException as error:
+        except BaseException:
             pass
 
         try:
@@ -92,7 +92,7 @@ class ActionProcessor(BaseActionProcessor):
 
         except requests.Timeout:
             result = False
-            message = "webhook request timeout"
+            message = "webhook request timeout({})".format(self.failed_retry["timeout"])
         except Exception as e:
             result = False
             message = "webhook request failed, {}".format(e)
