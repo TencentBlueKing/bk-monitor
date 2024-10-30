@@ -77,6 +77,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -165,6 +166,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -569,6 +571,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -678,6 +681,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -787,6 +791,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -983,6 +988,7 @@
           "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1064,6 +1070,7 @@
           "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1437,6 +1444,7 @@
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1539,6 +1547,7 @@
           "alias": "P95",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1641,6 +1650,7 @@
           "alias": "P99",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
