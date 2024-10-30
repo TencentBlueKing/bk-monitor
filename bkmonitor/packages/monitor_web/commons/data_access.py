@@ -696,7 +696,7 @@ class UptimecheckDataAccessor:
 
     @property
     def data_label(self) -> str:
-        return f"uptimcheck_{self.task.protocol.lower()}"
+        return f"uptimecheck_{self.task.protocol.lower()}"
 
     @property
     def db_name(self) -> str:
