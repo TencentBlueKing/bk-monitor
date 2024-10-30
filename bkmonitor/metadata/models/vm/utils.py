@@ -28,6 +28,7 @@ from metadata.models import (
     DataSourceOption,
 )
 from metadata.models.data_link import DataLink
+from metadata.models.data_link.service import create_vm_data_link
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
     compose_bkdata_table_id,
@@ -444,7 +445,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     # 3. 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
-
     # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
     if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
@@ -459,14 +459,20 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     # 5. 接入 vm 链路
     try:
-        # create_vm_data_link(
-        #     table_id=table_id,
-        #     data_source=ds,
-        #     vm_cluster_name=vm_cluster_name,
-        #     bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        # )
-
-        create_bkbase_data_link(data_source=ds, monitor_table_id=table_id, storage_cluster_name=vm_cluster_name)
+        # 如果开启了新版接入方式，使用新版方式接入，灰度验证中
+        if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
+            logger.info(
+                "access_v2_bkdata_vm: enable_v2_access_bkbase_method is True, now try to create bkbase data link"
+            )
+            create_bkbase_data_link(data_source=ds, monitor_table_id=table_id, storage_cluster_name=vm_cluster_name)
+        else:
+            logger.info("access_v2_bkdata_vm: enable_v2_access_bkbase_method is False")
+            create_vm_data_link(
+                table_id=table_id,
+                data_source=ds,
+                vm_cluster_name=vm_cluster_name,
+                bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+            )
 
         # 创建联邦
         create_fed_vm_data_link(

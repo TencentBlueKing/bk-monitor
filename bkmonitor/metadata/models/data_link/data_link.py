@@ -187,7 +187,7 @@ class DataLink(models.Model):
         @param configs: 链路资源配置
         """
         try:
-            response = api.bkdata.apply_data_link(configs)
+            response = api.bkdata.apply_data_link({"config": configs})
             return response
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
