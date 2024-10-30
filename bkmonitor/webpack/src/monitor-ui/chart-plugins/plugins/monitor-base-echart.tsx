@@ -118,7 +118,10 @@ class MonitorBaseEchart extends BaseEchart {
                 position.left = +pos[0] - contentSize[0] - 20;
               }
               if (contentSize[0]) this.tooltipSize = contentSize;
-              return position;
+              return {
+                left: position.left,
+                top: position.top < -chartRect.y ? -chartRect.y : position.top,
+              };
             },
           },
         },
@@ -337,7 +340,7 @@ class MonitorBaseEchart extends BaseEchart {
         this.tableToolSize = this.tableToolSize
           ? Math.min(this.tableToolSize, this.tooltipSize[0])
           : this.tooltipSize[0];
-        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 2)}px;`;
+        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 2 - 20)}px;`;
       }
     }
     const lastItem = this.tooltipsContentLastItemFn?.(params);
