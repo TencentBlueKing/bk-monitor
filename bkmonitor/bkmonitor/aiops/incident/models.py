@@ -632,16 +632,13 @@ class IncidentSnapshot(object):
         :param edge1: 拓扑图边
         :param edge2: 拓扑图边
         """
-        if edge1.edge_cluster_id and not edge2.edge_cluster_id:
-            return True
-
-        if not edge1.edge_cluster_id and edge2.edge_cluster_id:
+        if bool(edge1.edge_cluster_id) ^ bool(edge2.edge_cluster_id):
             return True
 
         if edge1.edge_cluster_id and edge2.edge_cluster_id and edge1.edge_cluster_id != edge2.edge_cluster_id:
             return True
 
-        return True
+        return False
 
     def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
         """按照分组合并节点和边.
