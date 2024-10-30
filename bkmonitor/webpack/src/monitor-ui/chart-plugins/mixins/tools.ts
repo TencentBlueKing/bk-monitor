@@ -90,28 +90,45 @@ export default class ToolsMixin extends Vue {
           panel.collect_interval
         );
         const variablesService = new VariablesService({ ...scopedVars, interval });
+        // 如有表达式需传入到策略
+        const expressionList = [];
+        for (const t of targets) {
+          const expression = t?.data?.expression || '';
+          if (expression) {
+            expressionList.push({
+              active: false,
+              expression,
+            });
+          }
+        }
+        if (expressionList.length) {
+          expressionList[0].active = true;
+        }
         if (isAll) {
           result = {
             expression: '',
+            expressionList: expressionList,
             query_configs: [],
           };
           // biome-ignore lint/complexity/noForEach: <explanation>
           targets.forEach(target => {
             // biome-ignore lint/complexity/noForEach: <explanation>
             target.data?.query_configs?.forEach(queryConfig => {
-              const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
-              if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
-                let config = deepClone(queryConfig);
-                config = variablesService.transformVariables(config);
-                result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
-              }
+              // const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
+              // if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+              //   let config = deepClone(queryConfig);
+              //   config = variablesService.transformVariables(config);
+              //   result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+              // }
+              let config = deepClone(queryConfig);
+              config = variablesService.transformVariables(config);
+              result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
             });
           });
         } else {
           // biome-ignore lint/complexity/noForEach: <explanation>
           targets.forEach(target => {
-            // biome-ignore lint/complexity/noForEach: <explanation>
-            target.data?.query_configs?.forEach(queryConfig => {
+            for (const queryConfig of target.data?.query_configs || []) {
               if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
                 let config = deepClone(queryConfig);
                 config = variablesService.transformVariables(config);
@@ -119,8 +136,9 @@ export default class ToolsMixin extends Vue {
                   ...target.data,
                   query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
                 };
+                break;
               }
-            });
+            }
           });
         }
       }
