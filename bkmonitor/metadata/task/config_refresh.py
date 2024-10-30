@@ -298,12 +298,12 @@ def refresh_es_storage():
                 logger.info(
                     "refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", cluster_id, count
                 )
-                manage_es_storage.delay(cluster_id, cluster_storages)
+                manage_es_storage.delay(cluster_storages, cluster_id)
             else:
                 # 5.1 为每个集群创建批量任务
                 for s in range(start, count, step):
                     try:
-                        manage_es_storage.delay(cluster_id, cluster_storages[s : s + step])
+                        manage_es_storage.delay(cluster_storages[s : s + step], cluster_id)
                     except Exception as e:  # pylint: disable=broad-except
                         logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
         except Exception as e:  # pylint: disable=broad-except

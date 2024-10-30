@@ -161,7 +161,7 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages, cluster_id=None):
+def manage_es_storage(es_storages, cluster_id: int = None):
     """并发管理 ES 存储。"""
 
     # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理

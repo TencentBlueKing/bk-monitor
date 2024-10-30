@@ -2562,14 +2562,16 @@ class ESStorage(models.Model, StorageResultTable):
                     )
 
                 # 2.6 组装需要新增或删除的索引和别名的关联关系
-                actions = [
+                add_actions = [
                     {"add": {"index": last_index_name, "alias": round_alias_name}},
                     {"add": {"index": last_index_name, "alias": round_read_alias_name}},
                 ]
+                delete_actions = []
+
                 # 2.7 如果需要删除的列表不为空，则添加对应的 `remove` 操作
                 if delete_list:
                     for _index in delete_list:
-                        actions.append({"remove": {"index": _index, "alias": round_alias_name}})
+                        delete_actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
                         "create_or_update_aliases:table_id->[%s],last_index->[%s],index->[%s],alias->[%s] need delete",
                         self.table_id,
@@ -2578,12 +2580,23 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                # 2.8 需要将循环中的别名都指向了最新的index
-                response = self.es_client.indices.update_aliases(body={"actions": actions})
+                # 2.8 先执行删除索引-别名绑定关系操作
+                response = self.es_client.indices.update_aliases(body={"actions": delete_actions})
                 logger.info(
-                    "create_or_update_aliases: table_id->[%s] actions->[%s] update alias response [%s]",
+                    "create_or_update_aliases: table_id->[%s] try to delete old index binding,delete_actions->[%s] "
+                    "update alias response [%s]",
                     self.table_id,
-                    actions,
+                    delete_actions,
+                    response,
+                )
+
+                # 2.9 执行索引-别名绑定关系建立操作
+                response = self.es_client.indices.update_aliases(body={"actions": add_actions})
+                logger.info(
+                    "create_or_update_aliases: table_id->[%s] try to delete old index binding,delete_actions->[%s] "
+                    "update alias response [%s]",
+                    self.table_id,
+                    delete_actions,
                     response,
                 )
 
@@ -2660,12 +2673,17 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.is_index_enable():
             return False
 
+        logger.info("create_index_v2: table_id->[%s] start to create index", self.table_id)
         now_datetime_object = self.now
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
+        logger.info("create_index_v2: table_id->[%s] start to create index->[%s]", self.table_id, new_index_name)
         response = self._create_index_with_retry(new_index_name)
         logger.info(
-            "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
+            "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
+            self.table_id,
+            new_index_name,
+            response,
         )
         return True
 
