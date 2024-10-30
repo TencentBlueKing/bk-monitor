@@ -38,13 +38,15 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .percent-queue {
+    flex: 1;
     margin: 0 4px;
     border-radius: 2px;
 
     @include flex-center;
 
     .percent-tag {
-      width: 40px;
+      // width: 40px;
+      flex: 1;
       height: 22px;
       font-size: 12px;
       color: #000;

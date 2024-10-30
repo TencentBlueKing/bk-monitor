@@ -23,7 +23,8 @@ ping -n 2 127.0.0.1>nul
 echo process tried to start
 echo checking process status...
 
-wmic process where name="{{ plugin_id }}.exe" get name,executablepath,processid | find "%script_path%">nul
+set "escape_script_path=!script_path:\=\\!"
+wmic process where name="{{ plugin_id }}.exe" get name,executablepath,processid | findstr "%escape_script_path%">nul
 
 if %ERRORLEVEL% NEQ 0 (
   echo process exited too quickly
@@ -31,7 +32,7 @@ if %ERRORLEVEL% NEQ 0 (
   type %log_filepath%
   exit 1
 )
-for /f "tokens=1,2,* delims= " %%a in ('wmic process where "name='{{ plugin_id }}.exe'" get Name^,executablepath^,processid ^| find "%script_path%"') do (
+for /f "tokens=1,2,* delims= " %%a in ('wmic process where "name='{{ plugin_id }}.exe'" get Name^,executablepath^,processid ^| findstr "%escape_script_path%"') do (
   echo process started successfully, pid:%%c
   echo %%c >%pid_path%)
 

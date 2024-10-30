@@ -4,13 +4,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsxFactory": "VueTsxSupport",
-    "outDir": "./dist",
-    "paths": {
-      "@/*": ["./*"],
-      "@router/*": ["./router/*"],
-      "@store/*": ["./store/*"],
-      "@page/*": ["./page/*"],
-      "@static/*": ["./static/*"]
-    }
+    "outDir": "./dist"
+    // "paths": {
+    //   "@/*": ["./*"],
+    //   "@router/*": ["./router/*"],
+    //   "@store/*": ["./store/*"],
+    //   "@page/*": ["./page/*"],
+    //   "@static/*": ["./static/*"]
+    // }
   }
 }

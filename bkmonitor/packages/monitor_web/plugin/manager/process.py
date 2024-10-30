@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import List
+
 from django.utils.translation import ugettext as _
 
 from constants.strategy import DataTarget
@@ -113,7 +115,7 @@ class ProcessPluginManager(BuiltInPluginManager):
         "port": {"metric_list": ["alive"], "dimensions": ["listen_address", "listen_port", "process_name", "pid"]},
     }
 
-    def gen_metric_info(self):
+    def gen_metric_info(self) -> List[dict]:
         metrics = []
         for table_name, field_info in self.metric_info.items():
             field_list = []
@@ -234,7 +236,7 @@ class ProcessPluginManager(BuiltInPluginManager):
             "scenario": self.label,
             "table_id": self.get_table_id(ts_name),
             "metric_info_list": self.get_metric_info_list(ts_name),
-            "data_label": self.data_name_suffix(ts_name),
+            "data_label": "process",
             # 进程采集预定义了table_id，不能使用单指标单表模式
             "is_split_measurement": False,
         }

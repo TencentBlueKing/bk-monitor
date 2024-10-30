@@ -551,7 +551,7 @@ class SearchHandler(object):
             target_config, *_ = target_config
             return True, {**config.get("trace_config"), "field": target_config["field"]}
 
-    def search(self, search_type="default"):
+    def search(self, search_type="default", is_export=False):
         """
         search
         @param search_type:
@@ -574,6 +574,10 @@ class SearchHandler(object):
         if new_sort_list:
             self.sort_list = new_sort_list
 
+        # 下载操作
+        if is_export:
+            once_size = MAX_RESULT_WINDOW
+            self.size = MAX_RESULT_WINDOW
         result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW

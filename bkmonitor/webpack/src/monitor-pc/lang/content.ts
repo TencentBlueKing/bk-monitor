@@ -272,4 +272,15 @@ export default {
     'Full-link tracking from user request to service response, tracking the calling situation of the request between multiple services, helping business identify performance bottlenecks and delay reasons',
   '通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化':
     'By analyzing function call stacks and memory allocation, find performance bottlenecks and optimize them accordingly',
+  最多选择不超过两个日期: 'Select no more than two dates at most',
+  自定义日期: 'Custom date',
+  汇总: 'Summary',
+  维度趋势图: 'Dimension trend chart',
+  '正在加载中...': 'Loading...',
+  成功率: 'Success rate',
+  异常率: 'Exception rate',
+  超时率: 'Timeout rate',
+  P50平均耗时: 'P50 average time',
+  P95平均耗时: 'P95 average time',
+  P99平均耗时: 'P99 average time',
 };

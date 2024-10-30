@@ -15,8 +15,10 @@ import logging
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -38,6 +40,7 @@ from apm_web.constants import (
     component_where_mapping,
 )
 from apm_web.db.db_utils import get_service_from_params
+from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
@@ -72,12 +75,19 @@ from apm_web.utils import (
     get_bar_interval_number,
     handle_filter_fields,
 )
+from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions, q_to_dict
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import ApmMetrics, OtlpKey, SpanKind, TelemetryDataType
+from constants.apm import (
+    ApmMetrics,
+    MetricTemporality,
+    OtlpKey,
+    SpanKind,
+    TelemetryDataType,
+)
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
@@ -145,6 +155,40 @@ class DynamicUnifyQueryResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class GroupByLimitSerializer(serializers.Serializer):
+            class OptionsSerializer(serializers.Serializer):
+                class TrpcSerializer(serializers.Serializer):
+                    kind = serializers.ChoiceField(label="调用类型", choices=SeriesAliasType.get_choices(), required=True)
+                    temporality = serializers.ChoiceField(
+                        label="时间性", required=True, choices=MetricTemporality.choices()
+                    )
+
+                trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+            limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+            filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+            where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+            method = serializers.ChoiceField(
+                label="计算类型",
+                required=False,
+                default=metric_group.CalculationType.TOP_N,
+                choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+            )
+            metric_group_name = serializers.ChoiceField(
+                label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+            )
+            metric_cal_type = serializers.ChoiceField(
+                label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+            )
+            options = OptionsSerializer(label="配置", required=False, default={})
+
+            def validate(self, attrs):
+                # 合并查询条件
+                attrs["filter_dict"] = q_to_dict(
+                    conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+                )
+                return attrs
+
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", default=False)
         unify_query_param = serializers.DictField(label="unify-query参数")
@@ -154,13 +198,15 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
         fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
+        fill_empty_dimensions = serializers.BooleanField(label="是否需要不存在的维度(用于需要展示/下钻空维度的场景)", required=False)
         alias_prefix = serializers.ChoiceField(
             label="动态主被调当前值",
             choices=SeriesAliasType.get_choices(),
             required=False,
         )
         alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
-        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False)
+        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False, default={})
+        group_by_limit = GroupByLimitSerializer(label="聚合排序", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -180,6 +226,24 @@ class DynamicUnifyQueryResource(Resource):
                 config["interval"] = interval
 
             require_fill_series = True
+
+        if validate_data.get("group_by_limit"):
+            group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
+                {
+                    "bk_biz_id": validate_data["bk_biz_id"],
+                    "app_name": validate_data["app_name"],
+                    "method": validate_data["group_by_limit"]["method"],
+                    "metric_group_name": validate_data["group_by_limit"]["metric_group_name"],
+                    "metric_cal_type": validate_data["group_by_limit"]["metric_cal_type"],
+                    "group_by": unify_query_params["query_configs"][0]["group_by"],
+                    "limit": validate_data["group_by_limit"]["limit"],
+                    "filter_dict": validate_data["group_by_limit"]["filter_dict"],
+                    "options": validate_data["group_by_limit"]["options"],
+                    "start_time": validate_data["start_time"],
+                    "end_time": validate_data["end_time"],
+                }
+            )["extra_filter_dict"]
+            validate_data["extra_filter_dict"].update(group_limit_filter_dict)
 
         if validate_data.get("extra_filter_dict"):
             for config in unify_query_params["query_configs"]:
@@ -309,6 +373,20 @@ class DynamicUnifyQueryResource(Resource):
 
         # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
         response["query_config"] = query_params
+        if validate_data.get("fill_empty_dimensions"):
+            try:
+                dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+            except (IndexError, KeyError):
+                # 找不到 group by，就不做填充了
+                return response
+
+            for i in response.get("series", []):
+                if "dimensions" not in i:
+                    continue
+                for dimension in dimension_fields:
+                    if dimension not in i["dimensions"]:
+                        i["dimensions"][dimension] = ""
+
         return response
 
 
@@ -2809,3 +2887,282 @@ class MetricDetailStatisticsResource(Resource):
         )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)
+
+
+class GetFieldOptionValuesResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        limit = serializers.IntegerField(label="查询数量", default=10000, required=False)
+        field = serializers.CharField(label="字段")
+        metric_field = serializers.CharField(label="指标")
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+
+        metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
+        option_values: List[str] = metric_helper.get_field_option_values(
+            metric_field=validated_request_data["metric_field"],
+            field=validated_request_data["field"],
+            filter_dict=validated_request_data.get("filter_dict"),
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+        )
+        return [{"value": value, "text": value} for value in sorted(option_values)]
+
+
+class CalculateByRangeResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+
+        ZERO_TIME_SHIFT: str = "0s"
+
+        class OptionsSerializer(serializers.Serializer):
+            class TrpcSerializer(serializers.Serializer):
+                kind = serializers.ChoiceField(
+                    label="调用类型",
+                    choices=SeriesAliasType.get_choices(),
+                    required=True,
+                )
+                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+
+            trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        metric_group_name = serializers.ChoiceField(
+            label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+        )
+        metric_cal_type = serializers.ChoiceField(
+            label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+        )
+
+        baseline = serializers.CharField(label="对比基准", required=False, default=ZERO_TIME_SHIFT)
+        time_shifts = serializers.ListSerializer(
+            label="时间偏移", required=False, default=[], child=serializers.CharField()
+        )
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        options = OptionsSerializer(label="配置", required=False, default={})
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+
+        def validate(self, attrs):
+            attrs["time_shifts"] = list(set(attrs["time_shifts"]))
+            if self.ZERO_TIME_SHIFT not in attrs["time_shifts"]:
+                attrs["time_shifts"].append(self.ZERO_TIME_SHIFT)
+
+            # 当前时间不计入对比次数
+            if len(attrs["time_shifts"]) > 3:
+                raise ValueError(_("最多支持两次时间对比"))
+
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    @classmethod
+    def _merge(
+        cls, group_fields: List[str], alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]]
+    ) -> List[Dict[str, Any]]:
+        group_key_record_map: Dict[Tuple, Dict[str, Any]] = {}
+        # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
+        for alias, records in alias_aggregated_records_map.items():
+            for record in records:
+                record["time"] = record["_time_"] // 1000
+                group_key: Tuple = tuple((field, record.get(field) or "") for field in group_fields)
+                group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
+
+        merged_records: List[Dict[str, Any]] = []
+        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        for group_key, record in group_key_record_map.items():
+            # 对合并后不存在的数值补 None
+            processed_record: Dict[str, Any] = {"dimensions": dict(group_key)}
+            for alias in aliases:
+                processed_record[alias] = record.get(alias)
+            merged_records.append(processed_record)
+        return merged_records
+
+    @classmethod
+    def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
+        for record in records:
+            for alias in aliases:
+                if record[baseline] == 0 and record[alias] == 0:
+                    # 两个数据都为 0 时，设定增长率为 0%
+                    record.setdefault("growth_rates", {})[alias] = 0
+                    continue
+                elif not record[alias] or record[baseline] is None:
+                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
+                    record.setdefault("growth_rates", {})[alias] = None
+                    continue
+
+                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
+
+    @classmethod
+    def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
+        alias_total_map: Dict[str, int] = defaultdict(int)
+        for record in records:
+            for alias in aliases:
+                alias_total_map[alias] += record[alias] or 0
+
+        for record in records:
+            for alias in aliases:
+                if alias_total_map[alias] == 0 or record[alias] is None:
+                    # 总数为 0 或者 数据为空 的情况下，直接置空
+                    record.setdefault("proportions", {})[alias] = None
+                    continue
+                record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
+
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions") or {}:
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
+
+    def perform_request(self, validated_request_data):
+        def _collect(_alias: Optional[str], **_kwargs):
+            _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+                group_name,
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                group_by=group_fields,
+                filter_dict=validated_request_data.get("filter_dict"),
+                time_shift=_alias,
+                **(validated_request_data["options"].get(group_name) or {}),
+            )
+            alias_aggregated_records_map[_alias] = _group.handle(validated_request_data["metric_cal_type"], **_kwargs)
+
+        baseline: str = validated_request_data["baseline"]
+        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
+        group_name: str = validated_request_data["metric_group_name"]
+        group_fields: List[str] = validated_request_data.get("group_by") or []
+
+        run_threads(
+            [
+                InheritParentThread(
+                    target=_collect,
+                    args=(time_shift,),
+                    kwargs={
+                        "start_time": validated_request_data.get("start_time"),
+                        "end_time": validated_request_data.get("end_time"),
+                    },
+                )
+                for time_shift in validated_request_data["time_shifts"]
+            ]
+        )
+
+        # 合并数据
+        merged_records: List[Dict[str, Any]] = self._merge(group_fields, alias_aggregated_records_map)
+
+        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        # 计算增长率
+        self._process_growth_rates(baseline, aliases, merged_records)
+        if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
+            # 计算占比
+            self._process_proportions(aliases, merged_records)
+
+        return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
+
+
+class QueryDimensionsByLimitResource(Resource):
+    CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
+
+    class RequestSerializer(serializers.Serializer):
+        class OptionsSerializer(serializers.Serializer):
+            class TrpcSerializer(serializers.Serializer):
+                kind = serializers.ChoiceField(
+                    label="调用类型",
+                    choices=SeriesAliasType.get_choices(),
+                    required=True,
+                )
+                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+
+            trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        method = serializers.ChoiceField(
+            label="计算类型",
+            required=False,
+            default=metric_group.CalculationType.TOP_N,
+            choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+        )
+        metric_group_name = serializers.ChoiceField(
+            label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+        )
+        metric_cal_type = serializers.ChoiceField(
+            label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+        )
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        options = OptionsSerializer(label="配置", required=False, default={})
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    @classmethod
+    def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
+        group_key_result_map: Dict[Tuple, Any] = {}
+        for record in records:
+            group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
+            group_key_result_map[group_key] = record["_result_"]
+
+        processed_records: List[Dict[str, Any]] = []
+        for group_key, result in group_key_result_map.items():
+            processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+        q: Q = Q()
+        for record in records:
+            # 处理维度值为 None 的情况，改写为 xx=“”，避免忽略掉这条线
+            kv: Dict[str, Any] = {k: v or "" for k, v in record["dimensions"].items()}
+            if kv:
+                q = q | Q(**kv)
+        return q_to_dict(q)
+
+    def perform_request(self, validated_request_data):
+        group_name: str = validated_request_data["metric_group_name"]
+        group_fields: List[str] = validated_request_data.get("group_by") or []
+        group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+            group_name,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            group_by=group_fields,
+            filter_dict=validated_request_data.get("filter_dict"),
+            **(validated_request_data["options"].get(group_name) or {}),
+        )
+        records: List[Dict[str, Any]] = group.handle(
+            validated_request_data["method"],
+            qs_type=validated_request_data["metric_cal_type"],
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data.get("start_time"),
+            end_time=validated_request_data.get("end_time"),
+        )
+        records = self._format(group_fields, records)
+        return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}

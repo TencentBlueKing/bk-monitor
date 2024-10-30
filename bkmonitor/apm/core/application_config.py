@@ -505,7 +505,7 @@ class ApplicationConfig(BkCollectorConfig):
     def deploy_to_k8s(self, cluster_id: str, application_config: str):
         def secret_subconfig_name(app_id: int):
             # 1-20, 21-40, 41-60, ......
-            count_boundary = app_id // BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
+            count_boundary = (app_id - 1) // BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
             min_boundary = count_boundary * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT + 1
             max_boundary = (count_boundary + 1) * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
             return BkCollectorComp.SECRET_SUBCONFIG_APM_NAME.format(min_boundary, max_boundary)
