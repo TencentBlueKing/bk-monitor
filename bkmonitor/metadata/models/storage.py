@@ -2587,7 +2587,7 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                if delete_list:
+                if delete_actions:
                     # 2.8 先执行删除索引-别名绑定关系操作
                     logger.info(
                         "create_or_update_aliases: table_id->[%s] try to delete old index binding,actions->[%s]",
