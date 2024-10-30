@@ -34,7 +34,14 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
-from tenacity import RetryError, retry, retry_if_result, stop_after_attempt, wait_fixed
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_result,
+    stop_after_attempt,
+    wait_exponential,
+    wait_fixed,
+)
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -2580,25 +2587,44 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                # 2.8 先执行删除索引-别名绑定关系操作
-                response = self.es_client.indices.update_aliases(body={"actions": delete_actions})
-                logger.info(
-                    "create_or_update_aliases: table_id->[%s] try to delete old index binding,delete_actions->[%s] "
-                    "update alias response [%s]",
-                    self.table_id,
-                    delete_actions,
-                    response,
-                )
+                if delete_list:
+                    # 2.8 先执行删除索引-别名绑定关系操作
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] try to delete old index binding,actions->[%s]",
+                        self.table_id,
+                        delete_actions,
+                    )
+                    try:
+                        self._update_aliases_with_retry(actions=delete_actions, new_index_name=last_index_name)
+                        logger.info(
+                            "create_or_update_aliases: table_id->[%s] delete old index binding success", self.table_id
+                        )
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.error(
+                            "create_or_update_aliases: table_id->[%s] try to delete old index binding failed,"
+                            "error->[%s]",
+                            self.table_id,
+                            e,
+                        )
+                        raise e
 
                 # 2.9 执行索引-别名绑定关系建立操作
-                response = self.es_client.indices.update_aliases(body={"actions": add_actions})
                 logger.info(
-                    "create_or_update_aliases: table_id->[%s] try to delete old index binding,delete_actions->[%s] "
-                    "update alias response [%s]",
+                    "create_or_update_aliases: table_id->[%s] try to add new index binding,actions->[%s]",
                     self.table_id,
-                    delete_actions,
-                    response,
+                    add_actions,
                 )
+                try:
+                    self._update_aliases_with_retry(actions=add_actions, new_index_name=last_index_name)
+                    logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error(
+                        "create_or_update_aliases: table_id->[%s] try to delete old index binding failed,"
+                        "error->[%s]",
+                        self.table_id,
+                        e,
+                    )
+                    raise e
 
                 logger.info(
                     "create_or_update_aliases: table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2848,7 +2874,46 @@ class ESStorage(models.Model, StorageResultTable):
         )
         return True
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def _update_aliases_with_retry(self, actions, new_index_name):
+        """
+        针对 别名-索引 的更新操作，添加重试机制，等待时间间隔呈指数增长 1 -> 2 -> 4 -> 8
+        若new_index_name未就绪，不进行任何操作！
+        @param actions 操作请求
+        @param new_index_name 新索引名称
+        """
+        logger.info(
+            "update_aliases_with_retry: table_id->[%s] try to do actions->[%s],new_index->[%s]",
+            self.table_id,
+            actions,
+            new_index_name,
+        )
+        try:
+            is_ready = self.is_index_ready(new_index_name)
+        except RetryError:  # 若重试后依然失败，则认为未就绪
+            is_ready = False
+
+        if not is_ready:
+            logger.info(
+                "update_aliases_with_retry: table_id->[%s],actions->[%s],new_index->[%s] is not ready, will not update",
+                self.table_id,
+                actions,
+                new_index_name,
+            )
+            return
+
+        try:
+            response = self.es_client.indices.update_aliases(
+                body={"actions": actions}, request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS
+            )
+            logger.info(
+                "update_aliases_with_retry: table_id->[%s] update aliases response [%s]", self.table_id, response
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_aliases_with_retry: table_id->[%s] update aliases error [%s]", self.table_id, e)
+            raise e
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
     def _create_index_with_retry(self, new_index_name):
         # 判断index是否已经存在，如果存在则不创建
         if self.es_client.indices.exists(index=new_index_name):
