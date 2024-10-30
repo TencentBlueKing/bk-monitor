@@ -86,6 +86,10 @@ export default class QuickOpenCluster extends tsc<IProps> {
     return this.$store.state.bkBizId;
   }
 
+  get isExternal() {
+    return this.$store.state.isExternal;
+  }
+
   @Emit('cluster-created')
   handleCreateCluster() {
     return true;
@@ -331,13 +335,15 @@ export default class QuickOpenCluster extends tsc<IProps> {
             2. {$i18n.t('可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本')}
           </p>
           <p>3. {$i18n.t('当版本变更时，可快速定位变更后新增问题')}</p>
-          <bk-button
-            style='margin-top: 32px;'
-            theme='primary'
-            onClick={this.handleAccessCluster}
-          >
-            {$i18n.t('接入日志聚类')}
-          </bk-button>
+          {!this.isExternal && (
+            <bk-button
+              style='margin-top: 32px;'
+              theme='primary'
+              onClick={this.handleAccessCluster}
+            >
+              {$i18n.t('接入日志聚类')}
+            </bk-button>
+          )}
         </div>
         <div class='right-box'>
           <img src={clusterImg} />
