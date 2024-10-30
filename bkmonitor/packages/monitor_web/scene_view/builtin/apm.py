@@ -19,7 +19,6 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
-from core.drf_resource import api
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -137,10 +136,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                 view_config = cls._replace_variable(view_config, "${span_id}", span_id)
 
-                span = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
-                if span:
-                    cls._handle_log_chart_keyword(view_config, span)
-
             return view_config
 
         # APM观测场景处
@@ -154,16 +149,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             return cls._get_non_host_view_config(builtin_view, params)
 
         return view_config
-
-    @classmethod
-    def _handle_log_chart_keyword(cls, view_config, span_host):
-        """
-        处理日志标签页默认的查询条件
-        对于Trace检索日志处, 使用 trace_id 作为查询关键词
-        """
-
-        for overview_panel in view_config.get("overview_panels", []):
-            overview_panel["options"] = {"related_log_chart": {"defaultKeyword": span_host["trace_id"]}}
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
