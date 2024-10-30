@@ -2597,7 +2597,7 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error(
-                        "create_or_update_aliases: table_id->[%s] try to delete old index binding failed,"
+                        "create_or_update_aliases: table_id->[%s] try to add index binding failed,"
                         "error->[%s]",
                         self.table_id,
                         e,
@@ -2648,7 +2648,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             # 获取索引的健康状态
             logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
-            health = self.es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
+            health = self.es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS)
             logger.info(
                 "is_index_ready:table_id->[%s],index_name->[%s],index_health_detail->[%s]",
                 self.table_id,
