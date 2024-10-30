@@ -673,7 +673,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             )
           )}
         </div>
-        {!this.isLoading && this.showTableList.length > 1 && (
+        {this.tableTotal > this.pagination.limit && (
           <bk-pagination
             class='mt-8'
             align='right'
