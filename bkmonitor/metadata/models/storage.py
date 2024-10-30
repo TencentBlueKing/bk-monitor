@@ -2639,7 +2639,7 @@ class ESStorage(models.Model, StorageResultTable):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_fixed(3),
-        retry=retry_if_result(lambda result: result is False),  # 使用 lambda 表达式
+        retry=retry_if_result(lambda result: result is False),
     )
     def is_index_ready(self, index_name: str) -> bool:
         """
@@ -2655,14 +2655,16 @@ class ESStorage(models.Model, StorageResultTable):
                 index_name,
                 health,
             )
-            index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
 
-            # 检查索引健康状态是否为 green
-            if index_health.get('status') == ES_READY_STATUS:
+            # 遍历所有索引并检查其状态
+            indices_health = health.get('indices', {})
+            all_green = all(index_info.get('status') == ES_READY_STATUS for index_info in indices_health.values())
+
+            if all_green:
                 return True
             else:
-                logger.warning(
-                    "is_index_ready:table_id->[%s] index->[%s] health is not green, will retry later.",
+                logger.error(
+                    "is_index_ready:table_id->[%s] index->[%s] health is not all green, will retry later.",
                     self.table_id,
                     index_name,
                 )
