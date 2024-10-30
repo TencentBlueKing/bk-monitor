@@ -593,6 +593,7 @@ class GenerateSubConfigResource(Resource):
         test = serializers.BooleanField(required=False, default=False)
         config = serializers.DictField(required=False, default={}, label=(_("拨测任务配置")))
         protocol = serializers.ChoiceField(choices=("HTTP", "TCP", "UDP", "ICMP"), required=False)
+        labels = serializers.DictField(required=False, default={}, label=_("自定义标签"))
 
     # 外层增加双引号，内层对有双引号的数据增加转义字符
     def add_escape(self, input_string):
@@ -625,21 +626,22 @@ class GenerateSubConfigResource(Resource):
         task_id = data.get("task_id")
         config = data.get("config")
         protocol = data.get("protocol")
+        labels = data.get("labels") or {}
         bk_biz_id = 0
 
         # 兼容测试和正式下发两种情况,测试需要传入config和protocol,正式下发只需传入task_id
         if task_id:
             try:
                 # 若有task_id则取数据库数据作为参数，否则依赖外部传入
-                task = UptimeCheckTask.objects.get(pk=data["task_id"])
-                bk_biz_id = task.bk_biz_id
+                t = UptimeCheckTask.objects.get(pk=data["task_id"])
             except UptimeCheckNode.DoesNotExist:
                 raise CustomException(_("不存在的任务id:%s") % data["task_id"])
-            protocol = task.protocol
-            config = task.config
+            bk_biz_id = t.bk_biz_id
+            protocol = t.protocol
+            config = t.config
+            labels = t.labels or {}
         if not config:
             raise CustomException(_("任务配置为空，请检查任务参数是否正确"))
-        tasks = []
 
         available_duration = int(config.get("timeout", config["period"] * 1000))
         # 当子任务配置的available_duration超过该值时
@@ -655,47 +657,44 @@ class GenerateSubConfigResource(Resource):
         target_host_list = ip_list + url_list
 
         # 根据不同协议提取不同的参数
+        task = None
         if protocol == UptimeCheckTask.Protocol.TCP:
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "target_port": config["port"],
-                    "response": self.encode_data_with_prefix(config.get("response", "")),
-                    "response_format": config.get("response_format", "in"),
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "target_port": config["port"],
+                "response": self.encode_data_with_prefix(config.get("response", "")),
+                "response_format": config.get("response_format", "in"),
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
         elif protocol == UptimeCheckTask.Protocol.UDP:
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "target_port": config["port"],
-                    "request_format": config.get("request_format", "hex"),
-                    "response_format": config.get("response_format", "hex|eq"),
-                    "wait_empty_response": "true" if config.get("wait_empty_response", True) else "false",
-                    "request": self.encode_data_with_prefix(config.get("request", "")),
-                    "response": self.encode_data_with_prefix(config.get("response", "")),
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "target_port": config["port"],
+                "request_format": config.get("request_format", "hex"),
+                "response_format": config.get("response_format", "hex|eq"),
+                "wait_empty_response": "true" if config.get("wait_empty_response", True) else "false",
+                "request": self.encode_data_with_prefix(config.get("request", "")),
+                "response": self.encode_data_with_prefix(config.get("response", "")),
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
         elif protocol == UptimeCheckTask.Protocol.HTTP:
             header_dict = {
                 item["key"]: self.encode_data_with_prefix(item["value"])
@@ -716,60 +715,60 @@ class GenerateSubConfigResource(Resource):
                 }
                 url_list = url_join_args(url_list, fields)
 
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "proxy": "",
-                    # 是否进行证书校验
-                    "insecure_skip_verify": not auth.get("insecure_skip_verify", False),
-                    "disable_keep_alives": False,
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                    "steps": [
-                        {
-                            "url_list": url_list,
-                            "method": config["method"],
-                            "response_format": config.get("response_format", "in"),
-                            "headers": header_dict if header_dict else {},
-                            "request": self.encode_data_with_prefix(body),
-                            "response": self.encode_data_with_prefix(config.get("response", "")),
-                            "response_code": config.get("response_code", ""),
-                            # available_duration 参数在step下(样例配置文件)
-                            # 但从采集器代码看，还是在上层
-                            "available_duration": "{}ms".format(available_duration),
-                        }
-                    ],
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "proxy": "",
+                # 是否进行证书校验
+                "insecure_skip_verify": not auth.get("insecure_skip_verify", False),
+                "disable_keep_alives": False,
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+                "steps": [
+                    {
+                        "url_list": url_list,
+                        "method": config["method"],
+                        "response_format": config.get("response_format", "in"),
+                        "headers": header_dict if header_dict else {},
+                        "request": self.encode_data_with_prefix(body),
+                        "response": self.encode_data_with_prefix(config.get("response", "")),
+                        "response_code": config.get("response_code", ""),
+                        # available_duration 参数在step下(样例配置文件)
+                        # 但从采集器代码看，还是在上层
+                        "available_duration": "{}ms".format(available_duration),
+                    }
+                ],
+            }
         elif protocol == UptimeCheckTask.Protocol.ICMP:
             target_url_list = [{"target": url, "target_type": "domain"} for url in url_list]
             target_ip_list = [{"target": ip, "target_type": "ip"} for ip in config.get("ip_list", [])]
             target_host_list = target_url_list + target_ip_list
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    # 测试时减小测试参数，以保证前端不会等待太久
-                    "max_rtt": "3000ms" if data["test"] else "{}ms".format(config["max_rtt"]),
-                    "total_num": 1 if data["test"] else config["total_num"],
-                    "size": config["size"],
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                # 测试时减小测试参数，以保证前端不会等待太久
+                "max_rtt": "3000ms" if data["test"] else "{}ms".format(config["max_rtt"]),
+                "total_num": 1 if data["test"] else config["total_num"],
+                "size": config["size"],
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
 
-        return tasks
+        if not task:
+            return []
+
+        return [task]
 
 
 class TaskDataResource(Resource):

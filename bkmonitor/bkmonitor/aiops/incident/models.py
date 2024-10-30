@@ -196,6 +196,12 @@ class IncidentGraphEdge:
             "component_type": self.component_type.value,
         }
 
+    def __str__(self):
+        return (
+            f"{self.source.entity_name}[{self.source.entity_type}]--{self.edge_type.value}-->"
+            f"{self.target.entity_name}[{self.target.entity_type}]"
+        )
+
 
 @dataclass
 class IncidentAlert:
@@ -603,11 +609,8 @@ class IncidentSnapshot(object):
             ):
                 edge1 = self.incident_graph_edges[(entity_id1, entity_id)]
                 edge2 = self.incident_graph_edges[(entity_id2, entity_id)]
-                if (
-                    not edge1.edge_cluster_id
-                    or not edge2.edge_cluster_id
-                    or edge1.edge_cluster_id != edge2.edge_cluster_id
-                ):
+
+                if self.is_edge_conflict(edge1, edge2):
                     return True
 
             # 检查第三个节点作为判断中的两个节点作为入边起点的情况
@@ -617,14 +620,28 @@ class IncidentSnapshot(object):
             ):
                 edge1 = self.incident_graph_edges[(entity_id, entity_id1)]
                 edge2 = self.incident_graph_edges[(entity_id, entity_id2)]
-                if (
-                    not edge1.edge_cluster_id
-                    or not edge2.edge_cluster_id
-                    or edge1.edge_cluster_id != edge2.edge_cluster_id
-                ):
+
+                if self.is_edge_conflict(edge1, edge2):
                     return True
 
         return False
+
+    def is_edge_conflict(self, edge1: IncidentGraphEdge, edge2: IncidentGraphEdge) -> bool:
+        """判断两个边是否有冲突.
+
+        :param edge1: 拓扑图边
+        :param edge2: 拓扑图边
+        """
+        if edge1.edge_cluster_id and not edge2.edge_cluster_id:
+            return True
+
+        if not edge1.edge_cluster_id and edge2.edge_cluster_id:
+            return True
+
+        if edge1.edge_cluster_id and edge2.edge_cluster_id and edge1.edge_cluster_id != edge2.edge_cluster_id:
+            return True
+
+        return True
 
     def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
         """按照分组合并节点和边.

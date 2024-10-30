@@ -63,6 +63,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -148,6 +149,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -538,6 +540,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -645,6 +648,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -752,6 +756,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "B",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -986,6 +991,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1069,6 +1075,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1467,6 +1474,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1572,6 +1580,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1677,6 +1686,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "B",
             "query_configs": [
               {
                 "data_source_label": "custom",
