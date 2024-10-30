@@ -179,26 +179,30 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
     @classmethod
     def get_time_series_chart(cls, params: Dict, host_keys, host_to_node):
         task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
-        result = resource.grafana.graph_unify_query(
-            {
-                "query_configs": [
-                    {
-                        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "interval": task.get_period(),
-                        "filter_dict": {"task_id": str(task.id)},
-                        "where": [],
-                        "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
-                        "table": f"uptimecheck.{task.protocol.lower()}",
-                        "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
-                    }
-                ],
-                "bk_biz_id": task.bk_biz_id,
-                "expression": "",
-                "start_time": params["start_time"],
-                "end_time": params["end_time"],
-            }
-        )
+        query_params = {
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "interval": task.get_period(),
+                    "filter_dict": {"task_id": str(task.id)},
+                    "where": [],
+                    "table": f"uptimecheck.{task.protocol.lower()}",
+                    "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
+                    "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
+                }
+            ],
+            "bk_biz_id": task.bk_biz_id,
+            "expression": "",
+            "start_time": params["start_time"],
+            "end_time": params["end_time"],
+        }
+
+        # 通过independent_dataid判断是否是独立数据源
+        if task.indepentent_dataid:
+            query_params["query_configs"][0]["data_label"] = f"uptimecheck_{task.protocol.lower()}"
+
+        result = resource.grafana.graph_unify_query(query_params)
         series_list = []
         for series in result["series"]:
             if is_ipv6_biz(params["bk_biz_id"]):
@@ -225,18 +229,21 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            **{
-                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
-                "data_type_label": DataTypeLabel.TIME_SERIES,
-                "bk_biz_id": task.bk_biz_id,
-                "interval": task.get_period(),
-                "filter_dict": {"task_id": str(task.id)},
-                "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
-                "table": f"uptimecheck.{task.protocol.lower()}",
-                "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
-            }
-        )
+        datasource_params = {
+            "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "bk_biz_id": task.bk_biz_id,
+            "interval": task.get_period(),
+            "table": f"uptimecheck.{task.protocol.lower()}",
+            "filter_dict": {"task_id": str(task.id)},
+            "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
+            "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
+        }
+        # 通过independent_dataid判断是否是独立数据源
+        if task.indepentent_dataid:
+            datasource_params["data_label"] = f"uptimecheck_{task.protocol.lower()}"
+
+        data_source = data_source_class(**datasource_params)
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
 
         records = query.query_data(start_time=params["start_time"] * 1000, end_time=params["end_time"] * 1000)
