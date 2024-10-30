@@ -73,6 +73,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   diffTypeData = [];
   tableColData = [];
   chartPointOption: IChartOption = {};
+  collapsed = false;
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.commonAngle;
@@ -364,84 +365,98 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       time_shift: [],
     };
   }
-
+  handleCollapseChange(collapsed: boolean) {
+    this.collapsed = collapsed;
+  }
   render() {
     return (
       <div class='apm-service-caller-callee'>
-        <div class='caller-callee-head'>
-          <div class='caller-callee-left'>
-            <TabBtnGroup
-              activeKey={this.callType}
-              list={this.tabList}
-              onChange={this.changeTab}
-            />
-          </div>
-          <div class='caller-callee-right'>
-            <CallerCalleeContrast
-              searchList={
-                this.callType === EKind.caller ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags
-              }
-              contrastDates={this.callOptions.time_shift.map(item => item.alias)}
-              groupBy={this.callOptions.group_by}
-              limit={this.callOptions.limit}
-              method={this.callOptions.method}
-              metricCalType={this.callOptions.metric_cal_type}
-              paramsMode={this.callOptions.tool_mode}
-              supportedCalculationTypes={this.supportedCalculationTypes}
-              supportedMethods={this.supportedMethods}
-              onContrastDatesChange={this.handleContrastDatesChange}
-              onGroupByChange={this.handleGroupChange}
-              onGroupFilter={this.handleGroupFilter}
-              onLimitChange={this.handleLimitChange}
-              onMethodChange={this.handleMethodChange}
-              onMetricCalType={this.handleMetricCalTypeChange}
-              onTypeChange={this.handleParamsModeChange}
-            />
-          </div>
-        </div>
-        <div class='caller-callee-main'>
-          <bk-resize-layout
-            class='caller-callee-layout'
-            initial-divide={320}
-            max={500}
-            min={320}
-            placement='left'
-            collapsible
+        <bk-resize-layout
+          class='caller-callee-layout'
+          initial-divide={320}
+          max={500}
+          min={320}
+          placement='left'
+          collapsible
+          on-collapse-change={this.handleCollapseChange}
+        >
+          <div
+            class='layout-aside'
+            slot='aside'
           >
-            <div
-              class='layout-aside'
-              slot='aside'
-            >
-              <CallerCalleeFilter
-                callOptions={this.callOptions}
-                callType={this.callType}
-                panel={this.panel}
-                onReset={this.resetFilterData}
-                onSearch={this.searchFilterData}
-              />
-            </div>
-            <div
-              class='layout-main'
-              slot='main'
-            >
-              <ChartView
-                panelsData={this.panel.extra_panels}
-                onZrClick={this.handleZrClick}
-              />
-              <CallerCalleeTableChart
+            <div class='filter-btn-group'>
+              <TabBtnGroup
                 activeKey={this.callType}
-                chartPointOption={this.chartPointOption}
-                filterData={this.callOptions.call_filter}
-                panel={this.panel}
-                searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
-                onCloseChartPoint={this.closeChartPoint}
-                onCloseTag={this.handleCloseTag}
-                onDrill={this.handleTableDrill}
-                onHandleDetail={this.handleDetail}
+                list={this.tabList}
+                onChange={this.changeTab}
               />
             </div>
-          </bk-resize-layout>
-        </div>
+            <CallerCalleeFilter
+              callOptions={this.callOptions}
+              callType={this.callType}
+              panel={this.panel}
+              onReset={this.resetFilterData}
+              onSearch={this.searchFilterData}
+            />
+          </div>
+          <div
+            style='background: #F5F7FA;'
+            class='layout-main'
+            slot='main'
+          >
+            <div class='caller-callee-head'>
+              <div
+                style={{
+                  width: !this.collapsed ? '0px' : '320px',
+                  opacity: !this.collapsed ? 0 : 1,
+                  padding: !this.collapsed ? 0 : '24px',
+                }}
+                class='filter-btn-group header-left'
+              >
+                <TabBtnGroup
+                  activeKey={this.callType}
+                  list={this.tabList}
+                  onChange={this.changeTab}
+                />
+              </div>
+              <CallerCalleeContrast
+                searchList={
+                  this.callType === EKind.caller ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags
+                }
+                contrastDates={this.callOptions.time_shift.map(item => item.alias)}
+                groupBy={this.callOptions.group_by}
+                limit={this.callOptions.limit}
+                method={this.callOptions.method}
+                metricCalType={this.callOptions.metric_cal_type}
+                paramsMode={this.callOptions.tool_mode}
+                supportedCalculationTypes={this.supportedCalculationTypes}
+                supportedMethods={this.supportedMethods}
+                onContrastDatesChange={this.handleContrastDatesChange}
+                onGroupByChange={this.handleGroupChange}
+                onGroupFilter={this.handleGroupFilter}
+                onLimitChange={this.handleLimitChange}
+                onMethodChange={this.handleMethodChange}
+                onMetricCalType={this.handleMetricCalTypeChange}
+                onTypeChange={this.handleParamsModeChange}
+              />
+            </div>
+            <ChartView
+              panelsData={this.panel.extra_panels}
+              onZrClick={this.handleZrClick}
+            />
+            <CallerCalleeTableChart
+              activeKey={this.callType}
+              chartPointOption={this.chartPointOption}
+              filterData={this.callOptions.call_filter}
+              panel={this.panel}
+              searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
+              onCloseChartPoint={this.closeChartPoint}
+              onCloseTag={this.handleCloseTag}
+              onDrill={this.handleTableDrill}
+              onHandleDetail={this.handleDetail}
+            />
+          </div>
+        </bk-resize-layout>
       </div>
     );
   }
