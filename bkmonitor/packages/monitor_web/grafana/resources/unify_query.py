@@ -1208,7 +1208,9 @@ class GraphPromqlQueryResource(Resource):
                 "alias": "_result_",
                 "metric_field": "_result_",
                 "unit": "",
-                "target": ",".join(f'{key}="{value}"' for key, value in zip(s["group_keys"], s["group_values"])),
+                "target": ",".join(
+                    f'{key}="{value}"' for key, value in sorted(zip(s["group_keys"], s["group_values"]))
+                ),
                 "dimensions": dict(zip(s["group_keys"], s["group_values"])),
                 "datapoints": [[v[1], v[0]] for v in s["values"]],
             }
