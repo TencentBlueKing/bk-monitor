@@ -25,6 +25,7 @@
 -->
 <template>
   <div
+    v-show="!noData"
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
