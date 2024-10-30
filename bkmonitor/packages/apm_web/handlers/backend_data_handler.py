@@ -274,7 +274,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="index_set_id")
 
     def storage_info(self):
-        resp = api.log_search.data_bus_collectors_resource(collector_config_id=self.collector_config_id)
+        resp = api.log_search.data_bus_collectors(collector_config_id=self.collector_config_id)
         return {
             "es_number_of_replicas": resp["storage_replies"],
             "es_retention": resp["retention"],
@@ -287,7 +287,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         }
 
     def storage_field_info(self):
-        res_data = api.log_search.log_search_index_set_resource(index_set_id=self.index_set_id)
+        res_data = api.log_search.log_search_index_set(index_set_id=self.index_set_id)
         fields = []
         for field in res_data.get("fields"):
             fields.append(
@@ -307,7 +307,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         return all([idx.get("health") == "green" for idx in indices])
 
     def indices_info(self):
-        data = api.log_search.data_bus_collectors_indices_resource(collector_config_id=self.collector_config_id)
+        data = api.log_search.data_bus_collectors_indices(collector_config_id=self.collector_config_id)
         result = []
         for item in data:
             result.append({key.replace(".", "_"): value for key, value in item.items()})
