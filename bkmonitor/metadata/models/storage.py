@@ -2740,6 +2740,7 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.is_index_enable():
             logger.info(
                 "update_index_v2: table_id->[%s] is not enabled, will not update index",
+                self.table_id
             )
             return False
 
