@@ -23,8 +23,14 @@ from core.errors.api import BKAPIError
 from metadata.models import (
     AccessVMRecord,
     BcsFederalClusterInfo,
+    ClusterInfo,
     DataSource,
     DataSourceOption,
+)
+from metadata.models.data_link import DataLink
+from metadata.models.data_link.utils import (
+    compose_bkdata_data_id_name,
+    compose_bkdata_table_id,
 )
 from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
@@ -400,10 +406,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
-    from metadata.models.data_link.service import (
-        create_fed_vm_data_link,
-        create_vm_data_link,
-    )
+    from metadata.models.data_link.service import create_fed_vm_data_link
 
     # 0. 确认空间信息
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
@@ -456,12 +459,15 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     # 5. 接入 vm 链路
     try:
-        create_vm_data_link(
-            table_id=table_id,
-            data_source=ds,
-            vm_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        )
+        # create_vm_data_link(
+        #     table_id=table_id,
+        #     data_source=ds,
+        #     vm_cluster_name=vm_cluster_name,
+        #     bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+        # )
+
+        create_bkbase_data_link(data_source=ds, monitor_table_id=table_id, storage_cluster_name=vm_cluster_name)
+
         # 创建联邦
         create_fed_vm_data_link(
             table_id=table_id,
@@ -475,6 +481,117 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     except Exception as e:  # pylint: disable=broad-except
         logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         return
+
+
+def create_bkbase_data_link(
+    data_source: DataSource,
+    monitor_table_id: str,
+    storage_cluster_name: str,
+    data_link_strategy: str = DataLink.BK_STANDARD_V2_TIME_SERIES,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    申请计算平台链路
+    @param data_source: 数据源
+    @param monitor_table_id: 监控平台自身结果表ID
+    @param storage_cluster_name: 存储集群名称
+    @param data_link_strategy: 链路策略
+    @param namespace: 命名空间
+    """
+    logger.info(
+        "create_bkbase_data_link:try to access bkbase,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
+        "%s],namespace->[%s]",
+        data_source.bk_data_id,
+        storage_cluster_name,
+        data_link_strategy,
+        namespace,
+    )
+    # 0. 组装生成计算平台侧需要的data_name和rt_name
+    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name)
+    bkbase_rt_name = compose_bkdata_table_id(table_id=monitor_table_id)
+    logger.info(
+        "create_bkbase_data_link:try to access bkbase , data_id->[%s],bkbase_data_name->[%s],bkbase_vmrt_name->[%s]",
+        data_source.bk_data_id,
+        bkbase_data_name,
+        bkbase_rt_name,
+    )
+
+    # 1. 创建链路资源对象
+    data_link_ins, _ = DataLink.objects.get_or_create(
+        data_link_name=bkbase_data_name,
+        namespace=namespace,
+        data_link_strategy=data_link_strategy,
+    )
+    try:
+        # 2. 尝试根据套餐，申请创建链路
+        logger.info(
+            "create_bkbase_data_link:try to access bkbase,data_id->[%s],storage_cluster_name->[%s],"
+            "data_link_strategy->[%s],"
+            "namespace->[%s]，monitor_table_id->[%s]",
+            data_source.bk_data_id,
+            storage_cluster_name,
+            data_link_strategy,
+            namespace,
+            monitor_table_id,
+        )
+        data_link_ins.apply_data_link(
+            data_source=data_source, table_id=monitor_table_id, storage_cluster_name=storage_cluster_name
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "create_bkbase_data_link: access bkbase error, data_id->[%s],storage_cluster_name->[%s],"
+            "data_link_strategy->["
+            "%s],namespace->[%s],error->[%s]",
+            data_source.bk_data_id,
+            storage_cluster_name,
+            data_link_strategy,
+            namespace,
+            e,
+        )
+        raise e
+
+    logger.info(
+        "create_bkbase_data_link:try to sync metadata,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
+        "%s],"
+        "namespace->[%s]，monitor_table_id->[%s]",
+        data_source.bk_data_id,
+        storage_cluster_name,
+        data_link_strategy,
+        namespace,
+        monitor_table_id,
+    )
+    # 3. 同步更新元数据
+    data_link_ins.sync_metadata(
+        data_source=data_source,
+        table_id=monitor_table_id,
+        storage_cluster_name=storage_cluster_name,
+    )
+
+    # TODO：路由双写至旧的AccessVMRecord，完成灰度验证后，统一迁移至新表后删除
+    storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+    logger.info(
+        "create_bkbase_data_link:try to write AccessVMRecord,data_id->[%s],storage_cluster_id->[%s],"
+        "data_link_strategy->[%s]",
+        data_source.bk_data_id,
+        storage_cluster_id,
+        data_link_strategy,
+    )
+    AccessVMRecord.objects.update_or_create(
+        result_table_id=monitor_table_id,
+        bk_base_data_id=data_source.bk_data_id,
+        bk_base_data_name=bkbase_data_name,
+        defaults={
+            "vm_cluster_id": storage_cluster_id,
+            "vm_result_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_rt_name}",
+        },
+    )
+    logger.info(
+        "create_bkbase_data_link:access bkbase success,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
+        "%s]",
+        data_source.bk_data_id,
+        storage_cluster_name,
+        data_link_strategy,
+    )
 
 
 def check_create_fed_vm_data_link(cluster):
