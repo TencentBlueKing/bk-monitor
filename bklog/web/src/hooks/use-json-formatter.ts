@@ -26,7 +26,7 @@
 import { Ref } from 'vue';
 
 import JsonView from '../global/json-view';
-import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
+// import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
 
@@ -280,9 +280,10 @@ export default class UseJsonFormatter {
     return this.config.target.value;
   }
 
-  initEditor() {
+  initEditor(depth) {
     if (this.getTargetRoot()) {
-      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this), depth: 0 });
+      this.localDepth = depth;
+      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this), depth });
       this.editor.initClickEvent();
     }
   }
@@ -298,11 +299,9 @@ export default class UseJsonFormatter {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
         this.editor.setValue(this.config.jsonValue);
-        EditorTask.clear(() => {
-          jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
-          this.localDepth = depth;
-          resolve(true);
-        });
+        this.setNodeExpand([depth]);
+        this.localDepth = depth;
+        resolve(true);
       } catch (e) {
         reject(e);
       }
@@ -312,11 +311,9 @@ export default class UseJsonFormatter {
   }
 
   setExpand(depth) {
-    EditorTask.clear(() => {
-      this.setValuePromise?.then(() => {
-        jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
-        this.localDepth = depth;
-      });
+    this.setValuePromise?.then(() => {
+      this.setNodeExpand([depth]);
+      this.localDepth = depth;
     });
   }
 

@@ -36,7 +36,7 @@
     fontSize: 12,
     text: props.content,
     maxWidth: maxWidth.value,
-    font: '12px monospace',
+    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
@@ -51,10 +51,10 @@
 
   const btnText = computed(() => {
     if (showAll.value) {
-      return $t(' 收起');
+      return $t('收起');
     }
 
-    return $t('...更多');
+    return $t('更多');
   });
 
   watch(
@@ -85,7 +85,7 @@
               text: btnText.value,
               onClick: handleClickMore,
               attributes: {
-                class: 'btn-more-action',
+                class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
               },
             }
           : undefined;
@@ -128,26 +128,29 @@
 </template>
 <style lang="scss">
   .bklog-text-segment {
-    font-family: monospace;
     font-size: 12px;
     white-space: pre-line;
 
     span {
-      font-family: monospace;
-
       &.segment-content {
-        font-family: monospace;
-
         span {
-          font-family: monospace;
           font-size: 12px;
         }
 
         .btn-more-action {
+          position: relative;
+          padding-left: 22px;
+          color: #3a84ff;
           cursor: pointer;
 
-          &:hover {
-            color: #3a84ff;
+          &.show-all {
+            &::before {
+              position: absolute;
+              top: 50%;
+              left: 0;
+              content: '...';
+              transform: translateY(-50%);
+            }
           }
         }
       }

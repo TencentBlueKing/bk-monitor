@@ -45,11 +45,21 @@
           <span class="field-text">{{ field }}</span>
         </div>
         <div class="field-value">
-          <text-segmentation
-            :content="formatterStr(data, field)"
-            :field="getFieldItem(field)"
-            @menu-click="(agrs) => handleJsonSegmentClick(agrs, field)"
-          />
+          <template v-if="isJsonFormat(formatterStr(data, field))">
+            <JsonFormatter
+              :jsonValue="formatterStr(data, field)"
+              :fields="getFieldItem(field)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            ></JsonFormatter>
+          </template>
+          <template v-else>
+            <text-segmentation
+              :content="formatterStr(data, field)"
+              :field="getFieldItem(field)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            />
+          </template>
+
           <span
             v-if="getRelationMonitorField(field)"
             class="relation-monitor-btn"
@@ -69,12 +79,13 @@
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
-
+  import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from './text-segmentation';
 
   export default {
     components: {
       TextSegmentation,
+      JsonFormatter
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
@@ -144,7 +155,10 @@
     computed: {
       ...mapState('globals', ['fieldTypeMap']),
       ...mapGetters({
-        retrieveParams: 'retrieveParams'
+        retrieveParams: 'retrieveParams',
+      }),
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -176,6 +190,9 @@
       },
     },
     methods: {
+      isJsonFormat(content) {
+        return this.formatJson && /^\[|\{/.test(content);
+      },
       formatterStr(row, field) {
         // 判断当前类型是否为虚拟字段 若是虚拟字段则不使用origin_list而使用list里的数据
         const fieldType = this.getFieldType(field);

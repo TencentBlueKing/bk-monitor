@@ -27,6 +27,9 @@
   import { computed, ref, watch } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
+  //@ts-ignore
+  import { parseTableRowData } from '@/common/util';
+
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -86,10 +89,10 @@
         return convertToObject(props.jsonValue);
       }
 
-      return convertToObject(props.jsonValue[field.field_name]);
+      return convertToObject(parseTableRowData(props.jsonValue, field.field_name));
     }
 
-    return typeof props.jsonValue === 'object' ? props.jsonValue[field.field_name] : props.jsonValue;
+    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue,field.field_name) : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
@@ -116,7 +119,7 @@
   watch(
     () => [formatCounter.value],
     () => {
-      updateRootFieldOperator(rootList.value, depth.value - 1);
+      updateRootFieldOperator(rootList.value, depth.value);
     },
     {
       immediate: true,
@@ -126,7 +129,7 @@
   watch(
     () => [depth.value],
     () => {
-      setExpand(depth.value - 1);
+      setExpand(depth.value);
     },
   );
 </script>
@@ -134,6 +137,7 @@
   @import '../global/json-view/index.scss';
 
   .bklog-json-formatter-root {
+    width: 100%;
     padding: 12px 0;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
@@ -141,6 +145,7 @@
 
     .bklog-root-field {
       margin-right: 2px;
+      line-height: 20px;
 
       &:not(:first-child) {
         margin-top: 1px;
@@ -209,7 +214,8 @@
     }
 
     &.is-json {
-      display: flex;
+      display: inline-block;
+      width: 100%;
 
       .bklog-root-field {
         display: inline-flex;
@@ -222,7 +228,6 @@
 
       .bklog-root-field {
         display: flex;
-        width: max-content;
       }
     }
 

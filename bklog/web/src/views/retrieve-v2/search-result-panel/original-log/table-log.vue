@@ -438,12 +438,6 @@
         }
       }
 
-      .original-time {
-        .cell {
-          padding-left: 2px;
-        }
-      }
-
       .hover-row {
         .show-whole-btn {
           background-color: #f5f7fa;
@@ -461,7 +455,7 @@
       }
 
       .bk-table-column-expand .bk-icon {
-        top: 21px;
+        top: 18px;
       }
 
       .bk-table-empty-text {

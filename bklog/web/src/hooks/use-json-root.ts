@@ -47,31 +47,29 @@ export default ({ fields, onSegmentClick }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
 
-  const initRootOperator = () => {
+  const initRootOperator = depth => {
     initEditPromise = new Promise(resolve => {
-      setTimeout(() => {
-        rootFieldOperator.values().forEach(value => {
-          if (!value.editor) {
-            value.editor = new UseJsonFormatter({
-              target: value.ref,
-              fields,
-              jsonValue: value.value,
-              onSegmentClick,
-            });
-          }
+      rootFieldOperator.values().forEach(value => {
+        if (!value.editor) {
+          value.editor = new UseJsonFormatter({
+            target: value.ref,
+            fields,
+            jsonValue: value.value,
+            onSegmentClick,
+          });
+        }
 
-          if (value.isJson && value.ref.value) {
-            value.editor?.initEditor();
-          }
+        if (value.isJson && value.ref.value) {
+          value.editor?.initEditor(depth);
+        }
 
-          if (!value.isJson) {
-            value.editor?.destroy();
-            value.editor?.initStringAsValue();
-          }
-        });
-
-        resolve(rootFieldOperator);
+        if (!value.isJson) {
+          value.editor?.destroy();
+          value.editor?.initStringAsValue();
+        }
       });
+
+      resolve(rootFieldOperator);
     });
 
     return initEditPromise;
@@ -109,7 +107,7 @@ export default ({ fields, onSegmentClick }) => {
       }
     });
 
-    initRootOperator().then(() => {
+    initRootOperator(depth).then(() => {
       rootFieldOperator.values().forEach(val => {
         if (val.isJson) {
           val.editor?.setValue.call(val.editor, depth);

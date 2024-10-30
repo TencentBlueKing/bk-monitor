@@ -89,7 +89,7 @@
       }),
 
       isJsonFormat() {
-        return this.formatJson && ['text', 'string'].includes(this.field.field_type) && /^\[|\{/.test(this.content);
+        return this.formatJson && /^\[|\{/.test(this.content);
       },
     },
     mounted() {
