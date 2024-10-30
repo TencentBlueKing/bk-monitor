@@ -255,13 +255,23 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         link = {}
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             title = _("暂未发现主机")
-            sub_title = _("关联主机方法:\n1. SDK上报时增加IP信息，将已在CMDB中注册的IP地址补充在Span的resource.net.host.ip字段中\n")
+            sub_title = _(
+                "关联主机方法:\n1. 上报时增加 IP 信息。"
+                "如果是非容器环境，"
+                "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
+                "如果是容器环境，"
+                "需要补充 k8s.bcs.cluster.id(BCS 集群 Id)、k8s.namespace.name(命名空间)、k8s.pod.name(Pod 名称)字段。\n",
+            )
 
         else:
             title = _("暂未关联主机")
             sub_title = _(
-                "关联主机方法:\n1. SDK上报时增加IP信息，将已在CMDB中注册的IP地址补充在Span的resource.net.host.ip字段中\n"
-                "2. 关联蓝鲸配置平台服务模版，将会获取此服务模版下的主机"
+                "关联主机方法:\n1. SDK上报时增加IP信息。"
+                "如果是非容器环境，"
+                "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
+                "如果是容器环境，"
+                "需要补充 k8s.bcs.cluster.id(BCS 集群 Id)、k8s.namespace.name(命名空间)、k8s.pod.name(Pod 名称)字段。\n"
+                "2. 在服务设置中，通过【关联 CMDB 服务】设置关联服务模版，会自动关联此服务模版下的主机列表"
             )
 
             if params.get("app_name") and params.get("service_name"):
