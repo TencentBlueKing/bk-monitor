@@ -89,7 +89,7 @@
   };
 
   onMounted(() => {
-    isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
+    isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'true');
     emit('toggle-change', !isFold.value, getOffsetHeight.value);
   });
 

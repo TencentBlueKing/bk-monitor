@@ -32,12 +32,17 @@
   .filed-title {
     position: relative;
     display: flex;
-    flex: 1;
-    flex-shrink: 0;
-    align-items: center;
-    height: 32px;
+    width: 100%;
+    min-height: 32px;
+    margin-left: -6px;
     cursor: pointer;
     border-radius: 2px;
+
+    > :first-child {
+      display: flex;
+      flex: 1;
+      align-items: center;
+    }
 
     &.expanded {
       background-color: #f0f1f5;
@@ -48,7 +53,7 @@
     }
 
     .filed-item-triangle {
-      min-width: 32px;
+      min-width: 20px;
 
       .bk-icon {
         display: block;
@@ -70,13 +75,10 @@
     }
 
     .field-name {
-      display: flex;
+      width: calc(100% - 42px);
       padding-right: 12px;
-
-      span:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      word-break: break-all;
+      overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
     }
 
     .conflict-icon {
@@ -95,11 +97,18 @@
     }
 
     .operation-text {
+      position: absolute;
+      right: 0;
+      // top: 10px;
+      z-index: 999;
+
       /* stylelint-disable-next-line declaration-no-important */
       display: none !important;
       flex-shrink: 0;
-      padding-right: 6px;
+      align-items: center;
+      height: 100%;
       font-size: 14px;
+      background: #F3F4F7;
 
       @include flex-justify(space-between);
 
