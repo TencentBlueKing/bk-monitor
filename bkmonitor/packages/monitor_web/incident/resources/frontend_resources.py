@@ -1147,6 +1147,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
             alert_doc = AlertDocument(**alert)
+            # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
+            alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc)
