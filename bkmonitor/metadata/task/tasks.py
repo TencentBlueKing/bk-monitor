@@ -161,7 +161,7 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages, cluster_id=None):
+def manage_es_storage(es_storages, cluster_id: int = None):
     """并发管理 ES 存储。"""
 
     # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
@@ -228,15 +228,20 @@ def _manage_es_storage(es_storage):
             es_storage.create_index_and_aliases(es_storage.slice_gap)
         else:
             # 否则走更新流程
+            logger.info("manage_es_storage:table_id->[%s] found index in es,now try to update it", es_storage.table_id)
             es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
 
         # 创建快照
+        logger.info("manage_es_storage:table_id->[%s] try to create snapshot", es_storage.table_id)
         es_storage.create_snapshot()
         # 清理过期的index
+        logger.info("manage_es_storage:table_id->[%s] try to clean index", es_storage.table_id)
         es_storage.clean_index_v2()
         # 清理过期快照
+        logger.info("manage_es_storage:table_id->[%s] try to clean snapshot", es_storage.table_id)
         es_storage.clean_snapshot()
         # 重新分配索引数据
+        logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
 
         logger.info("manage_es_storage:table_id->[%s] create index successfully", es_storage.table_id)
