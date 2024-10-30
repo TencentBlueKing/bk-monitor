@@ -41,6 +41,7 @@ from apm.models import (
     Endpoint,
     HostInstance,
     LicenseConfig,
+    LogDataSource,
     MetricDataSource,
     NormalTypeValueConfig,
     ProbeConfig,
@@ -1376,15 +1377,20 @@ class QueryLogRelationByIndexSetIdResource(Resource):
             .order_by("created_at")
             .first()
         )
+        if log_relation:
+            return {
+                "bk_biz_id": log_relation.bk_biz_id,
+                "app_name": log_relation.app_name,
+                "service_name": log_relation.service_name,
+            }
 
-        if not log_relation:
-            return None
-
-        return {
-            "bk_biz_id": log_relation.bk_biz_id,
-            "app_name": log_relation.app_name,
-            "service_name": log_relation.service_name,
-        }
+        qs = LogDataSource.objects.filter(index_set_id=data["index_set_id"])
+        if qs.exists():
+            relate_log_data_source = qs.first()
+            return {
+                "bk_biz_id": relate_log_data_source.bk_biz_id,
+                "app_name": relate_log_data_source.app_name,
+            }
 
 
 class QueryDiscoverRulesResource(Resource):
