@@ -43,16 +43,16 @@ export default (options: ComputedRef<TextOption>) => {
   };
 
   const truncateTextWithCanvas = () => {
-    const { text, maxWidth, font, showAll } = options.value;
+    const { text, maxWidth, font } = options.value;
     if (maxWidth <= 0) {
       return '';
     }
 
-    if (typeof text !== 'string' || showAll) {
+    if (typeof text !== 'string') {
       return text;
     }
 
-    const ellipsText = ' ...';
+    const ellipsText = '...more';
     const ellipsisWidth = getTextWidth(ellipsText, font);
     const avaliableWidth = maxWidth - ellipsisWidth - 18;
 
@@ -63,7 +63,6 @@ export default (options: ComputedRef<TextOption>) => {
       const charWidth = getTextWidth(char, font);
 
       if (currentWidth + charWidth > avaliableWidth) {
-        truncatedText += ellipsText;
         break;
       }
 

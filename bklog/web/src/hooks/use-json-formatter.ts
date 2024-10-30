@@ -30,7 +30,7 @@ import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
 
-type FormatterConfig = {
+export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
   fields: any[];
   jsonValue: any;
@@ -38,6 +38,7 @@ type FormatterConfig = {
   options?: Record<string, any>;
 };
 
+export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
@@ -201,17 +202,22 @@ export default class UseJsonFormatter {
     return segmentNode;
   };
 
-  initStringAsValue() {
+  initStringAsValue(appendText?: SegmentAppendText) {
     let root = this.getTargetRoot() as HTMLElement;
     if (root.classList.contains('field-value')) {
       root = root.parentElement;
     }
 
     const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
-    this.setNodeValueWordSplit(root, fieldName, '.field-value');
+    this.setNodeValueWordSplit(root, fieldName, '.field-value', appendText);
   }
 
-  setNodeValueWordSplit(target: HTMLElement, fieldName, valueSelector = '.bklog-json-field-value') {
+  setNodeValueWordSplit(
+    target: HTMLElement,
+    fieldName,
+    valueSelector = '.bklog-json-field-value',
+    appendText?: SegmentAppendText,
+  ) {
     // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
     target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
@@ -227,6 +233,20 @@ export default class UseJsonFormatter {
             this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
           }
         });
+
+        if (appendText) {
+          const appendElement = document.createElement('span');
+          appendElement.innerText = appendText.text;
+          if (appendText.onClick) {
+            appendElement.addEventListener('click', appendText.onClick);
+          }
+
+          Object.keys(appendText.attributes ?? {}).forEach(key => {
+            appendElement.setAttribute(key, appendText.attributes[key]);
+          });
+
+          element.firstChild.appendChild(appendElement);
+        }
       }
     });
   }

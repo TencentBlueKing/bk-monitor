@@ -1,8 +1,9 @@
 <script setup>
   import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
-  import UseStore from '@/hooks/use-store';
-  import useTruncateText from '../../../hooks/use-truncate-text';
+  import useTruncateText from '@/hooks/use-truncate-text';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
 
   const emit = defineEmits(['menu-click']);
 
@@ -13,7 +14,8 @@
   });
 
   const refContent = ref();
-  const store = UseStore();
+  const store = useStore();
+  const { $t } = useLocale();
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
@@ -34,11 +36,26 @@
     fontSize: 12,
     text: props.content,
     maxWidth: maxWidth.value,
-    font: '12px Arial, Helvetica, sans-serif',
+    font: '12px monospace',
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
   const { truncatedText, showMore } = useTruncateText(textTruncateOption);
+  const renderText = computed(() => {
+    if (showAll.value || isLimitExpandView.value) {
+      return props.content;
+    }
+
+    return truncatedText.value;
+  });
+
+  const btnText = computed(() => {
+    if (showAll.value) {
+      return $t(' 收起');
+    }
+
+    return $t('...更多');
+  });
 
   watch(
     () => [props.content],
@@ -50,24 +67,36 @@
     },
   );
 
+  const handleClickMore = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    showAll.value = !showAll.value;
+  };
   watch(
-    () => [truncatedText.value],
+    () => [renderText.value],
     () => {
       nextTick(() => {
-        instance.config.jsonValue = truncatedText.value;
+        instance.config.jsonValue = renderText.value;
         instance.destroy?.();
-        instance.initStringAsValue();
+        const appendText = showMore.value
+          ? {
+              text: btnText.value,
+              onClick: handleClickMore,
+              attributes: {
+                class: 'btn-more-action',
+              },
+            }
+          : undefined;
+        instance.initStringAsValue(appendText);
       });
     },
   );
 
-  const handleClickMore = () => {
-    showAll.value = true;
-  };
-
   onMounted(() => {
     const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
-    const elementMaxWidth = cellElement.offsetWidth * 2.6;
+    const elementMaxWidth = cellElement.offsetWidth * 3;
     maxWidth.value = elementMaxWidth;
   });
 
@@ -93,31 +122,34 @@
     <span
       class="field-value"
       :data-field-name="field.field_name"
-      >{{ truncatedText }}</span
+      >{{ renderText }}</span
     >
-    <template v-if="showMore">
-      <span
-        class="btn-more-action"
-        @click="handleClickMore"
-        >更多</span
-      >
-    </template>
   </div>
 </template>
 <style lang="scss">
   .bklog-text-segment {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: monospace;
     font-size: 12px;
     white-space: pre-line;
 
-    .btn-more-action {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      cursor: pointer;
+    span {
+      font-family: monospace;
 
-      &:hover {
-        color: #3a84ff;
+      &.segment-content {
+        font-family: monospace;
+
+        span {
+          font-family: monospace;
+          font-size: 12px;
+        }
+
+        .btn-more-action {
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
       }
     }
 
