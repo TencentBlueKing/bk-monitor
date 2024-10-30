@@ -2488,6 +2488,11 @@ class ESStorage(models.Model, StorageResultTable):
         last_index_name = self.make_index_name(
             current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
         )
+        logger.info(
+            "create_or_update_aliases: current_index_info->[%s], last_index_name->[%s]",
+            current_index_info,
+            last_index_name,
+        )
 
         now_datetime_object = self.now
 
@@ -2516,7 +2521,7 @@ class ESStorage(models.Model, StorageResultTable):
                     # 2.3.1 此处提前获取主要是为后续当新索引不存在时，需要获取到上一次的已就绪的索引，为下一轮次（未来）的读写别名-索引关系的创建作准备
                     index_list = self.es_client.indices.get_alias(name=round_alias_name).keys()
                     logger.info(
-                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] has index->[%s].",
+                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] has index_list->[%s].",
                         self.table_id,
                         round_alias_name,
                         index_list,
@@ -2534,6 +2539,11 @@ class ESStorage(models.Model, StorageResultTable):
                 # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
                 try:
                     is_ready = self.is_index_ready(last_index_name)
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                        self.table_id,
+                        last_index_name,
+                    )
                 except RetryError:  # 若重试后依然失败，则认为未就绪
                     is_ready = False
 
@@ -2597,12 +2607,29 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error(
-                        "create_or_update_aliases: table_id->[%s] try to add index binding failed,"
-                        "error->[%s]",
+                        "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
                         self.table_id,
                         e,
                     )
-                    raise e
+                    continue
+
+                try:
+                    # 打印当前索引绑定的别名信息
+                    index_binding_aliases_info = self.es_client.indices.get_alias(index=last_index_name)
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] ,index->[%s],has alias info->[%s]",
+                        self.table_id,
+                        last_index_name,
+                        index_binding_aliases_info,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error(
+                        "create_or_update_aliases: table_id->[%s] ,index->[%s],get alias info failed, error->[%s]",
+                        self.table_id,
+                        last_index_name,
+                        e,
+                    )
+                    continue
 
                 logger.info(
                     "create_or_update_aliases: table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2648,7 +2675,11 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             # 获取索引的健康状态
             logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
-            health = self.es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS)
+            health = self.es_client.cluster.health(
+                index=index_name,
+                level=ES_INDEX_CHECK_LEVEL,
+                request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS,
+            )
             logger.info(
                 "is_index_ready:table_id->[%s],index_name->[%s],index_health_detail->[%s]",
                 self.table_id,
@@ -2707,10 +2738,15 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
+            logger.info(
+                "update_index_v2: table_id->[%s] is not enabled, will not update index",
+            )
             return False
 
-        logger.info("update_index_v2: table_id->[%s] start to update index", self.table_id)
         now_datetime_object = self.now
+        logger.info(
+            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+        )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
 
@@ -2722,6 +2758,13 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
             index_size_in_byte = current_index_info["size"]
+
+            logger.info(
+                "update_index_v2: table_id->[%s],current index info:last_index_name->[%s],index_size_in_byte->[%s]",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+            )
 
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
             # 3.2 若当前索引不存在，走索引创建流程
@@ -2884,6 +2927,9 @@ class ESStorage(models.Model, StorageResultTable):
         )
         try:
             is_ready = self.is_index_ready(new_index_name)
+            logger.info(
+                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+            )
         except RetryError:  # 若重试后依然失败，则认为未就绪
             is_ready = False
 
@@ -3029,7 +3075,10 @@ class ESStorage(models.Model, StorageResultTable):
         # 没有快照任务可以直接删除
         # 有快照任务需要判断是否可以删除
         if not self.can_delete():
+            logger.info("clean_index_v2:table_id->[%s] clean index is not allowed, skip", self.table_id)
             return
+
+        logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
         # 获取所有的写入别名
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
@@ -3041,6 +3090,9 @@ class ESStorage(models.Model, StorageResultTable):
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
+                )
                 continue
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
@@ -3076,6 +3128,7 @@ class ESStorage(models.Model, StorageResultTable):
             )
             try:
                 self.es_client.indices.delete(index=index_name)
+                logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)
             except (
                 elasticsearch5.ElasticsearchException,
                 elasticsearch.ElasticsearchException,
