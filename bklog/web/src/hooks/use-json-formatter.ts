@@ -39,6 +39,7 @@ export type FormatterConfig = {
 };
 
 export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
+
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
@@ -203,6 +204,7 @@ export default class UseJsonFormatter {
   };
 
   initStringAsValue(appendText?: SegmentAppendText) {
+
     let root = this.getTargetRoot() as HTMLElement;
     if (root.classList.contains('field-value')) {
       root = root.parentElement;
@@ -233,7 +235,6 @@ export default class UseJsonFormatter {
             this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
           }
         });
-
         if (appendText) {
           const appendElement = document.createElement('span');
           appendElement.innerText = appendText.text;

@@ -5,6 +5,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
+
   const emit = defineEmits(['menu-click']);
 
   const props = defineProps({
@@ -16,6 +17,7 @@
   const refContent = ref();
   const store = useStore();
   const { $t } = useLocale();
+
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
@@ -37,6 +39,7 @@
     text: props.content,
     maxWidth: maxWidth.value,
     font: '12px monospace',
+
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
@@ -56,6 +59,7 @@
 
     return $t('...更多');
   });
+
 
   watch(
     () => [props.content],
@@ -97,6 +101,7 @@
   onMounted(() => {
     const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
     const elementMaxWidth = cellElement.offsetWidth * 3;
+
     maxWidth.value = elementMaxWidth;
   });
 
@@ -124,6 +129,7 @@
       :data-field-name="field.field_name"
       >{{ renderText }}</span
     >
+
   </div>
 </template>
 <style lang="scss">
@@ -150,6 +156,7 @@
             color: #3a84ff;
           }
         }
+
       }
     }
 
