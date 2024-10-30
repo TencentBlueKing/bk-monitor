@@ -206,6 +206,7 @@ export default {
   '输入1-50个字符': 'Enter 1-50 characters',
   '输入1-50个字符，且仅支持小写字母、数字、_- 中任意一条件即可':
     'Enter 1-50 characters, and only support any one of lowercase letters, numbers, and _-',
+  '1-50字符': '1-50 characters',
   '输入自定义的天数，按Enter确认': 'Enter a custom number of days and press Enter to confirm',
   '输入中文、英文、数字、下划线类型的字符': 'Enter characters of Chinese, English, numbers, and underscores',
   '输入指标名,以字母开头,允许包含下划线和数字':
