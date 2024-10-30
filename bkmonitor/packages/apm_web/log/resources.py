@@ -27,7 +27,7 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
 
         bk_biz_id = data["bk_biz_id"]
         app_name = data["app_name"]
-        service_name = (data["service_name"],)
+        service_name = data["service_name"]
 
         # Step: 从自定义上报中找日志
         datasource_index_set_id = ServiceLogHandler.get_and_check_datasource_index_set_id(bk_biz_id, app_name)
@@ -58,7 +58,7 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
 
         bk_biz_id = data["bk_biz_id"]
         app_name = data["app_name"]
-        service_name = (data["service_name"],)
+        service_name = data["service_name"]
 
         index_set_ids = []
 
