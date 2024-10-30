@@ -263,10 +263,11 @@ def test_Standard_V2_Time_Series_apply_data_link_with_failure(create_or_delete_r
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_create_bkbase_data_link(create_or_delete_records):
+def test_create_bkbase_data_link(create_or_delete_records, mocker):
     """
     测试接入计算平台数据量路是否如期工作
     """
+    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
 
