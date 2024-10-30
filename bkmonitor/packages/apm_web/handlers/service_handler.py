@@ -288,8 +288,8 @@ class ServiceHandler:
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int(start_time.timestamp()),
-                "end_time": int(end_time.timestamp()),
+                "start_time": start_time,
+                "end_time": end_time,
                 "where": [],
                 "group_by": [
                     "from_apm_service_name",  # index: 0

@@ -437,8 +437,8 @@ class GraphQuery(BaseQuery):
         dimension_mapping = self.get_metric(
             ServiceFlowCount,
             params=self.common_params(
-                start_time=int(start_time.timestamp()),
-                end_time=int(end_time.timestamp()),
+                start_time=start_time,
+                end_time=end_time,
             ),
             group_by=[
                 "from_apm_service_name",

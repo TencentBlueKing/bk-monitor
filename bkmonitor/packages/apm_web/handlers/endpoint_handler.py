@@ -35,8 +35,8 @@ class EndpointHandler:
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int(start_time.timestamp()),
-                "end_time": int(end_time.timestamp()),
+                "start_time": start_time,
+                "end_time": end_time,
                 "where": [
                     {"condition": "and", "key": "from_apm_service_name", "method": "eq", "value": [service_name]},
                     {"condition": "and", "key": "from_span_name", "method": "eq", "value": [endpoint_name]},
