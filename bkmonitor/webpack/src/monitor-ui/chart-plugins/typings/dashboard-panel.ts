@@ -25,7 +25,9 @@
  */
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
-import type { MonitorEchartOptions } from './index';
+import { filterDictConvertedToWhere } from '../utils/utils';
+
+import type { IExtendMetricData, MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
@@ -412,6 +414,9 @@ export interface IApdexChartOption {
 export type PanelOption = {
   legend?: ILegendOption;
   unit?: string; // 单位
+  is_support_compare: boolean;
+  is_support_group_by: boolean;
+  need_zr_click_event?: boolean; // 是否需要zrender click 事件
   header?: {
     tips: string; // 提示
   };
@@ -493,6 +498,7 @@ export class PanelModel implements IPanelModel {
   dimensions: string[];
   // 是否正在drag中
   draging = false;
+  extra_panels?: PanelModel[];
   // 图表位置
   gridPos!: IGridPos;
   // 组id
@@ -506,9 +512,10 @@ export class PanelModel implements IPanelModel {
   // 图表配置
   options?: PanelOption;
   panels?: PanelModel[];
+
   // 是否显示百分比
   percent?: boolean;
-
+  rawTargetQueryMap = new WeakMap<Record<string, any>>();
   realHeight = 0;
   // 是否显示
   show?: boolean = true;
@@ -519,13 +526,24 @@ export class PanelModel implements IPanelModel {
   title!: string;
   // 图表类型 如 line-chart bar-chart status-chart group
   type!: string;
-
   constructor(model: Partial<IPanelModel> & { panelIds?: (number | string)[] }) {
     this.id = model.id || random(10);
     // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));
+      } else if (key === 'extra_panels') {
+        this.extra_panels =
+          model[key]?.map(
+            item =>
+              new PanelModel({
+                ...item,
+                options: {
+                  ...item.options,
+                  need_zr_click_event: true,
+                },
+              })
+          ) || [];
       } else {
         this[key] = model[key];
       }
@@ -552,7 +570,67 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart', 'apm-timeseries-chart'].includes(this.type);
+    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart'].includes(this.type);
+  }
+  setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
+    this.rawTargetQueryMap.set(target, data);
+  }
+  public toDashboardPanels() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            alias: set.alias || '',
+            expression: set.expression || 'A',
+            ...config,
+            query_configs: filterDictConvertedToWhere(config.query_configs),
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return {
+      name: this.title,
+      fill: this.fill,
+      min_y_zero: this.min_y_zero,
+      queries,
+    };
+  }
+  public toDataRetrieval() {
+    const targets = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            data: {
+              ...config,
+              query_configs: filterDictConvertedToWhere(config.query_configs),
+            },
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!targets.length) return undefined;
+    return targets;
+  }
+  public toStrategy(metric: IExtendMetricData, isAll = false) {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            expression: set.expression || 'A',
+            query_configs: filterDictConvertedToWhere(config.query_configs),
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return queries[0];
   }
   public updateChecked(v: boolean) {
     this.checked = v;

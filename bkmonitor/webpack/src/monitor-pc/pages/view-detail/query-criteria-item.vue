@@ -49,7 +49,9 @@
               <div class="retrieval-content">
                 <div class="retrieval-content-row">
                   <span class="row-label">{{ $t('监控对象') }} : </span>
-                  <span class="row-content">{{ metricDataList[0] && metricDataList[0]['result_table_label_name'] }}</span>
+                  <span class="row-content">{{
+                    metricDataList[0] && metricDataList[0]['result_table_label_name']
+                  }}</span>
                 </div>
                 <div class="retrieval-content-row">
                   <span class="row-label">{{ $t('监控指标') }} : </span>
@@ -59,7 +61,8 @@
                   <span
                     class="row-label"
                     style="padding-top: 3px"
-                  >{{ $t('监控条件') }} : </span>
+                    >{{ $t('监控条件') }} :
+                  </span>
                   <span class="row-content">
                     <div class="item-agg-condition">
                       <div
@@ -129,7 +132,7 @@
                         class="icon-monitor icon-hint"
                         v-bk-tooltips="{
                           content: $t('数据步长'),
-                          placements: ['top']
+                          placements: ['top'],
                         }"
                       />
                     </div>
@@ -170,7 +173,10 @@
                         class="item-agg-dimension mb-2"
                         v-for="(condition, i) in getWhereData(item.where)"
                         :key="i"
-                        :style="{ color: aggConditionColorMap[condition], 'font-weight': aggConditionFontMap[condition] }"
+                        :style="{
+                          color: aggConditionColorMap[condition],
+                          'font-weight': aggConditionFontMap[condition],
+                        }"
                       >
                         {{ Array.isArray(condition) ? condition.join(' , ') : condition }}
                       </div>
@@ -500,8 +506,9 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
    * @return {string}
    */
   handleUnitString(value) {
+    console.info(value);
     const data = secToString({ value, unit: '' });
-    return `${data.value} ${data.unitEn}`;
+    return `${data.value} ${data.unitEn || 'm'}`;
   }
 
   /** 选中的条件 */
@@ -541,11 +548,11 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
       margin-right: 6px;
       font-size: 24px;
       color: #63656e;
-      transition: .3s;
+      transition: 0.3s;
     }
 
     .retrieval-active {
-      transition: .3s;
+      transition: 0.3s;
       transform: rotate(-90deg);
     }
   }

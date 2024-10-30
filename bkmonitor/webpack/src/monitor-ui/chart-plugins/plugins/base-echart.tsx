@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type MonitorEchartOptions, echarts } from '../typings/index';
+import { type MonitorEchartOptions, type ZrClickEvent, echarts } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';
@@ -59,6 +59,7 @@ export interface IChartEvent {
   // contextmenu 事件
   onContextmenu?: (v: any) => void;
   onUpdateAxisPointer?: (v: any) => void;
+  onZrClick: (p: ZrClickEvent) => void;
   onBrush?: (v: any) => void;
   onBrushEnd?: (v: any) => void;
   onLoaded?: () => void;
@@ -227,17 +228,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     (this as any).instance = null;
     this.isMouseOver = false;
   }
-  handleDblClick(e: MouseEvent) {
-    e.preventDefault();
-    clearTimeout(this.clickTimer);
-    this.$emit('dblClick', e);
-  }
-  handleClick(e: MouseEvent) {
-    clearTimeout(this.clickTimer);
-    this.clickTimer = setTimeout(() => {
-      this.$emit('click', e);
-    }, 300);
-  }
   handleMouseover() {
     this.isMouseOver = true;
   }
@@ -260,8 +250,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
         class='chart-base'
-        onClick={this.handleClick}
-        onDblclick={this.handleDblClick}
         onMouseleave={this.handleMouseleave}
         onMouseover={this.handleMouseover}
       />

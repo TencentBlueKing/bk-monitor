@@ -46,6 +46,7 @@ interface IBaseProps extends IChartProps {
   showRestore?: boolean;
   needTooltips?: boolean;
   sortTooltipsValue?: boolean;
+  needZrClick?: boolean;
   tooltipsContentLastItemFn?: (v: any) => string;
 }
 @Component
@@ -57,6 +58,7 @@ class MonitorBaseEchart extends BaseEchart {
   // 是否需要排序tooltip内容
   @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
+  @Prop({ type: Boolean, default: false }) needZrClick: boolean;
   /* tooltips内容最后一项格式化函数 */
   @Prop({ type: Function, default: null }) tooltipsContentLastItemFn: (v: any) => string;
   // hover视图上 当前对应最近点数据
@@ -126,15 +128,40 @@ class MonitorBaseEchart extends BaseEchart {
   }
   initChart() {
     if (!(this as any).instance) {
-      if (!this.chartRef) return;
-      (this as any).instance = echarts.init(this.chartRef);
-      (this as any).instance.setOption(this.getMonitorEchartOptions());
-      this.initPropsWatcher();
-      this.initChartEvent();
-      this.initChartAction();
-      (this as any).curChartOption = (this as any).instance.getOption();
-      this.groupId && ((this as any).instance.group = this.groupId);
-      (this as any).instance.on('dataZoom', this.handleDataZoom);
+      setTimeout(() => {
+        if (!this.chartRef) return;
+        (this as any).instance = echarts.init(this.chartRef);
+        (this as any).instance.setOption(this.getMonitorEchartOptions());
+        this.initPropsWatcher();
+        this.initChartEvent();
+        this.initChartAction();
+        (this as any).curChartOption = (this as any).instance.getOption();
+        this.groupId && ((this as any).instance.group = this.groupId);
+        (this as any).instance.on('dataZoom', this.handleDataZoom);
+        if (this.needZrClick) {
+          (this as any).instance.getZr().on('click', params => {
+            const options = (this as any).instance.getOption();
+            if (!options.series?.length) return;
+            const pointInPixel = [params.offsetX, params.offsetY];
+            const pointInGrid = (this as any).instance.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
+            if (!pointInGrid) return;
+            const xAxisValue = this.curPoint.xAxis;
+            const yAxisValue = pointInGrid[1];
+            const dataIndex = this.curPoint.dataIndex;
+            const data = options.series
+              .map(s => ({
+                v: s.data?.[dataIndex]?.value?.[1],
+                s,
+              }))
+              .sort((a, b) => Math.abs(a.v - yAxisValue) - Math.abs(b.v - yAxisValue));
+            this.$emit('zrClick', {
+              xAxis: xAxisValue,
+              yAxis: data[0].v,
+              dimensions: data[0].s.dimensions,
+            });
+          });
+        }
+      }, 100);
       this.$emit('loaded');
     }
   }
@@ -331,8 +358,6 @@ class MonitorBaseEchart extends BaseEchart {
           ref='chartInstance'
           style={{ minHeight: `${1}px` }}
           class='chart-base'
-          onClick={this.handleClick}
-          onDblclick={this.handleDblClick}
           onMouseleave={this.handleMouseleave}
           onMouseover={this.handleMouseover}
         />

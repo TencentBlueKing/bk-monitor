@@ -14,11 +14,13 @@ import logging
 import re
 from abc import ABCMeta
 from collections import defaultdict
+from functools import reduce
 from itertools import product
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from django.conf import settings
 from django.db.models import Q
+from django.db.models.sql import AND, OR
 from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -82,24 +84,71 @@ def is_build_in_process_data_source(table_id: str):
     return table_id in ["process.perf", "process.port"]
 
 
-def q_to_dict(q: tree.Node, depth=1, width=1):
+def q_to_dict(q: tree.Node):
+    _inner_or, _inner_and = "__q_to_dict_or", "__q_to_dict_and"
+
     if not q.children:
         return {}
 
-    filter_dict: Dict[str, Any] = {}
+    sub_dicts: List[Dict[str, Any]] = []
     for idx, child in enumerate(q.children):
         if isinstance(child, tree.Node):
-            sub_dict: Dict[str, Any] = q_to_dict(child, depth + 1, idx)
-            if q.connector == Q.AND:
-                filter_dict.update(sub_dict)
-            elif q.connector == Q.OR:
-                filter_dict.setdefault("or", []).append(sub_dict)
+            sub_dicts.append(q_to_dict(child))
         else:
-            key, value = child
-            if q.connector == Q.AND:
-                filter_dict[key] = value
-            elif q.connector == Q.OR:
-                filter_dict.setdefault(f"or_{width}_{depth}", []).append({key: value})
+            sub_dicts.append({child[0]: child[1]})
+
+    filter_dict: Dict[str, Any] = {}
+    for idx, sub_dict in enumerate(sub_dicts):
+        if q.connector == Q.AND:
+            for k, v in sub_dict.items():
+                if k in filter_dict:
+                    if filter_dict[k] == v:
+                        continue
+                    # 找到一个坑，填进去
+                    cursor = 0
+                    while True:
+                        sub = filter_dict.get(f"{_inner_and}_{cursor}", {})
+                        if k not in sub:
+                            break
+                        if sub[k] == v:
+                            cursor = -1
+                            break
+                        cursor += 1
+
+                    if cursor != -1:
+                        filter_dict.setdefault(f"{_inner_and}_{cursor}", {})[k] = v
+                else:
+                    filter_dict[k] = v
+        else:
+            filter_dict.setdefault(_inner_or, []).append(sub_dict)
+
+    cursor = 0
+    k_count_map: Dict[str, int] = defaultdict(int)
+    while True:
+        and_k: str = f"{_inner_and}_{cursor}"
+        sub: Optional[Dict[str, Any]] = filter_dict.get(and_k)
+        if sub is None:
+            break
+
+        if isinstance(sub, dict) and list(sub.keys()) == [_inner_or]:
+            # {"and_xx": {or: []}} -> {"or_xx": []}
+            filter_dict[f"{_inner_or}_{cursor}"] = filter_dict.pop(and_k)[_inner_or]
+
+        if isinstance(sub, dict):
+            keys: List[str] = list(sub.keys())
+            for k in keys:
+                if k.startswith(_inner_or) or k.startswith(_inner_and):
+                    continue
+                k_count_map[k] += 1
+
+                if k_count_map[k] > 1:
+                    del sub[k]
+
+        if not sub:
+            filter_dict.pop(and_k, None)
+
+        cursor += 1
+
     return filter_dict
 
 
@@ -147,6 +196,42 @@ def dict_to_q(filter_dict):
             ret = _ret
 
     return ret
+
+
+def conditions_to_q(conditions):
+    if not conditions:
+        return Q()
+
+    ret = Q()
+
+    where_cond = []
+    for cond in conditions:
+        field_lookup = "{}__{}".format(cond["key"], cond["method"])
+        value = cond["value"]
+
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+
+        condition = cond.get("condition") or "and"
+        if condition.upper() == AND:
+            where_cond.append(Q(**{field_lookup: value}))
+        elif condition.upper() == OR:
+            if where_cond:
+                q = Q(reduce(lambda x, y: x & y, where_cond))
+                ret = (ret | q) if ret else q
+            where_cond = [Q(**{field_lookup: value})]
+        else:
+            raise Exception("Unsupported connector(%s)" % condition)
+
+    if where_cond:
+        q = Q(reduce(lambda x, y: x & y, where_cond))
+        ret = (ret | q) if ret else q
+
+    return ret
+
+
+def filter_dict_to_conditions(filter_dict: Dict, conditions: List[Dict]):
+    return _filter_dict_to_conditions(filter_dict, conditions)
 
 
 def _list_to_q(key, value):

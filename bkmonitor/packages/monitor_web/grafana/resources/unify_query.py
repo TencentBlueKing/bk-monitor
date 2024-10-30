@@ -1346,7 +1346,7 @@ class DimensionUnifyQuery(Resource):
             data_label = serializers.CharField(label="数据标签", allow_blank=True, required=False)
             metrics = serializers.ListField(label="查询指标", allow_empty=False, child=MetricSerializer())
             table = serializers.CharField(label="结果表名", required=False, allow_blank=True)
-            group_by = serializers.ListField(label="聚合字段")
+            group_by = serializers.ListField(label="聚合字段", required=False, default=[])
             where = serializers.ListField(label="过滤条件")
             filter_dict = serializers.DictField(default={}, label="过滤条件")
             time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
