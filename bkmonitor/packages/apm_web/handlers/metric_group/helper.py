@@ -18,6 +18,7 @@ from apm_web.models import Application
 from bkmonitor.data_source import dict_to_q
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import time_interval_align
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger(__name__)
@@ -118,10 +119,13 @@ class MetricHelper:
 
         # 结束时间不能大于 now
         end_time = min(now, end_time or now)
-        # 省略最后未完成的一分钟，避免数据不准确引起误解
-        end_time = end_time // 60 * 60
 
-        return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
+        # 省略未完成的一分钟，避免数据不准确引起误解
+        interval: int = 60
+        start_time = time_interval_align(start_time, interval) * cls.TIME_FIELD_ACCURACY
+        end_time = time_interval_align(end_time, interval) * cls.TIME_FIELD_ACCURACY
+
+        return start_time, end_time
 
     @classmethod
     def get_interval(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
