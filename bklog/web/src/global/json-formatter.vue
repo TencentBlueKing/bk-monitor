@@ -138,9 +138,9 @@
 
   .bklog-json-formatter-root {
     width: 100%;
-    padding: 12px 0;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
+    line-height: 20px;
     color: var(--table-fount-color);
 
     .bklog-root-field {

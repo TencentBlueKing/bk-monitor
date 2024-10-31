@@ -81,6 +81,7 @@
                 :jsonValue="row"
                 :fields="getShowTableVisibleFields"
                 :formatJson="formatJson"
+                class="bklog-column-container"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               ></JsonFormatter>
             </LazyRender>
@@ -172,42 +173,7 @@
   };
 </script>
 <style lang="scss">
-  // td {
-  //   &.original-str {
-  //     .cell {
-  //       display: flex;
-  //       text-overflow: unset;
-
-  //       .str-content {
-  //         &.origin-str {
-  //           width: 100%;
-
-  //           .origin-content {
-  //             display: flex;
-  //             word-break: break-all;
-  //             white-space: pre-line;
-
-  //             span {
-  //               display: flex;
-  //             }
-  //           }
-
-  //           &.is-wrap {
-  //             .origin-content {
-  //               display: flex;
-  //               flex-direction: column;
-  //               flex-wrap: wrap;
-
-  //               span {
-  //                 &:not(:first-child) {
-  //                   margin-top: 1px;
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+  .bklog-column-container {
+    padding: 12px 0;
+  }
 </style>

@@ -465,6 +465,7 @@ const store = new Vuex.Store({
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
       state.bkBizId = state.space.bk_biz_id;
       state.spaceUid = spaceUid;
+      state.isSetDefaultTableColumn = false;
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {
@@ -575,6 +576,9 @@ const store = new Vuex.Store({
     },
     updateVisibleFields(state, val) {
       state.visibleFields = val;
+    },
+    updateVisibleFieldMinWidth(state, fields) {
+      setDefaultTableWidth(state.visibleFields, fields);
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -1114,6 +1118,7 @@ const store = new Vuex.Store({
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
+
               if (!payload?.isPagination) dispatch('requestSearchTotal');
               return {
                 data,

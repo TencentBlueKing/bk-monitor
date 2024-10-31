@@ -25,8 +25,7 @@
 -->
 
 <template>
-  <div
-    :class="['td-log-container', { 'is-wrap': tableLineIsWrap }]"
+  <div class="bklog-column-container"
     @click.stop
   >
     <!-- eslint-disable vue/no-v-html -->
@@ -136,55 +135,7 @@
 </script>
 
 <style lang="scss" scoped>
-  .td-log-container {
-    position: relative;
-    line-height: 20px;
-
-    .field-container {
-      font-family: var(--table-fount-family);
-      font-size: var(--table-fount-size);
-      color: var(--table-fount-color);
-
-      &.active:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.mark {
-        color: black;
-        background: #f3e186;
-      }
-    }
-
-    .icon-search-container {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      margin-left: 5px;
-      vertical-align: bottom;
-      cursor: pointer;
-      background: #3a84ff;
-
-      .icon {
-        font-size: 12px;
-        font-weight: bold;
-        color: #fff;
-        background: #3a84ff;
-        transform: scale(0.6);
-
-        &.icon-copy {
-          font-size: 14px;
-          transform: scale(1);
-        }
-      }
-    }
-
-    &:hover {
-      .icon-search-container {
-        display: inline-flex;
-      }
-    }
+  .bklog-column-container {
+    padding: 12px 0;
   }
 </style>
