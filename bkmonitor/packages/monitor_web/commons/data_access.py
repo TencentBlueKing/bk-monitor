@@ -20,6 +20,7 @@ from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.constants import UptimeCheckProtocol
+from monitor.models import ApplicationConfig
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -741,6 +742,12 @@ class UptimecheckDataAccessor:
         if not self.use_custom_report():
             return
 
+        config = ApplicationConfig.objects.filter(
+            cc_biz_id=self.bk_biz_id, key=f"access_uptime_check_{self.protocol}_biz_dataid"
+        ).first()
+        if config and config.value == UptimecheckDataAccessor.version:
+            return
+
         # 创建数据ID
         data_id = self.create_data_id()
 
@@ -760,3 +767,14 @@ class UptimecheckDataAccessor:
             },
         }
         api.metadata.create_time_series_group(params)
+
+        # 更新配置
+        if not config:
+            ApplicationConfig.objects.create(
+                cc_biz_id=self.bk_biz_id,
+                key=f"access_uptime_check_{self.protocol}_biz_dataid",
+                value=UptimecheckDataAccessor.version,
+            )
+        else:
+            config.value = UptimecheckDataAccessor.version
+            config.save()
