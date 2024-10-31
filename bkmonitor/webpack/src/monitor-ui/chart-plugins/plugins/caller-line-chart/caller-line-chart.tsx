@@ -891,11 +891,11 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    // const configs = this.panel.toStrategy(null);
-    // if (configs) {
-    //   this.handleAddStrategy(this.panel, null, {}, true);
-    //   return;
-    // }
+    const configs = this.panel.toStrategy(null);
+    if (configs) {
+      this.handleAddStrategy(this.panel, null, {}, true);
+      return;
+    }
     const copyPanel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
@@ -944,11 +944,11 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleMetricClick(metric: IExtendMetricData) {
-    // const configs = this.panel.toStrategy(metric);
-    // if (configs) {
-    //   this.handleAddStrategy(this.panel, metric, {});
-    //   return;
-    // }
+    const configs = this.panel.toStrategy(metric);
+    if (configs) {
+      this.handleAddStrategy(this.panel, metric, {});
+      return;
+    }
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
