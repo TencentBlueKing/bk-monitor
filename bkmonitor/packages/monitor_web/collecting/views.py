@@ -40,6 +40,8 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.collecting.clone_collect_config, endpoint="clone"),
         # 重试部分实例或主机
         ResourceRoute("POST", resource.collecting.retry_target_nodes, endpoint="retry"),
+        # 主动执行部分实例或主机
+        ResourceRoute("POST", resource.collecting.run_collect_config, endpoint="run"),
         # 终止部分实例或主机
         ResourceRoute("POST", resource.collecting.revoke_target_nodes, endpoint="revoke"),
         # 批量终止实例或主机
