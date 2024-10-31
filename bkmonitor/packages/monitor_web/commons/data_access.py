@@ -20,7 +20,6 @@ from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.constants import UptimeCheckProtocol
-from monitor.models import ApplicationConfig
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -739,6 +738,8 @@ class UptimecheckDataAccessor:
         """
         接入数据链路
         """
+        from monitor.models import ApplicationConfig
+
         if not self.use_custom_report():
             return
 
