@@ -77,20 +77,7 @@ export default class ToolsMixin extends Vue {
     isAll = false
   ) {
     try {
-      let result: any = null;
-      const strategyConfig = panel?.toStrategy?.(metric, isAll);
-      if (strategyConfig) {
-        result = strategyConfig;
-      } else {
-        const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
-        const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
-        const interval = reviewInterval(
-          scopedVars.interval,
-          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-          panel.collect_interval
-        );
-        const variablesService = new VariablesService({ ...scopedVars, interval });
-        // 如有表达式需传入到策略
+      const getExpressionList = targets => {
         const expressionList = [];
         for (const t of targets) {
           const expression = t?.data?.expression || '';
@@ -104,6 +91,28 @@ export default class ToolsMixin extends Vue {
         if (expressionList.length) {
           expressionList[0].active = true;
         }
+        return expressionList;
+      };
+      let result: any = null;
+      const strategyConfig = panel?.toStrategy?.(metric, isAll);
+      const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
+      if (strategyConfig) {
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
+        result = {
+          ...strategyConfig,
+          expressionList,
+        };
+      } else {
+        const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
+        const interval = reviewInterval(
+          scopedVars.interval,
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          panel.collect_interval
+        );
+        const variablesService = new VariablesService({ ...scopedVars, interval });
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
         if (isAll) {
           result = {
             expression: '',
