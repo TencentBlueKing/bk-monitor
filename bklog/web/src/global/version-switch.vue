@@ -21,7 +21,7 @@
 
   const handleVersionChanged = () => {
     const nextVersion = props.version === 'v2' ? 'v1' : 'v2';
-    sessionStorage.setItem('retrieve_version', nextVersion);
+    localStorage.setItem('retrieve_version', nextVersion);
     window.location.reload();
   };
 </script>

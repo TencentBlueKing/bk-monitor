@@ -260,7 +260,7 @@ const store = new Vuex.Store({
       };
     },
     isNewRetrieveRoute: () => {
-      const v = sessionStorage.getItem('retrieve_version') ?? 'v2';
+      const v = localStorage.getItem('retrieve_version') ?? 'v2';
       return v === 'v2';
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
