@@ -354,7 +354,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   resetCallOptions(kind: EKind) {
     this.callOptions = {
-      ...this.callOptions,
+      ...this.panelScopedVars,
       kind: kind,
       group_by: [],
       method: this.supportedMethods?.[0]?.value || '',
