@@ -1259,6 +1259,7 @@ const store = new Vuex.Store({
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
       const searchMode = state.indexItem.search_mode;
+      const depth = Number(payload.depth ?? '0');
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1284,6 +1285,10 @@ const store = new Vuex.Store({
             break;
           default:
             break;
+        }
+
+        if (depth > 1) {
+          mappingKey = textMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };

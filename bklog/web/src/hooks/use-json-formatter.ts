@@ -66,9 +66,8 @@ export default class UseJsonFormatter {
   onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = tippyInstance.reference.innerText;
-    const valueElement =
-      tippyInstance.reference.closest('.jsoneditor-value') ??
-      (tippyInstance.reference.closest('.field-value') as HTMLElement);
+    const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
+    const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
 
     const fieldName = valueElement?.getAttribute('data-field-name');
     const activeField = this.getField(fieldName);
@@ -80,6 +79,7 @@ export default class UseJsonFormatter {
       fieldName: activeField?.field_name,
       operation: val === 'not' ? 'is not' : val,
       value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      depth,
     };
 
     this.config.onSegmentClick?.({ option, isLink });

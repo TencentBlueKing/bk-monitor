@@ -378,9 +378,9 @@ export default {
       // 是否是包含和不包含
       return ['exists', 'does not exists'].includes(operator);
     },
-    handleAddCondition(field, operator, value, isLink = false) {
+    handleAddCondition(field, operator, value, isLink = false, depth = undefined) {
       this.$store
-        .dispatch('setQueryCondition', { field, operator, value, isLink })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
@@ -388,9 +388,11 @@ export default {
           }
         });
     },
-    handleIconClick(type, content, field, row, isLink) {
-      debugger;
-      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
+    handleIconClick(type, content, field, row, isLink, depth) {
+      let value = ['date', 'date_nanos'].includes(field.field_type)
+        ? this.tableRowDeepView(row, field.field_name, field.field_type)
+        : content;
+
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
@@ -401,7 +403,7 @@ export default {
         // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
+        this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
       }
     },
     getFieldIcon(fieldType) {
@@ -417,9 +419,9 @@ export default {
         case 'is not':
         case 'not':
         case 'new-search-page-is':
-          const { fieldName, operation, value } = option;
+          const { fieldName, operation, value, depth } = option;
           const operator = operation === 'not' ? 'is not' : operation;
-          this.handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink);
+          this.handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink, depth);
           break;
         case 'copy':
           copyMessage(option.value);

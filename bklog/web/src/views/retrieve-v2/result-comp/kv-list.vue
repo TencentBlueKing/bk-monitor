@@ -231,10 +231,10 @@
       handleJsonSegmentClick({ isLink, option }, fieldName) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { operation, value } = option;
+        const { operation, value, depth } = option;
         const operator = operation === 'not' ? 'is not' : operation;
         const field = this.totalFields.find(f => f.field_name === fieldName);
-        this.$emit('value-click', operator, value, isLink, field); // type, content, field, row, isLink
+        this.$emit('value-click', operator, value, isLink, field, depth); // type, content, field, row, isLink
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};

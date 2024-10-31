@@ -51,7 +51,7 @@
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
               :visible-fields="visibleFields"
-              @value-click="(type, content, isLink, field) => handleIconClick(type, content, field, row, isLink)"
+              @value-click="(type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)"
             >
             </expand-view>
           </LazyRender>
