@@ -27,18 +27,21 @@
 module.exports = function (api) {
   api?.cache.never();
   const presets = [
-    // [
-    //   '@babel/preset-env',
-    //   {
-    //     targets: {
-    //       browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
-    //       node: 'current',
-    //     },
-    //     useBuiltIns: 'usage',
-    //     corejs: 3,
-    //     debug: false,
-    //   },
-    // ],
+    [
+      '@babel/preset-env',
+      {
+        targets: {
+          browsers:
+            process.env.APP === 'apm'
+              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
+              : ['> 1%', 'last 2 versions', 'not ie <= 8'],
+          node: 'current',
+        },
+        useBuiltIns: 'usage',
+        corejs: 3,
+        debug: false,
+      },
+    ],
     '@vue/babel-preset-jsx',
   ];
   const plugins = [
