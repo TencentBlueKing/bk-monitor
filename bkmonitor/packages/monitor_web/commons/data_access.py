@@ -743,7 +743,7 @@ class UptimecheckDataAccessor:
             return
 
         config = ApplicationConfig.objects.filter(
-            cc_biz_id=self.bk_biz_id, key=f"access_uptime_check_{self.protocol}_biz_dataid"
+            cc_biz_id=self.bk_biz_id, key=f"access_uptime_check_{self.task.protocol.lower()}_biz_dataid"
         ).first()
         if config and config.value == UptimecheckDataAccessor.version:
             return
@@ -772,7 +772,7 @@ class UptimecheckDataAccessor:
         if not config:
             ApplicationConfig.objects.create(
                 cc_biz_id=self.bk_biz_id,
-                key=f"access_uptime_check_{self.protocol}_biz_dataid",
+                key=f"access_uptime_check_{self.task.protocol.lower()}_biz_dataid",
                 value=UptimecheckDataAccessor.version,
             )
         else:
