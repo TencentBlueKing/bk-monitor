@@ -394,6 +394,7 @@ class ContainerCollectorConfig(SoftDeleteModel):
     raw_config = models.JSONField(_("原始配置"), null=True, blank=True)
     parent_container_config_id = models.IntegerField(_("父配置id"), default=0)
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
+    index = models.IntegerField(_("顺序索引"), default=0)
 
 
 class BcsRule(SoftDeleteModel):
