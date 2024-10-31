@@ -945,7 +945,6 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleMetricClick(metric: IExtendMetricData) {
     const configs = this.panel.toStrategy(metric);
-    console.log(configs);
     if (configs) {
       this.handleAddStrategy(this.panel, metric, {});
       return;
