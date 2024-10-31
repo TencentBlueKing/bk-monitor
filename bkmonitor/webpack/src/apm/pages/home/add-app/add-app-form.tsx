@@ -109,7 +109,7 @@ export default class AddAppForm extends tsc<IProps> {
     return pass;
   }
 
-  commonRule(value) {
+  commonRule(value, key) {
     if (!value) {
       return this.$tc('必填项');
     }
@@ -119,7 +119,7 @@ export default class AddAppForm extends tsc<IProps> {
     if (!(value.length >= 1 && value.length <= 50)) {
       return window.i18n.tc('输入1-50个字符');
     }
-    if (!/^[a-z0-9_-]+$/.test(value)) {
+    if (key === 'appName' && !/^[a-z0-9_-]+$/.test(value)) {
       return window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可');
     }
   }
@@ -141,8 +141,8 @@ export default class AddAppForm extends tsc<IProps> {
   }
   async handleBlur(key) {
     const value = this.formData[key];
-    let errMsg = this.commonRule(value);
-    if (key === 'appName' && !this.formDataErrMsg[key] && value) {
+    let errMsg = this.commonRule(value, key);
+    if (key === 'appName' && !errMsg && value) {
       const pass = await this.handleCheckDuplicateName(value);
       if (!pass) {
         errMsg = this.$t('应用名已存在');

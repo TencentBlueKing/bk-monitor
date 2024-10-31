@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import Any, Dict, List
 
 from django.db.models import TextChoices
 from django.utils.functional import cached_property
@@ -673,6 +673,7 @@ class SpanKindKey:
 class TrpcAttributes:
     """for trpc"""
 
+    TRPC_ENV_NAME = "trpc.envname"
     TRPC_NAMESPACE = "trpc.namespace"
     TRPC_CALLER_SERVICE = "trpc.caller_service"
     TRPC_CALLEE_SERVICE = "trpc.callee_service"
@@ -680,6 +681,163 @@ class TrpcAttributes:
     TRPC_CALLEE_METHOD = "trpc.callee_method"
     TRPC_STATUS_TYPE = "trpc.status_type"
     TRPC_STATUS_CODE = "trpc.status_code"
+
+
+class TRPCMetricTag:
+
+    # 通用
+    REGION = "region"
+    ENV_NAME = "env_name"
+    NAMESPACE = "namespace"
+    VERSION = "version"
+    CANARY = "canary"
+    USER_EXT1 = "user_ext1"
+    USER_EXT2 = "user_ext2"
+    USER_EXT3 = "user_ext3"
+    CODE = "code"
+
+    # 主调
+    CALLER_SERVER: str = "caller_server"
+    CALLER_SERVICE: str = "caller_service"
+    CALLER_METHOD: str = "caller_method"
+    CALLER_IP: str = "caller_ip"
+    CALLER_CONTAINER: str = "caller_container"
+    CALLER_CON_SETID: str = "caller_con_setid"
+    CALLER_GROUP: str = "caller_group"
+
+    # 被调
+    CALLEE_SERVER: str = "callee_server"
+    CALLEE_SERVICE: str = "callee_service"
+    CALLEE_METHOD: str = "callee_method"
+    CALLEE_IP: str = "callee_ip"
+    CALLEE_CONTAINER: str = "callee_container"
+    CALLEE_CON_SETID: str = "callee_con_setid"
+
+    SDK_NAME: str = "sdk_name"
+
+    @classmethod
+    def tags(cls) -> List[Dict[str, str]]:
+        return [
+            {"value": cls.CALLER_SERVER, "text": _("主调服务")},
+            {"value": cls.CALLER_SERVICE, "text": _("主调 Service")},
+            {"value": cls.CALLER_METHOD, "text": _("主调接口")},
+            {"value": cls.CALLER_IP, "text": _("主调 IP")},
+            {"value": cls.CALLER_CONTAINER, "text": _("主调容器")},
+            {"value": cls.CALLER_CON_SETID, "text": _("主调 SetID")},
+            {"value": cls.CALLER_GROUP, "text": _("主调流量组")},
+            {"value": cls.CALLEE_SERVER, "text": _("被调服务")},
+            {"value": cls.CALLEE_SERVICE, "text": _("被调 Service")},
+            {"value": cls.CALLEE_METHOD, "text": _("被调接口"), "default_group_by_field": True},
+            {"value": cls.CALLEE_IP, "text": _("被调 IP")},
+            {"value": cls.CALLEE_CONTAINER, "text": _("被调容器")},
+            {"value": cls.CALLEE_CON_SETID, "text": _("被调 SetID")},
+            {"value": cls.NAMESPACE, "text": _("物理环境")},
+            {"value": cls.ENV_NAME, "text": _("用户环境")},
+            {"value": cls.CODE, "text": _("返回码")},
+            {"value": cls.VERSION, "text": _("版本")},
+            {"value": cls.REGION, "text": _("地域")},
+            {"value": cls.CANARY, "text": _("金丝雀")},
+            {"value": cls.USER_EXT1, "text": _("预留字段1")},
+            {"value": cls.USER_EXT2, "text": _("预留字段2")},
+            {"value": cls.USER_EXT3, "text": _("预留字段3")},
+        ]
+
+    @classmethod
+    def callee_tags(cls) -> List[Dict[str, str]]:
+        # 被调已经固定「被调服务」，不需要展示
+        return [tag for tag in cls.tags() if tag["value"] != cls.CALLEE_SERVER]
+
+    @classmethod
+    def caller_tags(cls) -> List[Dict[str, str]]:
+        # 主调已经固定「主调服务」，不需要展示
+        return [tag for tag in cls.tags() if tag["value"] != cls.CALLER_SERVER]
+
+    @classmethod
+    def tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+        return {
+            "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_CONSUMER]},
+            cls.CALLER_SERVER: {"field": ResourceAttributes.SERVICE_NAME},
+            cls.CALLER_SERVICE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
+            cls.CALLER_METHOD: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
+            cls.CALLER_IP: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+            "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_PRODUCER]},
+            cls.CALLEE_SERVER: {"field": ResourceAttributes.SERVICE_NAME},
+            cls.CALLEE_SERVICE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
+            cls.CALLEE_METHOD: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
+            cls.CALLEE_IP: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            cls.NAMESPACE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
+            cls.ENV_NAME: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
+            cls.CODE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_STATUS_CODE}"},
+        }
+
+    @classmethod
+    def caller_tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["callee"]}
+
+    @classmethod
+    def callee_tag_trace_mapping(cls) -> Dict[str, Dict[str, Any]]:
+        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["caller"]}
+
+
+class TrpcTagDrillOperation:
+    CALLER = "caller"
+    CALLEE = "callee"
+    TRACE = "trace"
+    TOPO = "topo"
+    SERVICE = "service"
+
+    @classmethod
+    def caller_support_operations(cls) -> List[Dict[str, Any]]:
+        tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
+        return [
+            {
+                "text": _("被调分析"),
+                "value": cls.CALLEE,
+                "tags": [
+                    TRPCMetricTag.CALLER_SERVICE,
+                    TRPCMetricTag.CALLER_METHOD,
+                    TRPCMetricTag.CALLEE_SERVICE,
+                    TRPCMetricTag.CALLEE_METHOD,
+                ],
+            },
+            {
+                "text": _("Trace"),
+                "value": cls.TRACE,
+                "tags": list(tag_trace_mapping.keys()),
+                "tag_trace_mapping": tag_trace_mapping,
+            },
+            # 主调视图下，第一个 group by 字段为「被调服务」时，可以跳转到拓扑页
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [TRPCMetricTag.CALLEE_SERVER]},
+            # 主调视图下，跳转到该服务的主被调界面，默认展示「被调」
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [TRPCMetricTag.CALLEE_SERVER]},
+        ]
+
+    @classmethod
+    def callee_support_operations(cls) -> List[Dict[str, Any]]:
+        tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
+        return [
+            {
+                "text": _("主调分析"),
+                "value": cls.CALLEE,
+                "tags": [
+                    TRPCMetricTag.CALLER_SERVICE,
+                    TRPCMetricTag.CALLER_METHOD,
+                    TRPCMetricTag.CALLEE_SERVICE,
+                    TRPCMetricTag.CALLEE_METHOD,
+                ],
+            },
+            {
+                "text": _("Trace"),
+                "value": cls.TRACE,
+                "tags": list(tag_trace_mapping.keys()),
+                "tag_trace_mapping": tag_trace_mapping,
+            },
+            # TODO：需要检查下服务在不在，不在的话最好是有另外的交互提示
+            # 被调视图下，第一个 group by 字段为「主调服务」时，可以跳转到拓扑页
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [TRPCMetricTag.CALLER_SERVER]},
+            # 被调视图下，跳转到该服务的主被调界面，默认展示「被调」
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [TRPCMetricTag.CALLER_SERVER]},
+        ]
 
 
 class IndexSetSource(TextChoices):
@@ -858,3 +1016,14 @@ class BkCollectorComp:
 
     # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"
+
+
+class MetricTemporality:
+    # 累积（Cumulative）：指标为 Counter 类型，数值只增不减，计算固定间隔（比如 1 分钟内）的请求量，需要用 increase 函数
+    CUMULATIVE: str = "cumulative"
+    # 差值（Delta）：指标为 Gauge 类型，数值是上报间隔，计算固定间隔（比如 1 分钟内）的请求量，需要用 sum_over_time 函数
+    DELTA: str = "delta"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]

@@ -692,11 +692,11 @@ class UptimecheckDataAccessor:
         """
         是否使用自定义上报
         """
-        return bool(self.task.indepentent_dataid or self.task.labels)
+        return self.task.indepentent_dataid
 
     @property
     def data_label(self) -> str:
-        return f"uptimcheck_{self.task.protocol.lower()}"
+        return f"uptimecheck_{self.task.protocol.lower()}"
 
     @property
     def db_name(self) -> str:

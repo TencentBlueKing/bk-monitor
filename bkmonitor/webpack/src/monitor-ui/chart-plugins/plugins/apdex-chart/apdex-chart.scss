@@ -1,36 +1,40 @@
 .apdex-chart {
+  z-index: 7;
   display: flex;
-  width: 100%;
-  height: 100%;
   flex: 1;
   flex-direction: column;
-  z-index: 7;
+  width: 100%;
+  height: 100%;
   background-color: white;
+
   &-header {
-    flex: 0 0 46px;
     display: flex;
+    flex: 0 0 46px;
     align-items: center;
     width: 100%;
     height: 46px;
   }
+
   &-content {
-    flex: 1;
     display: flex;
+    flex: 1;
+    flex-direction: column;
     width: 100%;
     height: calc(100% - 46px);
-    flex-direction: column;
     padding-bottom: 6px;
+
     .chart-instance {
-      flex: 1;
       display: flex;
+      flex: 1;
       flex-grow: 2;
     }
   }
+
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
 }

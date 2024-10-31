@@ -6,7 +6,7 @@ settings:
 
 overrides:
   '@blueking/user-selector>vue': v2-latest
-  bk-magic-vue: 2.5.9-beta.38
+  bk-magic-vue: 2.5.9-beta.45
   eslint: ^9.11.0
   monaco-editor: 0.44.0
   monaco-editor-webpack-plugin>monaco-editor: 0.44.0
@@ -141,8 +141,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: 2.5.9-beta.38
-        version: 2.5.9-beta.38(vue@2.7.16)
+        specifier: 2.5.9-beta.45
+        version: 2.5.9-beta.45(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -217,8 +217,8 @@ importers:
         specifier: ^3.5.2
         version: 3.5.2
       bk-magic-vue:
-        specifier: 2.5.9-beta.38
-        version: 2.5.9-beta.38(vue@2.7.16)
+        specifier: 2.5.9-beta.45
+        version: 2.5.9-beta.45(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -390,8 +390,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1
       bk-magic-vue:
-        specifier: 2.5.9-beta.38
-        version: 2.5.9-beta.38(vue@2.7.16)
+        specifier: 2.5.9-beta.45
+        version: 2.5.9-beta.45(vue@2.7.16)
       dayjs:
         specifier: ^1.11.11
         version: 1.11.11
@@ -499,8 +499,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1
       bk-magic-vue:
-        specifier: 2.5.9-beta.38
-        version: 2.5.9-beta.38(vue@2.7.16)
+        specifier: 2.5.9-beta.45
+        version: 2.5.9-beta.45(vue@2.7.16)
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -5428,8 +5428,8 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /bk-magic-vue@2.5.9-beta.38(vue@2.7.16):
-    resolution: {integrity: sha512-/Xp8EcNsi05kTiNdRwC2YuMVMrZGBdYSevrzoj7D6dgkUM7FZEmf/CkIYTVM4d3Rd0zJ+1OiEgFiUDxf37/8Qg==}
+  /bk-magic-vue@2.5.9-beta.45(vue@2.7.16):
+    resolution: {integrity: sha512-aQRrMaoDCnsyeqTdRr7S5KbrqFam8qltR+xIZhixnE7qu92w8mRvPfAjMGgXK952mApfpcYdEbc29qJ4wHJ3BQ==}
     engines: {node: <= 16.14}
     peerDependencies:
       vue: ^2.6.0

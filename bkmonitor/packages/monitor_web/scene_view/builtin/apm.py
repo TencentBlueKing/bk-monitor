@@ -9,16 +9,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import HostAddressType
+from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_group import CalculationType
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
+from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
+from core.drf_resource import api
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -40,6 +45,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-component-default-topo",
         "apm_service-component-db-db",
         "apm_service-component-messaging-endpoint",
+        "apm_service-service-default-caller_callee",
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
@@ -64,8 +70,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-log",
         "service-default-topo",
         "service-default-db",
+        "service-default-caller_callee",
     ]
-
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -148,6 +154,61 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             return cls._get_non_host_view_config(builtin_view, params)
 
+        if builtin_view == "apm_service-service-default-caller_callee":
+            group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+                metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+            )
+
+            # 探测服务，存在再展示页面
+            server_list: List[str] = group.fetch_server_list()
+            if params["service_name"] not in server_list:
+                view_config["hidden"] = True
+                return view_config
+
+            # 补充查询
+            service_temporality: Optional[str] = group.get_server_config(server=params["service_name"]).get(
+                "temporality"
+            )
+
+            if service_temporality == MetricTemporality.CUMULATIVE:
+                # 添加 increase 函数
+                cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
+            view_config = cls._replace_variable(view_config, "${temporality}", service_temporality)
+
+            # 补充配置
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLER.value] = {
+                "server": TRPCMetricTag.CALLER_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value],
+                "tags": TRPCMetricTag.caller_tags(),
+                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLEE.value] = {
+                "server": TRPCMetricTag.CALLEE_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value],
+                "tags": TRPCMetricTag.callee_tags(),
+                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["statistics"]["supported_calculation_types"] = [
+                {"value": value, "text": text} for value, text in CalculationType.choices()
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_calculation_types"] = [
+                {"value": value, "text": text}
+                for value, text in CalculationType.choices()
+                if value
+                in [
+                    CalculationType.REQUEST_TOTAL,
+                    CalculationType.AVG_DURATION,
+                    CalculationType.SUCCESS_RATE,
+                    CalculationType.TIMEOUT_RATE,
+                    CalculationType.EXCEPTION_RATE,
+                ]
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_methods"] = [
+                {"value": CalculationType.TOP_N, "text": "top"},
+                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
+            ]
+
         return view_config
 
     @classmethod
@@ -179,6 +240,29 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         """替换模版中的变量"""
         content = json.dumps(view_config)
         return json.loads(content.replace(target, str(value)))
+
+    @classmethod
+    def _add_functions(cls, view_config: Dict[str, Any], functions: List[Dict[str, Any]]):
+        for panel in (
+            (view_config.get("overview_panels") or [])
+            + (view_config.get("extra_panels") or [])
+            + (view_config.get("panels") or [])
+        ):
+            cls._add_functions(panel, functions)
+
+        for target in view_config.get("targets") or []:
+            target_data = target.get("data")
+            if not target_data:
+                continue
+
+            for query_config in target_data.get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
+
+            if not target_data.get("unify_query_param"):
+                continue
+
+            for query_config in target_data["unify_query_param"].get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
     def _add_config_from_host(cls, view, view_config):
@@ -241,7 +325,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 scene_id=scene_id,
                 type="",
                 defaults={
-                    "config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log", "profiling"]
+                    "config": [
+                        "overview",
+                        "caller_callee",
+                        "topo",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "instance",
+                        "host",
+                        "log",
+                        "profiling",
+                    ]
                 },
             )
 
