@@ -81,14 +81,8 @@ export default defineComponent({
         app_name: '',
         service_name: '',
       },
+      dateComparisonEnable: false,
       isComparison: false,
-      dateComparison: {
-        enable: false,
-        start: undefined,
-        end: undefined,
-        diffStart: undefined,
-        diffEnd: undefined,
-      },
       where: [],
       comparisonWhere: [],
     });
@@ -96,7 +90,7 @@ export default defineComponent({
     watch(
       () => props.formData,
       newVal => {
-        newVal && Object.assign(localFormData, newVal);
+        if (newVal) Object.assign(localFormData, newVal);
       },
       {
         immediate: true,
@@ -105,7 +99,6 @@ export default defineComponent({
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        // getLabelList();
         getApplicationList();
       }
     );
@@ -148,7 +141,7 @@ export default defineComponent({
     function handleComparisonChange(val: boolean) {
       localFormData.isComparison = val;
       if (!val) {
-        localFormData.dateComparison.enable = false;
+        localFormData.dateComparisonEnable = false;
       }
       handleEmitChange(true);
     }
@@ -158,7 +151,7 @@ export default defineComponent({
      * @param val 开关状态
      */
     function handleDataComparisonChange(val: boolean) {
-      localFormData.dateComparison.enable = val;
+      localFormData.dateComparisonEnable = val;
       handleEmitChange(false);
     }
 
@@ -358,7 +351,7 @@ export default defineComponent({
                     <div class='label'>{this.t('时间对比')}</div>
                     <div class='content'>
                       <Switcher
-                        modelValue={this.localFormData.dateComparison.enable}
+                        modelValue={this.localFormData.dateComparisonEnable}
                         size='small'
                         theme='primary'
                         onChange={this.handleDataComparisonChange}

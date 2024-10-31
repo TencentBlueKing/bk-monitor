@@ -77,7 +77,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['chartData'],
+  emits: ['chartData', 'loading'],
   setup(props, { emit }) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
@@ -111,12 +111,12 @@ export default defineComponent({
 
     watch(
       () => [props.queryParams, chartType.value],
-      (newVal, oldVal) => {
+      () => {
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
         const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
-        if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
+        // if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
         const targetData = {
           ...rest,
           ...(allTrend ? { diagram_types: ['tendency'] } : {}),
@@ -189,6 +189,11 @@ export default defineComponent({
       emit('chartData', data);
     }
 
+    function handleLoading(v) {
+      loading.value = v;
+      emit('loading', v);
+    }
+
     return {
       chartRef,
       timeSeriesChartRef,
@@ -199,6 +204,7 @@ export default defineComponent({
       loading,
       chartCustomTooltip,
       handleChartData,
+      handleLoading,
     };
   },
   render() {
@@ -220,7 +226,7 @@ export default defineComponent({
                     showChartHeader={false}
                     showHeaderMoreTool={false}
                     onChartData={this.handleChartData}
-                    onLoading={val => (this.loading = val)}
+                    onLoading={this.handleLoading}
                   />
                 )}
               </div>

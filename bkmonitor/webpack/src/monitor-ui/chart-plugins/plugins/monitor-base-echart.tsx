@@ -164,8 +164,8 @@ class MonitorBaseEchart extends BaseEchart {
             });
           });
         }
+        this.$emit('loaded');
       }, 100);
-      this.$emit('loaded');
     }
   }
   handleDataZoom(event) {
