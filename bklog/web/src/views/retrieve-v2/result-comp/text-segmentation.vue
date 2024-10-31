@@ -80,7 +80,7 @@
       nextTick(() => {
         instance.config.jsonValue = renderText.value;
         instance.destroy?.();
-        const appendText = showMore.value
+        const appendText = showMore.value && !isLimitExpandView.value
           ? {
               text: btnText.value,
               onClick: handleClickMore,

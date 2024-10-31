@@ -61,7 +61,6 @@
     <template>
       <bk-table-column
         v-for="(field, index) in getShowTableVisibleFields"
-        :class-name="`visiable-field${tableLineIsWrap ? ' is-wrap' : ''}`"
         :column-key="field.field_name"
         :index="index"
         :key="field.field_name"

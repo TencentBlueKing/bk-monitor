@@ -204,12 +204,14 @@ export default class UseJsonFormatter {
 
   initStringAsValue(appendText?: SegmentAppendText) {
     let root = this.getTargetRoot() as HTMLElement;
-    if (root.classList.contains('field-value')) {
-      root = root.parentElement;
-    }
+    if (root) {
+      if (root.classList.contains('field-value')) {
+        root = root.parentElement;
+      }
 
-    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
-    this.setNodeValueWordSplit(root, fieldName, '.field-value', appendText);
+      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
+      this.setNodeValueWordSplit(root, fieldName, '.field-value', appendText);
+    }
   }
 
   setNodeValueWordSplit(

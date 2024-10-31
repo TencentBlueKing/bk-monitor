@@ -395,48 +395,48 @@
         white-space: nowrap;
       }
 
-      .original-str,
-      .visiable-field {
-        .str-content {
-          position: relative;
-          line-height: 20px;
+      // .original-str,
+      // .visiable-field {
+      //   .str-content {
+      //     position: relative;
+      //     line-height: 20px;
 
-          &.is-limit {
-            max-height: 106px;
-          }
-        }
+      //     &.is-limit {
+      //       max-height: 106px;
+      //     }
+      //   }
 
-        &.is-wrap {
-          .str-content {
-            display: block;
-            overflow: hidden;
-          }
-        }
+      //   &.is-wrap {
+      //     .str-content {
+      //       display: block;
+      //       overflow: hidden;
+      //     }
+      //   }
 
-        .origin-str {
-          line-height: 20px;
-          color: #313238;
-        }
+      //   .origin-str {
+      //     line-height: 20px;
+      //     color: #313238;
+      //   }
 
-        .show-whole-btn {
-          position: absolute;
-          top: 84px;
-          width: 100%;
-          height: 24px;
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-          background: #fff;
-          transition: background-color 0.25s ease;
-        }
+      //   .show-whole-btn {
+      //     position: absolute;
+      //     top: 84px;
+      //     width: 100%;
+      //     height: 24px;
+      //     font-size: 12px;
+      //     color: #3a84ff;
+      //     cursor: pointer;
+      //     background: #fff;
+      //     transition: background-color 0.25s ease;
+      //   }
 
-        .hide-whole-btn {
-          margin-top: -2px;
-          line-height: 14px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
+      //   .hide-whole-btn {
+      //     margin-top: -2px;
+      //     line-height: 14px;
+      //     color: #3a84ff;
+      //     cursor: pointer;
+      //   }
+      // }
 
       .hover-row {
         .show-whole-btn {
@@ -444,18 +444,18 @@
         }
       }
 
-      .original-str {
-        .hide-whole-btn {
-          margin-top: 4px;
-        }
-      }
+      // .original-str {
+      //   .hide-whole-btn {
+      //     margin-top: 4px;
+      //   }
+      // }
 
       td.bk-table-expanded-cell {
         padding: 0;
       }
 
       .bk-table-column-expand .bk-icon {
-        top: 18px;
+        top: 19px;
       }
 
       .bk-table-empty-text {
@@ -562,7 +562,4 @@
     }
   }
 
-  tr.bk-table-row {
-    content-visibility: auto;
-  }
 </style>

@@ -2,8 +2,7 @@
   <div
     ref="lazyRenderCell"
     class="bklog-lazy-render-cell"
-    :class="{ 'bklog-lazy-loading': !isVisible }"
-    :style="cellStyle"
+    :class="{ 'bklog-lazy-loading': !isVisible, 'is-intersecting': isIntersecting }"
   >
     <template v-if="isVisible">
       <!-- 实际内容 -->
@@ -13,7 +12,7 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+  import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
 
   const props = defineProps({
     delay: {
@@ -30,26 +29,27 @@
   const isVisible = ref(false);
   let observer = null;
   let visibilityTimeout = null;
-  const cellWidth = ref('auto');
-  const cellHeight = ref('auto');
+  // const cellWidth = ref('auto');
+  // const cellHeight = ref('auto');
+  const isIntersecting = ref(false);
 
-  const setCellDimensions = () => {
-    if (lazyRenderCell.value) {
-      cellWidth.value = `${lazyRenderCell.value.offsetWidth}px`;
-      cellHeight.value = `${lazyRenderCell.value.offsetHeight}px`;
-    }
-  };
+  // const setCellDimensions = () => {
+  //   if (lazyRenderCell.value) {
+  //     cellWidth.value = `${lazyRenderCell.value.offsetWidth}px`;
+  //     cellHeight.value = `${lazyRenderCell.value.offsetHeight}px`;
+  //   }
+  // };
 
-  const cellStyle = computed(() => {
-    if (props.visibleOnly) {
-      return {
-        width: cellWidth.value,
-        height: cellHeight.value,
-      };
-    }
+  // const cellStyle = computed(() => {
+  //   if (props.visibleOnly) {
+  //     return {
+  //       width: cellWidth.value,
+  //       height: cellHeight.value,
+  //     };
+  //   }
 
-    return {};
-  });
+  //   return {};
+  // });
 
   const destroyObserver = () => {
     if (observer) {
@@ -62,17 +62,18 @@
     observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
+          isIntersecting.value = entry.isIntersecting;
           if (entry.isIntersecting) {
-            visibilityTimeout = setTimeout(() => {
+            setTimeout(() => {
               isVisible.value = true;
             });
           } else {
             if (props.visibleOnly) {
-              if (visibilityTimeout) {
-                cancelAnimationFrame(visibilityTimeout);
-                visibilityTimeout = null;
-              }
-              setCellDimensions();
+              // if (visibilityTimeout) {
+              //   cancelAnimationFrame(visibilityTimeout);
+              //   visibilityTimeout = null;
+              // }
+              // setCellDimensions();
               isVisible.value = false;
               return;
             }
@@ -104,15 +105,17 @@
 
 <style>
   .bklog-lazy-render-cell {
-    /* position: relative; */
     box-sizing: border-box;
     display: flex;
     align-items: center;
     min-height: 40px;
 
-    /* content-visibility: auto; */
+    /* visibility: hidden; */
 
-    /* overflow: hidden; */
+    /*
+    &.is-intersecting {
+      visibility: visible;
+    } */
   }
 
   .bklog-lazy-render-cell.bklog-lazy-loading::before {
