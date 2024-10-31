@@ -893,7 +893,7 @@ class CallerLineChart extends CommonSimpleChart {
   handleAllMetricClick() {
     const configs = this.panel.toStrategy(null);
     if (configs) {
-      this.handleAddStrategy(this.panel, null, {}, true);
+      this.handleAddStrategy(this.panel, null, {});
       return;
     }
     const copyPanel = this.getCopyPanel();
@@ -945,6 +945,7 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleMetricClick(metric: IExtendMetricData) {
     const configs = this.panel.toStrategy(metric);
+    console.log(configs);
     if (configs) {
       this.handleAddStrategy(this.panel, metric, {});
       return;
