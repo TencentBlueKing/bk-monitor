@@ -598,12 +598,8 @@ class UptimeCheckTask(OperateRecordModel):
         """
         from monitor_web.commons.data_access import UptimecheckDataAccessor
 
-        da = UptimecheckDataAccessor(self)
-        config = ApplicationConfig.objects.filter(
-            bk_biz_id=self.bk_biz_id, key=f"access_uptime_check_{self.protocol}_biz_dataid"
-        ).first()
-        if not config or config.value != UptimecheckDataAccessor.version:
-            da.access()
+        # 数据接入
+        UptimecheckDataAccessor(self).access()
 
         create_strategy = True if (self.status == self.Status.NEW_DRAFT) else False
         self.status = self.Status.STARTING
