@@ -38,6 +38,7 @@ import { Debounce, typeTools } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
+import loadingIcon from '../../icons/spinner.svg';
 import {
   type BaseDataType,
   type DataTypeItem,
@@ -90,6 +91,7 @@ class ProfilingChart extends CommonSimpleChart {
   dataType = '';
   /** trend图表数据 */
   trendSeriesData = [];
+  trendLoading = false;
   queryParams: IQueryParams = {};
   /** 是否开启时间对比 */
   enableDateDiff = false;
@@ -401,6 +403,11 @@ class ProfilingChart extends CommonSimpleChart {
   handleTrendSeriesData(data) {
     this.trendSeriesData = data;
   }
+
+  handleTrendLoading(loading) {
+    this.trendLoading = loading;
+  }
+
   setDiffDefaultDate() {
     if (this.enableDateDiff && this.trendSeriesData.length) {
       const { datapoints } = this.trendSeriesData[0];
@@ -508,6 +515,7 @@ class ProfilingChart extends CommonSimpleChart {
               <TrendChart
                 diffDate={this.diffDate}
                 queryParams={this.queryParams}
+                onLoading={this.handleTrendLoading}
                 onOptionsLoaded={this.setDiffDefaultDate}
                 onSeriesData={this.handleTrendSeriesData}
               />
@@ -517,7 +525,16 @@ class ProfilingChart extends CommonSimpleChart {
                   class='diff-chart-view'
                 >
                   <div class='diff-chart-card'>
-                    <div class='chart-title'>{this.$t('查询项')}</div>
+                    <div class='chart-title'>
+                      {this.$t('查询项')}
+                      {this.trendLoading && (
+                        <img
+                          class='chart-loading-icon'
+                          alt='loading'
+                          src={loadingIcon}
+                        />
+                      )}
+                    </div>
                     <DiffChart
                       brushRect={this.diffDate[0]}
                       colorIndex={0}
@@ -527,7 +544,16 @@ class ProfilingChart extends CommonSimpleChart {
                     />
                   </div>
                   <div class='diff-chart-card'>
-                    <div class='chart-title'>{this.$t('对比项')}</div>
+                    <div class='chart-title'>
+                      {this.$t('对比项')}
+                      {this.trendLoading && (
+                        <img
+                          class='chart-loading-icon'
+                          alt='loading'
+                          src={loadingIcon}
+                        />
+                      )}
+                    </div>
                     <DiffChart
                       brushRect={this.diffDate[1]}
                       colorIndex={1}

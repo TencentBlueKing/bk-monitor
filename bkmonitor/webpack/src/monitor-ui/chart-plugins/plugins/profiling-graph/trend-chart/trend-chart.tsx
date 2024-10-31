@@ -55,6 +55,7 @@ interface ITrendChartProps {
 interface ITrendChartEvents {
   onSeriesData(series: any[]): void;
   onOptionsLoaded(): void;
+  onLoading(loading: boolean): void;
 }
 
 @Component
@@ -148,6 +149,11 @@ export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents>
     return data.series || [];
   }
 
+  @Emit('loading')
+  handleLoading(val) {
+    this.loading = val;
+  }
+
   render() {
     const chartHtml =
       this.chartType === 'all' ? (
@@ -156,7 +162,7 @@ export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents>
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
-          onLoading={val => (this.loading = val)}
+          onLoading={this.handleLoading}
           onOptionsLoaded={this.handleOptionsLoaded}
           onSeriesData={this.handleSeriesData}
         />
@@ -166,7 +172,7 @@ export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents>
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
-          onLoading={val => (this.loading = val)}
+          onLoading={this.handleLoading}
           onOptionsLoaded={this.handleOptionsLoaded}
           onSeriesData={this.handleSeriesData}
         />

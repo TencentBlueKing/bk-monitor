@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
+import { ResizeMixin } from '../../../mixins';
 import MonitorBaseEchart from '../../monitor-base-echart';
 
 import './diff-chart.scss';
@@ -42,7 +43,7 @@ type IDiffChartEvents = {
 };
 
 @Component
-export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
+class DiffChart extends Mixins<ResizeMixin>(ResizeMixin) {
   @Prop({ default: null }) data: Record<string, any>;
   @Prop({ default: '' }) title: string;
   @Prop({ default: () => [] }) brushRect: number[];
@@ -226,7 +227,6 @@ export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
 
   /** 设置图表框选区域 */
   setChartBrush() {
-    console.log('setChartBrush');
     this.baseEchart?.dispatchAction({
       type: 'brush',
       areas: this.brushCoordRange.length
@@ -277,3 +277,5 @@ export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
     );
   }
 }
+
+export default ofType<IDiffChartProps, IDiffChartEvents>().convert(DiffChart);

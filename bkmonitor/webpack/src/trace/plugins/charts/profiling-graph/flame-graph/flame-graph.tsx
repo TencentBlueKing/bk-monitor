@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Popover } from 'bkui-vue';
+import { Exception, Popover, Message } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
@@ -126,6 +127,7 @@ export default defineComponent({
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
   setup(props, { emit, expose }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -399,7 +401,16 @@ export default defineComponent({
     function handleContextMenuClick(item: ICommonMenuItem) {
       contextMenuRect.value.left = -1;
       if (item.id === 'copy') {
-        copyText(contextMenuRect.value.spanName);
+        let hasErr = false;
+        copyText(contextMenuRect.value.spanName, (errMsg: string) => {
+          Message({
+            message: errMsg,
+            theme: 'error',
+          });
+          hasErr = !!errMsg;
+        });
+        if (!hasErr) Message({ theme: 'success', message: t('复制成功') });
+
         return;
       }
       if (item.id === 'reset') {
