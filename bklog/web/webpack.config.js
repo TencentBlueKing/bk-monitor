@@ -91,7 +91,8 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
+module.exports = (baseConfig, { app, mobile, production, email = false }) => {
+  const isMonitorRetrieveBuild = app === 'apm' && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
@@ -100,24 +101,11 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       host: devConfig.host,
       open: false,
       static: [],
-      proxy: {
-        ...['/api', '/version_log'].reduce(
-          (pre, key) => ({
-            ...pre,
-            [key]: {
-              target: devConfig.devProxyUrl,
-              changeOrigin: true,
-              secure: false,
-              toProxy: true,
-              headers: {
-                referer: devConfig.devProxyUrl,
-              },
-            },
-          }),
-          {},
-        ),
-        ...devConfig.proxy,
-      },
+      proxy: [
+        {
+          ...devConfig.proxy,
+        },
+      ],
     });
     config.plugins.push(
       new wepack.DefinePlugin({
@@ -128,11 +116,12 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
             devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
+            APP: JSON.stringify(`${app}`),
           },
         },
       }),
     );
-  } else if (!email) {
+  } else if (!email && !isMonitorRetrieveBuild) {
     config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
     config.plugins.push(
       new CopyWebpackPlugin({
@@ -144,8 +133,77 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
         ],
       }),
     );
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        process: {
+          env: {
+            NODE_ENV: JSON.stringify('production'),
+            APP: JSON.stringify(`${app}`),
+          },
+        },
+      }),
+    );
   }
-
+  if (isMonitorRetrieveBuild) {
+    delete config.plugins[0];
+    return {
+      ...config,
+      entry: {
+        main: './src/views/retrieve-v2/monitor/index.ts',
+      },
+      output: {
+        filename: '[name].js',
+        path: path.resolve(__dirname, './monitor-retrieve'),
+        library: {
+          // name: 'MyLibrary',
+          type: 'module',
+        },
+        environment: {
+          module: true,
+        },
+        chunkFormat: 'module',
+        module: true,
+      },
+      resolve: {
+        ...config.resolve,
+        alias: {
+          vue$: 'vue/dist/vue.esm.js',
+          '@': path.resolve('src'),
+        },
+      },
+      experiments: {
+        outputModule: true,
+      },
+      optimization: {
+        minimize: false,
+        mangleExports: false,
+      },
+      externalsType: 'module',
+      externals: [
+        /@blueking\/date-picker/,
+        /@blueking\/ip-selector/,
+        /bk-magic-vue/,
+        /vue-i18n/,
+        'vue',
+        'axios',
+        'vuex',
+        'vue-property-decorator',
+        // // 'monaco-editor',
+        // // 'echarts',
+        'vue-tsx-support',
+        'dayjs',
+        /lodash/,
+      ],
+      plugins: baseConfig.plugins.filter(Boolean).map(plugin => {
+        return plugin instanceof wepack.ProgressPlugin
+          ? new WebpackBar({
+              profile: true,
+              name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
+            })
+          : plugin;
+      }),
+    };
+  }
   config.plugins.forEach((item, index) => {
     if (item instanceof CliMonacoWebpackPlugin) {
       item.options.languages.push('yaml');

@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.2",
-    "@blueking/bkmonitor-cli": "5.0.0-beta.15",
+    "@blueking/bkmonitor-cli": "5.0.0-beta.17",
     "@blueking/stylelint-config": "0.0.3",
     "@types/throttle-debounce": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.6.0",
@@ -79,11 +79,7 @@
     "vue-template-compiler": "^2.7.16"
   },
   "nodemonConfig": {
-    "watch": [
-      "local.settings.js",
-      "webpack.config.js",
-      "pnpm-lock.yaml"
-    ]
+    "watch": ["local.settings.js", "webpack.config.js", "pnpm-lock.yaml"]
   },
   "engines": {
     "node": ">= 18.16"
