@@ -42,7 +42,7 @@ class HostHandler:
     PAGE_LIMIT = 100
 
     @classmethod
-    def list_application_hosts(cls, bk_biz_id, app_name, service_name):
+    def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
         """
         获取应用的主机列表
         主机来源:
@@ -50,6 +50,10 @@ class HostHandler:
         2. 通过topo发现
         3. 通过关联查询
         """
+        if not start_time or not end_time:
+            app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+            start_time, end_time = app.list_retention_time_range()
+
         # step1: 从主机发现取出主机
         discover_host_instances = api.apm_api.query_host_instance(
             bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
@@ -109,13 +113,11 @@ class HostHandler:
 
         # step3: 从拓扑关联中取出主机
         extra_ip_info = defaultdict(dict)
-        app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        start_time, end_time = app.list_retention_time_range()
         system_relations = RelationQ.query(
             RelationQ.generate_q(
                 bk_biz_id=bk_biz_id,
                 source_info=SourceService(
-                    apm_application_name=app.app_name,
+                    apm_application_name=app_name,
                     apm_service_name=service_name,
                 ),
                 target_type=SourceSystem,
@@ -206,6 +208,7 @@ class HostHandler:
         """根据 IP 列表请求 CMDB 获取主机信息列表"""
         if not ip_info_mapping:
             ip_info_mapping = defaultdict(dict)
+        res = []
         rules = []
         for ip in ips:
             try:
@@ -218,6 +221,9 @@ class HostHandler:
             except ValueError:
                 logger.warning(f"retrieve invalid ip: {ip}")
 
+        if not rules:
+            return res
+
         params = {
             "page": {"start": 0, "limit": len(ips)},
             "fields": ["bk_cloud_id", "bk_host_innerip", "bk_host_id"],
@@ -228,7 +234,6 @@ class HostHandler:
             },
         }
         response = list_biz_hosts(params)
-        res = []
         if response.get("count"):
             for i in response["info"]:
                 ip = i.get("bk_host_innerip") or i.get("bk_host_innerip_v6")

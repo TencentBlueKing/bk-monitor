@@ -141,7 +141,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # APM观测场景处
         if builtin_view == "apm_service-service-default-host":
             if all(list(params.values())) and HostHandler.list_application_hosts(
-                view.bk_biz_id, params.get("app_name"), params.get("service_name")
+                view.bk_biz_id,
+                params.get("app_name"),
+                params.get("service_name"),
+                start_time=params.get("start_time"),
+                end_time=params.get("end_time"),
             ):
                 cls._add_config_from_host(view, view_config)
                 return view_config
@@ -260,7 +264,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "需要补充 k8s.bcs.cluster.id(BCS 集群 Id)、k8s.namespace.name(命名空间)、k8s.pod.name(Pod 名称)字段。\n",
+                "可将上报地址切换为集群内上报，自动获得关联。\n",
             )
 
         else:
@@ -270,7 +274,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "需要补充 k8s.bcs.cluster.id(BCS 集群 Id)、k8s.namespace.name(命名空间)、k8s.pod.name(Pod 名称)字段。\n"
+                "可将上报地址切换为集群内上报，自动获得关联。\n"
                 "2. 在服务设置中，通过【关联 CMDB 服务】设置关联服务模版，会自动关联此服务模版下的主机列表"
             )
 
