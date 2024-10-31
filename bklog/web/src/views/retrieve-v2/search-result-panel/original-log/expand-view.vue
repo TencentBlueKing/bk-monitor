@@ -136,7 +136,9 @@
         display: inline-block;
         width: 68px;
         height: 26px;
+        font-size: 12px;
         line-height: 26px;
+        color: var(--table-fount-color);
         text-align: center;
         cursor: pointer;
         background-color: #f5f7fa;
