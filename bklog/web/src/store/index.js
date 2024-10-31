@@ -1278,17 +1278,19 @@ const store = new Vuex.Store({
           'is not': 'not contains match phrase',
         };
 
+        /** keyword 类型字段类型的下钻映射 */
+        const keywordMappingKey = {
+          is: 'contains',
+          'is not': 'not contains',
+        };
+
         const textType = getFieldType(field);
-        switch (textType) {
-          case 'text':
-            mappingKey = textMappingKey;
-            break;
-          default:
-            break;
+        if (textType === 'text') {
+          mappingKey = textMappingKey;
         }
 
-        if (depth > 1) {
-          mappingKey = textMappingKey;
+        if (depth > 1 && textType === 'keyword') {
+          mappingKey = keywordMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
