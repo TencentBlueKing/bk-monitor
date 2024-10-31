@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
+import loadingIcon from '../../../icons/spinner.svg';
+import { ResizeMixin } from '../../../mixins';
 import MonitorBaseEchart from '../../monitor-base-echart';
 
 import './diff-chart.scss';
@@ -35,6 +37,7 @@ interface IDiffChartProps {
   brushRect?: number[];
   data?: Record<string, any>;
   colorIndex?: number;
+  loading?: boolean;
 }
 
 type IDiffChartEvents = {
@@ -42,16 +45,19 @@ type IDiffChartEvents = {
 };
 
 @Component
-export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
+class DiffChart extends Mixins<ResizeMixin>(ResizeMixin) {
   @Prop({ default: null }) data: Record<string, any>;
   @Prop({ default: '' }) title: string;
   @Prop({ default: () => [] }) brushRect: number[];
   @Prop({ default: 0 }) colorIndex: number;
+  @Prop({ default: false }) loading: boolean;
 
   @Ref() baseEchart;
 
   options = {};
   brushCoordRange = [];
+  width = 300;
+  height = 120;
 
   defaultOptions = Object.freeze({
     animation: false,
@@ -226,7 +232,6 @@ export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
 
   /** 设置图表框选区域 */
   setChartBrush() {
-    console.log('setChartBrush');
     this.baseEchart?.dispatchAction({
       type: 'brush',
       areas: this.brushCoordRange.length
@@ -258,22 +263,40 @@ export default class DiffChart extends tsc<IDiffChartProps, IDiffChartEvents> {
 
   render() {
     return (
-      <div class='diff-chart-wrap-comp'>
-        {this.data ? (
-          <MonitorBaseEchart
-            ref='baseEchart'
-            height={120}
-            notMerge={false}
-            options={this.options}
-            toolbox={['brush', 'dataZoom']}
-            onBrush={this.handleBrush}
-            onBrushEnd={this.handleBrushEnd}
-            onLoaded={this.setChartBrush}
-          />
-        ) : (
-          <div class='empty-chart'>{this.$t('查无数据')}</div>
-        )}
+      <div class='diff-chart-card'>
+        <div class='chart-title'>
+          {this.$t('查询项')}
+          {this.loading && (
+            <img
+              class='chart-loading-icon'
+              alt='loading'
+              src={loadingIcon}
+            />
+          )}
+        </div>
+        <div
+          ref='chart'
+          class='diff-chart-wrap'
+        >
+          {this.data ? (
+            <MonitorBaseEchart
+              ref='baseEchart'
+              width={this.width}
+              height={this.height}
+              notMerge={false}
+              options={this.options}
+              toolbox={['brush', 'dataZoom']}
+              onBrush={this.handleBrush}
+              onBrushEnd={this.handleBrushEnd}
+              onLoaded={this.setChartBrush}
+            />
+          ) : (
+            <div class='empty-chart'>{this.$t('查无数据')}</div>
+          )}
+        </div>
       </div>
     );
   }
 }
+
+export default ofType<IDiffChartProps, IDiffChartEvents>().convert(DiffChart);

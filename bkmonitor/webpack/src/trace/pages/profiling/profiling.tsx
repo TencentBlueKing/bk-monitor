@@ -89,6 +89,7 @@ export default defineComponent({
 
     /** 当前选择服务的详情数据 */
     const selectServiceData = ref<ServicesDetail>();
+
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
       isShow: true,
@@ -98,13 +99,11 @@ export default defineComponent({
       formData: {
         type: SearchType.Profiling,
         isComparison: false,
-        dateComparison: {
-          enable: false,
-        },
         server: {
           app_name: '',
           service_name: '',
         },
+        dateComparisonEnable: false,
         where: [],
         comparisonWhere: [],
       },
@@ -177,6 +176,7 @@ export default defineComponent({
       } else {
         // Upload暂不支持对比模式
         searchState.formData.isComparison = false;
+        searchState.formData.dateComparisonEnable = false;
       }
     }
 
@@ -222,9 +222,7 @@ export default defineComponent({
       searchState.formData = {
         type: searchState.formData.type,
         isComparison: false,
-        dateComparison: {
-          enable: false,
-        },
+        dateComparisonEnable: false,
         where: [],
         comparisonWhere: [],
         server: {
@@ -241,19 +239,12 @@ export default defineComponent({
           query: {},
         });
       } else {
-        const {
-          global_query,
-          diff_filter_labels: { start: diffStart, end: diffEnd, ...diffLabels },
-          filter_labels: { start: labelsStart, end: labelsEnd, ...labels },
-          ...params
-        } = getParams();
+        const { global_query, ...params } = getParams();
         router.replace({
           query: {
             target: encodeURIComponent(
               JSON.stringify({
                 ...params,
-                diff_filter_labels: diffLabels,
-                filter_labels: labels,
                 start: toolsFormData.value.timeRange[0],
                 end: toolsFormData.value.timeRange[1],
               })
@@ -278,9 +269,7 @@ export default defineComponent({
         searchState.formData = {
           type: SearchType.Profiling,
           isComparison: is_compared,
-          dateComparison: {
-            enable: false,
-          },
+          dateComparisonEnable: false,
           server: {
             app_name,
             service_name,
@@ -308,8 +297,7 @@ export default defineComponent({
 
     /** 获取接口请求参数 */
     function getParams() {
-      const { server, isComparison, where, comparisonWhere, type, startTime, endTime, dateComparison } =
-        searchState.formData;
+      const { server, isComparison, where, comparisonWhere, type, startTime, endTime } = searchState.formData;
       const profilingParams = { ...server, global_query: false };
       const uploadParams = {
         profile_id: curFileInfo.value?.profile_id,
@@ -318,32 +306,26 @@ export default defineComponent({
         end: endTime,
       };
 
-      const { enable, start, end, diffStart, diffEnd } = dateComparison;
       return {
         is_compared: isComparison,
-        filter_labels: where.reduce(
-          (pre, cur) => {
-            if (cur.key && cur.value) pre[cur.key] = cur.value;
-            return pre;
-          },
-          enable && start && end ? { start, end } : {}
-        ),
-        diff_filter_labels: comparisonWhere.reduce(
-          (pre, cur) => {
-            if (cur.key && cur.value && isComparison) pre[cur.key] = cur.value;
-            return pre;
-          },
-          enable && diffStart && diffEnd ? { start: diffStart, end: diffEnd } : {}
-        ),
+        filter_labels: where.reduce((pre, cur) => {
+          if (cur.key && cur.value) pre[cur.key] = cur.value;
+          return pre;
+        }, {}),
+        diff_filter_labels: comparisonWhere.reduce((pre, cur) => {
+          if (cur.key && cur.value && isComparison) pre[cur.key] = cur.value;
+          return pre;
+        }, {}),
         data_type: dataType.value,
         ...(type === SearchType.Upload ? uploadParams : profilingParams),
       };
     }
 
     /** 查询功能 */
-    function handleQuery() {
+    function handleQuery(autoQuery = true) {
       isEmpty.value = !canQuery.value;
       if (!canQuery.value) return;
+      if (!searchState.autoQuery && autoQuery) return;
       queryParams.value = getParams();
       setUrlParams();
     }
@@ -398,18 +380,6 @@ export default defineComponent({
       showRestore.value = false;
     }
 
-    function handleComparisonDateChange(comparisonDate) {
-      const { enable, start, end, diffStart, diffEnd } = comparisonDate;
-      searchState.formData.dateComparison = {
-        enable,
-        start: Math.floor(start / 1000) * 1000000,
-        end: Math.floor(end / 1000) * 1000000,
-        diffStart: Math.floor(diffStart / 1000) * 1000000,
-        diffEnd: Math.floor(diffEnd / 1000) * 1000000,
-      };
-      handleQuery();
-    }
-
     return {
       t,
       isEmpty,
@@ -437,7 +407,6 @@ export default defineComponent({
       handleShowDetail,
       handleSelectFile,
       handleMenuSelect,
-      handleComparisonDateChange,
     };
   },
 
@@ -505,7 +474,6 @@ export default defineComponent({
           dataTypeList={this.dataTypeList}
           formData={this.searchState.formData}
           queryParams={this.queryParams}
-          onComparisonDateChange={this.handleComparisonDateChange}
           onUpdate:dataType={this.handleDataTypeChange}
         />
       );
@@ -569,7 +537,9 @@ export default defineComponent({
                     loading={this.searchState.loading}
                     onChangeAutoQuery={this.handleAutoQueryChange}
                     onClear={this.handleQueryClear}
-                    onQuery={this.handleQuery}
+                    onQuery={() => {
+                      this.handleQuery(false);
+                    }}
                   />
                 ),
               }}
