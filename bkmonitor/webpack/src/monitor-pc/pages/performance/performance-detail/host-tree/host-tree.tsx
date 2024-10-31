@@ -391,9 +391,9 @@ export default class HostTree extends tsc<IProps, IEvents> {
         this.$nextTick(() => {
           const container = this.bigTreeRef.$el;
           const { top, height } = container.getBoundingClientRect();
-          const { top: targetTop, height: targetHeight } = document
-            .querySelector('.bk-tree-node.active')
-            .getBoundingClientRect();
+          const element = document.querySelector('.bk-tree-node.active');
+          if (!element) return;
+          const { top: targetTop, height: targetHeight } = element.getBoundingClientRect();
           container.scrollTo({
             top: targetTop - top - (height - targetHeight) / 3,
           });
