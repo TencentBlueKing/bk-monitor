@@ -136,6 +136,6 @@
 
 <style lang="scss" scoped>
   .bklog-column-container {
-    padding: 6px 0;
+    padding: 8px 0;
   }
 </style>

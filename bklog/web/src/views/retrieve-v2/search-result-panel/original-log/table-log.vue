@@ -353,7 +353,7 @@
           &.bk-table-column-expand {
             .bk-table-expand-icon {
               .bk-icon {
-                top: 15px;
+                top: 18px;
               }
             }
           }
@@ -399,7 +399,7 @@
         }
 
         .time-field {
-          padding: 6px 0;
+          padding: 8px 0;
           line-height: 20px;
           white-space: nowrap;
         }
