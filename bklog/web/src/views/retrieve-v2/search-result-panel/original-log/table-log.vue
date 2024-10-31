@@ -32,11 +32,9 @@
       data-test-id="retrieve_from_fieldForm"
       @scroll.passive="handleOriginScroll"
     >
-      <keep-alive>
-        <component
-          v-on="$listeners"
+      <template v-if="showOriginal">
+        <OriginalList
           :handle-click-tools="handleClickTools"
-          :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
           :is-page-over="isPageOver"
           :operator-config="indexSetOperatorConfig"
           :origin-table-list="originLogList"
@@ -47,8 +45,23 @@
           :time-field="timeField"
           :total-fields="totalFields"
           :visible-fields="visibleFields"
-        ></component>
-      </keep-alive>
+        ></OriginalList>
+      </template>
+      <template v-else>
+        <TableList
+          :handle-click-tools="handleClickTools"
+          :is-page-over="isPageOver"
+          :operator-config="indexSetOperatorConfig"
+          :origin-table-list="originLogList"
+          :retrieve-params="retrieveParams"
+          :show-field-alias="showFieldAlias"
+          :table-list="tableList"
+          :table-loading="isContentLoading"
+          :time-field="timeField"
+          :total-fields="totalFields"
+          :visible-fields="visibleFields"
+        ></TableList>
+      </template>
 
       <!-- 表格底部内容 -->
       <p
@@ -382,56 +395,48 @@
         white-space: nowrap;
       }
 
-      .original-str,
-      .visiable-field {
-        .str-content {
-          position: relative;
-          line-height: 20px;
+      // .original-str,
+      // .visiable-field {
+      //   .str-content {
+      //     position: relative;
+      //     line-height: 20px;
 
-          &.is-limit {
-            max-height: 106px;
-          }
-        }
+      //     &.is-limit {
+      //       max-height: 106px;
+      //     }
+      //   }
 
-        &.is-wrap {
-          .str-content {
-            display: block;
-            overflow: hidden;
-          }
-        }
+      //   &.is-wrap {
+      //     .str-content {
+      //       display: block;
+      //       overflow: hidden;
+      //     }
+      //   }
 
-        .origin-str {
-          line-height: 20px;
-          color: #313238;
-        }
+      //   .origin-str {
+      //     line-height: 20px;
+      //     color: #313238;
+      //   }
 
-        .show-whole-btn {
-          position: absolute;
-          top: 84px;
-          width: 100%;
-          height: 24px;
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-          background: #fff;
-          transition: background-color 0.25s ease;
-        }
+      //   .show-whole-btn {
+      //     position: absolute;
+      //     top: 84px;
+      //     width: 100%;
+      //     height: 24px;
+      //     font-size: 12px;
+      //     color: #3a84ff;
+      //     cursor: pointer;
+      //     background: #fff;
+      //     transition: background-color 0.25s ease;
+      //   }
 
-        .hide-whole-btn {
-          margin-top: -2px;
-          line-height: 14px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
-      .original-time {
-        padding-top: 12px;
-
-        .cell {
-          padding-left: 2px;
-        }
-      }
+      //   .hide-whole-btn {
+      //     margin-top: -2px;
+      //     line-height: 14px;
+      //     color: #3a84ff;
+      //     cursor: pointer;
+      //   }
+      // }
 
       .hover-row {
         .show-whole-btn {
@@ -439,26 +444,18 @@
         }
       }
 
-      .original-str {
-        .hide-whole-btn {
-          margin-top: 4px;
-        }
-
-        .cell {
-          padding: 10px 14px 0 2px;
-        }
-
-        &.is-wrap .cell {
-          padding: 10px 14px 8px 2px;
-        }
-      }
+      // .original-str {
+      //   .hide-whole-btn {
+      //     margin-top: 4px;
+      //   }
+      // }
 
       td.bk-table-expanded-cell {
         padding: 0;
       }
 
       .bk-table-column-expand .bk-icon {
-        top: 21px;
+        top: 19px;
       }
 
       .bk-table-empty-text {
@@ -471,14 +468,6 @@
           &.is-limit {
             max-height: 106px;
           }
-        }
-
-        .cell {
-          padding: 12px 14px 0 14px;
-        }
-
-        &.is-wrap .cell {
-          padding: 12px 14px 8px;
         }
 
         .show-whole-btn {
@@ -572,4 +561,5 @@
       color: #3a84ff;
     }
   }
+
 </style>
