@@ -80,18 +80,21 @@
       nextTick(() => {
         instance.config.jsonValue = renderText.value;
         instance.destroy?.();
-        const appendText = showMore.value && !isLimitExpandView.value
-          ? {
-              text: btnText.value,
-              onClick: handleClickMore,
-              attributes: {
-                class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-              },
-            }
-          : undefined;
+
+        const appendText =
+          showMore.value && !isLimitExpandView.value
+            ? {
+                text: btnText.value,
+                onClick: handleClickMore,
+                attributes: {
+                  class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+                },
+              }
+            : undefined;
         instance.initStringAsValue(appendText);
       });
     },
+    { immediate: true },
   );
 
   onMounted(() => {

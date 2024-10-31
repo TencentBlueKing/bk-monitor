@@ -1162,8 +1162,6 @@
 
     .monospace-text,
     %monospace-text {
-      font-family: var(--table-fount-family);
-      font-size: var(--table-fount-size);
       line-height: 20px;
     }
 

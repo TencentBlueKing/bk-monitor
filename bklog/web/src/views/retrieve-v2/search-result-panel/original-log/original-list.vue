@@ -29,7 +29,7 @@
   <div>
     <bk-table
       ref="resultTable"
-      :class="['king-table original-table']"
+      class="bklog-origin-list"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -51,7 +51,9 @@
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
               :visible-fields="visibleFields"
-              @value-click="(type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)"
+              @value-click="
+                (type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)
+              "
             >
             </expand-view>
           </LazyRender>
@@ -59,9 +61,7 @@
       </bk-table-column>
       <!-- 显示字段 -->
       <template>
-        <bk-table-column
-          :width="originFieldWidth"
-        >
+        <bk-table-column :width="originFieldWidth">
           <template #default="{ row }">
             <LazyRender>
               <span
@@ -73,7 +73,7 @@
             </LazyRender>
           </template>
         </bk-table-column>
-        <bk-table-column >
+        <bk-table-column>
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <LazyRender>
@@ -173,7 +173,19 @@
   };
 </script>
 <style lang="scss">
+  .bklog-origin-list {
+    .bk-table-row {
+      td {
+        vertical-align: top;
+      }
+    }
+
+    .time-field {
+      font-weight: 700;
+    }
+  }
+
   .bklog-column-container {
-    padding: 12px 0;
+    padding: 6px 0;
   }
 </style>

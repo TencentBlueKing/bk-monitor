@@ -342,9 +342,21 @@
         }
       }
 
-      .king-table {
+      .bklog-origin-list,
+      .bklog-table-list {
         td {
+          font-family: var(--table-fount-family);
+          font-size: var(--table-fount-size);
+          color: var(--table-fount-color);
           vertical-align: top;
+
+          &.bk-table-column-expand {
+            .bk-table-expand-icon {
+              .bk-icon {
+                top: 15px;
+              }
+            }
+          }
         }
 
         .bk-table-body-wrapper {
@@ -387,7 +399,7 @@
         }
 
         .time-field {
-          padding: 12px 0;
+          padding: 6px 0;
           line-height: 20px;
           white-space: nowrap;
         }

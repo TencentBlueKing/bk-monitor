@@ -410,9 +410,6 @@
           display: block;
           width: auto;
           overflow: hidden;
-          font-family: var(--table-fount-family);
-          font-size: var(--table-fount-size);
-          color: var(--table-fount-color);
           word-break: normal;
           word-wrap: break-word;
         }
@@ -426,9 +423,6 @@
 
       .field-value {
         display: flex;
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
-        color: var(--table-fount-color);
         word-break: break-all;
       }
     }

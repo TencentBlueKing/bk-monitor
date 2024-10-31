@@ -136,10 +136,7 @@
         display: inline-block;
         width: 68px;
         height: 26px;
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
         line-height: 26px;
-        color: var(--table-fount-color);
         text-align: center;
         cursor: pointer;
         background-color: #f5f7fa;
@@ -163,8 +160,6 @@
       background-color: #fafbfd;
 
       :deep(.vjs-tree) {
-        font-family: var(--table-fount-family);
-
         /* stylelint-disable-next-line declaration-no-important */
         font-size: var(--table-fount-size) !important;
 

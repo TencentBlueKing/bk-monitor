@@ -108,7 +108,8 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    min-height: 40px;
+
+    /* min-height: 40px; */
 
     /* visibility: hidden; */
 

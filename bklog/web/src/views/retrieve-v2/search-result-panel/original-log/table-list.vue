@@ -29,7 +29,7 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['king-table', { 'is-wrap': tableLineIsWrap, 'is-hidden-table-header': tableLoading }]"
+    :class="['bklog-table-list', { 'is-hidden-table-header': tableLoading }]"
     :data="tableList"
     :key="tableRandomKey"
     @header-dragend="handleHeaderDragend"
