@@ -173,42 +173,42 @@
   };
 </script>
 <style lang="scss">
-  td {
-    &.original-str {
-      .cell {
-        display: flex;
-        text-overflow: unset;
+  // td {
+  //   &.original-str {
+  //     .cell {
+  //       display: flex;
+  //       text-overflow: unset;
 
-        .str-content {
-          &.origin-str {
-            width: 100%;
+  //       .str-content {
+  //         &.origin-str {
+  //           width: 100%;
 
-            .origin-content {
-              display: flex;
-              word-break: break-all;
-              white-space: pre-line;
+  //           .origin-content {
+  //             display: flex;
+  //             word-break: break-all;
+  //             white-space: pre-line;
 
-              span {
-                display: flex;
-              }
-            }
+  //             span {
+  //               display: flex;
+  //             }
+  //           }
 
-            &.is-wrap {
-              .origin-content {
-                display: flex;
-                flex-direction: column;
-                flex-wrap: wrap;
+  //           &.is-wrap {
+  //             .origin-content {
+  //               display: flex;
+  //               flex-direction: column;
+  //               flex-wrap: wrap;
 
-                span {
-                  &:not(:first-child) {
-                    margin-top: 1px;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  //               span {
+  //                 &:not(:first-child) {
+  //                   margin-top: 1px;
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 </style>
