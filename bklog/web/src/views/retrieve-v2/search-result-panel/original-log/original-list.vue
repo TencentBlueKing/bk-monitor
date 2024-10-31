@@ -61,7 +61,6 @@
       <template>
         <bk-table-column
           :width="originFieldWidth"
-          class-name="original-time"
         >
           <template #default="{ row }">
             <LazyRender>
@@ -74,7 +73,7 @@
             </LazyRender>
           </template>
         </bk-table-column>
-        <bk-table-column class-name="original-str">
+        <bk-table-column >
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <LazyRender>

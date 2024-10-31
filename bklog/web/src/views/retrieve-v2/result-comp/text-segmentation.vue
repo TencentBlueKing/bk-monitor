@@ -138,7 +138,9 @@
         }
 
         .btn-more-action {
-          position: relative;
+          position: absolute;
+          right: 0;
+          bottom: 0;
           padding-left: 22px;
           color: #3a84ff;
           cursor: pointer;
