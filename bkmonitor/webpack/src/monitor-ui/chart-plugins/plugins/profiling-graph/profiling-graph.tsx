@@ -90,6 +90,7 @@ class ProfilingChart extends CommonSimpleChart {
   dataType = '';
   /** trend图表数据 */
   trendSeriesData = [];
+  trendLoading = false;
   queryParams: IQueryParams = {};
   /** 是否开启时间对比 */
   enableDateDiff = false;
@@ -401,6 +402,11 @@ class ProfilingChart extends CommonSimpleChart {
   handleTrendSeriesData(data) {
     this.trendSeriesData = data;
   }
+
+  handleTrendLoading(loading) {
+    this.trendLoading = loading;
+  }
+
   setDiffDefaultDate() {
     if (this.enableDateDiff && this.trendSeriesData.length) {
       const { datapoints } = this.trendSeriesData[0];
@@ -508,6 +514,7 @@ class ProfilingChart extends CommonSimpleChart {
               <TrendChart
                 diffDate={this.diffDate}
                 queryParams={this.queryParams}
+                onLoading={this.handleTrendLoading}
                 onOptionsLoaded={this.setDiffDefaultDate}
                 onSeriesData={this.handleTrendSeriesData}
               />
@@ -516,26 +523,22 @@ class ProfilingChart extends CommonSimpleChart {
                   key='diffChartView'
                   class='diff-chart-view'
                 >
-                  <div class='diff-chart-card'>
-                    <div class='chart-title'>{this.$t('查询项')}</div>
-                    <DiffChart
-                      brushRect={this.diffDate[0]}
-                      colorIndex={0}
-                      data={this.trendSeriesData[0]}
-                      title={this.$tc('查询项')}
-                      onBrushEnd={val => this.handleBrushEnd(val, 'search')}
-                    />
-                  </div>
-                  <div class='diff-chart-card'>
-                    <div class='chart-title'>{this.$t('对比项')}</div>
-                    <DiffChart
-                      brushRect={this.diffDate[1]}
-                      colorIndex={1}
-                      data={this.trendSeriesData[1]}
-                      title={this.$tc('对比项')}
-                      onBrushEnd={val => this.handleBrushEnd(val, 'diff')}
-                    />
-                  </div>
+                  <DiffChart
+                    brushRect={this.diffDate[0]}
+                    colorIndex={0}
+                    data={this.trendSeriesData[0]}
+                    loading={this.trendLoading}
+                    title={this.$tc('查询项')}
+                    onBrushEnd={val => this.handleBrushEnd(val, 'search')}
+                  />
+                  <DiffChart
+                    brushRect={this.diffDate[1]}
+                    colorIndex={1}
+                    data={this.trendSeriesData[1]}
+                    loading={this.trendLoading}
+                    title={this.$tc('对比项')}
+                    onBrushEnd={val => this.handleBrushEnd(val, 'diff')}
+                  />
                 </div>
               )}
 
