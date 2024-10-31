@@ -132,8 +132,10 @@ class UseSegmentProp {
                 },
               },
               [
-                h('i', { class: item.iconName }),
-                h('span', {}, [item.text]),
+                h('span', { class: 'segment-btn-left' }, [
+                  h('i', { class: item.iconName }),
+                  h('span', {}, [item.text]),
+                ]),
                 item.link
                   ? h(
                       'div',
