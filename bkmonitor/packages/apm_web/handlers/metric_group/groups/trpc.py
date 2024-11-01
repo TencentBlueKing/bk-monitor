@@ -127,7 +127,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
-            return qs.instant()
+            return qs.instant(align_interval=self.DEFAULT_INTERVAL * self.metric_helper.TIME_FIELD_ACCURACY)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
@@ -136,7 +136,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("a")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
-        return self.qs(start_time, end_time).add_query(q).expression("a")
+        # a != 0：非时序计算反应的是一段时间内的统计值，不需要展示请求量为 0 的数据。
+        return self.qs(start_time, end_time).add_query(q).expression("a != 0")
 
     def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._request_total_qs(start_time, end_time))
@@ -152,7 +153,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], method="SUM", alias="b")
         )
-        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("(a / b) * 1000")
+        # b == 0：分母为 0 需短路返回
+        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
 
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
