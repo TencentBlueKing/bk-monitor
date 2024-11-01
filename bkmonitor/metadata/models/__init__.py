@@ -29,7 +29,16 @@ from .custom_report import (
     TimeSeriesMetric,
     TimeSeriesTag,
 )
-from .data_link import DataLinkResource, DataLinkResourceConfig
+from .data_link import (  # noqa
+    ConditionalSinkConfig,
+    DataBusConfig,
+    DataIdConfig,
+    DataLink,
+    DataLinkResource,
+    DataLinkResourceConfig,
+    VMResultTableConfig,
+    VMStorageBindingConfig,
+)
 from .data_pipeline import (
     DataPipeline,
     DataPipelineDataSource,

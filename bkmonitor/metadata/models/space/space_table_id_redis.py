@@ -120,6 +120,7 @@ class SpaceTableIDRedis:
     ):
         """推送结果表的详细信息"""
         logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
+        # TODO：待AccessVMRecord全量迁移至BkBaseResultTable后，实施改造，使用新版组装方式
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
         if not table_id_detail:
             logger.info("table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list))
