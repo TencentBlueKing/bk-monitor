@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.models.space.constants import DEFAULT_MEASUREMENT_TYPE
 from metadata.models.space.ds_rt import (
     compose_monitor_table_detail_for_bkbase_type,
     get_table_info_for_influxdb_and_vm,
@@ -76,7 +77,7 @@ def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
             'cluster_name': '',
             'storage_name': 'vm-plat',
             'db': '',
-            'measurement': '',
+            'measurement': DEFAULT_MEASUREMENT_TYPE,
             'tags_key': [],
             'storage_type': 'victoria_metrics',
         }
