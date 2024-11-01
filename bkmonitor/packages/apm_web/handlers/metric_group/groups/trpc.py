@@ -128,9 +128,15 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         if self.instant:
             interval: int = self.metric_helper.get_interval(start_time, end_time)
             # 背景：统计一段时间内的黄金指标（瞬时量）
-            # sum_over_time(sum(increase(xxx[1m]))[interval]) 可以解决数据刚上报、重启场景的差值计算不准确问题。
-            # sum_over_time 区间左闭右闭，左侧减去 1s 变成左闭右开，确保一个 interval 只有一个点。
-            q = q.func(_id="sum_over_time", params=[{"id": "window", "value": f"{interval - 1}s"}])
+            # sum_over_time(sum(increase(xxx[1m]))[window:step]) 可以解决数据刚上报、重启场景的差值计算不准确问题。
+            q = q.func(
+                _id="sum_over_time",
+                # window: sum_over_time 区间左闭右闭，左侧减去 1s 变成左闭右开，确保一个 interval 只有一个点。
+                # step：精度，由于是求 window 内所有点之和，step 须和内层 interval 对齐。
+                # 必须显式传入 step：不指定 step 会参考 interval 自动取值，这意味着不同查询引擎可能默认行为不一致。
+                # refer：https://prometheus.io/blog/2019/01/28/subquery-support/
+                params=[{"id": "window", "value": f"{interval - 1}s"}, {"id": "step", "value": f"{self.interval}s"}],
+            )
 
         return q
 
