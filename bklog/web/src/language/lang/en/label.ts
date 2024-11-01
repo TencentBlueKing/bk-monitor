@@ -712,4 +712,5 @@ export default {
   '正在下发...': 'Issuing...',
   回到旧版: 'Old Version',
   切换新版: 'New Version',
+  行号: 'Index',
 };

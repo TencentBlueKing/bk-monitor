@@ -357,6 +357,15 @@
               }
             }
           }
+
+          &.bklog-result-list-col-index {
+            .cell {
+              div {
+                padding: 8px 0;
+                line-height: 20px;
+              }
+            }
+          }
         }
 
         .bk-table-body-wrapper {

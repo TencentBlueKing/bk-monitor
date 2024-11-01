@@ -51,12 +51,23 @@
             :retrieve-params="retrieveParams"
             :total-fields="totalFields"
             :visible-fields="visibleFields"
-            @value-click="(type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)"
+            @value-click="
+              (type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)
+            "
           >
           </expand-view>
         </LazyRender>
       </template>
     </bk-table-column>
+
+    <template v-if="tableShowRowIndex">
+      <bk-table-column
+        type="index"
+        :label="$t('行号')"
+        :width="60"
+        class-name="bklog-result-list-col-index"
+      ></bk-table-column>
+    </template>
     <!-- 显示字段 -->
     <template>
       <bk-table-column
@@ -74,12 +85,12 @@
         <template slot-scope="{ row, column, $index }">
           <LazyRender>
             <table-column
-                :content="getTableColumnContent(row, field)"
-                :field="field"
-                :is-wrap="tableLineIsWrap"
-                @computed-height="handleOverColumn(field.field_name)"
-                @icon-click="(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)"
-              />
+              :content="getTableColumnContent(row, field)"
+              :field="field"
+              :is-wrap="tableLineIsWrap"
+              @computed-height="handleOverColumn(field.field_name)"
+              @icon-click="(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)"
+            />
           </LazyRender>
         </template>
       </bk-table-column>

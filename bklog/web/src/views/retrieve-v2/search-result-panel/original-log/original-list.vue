@@ -59,6 +59,15 @@
           </LazyRender>
         </template>
       </bk-table-column>
+
+      <template v-if="tableShowRowIndex">
+        <bk-table-column
+          type="index"
+          label=""
+          class-name="bklog-result-list-col-index"
+        ></bk-table-column>
+      </template>
+
       <!-- 显示字段 -->
       <template>
         <bk-table-column :width="originFieldWidth">

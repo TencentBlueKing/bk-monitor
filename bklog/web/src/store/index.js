@@ -165,6 +165,7 @@ const store = new Vuex.Store({
     tableLineIsWrap: false,
     tableJsonFormat: false,
     tableJsonFormatDepth: 1,
+    tableShowRowIndex: false,
     isSetDefaultTableColumn: false,
     tookTime: 0,
     searchTotal: 0,
@@ -277,6 +278,9 @@ const store = new Vuex.Store({
     },
     updateTableJsonFormat(state, val) {
       state.tableJsonFormat = val;
+    },
+    updateTableShowRowIndex(state, val) {
+      state.tableShowRowIndex = val;
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);

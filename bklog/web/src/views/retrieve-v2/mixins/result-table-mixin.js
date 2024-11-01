@@ -140,6 +140,7 @@ export default {
       'indexSetOperatorConfig',
       'indexFieldInfo',
       'indexItem',
+      'tableShowRowIndex',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
