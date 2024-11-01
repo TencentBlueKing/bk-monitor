@@ -779,7 +779,13 @@ class TimeSeriesDataSource(DataSource):
             # 单独处理子查询函数，减少代码改动影响面
             if name in SubQueryFunctions:
                 function = SubQueryFunctions[name]
-                functions.append({"method": function.id, "window": params["window"], "is_sub_query": True})
+                config = {"method": function.id, "is_sub_query": True}
+                for param in function.params:
+                    if param.id not in params:
+                        raise ParamRequiredError(func_name=name, param_name=param.id)
+                    config[param.id] = params[param.id]
+
+                functions.append(config)
                 continue
 
             # 函数不支持在多指标计算中使用
