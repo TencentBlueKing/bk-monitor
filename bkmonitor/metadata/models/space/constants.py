@@ -97,8 +97,6 @@ RESULT_TABLE_DETAIL_CHANNEL = os.environ.get(
     "RESULT_TABLE_DETAIL_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:result_table_detail:channel"
 )
 
-DEFAULT_MEASUREMENT_TYPE = "bk_split_measurement"
-
 
 class EtlConfigs(Enum):
     # 多指标单表(system)

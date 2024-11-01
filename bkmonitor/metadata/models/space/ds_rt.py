@@ -15,12 +15,7 @@ from typing import Dict, List, Optional, Set, Union
 from django.db.models import Q
 
 from metadata import models
-from metadata.models.space.constants import (
-    DEFAULT_MEASUREMENT_TYPE,
-    EtlConfigs,
-    MeasurementType,
-    SpaceTypes,
-)
+from metadata.models.space.constants import EtlConfigs, MeasurementType, SpaceTypes
 from metadata.utils.db import filter_model_by_in_page
 
 
@@ -117,7 +112,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
                     "cluster_name": "",
                     "storage_name": storage_name,
                     "db": "",
-                    "measurement": DEFAULT_MEASUREMENT_TYPE,
+                    "measurement": MeasurementType.BK_SPLIT.value,
                     "tags_key": [],
                     "storage_type": models.ClusterInfo.TYPE_VM,
                 }
@@ -163,7 +158,7 @@ def compose_monitor_table_detail_for_bkbase_type(table_id_list: Optional[List] =
                     "cluster_name": "",
                     "storage_name": storage_name,
                     "db": "",
-                    "measurement": DEFAULT_MEASUREMENT_TYPE,
+                    "measurement": MeasurementType.BK_SPLIT.value,
                     "tags_key": [],
                     "storage_type": models.ClusterInfo.TYPE_VM,
                 }
