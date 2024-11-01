@@ -33,7 +33,7 @@ import {
   initMonitorState,
   logStore,
   i18n,
-  initDevelopmentLog,
+  // initDevelopmentLog,
   JsonFormatWrapper,
   LogButton,
 } from '@blueking/monitor-retrieve/main';
@@ -78,9 +78,9 @@ export default class MonitorRetrieve extends tsc<void> {
       //   direct_esquery_search: 'on',
       //   bklog_search_new: 'on',
       // };
-      this.init = false;
-      await initDevelopmentLog();
-      this.init = true;
+      // this.init = false;
+      // await initDevelopmentLog();
+      // this.init = true;
     }
     Vue.component('JsonFormatWrapper', JsonFormatWrapper);
     Vue.component('LogButton', LogButton);
