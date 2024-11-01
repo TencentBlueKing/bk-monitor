@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+window.AJAX_URL_PREFIX = 'api/v1';
 import Vue from 'vue';
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -34,6 +34,8 @@ import {
   logStore,
   i18n,
   initDevelopmentLog,
+  JsonFormatWrapper,
+  LogButton,
 } from '@blueking/monitor-retrieve/main';
 
 import '@blueking/monitor-retrieve/css/maineb25513.css';
@@ -47,14 +49,41 @@ export default class MonitorRetrieve extends tsc<void> {
     initMonitorState({
       bkBizId: window.bk_biz_id,
       spaceUid,
+      // indexId: '481',
     });
     window.space_uid = `${spaceUid}`;
-    // if (!this.init && process.env.NODE_ENV === 'development') {
-    //   window.AJAX_URL_PREFIX = '/api/v1';
-    //   this.init = false;
-    //   await initDevelopmentLog();
-    //   this.init = true;
-    // }
+    if (!this.init && process.env.NODE_ENV === 'development') {
+      // window.FEATURE_TOGGLE = {
+      //   scenario_log: 'on',
+      //   scenario_bkdata: 'on',
+      //   scenario_es: 'on',
+      //   es_type_object: 'on',
+      //   es_type_nested: 'on',
+      //   bkdata_token_auth: 'off',
+      //   extract_cos: 'off',
+      //   collect_itsm: 'off',
+      //   monitor_report: 'on',
+      //   bklog_es_config: 'on',
+      //   check_collector_custom_config: 'on',
+      //   trace: 'off',
+      //   log_desensitize: 'on',
+      //   bk_log_trace: 'on',
+      //   bk_log_to_trace: 'on',
+      //   bkdata_aiops_toggle: 'on',
+      //   bk_custom_report: 'on',
+      //   es_cluster_type_setup: 'on',
+      //   feature_bkdata_dataid: 'on',
+      //   is_auto_deploy_plugin: 'on',
+      //   field_analysis_config: 'debug',
+      //   direct_esquery_search: 'on',
+      //   bklog_search_new: 'on',
+      // };
+      this.init = false;
+      await initDevelopmentLog();
+      this.init = true;
+    }
+    Vue.component('JsonFormatWrapper', JsonFormatWrapper);
+    Vue.component('LogButton', LogButton);
     window.mainComponent = new Vue({
       store: logStore,
       router: this.$router,

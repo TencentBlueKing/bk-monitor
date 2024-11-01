@@ -25,6 +25,8 @@
 */
 window.__IS_MONITOR_APM__ = true
 
+import LogButton from '@/components/log-button';
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
 import i18n from '@/language/i18n';
 
@@ -51,5 +53,7 @@ export {
   initMonitorState,
   initDevelopmentLog,
   logStore,
-  i18n
+  i18n,
+  LogButton,
+  JsonFormatWrapper
 }
