@@ -581,6 +581,9 @@ const store = new Vuex.Store({
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
+    updateIndexFieldEggsItems(state, payload) {
+      Object.assign(state.indexFieldInfo.aggs_items, payload ?? {});
+    },
     resetIndexFieldInfo(state, payload) {
       const defValue = { ...IndexFieldInfo };
       state.indexFieldInfo = Object.assign(defValue, payload ?? {});
@@ -1223,7 +1226,7 @@ const store = new Vuex.Store({
       };
 
       http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldInfo', { aggs_items: resp.data.aggs_items });
+        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
       });
     },
 

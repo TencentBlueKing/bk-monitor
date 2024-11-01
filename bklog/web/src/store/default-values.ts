@@ -73,7 +73,7 @@ export const IndexFieldInfo = {
   time_field_unit: '',
   config: [],
   config_id: 0,
-  aggs_items: [],
+  aggs_items: {},
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
