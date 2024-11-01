@@ -27,19 +27,28 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { MonitorRetrieve as Log, initMonitorState } from '@blueking/monitor-retrieve/main.js';
-initMonitorState({
-  bizId: window.bk_biz_id,
-  spaceUid: window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id,
-});
+
 import '@blueking/monitor-retrieve/css/maineb25513.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
+  init = true;
+  async created() {
+    const spaceUid =
+      window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
+    initMonitorState({
+      bkBizId: window.bk_biz_id,
+      spaceUid,
+    });
+    window.space_uid = `${spaceUid}`;
+    if (process.env.NODE_ENV === 'development') {
+      window.AJAX_URL_PREFIX = 'api/v1';
+      // this.init = false;
+      // await initDevelopmentLog();
+      // this.init = true;
+    }
+  }
   render() {
-    return (
-      <div class='monitor-retrieve'>
-        <Log />
-      </div>
-    );
+    return <div class='monitor-retrieve'>{this.init && <Log />}</div>;
   }
 }

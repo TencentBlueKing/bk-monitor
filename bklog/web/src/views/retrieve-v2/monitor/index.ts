@@ -26,14 +26,29 @@
 window.__IS_MONITOR_APM__ = true
 
 import useStore from '@/hooks/use-store';
+
+import http from '../../../api';
 import MonitorRetrieve from './monitor.vue';
 
 const logStore = useStore();
 const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);
 };
+const initDevelopmentLog = () => {
+  return http.request('meta/getEnvConstant').then(res => {
+    const { data } = res;
+    Object.keys(data).forEach(key => {
+      window[key] = data[key];
+    });
+    window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
+    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
+    window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
+    window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
+  })
+}
 export {
   MonitorRetrieve,
   initMonitorState,
+  initDevelopmentLog,
   logStore,
 }
