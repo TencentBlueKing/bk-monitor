@@ -25,6 +25,7 @@
 -->
 
 <script setup>
+  window.__IS_MONITOR_APM__ = true
   import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
@@ -48,7 +49,7 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-
+console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
   const routeQueryParams = computed(() => {
     const { ids, isUnionIndex, search_mode } = store.state.indexItem;
     const unionList = store.state.unionIndexList;
@@ -185,7 +186,7 @@
   );
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
+  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]" style="background-color: bisque;">
     <div class="sub-head">
       <div
         :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
