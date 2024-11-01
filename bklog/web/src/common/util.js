@@ -436,7 +436,11 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   visibleFieldsList.forEach(item => {
     const key = item.field_name;
 
-    const maxLength = fieldsWidthInfo[key]?.max_length || 0;
+    const mlength = fieldsWidthInfo[key]?.max_length || 0;
+    let maxLength = mlength;
+    if (mlength._isBigNumber) {
+      maxLength = mlength.toNumber() ?? 0;
+    }
     rowObj[key] = maxLength;
     rowWidth.push(maxLength);
   });

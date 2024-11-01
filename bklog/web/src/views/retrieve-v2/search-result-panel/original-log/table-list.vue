@@ -29,7 +29,7 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['king-table', { 'is-wrap': tableLineIsWarp, 'is-hidden-table-header': tableLoading }]"
+    :class="['bklog-table-list', { 'is-hidden-table-header': tableLoading }]"
     :data="tableList"
     :key="tableRandomKey"
     @header-dragend="handleHeaderDragend"
@@ -42,24 +42,36 @@
       align="center"
       type="expand"
     >
-      <template #default="{ $index }">
-        <expand-view
-          :kv-show-fields-list="kvShowFieldsList"
-          :data="originTableList[$index]"
-          :list-data="tableList[$index]"
-          :retrieve-params="retrieveParams"
-          :total-fields="totalFields"
-          :visible-fields="visibleFields"
-          @menu-click="handleMenuClick"
-        >
-        </expand-view>
+      <template #default="{ $index, row }">
+        <LazyRender>
+          <expand-view
+            :kv-show-fields-list="kvShowFieldsList"
+            :data="originTableList[$index]"
+            :list-data="tableList[$index]"
+            :retrieve-params="retrieveParams"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+            @value-click="
+              (type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)
+            "
+          >
+          </expand-view>
+        </LazyRender>
       </template>
     </bk-table-column>
+
+    <template v-if="tableShowRowIndex">
+      <bk-table-column
+        type="index"
+        :label="$t('行号')"
+        :width="60"
+        class-name="bklog-result-list-col-index"
+      ></bk-table-column>
+    </template>
     <!-- 显示字段 -->
     <template>
       <bk-table-column
         v-for="(field, index) in getShowTableVisibleFields"
-        :class-name="`visiable-field${tableLineIsWarp ? ' is-wrap' : ''}`"
         :column-key="field.field_name"
         :index="index"
         :key="field.field_name"
@@ -71,36 +83,15 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <keep-alive>
-            <div
-              :class="['str-content', { 'is-limit': getLimitState($index) }]"
-              :title="tableLineIsWarp ? '' : tableRowDeepView(row, field.field_name, field.field_type)"
-            >
-              <table-column
-                :content="getTableColumnContent(row, field)"
-                :field="field"
-                :is-wrap="tableLineIsWarp"
-                @computed-height="handleOverColumn(field.field_name)"
-                @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
-              />
-              <template v-if="!isLimitExpandView">
-                <p
-                  v-if="!cacheExpandStr.includes($index)"
-                  class="show-whole-btn"
-                  @click.stop="handleShowWhole($index)"
-                >
-                  {{ $t('展开全部') }}
-                </p>
-                <p
-                  v-else-if="cacheOverFlowCol.includes(field.field_name)"
-                  class="hide-whole-btn"
-                  @click.stop="handleHideWhole($index)"
-                >
-                  {{ $t('收起') }}
-                </p>
-              </template>
-            </div>
-          </keep-alive>
+          <LazyRender>
+            <table-column
+              :content="getTableColumnContent(row, field)"
+              :field="field"
+              :is-wrap="tableLineIsWrap"
+              @computed-height="handleOverColumn(field.field_name)"
+              @icon-click="(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)"
+            />
+          </LazyRender>
         </template>
       </bk-table-column>
     </template>
@@ -114,12 +105,14 @@
     >
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
-        <operator-tools
-          :handle-click="event => handleClickTools(event, row, operatorConfig)"
-          :index="$index"
-          :operator-config="operatorConfig"
-          :row-data="row"
-        />
+        <LazyRender>
+          <operator-tools
+            :handle-click="event => handleClickTools(event, row, operatorConfig)"
+            :index="$index"
+            :operator-config="operatorConfig"
+            :row-data="row"
+          />
+        </LazyRender>
       </template>
     </bk-table-column>
     <!-- 初次加载骨架屏loading -->
