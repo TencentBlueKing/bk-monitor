@@ -729,8 +729,11 @@ export default defineComponent({
 
             if (item.get('type') === 'node') {
               const model = item.getModel();
-              // 获取节点内名为'topo-node-type-text'的Shape
-              const nameTextShape = item.get('group').find(s => s.get('name') === 'topo-node-name-text');
+              const isAggregatedNode = model.aggregated_nodes.length > 0;
+              // 聚合节点不会展示 节点名称用外层容器节点类型判断， 非聚合节点用节点名称判断
+              const nameTextShape = item
+                .get('group')
+                .find(s => s.get('name') === (isAggregatedNode ? 'topo-node-type-text' : 'topo-node-name-text'));
               const nameShapeBBox = nameTextShape?.getBBox?.() || {
                 width: 0,
                 y: 0,
@@ -1122,8 +1125,8 @@ export default defineComponent({
           : incidentId.value.substr(0, 10),
       })
         .then(res => {
-          let { latest, diff, complete } = res;
-          diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
+          const { latest, diff, complete } = res;
+          // diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
           complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
@@ -1710,7 +1713,7 @@ export default defineComponent({
       isPlay.value = value;
       if (value) {
         const len = topoRawDataCache.value.diff.length;
-        if (timelinePosition.value === len || timelinePosition.value + 1 === len) {
+        if (timelinePosition.value === len) {
           timelinePosition.value = topoRawDataCache.value.diff.length - 1;
           isPlay.value = false;
           emit('playing', false);
