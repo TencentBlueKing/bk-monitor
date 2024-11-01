@@ -478,7 +478,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true) {
+export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -493,8 +493,9 @@ export function formatDate(val, isTimzone = true) {
     const milliseconds = val % 1000;
     // 创建 dayjs 对象
     const date = dayjs.tz(Number(val));
+
     // 如果毫秒部分不为 000，展示毫秒精度的时间
-    const formatStr = milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
     return date.format(formatStr);
   }
 
