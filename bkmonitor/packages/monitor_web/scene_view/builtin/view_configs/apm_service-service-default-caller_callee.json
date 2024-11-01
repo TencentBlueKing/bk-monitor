@@ -1439,7 +1439,7 @@
             "supported_calculation_types": [],
             "data": {
               "app_name": "${app_name}",
-              "cal_type": "${method}",
+              "method": "top_n",
               "metric_group_name": "trpc",
               "metric_cal_type": "${metric_cal_type}",
               "limit": "${limit}",

@@ -228,7 +228,10 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _top_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        return list(self._get_qs(qs_type, start_time, end_time).func(_id="topk", params=[{"value": limit}]))
+        qs: UnifyQuerySet = self._get_qs(qs_type, start_time, end_time)
+        if self.instant:
+            return list(qs.func(_id="topk", params=[{"value": limit}]))
+        return list(qs.last(self.interval * self.metric_helper.TIME_FIELD_ACCURACY, limit))
 
     def _bottom_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None

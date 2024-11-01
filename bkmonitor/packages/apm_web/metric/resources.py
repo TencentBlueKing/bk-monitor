@@ -241,6 +241,7 @@ class DynamicUnifyQueryResource(Resource):
                     "options": validate_data["group_by_limit"]["options"],
                     "start_time": validate_data["start_time"],
                     "end_time": validate_data["end_time"],
+                    "with_filter_dict": True,
                 }
             )["extra_filter_dict"]
             validate_data["extra_filter_dict"].update(group_limit_filter_dict)
@@ -2924,7 +2925,17 @@ class GetFieldOptionValuesResource(Resource):
         return [{"value": value, "text": value} for value in sorted(option_values)]
 
 
-class CalculateByRangeResource(Resource):
+class RecordHelperMixin:
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions") or {}:
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
+
+
+class CalculateByRangeResource(Resource, RecordHelperMixin):
     class RequestSerializer(serializers.Serializer):
 
         ZERO_TIME_SHIFT: str = "0s"
@@ -3027,14 +3038,6 @@ class CalculateByRangeResource(Resource):
                     continue
                 record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
 
-    @classmethod
-    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not records:
-            return []
-        if "time" in records[0].get("dimensions") or {}:
-            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
-        return records
-
     def perform_request(self, validated_request_data):
         def _collect(_alias: Optional[str], **_kwargs):
             _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
@@ -3080,7 +3083,7 @@ class CalculateByRangeResource(Resource):
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
 
-class QueryDimensionsByLimitResource(Resource):
+class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
     CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
 
     class RequestSerializer(serializers.Serializer):
@@ -3116,6 +3119,7 @@ class QueryDimensionsByLimitResource(Resource):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
         options = OptionsSerializer(label="配置", required=False, default={})
+        with_filter_dict = serializers.BooleanField(label="是否提供过滤条件", required=False, default=False)
 
         def validate(self, attrs):
             # 合并查询条件
@@ -3128,6 +3132,7 @@ class QueryDimensionsByLimitResource(Resource):
     def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
         group_key_result_map: Dict[Tuple, Any] = {}
         for record in records:
+            record["time"] = record["_time_"] // 1000
             group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
@@ -3164,5 +3169,9 @@ class QueryDimensionsByLimitResource(Resource):
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
         )
-        records = self._format(group_fields, records)
-        return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
+        records = self._process_sorted(self._format(group_fields, records))
+
+        result: Dict[str, Any] = {"dimensions_list": records}
+        if validated_request_data.get("with_filter_dict"):
+            result["extra_filter_dict"] = self._get_extra_filter_dict(records)
+        return result
