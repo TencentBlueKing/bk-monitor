@@ -88,8 +88,8 @@
             v-if="isJsonFormat"
           >
             <bk-input
-              style="width: 60px"
               type="number"
+              class="json-depth-num"
               :value="jsonFormatDeep"
               :min="1"
               :max="15"
@@ -416,6 +416,21 @@
       font-size: 14px;
       color: #979ba5;
       transform: rotateZ(45deg);
+    }
+  }
+</style>
+<style lang="scss">
+  .json-depth-num {
+    &.bk-form-control {
+      width: 96px;
+
+      .bk-input-number {
+        input {
+          &.bk-form-input {
+            height: 26px;
+          }
+        }
+      }
     }
   }
 </style>
