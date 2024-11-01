@@ -17,7 +17,7 @@ from config.tools.environment import ENVIRONMENT, ROLE
 
 try:
     import MySQLdb
-except Exception:
+except ImportError:
     import pymysql
     pymysql.install_as_MySQLdb()
 
