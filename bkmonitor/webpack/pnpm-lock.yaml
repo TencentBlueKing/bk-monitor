@@ -486,6 +486,9 @@ importers:
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
+      '@blueking/monitor-retrieve':
+        specifier: 1.0.0-beta.1
+        version: 1.0.0-beta.1
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.70)(vue@2.7.16)
@@ -2674,6 +2677,10 @@ packages:
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
       vue: 2.7.16
+    dev: false
+
+  /@blueking/monitor-retrieve@1.0.0-beta.1:
+    resolution: {integrity: sha512-pcGILYHZXeAb3PJV8YF29ggMOv33iyu7rYC6bwsM/+s4BxVX/9Do4zLNuc3hf9uCKSIpVYz2YWVxu7i3IVA/mg==}
     dev: false
 
   /@blueking/notice-component-vue2@2.0.5(dompurify@3.1.6):

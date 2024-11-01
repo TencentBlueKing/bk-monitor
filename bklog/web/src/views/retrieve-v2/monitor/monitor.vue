@@ -36,7 +36,6 @@
   import SearchBar from '../search-bar/index.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
   import SearchResultTab from '../search-result-tab/index.vue';
-
   import SubBar from '../sub-bar/index.vue';
 
   const store = useStore();

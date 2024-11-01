@@ -24,8 +24,16 @@
 * IN THE SOFTWARE.
 */
 window.__IS_MONITOR_APM__ = true
-import MonitorRetrieve from './monitor.vue'
 
+import useStore from '@/hooks/use-store';
+import MonitorRetrieve from './monitor.vue';
+
+const logStore = useStore();
+const initMonitorState = (payload) => {
+  logStore.commit('initMonitorState', payload);
+};
 export {
-  MonitorRetrieve
+  MonitorRetrieve,
+  initMonitorState,
+  logStore,
 }

@@ -39,6 +39,7 @@ let devConfig = {
   host: devHost,
   devProxyUrl,
   proxy: {},
+  logProxy: {},
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
@@ -60,6 +61,11 @@ module.exports = async (baseConfig, { production, app }) => {
       proxy: [
         {
           ...devConfig.proxy,
+          proxyTimeout: 5 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+        },
+        {
+          ...devConfig.logProxy,
           proxyTimeout: 5 * 60 * 1000,
           timeout: 5 * 60 * 1000,
         },
@@ -136,7 +142,7 @@ module.exports = async (baseConfig, { production, app }) => {
         '@common': path.resolve('./src/monitor-common/'),
         ...(['apm', 'fta', 'pc'].includes(app)
           ? {
-              vue$: 'vue/dist/vue.runtime.common.js',
+              vue$: path.resolve(`./src/${appDirName}/node_modules/vue/dist/vue.runtime.common.js`),
             }
           : {}),
       },
