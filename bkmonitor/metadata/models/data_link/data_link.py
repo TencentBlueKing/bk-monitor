@@ -72,15 +72,12 @@ class DataLink(models.Model):
         )
         return compose_method(*args, **kwargs)
 
-    def compose_standard_time_series_configs(
-        self, data_source, table_id, storage_cluster_name, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID
-    ):
+    def compose_standard_time_series_configs(self, data_source, table_id, storage_cluster_name):
         """
         生成标准单指标单表时序数据链路配置
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID（Metadata中的）
         @param storage_cluster_name: VM集群名称
-        @param bk_biz_id: 业务ID
         """
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
@@ -92,6 +89,7 @@ class DataLink(models.Model):
         )
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
         logger.info(
             "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
             "compose configs",
