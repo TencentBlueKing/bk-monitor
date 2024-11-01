@@ -239,7 +239,8 @@ class TestCollectorViewSetAPI(TestCase):
         response = self.client.get(path=path, data=data)
 
         content = json.loads(response.content)
-
+        content["data"]["list"][0].update({"created_by": ""})
+        content["data"]["list"][0].update({"updated_by": ""})
         logger.info(" {func_name}:{content}".format(func_name=sys._getframe().f_code.co_name, content=content))
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)

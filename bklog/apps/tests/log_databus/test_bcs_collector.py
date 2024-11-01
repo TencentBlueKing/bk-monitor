@@ -31,7 +31,7 @@ from apps.log_databus.serializers import BCSCollectorSerializer
 from apps.utils.drf import custom_params_valid
 
 PATH_STD_PARAMS = {
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -60,7 +60,7 @@ PATH_STD_PARAMS = {
 PATH_STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -106,7 +106,7 @@ PATH_STD_RESULT = {
 }
 
 PATH_PARAMS = {
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -152,7 +152,7 @@ PATH_PARAMS = {
 PATH_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -226,7 +226,7 @@ PATH_RESULT = {
 }
 
 STD_PARAMS = {
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -261,7 +261,7 @@ STD_PARAMS = {
 STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -325,7 +325,7 @@ STD_RESULT = {
 }
 
 NOT_PATH_STD_PARAMS = {
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -348,7 +348,7 @@ NOT_PATH_STD_PARAMS = {
 NOT_PATH_STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [],
@@ -365,7 +365,7 @@ NOT_PATH_STD_RESULT = {
 }
 
 PARAMS = {
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -426,7 +426,7 @@ PARAMS = {
 MULTIPLE_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -530,7 +530,7 @@ MULTIPLE_RESULT = {
 RESULT_DICT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": -2,
+    "bk_biz_id": 2,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -694,6 +694,13 @@ ES_CLUSTERS = [
 
 
 @patch("apps.log_search.permission.Permission.get_auth_info", return_value={"bk_app_code": BK_APP_CODE})
+@patch.multiple(
+    "apps.api.TransferApi",
+    get_result_table=lambda _: {},
+    create_result_table=lambda _: {"table_id": TABLE_ID},
+    get_cluster_info=lambda _: ES_CLUSTERS,
+    get_data_id=lambda _: None,
+)
 @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
 class TestBcsCollector(TestCase):
     @patch.multiple(
