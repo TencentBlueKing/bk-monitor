@@ -3136,7 +3136,7 @@ class CollectorHandler(object):
                 )
 
             # 按index排序
-            rule["container_config"].sort(key=lambda x: x['index'])
+            rule["container_config"].sort(key=lambda x: x["index"])
             # 删除index字段
             for item in rule["container_config"]:
                 del item["index"]
@@ -3251,7 +3251,7 @@ class CollectorHandler(object):
                     parent_container_config_id = collector_config_obj.collector_config_id
 
                 is_send_std_create_notify = True
-        index = 1
+        index = 0
         container_collector_config_list = []
         for config in data["config"]:
             workload_type = config["container"].get("workload_type", "")
@@ -3643,7 +3643,7 @@ class CollectorHandler(object):
     def get_container_configs(cls, config, path_collector, rule_id):
         path_container_config = []
         std_container_config = []
-        index = 1
+        index = 0
         for conf in config:
             if conf["paths"]:
                 path_container_config.append(
@@ -3827,7 +3827,7 @@ class CollectorHandler(object):
                     "parent_container_config_id", 0
                 )
                 container_configs[x].rule_id = data["configs"][x].get("rule_id", 0)
-                container_configs[x].index = data["configs"][x].get("index")
+                container_configs[x].index = data["configs"][x]["index"]
                 container_configs[x].save()
                 container_config = container_configs[x]
             else:
@@ -3855,7 +3855,7 @@ class CollectorHandler(object):
                     raw_config=data["configs"][x].get("raw_config"),
                     parent_container_config_id=data["configs"][x].get("parent_container_config_id", 0),
                     rule_id=data["configs"][x].get("rule_id", 0),
-                    index=data["configs"][x].get("index"),
+                    index=data["configs"][x]["index"],
                 )
                 container_config.save()
                 container_configs.append(container_config)
