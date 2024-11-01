@@ -101,12 +101,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
-from fta_web.alert.utils import (
-    add_aggs,
-    add_overview,
-    get_previous_month_range_unix,
-    slice_time_interval,
-)
+from fta_web.alert.utils import get_previous_month_range_unix, slice_time_interval
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -1491,69 +1486,14 @@ class SearchActionResource(ApiAuthResource):
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
 
     def perform_request(self, validated_request_data):
-        show_overview = validated_request_data.get("show_overview")
-        show_aggs = validated_request_data.get("show_aggs")
-        show_dsl = validated_request_data.get("show_dsl")
-        start_time = validated_request_data.pop("start_time", None)
-        end_time = validated_request_data.pop("end_time", None)
-        if validated_request_data["bk_biz_ids"] is not None:
-            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
-            validated_request_data["authorized_bizs"] = authorized_bizs
-            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
-
-        if start_time and end_time:
-            results = resource.alert.search_action_result.bulk_request(
-                [
-                    {
-                        "start_time": sliced_start_time,
-                        "end_time": sliced_end_time,
-                        **validated_request_data,
-                    }
-                    for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
-                ]
-            )
-        else:
-            results = [resource.alert.search_action_result.perform_request(validated_request_data)]
-
-        result = {
-            "actions": [],
-            "total": 0,
-        }
-        if show_aggs:
-            result["aggs"] = []
-            agg_id_map = {}
-        if show_dsl:
-            is_change = True
-        for sliced_result in results:
-            result["actions"].extend(sliced_result["actions"])
-            result["total"] += sliced_result["total"]
-            if show_overview:
-                add_overview(result, sliced_result)
-            if show_aggs:
-                add_aggs(agg_id_map, result, sliced_result)
-            if show_dsl:
-                if is_change:
-                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["should"][1]["range"]["end_time"][
-                        "gte"
-                    ] = start_time
-                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["must"][0]["range"]["create_time"][
-                        "lte"
-                    ] = end_time
-                    result["dsl"] = sliced_result["dsl"]
-                    is_change = False
-
-        if show_overview:
-            result["overview"]["children"] = list(result["overview"]["children"].values())
-
-        return result
-
-
-class SearchActionResultResource(Resource):
-    def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
 
         handler = ActionQueryHandler(**validated_request_data)
 
