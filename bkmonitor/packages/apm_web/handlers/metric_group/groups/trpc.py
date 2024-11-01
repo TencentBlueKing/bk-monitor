@@ -80,6 +80,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
         self.time_shift: Optional[str] = kwargs.get("time_shift")
+        # 预留 interval 可配置入口
+        self.interval = self.DEFAULT_INTERVAL
 
         self.instant: bool = True
         if self.metric_helper.TIME_FIELD in self.group_by:
@@ -111,23 +113,31 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         # 如果是求瞬时量，那么整个时间范围是作为一个区间
-        interval: int = (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
         q: QueryConfigBuilder = (
-            self.metric_helper.q.group_by(*self.group_by).interval(interval).filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by)
+            .interval(self.interval)
+            .filter(dict_to_q(self.filter_dict) or Q())
         )
 
         if self.time_shift:
             q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
 
         if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+
+        if self.instant:
+            interval: int = self.metric_helper.get_interval(start_time, end_time)
+            # 背景：统计一段时间内的黄金指标（瞬时量）
+            # sum_over_time(sum(increase(xxx[1m]))[interval]) 可以解决数据刚上报、重启场景的差值计算不准确问题。
+            # sum_over_time 区间左闭右闭，左侧减去 1s 变成左闭右开，确保一个 interval 只有一个点。
+            q = q.func(_id="sum_over_time", params=[{"id": "window", "value": f"{interval - 1}s"}])
 
         return q
 
     def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
-            return qs.instant(align_interval=self.DEFAULT_INTERVAL * self.metric_helper.TIME_FIELD_ACCURACY)
+            return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
