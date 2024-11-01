@@ -31,7 +31,7 @@ from apps.log_databus.serializers import BCSCollectorSerializer
 from apps.utils.drf import custom_params_valid
 
 PATH_STD_PARAMS = {
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -60,7 +60,7 @@ PATH_STD_PARAMS = {
 PATH_STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -106,7 +106,7 @@ PATH_STD_RESULT = {
 }
 
 PATH_PARAMS = {
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -152,7 +152,7 @@ PATH_PARAMS = {
 PATH_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -226,7 +226,7 @@ PATH_RESULT = {
 }
 
 STD_PARAMS = {
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -261,7 +261,7 @@ STD_PARAMS = {
 STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -325,7 +325,7 @@ STD_RESULT = {
 }
 
 NOT_PATH_STD_PARAMS = {
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -348,7 +348,7 @@ NOT_PATH_STD_PARAMS = {
 NOT_PATH_STD_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [],
@@ -365,7 +365,7 @@ NOT_PATH_STD_RESULT = {
 }
 
 PARAMS = {
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
     "collector_config_name_en": "bcs_create1",
@@ -426,7 +426,7 @@ PARAMS = {
 MULTIPLE_RESULT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -530,7 +530,7 @@ MULTIPLE_RESULT = {
 RESULT_DICT = {
     "add_pod_label": False,
     "bcs_cluster_id": "BCS-K8S-15641",
-    "bk_biz_id": 2,
+    "bk_biz_id": 3,
     "collector_config_name": "create1",
     "collector_config_name_en": "bcs_create1",
     "container_config": [
@@ -657,7 +657,7 @@ ES_CLUSTERS = [
             "cluster_name": "es7_cluster",
             "version": "7.2",
             "custom_option": {
-                "bk_biz_id": 2,
+                "bk_biz_id": 3,
                 "hot_warm_config": {
                     "is_enabled": False,
                     "hot_attr_name": "",
