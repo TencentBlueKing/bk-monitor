@@ -28,7 +28,8 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
-import TextSegmentation from './text-segmentation';
+import TextSegmentation from './text-segmentation.vue';
+// import JsonFormatter from '../../../global/json-formatter.vue';
 
 import './original-light-height.scss';
 
@@ -38,7 +39,7 @@ interface IProps {
   operatorConfig: object;
 }
 @Component
-export default class QueryStatement extends tsc<IProps> {
+export default class OriginalLightHeight extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
@@ -54,6 +55,10 @@ export default class QueryStatement extends tsc<IProps> {
 
   get unionIndexItemList() {
     return this.$store.getters.unionIndexItemList;
+  }
+
+  get formatValue() {
+    return this.originJson || {};
   }
 
   // 扁平化对象所有数据
@@ -78,15 +83,13 @@ export default class QueryStatement extends tsc<IProps> {
     return sortObject;
   }
 
-  get tableLineIsWarp() {
-    return this.$store.state.tableLineIsWarp;
+  get tableLineIsWrap() {
+    return this.$store.state.tableLineIsWrap;
   }
 
   @Emit('menu-click')
-  handleEmitMenuClick(type, content, key, isLink) {
-    const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
-    const newMenuObj = { option, isLink };
-    return newMenuObj;
+  handleEmitMenuClick(args) {
+    return args;
   }
 
   getField(fieldName: string) {
@@ -95,11 +98,8 @@ export default class QueryStatement extends tsc<IProps> {
 
   render() {
     return (
-      <span
-        class='origin-content'
-        title={this.tableLineIsWarp ? '' : this.strOriginJson}
-      >
-        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
+      <span class='origin-content'>
+        {Object.entries(this.fieldMapDataObj).map(([key, value]: any) => {
           return (
             <span>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
@@ -107,12 +107,13 @@ export default class QueryStatement extends tsc<IProps> {
                 <TextSegmentation
                   content={value}
                   field={this.getField(key)}
-                  menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
+                  onMenu-click={this.handleEmitMenuClick}
                 />
               </span>
             </span>
           );
         })}
+        {/* <JsonFormatter jsonValue={this.formatValue} fields={ this.visibleFields }></JsonFormatter> */}
       </span>
     );
   }

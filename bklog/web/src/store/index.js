@@ -162,7 +162,10 @@ const store = new Vuex.Store({
     storeIsShowClusterStep: false,
     retrieveDropdownData: {},
     notTextTypeFields: [],
-    tableLineIsWarp: true,
+    tableLineIsWrap: false,
+    tableJsonFormat: false,
+    tableJsonFormatDepth: 1,
+    tableShowRowIndex: false,
     isSetDefaultTableColumn: false,
     tookTime: 0,
     searchTotal: 0,
@@ -270,6 +273,15 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updatetableJsonFormatDepth(state, val) {
+      state.tableJsonFormatDepth = val;
+    },
+    updateTableJsonFormat(state, val) {
+      state.tableJsonFormat = val;
+    },
+    updateTableShowRowIndex(state, val) {
+      state.tableShowRowIndex = val;
+    },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },
@@ -457,6 +469,7 @@ const store = new Vuex.Store({
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
       state.bkBizId = state.space.bk_biz_id;
       state.spaceUid = spaceUid;
+      state.isSetDefaultTableColumn = false;
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {
@@ -568,6 +581,9 @@ const store = new Vuex.Store({
     updateVisibleFields(state, val) {
       state.visibleFields = val;
     },
+    updateVisibleFieldMinWidth(state, fields) {
+      setDefaultTableWidth(state.visibleFields, fields);
+    },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
     },
@@ -661,8 +677,8 @@ const store = new Vuex.Store({
         ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
-    updateTableLineIsWarp(state, payload) {
-      state.tableLineIsWarp = payload;
+    updateTableLineIsWrap(state, payload) {
+      state.tableLineIsWrap = payload;
     },
     updateShowFieldAlias(state, payload) {
       window.localStorage.setItem('showFieldAlias', payload);
@@ -1106,8 +1122,8 @@ const store = new Vuex.Store({
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
-              if (!payload?.isPagination) dispatch('requestSearchTotal');
 
+              if (!payload?.isPagination) dispatch('requestSearchTotal');
               return {
                 data,
                 message,
@@ -1252,6 +1268,7 @@ const store = new Vuex.Store({
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
       const searchMode = state.indexItem.search_mode;
+      const depth = Number(payload.depth ?? '0');
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1270,13 +1287,19 @@ const store = new Vuex.Store({
           'is not': 'not contains match phrase',
         };
 
+        /** keyword 类型字段类型的下钻映射 */
+        const keywordMappingKey = {
+          is: 'contains',
+          'is not': 'not contains',
+        };
+
         const textType = getFieldType(field);
-        switch (textType) {
-          case 'text':
-            mappingKey = textMappingKey;
-            break;
-          default:
-            break;
+        if (textType === 'text') {
+          mappingKey = textMappingKey;
+        }
+
+        if (depth > 1 && textType === 'keyword') {
+          mappingKey = keywordMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
