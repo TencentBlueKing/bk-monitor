@@ -32,6 +32,7 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+const { createMonitorConfig } = require('./scripts/create-monitor');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 8001;
@@ -144,65 +145,9 @@ module.exports = (baseConfig, { app, mobile, production, email = false }) => {
       }),
     );
   }
+  // 监控检索构建
   if (isMonitorRetrieveBuild) {
-    delete config.plugins[0];
-    return {
-      ...config,
-      entry: {
-        main: './src/views/retrieve-v2/monitor/index.ts',
-      },
-      output: {
-        filename: '[name].js',
-        path: path.resolve(__dirname, './monitor-retrieve'),
-        library: {
-          // name: 'MyLibrary',
-          type: 'module',
-        },
-        environment: {
-          module: true,
-        },
-        chunkFormat: 'module',
-        module: true,
-      },
-      resolve: {
-        ...config.resolve,
-        alias: {
-          vue$: 'vue/dist/vue.esm.js',
-          '@': path.resolve('src'),
-        },
-      },
-      experiments: {
-        outputModule: true,
-      },
-      optimization: {
-        minimize: false,
-        mangleExports: false,
-      },
-      externalsType: 'module',
-      externals: [
-        /@blueking\/date-picker/,
-        /@blueking\/ip-selector/,
-        /bk-magic-vue/,
-        /vue-i18n/,
-        'vue',
-        'axios',
-        'vuex',
-        'vue-property-decorator',
-        // // 'monaco-editor',
-        // // 'echarts',
-        'vue-tsx-support',
-        'dayjs',
-        /lodash/,
-      ],
-      plugins: baseConfig.plugins.filter(Boolean).map(plugin => {
-        return plugin instanceof wepack.ProgressPlugin
-          ? new WebpackBar({
-              profile: true,
-              name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
-            })
-          : plugin;
-      }),
-    };
+    return createMonitorConfig(config);
   }
   config.plugins.forEach((item, index) => {
     if (item instanceof CliMonacoWebpackPlugin) {
@@ -221,7 +166,6 @@ module.exports = (baseConfig, { app, mobile, production, email = false }) => {
       config.plugins[index] = new MonacoWebpackPlugin(item.options);
     }
   });
-
   return {
     ...config,
     output: {

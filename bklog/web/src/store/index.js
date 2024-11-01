@@ -761,6 +761,10 @@ const store = new Vuex.Store({
     updateClearSearchValueNum(state, payload) {
       state.clearSearchValueNum = payload;
     },
+    // 初始化监控默认数据
+    initMonitorState(state, payload) {
+      Object.assign(state, payload);
+    },
   },
   actions: {
     /**

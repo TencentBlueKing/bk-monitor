@@ -67,7 +67,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bkUrl: window.bk_url,
   });
 
-  new Vue({
+  window.mainComponent = new Vue({
     el: '#app',
     router,
     store,
@@ -104,7 +104,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bkUrl: window.bk_url,
       });
 
-      new Vue({
+      window.mainComponent = new Vue({
         el: '#app',
         router,
         store,

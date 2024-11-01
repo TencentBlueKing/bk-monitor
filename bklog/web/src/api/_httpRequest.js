@@ -181,6 +181,14 @@ class HttpRequst {
       ext || {},
       config,
     );
+    if (window.__IS_MONITOR_APM__) {
+      const spaceField = 'space_uid';
+      if (spaceField in (param.params || {}) && !param.params[spaceField]) {
+        param.params[spaceField] = window.space_uid;
+      } else if (spaceField in (param.data || {}) && !param.data[spaceField]) {
+        param.data[spaceField] = window.space_uid;
+      }
+    }
     return this.axiosInstance(param);
   }
 }
