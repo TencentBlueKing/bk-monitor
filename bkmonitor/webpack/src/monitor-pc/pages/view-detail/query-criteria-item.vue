@@ -205,6 +205,7 @@
               :id="item.id"
               :is-default="item.disabled"
               :has-close-icon="!item.disabled"
+              :defaultValue="item?.defaultValue || ''"
               :groupby-list="() => getGroupByList(item.id)"
               @checked-change="handleCheckedChange"
               @delete-dimension="handleDeleteDimension(item.id)"
@@ -317,6 +318,9 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   metricDetail = null;
   secToString: Function = secToString;
 
+  /* queryConfigs内的where条件 */
+  whereChecked = [];
+
   get dimensionsFilterList() {
     return this.metricDataList.reduce((total, cur) => {
       for (const set of cur.dimensions) {
@@ -341,6 +345,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   created() {
     this.checkedDimensions = this.queryConfigItem.group_by || [];
     this.groupChecked = this.queryConfigItem.group_by || [];
+    this.whereChecked = this.queryConfigItem.where || [];
     this.beforeChangeCheckedDimensions = this.queryConfigItem.group_by || [];
     if (this.queryConfigItem.data_source_label !== 'prometheus') {
       this.getMetricData();
@@ -390,11 +395,22 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
       this.groupList = this.dimensionsFilterList
         .map(item => {
           const isDefault = this.groupChecked.some(set => item.id === set);
+          let defaultValue = '';
+          for(const w of this.whereChecked) {
+            if(w.key === item.id) {
+              defaultValue = w.value?.[0] || '';
+              if(!isDefault) {
+                this.groupChecked.push(item.id);
+              }
+              break;
+            }
+          }
           return {
             ...item,
             disabled: isDefault,
             order: isDefault ? 0 : 1,
-            checked: isDefault || false,
+            checked: isDefault || !!defaultValue || false,
+            defaultValue
           };
         })
         .sort((a, b) => a.order - b.order);

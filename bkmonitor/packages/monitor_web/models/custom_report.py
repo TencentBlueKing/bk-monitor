@@ -117,6 +117,7 @@ class CustomTSTable(OperateRecordModelBase):
         groups = CustomTSGroupingRule.objects.filter(**params)
 
         metric_names = []
+        new_items = []
         for result in results:
             for metric in result["metric_info_list"]:
                 if not metric:
@@ -132,7 +133,9 @@ class CustomTSTable(OperateRecordModelBase):
                             if re.match(rule, metric["field_name"]):
                                 metric_label.add(group.name)
 
-                    CustomTSItem.objects.create(metric_name=metric["field_name"], table=self, label=list(metric_label))
+                    new_items.append(
+                        CustomTSItem(metric_name=metric["field_name"], table=self, label=list(metric_label))
+                    )
                 else:
                     metric_label = metric_labels[metric["field_name"]]
 
@@ -148,6 +151,9 @@ class CustomTSTable(OperateRecordModelBase):
                 }
 
                 custom_ts_items.append(group_info)
+
+        if new_items:
+            CustomTSItem.objects.bulk_create(new_items, batch_size=500)
 
         # 清理不存在的指标记录
         need_clean_metric_names = set(metric_labels.keys()) - set(metric_names)
