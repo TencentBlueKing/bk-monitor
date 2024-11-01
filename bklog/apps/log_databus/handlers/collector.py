@@ -3023,10 +3023,13 @@ class CollectorHandler(object):
 
         path_container_config_dict = defaultdict(list)
         std_container_config_dict = defaultdict(list)
+        parent_index_dict = defaultdict(list)
         for path_container_config in path_container_config_list:
             path_container_config_dict[path_container_config.collector_config_id].append(path_container_config)
         for std_container_config in std_container_config_list:
-            std_container_config_dict[std_container_config.parent_container_config_id].append(std_container_config)
+            if std_container_config.parent_container_config_id:
+                parent_index_dict[std_container_config.parent_container_config_id].append(std_container_config.index)
+                continue
             std_container_config_dict[std_container_config.collector_config_id].append(std_container_config)
 
         result = []
@@ -3075,20 +3078,33 @@ class CollectorHandler(object):
                 "container_config": [],
             }
 
-            collector_config_id = (
+            container_configs = []
+            path_container_config = path_container_config_dict.get(
                 collector["path_collector_config"].collector_config_id
-                or collector["std_collector_config"].collector_config_id
             )
-            container_configs = path_container_config_dict.get(collector_config_id) or std_container_config_dict.get(
-                collector_config_id
-            )
+            std_container_config = std_container_config_dict.get(collector["std_collector_config"].collector_config_id)
+            if path_container_config:
+                container_configs.extend(path_container_config)
+            if std_container_config:
+                container_configs.extend(std_container_config)
 
             if not container_configs:
                 result.append(rule)
                 continue
             for container_config in container_configs:
+                parent_index_list = parent_index_dict.get(container_config.collector_config_id, [])
+                if (
+                    container_config.collector_config_id == collector["path_collector_config"].collector_config_id
+                    and container_config.index in parent_index_list
+                ):
+                    enable_stdout = True
+                elif container_config.collector_config_id == collector["std_collector_config"].collector_config_id:
+                    enable_stdout = True
+                else:
+                    enable_stdout = False
                 rule["container_config"].append(
                     {
+                        "index": container_config.index,
                         "id": container_config.id,
                         "bk_data_id": collector["path_collector_config"].bk_data_id,
                         "bkdata_data_id": collector["path_collector_config"].bkdata_data_id,
@@ -3111,13 +3127,19 @@ class CollectorHandler(object):
                         "all_container": container_config.all_container,
                         "status": container_config.status,
                         "status_detail": container_config.status_detail,
-                        "enable_stdout": collector_config_id in std_container_config_dict,
+                        "enable_stdout": enable_stdout,
                         "stdout_conf": {
                             "bk_data_id": collector["std_collector_config"].bk_data_id,
                             "bkdata_data_id": collector["std_collector_config"].bkdata_data_id,
                         },
                     }
                 )
+
+            # 按index排序
+            rule["container_config"].sort(key=lambda x: x["index"])
+            # 删除index字段
+            for item in rule["container_config"]:
+                del item["index"]
             result.append(rule)
         return result
 
@@ -3158,9 +3180,9 @@ class CollectorHandler(object):
         parent_container_config_id = 0
         # 注入索引集标签
         tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
-        is_send_create_notify = False
+        is_send_path_create_notify = is_send_std_create_notify = False
         for config in data["config"]:
-            if config["paths"]:
+            if config["paths"] and not is_send_path_create_notify:
                 # 创建路径采集项
                 path_collector_config = self.create_bcs_collector(
                     {
@@ -3186,11 +3208,11 @@ class CollectorHandler(object):
                     conf=conf,
                     async_bkdata=False,
                 )
-                is_send_create_notify = True
+                is_send_path_create_notify = True
                 # 注入索引集标签
                 IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
 
-            if config["enable_stdout"]:
+            if config["enable_stdout"] and not is_send_std_create_notify:
                 # 创建标准输出采集项
                 std_collector_config = self.create_bcs_collector(
                     {
@@ -3228,6 +3250,8 @@ class CollectorHandler(object):
                 if collector_config_obj:
                     parent_container_config_id = collector_config_obj.collector_config_id
 
+                is_send_std_create_notify = True
+        index = 0
         container_collector_config_list = []
         for config in data["config"]:
             workload_type = config["container"].get("workload_type", "")
@@ -3265,6 +3289,7 @@ class CollectorHandler(object):
                         match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
+                        index=index,
                     )
                 )
 
@@ -3291,14 +3316,19 @@ class CollectorHandler(object):
                         match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
-                        parent_container_config_id=parent_container_config_id,
+                        parent_container_config_id=parent_container_config_id if config["paths"] else 0,
+                        index=index,
                     )
                 )
+            index += 1
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
 
-        if is_send_create_notify:
+        if is_send_path_create_notify:
             self.send_create_notify(path_collector_config)
+
+        if is_send_std_create_notify:
+            self.send_create_notify(std_collector_config)
 
         return {
             "rule_id": bcs_rule.id,
@@ -3488,7 +3518,7 @@ class CollectorHandler(object):
                     is_exist_bcs_std = True
 
             # 如果还没有创建容器配置，那么当config["paths"]或config["enable_stdout"]存在时需要创建容器配置
-            if config["paths"] and not is_exist_bcs_path:
+            if config["paths"] and not is_exist_bcs_path and not is_send_path_create_notify:
                 # 创建路径采集项
                 path_collector_config = self.create_bcs_collector(
                     {
@@ -3517,7 +3547,7 @@ class CollectorHandler(object):
                 is_send_path_create_notify = True
                 # 注入索引集标签
                 IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
-            if config["enable_stdout"] and not is_exist_bcs_std:
+            if config["enable_stdout"] and not is_exist_bcs_std and not is_send_std_create_notify:
                 # 创建标准输出采集项
                 std_collector_config = self.create_bcs_collector(
                     {
@@ -3613,6 +3643,7 @@ class CollectorHandler(object):
     def get_container_configs(cls, config, path_collector, rule_id):
         path_container_config = []
         std_container_config = []
+        index = 0
         for conf in config:
             if conf["paths"]:
                 path_container_config.append(
@@ -3644,6 +3675,7 @@ class CollectorHandler(object):
                         "rule_id": rule_id,
                         "parent_container_config_id": 0,
                         "collector_type": ContainerCollectorType.CONTAINER,
+                        "index": index,
                     }
                 )
 
@@ -3675,10 +3707,12 @@ class CollectorHandler(object):
                             "match_annotations": conf["annotation_selector"].get("match_annotations", []),
                         },
                         "rule_id": rule_id,
-                        "parent_container_config_id": path_collector.collector_config_id if path_collector else 0,
+                        "parent_container_config_id": path_collector.collector_config_id if conf["paths"] else 0,
                         "collector_type": ContainerCollectorType.STDOUT,
+                        "index": index,
                     }
                 )
+            index += 1
         return path_container_config, std_container_config
 
     def retry_bcs_config(self, rule_id):
@@ -3793,6 +3827,7 @@ class CollectorHandler(object):
                     "parent_container_config_id", 0
                 )
                 container_configs[x].rule_id = data["configs"][x].get("rule_id", 0)
+                container_configs[x].index = data["configs"][x]["index"]
                 container_configs[x].save()
                 container_config = container_configs[x]
             else:
@@ -3820,6 +3855,7 @@ class CollectorHandler(object):
                     raw_config=data["configs"][x].get("raw_config"),
                     parent_container_config_id=data["configs"][x].get("parent_container_config_id", 0),
                     rule_id=data["configs"][x].get("rule_id", 0),
+                    index=data["configs"][x]["index"],
                 )
                 container_config.save()
                 container_configs.append(container_config)
