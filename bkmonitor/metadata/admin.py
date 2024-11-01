@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.contrib import admin
 
 from metadata import models
@@ -125,6 +124,12 @@ class TimeSeriesGroupAdmin(admin.ModelAdmin):
     list_filter = ("bk_biz_id",)
 
 
+class TimeSeriesMetricAdmin(admin.ModelAdmin):
+    list_display = ("group_id", "table_id", "field_name", "last_modify_time")
+    search_fields = ("group_id", "field_name", "last_modify_time")
+    list_filter = ("group_id", "field_name", "table_id")
+
+
 class ResultTableAdmin(admin.ModelAdmin):
     list_display = ("table_id", "table_name_zh", "bk_biz_id", "label", "last_modify_user", "last_modify_time")
     search_fields = ("table_id", "table_name_zh", "bk_biz_id")
@@ -222,6 +227,18 @@ class BCSClusterInfoAdmin(admin.ModelAdmin):
     list_filter = ("cluster_id", "bk_biz_id")
 
 
+class DataLinkAdmin(admin.ModelAdmin):
+    list_display = ("data_link_name", "data_link_strategy", "create_time")
+    search_fields = ("data_link_name", "data_link_strategy", "namespace")
+    list_filter = ("data_link_strategy", "namespace")
+
+
+class BkBaseResultTableAdmin(admin.ModelAdmin):
+    list_display = ("data_link_name", "bkbase_data_name", "storage_type", "monitor_table_id", "status")
+    search_fields = ("data_link_name", "monitor_table_id")
+    list_filter = ("storage_type", "status")
+
+
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -231,6 +248,7 @@ admin.site.register(models.RedisStorage, RedisStorageAdmin)
 admin.site.register(models.ESStorage, ESStorageAdmin)
 admin.site.register(models.EventGroup, EventGroupAdmin)
 admin.site.register(models.TimeSeriesGroup, TimeSeriesGroupAdmin)
+admin.site.register(models.TimeSeriesMetric, TimeSeriesMetricAdmin)
 admin.site.register(models.CustomReportSubscriptionConfig, CustomReportSubscriptionConfigAdmin)
 admin.site.register(models.PingServerSubscriptionConfig, PingServerSubscriptionConfigAdmin)
 admin.site.register(models.ClusterInfo, ClusterInfoAdmin)
@@ -249,3 +267,5 @@ admin.site.register(models.DownsampleByDateFlow, DownsampleByDateFlowAdmin)
 admin.site.register(models.InfluxDBProxyStorage, InfluxDBProxyStorageAdmin)
 admin.site.register(models.AccessVMRecord, AccessVMRecordAdmin)
 admin.site.register(models.BCSClusterInfo, BCSClusterInfoAdmin)
+admin.site.register(models.DataLink, DataLinkAdmin)
+admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)

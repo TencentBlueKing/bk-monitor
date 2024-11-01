@@ -59,6 +59,7 @@ def create_or_delete_records(mocker):
     data_source.delete()
     result_table.delete()
     models.ClusterInfo.objects.all().delete()
+    BkBaseResultTable.objects.all().delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -313,6 +314,11 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
     assert (
         BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status
         == DataLinkResourceStatus.INITIALIZING.value
+    )
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_rt_name == bkbase_vmrt_name
+    assert (
+        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_table_id
+        == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
     )
 
     # 测试 旧版 VM记录是否存在
