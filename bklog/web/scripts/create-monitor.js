@@ -57,6 +57,7 @@ const createMonitorConfig = config => {
       },
       chunkFormat: 'module',
       module: true,
+      clean: true,
     },
     resolve: {
       ...config.resolve,
@@ -72,21 +73,31 @@ const createMonitorConfig = config => {
       minimize: false,
       mangleExports: false,
     },
-    externalsType: 'commonjs',
+    externalsType: 'module',
     externals: [
       /@blueking\/date-picker/,
       /@blueking\/ip-selector/,
+      /@blueking\/user-selector/,
+      /@blueking\/bkui-library/,
       /bk-magic-vue/,
       /vue-i18n/,
       'vue',
       'axios',
       'vuex',
       'vue-property-decorator',
-      // // 'monaco-editor',
-      // // 'echarts',
+      'vuedraggable',
+      'sortablejs',
+      'clipboard',
       'vue-tsx-support',
+      /dayjs\//,
       'dayjs',
       /lodash/,
+      // ({ request, context }, cb) => {
+      //   if (request === 'echarts') {
+      //     return cb(undefined, request.replace(request, request));
+      //   }
+      //   cb();
+      // },
     ],
     plugins: config.plugins.filter(Boolean).map(plugin => {
       return plugin instanceof webpack.ProgressPlugin
@@ -96,6 +107,7 @@ const createMonitorConfig = config => {
           })
         : plugin;
     }),
+    cache: production ? false : config.cache,
   };
 };
 

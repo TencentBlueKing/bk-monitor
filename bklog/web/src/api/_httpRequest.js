@@ -165,7 +165,20 @@ class HttpRequst {
       }
     }
   }
+  __initParams(param) {
+    const spaceField = 'space_uid';
+    const bizField = 'bk_biz_id';
+    function updateField(obj, field, value) {
+      if (field in (obj || {}) && !obj[field]) {
+        obj[field] = value;
+      }
+    }
 
+    updateField(param.params, spaceField, window.space_uid);
+    updateField(param.params, bizField, window.bk_biz_id);
+    updateField(param.data, spaceField, window.space_uid);
+    updateField(param.data, bizField, window.bk_biz_id);
+  }
   __axios(url, method, data, query, ext, config) {
     const param = Object.assign(
       {},
@@ -182,12 +195,8 @@ class HttpRequst {
       config,
     );
     if (window.__IS_MONITOR_APM__) {
-      const spaceField = 'space_uid';
-      if (spaceField in (param.params || {}) && !param.params[spaceField]) {
-        param.params[spaceField] = window.space_uid;
-      } else if (spaceField in (param.data || {}) && !param.data[spaceField]) {
-        param.data[spaceField] = window.space_uid;
-      }
+      // 兼容监控逻辑
+      this.__initParams(param);
     }
     return this.axiosInstance(param);
   }
