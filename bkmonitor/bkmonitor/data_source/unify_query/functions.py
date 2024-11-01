@@ -452,7 +452,17 @@ SubQueryFunctions = dict(
                 description=_lazy("时间窗口"),
                 shortlist=["1m", "2m", "5m", "10m", "20m"],
                 type="string",
-            )
+            ),
+            # https://prometheus.io/blog/2019/01/28/subquery-support/
+            # 一般和外层的 interval 保持一致
+            Params(
+                id="step",
+                name="step",
+                default="1m",
+                description=_lazy("精度"),
+                shortlist=["1m", "2m", "5m", "10m", "20m"],
+                type="string",
+            ),
         ],
         category="change",
     )
