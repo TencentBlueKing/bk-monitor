@@ -149,13 +149,14 @@ export default defineComponent({
       return false;
     };
     const changePlayStatus = value => {
+      /** 非播放状态下，该值变化可能是时间选择器变化导致的，这种情况保持原值 */
+      if (isPlay.value) {
+        time.value = new Date(props.topoRawDataList?.[value]?.create_time * 1000);
+      }
       if (value + 1 === props.topoRawDataList.length) {
         isPlay.value = false;
       }
       timelinePosition.value = value;
-      /** 非播放状态下，该值变化可能是时间选择器变化导致的，这种情况保持原值 */
-      if (!isPlay.value) return;
-      time.value = new Date(props.topoRawDataList?.[timelinePosition.value]?.create_time * 1000);
     };
     /** 监听外部传入的切片位置更新拖动轴 */
     watch(
