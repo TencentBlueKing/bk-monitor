@@ -14,6 +14,7 @@ import logging
 import re
 from typing import Dict, Optional
 
+from django.conf import settings
 from jinja2 import Template
 
 from metadata import models
@@ -76,6 +77,20 @@ def compose_bkdata_table_id(table_id: str) -> str:
 
     # 确保长度不超过40
     return table_id
+
+
+def parse_and_get_rt_biz_id(table_id: str) -> int:
+    """
+    解析并获取监控平台结果表的业务ID信息
+    @param table_id: 监控平台结果表ID
+    @return: 业务ID
+    """
+    match = re.match(r'^(\d+)', table_id)
+    if match:
+        # 如果匹配成功，返回数字部分并转换为整数
+        return int(match.group(1))
+    else:
+        return settings.DEFAULT_BKDATA_BIZ_ID
 
 
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
