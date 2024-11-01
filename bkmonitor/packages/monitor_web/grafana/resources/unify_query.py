@@ -180,7 +180,7 @@ class AddNullDataProcessor:
 
     @classmethod
     def process_formatted_data(cls, params: dict, data: list) -> list:
-        if params["type"] == "instant":
+        if params["type"] == "instant" or params["format"] != "time_series":
             return data
 
         if params.get("step"):

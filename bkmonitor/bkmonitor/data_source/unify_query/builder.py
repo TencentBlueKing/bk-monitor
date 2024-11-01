@@ -371,10 +371,20 @@ class UnifyQuerySet(IterMixin):
         clone.query.set_search_after_key(after_key)
         return clone
 
-    def instant(self, instant: bool = True) -> "UnifyQuerySet":
+    def instant(self, instant: bool = True, align_interval: Optional[int] = None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_instant(instant)
         clone.query.set_limits(high=1)
+
+        if not align_interval:
+            return clone
+
+        # 时序数据在 SaaS 侧的处理策略为「丢弃最后一个时间戳为 end_time 的点」。
+        # 瞬时量（instant）在相同时间范围内是返回时间戳为 end_time 的点。
+        # 为保证在 one interval 情况下瞬时和时序行为一致（end_time - interval），instant 的 end_time 需要往前推一个 interval。
+        interval: int = self.query.end_time - self.query.start_time
+        if interval == align_interval:
+            clone.query.set_end_time(clone.query.end_time - align_interval)
         return clone
 
     def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":

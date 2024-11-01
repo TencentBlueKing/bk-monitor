@@ -422,12 +422,14 @@
         paramsData.regex_rule_type = this.$refs.ruleTableRef.getRuleType();
         paramsData.regex_template_id = this.$refs.ruleTableRef.getTemplateID();
         // 过滤规则数组形式转成字符串形式传参
-        paramsData.filter_rules = paramsData.filter_rules.map(item => ({
-          fields_name: item.fields_name,
-          logic_operator: item.logic_operator,
-          op: item.op,
-          value: item.value?.length ? item.value[0] : '',
-        }));
+        paramsData.filter_rules = paramsData.filter_rules
+          .filter(item => item.value.length)
+          .map(item => ({
+            fields_name: item.fields_name,
+            logic_operator: item.logic_operator,
+            op: item.op,
+            value: item.value[0],
+          }));
         this.$http
           .request('retrieve/updateClusteringConfig', {
             params: {
