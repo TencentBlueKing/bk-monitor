@@ -32,6 +32,7 @@ from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
     Functions,
+    SubQueryFunctions,
 )
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -774,6 +775,12 @@ class TimeSeriesDataSource(DataSource):
         for function_params in self.functions:
             name = function_params["id"]
             params = {param["id"]: param["value"] for param in function_params["params"]}
+
+            # 单独处理子查询函数，减少代码改动影响面
+            if name in SubQueryFunctions:
+                function = SubQueryFunctions[name]
+                functions.append({"method": function.id, "window": params["window"], "is_sub_query": True})
+                continue
 
             # 函数不支持在多指标计算中使用
             if name in ["top", "bottom"]:
