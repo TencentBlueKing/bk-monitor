@@ -136,6 +136,9 @@ declare global {
     bk_shared_res_url: string;
     footer_version: string;
     __AuthMap__: Map<string, Map<string, boolean>>;
+    // 以下为日志全局变量配置
+    mainComponent: any;
+    AJAX_URL_PREFIX: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

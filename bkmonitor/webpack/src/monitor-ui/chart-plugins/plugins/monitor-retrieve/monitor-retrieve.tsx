@@ -1,4 +1,3 @@
-import { Component, Prop } from 'vue-property-decorator';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,9 +23,18 @@ import { Component, Prop } from 'vue-property-decorator';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import Vue from 'vue';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MonitorRetrieve as Log, initMonitorState } from '@blueking/monitor-retrieve/main.js';
+import {
+  MonitorRetrieve as Log,
+  initMonitorState,
+  logStore,
+  i18n,
+  initDevelopmentLog,
+} from '@blueking/monitor-retrieve/main';
 
 import '@blueking/monitor-retrieve/css/maineb25513.css';
 import './monitor-retrieve.scss';
@@ -41,14 +49,29 @@ export default class MonitorRetrieve extends tsc<void> {
       spaceUid,
     });
     window.space_uid = `${spaceUid}`;
-    if (process.env.NODE_ENV === 'development') {
-      window.AJAX_URL_PREFIX = 'api/v1';
-      // this.init = false;
-      // await initDevelopmentLog();
-      // this.init = true;
-    }
+    // if (!this.init && process.env.NODE_ENV === 'development') {
+    //   window.AJAX_URL_PREFIX = '/api/v1';
+    //   this.init = false;
+    //   await initDevelopmentLog();
+    //   this.init = true;
+    // }
+    window.mainComponent = new Vue({
+      store: logStore,
+      router: this.$router,
+      i18n,
+      render: h => h(Log),
+    });
+    await this.$nextTick();
+    window.mainComponent.$mount(this.$el.querySelector('#main'));
+  }
+  beforeDestroy() {
+    window.mainComponent.$destroy();
   }
   render() {
-    return <div class='monitor-retrieve'>{this.init && <Log />}</div>;
+    return (
+      <div class='monitor-retrieve'>
+        <div id='main' />
+      </div>
+    );
   }
 }
