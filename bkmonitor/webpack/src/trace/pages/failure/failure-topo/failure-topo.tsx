@@ -1103,7 +1103,7 @@ export default defineComponent({
         labelCfg: {
           style: {
             fill: '#979BA5',
-            fontSize: 12,
+            fontSize: 16,
           },
         },
       });
