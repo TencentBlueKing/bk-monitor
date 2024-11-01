@@ -462,7 +462,7 @@ export default {
       }
       // 处理纳秒精度的UTC时间格式
       if (this.timeFieldType === 'date_nanos') {
-        return formatDateNanos(data);
+        return formatDateNanos(data, true, true);
       }
       return data;
     },
