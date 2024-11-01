@@ -168,6 +168,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
     if (!operateItem.value.length && !!val) operateItem.value.push(val);
   }
   checkFilterRules() {
+    if (this.formData.filter_rules.length === 1 && !this.formData.filter_rules[0].fields_name) return true;
     return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
   }
   checkLIKERules() {

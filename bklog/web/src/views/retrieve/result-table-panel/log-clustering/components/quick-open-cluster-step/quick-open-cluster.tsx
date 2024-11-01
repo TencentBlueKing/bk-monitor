@@ -109,12 +109,14 @@ export default class QuickOpenCluster extends tsc<IProps> {
           clustering_fields: this.formData.clustering_fields,
           new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
           normal_strategy_enable: this.formData.normal_strategy_enable,
-          filter_rules: this.formData.filter_rules.map(item => ({
-            fields_name: item.fields_name,
-            logic_operator: item.logic_operator,
-            op: item.op,
-            value: item.value[0],
-          })),
+          filter_rules: this.formData.filter_rules
+            .filter(item => item.value.length)
+            .map(item => ({
+              fields_name: item.fields_name,
+              logic_operator: item.logic_operator,
+              op: item.op,
+              value: item.value[0],
+            })),
         };
         const res = await $http.request('retrieve/createClusteringConfig', {
           params: {
