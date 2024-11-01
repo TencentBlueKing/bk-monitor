@@ -58,7 +58,8 @@
 }
 
 .retrieve-history-list {
-  max-height: 300px;
+  min-height: 32px;
+  max-height: 160px;
   overflow-y: auto;
 
   .list-item {
