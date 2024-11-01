@@ -147,10 +147,10 @@ export const transformJobUrl = (str: string): string => {
  * @return {*}
  */
 export const formatTime = (time: number) => {
-  time = +time;
-  if (Number.isNaN(time)) return time;
-  time = `${time}`.length === 10 ? time * 10 ** 3 : time;
-  const timeRes = dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
+  let time2 = +time;
+  if (Number.isNaN(time2)) return time2;
+  time2 = `${time2}`.length === 10 ? time2 * 10 ** 3 : time2;
+  const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ss');
   return timeRes;
 };
 
@@ -193,7 +193,7 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
     const itemVal = queryObj[key];
     if (itemVal !== undefined) {
       const itemValStr = typeof itemVal === 'object' ? JSON.stringify(itemVal) : `${itemVal}`;
-      str = `${str}${!!i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
+      return `${str}${i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
     }
     return str;
   }, '?');
@@ -275,6 +275,7 @@ export const findRight = (arr: any[], cb: (item: any, i: number) => boolean) => 
 export const getStrLengOfPx = (str: string, lengPx = 6, lengPxDouble = 13) => {
   const leng = str.toString().length;
   /** 双字节字符数量 */
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: <explanation>
   const count = str.toString().match(/[^\x00-\xff]/g)?.length || 0;
   return lengPx * (leng - count) + count * lengPxDouble;
 };
@@ -301,13 +302,13 @@ export const getPopoverWidth = (options: IMetricDetail[] | IOption[], padding = 
  * @param targetStr 目标节点
  * @returns event事件的父集列表 或者 targetStr
  */
-export const getEventPaths = (event: Event | any, targetStr = ''): (Event | any)[] => {
+export const getEventPaths = (event: any | Event, targetStr = ''): (any | Event)[] => {
   if (event.path) {
     return targetStr ? event.path : event.path.filter(dom => hasTargetCondition(dom, targetStr));
   }
   const path = [];
   let target = event.target;
-  while (!!target) {
+  while (target) {
     if (targetStr) {
       if (hasTargetCondition(target, targetStr)) {
         path.push(target);
@@ -389,4 +390,24 @@ export function emojiRegex(value: string) {
  */
 export function allSpaceRegex(value: string) {
   return /^\s*$/.test(value);
+}
+
+/**
+ * 验证表达式是否符合规范并返回验证结果
+ * @param expression 表达式
+ * @returns
+ */
+export function validateExpression(expression: string) {
+  // 使用正则表达式验证表达式结构是否合法
+  const structureCheck =
+    /^(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\))(\s*[\+\-*/%^]\s*(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\)))*\s*$/.test(
+      expression
+    );
+  if (!structureCheck) {
+    return { isValid: false, variables: [] };
+  }
+
+  // 提取所有英文变量
+  const variables = [...new Set(expression.match(/[A-Za-z]+/g) || [])];
+  return { isValid: true, variables };
 }

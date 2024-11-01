@@ -127,18 +127,21 @@ class StrategyConfigParser(BaseConfigParser):
         topo_nodes: Dict[str, Dict],
         service_templates: Dict[str, Dict],
         set_templates: Dict[str, Dict],
+        dynamic_groups: Dict[str, Dict],
     ):
         super(StrategyConfigParser, self).__init__(bk_biz_id)
 
         self.topo_nodes = topo_nodes
         self.service_templates = service_templates
         self.set_templates = set_templates
+        self.dynamic_groups = dynamic_groups
         self.notice_group_ids = notice_group_ids
         self.action_ids = action_ids
 
         self.reverse_topo_nodes = {f"{v['bk_obj_id']}|{v['bk_inst_id']}": k for k, v in topo_nodes.items()}
         self.reverse_service_templates = {str(v["bk_inst_id"]): k for k, v in service_templates.items()}
         self.reverse_set_templates = {str(v["bk_inst_id"]): k for k, v in set_templates.items()}
+        self.reverse_dynamic_groups = {v["dynamic_group_id"]: k for k, v in dynamic_groups.items()}
         self.reverse_notice_group_ids = {v: k for k, v in notice_group_ids.items()}
         self.reverse_action_ids = {v: k for k, v in action_ids.items()}
 
@@ -312,6 +315,9 @@ class StrategyConfigParser(BaseConfigParser):
             elif target_type == "set_template":
                 field = f"{target_prefix}_set_template"
                 nodes = [self.set_templates[node] for node in target_nodes if node in self.set_templates]
+            elif target_type == "dynamic_group":
+                field = "dynamic_group"
+                nodes = [self.dynamic_groups[node] for node in target_nodes if node in self.dynamic_groups]
 
             if nodes:
                 target = [[{"field": field, "method": "eq", "value": nodes}]]
@@ -532,12 +538,19 @@ class StrategyConfigParser(BaseConfigParser):
                     if template_id not in self.reverse_set_templates:
                         continue
                     nodes.append(self.reverse_set_templates[template_id])
-            else:
+            elif target["field"] in ["ip", "bk_target_ip"]:
                 target_type = "host"
                 for value in target["value"]:
                     ip = value.get("ip") or value["bk_target_ip"]
                     bk_cloud_id = value.get("bk_cloud_id", value.get("bk_target_cloud_id", 0))
                     nodes.append(f"{ip}|{bk_cloud_id}")
+            elif target["field"] == "dynamic_group":
+                target_type = "dynamic_group"
+                for value in target["value"]:
+                    dynamic_group_id = value["dynamic_group_id"]
+                    if dynamic_group_id not in self.reverse_dynamic_groups:
+                        continue
+                    nodes.append(self.reverse_dynamic_groups[dynamic_group_id])
 
             if nodes:
                 query["target"] = {"type": target_type, "nodes": nodes}

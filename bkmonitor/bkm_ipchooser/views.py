@@ -304,7 +304,10 @@ class IpChooserTemplateViewSet(CommonViewSet):
         return Response(
             template_handler.TemplateHandler(
                 scope_list=self.validated_data["scope_list"], template_type=self.validated_data["template_type"]
-            ).agent_statistics(template_id_list=self.validated_data["template_id_list"])
+            ).agent_statistics(
+                template_id_list=self.validated_data["template_id_list"],
+                only_host_count=self.validated_data["only_host_count"],
+            )
         )
 
     @list_route(methods=["POST"], serializer_class=template_sers.ServiceInstanceCountSer)

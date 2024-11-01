@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict
+from typing import Dict, Tuple
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -19,6 +19,7 @@ from django.utils.translation import ugettext as _
 from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from monitor.constants import UptimeCheckProtocol
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -656,3 +657,125 @@ class EventDataAccessor(object):
             event_group_id = event_groups[0]["event_group_id"]
             api.metadata.delete_event_group(event_group_id=event_group_id, operator=self.operator)
             return event_group_id
+
+
+class UptimecheckDataAccessor:
+    """
+    拨测数据接入
+    """
+
+    version = "v1"
+
+    DATAID_MAP = {
+        UptimeCheckProtocol.HTTP: settings.UPTIMECHECK_HTTP_DATAID,
+        UptimeCheckProtocol.TCP: settings.UPTIMECHECK_TCP_DATAID,
+        UptimeCheckProtocol.UDP: settings.UPTIMECHECK_UDP_DATAID,
+        UptimeCheckProtocol.ICMP: settings.UPTIMECHECK_ICMP_DATAID,
+    }
+
+    def __init__(self, task) -> None:
+        self.task = task
+        self.bk_biz_id = task.bk_biz_id
+
+    def get_data_id(self) -> Tuple[bool, str]:
+        """
+        TODO: 获取拨测数据链路ID
+        :return: 是否是自定义上报，数据链路ID
+        """
+        if not self.use_custom_report():
+            return False, self.DATAID_MAP[self.task.protocol.upper()]
+
+        data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+        return True, safe_int(data_id_info["bk_data_id"])
+
+    def use_custom_report(self) -> bool:
+        """
+        是否使用自定义上报
+        """
+        return self.task.indepentent_dataid
+
+    @property
+    def data_label(self) -> str:
+        return f"uptimecheck_{self.task.protocol.lower()}"
+
+    @property
+    def db_name(self) -> str:
+        """
+        获取数据库名
+        """
+        return f"uptimecheck_{self.task.protocol.lower()}_{self.bk_biz_id}"
+
+    @property
+    def data_name(self) -> str:
+        return self.db_name
+
+    def create_data_id(self) -> None:
+        """
+        创建数据ID
+        """
+        try:
+            data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+            return safe_int(data_id_info["bk_data_id"])
+        except BKAPIError:
+            pass
+
+        params = {
+            "data_name": self.data_name,
+            "etl_config": "bk_standard_v2_time_series",
+            "operator": "admin",
+            "data_description": self.data_name,
+            "type_label": "time_series",
+            "source_label": "bk_monitor",
+            "option": {
+                "inject_local_time": True,
+                "allow_dimensions_missing": True,
+                "is_split_measurement": True,
+            },
+        }
+        return safe_int(api.metadata.create_data_id(params)["bk_data_id"])
+
+    def access(self):
+        """
+        接入数据链路
+        """
+        from monitor.models import ApplicationConfig
+
+        if not self.use_custom_report():
+            return
+
+        config = ApplicationConfig.objects.filter(
+            cc_biz_id=self.bk_biz_id, key=f"access_uptime_check_{self.task.protocol.lower()}_biz_dataid"
+        ).first()
+        if config and config.value == UptimecheckDataAccessor.version:
+            return
+
+        # 创建数据ID
+        data_id = self.create_data_id()
+
+        # 创建自定义上报
+        params = {
+            "operator": "admin",
+            "bk_data_id": data_id,
+            "bk_biz_id": self.bk_biz_id,
+            "time_series_group_name": self.db_name,
+            "label": "uptimecheck",
+            "is_split_measurement": True,
+            "metric_info_list": [],
+            "data_label": self.data_label,
+            "additional_options": {
+                "enable_field_black_list": True,
+                "enable_default_value": False,
+            },
+        }
+        api.metadata.create_time_series_group(params)
+
+        # 更新配置
+        if not config:
+            ApplicationConfig.objects.create(
+                cc_biz_id=self.bk_biz_id,
+                key=f"access_uptime_check_{self.task.protocol.lower()}_biz_dataid",
+                value=UptimecheckDataAccessor.version,
+            )
+        else:
+            config.value = UptimecheckDataAccessor.version
+            config.save()

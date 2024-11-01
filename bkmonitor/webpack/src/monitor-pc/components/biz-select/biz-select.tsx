@@ -223,8 +223,35 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
-    const generalList = [];
+    const listTemp = {
+      stickyList: {
+        preArr: [],
+        nextArr: [],
+      },
+      commonList: {
+        preArr: [],
+        nextArr: [],
+      },
+      generalList: {
+        preArr: [],
+        nextArr: [],
+      },
+    };
+    const setListTemp = (key: keyof typeof listTemp, item: IListItem, preciseMatch: boolean) => {
+      // 如果是精准匹配将数据插入到临时变量的preArr，否则插入到nextArr
+      if (preciseMatch) {
+        listTemp[key].preArr.push(item);
+      } else {
+        listTemp[key].nextArr.push(item);
+      }
+    };
+    const concatListTemp = (key: keyof typeof listTemp) => {
+      const { preArr, nextArr } = listTemp[key];
+      return [...preArr, ...nextArr];
+    };
+
     for (const item of this.bizList) {
+      let preciseMatch = false;
       let show = false;
       if (this.searchTypeId) {
         show =
@@ -233,7 +260,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             : item.space_type_id === this.searchTypeId;
       }
       if ((show && keyword) || (!this.searchTypeId && !show)) {
+        preciseMatch =
+          item.space_name?.toLocaleLowerCase() === keyword ||
+          item.py_text === keyword ||
+          item.pyf_text === keyword ||
+          `${item.id}` === keyword ||
+          `${item.space_id}`.toLocaleLowerCase() === keyword;
         show =
+          preciseMatch ||
           item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
           item.py_text?.indexOf(keyword) > -1 ||
           item.pyf_text?.indexOf(keyword) > -1 ||
@@ -251,32 +285,44 @@ export default class BizSelect extends tsc<IProps, IEvents> {
           tags,
         };
         if (this.stickyList.includes(item.space_uid)) {
+          setListTemp('stickyList', newItem as IListItem, preciseMatch);
           /** 置顶数据 */
-          stickyList.children.push(newItem as IListItem);
         } else if (this.commonListIds.includes(item.id) && this.isShowCommon) {
           /** 常用数据 */
-          commonList.children.push(newItem as IListItem);
+          setListTemp('commonList', newItem as IListItem, preciseMatch);
         } else {
           /** 普通列表 */
           // list.children.push(newItem as IListItem);
-          generalList.push(newItem);
+          setListTemp('generalList', newItem as IListItem, preciseMatch);
         }
       }
     }
-    this.generalList = generalList;
+    this.generalList = concatListTemp('generalList');
+    stickyList.children = concatListTemp('stickyList');
     this.setPaginationData(true);
     list.children = this.pagination.data;
     const allList: IListItem[] = [];
     if (stickyList.children.length) {
       allList.push(stickyList);
     }
-    if (commonList.children.length) {
-      const temp = this.commonListIds.reduce((total, id) => {
-        const item = commonList.children.find(item => item.id === id);
+    let preTemp = [];
+    let nextTemp = [];
+    if (listTemp.commonList.preArr.length) {
+      preTemp = this.commonListIds.reduce((total, id) => {
+        const item = listTemp.commonList.preArr.find(item => item.id === id);
         if (item) total.push(item);
         return total;
       }, []);
-      commonList.children = [...temp];
+    }
+    if (listTemp.commonList.nextArr.length) {
+      nextTemp = this.commonListIds.reduce((total, id) => {
+        const item = listTemp.commonList.nextArr.find(item => item.id === id);
+        if (item) total.push(item);
+        return total;
+      }, []);
+    }
+    if (preTemp.length || nextTemp.length) {
+      commonList.children = [...preTemp, ...nextTemp];
       allList.push(commonList);
     }
     !!list.children.length && allList.push(list);

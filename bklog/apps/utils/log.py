@@ -23,7 +23,7 @@ import logging  # noqa
 from logging.handlers import DatagramHandler
 
 from opentelemetry import trace
-from opentelemetry.sdk._logs import OTLPHandler
+from opentelemetry.sdk._logs import LoggingHandler as OTLPHandler
 from opentelemetry.sdk._logs.export import BatchLogProcessor
 from opentelemetry.trace import format_trace_id
 

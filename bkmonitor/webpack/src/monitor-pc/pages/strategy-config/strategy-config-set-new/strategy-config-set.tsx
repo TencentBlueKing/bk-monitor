@@ -644,6 +644,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             if (item.metrics) {
               item.metric_field = item.metrics[0].field;
               item.refId = item.metrics[0].alias;
+              const method = item.metrics?.[0]?.method;
+              if (method) {
+                item.method = method;
+              }
             }
             if (item.table) {
               item.result_table_id = item.table || '';

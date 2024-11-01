@@ -34,7 +34,14 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_result,
+    stop_after_attempt,
+    wait_exponential,
+    wait_fixed,
+)
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -226,7 +233,7 @@ class ClusterInfo(models.Model):
             _content = base64.b64encode(content.encode("utf-8"))
             _content_with_prefix = prefix + str(_content, "utf-8")
             return _content_with_prefix
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-except
             logger.error("convert cert error, %s", err)
             return ""
 
@@ -321,7 +328,7 @@ class ClusterInfo(models.Model):
                         }
                     )
                     logger.info("cluster({}) init success, ret({})".format(self.cluster_name, ret))
-            except Exception as e:  # noqa
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error("cluster({}) init error, {}".format(self.cluster_name, e))
 
     @classmethod
@@ -1961,7 +1968,7 @@ class ESStorage(models.Model, StorageResultTable):
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
             SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
@@ -2073,7 +2080,9 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def now(self):
-        return arrow.utcnow().replace(hours=self.time_zone).datetime
+        return arrow.utcnow().replace(hours=self.time_zone).datetime + datetime.timedelta(
+            hours=settings.ES_STORAGE_OFFSET_HOURS
+        )
 
     def is_red(self):
         """判断 es 集群是否 red"""
@@ -2083,7 +2092,7 @@ class ESStorage(models.Model, StorageResultTable):
             if healthz["status"] == "red":
                 return True
             return False
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("query es cluster error by retry 3, error: %s", e)
             return True
 
@@ -2413,6 +2422,7 @@ class ESStorage(models.Model, StorageResultTable):
                     # 不存在数据的，则删除并重新创建
                     else:
                         self.es_client.indices.delete(max_index_name)
+
                         logger.warning(
                             "index->[{}] is differ from database config, "
                             "will be delete and recreated.".format(max_index_name)
@@ -2478,6 +2488,11 @@ class ESStorage(models.Model, StorageResultTable):
         last_index_name = self.make_index_name(
             current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
         )
+        logger.info(
+            "create_or_update_aliases: current_index_info->[%s], last_index_name->[%s]",
+            current_index_info,
+            last_index_name,
+        )
 
         now_datetime_object = self.now
 
@@ -2506,7 +2521,7 @@ class ESStorage(models.Model, StorageResultTable):
                     # 2.3.1 此处提前获取主要是为后续当新索引不存在时，需要获取到上一次的已就绪的索引，为下一轮次（未来）的读写别名-索引关系的创建作准备
                     index_list = self.es_client.indices.get_alias(name=round_alias_name).keys()
                     logger.info(
-                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] has index->[%s].",
+                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] has index_list->[%s].",
                         self.table_id,
                         round_alias_name,
                         index_list,
@@ -2522,7 +2537,16 @@ class ESStorage(models.Model, StorageResultTable):
                     index_list = []
 
                 # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
-                is_ready = self.is_index_ready(self.es_client, last_index_name)
+                try:
+                    is_ready = self.is_index_ready(last_index_name)
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                        self.table_id,
+                        last_index_name,
+                    )
+                except RetryError:  # 若重试后依然失败，则认为未就绪
+                    is_ready = False
+
                 if not is_ready:
                     # 2.4.1 如果索引未就绪，记录日志并跳过，将last_index_name变为上次的索引
                     logger.warning(
@@ -2559,6 +2583,7 @@ class ESStorage(models.Model, StorageResultTable):
                     {"add": {"index": last_index_name, "alias": round_alias_name}},
                     {"add": {"index": last_index_name, "alias": round_read_alias_name}},
                 ]
+
                 # 2.7 如果需要删除的列表不为空，则添加对应的 `remove` 操作
                 if delete_list:
                     for _index in delete_list:
@@ -2571,14 +2596,40 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                     )
 
-                # 2.8 需要将循环中的别名都指向了最新的index
-                response = self.es_client.indices.update_aliases(body={"actions": actions})
+                # 2.8 执行索引-别名绑定关系建立操作
                 logger.info(
-                    "create_or_update_aliases: table_id->[%s] actions->[%s] update alias response [%s]",
+                    "create_or_update_aliases: table_id->[%s] try to add new index binding,actions->[%s]",
                     self.table_id,
                     actions,
-                    response,
                 )
+                try:
+                    self._update_aliases_with_retry(actions=actions, new_index_name=last_index_name)
+                    logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error(
+                        "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
+                        self.table_id,
+                        e,
+                    )
+                    continue
+
+                try:
+                    # 打印当前索引绑定的别名信息
+                    index_binding_aliases_info = self.es_client.indices.get_alias(index=last_index_name)
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] ,index->[%s],has alias info->[%s]",
+                        self.table_id,
+                        last_index_name,
+                        index_binding_aliases_info,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error(
+                        "create_or_update_aliases: table_id->[%s] ,index->[%s],get alias info failed, error->[%s]",
+                        self.table_id,
+                        last_index_name,
+                        e,
+                    )
+                    continue
 
                 logger.info(
                     "create_or_update_aliases: table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2612,22 +2663,39 @@ class ESStorage(models.Model, StorageResultTable):
         # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
 
-    def is_index_ready(self, es_client, index_name: str) -> bool:
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(3),
+        retry=retry_if_result(lambda result: result is False),
+    )
+    def is_index_ready(self, index_name: str) -> bool:
         """
         检查索引的健康状态（是否在各个分片均已就绪）
         """
         try:
             # 获取索引的健康状态
             logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
-            health = es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
-            index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
+            health = self.es_client.cluster.health(
+                index=index_name,
+                level=ES_INDEX_CHECK_LEVEL,
+                request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS,
+            )
+            logger.info(
+                "is_index_ready:table_id->[%s],index_name->[%s],index_health_detail->[%s]",
+                self.table_id,
+                index_name,
+                health,
+            )
 
-            # 检查索引健康状态是否为 green
-            if index_health.get('status') == ES_READY_STATUS:
+            # 遍历所有索引并检查其状态
+            indices_health = health.get('indices', {})
+            all_green = all(index_info.get('status') == ES_READY_STATUS for index_info in indices_health.values())
+
+            if all_green:
                 return True
             else:
-                logger.warning(
-                    "is_index_ready:table_id->[%s] index->[%s] health is not green, will retry later.",
+                logger.error(
+                    "is_index_ready:table_id->[%s] index->[%s] health is not all green, will retry later.",
                     self.table_id,
                     index_name,
                 )
@@ -2648,16 +2716,21 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.is_index_enable():
             return False
 
+        logger.info("create_index_v2: table_id->[%s] start to create index", self.table_id)
         now_datetime_object = self.now
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
+        logger.info("create_index_v2: table_id->[%s] start to create index->[%s]", self.table_id, new_index_name)
         response = self._create_index_with_retry(new_index_name)
         logger.info(
-            "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
+            "create_index_v2:table_id->[%s] has created new index->[%s],response->[%s]",
+            self.table_id,
+            new_index_name,
+            response,
         )
         return True
 
-    def update_index_v2(self):
+    def update_index_v2(self, force_rotate: bool = False):
         """
         判断index是否需要分裂，并提前建立index别名的功能
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
@@ -2665,10 +2738,16 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
+            logger.info(
+                "update_index_v2: table_id->[%s] is not enabled, will not update index",
+                self.table_id
+            )
             return False
 
-        logger.info("update_index_v2: table_id->[%s] start to update index", self.table_id)
         now_datetime_object = self.now
+        logger.info(
+            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+        )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
 
@@ -2680,6 +2759,13 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
             index_size_in_byte = current_index_info["size"]
+
+            logger.info(
+                "update_index_v2: table_id->[%s],current index info:last_index_name->[%s],index_size_in_byte->[%s]",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+            )
 
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
             # 3.2 若当前索引不存在，走索引创建流程
@@ -2753,6 +2839,11 @@ class ESStorage(models.Model, StorageResultTable):
                 )
                 should_create = True
 
+        # 5.5 根据参数决定是否强制轮转
+        if force_rotate:
+            logger.info("update_index_v2:table_id->[%s],enable force rotate", self.table_id)
+            should_create = True
+
         # 6. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
@@ -2770,17 +2861,35 @@ class ESStorage(models.Model, StorageResultTable):
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
-            # 7.1 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
-            if self.es_client.count(index=last_index_name).get("count", 0) == 0:
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+            bounded_not_expired_alias_length = len(filter_result[last_index_name]["not_expired_alias"])
+
+            # 7.1 如果last_index存在已经绑定的别名，且其中的数据为空，那么则进行删除重建操作
+            if (bounded_not_expired_alias_length != 0) and (
+                self.es_client.count(index=last_index_name).get("count", 0) == 0
+            ):
                 new_index = current_index_info["index"]
                 self.es_client.indices.delete(index=last_index_name)
                 logger.info(
-                    "update_index_v2: table_id->[%s] has index->[%s] which has not data, will be deleted for new "
-                    "index create.",
+                    "update_index_v2: table_id->[%s] has index->[%s] which has bounded alias but not data, "
+                    "will be deleted for new index create.",
                     self.table_id,
                     last_index_name,
                 )
-            # 7.2 否则原来的index不动，新增一个index，并把alias指向过去
+            elif force_rotate:
+                new_index = current_index_info["index"] + 1
+                logger.info("update_index_v2:table_id>[%s],index->[%s],will force_rotate", self.table_id, new_index)
+            # 7.2 若上一轮次发起创建的index还没有绑定的别名（未就绪 / 已就绪但还未进行别名切换），跳过本次轮转，等候其别名绑定
+            elif bounded_not_expired_alias_length == 0:
+                logger.info(
+                    "update_index_v2: table_id->[%s] index->[%s] has no bounded alias maybe not ready, skip create "
+                    "new index",
+                    self.table_id,
+                    last_index_name,
+                )
+                return
+            # 7.3 否则原来的index不动，新增一个index，并把alias指向过去
             else:
                 new_index = current_index_info["index"] + 1
                 logger.info(
@@ -2803,7 +2912,49 @@ class ESStorage(models.Model, StorageResultTable):
         )
         return True
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def _update_aliases_with_retry(self, actions, new_index_name):
+        """
+        针对 别名-索引 的更新操作，添加重试机制，等待时间间隔呈指数增长 1 -> 2 -> 4 -> 8
+        若new_index_name未就绪，不进行任何操作！
+        @param actions 操作请求
+        @param new_index_name 新索引名称
+        """
+        logger.info(
+            "update_aliases_with_retry: table_id->[%s] try to do actions->[%s],new_index->[%s]",
+            self.table_id,
+            actions,
+            new_index_name,
+        )
+        try:
+            is_ready = self.is_index_ready(new_index_name)
+            logger.info(
+                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+            )
+        except RetryError:  # 若重试后依然失败，则认为未就绪
+            is_ready = False
+
+        if not is_ready:
+            logger.info(
+                "update_aliases_with_retry: table_id->[%s],actions->[%s],new_index->[%s] is not ready, will not update",
+                self.table_id,
+                actions,
+                new_index_name,
+            )
+            raise elasticsearch5.NotFoundError(new_index_name)
+
+        try:
+            response = self.es_client.indices.update_aliases(
+                body={"actions": actions}, request_timeout=settings.METADATA_REQUEST_ES_TIMEOUT_SECONDS
+            )
+            logger.info(
+                "update_aliases_with_retry: table_id->[%s] update aliases response [%s]", self.table_id, response
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_aliases_with_retry: table_id->[%s] update aliases error [%s]", self.table_id, e)
+            raise e
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
     def _create_index_with_retry(self, new_index_name):
         # 判断index是否已经存在，如果存在则不创建
         if self.es_client.indices.exists(index=new_index_name):
@@ -2925,28 +3076,46 @@ class ESStorage(models.Model, StorageResultTable):
         # 没有快照任务可以直接删除
         # 有快照任务需要判断是否可以删除
         if not self.can_delete():
+            logger.info("clean_index_v2:table_id->[%s] clean index is not allowed, skip", self.table_id)
             return
-        # 获取所有的写入别名
 
+        logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
+        # 获取所有的写入别名
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+
+        # 获取当前日期的字符串
+        now_datetime_str = self.now.strftime(self.date_format)
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
 
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
+                )
                 continue
+            # 如果index_name中包含now_datetime_str，说明是新索引，跳过
+            if now_datetime_str in index_name:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] contains now_datetime_str->[%s] ,skip",
+                    self.table_id,
+                    index_name,
+                    now_datetime_str,
+                )
+                continue
+
             if alias_info["not_expired_alias"]:
                 if alias_info["expired_alias"]:
                     # 如果存在已过期的别名，则将别名删除
                     logger.info(
-                        "table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
                     self.es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
                     logger.warning(
-                        "table_id->[%s] delete_alias_list->[%s] is deleted.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is deleted.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
@@ -2954,19 +3123,22 @@ class ESStorage(models.Model, StorageResultTable):
             # 如果已经不存在未过期的别名，则将索引删除
             # 等待所有别名过期删除索引，防止删除别名快照时，丢失数据
             logger.info(
-                "table_id->[%s] has not alias need to keep, will delete the index->[%s].",
+                "clean_index_v2:table_id->[%s] has not alias need to keep, will delete the index->[%s].",
                 self.table_id,
                 index_name,
             )
             try:
                 self.es_client.indices.delete(index=index_name)
+                logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)
             except (
                 elasticsearch5.ElasticsearchException,
                 elasticsearch.ElasticsearchException,
                 elasticsearch6.ElasticsearchException,
             ):
                 logger.warning(
-                    "table_id->[%s] index->[%s] delete failed, index maybe doing snapshot", self.table_id, index_name
+                    "clean_index_v2::table_id->[%s] index->[%s] delete failed, index maybe doing snapshot",
+                    self.table_id,
+                    index_name,
                 )
                 continue
             logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
@@ -3294,7 +3466,7 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                 )
                 return
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception("table_id->[%s] error occurred when allocate: %s", self.table_id, e)
         else:
             logger.info("table_id->[%s] index->[%s] allocate success!", self.table_id, ilo.indices)
@@ -3461,7 +3633,7 @@ class ESStorage(models.Model, StorageResultTable):
                     new_snapshot_name,
                     {"indices": ",".join(expired_index), "include_global_state": False},
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "table_id->[%s] create new snapshot ->[%s] failed e -> [%s]", self.table_id, new_snapshot_name, e
             )
@@ -3545,7 +3717,7 @@ class ESStorage(models.Model, StorageResultTable):
             snapshot_name = expired_snapshot.get("snapshot")
             try:
                 self.delete_snapshot(snapshot_name, self.snapshot_obj.target_snapshot_repository_name)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.exception("clean snapshot => [%s] failed => %s", snapshot_name, e)
 
         logger.debug("table_id->[%s] has clean snapshot", self.table_id)
@@ -3565,7 +3737,7 @@ class ESStorage(models.Model, StorageResultTable):
             snapshot_name = snapshot.get("snapshot")
             try:
                 self.delete_snapshot(snapshot_name, target_snapshot_repository_name)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.exception("delete snapshot [%s] failed => %s", snapshot_name, e)
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
 
@@ -3870,7 +4042,7 @@ class BkDataStorage(models.Model, StorageResultTable):
                     return True
                 else:
                     time.sleep(1)
-        except Exception as e:  # noqa
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "create/start flow({}) failed, result_id:({}), reason: {}".format(
                     task.flow_name, self.bk_data_result_table_id, e

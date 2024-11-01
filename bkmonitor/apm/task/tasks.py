@@ -37,6 +37,7 @@ from apm.models import (
     MetricDataSource,
     ProfileDataSource,
 )
+from apm.utils.report_event import EventReportHelper
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -169,9 +170,7 @@ def k8s_bk_collector_discover_cron():
     from apm_ebpf.models import ClusterRelation
 
     cluster_mapping = ClusterRelation.all_cluster_ids()
-    logger.info(
-        f"[bk_collector_discover_cron] start to discover deepflow and bk-collector in {len(cluster_mapping)} clusters"
-    )
+    logger.info(f"[bk_collector_discover_cron] start to discover bk-collector in {len(cluster_mapping)} clusters")
 
     collector_checker = BkCollectorInstaller.generator()
     for cluster_id, related_bk_biz_ids in cluster_mapping.items():
@@ -198,7 +197,11 @@ def bmw_task_cron():
     """
     定时检测所有应用的 BMW 预计算任务是否正常运行
     """
-
-    unopened_mapping, running_mapping = PreCalculateCheck.get_application_info_mapping()
-    distribution = PreCalculateCheck.calculate_distribution(unopened_mapping, running_mapping)
+    unopened_mapping, running_mapping, removed_tasks = PreCalculateCheck.get_application_info_mapping()
+    distribution = PreCalculateCheck.calculate_distribution(running_mapping, unopened_mapping)
     PreCalculateCheck.distribute(distribution)
+    if len(removed_tasks) > 5:
+        # 删除大量任务时 进行告警&人工处理
+        EventReportHelper.report(f"[预计算定时任务] 出现 {len(removed_tasks)} 个删除任务，请检查数据是否正确。{removed_tasks}")
+    else:
+        PreCalculateCheck.batch_remove(removed_tasks)

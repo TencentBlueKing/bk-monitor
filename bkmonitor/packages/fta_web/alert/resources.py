@@ -897,7 +897,7 @@ class AlertRelatedInfoResource(Resource):
 
         # 多线程处理每个业务的主机和服务实例信息
         with ThreadPoolExecutor(max_workers=8) as executor:
-            executor.map(enrich_related_infos, instances_by_biz.items())
+            list(executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values()))
 
         return related_infos
 
@@ -2270,7 +2270,8 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     # 将参数放入列表
                     alert_metric_ids.append(alert_metric_id)
                     rec_metric_hashs.append(
-                        MetricRecommendationFeedback.generate_recommendation_metric_hash(recommendation_metric))
+                        MetricRecommendationFeedback.generate_recommendation_metric_hash(recommendation_metric)
+                    )
                     bk_biz_ids.append(bk_biz_id)
                     usernames.append(username)
 
@@ -2278,13 +2279,15 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     query_params[(alert_metric_id, recommendation_metric, bk_biz_id, username)] = recommend_panel
 
         # 批量查询反馈信息
-        feedback_results = MetricRecommendationFeedbackResource.get_feedback_batch(alert_metric_ids, rec_metric_hashs,
-                                                                                   bk_biz_ids, usernames)
+        feedback_results = MetricRecommendationFeedbackResource.get_feedback_batch(
+            alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames
+        )
 
         for (alert_metric_id, recommendation_metric, bk_biz_id, username), recommend_panel in query_params.items():
             try:
                 recommend_panel["feedback"] = feedback_results[
-                    (alert_metric_id, recommendation_metric, bk_biz_id, username)]
+                    (alert_metric_id, recommendation_metric, bk_biz_id, username)
+                ]
             except KeyError:
                 recommend_panel["feedback"] = {
                     {
@@ -2338,15 +2341,15 @@ class MetricRecommendationFeedbackResource(Resource):
     @staticmethod
     def get_feedback_count_batch(alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List) -> Dict:
         """批量获取业务下，告警指标,被推荐指标关系下的点赞和点踩数
-           每个参数列表同位置的元素一一对应，共同组成一对查询参数。
-           非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
-           recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0])
+        每个参数列表同位置的元素一一对应，共同组成一对查询参数。
+        非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
+        recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0])
 
-           :param alert_metric_ids: 告警指标名列表
-           :param rec_metric_hashs: 被推荐指标的hash列表
-           :param bk_biz_ids: 业务id列表
-           :return: {(alert_metric_id, recommendation_metric, bk_biz_id): (点赞数,点踩数), ...}
-           """
+        :param alert_metric_ids: 告警指标名列表
+        :param rec_metric_hashs: 被推荐指标的hash列表
+        :param bk_biz_ids: 业务id列表
+        :return: {(alert_metric_id, recommendation_metric, bk_biz_id): (点赞数,点踩数), ...}
+        """
         # 提取所有的参数组合
         params = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids))
 
@@ -2357,9 +2360,9 @@ class MetricRecommendationFeedbackResource(Resource):
 
         # 一次性获取所有需要的数据
         feedback_data = MetricRecommendationFeedback.objects.filter(
-            DQ(alert_metric_id__in=alert_metric_ids) &
-            DQ(bk_biz_id__in=bk_biz_ids) &
-            DQ(recommendation_metric_hash__in=rec_metric_hashs)
+            DQ(alert_metric_id__in=alert_metric_ids)
+            & DQ(bk_biz_id__in=bk_biz_ids)
+            & DQ(recommendation_metric_hash__in=rec_metric_hashs)
         ).values_list('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'feedback')
 
         # 统计每个组合的点赞和点踩数
@@ -2369,7 +2372,8 @@ class MetricRecommendationFeedbackResource(Resource):
         # 将最终统计结果存入result
         for alert_id, rec_metric_hash, bk_biz_id in params:
             result[(alert_id, rec_metric_hash, bk_biz_id)] = list(
-                feedback_count[(alert_id, rec_metric_hash, bk_biz_id)].values())
+                feedback_count[(alert_id, rec_metric_hash, bk_biz_id)].values()
+            )
 
         return result
 
@@ -2401,8 +2405,9 @@ class MetricRecommendationFeedbackResource(Resource):
         }
 
     @classmethod
-    def get_feedback_batch(cls, alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List,
-                           usernames: List) -> Dict:
+    def get_feedback_batch(
+        cls, alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List, usernames: List
+    ) -> Dict:
         """批量获取用户的反馈
         每个参数列表同位置的元素一一对应，共同组成一对查询参数。
         非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
@@ -2421,16 +2426,19 @@ class MetricRecommendationFeedbackResource(Resource):
 
         # 批量查询用户反馈
         feedback_objects = MetricRecommendationFeedback.objects.filter(
-            DQ(alert_metric_id__in=alert_metric_ids) &
-            DQ(recommendation_metric_hash__in=rec_metric_hashs) &
-            DQ(bk_biz_id__in=bk_biz_ids) &
-            DQ(create_user__in=usernames)
+            DQ(alert_metric_id__in=alert_metric_ids)
+            & DQ(recommendation_metric_hash__in=rec_metric_hashs)
+            & DQ(bk_biz_id__in=bk_biz_ids)
+            & DQ(create_user__in=usernames)
         ).values('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'create_user', 'feedback')
 
         # 构建字典，用于快速查找反馈对象
         feedback_dict = {
             (fo['alert_metric_id'], fo['recommendation_metric_hash'], fo['bk_biz_id'], fo['create_user']): fo[
-                'feedback'] for fo in feedback_objects}
+                'feedback'
+            ]
+            for fo in feedback_objects
+        }
 
         result = {}
         params_list = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames))

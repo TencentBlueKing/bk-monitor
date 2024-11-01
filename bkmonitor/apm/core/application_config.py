@@ -505,7 +505,7 @@ class ApplicationConfig(BkCollectorConfig):
     def deploy_to_k8s(self, cluster_id: str, application_config: str):
         def secret_subconfig_name(app_id: int):
             # 1-20, 21-40, 41-60, ......
-            count_boundary = app_id // BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
+            count_boundary = (app_id - 1) // BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
             min_boundary = count_boundary * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT + 1
             max_boundary = (count_boundary + 1) * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
             return BkCollectorComp.SECRET_SUBCONFIG_APM_NAME.format(min_boundary, max_boundary)
@@ -535,9 +535,10 @@ class ApplicationConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content)
 
         bcs_client = BcsKubeClient(cluster_id)
+        namespace = ClusterConfig.bk_collector_namespace(cluster_id)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=namespace,
             label_selector="component={},template=false,type={},source={}".format(
                 BkCollectorComp.LABEL_COMPONENT_VALUE,
                 BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
@@ -552,7 +553,7 @@ class ApplicationConfig(BkCollectorConfig):
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
                     name=secret_subconfig_name(self._application.id),
-                    namespace=BkCollectorComp.NAMESPACE,
+                    namespace=namespace,
                     labels={
                         "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
                         "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
@@ -565,7 +566,7 @@ class ApplicationConfig(BkCollectorConfig):
 
             bcs_client.client_request(
                 bcs_client.core_api.create_namespaced_secret,
-                namespace=BkCollectorComp.NAMESPACE,
+                namespace=namespace,
                 body=sec,
             )
             logger.info(f"{cluster_id} apm application({self._application.id}) config create successful.")
@@ -600,7 +601,7 @@ class ApplicationConfig(BkCollectorConfig):
                 bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
                     name=sec.metadata.name,
-                    namespace=BkCollectorComp.NAMESPACE,
+                    namespace=namespace,
                     body=sec,
                 )
                 logger.info(f"{cluster_id} apm application({self._application.id}) config update successful.")

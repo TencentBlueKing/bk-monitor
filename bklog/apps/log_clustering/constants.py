@@ -257,3 +257,13 @@ class OwnerConfigEnum(ChoicesEnum):
         (NO_OWNER, _("未指定责任人")),
         (OWNER, _("指定责任人")),
     )
+
+
+class RegexRuleTypeEnum(ChoicesEnum):
+    CUSTOMIZE = "customize"
+    TEMPLATE = "template"
+
+    _choices_labels = (
+        (CUSTOMIZE, _("自定义")),
+        (TEMPLATE, _("模板")),
+    )

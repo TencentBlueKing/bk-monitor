@@ -11,11 +11,6 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 
 from apps.log_search.constants import OperatorEnum
-from apps.log_unifyquery.utils import (
-    transform_bool_addition,
-    transform_contains_addition,
-    transform_exists_addition,
-)
 
 
 class AggTypeEnum(Enum):
@@ -61,16 +56,15 @@ BASE_OP_MAP = {
     "is not": "ne",
 }
 
-OP_TRANSFORMER = {
-    OperatorEnum.CONTAINS_MATCH_PHRASE["operator"]: transform_contains_addition,
-    OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["operator"]: transform_contains_addition,
-    OperatorEnum.ALL_CONTAINS_MATCH_PHRASE["operator"]: transform_contains_addition,
-    OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE["operator"]: transform_contains_addition,
-    OperatorEnum.EXISTS["operator"]: transform_exists_addition,
-    OperatorEnum.NOT_EXISTS["operator"]: transform_exists_addition,
-    OperatorEnum.IS_TRUE["operator"]: transform_bool_addition,
-    OperatorEnum.IS_FALSE["operator"]: transform_bool_addition,
+ADVANCED_OP_MAP = {
+    OperatorEnum.CONTAINS_MATCH_PHRASE["operator"]: {"operator": "eq", "condition": "or"},
+    OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.ALL_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "eq", "condition": "and"},
+    OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "ne", "condition": "and"},
+    OperatorEnum.ALL_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {"operator": "contains", "condition": "and"},
+    OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {"operator": "ncontains", "condition": "and"},
+    OperatorEnum.EXISTS["operator"]: {"operator": "eq", "condition": "or"},
+    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.IS_TRUE["operator"]: {"operator": "eq", "condition": "or"},
+    OperatorEnum.IS_FALSE["operator"]: {"operator": "eq", "condition": "or"},
 }
-
-# 检索选项历史记录API返回数据数量大小
-SEARCH_OPTION_HISTORY_NUM = 10

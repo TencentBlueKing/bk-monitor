@@ -66,16 +66,16 @@ class Template:
         result["data"] = nodes
         return result
 
-    def agent_statistics(self, template_id_list: List[int]) -> List[Dict]:
+    def agent_statistics(self, template_id_list: List[int], only_host_count: bool = False) -> List[Dict]:
         """统计模板下主机的agent状态"""
         templates = self.list_templates(template_id_list=template_id_list)
-        params_list = [{"template": template} for template in templates]
+        params_list = [{"template": template, "only_host_count": only_host_count} for template in templates]
         template_agent_result = batch_request.request_multi_thread(
             self.template_agent_statistics, params_list=params_list, get_data=lambda x: x
         )
         return template_agent_result
 
-    def template_agent_statistics(self, template: Dict) -> List[Dict]:
+    def template_agent_statistics(self, template: Dict, only_host_count: bool = False) -> List[Dict]:
         """统计模板下主机的agent状态"""
         raise NotImplementedError
 
@@ -260,17 +260,22 @@ class SetTemplate(Template):
         result["data"] = host_list
         return result
 
-    def template_agent_statistics(self, template: Dict) -> Dict[str, Any]:
+    def template_agent_statistics(self, template: Dict, only_host_count: bool = False) -> Dict[str, Any]:
         """统计模板下主机的agent状态"""
         result = {"set_template": {"id": template["id"], "name": template["name"], "meta": self.meta}}
 
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
+        result["host_count"] = len(host_list)
+
+        if only_host_count:
+            return result
+
         TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
-        result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])
+
         return result
 
     def service_instance_counts(self, template_id_list: List[int]) -> List[Dict]:
@@ -412,17 +417,22 @@ class ServiceTemplate(Template):
         }
         return BkApi.find_host_by_service_template(params)
 
-    def template_agent_statistics(self, template: Dict) -> Dict[str, Any]:
+    def template_agent_statistics(self, template: Dict, only_host_count: bool = False) -> Dict[str, Any]:
         """统计模板下主机的agent状态"""
         result = {"service_template": {"id": template["id"], "name": template["name"], "meta": self.meta}}
 
         host_list = self.fetch_template_host_total(
             template["id"], fields=constants.CommonEnum.SIMPLE_HOST_FIELDS.value
         )["data"]
+        result["host_count"] = len(host_list)
+
+        if only_host_count:
+            return result
+
         TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         result.update(TopoHandler.count_agent_status(host_list))
-        result["host_count"] = len(host_list)
         result["node_count"] = len(self.fetch_template_node_total(template["id"])["data"])
+
         return result
 
     def service_instance_counts(self, template_id_list: List[int]) -> List[Dict]:
@@ -548,8 +558,8 @@ class TemplateHandler:
     def list_hosts(self, start: int, page_size: int) -> Dict[str, Any]:
         return self.get_instance().list_template_hosts(start=start, page_size=page_size)
 
-    def agent_statistics(self, template_id_list: List[int] = None) -> List[Dict]:
-        return self.get_instance().agent_statistics(template_id_list=template_id_list)
+    def agent_statistics(self, template_id_list: List[int] = None, only_host_count: bool = False) -> List[Dict]:
+        return self.get_instance().agent_statistics(template_id_list=template_id_list, only_host_count=only_host_count)
 
     def service_instance_counts(self, template_id_list: List[int] = None) -> List[Dict]:
         return self.get_instance().service_instance_counts(template_id_list=template_id_list)

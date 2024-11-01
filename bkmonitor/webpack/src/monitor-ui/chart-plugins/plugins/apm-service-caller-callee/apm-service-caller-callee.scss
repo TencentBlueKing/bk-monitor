@@ -1,0 +1,60 @@
+.apm-service-caller-callee {
+  position: relative;
+  height: 100%;
+  background: #fff;
+
+  .filter-btn-group {
+    z-index: 99;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 24px;
+
+    &:not(.header-left) {
+      margin-bottom: 4px;
+      box-shadow: 0 2px 4px 0 #1919290d;
+    }
+
+    &.header-left {
+      width: 320px;
+      border-right: 1px solid #dcdee5;
+      transition: all 0.3s ease-in-out;
+    }
+  }
+
+  .caller-callee-head {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    display: flex;
+    width: 100%;
+    height: 48px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
+  .caller-callee-main {
+    width: 100%;
+    height: calc(100% - 48px);
+    background: #f5f7fa;
+  }
+
+  .caller-callee-layout {
+    width: 100%;
+    height: 100%;
+    border: none;
+
+    .layout-aside {
+      width: 100%;
+      height: 100%;
+    }
+
+    .layout-main {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background: #fff;
+    }
+  }
+}

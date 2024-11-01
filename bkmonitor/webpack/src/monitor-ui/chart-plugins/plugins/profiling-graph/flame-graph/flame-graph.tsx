@@ -156,7 +156,6 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
         }
         this.showException = false;
         await this.$nextTick();
-        // initScale();
         if (!this.chartRef?.clientWidth) return;
         this.localIsCompared = this.isCompared;
         this.graphInstance = new FlameChart(
@@ -328,7 +327,15 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   handleContextMenuClick(item: ICommonMenuItem) {
     this.contextMenuRect.left = -1;
     if (item.id === 'copy') {
-      copyText(this.contextMenuRect.spanName);
+      let hasErr = false;
+      copyText(this.contextMenuRect.spanName, (errMsg: string) => {
+        this.$bkMessage({
+          message: errMsg,
+          theme: 'error',
+        });
+        hasErr = !!errMsg;
+      });
+      if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
     }
     if (item.id === 'reset') {
       this.initScale();
@@ -434,24 +441,27 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
       );
     return (
       <div style='height: fit-content; flex: 1'>
-        <div
-          class='selector-list-slot'
-          slot='main'
-        >
-          <div class={['profiling-compare-legend', { 'is-show': this.localIsCompared }]}>
-            <span class='tag tag-new'>added</span>
-            <div class='percent-queue'>
-              {this.diffPercentList.map((item, index) => (
-                <span
-                  key={index}
-                  class={`percent-tag tag-${index + 1}`}
-                >
-                  {item}
-                </span>
-              ))}
+        <div class='selector-list-slot'>
+          {this.localIsCompared && (
+            <div
+              key='compareLegend'
+              class='profiling-compare-legend'
+            >
+              <span class='tag tag-new'>added</span>
+              <div class='percent-queue'>
+                {this.diffPercentList.map((item, index) => (
+                  <span
+                    key={index}
+                    class={`percent-tag tag-${index + 1}`}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+              <span class='tag tag-removed'>removed</span>
             </div>
-            <span class='tag tag-removed'>removed</span>
-          </div>
+          )}
+
           <div
             ref='wrapperRef'
             class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}

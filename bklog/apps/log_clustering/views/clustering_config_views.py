@@ -182,6 +182,8 @@ class ClusteringConfigViewSet(APIViewSet):
         @apiParam {Str} clustering_fields 聚合字段
         @apiParam {Int} [min_members] 最小日志数量
         @apiParam {Str} [predefined_varibles] 预先定义的正则表达式
+        @apiParam {Str} [regex_rule_type] 规则类型
+        @apiParam {Str} [regex_template_id] 正则模板id
         @apiParam {Str} [delimeter] 分词符
         @apiParam {Int} [max_log_length] 最大日志长度
         @apiParam {Int} [is_case_sensitive] 是否大小写忽略
@@ -200,6 +202,8 @@ class ClusteringConfigViewSet(APIViewSet):
                 "index_set_id":1,
                 "min_members":1,
                 "predefined_varibles":"xxx",
+                "regex_rule_type": "customize",
+                "regex_template_id": 0
                 "delimeter":"xx",
                 "max_log_length":1,
                 "is_case_sensitive":1,
@@ -220,7 +224,7 @@ class ClusteringConfigViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ClusteringConfigSerializer)
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).update(params=params))
+        return Response(ClusteringConfigHandler(index_set_id=index_set_id).synchronous_update(params=params))
 
     @detail_route(methods=["GET"], url_path="access/status")
     def access_status(self, request, index_set_id, *args, **kwargs):

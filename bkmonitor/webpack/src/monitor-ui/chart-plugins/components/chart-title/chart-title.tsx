@@ -77,6 +77,9 @@ export interface IChartTitleProps {
   customArea?: boolean;
   // 数据步长（步长过大情况时需要）
   collectIntervalDisplay?: string;
+  rawInterval?: string;
+  // 是否展示更多菜单
+  needMoreMenu?: boolean;
 }
 
 interface IChartTitleEvent {
@@ -105,6 +108,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ default: '0' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
+  @Prop({ default: true }) needMoreMenu: boolean;
   @Prop({ default: false }) customArea: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
@@ -371,7 +375,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
                     delay: 200,
-                    appendTo: 'parent',
+                    appendTo: () => document.body,
                   }}
                 >
                   {this.collectIntervalDisplay
@@ -425,7 +429,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 key={'更多'}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                  display: this.showMore ? 'flex' : 'none',
+                  display: this.showMore && this.needMoreMenu ? 'flex' : 'none',
                 }}
                 class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
@@ -442,7 +446,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <ChartMenu
           style={{
             left: `${this.menuLeft}px`,
-            display: this.showMenu ? 'flex' : 'none',
+            display: this.needMoreMenu && this.showMenu ? 'flex' : 'none',
             ...this.menuPosition,
           }}
           drillDownOption={this.drillDownOption}
