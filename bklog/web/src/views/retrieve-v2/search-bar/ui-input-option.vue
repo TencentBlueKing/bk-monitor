@@ -135,7 +135,7 @@
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
         if (fields.size > 0) {
-          store.dispatch('requestIndexSetValueList', { fields: fields.values().toArray() });
+          store.dispatch('requestIndexSetValueList', { fields: Array.from(fields.values()) });
           fields.clear();
         }
       });
