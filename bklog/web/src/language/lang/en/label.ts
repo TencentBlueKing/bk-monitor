@@ -712,5 +712,11 @@ export default {
   '正在下发...': 'Issuing...',
   回到旧版: 'Old Version',
   切换新版: 'New Version',
+  存储配置: 'Storage Configuration',
+  索引配置: 'Index Configuration',
+  日志保存天数: 'Number of days to keep logs',
+  显示内置字段: 'Show built-in fields',
+  执行失败: 'Execution failure',
+  执行成功: 'Execution success',
   行号: 'Index',
 };

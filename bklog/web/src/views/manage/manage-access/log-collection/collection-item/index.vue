@@ -494,7 +494,7 @@
                         }"
                         :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'stop') }"
                         href="javascript:;"
-                        @click.stop="operateHandler(props.row, 'stop')"
+                        @click.stop="stopCollectHandler(props.row)"
                       >
                         {{ $t('停用') }}
                       </a>
@@ -578,6 +578,14 @@
       :check-record-id="checkRecordId"
       @close-report="() => (reportDetailShow = false)"
     />
+    <issuedSlider
+      ref="issuedSliderRef"
+      :is-finish-create-step="true"
+      :is-switch="true"
+      :operate-type="'stop'"
+      :is-stop-collection="true"
+      :collector-config-id="currentRowCollectorConfigId"
+    ></issuedSlider>
   </section>
 </template>
 
@@ -597,6 +605,7 @@
   import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
   import CollectionReportView from '../../components/collection-report-view';
   import ClusterFilter from '../../../../retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
+  import issuedSlider from '@/components/collection-access/issued-slider.vue';
 
   export default {
     name: 'CollectionItem',
@@ -604,6 +613,7 @@
       CollectionReportView,
       EmptyStatus,
       IndexSetLabelSelect,
+      issuedSlider,
     },
     mixins: [collectedItemsMixin],
     data() {
@@ -751,6 +761,7 @@
           },
         ],
         filterStorageLabelList: [],
+        currentRowCollectorConfigId: '',
       };
     },
     computed: {
@@ -832,6 +843,14 @@
       this.stopStatusPolling();
     },
     methods: {
+      async stopCollectHandler(row) {
+        if (this.getOperatorCanClick(row, 'stop')) {
+          this.$store.commit('collect/setCurCollect', row);
+          await this.$refs.issuedSliderRef.requestIssuedClusterList();
+          this.$refs.issuedSliderRef?.viewDetail();
+          this.currentRowCollectorConfigId = row?.collector_config_id ?? '';
+        }
+      },
       handleSearchChange(val) {
         if (val === '') {
           this.changePagination({ current: 1 });
