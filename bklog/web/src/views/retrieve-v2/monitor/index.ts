@@ -25,11 +25,13 @@
 */
 window.__IS_MONITOR_APM__ = true
 
+import LogButton from '@/components/log-button';
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
+import i18n from '@/language/i18n';
 
 import http from '../../../api';
 import MonitorRetrieve from './monitor.vue';
-
 const logStore = useStore();
 const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);
@@ -51,4 +53,7 @@ export {
   initMonitorState,
   initDevelopmentLog,
   logStore,
+  i18n,
+  LogButton,
+  JsonFormatWrapper
 }

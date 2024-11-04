@@ -92,6 +92,7 @@ const createMonitorConfig = config => {
       /dayjs\//,
       'dayjs',
       /lodash/,
+      /vue-json-pretty/,
       // ({ request, context }, cb) => {
       //   if (request === 'echarts') {
       //     return cb(undefined, request.replace(request, request));
