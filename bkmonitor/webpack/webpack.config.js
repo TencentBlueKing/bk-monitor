@@ -141,5 +141,6 @@ module.exports = async (baseConfig, { production, app }) => {
           : {}),
       },
     },
+    devtool: 'source-map',
   };
 };
