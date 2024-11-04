@@ -54,6 +54,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
   formData = {
     clustering_fields: '',
     filter_rules: [],
+    new_cls_strategy_enable: true,
+    normal_strategy_enable: false,
   };
   cloneFormData = null;
   confirmLading = false;
@@ -105,6 +107,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
         const data = {
           bk_biz_id: this.bkBizId,
           clustering_fields: this.formData.clustering_fields,
+          new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
+          normal_strategy_enable: this.formData.normal_strategy_enable,
           filter_rules: this.formData.filter_rules
             .filter(item => item.value.length)
             .map(item => ({
