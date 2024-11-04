@@ -1361,7 +1361,7 @@ class SearchEventResource(ApiAuthResource):
         for query_config in alert.strategy["items"][0]["query_configs"]:
             query_config["agg_dimension"] = ["dedupe_md5"]
             ds_cls = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            ds = ds_cls.init_by_query_config(query_config)
+            ds = ds_cls.init_by_query_config(query_config, bk_biz_id=alert.event.bk_biz_id)
             ds.interval = interval
             records = ds.query_data(start_time=start_time * 1000, end_time=end_time * 1000, limit=10000)
             for record in records:
