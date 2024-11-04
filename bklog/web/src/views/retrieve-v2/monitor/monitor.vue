@@ -33,10 +33,9 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
-  import CollectFavorites from '../collect/collect-index';
+  // import CollectFavorites from '../collect/collect-index';
   import SearchBar from '../search-bar/index.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
-  import SearchResultTab from '../search-result-tab/index.vue';
   import SubBar from '../sub-bar/index.vue';
 
   const store = useStore();
@@ -220,13 +219,13 @@ console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
       />
     </div>
     <div class="retrieve-body">
-      <CollectFavorites
+      <!-- <CollectFavorites
         ref="favoriteRef"
         class="collect-favorites"
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-      ></CollectFavorites>
+      ></CollectFavorites> -->
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
@@ -240,7 +239,6 @@ console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
           :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
           class="result-row"
         >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
           <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
         </div>
       </div>
