@@ -108,7 +108,7 @@ class MetricListCache(models.Model):
     is_duplicate = models.IntegerField(default=0, verbose_name="是否重名")
     readable_name = models.CharField(verbose_name="指标可读名", max_length=255, null=True, blank=True, db_index=True)
     metric_md5 = models.CharField(verbose_name="指标MD5", max_length=255, null=True, blank=True)
-    data_label = models.CharField(max_length=256, default="", verbose_name="db标识")
+    data_label = models.CharField(max_length=256, default="", verbose_name="db标识", db_index=True)
 
     objects = MetricListCacheManager()
 
