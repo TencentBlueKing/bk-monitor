@@ -204,7 +204,6 @@
     },
     methods: {
       getExplorerList(row) {
-        debugger;
         const { path = this.fileOrPath, size } = row;
         const cacheList = {
           exploreList: this.explorerList.splice(0),
