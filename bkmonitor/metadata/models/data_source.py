@@ -323,10 +323,19 @@ class DataSource(models.Model):
         """从计算平台申请data_id"""
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
-        from metadata.models.data_link.service import apply_data_id, get_data_id
+        from metadata.models.data_link.service import (
+            apply_data_id,
+            apply_data_id_v2,
+            get_data_id,
+            get_data_id_v2,
+        )
 
         try:
-            apply_data_id(data_name)
+            if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
+                logger.info("apply_for_data_id_from_bkdata:apply data id from bkdata v2,data_name->[%s]", data_name)
+                apply_data_id_v2(data_name)
+            else:
+                apply_data_id(data_name)
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -336,7 +345,11 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id(data_name)
+                if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
+                    logger.info("apply_for_data_id_from_bkdata:get data id from bkdata v2,data_name->[%s]", data_name)
+                    data = get_data_id_v2(data_name)
+                else:
+                    data = get_data_id(data_name)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
