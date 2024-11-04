@@ -16,7 +16,7 @@
                 "app_name": "$app_name"
               },
               "fields": {
-                "metric_field": "metric_field"
+                "id": "metric_field"
               }
             }
           ]
@@ -28,7 +28,7 @@
     "overview_panels": [
         {
             "id": "${id}",
-            "title": "自定义指标",
+            "title": "${metric_field}",
             "type": "list",
             "targets": [
                 {
@@ -99,7 +99,7 @@
                 {
                     "datasource": "dimensions",
                     "dataType": "list",
-                    "api": "apm_metric.getSceneViewDimensions",
+                    "api": "scene_view.getSceneViewDimensions",
                     "data": {
                         "scene_id": "apm_application",
                         "type": "detail",

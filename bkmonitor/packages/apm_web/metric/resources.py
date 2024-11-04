@@ -3185,8 +3185,10 @@ class CustomMetricListResource(Resource):
         )
         metric_list = [
             {
-                "metric_field": i.metric_field,
+                "id": idx,
+                "name": metric.metric_field_name,
+                "metric_field": metric.metric_field,
             }
-            for i in MetricListCache.objects.filter(result_table_id=result_table_id)
+            for idx, metric in enumerate(MetricListCache.objects.filter(result_table_id=result_table_id))
         ]
         return metric_list
