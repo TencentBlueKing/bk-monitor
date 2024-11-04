@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-window.AJAX_URL_PREFIX = 'api/v1';
 import Vue from 'vue';
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -38,7 +37,7 @@ import {
   LogButton,
 } from '@blueking/monitor-retrieve/main';
 
-import '@blueking/monitor-retrieve/css/maineb25513.css';
+import '@blueking/monitor-retrieve/css/main513d453.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {

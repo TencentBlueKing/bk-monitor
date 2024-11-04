@@ -24,8 +24,8 @@ importers:
         specifier: ^1.9.2
         version: 1.9.2
       '@blueking/bkmonitor-cli':
-        specifier: 5.0.0-beta.17
-        version: 5.0.0-beta.17(@types/node@22.5.5)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)
+        specifier: 5.0.0-beta.15
+        version: 5.0.0-beta.15(@types/node@22.5.5)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)
       '@blueking/stylelint-config':
         specifier: 0.0.3
         version: 0.0.3
@@ -487,8 +487,8 @@ importers:
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/monitor-retrieve':
-        specifier: 1.0.0-beta.1
-        version: 1.0.0-beta.1
+        specifier: 1.0.0-beta.2
+        version: 1.0.0-beta.2
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.70)(vue@2.7.16)
@@ -2415,8 +2415,8 @@ packages:
     engines: {node: '>=14.18.1'}
     dev: false
 
-  /@blueking/bkmonitor-cli@5.0.0-beta.17(@types/node@22.5.5)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16):
-    resolution: {integrity: sha512-bj02J3G4M2GidQgsepvahN1UGSiIypuQ2RDLjCXc+gPT5JxWqMeO84UAJeVd/Kbg9LraG31QzSAGC26X2chT6g==}
+  /@blueking/bkmonitor-cli@5.0.0-beta.15(@types/node@22.5.5)(babel-helper-vue-jsx-merge-props@2.0.3)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16):
+    resolution: {integrity: sha512-VtoHWErdbzLff8XtmQR7OEQIYLcCsSQSd0KYDeBF6TUTp6agpdt0QwvTIw8ztn6rgdMdSaqZic5en93knCzQ9Q==}
     engines: {node: '>= 18'}
     hasBin: true
     dependencies:
@@ -2679,8 +2679,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/monitor-retrieve@1.0.0-beta.1:
-    resolution: {integrity: sha512-pcGILYHZXeAb3PJV8YF29ggMOv33iyu7rYC6bwsM/+s4BxVX/9Do4zLNuc3hf9uCKSIpVYz2YWVxu7i3IVA/mg==}
+  /@blueking/monitor-retrieve@1.0.0-beta.2:
+    resolution: {integrity: sha512-GUl7C6yAhwnTQtbBbhyX0+V8OlZdewlmeq4WVkGyOb/VELM0iJv6wegQXaoCMMZCTy4D7r5uisFXy5lb9LnYrA==}
     dev: false
 
   /@blueking/notice-component-vue2@2.0.5(dompurify@3.1.6):
