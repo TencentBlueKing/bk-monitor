@@ -30,7 +30,7 @@ def apply_data_id(data_name: str) -> bool:
     """下发 data_id 资源，并记录对应的资源及配置"""
     logger.info("apply data_id for data_name: %s", data_name)
 
-    data_id_name = utils.get_bkdata_data_id_name(data_name)
+    data_id_name = utils.compose_bkdata_data_id_name(data_name)
     data_id_config = DataLinkResourceConfig.compose_data_id_config(data_id_name)
     if not data_id_config:
         return False
@@ -51,7 +51,10 @@ def apply_data_id(data_name: str) -> bool:
 
 
 def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> Dict:
-    """获取数据源对应的 data_id"""
+    """
+    获取数据源对应的 data_id
+    TODO: 待改造为通用查询状态方法
+    """
     data_id_name = utils.get_bkdata_data_id_name(data_name)
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
