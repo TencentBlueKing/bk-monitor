@@ -28,7 +28,7 @@
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: indexSetList.value.length > 1 && !isAiopsToggle.value },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       { name: 'graphAnalysis', label: $t('图表分析'), disabled: false },
     ];
   });
