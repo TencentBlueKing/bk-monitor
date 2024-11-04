@@ -418,6 +418,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         id = serializers.CharField(label="视图ID")
         name = serializers.CharField(label="资源名称", allow_blank=True, allow_null=True, required=False)
         namespace = serializers.CharField(label="命名空间", required=False)
+        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
 
     @classmethod
     def get_metrics(cls, params: Dict):
@@ -516,6 +517,7 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
         limit = serializers.IntegerField(label="限制数量", default=GRAPH_MAX_SLIMIT)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
+        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
 
     def perform_request(self, params):
         for metric in GetSceneViewDimensionsResource.get_metrics(params):

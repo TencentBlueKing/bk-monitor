@@ -1160,7 +1160,6 @@ class InstanceListResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, validated_data):
-
         instances = RelationMetricHandler.list_instances(
             validated_data["bk_biz_id"],
             validated_data["app_name"],
@@ -2908,7 +2907,6 @@ class GetFieldOptionValuesResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-
         metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
@@ -2925,7 +2923,6 @@ class GetFieldOptionValuesResource(Resource):
 
 class CalculateByRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
-
         ZERO_TIME_SHIFT: str = "0s"
 
         class OptionsSerializer(serializers.Serializer):
@@ -3165,3 +3162,31 @@ class QueryDimensionsByLimitResource(Resource):
         )
         records = self._format(group_fields, records)
         return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
+
+
+class CustomMetricListResource(Resource):
+    """获取自定义指标列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+
+    def perform_request(self, validated_data):
+        from bkmonitor.models import MetricListCache
+
+        bk_biz_id = validated_data["bk_biz_id"]
+        app_name = validated_data["app_name"]
+        try:
+            application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
+        except Application.DoesNotExist:
+            raise ValueError("Application does not exist")
+        result_table_id = application.fetch_datasource_info(
+            TelemetryDataType.METRIC.datasource_type, attr_name="result_table_id"
+        )
+        metric_list = [
+            {
+                "metric_field": i.metric_field,
+            }
+            for i in MetricListCache.objects.filter(result_table_id=result_table_id)
+        ]
+        return metric_list

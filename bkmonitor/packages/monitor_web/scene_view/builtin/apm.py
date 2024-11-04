@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import json
 from typing import Any, Dict, List, Optional, Set
 
@@ -22,8 +23,13 @@ from apm_web.handlers.metric_group import CalculationType
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
-from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
-from core.drf_resource import api
+from bkmonitor.models import MetricListCache
+from constants.apm import (
+    MetricTemporality,
+    TelemetryDataType,
+    TRPCMetricTag,
+    TrpcTagDrillOperation,
+)
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -39,6 +45,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-overview",
         "apm_application-service",
         "apm_application-topo",
+        "apm_application-custom_metric",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
@@ -209,6 +216,31 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 {"value": CalculationType.BOTTOM_N, "text": "bottom"},
             ]
 
+        # APM自定义指标
+        if builtin_view == "apm_application-custom_metric" and app_name:
+            try:
+                application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
+                result_table_id = application.fetch_datasource_info(
+                    TelemetryDataType.METRIC.datasource_type, attr_name="result_table_id"
+                )
+            except Application.DoesNotExist:
+                raise ValueError("Application does not exist")
+
+            overview_panels = []
+            overview_panel_template = view_config["overview_panels"][0]
+            for idx, i in enumerate(MetricListCache.objects.filter(result_table_id=result_table_id)):
+                variables = {
+                    "id": idx,
+                    "table_id": i.result_table_id,
+                    "metric_field": i.metric_field,
+                    "data_source_label": i.data_source_label,
+                    "data_type_label": i.data_type_label,
+                }
+                overview_panel = copy.deepcopy(overview_panel_template)
+                for var_name, var_value in variables.items():
+                    overview_panel = cls._replace_variable(overview_panel, "${{{}}}".format(var_name), var_value)
+                overview_panels.append(overview_panel)
+            view_config["overview_panels"] = overview_panels
         return view_config
 
     @classmethod
