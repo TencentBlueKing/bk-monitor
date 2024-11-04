@@ -860,9 +860,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     } else if (this.sceneData.options?.panel_tool?.full_table) {
       this.showMode = 'list';
     }
-
     // 判断左侧栏是否需要缓存
-    this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
+    this.selectorPanelKey = newSelectPanel && oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
     this.sceneData.variables.forEach(item => {
       variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
@@ -1524,7 +1523,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       this.tabList.forEach(tab => {
         if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
-
           tab.panel_count = count;
         }
       });
@@ -1754,20 +1752,25 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             class='common-page-container'
           >
             <keep-alive>
-              {this.sceneData.showSelectPanel && this.showSelectPanel && (
+              {((this.sceneData.showSelectPanel && this.showSelectPanel) ||
+                this.sceneData.options?.only_index_list) && (
                 <CommonDetail
                   style={{ display: this.readonly ? 'none' : 'block' }}
                   scopedSlots={{
                     default: ({ contentHeight, width }) => (
                       <div class={['host-tree-container', 'no-padding']}>
                         {/* 主机树形组件 */}
-                        {this.handleGetSelectPanel(contentHeight, width)}
+                        {!this.sceneData.options?.only_index_list &&
+                          this.sceneData.showSelectPanel &&
+                          this.showSelectPanel &&
+                          this.handleGetSelectPanel(contentHeight, width)}
                       </div>
                     ),
                   }}
                   defaultWidth={this.sceneData.defaultSelectorPanelWidth}
                   enableResizeListener={true}
                   indexList={this.indexList}
+                  isOnlyShowIndex={this.sceneData.options?.only_index_list}
                   lineText={''}
                   needOverflow={false}
                   resetDragPosKey={this.resetDragPosKey}

@@ -103,6 +103,7 @@ export interface IBookMarkOptions {
   };
   // 是否开启图表索引列表功能
   enable_index_list?: boolean;
+  only_index_list?: boolean; // 仅展示索引列表
   alert_filterable?: boolean; // 图表的告警状态接口是否需要加入$current_target作为请求参数
   enable_auto_grouping?: boolean; // 视图设置是否开启自动分组
 }
@@ -240,7 +241,7 @@ export class BookMarkModel implements IBookMark {
   // }
   // 左侧选择栏默认宽度
   get defaultSelectorPanelWidth() {
-    return (this.selectorPanel.options?.selector_list?.status_filter ?? false) ? 400 : 240;
+    return (this.selectorPanel?.options?.selector_list?.status_filter ?? false) ? 400 : 240;
   }
   // 是否可配置group
   get enableGroup() {
