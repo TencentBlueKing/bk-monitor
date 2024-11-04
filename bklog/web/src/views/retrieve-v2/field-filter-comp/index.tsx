@@ -28,8 +28,10 @@ import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
+// #if APP === 'apm'
 import VueDraggable from 'vuedraggable';
 
+// #endif
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';

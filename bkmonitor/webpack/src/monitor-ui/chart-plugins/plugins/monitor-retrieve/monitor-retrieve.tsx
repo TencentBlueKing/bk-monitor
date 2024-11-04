@@ -42,7 +42,7 @@ import '@blueking/monitor-retrieve/css/maineb25513.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
-  init = true;
+  init = false;
   async created() {
     const spaceUid =
       window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
@@ -53,31 +53,31 @@ export default class MonitorRetrieve extends tsc<void> {
     });
     window.space_uid = `${spaceUid}`;
     if (!this.init && process.env.NODE_ENV === 'development') {
-      // window.FEATURE_TOGGLE = {
-      //   scenario_log: 'on',
-      //   scenario_bkdata: 'on',
-      //   scenario_es: 'on',
-      //   es_type_object: 'on',
-      //   es_type_nested: 'on',
-      //   bkdata_token_auth: 'off',
-      //   extract_cos: 'off',
-      //   collect_itsm: 'off',
-      //   monitor_report: 'on',
-      //   bklog_es_config: 'on',
-      //   check_collector_custom_config: 'on',
-      //   trace: 'off',
-      //   log_desensitize: 'on',
-      //   bk_log_trace: 'on',
-      //   bk_log_to_trace: 'on',
-      //   bkdata_aiops_toggle: 'on',
-      //   bk_custom_report: 'on',
-      //   es_cluster_type_setup: 'on',
-      //   feature_bkdata_dataid: 'on',
-      //   is_auto_deploy_plugin: 'on',
-      //   field_analysis_config: 'debug',
-      //   direct_esquery_search: 'on',
-      //   bklog_search_new: 'on',
-      // };
+      window.FEATURE_TOGGLE = {
+        //   scenario_log: 'on',
+        //   scenario_bkdata: 'on',
+        //   scenario_es: 'on',
+        //   es_type_object: 'on',
+        //   es_type_nested: 'on',
+        //   bkdata_token_auth: 'off',
+        //   extract_cos: 'off',
+        //   collect_itsm: 'off',
+        //   monitor_report: 'on',
+        //   bklog_es_config: 'on',
+        //   check_collector_custom_config: 'on',
+        //   trace: 'off',
+        //   log_desensitize: 'on',
+        //   bk_log_trace: 'on',
+        //   bk_log_to_trace: 'on',
+        bkdata_aiops_toggle: 'on',
+        //   bk_custom_report: 'on',
+        //   es_cluster_type_setup: 'on',
+        //   feature_bkdata_dataid: 'on',
+        //   is_auto_deploy_plugin: 'on',
+        field_analysis_config: 'on',
+        //   direct_esquery_search: 'on',
+        //   bklog_search_new: 'on',
+      };
       // this.init = false;
       // await initDevelopmentLog();
       // this.init = true;
