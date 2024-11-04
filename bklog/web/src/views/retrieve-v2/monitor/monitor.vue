@@ -36,7 +36,6 @@
   import CollectFavorites from '../collect/collect-index';
   import SearchBar from '../search-bar/index.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
-  import SearchResultTab from '../search-result-tab/index.vue';
   import SubBar from '../sub-bar/index.vue';
 
   const store = useStore();
@@ -240,7 +239,6 @@ console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
           :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
           class="result-row"
         >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
           <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
         </div>
       </div>
