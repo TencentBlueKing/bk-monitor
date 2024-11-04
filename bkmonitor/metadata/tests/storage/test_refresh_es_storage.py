@@ -150,3 +150,43 @@ def test_update_index_v2(es_storage, mock_es_client):
     es_storage.es_client = mock_es_client
     es_storage.update_index_v2()
     es_storage.es_client.indices.delete.assert_any_call(index=EXPECTED_FUTURE_INDEX)
+
+
+def test_filter_reallocate_index_list():
+    """
+    测试冷热切换过程中的double_check是否正常工作
+    """
+    filter_result = {
+        'v2_test_bklog_report_20241027_9': {
+            'expired_alias': ['test_bklog_report_20241028_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241027_1': {
+            'expired_alias': ['test_bklog_report_20241028_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241031_84': {
+            'expired_alias': ['test_bklog_report_20241031_read', 'test_bklog_report_20241101_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241031_78': {
+            'expired_alias': ['test_bklog_report_20241031_read', 'test_bklog_report_20241101_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241028_6': {
+            'expired_alias': ['test_bklog_report_20241028_read', 'test_bklog_report_20241029_read'],
+            'not_expired_alias': [],
+        },
+    }
+
+    date_range = ['1031']
+
+    reallocate_index_list = [
+        index_name
+        for index_name, alias in filter_result.items()
+        if not alias["not_expired_alias"] and not any(date in index_name for date in date_range)
+    ]
+
+    expected = ['v2_test_bklog_report_20241027_9', 'v2_test_bklog_report_20241027_1', 'v2_test_bklog_report_20241028_6']
+
+    assert reallocate_index_list == expected
