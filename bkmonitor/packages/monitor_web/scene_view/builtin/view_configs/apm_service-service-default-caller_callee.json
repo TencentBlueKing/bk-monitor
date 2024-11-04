@@ -1383,6 +1383,90 @@
           }
         }
       ],
+      "dimension_panels": [
+        {
+          "id": "dimension_pie",
+          "title": "维度值分布",
+          "type": "caller-pie-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "eq",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dimension_bar",
+          "title": "维度值分布",
+          "type": "caller-bar-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "eq",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
       "options": {
         "enable_group": false,
         "show_panel_count": false,
