@@ -2738,10 +2738,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
-            logger.info(
-                "update_index_v2: table_id->[%s] is not enabled, will not update index",
-                self.table_id
-            )
+            logger.info("update_index_v2: table_id->[%s] is not enabled, will not update index", self.table_id)
             return False
 
         now_datetime_object = self.now
@@ -3413,10 +3410,23 @@ class ESStorage(models.Model, StorageResultTable):
 
         filter_result = self.group_expired_alias(alias_list, self.warm_phase_days, need_delay_delete_alias=False)
 
-        # 如果存在未过期的别名，那说明这个索引仍在被写入，不能把它切换到冷节点
-        reallocate_index_list = [
-            index_name for index_name, alias in filter_result.items() if not alias["not_expired_alias"]
+        # 生成从当前日期到 warm_phase_days 天内的日期字符串列表
+        date_range = [
+            (self.now - datetime.timedelta(days=day)).strftime(self.date_format) for day in range(self.warm_phase_days)
         ]
+
+        # 如果存在未过期的别名，那说明这个索引仍在被写入，不能把它切换到冷节点,新增double_check，若包含未过期的索引，不应降冷
+        reallocate_index_list = [
+            index_name
+            for index_name, alias in filter_result.items()
+            if not alias["not_expired_alias"] and not any(date in index_name for date in date_range)
+        ]
+
+        logger.info(
+            "reallocate_index: table_id->[%s] reallocate_index_list->[%s],now try to reallocate.",
+            self.table_id,
+            reallocate_index_list,
+        )
 
         # 如果没有过期的索引，则返回
         if not reallocate_index_list:
@@ -3429,6 +3439,8 @@ class ESStorage(models.Model, StorageResultTable):
         ilo = IndexList(self.es_client, index_names=reallocate_index_list)
         # 过滤掉已经被 allocate 过的 index
         ilo.filter_allocated(key=allocation_attr_name, value=allocation_attr_value, allocation_type=allocation_type)
+
+        logger.info("reallocate_index: table_id->[%s],need to reallocate index_list->[%s]", self.table_id, ilo.indices)
 
         # 过滤后索引为空，则返回
         if not ilo.indices:
