@@ -28,7 +28,8 @@ class BkLogForwardingView(APIView):
             response = requests.request(
                 method=request.method,
                 url=target_url,
-                headers=request.headers,
+                headers=dict(request.headers),
+                params={key: request.GET.get(key) for key in request.GET},
                 data=request.body if request.body else None,
                 allow_redirects=False,
             )
