@@ -53,6 +53,8 @@ Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+window.AJAX_URL_PREFIX = '/apm/service_log/bklog/api/v1';
+
 setVue(Vue);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
