@@ -893,6 +893,8 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
+    container_collector_config = UpdateContainerCollectorSerializer(label=_("容器采集项配置"), required=False)
+    collector_config = CollectorUpdateSerializer(label=_("采集项配置"), required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

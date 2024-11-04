@@ -1352,7 +1352,22 @@ class CollectorViewSet(ModelViewSet):
             return Response(data)
         for key in ["need_assessment", "assessment_config"]:
             data.pop(key, None)
-        return Response(etl_handler.update_or_create(**data))
+        result = etl_handler.update_or_create(**data)
+
+        # 更新采集项信息
+        collector_config = data.get("collector_config")
+        container_collector_config = data.get("container_collector_config")
+        collector_data = {}
+        if collector_config:
+            collector_data = CollectorHandler(collector_config_id=collector_config_id).update_or_create(
+                collector_config
+            )
+        elif container_collector_config:
+            collector_data = CollectorHandler(collector_config_id=collector_config_id).update_container_config(
+                container_collector_config
+            )
+        result.update(collector_data)
+        return Response(result)
 
     @detail_route(methods=["GET"], url_path="get_data_link_list")
     def get_data_link_list(self, request):
