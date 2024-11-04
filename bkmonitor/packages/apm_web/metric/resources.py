@@ -383,9 +383,8 @@ class DynamicUnifyQueryResource(Resource):
             for i in response.get("series", []):
                 if "dimensions" not in i:
                     continue
-                for dimension in dimension_fields:
-                    if dimension not in i["dimensions"]:
-                        i["dimensions"][dimension] = ""
+                # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
+                i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
 
         return response
 
