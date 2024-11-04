@@ -38,7 +38,7 @@ import {
   LogButton,
 } from '@blueking/monitor-retrieve/main';
 
-import '@blueking/monitor-retrieve/css/maineb25513.css';
+import '@blueking/monitor-retrieve/css/main74f6129.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
@@ -88,7 +88,7 @@ export default class MonitorRetrieve extends tsc<void> {
       store: logStore,
       router: this.$router,
       i18n,
-      render: h => h(Log),
+      render: h => h(Log, { props: { indexSetApi: this.indexSetApi } }),
     });
     await this.$nextTick();
     window.mainComponent.$mount(this.$el.querySelector('#main'));
@@ -96,6 +96,11 @@ export default class MonitorRetrieve extends tsc<void> {
   beforeDestroy() {
     window.mainComponent.$destroy();
   }
+
+  async indexSetApi() {
+    return [];
+  }
+
   render() {
     return (
       <div class='monitor-retrieve'>
