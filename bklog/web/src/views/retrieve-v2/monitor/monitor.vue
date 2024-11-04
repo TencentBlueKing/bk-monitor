@@ -33,7 +33,7 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
-  import CollectFavorites from '../collect/collect-index';
+  // import CollectFavorites from '../collect/collect-index';
   import SearchBar from '../search-bar/index.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
   import SubBar from '../sub-bar/index.vue';
@@ -219,13 +219,13 @@ console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
       />
     </div>
     <div class="retrieve-body">
-      <CollectFavorites
+      <!-- <CollectFavorites
         ref="favoriteRef"
         class="collect-favorites"
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-      ></CollectFavorites>
+      ></CollectFavorites> -->
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
