@@ -256,7 +256,9 @@
 </template>
 
 <script>
+  // #if APP === 'apm'
   import VueDraggable from 'vuedraggable';
+  // #endif
   import { mapGetters } from 'vuex';
 
   import fieldsSettingOperate from './fields-setting-operate';

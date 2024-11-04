@@ -69,6 +69,7 @@ urlpatterns = [
     url(r"^query-api/rest/v2/", include("monitor_web.urls", namespace="monitor_web")),
     url(r"^fta/", include("fta_web.urls", namespace="fta_web")),
     url(r"^apm/", include("apm_web.urls", namespace="apm_web")),
+    url(r"^apm_log_forward/", include("apm_web.log_proxy.urls", namespace="log_proxy")),
     url(r"^trace/", include("apm_trace.urls", namespace="apm_trace")),
     url(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
     url(r"^media/(?P<path>.*)$", wrapped_serve, {"document_root": settings.MEDIA_ROOT}),

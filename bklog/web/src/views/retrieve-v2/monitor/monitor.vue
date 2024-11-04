@@ -39,7 +39,6 @@ import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 import SearchBar from '../search-bar/index.vue';
 import QueryHistory from '../search-bar/query-history.vue';
 import SearchResultPanel from '../search-result-panel/index.vue';
-import SearchResultTab from '../search-result-tab/index.vue';
 const props = defineProps({
   indexSetApi: {
     type: Function,
@@ -256,7 +255,6 @@ onMounted(() => {
           :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
           class="result-row"
         >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
           <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
         </div>
       </div>
