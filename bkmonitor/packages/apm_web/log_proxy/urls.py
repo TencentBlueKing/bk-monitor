@@ -8,12 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf.urls import include, url
+from django.urls import path
+from rest_framework.routers import DefaultRouter
 
-from apm_web.log import views
-from core.drf_resource.routers import ResourceRouter
+from apm_web.log_proxy.views import BkLogForwardingView
 
-router = ResourceRouter()
-router.register_module(views)
+router = DefaultRouter()
+app_name = "apm_web"
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [
+    path("bklog/<path:path>", BkLogForwardingView.as_view(), name="proxy"),
+]
