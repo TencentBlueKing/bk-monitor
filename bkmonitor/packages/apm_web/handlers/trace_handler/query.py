@@ -91,10 +91,8 @@ class QueryStringBuilder:
             return query_string
 
         # TraceID & SpanID 直接走精确查询
-        if self._is_span_id(query_string):
-            return query_string
-        if self._is_trace_id(query_string):
-            return query_string
+        if self._is_span_id(query_string) or self._is_trace_id(query_string):
+            return f'"{query_string}"'
 
         # 关键字匹配加上通配符，解决页面检索 ${keyword} 被加上双引号当成精确查询的问题
         return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
