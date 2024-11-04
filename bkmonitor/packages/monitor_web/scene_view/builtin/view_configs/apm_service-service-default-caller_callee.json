@@ -625,6 +625,17 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
+            "enable_panels_selector": true,
+            "child_panels_selector_variables": [
+              {
+                "id": "timeout_rate",
+                "code_type": "timeout"
+              },
+              {
+                "id": "exception_rate",
+                "code_type": "exception"
+              }
+            ],
             "is_support_group_by": true,
             "is_support_compare": true
           }
