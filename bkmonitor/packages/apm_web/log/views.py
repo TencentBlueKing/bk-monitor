@@ -8,13 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from urllib.parse import urljoin
-
-import requests
-from django.conf import settings
-from django.http import JsonResponse
-from django.utils.translation import ugettext_lazy as _
-from rest_framework.views import APIView
 
 from apm_web.decorators import user_visit_record
 from apm_web.log.resources import ServiceLogInfoResource, ServiceRelationListResource
@@ -48,23 +41,3 @@ class LogViewSet(ResourceViewSet):
             ],
         ),
     ]
-
-
-class BkLogForwardingView(APIView):
-    """转发请求到日志平台"""
-
-    def dispatch(self, request, *args, **kwargs):
-
-        target_url = urljoin(settings.BKLOGSEARCH_HOST, request.path.split('bklog')[-1])
-
-        try:
-            response = requests.request(
-                method=request.method,
-                url=target_url,
-                headers=request.headers,
-                data=request.body if request.body else None,
-                allow_redirects=False,
-            )
-            return JsonResponse(response.json(), status=response.status_code)
-        except Exception as e:  # noqa
-            return JsonResponse({'message': _("请求日志平台接口错误: ") + str(e)}, status=500)
