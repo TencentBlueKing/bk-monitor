@@ -173,3 +173,70 @@ export const intervalLowBound = (rawInterval: number) => {
   const index = list.findIndex(v => v > 0);
   return CALL_INTERVAL_LIST.at(index) || CALL_INTERVAL_LIST.at(-1);
 };
+
+const recordCallOptionKindKey = '____apm-service-caller-callee-kind____';
+/**
+ * @description 记录调用者调用被调用者的图表类型
+ * @param keyObject
+ * @param kind
+ * @returns
+ */
+export function setRecordCallOptionKind(keyObject, kind: EKind) {
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return;
+  }
+  try {
+    const listStr = localStorage.getItem(recordCallOptionKindKey);
+    const obj = {
+      key: `__${keyObject.app_name}__${keyObject.service_name}__`,
+      value: kind,
+    };
+    if (listStr) {
+      const list = JSON.parse(listStr);
+      const resultList = [];
+      if (list.length > 50) {
+        list.splice(list.length - 1, list.length - 50);
+      }
+      for (const item of list) {
+        if (item.key !== obj.key) {
+          resultList.push(item);
+        }
+      }
+      resultList.unshift(obj);
+      localStorage.setItem(recordCallOptionKindKey, JSON.stringify(resultList));
+    } else {
+      localStorage.setItem(recordCallOptionKindKey, JSON.stringify([obj]));
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+/**
+ * @description 获取调用者调用被调用者的图表类型
+ * @param keyObject
+ * @returns
+ */
+export function getRecordCallOptionKind(keyObject) {
+  console.log(keyObject);
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return EKind.callee;
+  }
+  try {
+    let kind = EKind.callee;
+    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
+    const listStr = localStorage.getItem(recordCallOptionKindKey);
+    if (listStr) {
+      const list = JSON.parse(listStr) as any[];
+      for (const item of list) {
+        if (item.key === key) {
+          kind = item.value || EKind.callee;
+          break;
+        }
+      }
+    }
+    return kind;
+  } catch (err) {
+    console.log(err);
+    return EKind.callee;
+  }
+}
