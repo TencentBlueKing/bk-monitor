@@ -99,25 +99,26 @@
     font: 12px / 18px "Microsoft YaHei";
     font-size: 12px;
     color: rgb(190, 192, 198);
+    pointer-events: none;
     background-color: rgba(54, 58, 67, 0.88);
     border-radius: 5px;
-  
+
     .time-text {
       font-weight: bold;
       color: #f1f3fa;
     }
-  
+
     .status-wrap {
       display: flex;
       align-items: center;
       margin-top: 8px;
-  
+
       .status-color {
         width: 8px;
         height: 8px;
         margin-right: 4px;
       }
-  
+
       .status-text {
         color: #fff;
       }
