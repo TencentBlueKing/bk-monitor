@@ -854,9 +854,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     } else if (this.sceneData.options?.panel_tool?.full_table) {
       this.showMode = 'list';
     }
-
     // 判断左侧栏是否需要缓存
-    this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
+    this.selectorPanelKey = newSelectPanel && oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
     this.sceneData.variables.forEach(item => {
       variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
@@ -1184,10 +1183,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         const value = curItem[1];
 
         return {
+          // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
           ...total,
           [curItem[0]]: (Array.isArray(value) ? !!value.length : !!String(value)) ? curItem[1] : undefined,
         };
       }, {});
+      // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
       return { ...pre, ...temp };
     }, {});
   }
@@ -1201,7 +1202,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
     this.filterCount = list.reduce((len, cur) => {
-      Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== '')) && (len += 1);
+      if (Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== ''))) {
+        return len + 1;
+      }
       return len;
     }, 0);
     this.variables = this.handleGetVariables(list);
@@ -1271,6 +1274,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   resetHostFields(target: Record<string, any>) {
     if (!target || !window.host_data_fields?.length) return target;
+    // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
     return window.host_data_fields.reduce((pre, cur) => ({ ...pre, [cur]: target[cur] }), {});
   }
   handleResetRouteQuery() {
@@ -1512,9 +1516,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         return [];
       });
       this.tabList.forEach(tab => {
-        if (!!tab.panel_count) {
+        if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
-
           tab.panel_count = count;
         }
       });
@@ -1672,6 +1675,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         )}
         {this.sceneData && [
           <PageTitle
+            key='page-title'
             class='common-page-title'
             activeTab={this.dashboardId}
             bookMarkMode={this.sceneData.mode}
@@ -1743,20 +1747,25 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             class='common-page-container'
           >
             <keep-alive>
-              {this.sceneData.showSelectPanel && this.showSelectPanel && (
+              {((this.sceneData.showSelectPanel && this.showSelectPanel) ||
+                this.sceneData.options?.only_index_list) && (
                 <CommonDetail
                   style={{ display: this.readonly ? 'none' : 'block' }}
                   scopedSlots={{
                     default: ({ contentHeight, width }) => (
                       <div class={['host-tree-container', 'no-padding']}>
                         {/* 主机树形组件 */}
-                        {this.handleGetSelectPanel(contentHeight, width)}
+                        {!this.sceneData.options?.only_index_list &&
+                          this.sceneData.showSelectPanel &&
+                          this.showSelectPanel &&
+                          this.handleGetSelectPanel(contentHeight, width)}
                       </div>
                     ),
                   }}
                   defaultWidth={this.sceneData.defaultSelectorPanelWidth}
                   enableResizeListener={true}
                   indexList={this.indexList}
+                  isOnlyShowIndex={this.sceneData.options?.only_index_list}
                   lineText={''}
                   needOverflow={false}
                   resetDragPosKey={this.resetDragPosKey}
@@ -1774,6 +1783,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             {this.showMode !== 'list' &&
               this.selectorReady && [
                 <div
+                  key='dashboardPanelWrap'
                   ref='dashboardPanelWrap'
                   class='dashboard-panel-wrap'
                 >
@@ -1901,6 +1911,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   )}
                 </div>,
                 <div
+                  key='split-panel'
                   style={{
                     width: `${this.splitPanelWidth}px`,
                     display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
@@ -1949,6 +1960,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           </div>,
           !this.readonly ? (
             <SettingModal
+              key='setting-modal'
               activeMenu={this.activeSettingId as string}
               beforeClose={this.handleBeforeCloseSettings}
               menuList={this.sceneData.settingMenuList as any}
