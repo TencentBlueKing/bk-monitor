@@ -25,215 +25,231 @@
 -->
 
 <script setup>
-  window.__IS_MONITOR_APM__ = true
-  import { computed, ref, watch } from 'vue';
+window.__IS_MONITOR_APM__ = true;
+import { computed, ref, watch, defineProps, onMounted } from 'vue';
 
-  import useStore from '@/hooks/use-store';
-  import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
-  import { useRoute, useRouter } from 'vue-router/composables';
+import useStore from '@/hooks/use-store';
+import { ConditionOperator } from '@/store/condition-operator';
+import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import { isEqual } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
 
-  // import CollectFavorites from '../collect/collect-index';
-  import SearchBar from '../search-bar/index.vue';
-  import SearchResultPanel from '../search-result-panel/index.vue';
-  import SubBar from '../sub-bar/index.vue';
+import SelectIndexSet from '../condition-comp/select-index-set.tsx';
+import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+import SearchBar from '../search-bar/index.vue';
+import QueryHistory from '../search-bar/query-history.vue';
+import SearchResultPanel from '../search-result-panel/index.vue';
+const props = defineProps({
+  indexSetApi: {
+    type: Function,
+    default: null,
+  },
+  timeRange: {
+    type: Array,
+    default: null,
+  },
+  timezone: {
+    type: String,
+    default: '',
+  },
+});
 
-  const store = useStore();
-  const router = useRouter();
-  const route = useRoute();
+const store = useStore();
+const router = useRouter();
+const route = useRoute();
 
-  const showFavorites = ref(false);
-  const favoriteRef = ref(null);
-  const favoriteWidth = ref(240);
+const spaceUid = computed(() => store.state.spaceUid);
+const bkBizId = computed(() => store.state.bkBizId);
+const indexSetParams = computed(() => store.state.indexItem);
+const routeQueryParams = computed(() => {
+  const { ids, isUnionIndex, search_mode } = store.state.indexItem;
+  const unionList = store.state.unionIndexList;
+  const clusterParams = store.state.clusterParams;
+  return {
+    ...(store.getters.retrieveParams ?? {}),
+    search_mode,
+    ids,
+    isUnionIndex,
+    unionList,
+    clusterParams,
+  };
+});
 
-  const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.bkBizId);
-console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
-  const routeQueryParams = computed(() => {
-    const { ids, isUnionIndex, search_mode } = store.state.indexItem;
-    const unionList = store.state.unionIndexList;
-    const clusterParams = store.state.clusterParams;
-    return {
-      ...(store.getters.retrieveParams ?? {}),
-      search_mode,
-      ids,
-      isUnionIndex,
-      unionList,
-      clusterParams,
-    };
+/**
+ * 拉取索引集列表
+ */
+const getIndexSetList = () => {
+  store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
+    // 拉取完毕根据当前路由参数回填默认选中索引集
+    store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery');
+      });
+    });
+  });
+};
+
+const handleIndexSetSelected = payload => {
+  if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+    store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+    store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
+      store.commit('retrieve/updateChartKey');
+      store.dispatch('requestIndexSetQuery');
+    });
+  }
+};
+
+const updateSearchParam = payload => {
+  const { keyword, addition, ip_chooser, search_mode } = payload;
+  const foramtAddition = (addition ?? []).map(item => {
+    const instance = new ConditionOperator(item);
+    return instance.formatApiOperatorToFront();
   });
 
-  /**
-   * 拉取索引集列表
-   */
-  const getIndexSetList = () => {
-    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
-      // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery');
-        });
-      });
+  if (Object.keys(ip_chooser).length) {
+    foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
+  }
+
+  store.commit('updateIndexItemParams', {
+    keyword,
+    addition: foramtAddition,
+    ip_chooser,
+    begin: 0,
+    search_mode,
+  });
+
+  setTimeout(() => {
+    store.dispatch('requestIndexSetQuery');
+  });
+};
+
+const setRouteParams = () => {
+  const { ids, isUnionIndex } = routeQueryParams.value;
+  console.log(route)
+  const params = isUnionIndex
+  ? { ...route.params, indexId: undefined }
+  : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
+  
+  const query = { ...route.query };
+  const resolver = new RetrieveUrlResolver({
+    ...routeQueryParams.value,
+    datePickerValue: store.state.indexItem.datePickerValue,
+  });
+
+  Object.assign(query, resolver.resolveParamsToUrl());
+  if (!isEqual(query, route.query)) {
+    router.replace({
+      params,
+      query,
     });
-  };
+  }
+};
 
-  const setRouteParams = () => {
-    const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
+const handleSpaceIdChange = () => {
+  store.commit('resetIndexsetItemParams');
+  store.commit('updateIndexId', '');
+  store.commit('updateUnionIndexList', []);
+  getIndexSetList();
+  store.dispatch('requestFavoriteList');
+};
 
-    const query = { ...route.query };
-    const resolver = new RetrieveUrlResolver({
-      ...routeQueryParams.value,
-      datePickerValue: store.state.indexItem.datePickerValue,
-    });
+handleSpaceIdChange();
+// store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
-    Object.assign(query, resolver.resolveParamsToUrl());
-    if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
-      router.replace({
-        params,
-        query,
-      });
-    }
-  };
+watch(
+  routeQueryParams,
+  () => {
+    setRouteParams();
+  },
+  { deep: true },
+);
 
-  const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
-    store.commit('updateIndexId', '');
-    store.commit('updateUnionIndexList', []);
-    getIndexSetList();
-    store.dispatch('requestFavoriteList');
-  };
-
+watch(spaceUid, () => {
   handleSpaceIdChange();
-  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
+  const routeQuery = route.query ?? {};
+  if (routeQuery.spaceUid !== spaceUid.value) {
+    const resolver = new RouteUrlResolver({ route });
 
-  watch(
-    routeQueryParams,
-    () => {
-      setRouteParams();
-    },
-    { deep: true },
-  );
+    router.replace({
+      params: {
+        indexId: undefined,
+      },
+      query: {
+        ...resolver.getDefUrlQuery(),
+        spaceUid: spaceUid.value,
+        bizId: bkBizId.value,
+      },
+    });
+  }
+});
 
-  watch(spaceUid, () => {
-    handleSpaceIdChange();
-    const routeQuery = route.query ?? {};
+watch(
+  () => props.timeRange,
+  async val => {
+    if (!val) return;
+    store.commit('updateIsSetDefaultTableColumn', false);
+    const result = handleTransformToTimestamp(val);
+    store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+    await store.dispatch('requestIndexSetFieldInfo');
+    store.dispatch('requestIndexSetQuery');
+  }
+);
 
-    if (routeQuery.spaceUid !== spaceUid.value) {
-      const resolver = new RouteUrlResolver({ route });
+watch(
+  () => props.timezone,
+  val => {
+    if (!val) return;
+    store.commit('updateIndexItemParams', { timezone });
+    updateTimezone(timezone);
+    store.dispatch('requestIndexSetQuery');
+  }
+);
 
-      router.replace({
-        params: {
-          indexId: undefined,
-        },
-        query: {
-          ...resolver.getDefUrlQuery(),
-          spaceUid: spaceUid.value,
-          bizId: bkBizId.value,
-        },
-      });
+const activeTab = ref('origin');
+const searchBarHeight = ref(0);
+const resultRow = ref();
+const handleHeightChange = height => {
+  searchBarHeight.value = height;
+};
+
+const initIsShowClusterWatch = watch(
+  () => store.state.clusterParams,
+  () => {
+    if (!!store.state.clusterParams) {
+      activeTab.value = 'clustering';
+      initIsShowClusterWatch();
     }
-  });
+  },
+  { deep: true },
+);
 
-  const handleFavoritesClick = () => {
-    if (showFavorites.value) return;
-    showFavorites.value = true;
-  };
+watch(
+  () => store.state.indexItem.isUnionIndex,
+  () => {
+    if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+      activeTab.value = 'origin';
+    }
+  },
+);
 
-  const handleFavoritesClose = e => {
-    e.stopPropagation();
-    showFavorites.value = false;
-  };
-
-  const handleEditFavoriteGroup = e => {
-    e.stopPropagation();
-    favoriteRef.value.isShowManageDialog = true;
-  };
-
-  const activeTab = ref('origin');
-  const isRefreshList = ref(false);
-  const searchBarHeight = ref(0);
-  const resultRow = ref();
-  /** 刷新收藏夹列表 */
-  const handleRefresh = v => {
-    isRefreshList.value = v;
-  };
-  const handleHeightChange = height => {
-    searchBarHeight.value = height;
-  };
-
-  const initIsShowClusterWatch = watch(
-    () => store.state.clusterParams,
-    () => {
-      if (!!store.state.clusterParams) {
-        activeTab.value = 'clustering';
-        initIsShowClusterWatch();
-      }
-    },
-    { deep: true },
-  );
-
-  watch(
-    () => store.state.indexItem.isUnionIndex,
-    () => {
-      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
-        activeTab.value = 'origin';
-      }
-    },
-  );
+onMounted(() => {
+  console.log(props.indexSetApi, store);
+});
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]" style="background-color: bisque;">
+  <div class="retrieve-v2-index">
     <div class="sub-head">
-      <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
-        class="box-favorites"
-        @click="handleFavoritesClick"
-      >
-        <div
-          v-if="showFavorites"
-          class="collet-label"
-        >
-          <div class="left-info">
-            <span class="collect-title">{{ $t('收藏夹') }}</span>
-            <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
-            <span
-              class="collect-edit bklog-icon bklog-wholesale-editor"
-              @click="handleEditFavoriteGroup"
-            ></span>
-          </div>
-          <span
-            class="bklog-icon bklog-collapse-small"
-            @click="handleFavoritesClose"
-          ></span>
-        </div>
-        <template v-else>
-          <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
-        </template>
-      </div>
-      <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
-        showFavorites
-      />
+      <SelectIndexSet
+        :popover-options="{ offset: '-6,10' }"
+        @selected="handleIndexSetSelected"
+      ></SelectIndexSet>
+      <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="retrieve-body">
-      <!-- <CollectFavorites
-        ref="favoriteRef"
-        class="collect-favorites"
-        :is-refresh.sync="isRefreshList"
-        :is-show.sync="showFavorites"
-        :width.sync="favoriteWidth"
-      ></CollectFavorites> -->
       <div
-        :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
       >
-        <SearchBar
-          @height-change="handleHeightChange"
-          @refresh="handleRefresh"
-        ></SearchBar>
+        <SearchBar @height-change="handleHeightChange"></SearchBar>
         <div
           ref="resultRow"
           :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
@@ -246,5 +262,5 @@ console.info(spaceUid, bkBizId, '----------XXXXXXXXXXXXXXXXx========')
   </div>
 </template>
 <style scoped>
-  @import '../index.scss';
+@import './monitor.scss';
 </style>
