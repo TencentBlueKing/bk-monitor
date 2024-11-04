@@ -80,6 +80,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
         self.time_shift: Optional[str] = kwargs.get("time_shift")
+        # 预留 interval 可配置入口
+        self.interval = self.DEFAULT_INTERVAL
 
         self.instant: bool = True
         if self.metric_helper.TIME_FIELD in self.group_by:
@@ -111,23 +113,37 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         # 如果是求瞬时量，那么整个时间范围是作为一个区间
-        interval: int = (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
         q: QueryConfigBuilder = (
-            self.metric_helper.q.group_by(*self.group_by).interval(interval).filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by)
+            .interval(self.interval)
+            .filter(dict_to_q(self.filter_dict) or Q())
         )
 
         if self.time_shift:
             q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
 
         if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+
+        if self.instant:
+            interval: int = self.metric_helper.get_interval(start_time, end_time)
+            # 背景：统计一段时间内的黄金指标（瞬时量）
+            # sum_over_time(sum(increase(xxx[1m]))[window:step]) 可以解决数据刚上报、重启场景的差值计算不准确问题。
+            q = q.func(
+                _id="sum_over_time",
+                # window: sum_over_time 区间左闭右闭，左侧减去 1s 变成左闭右开，确保一个 interval 只有一个点。
+                # step：精度，由于是求 window 内所有点之和，step 须和内层 interval 对齐。
+                # 必须显式传入 step：不指定 step 会参考 interval 自动取值，这意味着不同查询引擎可能默认行为不一致。
+                # refer：https://prometheus.io/blog/2019/01/28/subquery-support/
+                params=[{"id": "window", "value": f"{interval - 1}s"}, {"id": "step", "value": f"{self.interval}s"}],
+            )
 
         return q
 
     def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
-            return qs.instant()
+            return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
@@ -136,7 +152,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("a")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
-        return self.qs(start_time, end_time).add_query(q).expression("a")
+        # a != 0：非时序计算反应的是一段时间内的统计值，不需要展示请求量为 0 的数据。
+        return self.qs(start_time, end_time).add_query(q).expression("a != 0")
 
     def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._request_total_qs(start_time, end_time))
@@ -152,7 +169,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], method="SUM", alias="b")
         )
-        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("(a / b) * 1000")
+        # b == 0：分母为 0 需短路返回
+        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
 
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))

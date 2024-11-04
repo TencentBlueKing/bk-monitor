@@ -11,6 +11,27 @@
   border-radius: 2px;
   box-shadow: 0 2px;
 
+  .node-root-icon {
+    position: absolute;
+    bottom: -5px;
+    left: 10px;
+    display: inline-block;
+    width: 24px;
+    height: 15px;
+    font-size: 10px;
+    line-height: 12px;
+    color: #fff;
+    text-align: center;
+    background: #f55555;
+    border: 1px solid #f55555;
+    border-radius: 8px;
+  }
+
+  .node-root-feedback-icon {
+    background: #ff9c01;
+    border: 1px solid #ff9c01;
+  }
+
   .edge-chart-wrap {
     position: relative;
     display: flex;

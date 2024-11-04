@@ -29,7 +29,7 @@
   <div>
     <bk-table
       ref="resultTable"
-      :class="['king-table original-table', { 'is-wrap': tableLineIsWarp }]"
+      class="bklog-origin-list"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -42,63 +42,58 @@
         align="center"
         type="expand"
       >
-        <template #default="{ $index }">
-          <expand-view
-            :kv-show-fields-list="kvShowFieldsList"
-            :data="originTableList[$index]"
-            :list-data="tableList[$index]"
-            :retrieve-params="retrieveParams"
-            :total-fields="totalFields"
-            :visible-fields="visibleFields"
-            @menu-click="handleMenuClick"
-          >
-          </expand-view>
+        <template #default="{ $index, row }">
+          <LazyRender>
+            <expand-view
+              :kv-show-fields-list="kvShowFieldsList"
+              :data="originTableList[$index]"
+              :list-data="tableList[$index]"
+              :retrieve-params="retrieveParams"
+              :total-fields="totalFields"
+              :visible-fields="visibleFields"
+              @value-click="
+                (type, content, isLink, field, depth) => handleIconClick(type, content, field, row, isLink, depth)
+              "
+            >
+            </expand-view>
+          </LazyRender>
         </template>
       </bk-table-column>
+
+      <template v-if="tableShowRowIndex">
+        <bk-table-column
+          type="index"
+          label=""
+          class-name="bklog-result-list-col-index"
+        ></bk-table-column>
+      </template>
+
       <!-- 显示字段 -->
       <template>
-        <bk-table-column
-          :width="originFieldWidth"
-          class-name="original-time"
-        >
+        <bk-table-column :width="originFieldWidth">
           <template #default="{ row }">
-            <span
-              class="time-field"
-              :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
-            >
-              {{ getOriginTimeShow(row[timeField]) }}
-            </span>
+            <LazyRender>
+              <span
+                class="time-field"
+                :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
+              >
+                {{ getOriginTimeShow(row[timeField]) }}
+              </span>
+            </LazyRender>
           </template>
         </bk-table-column>
-        <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
+        <bk-table-column>
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height
-                :operator-config="operatorConfig"
-                :origin-json="row"
-                :visible-fields="getShowTableVisibleFields"
+            <LazyRender>
+              <JsonFormatter
+                :jsonValue="row"
+                :fields="getShowTableVisibleFields"
+                :formatJson="formatJson"
+                class="bklog-column-container"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-              />
-              <template v-if="!isLimitExpandView">
-                <p
-                  v-if="!cacheExpandStr.includes($index)"
-                  class="show-whole-btn"
-                  @click.stop="handleShowWhole($index)"
-                >
-                  {{ $t('展开全部') }}
-                </p>
-                <p
-                  v-else
-                  class="hide-whole-btn"
-                  @click.stop="handleHideWhole($index)"
-                >
-                  {{ $t('收起') }}
-                </p>
-              </template>
-            </div>
+              ></JsonFormatter>
+            </LazyRender>
           </template>
         </bk-table-column>
       </template>
@@ -113,13 +108,15 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <operator-tools
-            :handle-click="event => handleClickTools(event, row, operatorConfig)"
-            :index="$index"
-            :operator-config="operatorConfig"
-            :row-data="row"
-            log-type="origin"
-          />
+          <LazyRender>
+            <operator-tools
+              :handle-click="event => handleClickTools(event, row, operatorConfig)"
+              :index="$index"
+              :operator-config="operatorConfig"
+              :row-data="row"
+              log-type="origin"
+            />
+          </LazyRender>
         </template>
       </bk-table-column>
       <!-- 初次加载骨架屏loading -->
@@ -162,12 +159,18 @@
 
 <script>
   import resultTableMixin from '../../mixins/result-table-mixin';
+  import JsonFormatter from '../../../../global/json-formatter.vue';
+  import { mapState } from 'vuex';
 
   export default {
     name: 'OriginalList',
     mixins: [resultTableMixin],
+    components: { JsonFormatter },
     inheritAttrs: false,
     computed: {
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
+      }),
       scrollContent() {
         return document.querySelector('.result-scroll-container');
       },
@@ -178,3 +181,20 @@
     },
   };
 </script>
+<style lang="scss">
+  .bklog-origin-list {
+    .bk-table-row {
+      td {
+        vertical-align: top;
+      }
+    }
+
+    .time-field {
+      font-weight: 700;
+    }
+  }
+
+  .bklog-column-container {
+    padding: 8px 0;
+  }
+</style>

@@ -59,6 +59,7 @@ def create_or_delete_records(mocker):
     data_source.delete()
     result_table.delete()
     models.ClusterInfo.objects.all().delete()
+    BkBaseResultTable.objects.all().delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -80,14 +81,16 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     # 预期的配置
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -184,14 +187,16 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
     # 模拟 compose_configs 方法，确保它返回预期的配置
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -280,14 +285,16 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
 
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -313,6 +320,11 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
     assert (
         BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status
         == DataLinkResourceStatus.INITIALIZING.value
+    )
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_rt_name == bkbase_vmrt_name
+    assert (
+        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_table_id
+        == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
     )
 
     # 测试 旧版 VM记录是否存在

@@ -126,6 +126,7 @@ export default defineComponent({
               containLabel: false,
             },
             tooltip: {
+              trigger: 'item',
               appendToBody: true,
               position(pos) {
                 const top = 10; // 偏移量，可根据需要调整
@@ -191,11 +192,15 @@ export default defineComponent({
                   color: 'rgba(253, 185, 128, 1)',
                 },
                 symbol: 'circle',
-                symbolSize: 10,
+                symbolSize: params => {
+                  if (params[2] > 0) return 10;
+                  return 5;
+                },
                 itemStyle: {
                   /** 大于0为异常点 */
                   color: params => {
                     if (params.data[2] > 0) return '#EA3636';
+                    return 'rgba(253, 185, 128, 1)';
                   },
                 },
                 markPoint: {
@@ -302,7 +307,6 @@ export default defineComponent({
 
     /** 跳转pod页面 */
     const handleToLink = node => {
-      // console.log(node, '.....');
       if (!canJumpByType(node)) return;
       const timestamp = new Date().getTime();
       const linkHandleByType = typeToLinkHandle[node.entity.entity_type];
@@ -396,6 +400,11 @@ export default defineComponent({
               <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name || '--'}</span>
             </OverflowTitle>
             ）
+            {(node?.entity.is_root || node.is_feedback_root) && (
+              <span class={['node-root-icon', node.is_feedback_root ? 'node-root-feedback-icon' : false]}>
+                {this.$t('根因')}
+              </span>
+            )}
           </div>
         </div>,
       ];
@@ -477,7 +486,6 @@ export default defineComponent({
     };
     /** 边的tips详情 */
     const createEdgeToolTip = (nodes: ITopoNode[]) => {
-      // console.log(this.activeEdge, '....');
       const linkMap: { direction_0?: IEdge; direction_1?: IEdge } = {};
       /** 最多展示2个，分别在线的左右两侧 */
       const { events } = this.activeEdge;
