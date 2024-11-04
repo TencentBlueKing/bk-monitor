@@ -46,6 +46,7 @@ const initDevelopmentLog = () => {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
+    window.BK_DOC_URL = JSON.parse(data.BK_DOC_URL); // sql-query-options 使用
   })
 }
 export {
