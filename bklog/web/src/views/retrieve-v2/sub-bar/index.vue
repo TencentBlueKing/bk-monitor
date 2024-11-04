@@ -4,6 +4,7 @@
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import VersionSwitch from '@/global/version-switch.vue';
+  import FieldSetting from '@/global/field-setting.vue';
   import { isEqual } from 'lodash';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
@@ -73,6 +74,7 @@
     </div>
     <div class="box-right-option">
       <VersionSwitch version="v2" />
+      <FieldSetting />
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
       <div class="more-setting">
