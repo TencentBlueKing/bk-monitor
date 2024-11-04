@@ -439,6 +439,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
             panels = resource.scene_view.get_kubernetes_pod_monitor_panels(
                 {"bcs_cluster_id": bcs_cluster_id, "name": name, "bk_biz_id": bk_biz_id, "namespace": namespace}
             )
+        elif resource_id == "custom_metric":
+            view_config = GetSceneViewResource().request(params)
+            panels = view_config.get("overview_panels")
         else:
             view_config = GetSceneViewResource().request(params)
             panels = view_config.get("panels")
