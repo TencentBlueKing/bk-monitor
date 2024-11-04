@@ -466,6 +466,7 @@
   .setting-log-cluster {
     position: relative;
     padding: 0 20px;
+    padding-bottom: 40px;
 
     .rule-container {
       margin-top: 16px;
