@@ -385,13 +385,6 @@ class UnifyQuerySet(IterMixin):
         clone.query.set_end_time(clone.query.end_time - align_interval)
         return clone
 
-    def last(self, interval: int, n: Optional[int] = None) -> "UnifyQuerySet":
-        n = n or 1
-        clone = self._clone()
-        clone.query.set_limits(high=n)
-        clone.query.set_start_time(clone.query.end_time - interval * n)
-        return clone
-
     def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.add_func(_id, params)

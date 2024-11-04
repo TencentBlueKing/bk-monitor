@@ -231,7 +231,15 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         qs: UnifyQuerySet = self._get_qs(qs_type, start_time, end_time)
         if self.instant:
             return list(qs.func(_id="topk", params=[{"value": limit}]))
-        return list(qs.last(self.interval * self.metric_helper.TIME_FIELD_ACCURACY, limit))
+
+        # 时间聚合场景，需要排序找 TopN
+        records: List[Dict[str, Any]] = []
+        for record in qs:
+            if record.get("_result_") is None:
+                continue
+            records.append(record)
+
+        return sorted(records, key=lambda r: -r["_result_"])[:limit]
 
     def _bottom_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None

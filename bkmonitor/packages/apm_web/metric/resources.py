@@ -80,7 +80,10 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
-from bkmonitor.utils.time_tools import get_datetime_range
+from bkmonitor.utils.time_tools import (
+    get_datetime_range,
+    parse_time_compare_abbreviation,
+)
 from constants.apm import (
     ApmMetrics,
     MetricTemporality,
@@ -3084,6 +3087,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
 
 
 class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
+    ZERO_TIME_SHIFT: str = "0s"
     CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
 
     class RequestSerializer(serializers.Serializer):
@@ -3116,6 +3120,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
         metric_cal_type = serializers.ChoiceField(
             label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
         )
+        time_shift = serializers.CharField(label="时间偏移", required=False)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
         options = OptionsSerializer(label="配置", required=False, default={})
@@ -3129,10 +3134,12 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             return attrs
 
     @classmethod
-    def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
+    def _format(cls, time_shift: str, group_fields: List[str], records: List[Dict[str, Any]]):
         group_key_result_map: Dict[Tuple, Any] = {}
+        time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
         for record in records:
-            record["time"] = record["_time_"] // 1000
+            # 时间偏移场景，需要还原到当前时间
+            record["time"] = record["_time_"] // 1000 + time_offset_sec
             group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
@@ -3153,11 +3160,13 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
 
     def perform_request(self, validated_request_data):
         group_name: str = validated_request_data["metric_group_name"]
+        time_shift: str = validated_request_data.get("time_shift") or "0s"
         group_fields: List[str] = validated_request_data.get("group_by") or []
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
             group_name,
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
+            time_shift=time_shift,
             group_by=group_fields,
             filter_dict=validated_request_data.get("filter_dict"),
             **(validated_request_data["options"].get(group_name) or {}),
@@ -3169,7 +3178,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
         )
-        records = self._process_sorted(self._format(group_fields, records))
+        records = self._format(time_shift, group_fields, records)
 
         result: Dict[str, Any] = {"dimensions_list": records}
         if validated_request_data.get("with_filter_dict"):
