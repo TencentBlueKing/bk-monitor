@@ -115,7 +115,7 @@
                   :key="option.storage_cluster_id"
                   :name="option.storage_cluster_name"
                 >
-                  <div
+                  <!-- <div
                     v-if="!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])"
                     class="option-slot-container no-authority"
                     @click.stop
@@ -126,9 +126,8 @@
                       @click="applyClusterAccess(option)"
                       >{{ $t('申请权限') }}</span
                     >
-                  </div>
+                  </div> -->
                   <div
-                    v-else
                     class="option-slot-container"
                   >
                     {{ option.storage_cluster_name }}
