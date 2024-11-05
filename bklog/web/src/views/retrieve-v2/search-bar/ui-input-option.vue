@@ -124,6 +124,24 @@
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
 
+  let requestTimer = null;
+  const rquestFieldEgges = (() => {
+    const fields = new Map();
+    return field => {
+      if (!fields.has(field.field_name) && !['field_name', '_ip-select_'].includes(field.field_name)) {
+        fields.set(field.field_name, field);
+      }
+
+      requestTimer && clearTimeout(requestTimer);
+      requestTimer = setTimeout(() => {
+        if (fields.size > 0) {
+          store.dispatch('requestIndexSetValueList', { fields: Array.from(fields.values()) });
+          fields.clear();
+        }
+      });
+    };
+  })();
+
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -161,7 +179,7 @@
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
-    if (typeof props.value === 'string' && props.value.length || activeFieldItem.value.field_name === "_ip-select_") {
+    if ((typeof props.value === 'string' && props.value.length) || activeFieldItem.value.field_name === '_ip-select_') {
       return true;
     }
 
@@ -319,6 +337,7 @@
     condition.value.operator = activeFieldItem.value.field_operator?.[0]?.operator;
     condition.value.relation = 'OR';
     condition.value.isInclude = ['text', 'string'].includes(activeFieldItem.value.field_type) ? false : null;
+    rquestFieldEgges(item);
 
     if (props.value.field === item.field_name) {
       restoreFieldAndCondition();
@@ -755,8 +774,6 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
-      // condition.value.value.length = 0;
-      // condition.value.value = [];
     }
 
     operatorInstance.hide();
