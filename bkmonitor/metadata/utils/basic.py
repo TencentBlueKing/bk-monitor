@@ -56,7 +56,43 @@ def get_biz_id_by_space_uid(space_uid):
         )
         return int(bk_biz_id)
     except Exception:  # pylint: disable=broad-except
-        return None
+        return 0
+
+
+def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
+    """
+    根据data_id，查询对应的space_uid和bk_biz_id
+    @param bk_data_id: 数据ID
+    @return: bk_biz_id, space_uid
+    """
+    from metadata.models.space import Space, SpaceDataSource
+
+    try:
+        # 查询DataSource关联的记录
+        related_space_info = SpaceDataSource.objects.filter(bk_data_id=bk_data_id)[0]
+        space_uid = related_space_info.space_type_id + '__' + related_space_info.space_id
+        bk_biz_id = get_biz_id_by_space_uid(space_uid=space_uid)
+
+        if bk_biz_id < 0:
+            # NOTE：可能存在SpaceDataSource中绑定了错误的元信息的情况，这里ID为负数的话，则去Space中取真实的space_uid
+            logger.warning(
+                "get_space_uid_and_bk_biz_id_by_bk_data_i: bk_data_id->[%s],search space_resource found a "
+                "negative biz_id->[%s]",
+                bk_data_id,
+                bk_biz_id,
+            )
+            space = Space.objects.get(id=abs(bk_biz_id))
+            space_uid = space.space_uid
+            bk_biz_id = get_biz_id_by_space_uid(space_uid=space_uid)
+
+        return bk_biz_id, space_uid
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(
+            "get_space_uid_and_bk_biz_id_by_bk_data_id: failed to get info for bk_data_id->[%s],error->[%s]",
+            bk_data_id,
+            e,
+        )
+        return 0, ""
 
 
 def get_hour_off_set_by_table_id(table_id: str, max_hours: int = 16):
