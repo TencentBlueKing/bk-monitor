@@ -62,6 +62,8 @@
 
     <template v-if="tableShowRowIndex">
       <bk-table-column
+        :label="$t('行号')"
+        :width="100"
         type="index"
         class-name="bklog-result-list-col-index"
       ></bk-table-column>

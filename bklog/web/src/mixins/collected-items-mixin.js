@@ -201,7 +201,10 @@ export default {
         return !row.status || row.table_id;
       }
       if (['stop', 'start'].includes(operateType)) {
-        return !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject);
+        return (
+          !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject) ||
+          row.is_active !== undefined
+        );
       }
       if (operateType === 'delete') {
         return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
