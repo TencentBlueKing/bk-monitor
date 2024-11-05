@@ -1,7 +1,6 @@
 .retrieve-v2-index {
-
-  height: 100%;
   position: relative;
+  height: 100%;
 
   .sub-head {
     display: flex;
@@ -61,6 +60,7 @@
 
         .search-result-panel {
           height: calc(100% - 4px);
+
           .search-result-content {
             .result-table-container {
               height: 100%;
@@ -84,5 +84,16 @@
         }
       }
     }
+  }
+
+  .result-table-container {
+    height: 100%;
+    margin-top: 12px;
+    overflow: auto;
+  }
+
+  .bk-table-body td.bk-table-expanded-cell {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
   }
 }

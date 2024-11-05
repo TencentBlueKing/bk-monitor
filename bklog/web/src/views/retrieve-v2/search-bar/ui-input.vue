@@ -71,7 +71,7 @@
       return $t(operatorMapping[item.operator] ?? item.operator);
     }
 
-    return (operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label) ??  item.operator;
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
   const refPopInstance = ref(null);
@@ -349,8 +349,8 @@
   };
 
   const renderItemText = (field, value) => {
-    formatDateTimeField
-  }
+    formatDateTimeField;
+  };
 </script>
 
 <template>
@@ -444,7 +444,7 @@
     </div>
   </ul>
 </template>
-<style scoped>
+<style scoped lang="scss">
   @import './ui-input.scss';
   @import 'tippy.js/dist/tippy.css';
 </style>
