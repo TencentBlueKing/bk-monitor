@@ -165,8 +165,7 @@ export default class QueryStatement extends tsc<object> {
 
   get indexId() {
     if (window.__IS_MONITOR_APM__) {
-      const { indexId } = this.$route.query.logRetrieve || {};
-      return String(indexId);
+      return String(this.$route.query.indexId);
     } else {
       return String(this.$route.params.indexId);
     }
@@ -174,8 +173,7 @@ export default class QueryStatement extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_APM__) {
-      const { indexId } = this.$route.query.logRetrieve || {};
-      return indexId;
+      return this.$route.query.indexId;
     } else {
       return this.$route.params.indexId;
     }

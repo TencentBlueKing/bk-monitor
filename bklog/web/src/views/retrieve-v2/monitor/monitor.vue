@@ -31,9 +31,10 @@ import { computed, ref, watch, defineProps, onMounted } from 'vue';
 import useStore from '@/hooks/use-store';
 import { ConditionOperator } from '@/store/condition-operator';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { isEqual } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
-
+import { updateTimezone } from '@/language/dayjs';
 import SelectIndexSet from '../condition-comp/select-index-set.tsx';
 import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 import SearchBar from '../search-bar/index.vue';
@@ -52,6 +53,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  refleshImmediate: {
+    type: String,
+    default: ''
+  }
 });
 
 const store = useStore();
@@ -63,10 +68,11 @@ const bkBizId = computed(() => store.state.bkBizId);
 const indexSetParams = computed(() => store.state.indexItem);
 const routeQueryParams = computed(() => {
   const { ids, isUnionIndex, search_mode } = store.state.indexItem;
+  const {start_time, end_time, ...retrieveParams} = store.getters.retrieveParams ?? {};
   const unionList = store.state.unionIndexList;
   const clusterParams = store.state.clusterParams;
   return {
-    ...(store.getters.retrieveParams ?? {}),
+    ...retrieveParams,
     search_mode,
     ids,
     isUnionIndex,
@@ -125,21 +131,20 @@ const updateSearchParam = payload => {
 
 const setRouteParams = () => {
   const { ids, isUnionIndex } = routeQueryParams.value;
-  console.log(route)
   const params = isUnionIndex
-  ? { ...route.params, indexId: undefined }
-  : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
+  ? { indexId: undefined }
+  : { indexId: ids?.[0] ?? route.query?.indexId };
   
-  const query = { ...route.query };
+  const query = { ...route.query, ...params };
   const resolver = new RetrieveUrlResolver({
     ...routeQueryParams.value,
     datePickerValue: store.state.indexItem.datePickerValue,
   });
 
   Object.assign(query, resolver.resolveParamsToUrl());
+  console.log(query)
   if (!isEqual(query, route.query)) {
     router.replace({
-      params,
       query,
     });
   }
@@ -153,8 +158,6 @@ const handleSpaceIdChange = () => {
   store.dispatch('requestFavoriteList');
 };
 
-handleSpaceIdChange();
-// store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
 watch(
   routeQueryParams,
@@ -171,13 +174,11 @@ watch(spaceUid, () => {
     const resolver = new RouteUrlResolver({ route });
 
     router.replace({
-      params: {
-        indexId: undefined,
-      },
       query: {
         ...resolver.getDefUrlQuery(),
         spaceUid: spaceUid.value,
         bizId: bkBizId.value,
+        indexId: undefined
       },
     });
   }
@@ -233,8 +234,10 @@ watch(
 );
 
 onMounted(() => {
-  console.log(props.indexSetApi, store);
-});
+  const result = handleTransformToTimestamp(props.timeRange);
+  store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, timezone: props.timezone });
+  handleSpaceIdChange();
+})
 </script>
 <template>
   <div class="retrieve-v2-index">

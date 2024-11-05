@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -37,10 +37,17 @@ import {
   LogButton,
 } from '@blueking/monitor-retrieve/main';
 
-import '@blueking/monitor-retrieve/css/main513d453.css';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+
+import '@blueking/monitor-retrieve/css/maind55a8e1.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('timezone') readonly timezone: string;
+  // 是否立即刷新
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+
   init = false;
   async created() {
     const spaceUid =
@@ -87,7 +94,15 @@ export default class MonitorRetrieve extends tsc<void> {
       store: logStore,
       router: this.$router,
       i18n,
-      render: h => h(Log, { props: { indexSetApi: this.indexSetApi } }),
+      render: h =>
+        h(Log, {
+          props: {
+            indexSetApi: this.indexSetApi,
+            timeRange: this.timeRange,
+            timezone: this.timezone,
+            refleshImmediate: this.refleshImmediate,
+          },
+        }),
     });
     await this.$nextTick();
     window.mainComponent.$mount(this.$el.querySelector('#main'));
