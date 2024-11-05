@@ -587,35 +587,61 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       <div class='index-tree-wrap'>
         {/* 拉到顶 出现浅阴影 */}
         {!this.isOnlyShowIndex && this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
-        <div
-          class='index-tree-header'
-          onClick={this.handleExpandIndexList}
-        >
-          {!this.isOnlyShowIndex && <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />}
-          <span class='index-tree-header-text'>{this.$t('索引')}</span>
-          <div
-            class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
-            onClick={e => e.stopPropagation()}
-          >
-            {this.showIndexSearchInput ? (
+        {this.isOnlyShowIndex ? (
+          <div>
+            <div class='only-index-tree-header'>{this.$t('索引')}</div>
+            <div
+              class='only-index-search-input'
+              onClick={e => e.stopPropagation()}
+            >
               <bk-input
-                class='index-search-input'
                 v-model={this.indexSearchKeyword}
-                behavior='simplicity'
+                placeholder={this.$t('搜索指标名称')}
                 right-icon='bk-icon icon-search'
                 clearable
                 onBlur={this.handleBlurSearch}
                 onInput={this.handleInputSearch}
               />
-            ) : (
-              <i
-                class='bk-icon icon-search'
-                slot='prefix'
-                onClick={() => (this.showIndexSearchInput = true)}
-              />
-            )}
+              {/* <div
+                class='only-index-refresh'
+                v-bk-tooltips={{ content: this.$t('刷新') }}
+              >
+                <i class='icon-monitor icon-mc-alarm-recovered' />
+              </div> */}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            class='index-tree-header'
+            onClick={this.handleExpandIndexList}
+          >
+            <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />
+            <span class='index-tree-header-text'>{this.$t('索引')}</span>
+            <div
+              class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
+              onClick={e => e.stopPropagation()}
+            >
+              {this.showIndexSearchInput ? (
+                <bk-input
+                  class='index-search-input'
+                  v-model={this.indexSearchKeyword}
+                  behavior='simplicity'
+                  right-icon='bk-icon icon-search'
+                  clearable
+                  onBlur={this.handleBlurSearch}
+                  onInput={this.handleInputSearch}
+                />
+              ) : (
+                <i
+                  class='bk-icon icon-search'
+                  slot='prefix'
+                  onClick={() => (this.showIndexSearchInput = true)}
+                />
+              )}
+            </div>
+          </div>
+        )}
+        <div />
         <div
           style={{
             height: `${this.indexListHeight - 40}px`,
@@ -681,7 +707,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                 >
                   {mainTpl}
                 </div>
-                {indexListTpl()}
+                <div
+                  class='index-tree-wrap'
+                  slot='aside'
+                >
+                  {indexListTpl()}
+                </div>
               </MonitorResizeLayout>
             ) : (
               mainTpl
@@ -690,6 +721,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         )}
         {!this.showAminate && (
           <MonitorDrag
+            isOnlyShowIndex={this.isOnlyShowIndex}
             isShow={this.isShow}
             lineText={this.lineText}
             maxWidth={this.maxWidthVal}

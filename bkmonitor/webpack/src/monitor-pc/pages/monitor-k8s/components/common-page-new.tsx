@@ -1771,7 +1771,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   resetDragPosKey={this.resetDragPosKey}
                   scencId={this.sceneId}
                   showMode={this.showMode}
-                  specialDrag={true}
+                  specialDrag={!this.sceneData.options?.only_index_list}
                   title={this.$t('列表').toString()}
                   toggleSet={this.toggleSet}
                   onShowChange={show => !show && (this.isSelectPanelActive = false)}
