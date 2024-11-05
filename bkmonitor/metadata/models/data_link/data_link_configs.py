@@ -48,6 +48,15 @@ class DataLinkResourceConfigBase(models.Model):
     class Meta:
         abstract = True
 
+    @property
+    def component_status(self):
+        """
+        组件实时状态
+        """
+        from metadata.models.data_link.service import get_data_link_component_status
+
+        return get_data_link_component_status(self.kind, self.name, self.namespace)
+
     @classmethod
     def compose_config(cls, *args, **kwargs):
         raise NotImplementedError
