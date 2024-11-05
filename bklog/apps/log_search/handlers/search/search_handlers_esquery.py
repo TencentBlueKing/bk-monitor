@@ -1782,11 +1782,15 @@ class SearchHandler(object):
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
                 value = item.get("value", [])
-                value = ",".join(value) if isinstance(value, list) else value
-                if value:
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
                     if field == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
-                    self.query_string = value
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    self.query_string = " OR ".join(new_value_list)
                 continue
 
             _type = "field"
