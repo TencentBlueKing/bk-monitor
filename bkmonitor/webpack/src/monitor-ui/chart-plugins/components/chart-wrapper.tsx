@@ -453,8 +453,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-      case 'log-retrieve':
-        return <monitor-retrieve />;
       case 'related-log-chart':
         return (
           <RelatedLogChart
@@ -464,6 +462,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'log-retrieve':
+        return <monitor-retrieve />;
       case 'exception-guide':
         return (
           <ExceptionGuide
