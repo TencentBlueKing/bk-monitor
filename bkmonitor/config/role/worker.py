@@ -283,7 +283,7 @@ LONG_TASK_CRONTAB = [
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次
-    ("metadata.task.refresh_dataa_link.refresh_data_link_status", "*/15 * * * *", "global"),
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds
