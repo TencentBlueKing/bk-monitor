@@ -71,3 +71,4 @@ def test_refresh_data_link_status(create_or_delete_records):
     assert models.VMResultTableConfig.objects.get(name=bkbase_rt_name).status == 'Failed'
     assert models.VMStorageBindingConfig.objects.get(name=bkbase_rt_name).status == 'Failed'
     assert models.DataBusConfig.objects.get(name=bkbase_rt_name).status == 'Failed'
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == 'Pending'

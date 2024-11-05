@@ -82,15 +82,18 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             data_id_status = get_data_link_component_status(
                 kind=data_id_config.kind, namespace=data_id_config.namespace, component_name=data_id_config.name
             )
-            data_id_config.status = data_id_status
-            data_id_config.data_link_name = data_link_name
-            data_id_config.save()
-            logger.info(
-                "_refresh_data_link_status: data_link_name->[%s],data_id_config->[%s],status updated to->[%s]",
-                data_link_name,
-                bkbase_data_id_name,
-                data_id_status,
-            )
+            # 当和DB中的数据不一致时，才进行变更
+            if data_id_config.status != data_id_status:
+                logger.info(
+                    "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
+                    "with exist record,will change to->[%s]",
+                    data_link_name,
+                    data_id_config.status,
+                    data_id_status,
+                )
+                data_id_config.status = data_id_status
+                data_id_config.data_link_name = data_link_name
+                data_id_config.save()
     except models.DataIdConfig.DoesNotExist:
         logger.error(
             "_refresh_data_link_status: data_link_name->[%s],data_id_config->[%s] does not exist",
@@ -100,7 +103,6 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
 
     # 2. 根据链路套餐（类型）获取该链路需要的组件资源种类
     components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy)
-    components_ins_to_update = []
     all_components_ok = True
 
     # 3. 遍历链路关联的所有类型资源，查询并刷新其状态
@@ -118,19 +120,21 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                     component_ins.kind,
                     component_status,
                 )
-                component_ins.status = component_status
-                components_ins_to_update.append(component_ins)
                 if component_status != DataLinkResourceStatus.OK.value:
                     all_components_ok = False
-                component_ins.save()
-                logger.info(
-                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
-                    "status updated to->[%s]",
-                    data_link_name,
-                    component.name,
-                    component.kind,
-                    component_status,
-                )
+                # 和DB中数据不一致时，才进行更新操作
+                if component_ins.status != component_status:
+                    component_ins.status = component_status
+                    component_ins.save()
+                    logger.info(
+                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
+                        "status updated to->[%s]",
+                        data_link_name,
+                        component.name,
+                        component.kind,
+                        component_status,
+                    )
+
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,error->[%s]",
@@ -140,18 +144,18 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                 e,
             )
 
-    # 如果所有的component_ins状态都为OK，那么data_link_ins也应设置为OK，否则为PENDING
+    # 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
     if all_components_ok:
-        data_link_ins.status = DataLinkResourceStatus.OK.value
+        bkbase_rt_record.status = DataLinkResourceStatus.OK.value
     else:
-        data_link_ins.status = DataLinkResourceStatus.PENDING.value
+        bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
     with transaction.atomic():
-        data_link_ins.save()
+        bkbase_rt_record.save()
     logger.info(
         "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
         data_link_name,
         all_components_ok,
-        data_link_ins.status,
+        bkbase_rt_record.status,
     )
 
     logger.info(
