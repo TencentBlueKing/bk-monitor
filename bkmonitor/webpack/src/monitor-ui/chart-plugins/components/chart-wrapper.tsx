@@ -168,6 +168,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get isCollapsed() {
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
+  get needWaterMask() {
+    return !['log-retrieve'].includes(this.panel?.type);
+  }
 
   /**
    * @description: 供子组件更新loading的状态
@@ -590,7 +593,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         // onMouseenter={() => (this.showHeaderMoreTool = true)}
         // onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
-        {window?.graph_watermark && (
+        {window?.graph_watermark && this.needWaterMask && (
           <div
             class='wm'
             v-watermark={{

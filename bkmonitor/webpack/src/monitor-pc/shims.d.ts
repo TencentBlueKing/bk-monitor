@@ -139,6 +139,7 @@ declare global {
     // 以下为日志全局变量配置
     mainComponent: any;
     AJAX_URL_PREFIX: string;
+    graph_watermark?: boolean;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

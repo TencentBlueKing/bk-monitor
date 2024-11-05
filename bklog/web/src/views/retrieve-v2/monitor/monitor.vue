@@ -134,7 +134,7 @@ const setRouteParams = () => {
   const params = isUnionIndex
   ? { indexId: undefined }
   : { indexId: ids?.[0] ?? route.query?.indexId };
-  
+
   const query = { ...route.query, ...params };
   const resolver = new RetrieveUrlResolver({
     ...routeQueryParams.value,
@@ -266,6 +266,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
-<style scoped>
+<style lang="scss">
 @import './monitor.scss';
 </style>
