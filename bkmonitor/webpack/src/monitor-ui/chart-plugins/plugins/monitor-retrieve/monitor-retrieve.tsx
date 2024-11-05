@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -41,6 +41,11 @@ import '@blueking/monitor-retrieve/css/main212d206.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('timezone') readonly timezone: string;
+  // 是否立即刷新
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+
   init = false;
   async created() {
     const spaceUid =
@@ -87,7 +92,15 @@ export default class MonitorRetrieve extends tsc<void> {
       store: logStore,
       router: this.$router,
       i18n,
-      render: h => h(Log, { props: { indexSetApi: this.indexSetApi } }),
+      render: h =>
+        h(Log, {
+          props: {
+            indexSetApi: this.indexSetApi,
+            timeRange: this.timeRange,
+            timezone: this.timezone,
+            refleshImmediate: this.refleshImmediate,
+          },
+        }),
     });
     await this.$nextTick();
     window.mainComponent.$mount(this.$el.querySelector('#main'));
