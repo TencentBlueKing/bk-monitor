@@ -110,7 +110,11 @@
 <template>
   <div
     ref="refContent"
-    :class="['bklog-text-segment', 'bklog-root-field', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]"
+    :class="[
+      'bklog-text-segment',
+      'bklog-root-field',
+      { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-show-long': isLimitExpandView },
+    ]"
   >
     <span
       class="field-name"
@@ -133,6 +137,12 @@
   .bklog-text-segment {
     font-size: 12px;
     white-space: pre-line;
+
+    &.is-show-long {
+      .btn-more-action {
+        display: none;
+      }
+    }
 
     span {
       &.segment-content {
