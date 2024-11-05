@@ -47,7 +47,7 @@
             {{ $t('原始') }}
           </bk-button>
         </div>
-        <bk-checkbox
+        <!-- <bk-checkbox
           :value="showRowIndex"
           theme="primary"
           @change="handleShowRowIndexChange"
@@ -55,7 +55,7 @@
           class="bklog-option-item"
         >
           <span class="switch-label">{{ $t('行号') }}</span>
-        </bk-checkbox>
+        </bk-checkbox> -->
         <bk-checkbox
           v-model="expandTextView"
           theme="primary"
