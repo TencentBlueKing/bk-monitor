@@ -8,13 +8,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+import logging
 from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
 from rest_framework.views import APIView
+
+logger = logging.getLogger("apm")
+tracer = trace.get_tracer(__name__)
 
 
 class BkLogForwardingView(APIView):
@@ -25,14 +31,31 @@ class BkLogForwardingView(APIView):
         target_url = urljoin(settings.BKLOGSEARCH_HOST, request.path.split('bklog')[-1])
 
         try:
-            response = requests.request(
-                method=request.method,
-                url=target_url,
-                headers=dict(request.headers),
-                params={key: request.GET.get(key) for key in request.GET},
-                data=request.body if request.body else None,
-                allow_redirects=False,
-            )
+            params = {key: request.GET.get(key) for key in request.GET}
+            body = request.body if request.body else None
+            with tracer.start_as_current_span(
+                "log_forward",
+                attributes={
+                    "target_url": target_url,
+                    "headers": json.dumps(dict(request.headers)),
+                    "params": params,
+                    "body": body,
+                },
+            ):
+                logger.info(
+                    f"[APMLogForward] {request.method} - "
+                    f"target_url: {target_url} headers: {json.dumps(dict(request.headers))} "
+                    f"params: {params} body: {body}"
+                )
+
+                response = requests.request(
+                    method=request.method,
+                    url=target_url,
+                    headers=dict(request.headers),
+                    params=params,
+                    data=body,
+                    allow_redirects=False,
+                )
             return JsonResponse(response.json(), status=response.status_code)
         except Exception as e:  # noqa
             return JsonResponse(
