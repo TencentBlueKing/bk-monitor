@@ -255,7 +255,9 @@ onMounted(() => {
         <SearchBar @height-change="handleHeightChange"></SearchBar>
         <div
           ref="resultRow"
-          :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
+          :style="{
+            height: `calc(100% - ${searchBarHeight + 14}px)`,
+          }"
           class="result-row"
         >
           <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>

@@ -37,9 +37,7 @@ import {
   LogButton,
 } from '@blueking/monitor-retrieve/main';
 
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-
-import '@blueking/monitor-retrieve/css/maind55a8e1.css';
+import '@blueking/monitor-retrieve/css/main212d206.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
