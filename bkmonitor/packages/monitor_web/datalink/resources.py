@@ -466,7 +466,7 @@ class TransferCountSeriesResource(BaseStatusResource):
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table.split('.')[0],
+                table_id=table.split('.')[0] if not table.endswith(".__default__") else table,
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,

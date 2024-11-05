@@ -967,7 +967,7 @@ class Detect(AbstractConfig):
         class RecoveryConfig(serializers.Serializer):
             check_window = serializers.IntegerField()
             status_setter = serializers.ChoiceField(
-                required=False, choices=["recovery", "close"], label="告警恢复目标状态", default="recovery"
+                required=False, choices=["recovery", "close", "recovery-nodata"], label="告警恢复目标状态", default="recovery"
             )
 
         id = serializers.IntegerField(required=False)
