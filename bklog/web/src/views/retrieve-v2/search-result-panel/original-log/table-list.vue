@@ -40,6 +40,7 @@
     <bk-table-column
       width="30"
       align="center"
+      :index="0"
       type="expand"
     >
       <template #default="{ $index, row }">
@@ -66,6 +67,8 @@
         :width="100"
         type="index"
         class-name="bklog-result-list-col-index"
+        column-key="field_index"
+        key="field.field_index"
       ></bk-table-column>
     </template>
     <!-- 显示字段 -->
@@ -73,7 +76,7 @@
       <bk-table-column
         v-for="(field, index) in getShowTableVisibleFields"
         :column-key="field.field_name"
-        :index="index"
+        :index="index + 2"
         :key="field.field_name"
         :min-width="field.minWidth"
         :render-header="renderHeaderAliasName"
