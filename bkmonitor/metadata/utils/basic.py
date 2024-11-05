@@ -76,7 +76,7 @@ def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
         if bk_biz_id < 0:
             # NOTE：可能存在SpaceDataSource中绑定了错误的元信息的情况，这里ID为负数的话，则去Space中取真实的space_uid
             logger.warning(
-                "get_space_uid_and_bk_biz_id_by_bk_data_i: bk_data_id->[%s],search space_resource found a "
+                "get_space_uid_and_bk_biz_id_by_bk_data_id: bk_data_id->[%s],search space_resource found a "
                 "negative biz_id->[%s]",
                 bk_data_id,
                 bk_biz_id,
