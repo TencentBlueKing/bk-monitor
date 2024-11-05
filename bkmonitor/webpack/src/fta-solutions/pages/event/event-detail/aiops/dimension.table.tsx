@@ -34,16 +34,6 @@ import { EventReportType, type IAnomalyDimensions } from './types';
 
 import './dimension.table.scss';
 
-const setTooltips = (content: string, placement = 'left', disabled = false) => ({
-  boundary: document.body,
-  appendTo: document.body,
-  placement,
-  content: `${content}`,
-  delay: 0,
-  zIndex: 9000,
-  disabled,
-});
-
 interface IProps {
   tableData: IAnomalyDimensions[];
   dimensionDrillDownErr?: string;
@@ -120,12 +110,20 @@ export default class DimensionTable extends tsc<IProps> {
       </div>
      </div>`;
     return (
-      <div class='dimension-num'>
+      <div
+        key={row.anomaly_dimension_class}
+        class='dimension-num'
+      >
         <span
           v-bk-tooltips={{
             extCls: 'aiops-dimension-tips',
             allowHTML: true,
-            ...setTooltips(content, 'bottom'),
+            boundary: document.body,
+            appendTo: document.body,
+            placement: 'bottom',
+            zIndex: 9000,
+            disabled: false,
+            content: content,
             delay: 0,
             onShown: v => {
               this.reportEventLog?.(EventReportType.Tips);
@@ -167,9 +165,10 @@ export default class DimensionTable extends tsc<IProps> {
     is_anomaly && this.handleDimensionClick(is_anomaly, id);
   }
   /** 异常分布绘制 */
-  renderDistributed({ data, ...info }) {
+  renderDistributed({ data, ...info }, row) {
     return (
       <DimensionLine
+        key={row.anomaly_dimension_class}
         chartData={data}
         info={info}
         {...{
@@ -247,7 +246,7 @@ export default class DimensionTable extends tsc<IProps> {
             '异常分值范围从0到1，分值越大，说明该维度值的指标异常程度越高。'
           )}
           label={this.$t('异常分值分布')}
-          scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution) }}
+          scopedSlots={{ default: props => this.renderDistributed(props.row.anomaly_score_distribution, props.row) }}
         />
         <bk-table-column
           render-header={this.renderHeader.bind(

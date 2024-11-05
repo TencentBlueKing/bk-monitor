@@ -19,7 +19,7 @@
 
   .aiops-dimension-line-tooltip-content {
     min-width: 168px; 
-    max-height: 299px;
+    max-height: 270px;
     padding: 0px 12px;
     overflow-y: auto;
   
@@ -57,9 +57,9 @@
       font-weight: 700;
       color: #979ba5;
       text-overflow: ellipsis;
+      -webkit-line-clamp: 3;
       word-break: break-all;
       white-space: normal;
-      -webkit-line-clamp: 3;
 
       /*! autoprefixer: off */
       -webkit-box-orient: vertical;
@@ -102,6 +102,7 @@
 .aiops-dimension-line-tooltip-median {
   padding: 0px 12px; 
   line-height: 0px;
+  color: white;
 }
 
 .aiops-dimension-line {
