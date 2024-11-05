@@ -1790,6 +1790,8 @@ class SearchHandler(object):
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
+                    if field == "*":
+                        new_value_list.append(self.query_string)
                     self.query_string = " OR ".join(new_value_list)
                 continue
 
