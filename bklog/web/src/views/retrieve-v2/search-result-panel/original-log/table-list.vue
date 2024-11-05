@@ -83,22 +83,15 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <template v-if="field.__is_row_index"
-            ><span class="bklog-result-list-col-index">{{ $index + 1 }}</span></template
-          >
-          <template v-else>
-            <LazyRender>
-              <table-column
-                :content="getTableColumnContent(row, field)"
-                :field="field"
-                :is-wrap="tableLineIsWrap"
-                @computed-height="handleOverColumn(field.field_name)"
-                @icon-click="
-                  (type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)
-                "
-              />
-            </LazyRender>
-          </template>
+          <LazyRender>
+            <table-column
+              :content="getTableColumnContent(row, field)"
+              :field="field"
+              :is-wrap="tableLineIsWrap"
+              @computed-height="handleOverColumn(field.field_name)"
+              @icon-click="(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)"
+            />
+          </LazyRender>
         </template>
       </bk-table-column>
     </template>
