@@ -479,7 +479,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* 当前单图模式下dashboard-panel是否需要padding */
   /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee'];
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve'];
     return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
     // return (
     //   this.isSingleChart &&
