@@ -13,12 +13,13 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.transaction import atomic
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import config
-from metadata.models import DataIdConfig, DataSource
+from metadata.models import DataSource
 from metadata.models.bcs import BcsFederalClusterInfo
-from metadata.models.data_link import utils
+from metadata.models.data_link import DataIdConfig, utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.resource import DataLinkResource, DataLinkResourceConfig
 
@@ -130,6 +131,67 @@ def get_data_id_v2(
     data_id_config_ins.save()
     logger.info("get_data_id: request data_name -> [%s] ,phase->[%s]", data_name, phase)
     return {"status": phase, "data_id": None}
+
+
+def get_data_link_component_status(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_status: try to get component status,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_status: kind is not valid,kind->[%s]", kind)
+        component_config = get_bkbase_component_status_with_retry(
+            kind=bkbase_kind, namespace=namespace, name=component_name
+        )
+        phase = component_config.get("status", {}).get("phase")
+        return phase
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_status: get component status failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return DataLinkResourceStatus.FAILED.value
+
+
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+def get_bkbase_component_status_with_retry(
+    kind: str,
+    namespace: str,
+    name: str,
+):
+    """
+    获取bkbase组件状态，具备重试机制
+    """
+    try:
+        bkbase_status = api.bkdata.get_data_link(kind=kind, namespace=namespace, name=name)
+        return bkbase_status
+    except Exception as e:
+        logger.error(
+            "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s]," "error->[%s]",
+            kind,
+            name,
+            e,
+        )
+        raise e
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
