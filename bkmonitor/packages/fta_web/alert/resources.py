@@ -892,7 +892,7 @@ class AlertRelatedInfoResource(Resource):
 
         # 多线程处理每个业务的主机和服务实例信息
         with ThreadPoolExecutor(max_workers=8) as executor:
-            list(executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values()))
+            executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values())
 
         return related_infos
 
