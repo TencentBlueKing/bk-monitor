@@ -32,7 +32,7 @@
       }
     }
   }
-  // transition: width .3s ease-in-out;
+
   .common-detail-main {
     height: 100%;
     overflow: hidden;
@@ -99,6 +99,43 @@
               padding-left: 0;
               font-size: 12px;
             }
+          }
+        }
+      }
+
+      .only-index-tree-header {
+        height: 22px;
+        margin: 10px 0;
+        font-family: MicrosoftYaHei;
+        font-size: 14px;
+        line-height: 22px;
+        color: #313238;
+        letter-spacing: 0;
+      }
+
+      .only-index-search-input {
+        display: flex;
+        max-width: 320px;
+        margin-bottom: 16px;
+
+        .bk-form-control {
+          flex: 1;
+        }
+
+        .only-index-refresh {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          margin-left: 8px;
+          background: #FFFFFF;
+          border: 1px solid #C4C6CC;
+          border-radius: 2px;
+
+          .icon-monitor {
+            display: inline-block;
+            font-size: 16px;
           }
         }
       }
