@@ -39,3 +39,7 @@ def test_get_space_uid_and_bk_biz_id_by_bk_data_id(create_or_delete_records, moc
     bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id=6002)
     assert space_uid == 'bkci__test2'
     assert bk_biz_id == 222
+
+    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id=6003)
+    assert space_uid == ""
+    assert bk_biz_id == 0
