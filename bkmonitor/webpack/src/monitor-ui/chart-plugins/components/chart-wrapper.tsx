@@ -55,7 +55,7 @@ import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
-// import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
+import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -454,15 +454,16 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           />
         );
       case 'related-log-chart':
+        return (
+          <RelatedLogChart
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+            onLoading={this.handleChangeLoading}
+          />
+        );
+      case 'log-retrieve':
         return <monitor-retrieve />;
-      // return (
-      //   <RelatedLogChart
-      //     clearErrorMsg={this.handleClearErrorMsg}
-      //     panel={this.panel}
-      //     onErrorMsg={this.handleErrorMsgChange}
-      //     onLoading={this.handleChangeLoading}
-      //   />
-      // );
       case 'exception-guide':
         return (
           <ExceptionGuide
