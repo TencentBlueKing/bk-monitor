@@ -160,7 +160,7 @@ export default defineComponent({
             handleSucces(true);
             handleTimeChange(toTime);
             handleShowChange(false);
-            Message({ theme: 'success', message: t('恭喜，创建告警屏蔽成功') });
+            Message({ theme: 'success', message: t('创建告警屏蔽成功') });
             const { alert_name, id, incident_id } = props.data;
             incidentRecordOperation({
               id,
@@ -222,8 +222,11 @@ export default defineComponent({
     };
 
     const getInfoCompnent = () => {
-      return props.details.map(detail => (
-        <div class='item-content'>
+      return props.details.map((detail, index) => (
+        <div
+          key={index}
+          class='item-content'
+        >
           {!!detail.strategy?.id && (
             <div class='column-item'>
               <div class='column-label'> {`${t('策略名称')}：`} </div>
@@ -341,15 +344,21 @@ export default defineComponent({
           default: this.getContentComponent(),
           footer: [
             <Button
+              // v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+              key='submit'
               style='margin-right: 10px'
               disabled={this.loading}
               theme='primary'
               onClick={this.handleSubmit}
-              // v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
             >
               {this.$t('确定')}
             </Button>,
-            <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>,
+            <Button
+              key='change'
+              onClick={() => this.handleShowChange(false)}
+            >
+              {this.$t('取消')}
+            </Button>,
           ],
         }}
         header-position={'left'}
