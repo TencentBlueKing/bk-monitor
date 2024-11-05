@@ -517,6 +517,13 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   handleToDataRetrieval() {
     const targets = this.detail.graph_panel?.targets;
     if (targets) {
+      // 表达式和表达因子都存在的时，默认隐藏表达因子 display: false
+      if (targets[0]?.data?.query_configs && targets[0]?.data?.expression) {
+        targets[0].data.query_configs = targets[0].data.query_configs.map(item => ({
+          ...item,
+          display: false,
+        }));
+      }
       const { bizId } = this.$store.getters;
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         this.detail.bk_biz_id || bizId

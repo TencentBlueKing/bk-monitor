@@ -44,6 +44,11 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
     )
 
+    # 各个套餐所需要的链路资源
+    STRATEGY_RELATED_COMPONENTS = {
+        BK_STANDARD_V2_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+    }
+
     STORAGE_TYPE_MAP = {
         BK_STANDARD_V2_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,

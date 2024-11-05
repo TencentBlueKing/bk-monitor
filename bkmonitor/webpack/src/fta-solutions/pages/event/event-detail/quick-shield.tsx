@@ -218,7 +218,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           this.handleSucces(true);
           this.handleTimeChange(toTime);
           this.handleShowChange(false);
-          this.$bkMessage({ theme: 'success', message: this.$t('恭喜，创建告警屏蔽成功') });
+          this.$bkMessage({ theme: 'success', message: this.$t('创建告警屏蔽成功') });
         })
         .finally(() => {
           this.loading = false;

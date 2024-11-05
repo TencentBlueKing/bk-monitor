@@ -29,7 +29,7 @@
  * @file main store
  * @author  <>
  */
-import Vue from 'vue';
+import Vue, { set } from 'vue';
 
 import {
   unifyObjectStyle,
@@ -596,6 +596,14 @@ const store = new Vuex.Store({
     },
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
+    },
+    updateIndexFieldEggsItems(state, payload) {
+      const { start_time, end_time } = state.indexItem;
+      const lastQueryTimerange = `${start_time}_${end_time}`;
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexFieldInfo.aggs_items, key, payload[key]);
+      });
+      state.indexFieldInfo.last_eggs_request_token = lastQueryTimerange;
     },
     resetIndexFieldInfo(state, payload) {
       const defValue = { ...IndexFieldInfo };
@@ -1200,9 +1208,26 @@ const store = new Vuex.Store({
     },
 
     requestIndexSetValueList({ commit, state }, payload) {
+      const { start_time, end_time } = state.indexItem;
+      const lastQueryTimerange = `${start_time}_${end_time}`;
+
+      // 本次请求与上次请求时间范围不一致，重置缓存数据
+      if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
+        set(state.indexFieldInfo, 'aggs_items', {});
+      }
+
+      // 如果在当前时间段已经缓存过当前字段的推荐，此时跳过此次请求
+      if (payload.fields?.every(field => state.indexFieldInfo.aggs_items[field.field_name] !== undefined)) {
+        return Promise.resolve(true);
+      }
+
+      const isDefaultQuery = !(payload?.fields?.length ?? false);
+      const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
+
       const filterFn = field =>
+        !state.indexFieldInfo.aggs_items[field.field_name] &&
         field.es_doc_values &&
-        !field.is_built_in &&
+        filterBuildIn(field) &&
         ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
         !/^__dist_/.test(field.field_name);
 
@@ -1211,10 +1236,8 @@ const store = new Vuex.Store({
         .filter(filterFn)
         .map(mapFn);
 
-      commit('updateIndexFieldInfo', { aggs_items: [] });
-      if (!fields.length) return;
+      if (!fields.length) return Promise.resolve(true);
 
-      const { start_time, end_time } = state.indexItem;
       const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
         keyword: '*',
@@ -1238,8 +1261,9 @@ const store = new Vuex.Store({
         data: queryData,
       };
 
-      http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldInfo', { aggs_items: resp.data.aggs_items });
+      return http.request(urlStr, body).then(resp => {
+        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+        return resp;
       });
     },
 

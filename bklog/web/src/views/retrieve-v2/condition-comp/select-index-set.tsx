@@ -375,6 +375,7 @@ export default class QueryStatement extends tsc<object> {
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
       isUnionIndex: !this.isAloneType,
+      sort_list: [],
     };
 
     return payload;

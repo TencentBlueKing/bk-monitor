@@ -148,6 +148,18 @@
   }
 }
 
+// 初始化popver弹层样式
+.common-popover-theme {
+  width: 100%;
+  padding: 0 !important;
+  border-radius: 0;
+  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
+
+  .tippy-backdrop {
+    opacity: 0 !important;
+  }
+}
+
 .bk-scroll-home {
   .bk-min-nav-slide {
     /* stylelint-disable-next-line declaration-no-important */
