@@ -62,6 +62,8 @@
 
     <template v-if="tableShowRowIndex">
       <bk-table-column
+        :label="$t('行号')"
+        :width="60"
         type="index"
         class-name="bklog-result-list-col-index"
       ></bk-table-column>
@@ -81,15 +83,22 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <LazyRender>
-            <table-column
-              :content="getTableColumnContent(row, field)"
-              :field="field"
-              :is-wrap="tableLineIsWrap"
-              @computed-height="handleOverColumn(field.field_name)"
-              @icon-click="(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)"
-            />
-          </LazyRender>
+          <template v-if="field.__is_row_index"
+            ><span class="bklog-result-list-col-index">{{ $index + 1 }}</span></template
+          >
+          <template v-else>
+            <LazyRender>
+              <table-column
+                :content="getTableColumnContent(row, field)"
+                :field="field"
+                :is-wrap="tableLineIsWrap"
+                @computed-height="handleOverColumn(field.field_name)"
+                @icon-click="
+                  (type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)
+                "
+              />
+            </LazyRender>
+          </template>
         </template>
       </bk-table-column>
     </template>
