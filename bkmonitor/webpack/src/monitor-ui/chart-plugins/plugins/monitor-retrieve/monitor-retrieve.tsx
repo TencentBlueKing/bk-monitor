@@ -37,7 +37,7 @@ import {
   LogButton,
 } from '@blueking/monitor-retrieve/main';
 
-import '@blueking/monitor-retrieve/css/main513d453.css';
+import '@blueking/monitor-retrieve/css/main212d206.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
