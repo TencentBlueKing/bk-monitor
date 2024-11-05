@@ -26,6 +26,9 @@ tracer = trace.get_tracer(__name__)
 class BkLogForwardingView(APIView):
     """转发请求到日志平台"""
 
+    # 需要忽略的头部
+    ignore_headers = ["host", "content-length"]
+
     def dispatch(self, request, *args, **kwargs):
 
         target_url = urljoin(settings.BKLOGSEARCH_HOST, request.path.split('bklog')[-1])
@@ -33,25 +36,26 @@ class BkLogForwardingView(APIView):
         try:
             params = {key: request.GET.get(key) for key in request.GET}
             body = request.body if request.body else None
+            headers = {k: v for k, v in dict(request.headers).items() if k.lower() not in self.ignore_headers}
             with tracer.start_as_current_span(
                 "log_forward",
                 attributes={
                     "target_url": target_url,
-                    "headers": json.dumps(dict(request.headers)),
+                    "headers": json.dumps(headers),
                     "params": params,
                     "body": body,
                 },
             ):
                 logger.info(
                     f"[APMLogForward] {request.method} - "
-                    f"target_url: {target_url} headers: {json.dumps(dict(request.headers))} "
+                    f"target_url: {target_url} headers: {json.dumps(headers)} "
                     f"params: {params} body: {body}"
                 )
 
                 response = requests.request(
                     method=request.method,
                     url=target_url,
-                    headers=dict(request.headers),
+                    headers=headers,
                     params=params,
                     data=body,
                     allow_redirects=False,
