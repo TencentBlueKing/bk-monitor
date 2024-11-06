@@ -39,7 +39,7 @@ import {
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/main07275dd.css';
+import '@blueking/monitor-retrieve/css/main09e28a9.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
