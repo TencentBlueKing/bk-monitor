@@ -713,7 +713,9 @@ class TRPCMetricTag:
     CALLEE_CONTAINER: str = "callee_container"
     CALLEE_CON_SETID: str = "callee_con_setid"
 
-    SDK_NAME: str = "sdk_name"
+    TARGET: str = "target"
+    # 特殊维度
+    APP: str = "server"
 
     @classmethod
     def tags(cls) -> List[Dict[str, str]]:

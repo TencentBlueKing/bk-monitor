@@ -36,7 +36,7 @@
     fontSize: 12,
     text: props.content,
     maxWidth: maxWidth.value,
-    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
+    font: '12px monospace',
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
@@ -56,6 +56,8 @@
 
     return $t('更多');
   });
+
+  let resizeObserver = null;
 
   watch(
     () => [props.content],
@@ -91,7 +93,7 @@
                 },
               }
             : undefined;
-        instance.initStringAsValue(appendText);
+        instance.initStringAsValue(renderText.value, appendText);
       });
     },
     { immediate: true },
@@ -99,12 +101,30 @@
 
   onMounted(() => {
     const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
+    const offsetWidth = cellElement.offsetWidth;
     const elementMaxWidth = cellElement.offsetWidth * 3;
     maxWidth.value = elementMaxWidth;
+
+    // 创建一个 ResizeObserver 实例
+    resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        // 获取元素的新高度
+        const newWidth = entry.contentRect.width * 3;
+
+        if (newWidth !== maxWidth.value) {
+          maxWidth.value = newWidth;
+        }
+      }
+    });
+
+    // 开始监听元素
+    resizeObserver.observe(cellElement);
   });
 
   onUnmounted(() => {
     instance?.destroy?.();
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 <template>
@@ -113,7 +133,7 @@
     :class="[
       'bklog-text-segment',
       'bklog-root-field',
-      { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-show-long': isLimitExpandView },
+      { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-show-long': isLimitExpandView, 'is-expand-all': showAll },
     ]"
   >
     <span
@@ -135,10 +155,18 @@
 </template>
 <style lang="scss">
   .bklog-text-segment {
+    max-height: 60px;
+    overflow: hidden;
     font-size: 12px;
     white-space: pre-line;
 
+    &.is-expand-all {
+      max-height: max-content;
+    }
+
     &.is-show-long {
+      max-height: max-content;
+
       .btn-more-action {
         display: none;
       }
@@ -147,16 +175,17 @@
     span {
       &.segment-content {
         span {
-          font-size: 12px;
+          font: 12px monospace;
         }
 
         .btn-more-action {
           position: absolute;
-          right: 15px;
-          bottom: 8px;
+          right: 16px;
+          bottom: 10px;
           padding-left: 22px;
           color: #3a84ff;
           cursor: pointer;
+          background-color: #fff;
 
           &.show-all {
             &::before {
@@ -173,6 +202,16 @@
 
     &.is-inline {
       display: flex;
+    }
+  }
+
+  .bk-table-row {
+    &.hover-row {
+      .bklog-text-segment {
+        .btn-more-action {
+          background-color: #f5f7fa;
+        }
+      }
     }
   }
 </style>

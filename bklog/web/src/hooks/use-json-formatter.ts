@@ -202,7 +202,7 @@ export default class UseJsonFormatter {
     return segmentNode;
   };
 
-  initStringAsValue(appendText?: SegmentAppendText) {
+  initStringAsValue(text?: string, appendText?: SegmentAppendText) {
     let root = this.getTargetRoot() as HTMLElement;
     if (root) {
       if (root.classList.contains('field-value')) {
@@ -210,7 +210,7 @@ export default class UseJsonFormatter {
       }
 
       const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
-      this.setNodeValueWordSplit(root, fieldName, '.field-value', appendText);
+      this.setNodeValueWordSplit(root, fieldName, '.field-value', text, appendText);
     }
   }
 
@@ -218,12 +218,13 @@ export default class UseJsonFormatter {
     target: HTMLElement,
     fieldName,
     valueSelector = '.bklog-json-field-value',
+    textValue?: string,
     appendText?: SegmentAppendText,
   ) {
     // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
     target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = (element as HTMLDivElement).innerText;
+        const text = textValue ?? (element as HTMLDivElement).innerText;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
