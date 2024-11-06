@@ -96,15 +96,7 @@ export default (options: ComputedRef<TextOption>) => {
       truncatedText += '</mark>';
     }
 
-    const openingTagPattern = /<mark>/g;
-    const closingTagPattern = /<\/mark>/g;
-
-    // 计算截取文本中的 <mark> 和 </mark> 标签数量
-    const openCount = (truncatedText.match(openingTagPattern) || []).length;
-    const closeCount = (truncatedText.match(closingTagPattern) || []).length;
-
-    // 如果 <mark> 标签数量多于 </mark>，则追加一个 </mark>
-    if (openCount > closeCount) {
+    if (!temp) {
       truncatedText += '</mark>';
     }
 
