@@ -31,10 +31,7 @@
  * @Description:
 -->
 <template>
-  <div
-    class="performance"
-    v-bkloading="{ isLoading }"
-  >
+  <div class="performance">
     <div class="performance-table">
       <bk-table
         v-if="Object.keys(columns).length"
@@ -219,8 +216,11 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <template v-else>
               <div
@@ -337,8 +337,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <span
               v-else
@@ -379,8 +382,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
@@ -403,8 +409,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
@@ -427,8 +436,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
@@ -451,8 +463,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
@@ -475,8 +490,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
@@ -508,8 +526,11 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div
               v-else
@@ -537,7 +558,7 @@
                   class="process-status-3 process-overflow"
                   @click="openProcessView(row, 'row-overflow')"
                   v-bk-tooltips="{
-                    content: () => row.component.map(({display_name}) => display_name).join('、'),
+                    content: () => row.component.map(({ display_name }) => display_name).join('、'),
                     showOnInit: false,
                     placements: ['top'],
                     interactive: false,
@@ -757,7 +778,6 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     },
     3: {},
   };
-  isLoading = false;
 
   handleIpStatusData: Function = handleIpStatusData;
   ipStatusData = {
