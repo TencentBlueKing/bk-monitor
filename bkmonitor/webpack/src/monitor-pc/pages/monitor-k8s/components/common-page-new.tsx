@@ -274,10 +274,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // getSceneViewList 是否报错了
   isSceneDataError = false;
 
-  get timestamps() {
-    return handleTransformToTimestamp(this.timeRange);
-  }
-
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -724,7 +720,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   // 获取页签列表
   async getTabList(isInit?: boolean) {
-    const [start_time, end_time] = this.timestamps;
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     const params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
@@ -819,7 +815,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (!this.isEnableMethodSelect) {
       this.method = this.defaultViewOptions.method || this.defalutMethod || DEFAULT_METHOD;
     }
-    const [start_time, end_time] = this.timestamps;
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     let params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
@@ -1192,9 +1188,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     return list.reduce((pre, cur) => {
       for (const [key, value] of Object.entries(cur)) {
         // 检查值是否有效，并根据结果进行赋值
-        if (Array.isArray(value) ? value.length > 0 : String(value).length > 0) {
-          pre[key] = value;
-        }
+        pre[key] = (Array.isArray(value) ? !!value.length : !!String(value)) ? value : undefined;
       }
       return pre;
     }, {});
@@ -1282,10 +1276,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   resetHostFields(target: Record<string, any>) {
     if (!target || !window.host_data_fields?.length) return target;
     return window.host_data_fields.reduce((pre, cur) => {
-      if (Object.prototype.hasOwnProperty.call(target, cur)) {
-        // 检查 target 是否包含该属性
-        pre[cur] = target[cur];
-      }
+      pre[cur] = target[cur];
       return pre;
     }, {});
   }
@@ -1520,7 +1511,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
       this.isSceneDataError = false;
-      const [start_time, end_time] = this.timestamps;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const data = await getSceneViewList({
         scene_id: this.sceneId,
         type: this.localSceneType,
