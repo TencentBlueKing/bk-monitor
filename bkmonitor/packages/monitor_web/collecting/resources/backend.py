@@ -728,7 +728,7 @@ class RunCollectConfigResource(Resource):
             nodes = serializers.ListField(required=True, label="节点列表")
 
         scope = ScopeParams(label="事件订阅监听的范围", required=False)
-        action = serializers.ChoiceField(default="", choices=["start", "stop", "install", "uninstall"], label="操作")
+        action = serializers.CharField(label="操作", default="install")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
 
@@ -742,7 +742,7 @@ class RunCollectConfigResource(Resource):
 
         # 主动触发节点管理终止任务
         installer = get_collect_installer(collect_config)
-        installer.run(params.get("scope"))
+        installer.run(params["action"], params.get("scope"))
 
         return "success"
 

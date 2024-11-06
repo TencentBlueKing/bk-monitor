@@ -522,6 +522,8 @@ class NodeManInstaller(BaseInstaller):
         # 如果没有指定操作类型，则默认为安装
         if not action:
             action = "INSTALL"
+        else:
+            action = action.upper()
 
         # 执行采集配置
         subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
