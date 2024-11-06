@@ -28,9 +28,7 @@ import { Component, Emit, Provide, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Exception } from 'bk-magic-vue';
-// #if APP === 'apm'
 import VueDraggable from 'vuedraggable';
-// #endif
 
 import CollectGroup from './collect-group';
 import { IGroupItem } from './collect-index';

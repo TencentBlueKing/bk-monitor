@@ -745,7 +745,7 @@
         this.$http
           .request('/logClustering/updateStrategies', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               bk_biz_id: this.bkBizId,
@@ -852,7 +852,7 @@
         this.$http
           .request('/logClustering/setOwner', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               signature: this.getHoverRowValue.signature,
@@ -906,7 +906,7 @@
         this.$http
           .request(`/logClustering/${queryStr}`, {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               signature: this.getHoverRowValue.signature,
@@ -1025,7 +1025,7 @@
         this.$http
           .request('/logClustering/getOwnerList', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           })
           .then(res => {

@@ -28,10 +28,8 @@ import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
-// #if APP === 'apm'
 import VueDraggable from 'vuedraggable';
 
-// #endif
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
@@ -228,7 +226,11 @@ export default class FieldFilterComp extends tsc<object> {
     return isFront;
   }
 
-  @Watch('$route.params.indexId')
+  get indexSetId() {
+    return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+  }
+
+  @Watch('indexSetId')
   watchRouteIndexID() {
     // 切换索引集重置状态
     this.polymerizable = '0';
