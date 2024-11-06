@@ -15,23 +15,25 @@
       <div slot="header">
         {{ t('字段配置') }}
         <bk-button
+          v-if="!isEdit"
           class="mt10 fr"
           data-test-id="fieldSettingSlider_button_edit"
           theme="default"
           @click="handleEdit"
         >
-          {{ isEdit ? $t('取消') : $t('编辑') }}
+          {{ $t('编辑') }}
         </bk-button>
       </div>
       <template #content>
         <div
-          class="king-slider-content"
+          class="field-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
         >
           <bk-form
             v-if="!sliderLoading"
             ref="validateForm"
-            class="king-form"
+            class="field-setting-form"
+            :class="!isEdit ? 'field-preview-form' : ''"
             :label-width="100"
             :model="formData"
             :rules="basicRules"
@@ -51,7 +53,6 @@
                 v-model="formData.collector_config_name"
                 maxlength="50"
                 show-word-limit
-                @blur="isEditConfigName = false"
               >
               </bk-input>
               <div v-else>
@@ -87,6 +88,7 @@
               :label="$t('数据ID')"
               :property="'bk_data_id'"
               :required="isEdit"
+              :rules="basicRules.bk_data_id"
             >
               <bk-input
                 v-if="isEdit"
@@ -101,14 +103,23 @@
             <bk-form-item
               ext-cls="en-bk-form"
               :label="$t('集群名称')"
-              :property="'storage_cluster_name'"
+              :property="'storage_cluster_id'"
               :required="isEdit"
+              :rules="basicRules.storage_cluster_id"
             >
-              <bk-input
+              <bk-select
                 v-if="isEdit"
-                v-model="formData.storage_cluster_name"
+                v-model="formData.storage_cluster_id"
+                :popover-min-width="160"
               >
-              </bk-input>
+                <bk-option
+                  v-for="option in storageList"
+                  :id="option.storage_cluster_id"
+                  :key="option.storage_cluster_id"
+                  :name="option.storage_cluster_name"
+                >
+                </bk-option>
+              </bk-select>
               <div v-else>{{ formData.storage_cluster_name }}</div>
             </bk-form-item>
             <bk-form-item
@@ -116,11 +127,11 @@
               :label="$t('日志保存天数')"
               :property="'retention'"
               :required="isEdit || isEditRetention"
+              :rules="basicRules.retention"
             >
               <bk-input
                 v-if="isEdit || isEditRetention"
                 v-model="formData.retention"
-                @blur="isEditRetention = false"
               >
                 <template slot="append">
                   <div>{{ $t('天') }}</div>
@@ -147,7 +158,7 @@
             </setting-table>
             <div
               v-else
-              class="setting-title"
+              class="setting-desc"
             >
               {{ $t('暂未保留原始日志') }}
             </div>
@@ -176,6 +187,23 @@
               </div>
             </div>
           </bk-form>
+          <div class="submit-container">
+            <bk-button
+              class="king-button mr10"
+              :loading="confirmLoading"
+              data-test-id="fieldSettingSlider_button_confirm"
+              theme="primary"
+              @click.stop.prevent="submit"
+            >
+              {{ $t('提交') }}
+            </bk-button>
+            <bk-button
+              v-if="isEdit"
+              data-test-id="fieldSettingSlider_button_cancel"
+              @click="handleCancel"
+              >{{ $t('取消') }}</bk-button
+            >
+          </div>
         </div>
       </template>
     </bk-sideslider>
@@ -183,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue';
+  import { computed, ref, nextTick } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   import { useRoute } from 'vue-router/composables';
@@ -191,6 +219,7 @@
   import { deepClone } from '@/common/util';
 
   import settingTable from './setting-table.vue';
+  import * as authorityMap from '../common/authority-map';
 
   const { t } = useLocale();
   const store = useStore();
@@ -207,14 +236,18 @@
   const collectorConfigId = ref('');
 
   const formData = ref({
+    data_link_id: '',
+    bk_biz_id: '',
     collector_config_name: '',
     collector_config_name_en: '',
     bk_data_id: '',
     storage_cluster_name: '',
+    storage_cluster_id: '',
     retention: '',
     etl_params: {
       retain_original_text: false,
     },
+    etl_config: '',
   });
 
   /** 添加字段的基础数据 */
@@ -241,16 +274,67 @@
     is_edit: true,
   });
 
+  const maxRetention = ref(0);
+
   const basicRules = ref({
     collector_config_name: [
       {
         required: true,
         trigger: 'blur',
+        validator: val => {
+          if (val) {
+            isEditConfigName.value = false;
+          }
+          return val;
+        },
       },
     ],
     collector_config_name_en: [
       {
         required: true,
+        trigger: 'blur',
+      },
+    ],
+    bk_data_id: [
+      {
+        required: true,
+        trigger: 'blur',
+      },
+    ],
+    storage_cluster_id: [
+      {
+        required: true,
+        trigger: 'blur',
+      },
+    ],
+    retention: [
+      {
+        required: true,
+        trigger: 'blur',
+      },
+      {
+        validator: () => {
+          return formData.value.storage_cluster_id;
+        },
+        message: t('请先选择集群'),
+        trigger: 'blur',
+      },
+      {
+        validator: val => {
+          if (val) {
+            const currentStorageCluster = storageList.value.find(
+              item => item.storage_cluster_id === formData.value.storage_cluster_id,
+            );
+            maxRetention.value = currentStorageCluster?.setup_config?.retention_days_max || 30;
+            if (val <= maxRetention.value) {
+              isEditRetention.value = false;
+            }
+            return val <= maxRetention.value;
+          }
+        },
+        message: function () {
+          return t(`超出集群最大可保存天数，当前最大可保存${maxRetention.value}天`);
+        },
         trigger: 'blur',
       },
     ],
@@ -270,14 +354,20 @@
     // 获取table表格编辑的数据 新增新的字段对象
     tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
   };
+
   const handleEdit = () => {
-    isEdit.value = !isEdit.value;
+    isEdit.value = true;
   };
 
-  const handleOpenSidebar = () => {
+  const handleCancel = () => {
+    isEdit.value = false;
+  };
+
+  const handleOpenSidebar = async () => {
     showSlider.value = true;
     sliderLoading.value = true;
-    initFormData();
+    await initFormData();
+    getStorage();
   };
 
   const initFormData = async () => {
@@ -310,6 +400,86 @@
       });
     sliderLoading.value = false;
   };
+
+  const storageList = ref([]);
+  const getStorage = async () => {
+    try {
+      const res = await http.request('collect/getStorage', {
+        query: {
+          bk_biz_id: formData.value.bk_biz_id,
+          data_link_id: formData.value.data_link_id,
+        },
+      });
+      if (res.data) {
+        // 根据权限排序
+        const s1 = [];
+        const s2 = [];
+        for (const item of res.data) {
+          if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+            s1.push(item);
+          } else {
+            s2.push(item);
+          }
+        }
+        storageList.value = s1.concat(s2);
+      }
+    } catch (error) {
+      console.log(error, 'error');
+    }
+  };
+
+  const validateForm = ref(null);
+  const confirmLoading = ref(false);
+  // 字段表格校验
+  const checkFieldsTable = () => {
+    return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
+  };
+  const submit = () => {
+    validateForm.value.validate().then(res => {
+      if (res) {
+        const promises = [];
+        if (formData.value.etl_config === 'bk_log_json') {
+          promises.splice(1, 0, ...checkFieldsTable());
+        }
+        Promise.all(promises).then(
+          async () => {
+            confirmLoading.value = true;
+            const data = {
+              collector_config_name: formData.value.collector_config_name,
+              storage_cluster_id: formData.value.storage_cluster_id,
+              retention: formData.value.retention,
+              etl_params: {
+                ...formData.value.etl_params,
+              },
+              etl_config: formData.value.etl_config,
+              fields: indexfieldTable.value.getData(),
+            };
+            await http
+              .request('collect/fastUpdateCollection', {
+                params: {
+                  collector_config_id: collectorConfigId.value,
+                },
+                data,
+              })
+              .then(res => {
+                if (res.code === 0) {
+                  window.mainComponent.messageSuccess(t('保存成功'));
+                  nextTick(() => {
+                    showSlider.value = false;
+                  });
+                }
+              })
+              .finally(() => {
+                confirmLoading.value = false;
+              });
+          },
+          validator => {
+            console.warn('保存失败', validator);
+          },
+        );
+      }
+    });
+  };
 </script>
 
 <style lang="scss" scoped>
@@ -329,7 +499,7 @@
     }
   }
 
-  .king-slider-content {
+  .field-slider-content {
     min-height: 394px;
     overflow-y: auto;
 
@@ -344,10 +514,15 @@
     .setting-title {
       padding-top: 10px;
       font-size: 12px;
-      color: #888a8e;
+      font-weight: 600;
+      color: #63656e;
     }
 
-    .king-form {
+    .setting-desc {
+      padding: 10px 0;
+    }
+
+    .field-setting-form {
       padding: 16px 36px 36px;
 
       .form-flex-container {
@@ -399,6 +574,16 @@
           }
         }
       }
+    }
+
+    .field-preview-form {
+      .bk-form-item {
+        margin-top: 5px;
+      }
+    }
+
+    .submit-container {
+      padding: 16px 36px 36px;
     }
   }
 </style>

@@ -46,6 +46,7 @@
           row-key="field_index"
           col-border
           size="small"
+          :max-height="isPreviewMode ? 300 : 320"
         >
           <template>
             <!-- <bk-table-column
@@ -135,6 +136,7 @@
               :render-header="$renderHeader"
               :resizable="false"
               min-width="100"
+              align="center"
             >
               <template #default="props">
                 <div
