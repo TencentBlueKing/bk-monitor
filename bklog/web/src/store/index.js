@@ -337,7 +337,6 @@ const store = new Vuex.Store({
 
         return result;
       }, {});
-
       Object.assign(state.indexItem, defaultValue, copyValue);
     },
 
@@ -875,8 +874,9 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        if (route.params.indexId) {
-          ids.push(route.params.indexId);
+        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        if (indexId) {
+          ids.push(indexId);
         }
       }
 
