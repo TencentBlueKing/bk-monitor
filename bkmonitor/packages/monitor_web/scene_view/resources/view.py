@@ -123,7 +123,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 specific_views = custom_view_list
 
             for view in specific_views:
-                view_config = get_view_config(view, params)
+                view_config = get_view_config(view, {**params, "only_simple_info": True})
 
                 hidden: bool = view_config.get("hidden") or False
                 if hidden:

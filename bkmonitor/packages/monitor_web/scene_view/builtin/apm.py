@@ -23,7 +23,6 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
 from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
-from core.drf_resource import api
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -160,21 +159,31 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             )
 
             # 探测服务，存在再展示页面
+            view_config["hidden"] = True
             server_list: List[str] = group.fetch_server_list()
-            if params["service_name"] not in server_list:
-                view_config["hidden"] = True
+            for server in server_list:
+                if not server:
+                    continue
+
+                if server.endswith(params["service_name"]):
+                    view_config["hidden"] = False
+                    break
+
+            # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
+            if view_config["hidden"] or params.get("only_simple_info"):
                 return view_config
 
-            # 补充查询
-            service_temporality: Optional[str] = group.get_server_config(server=params["service_name"]).get(
-                "temporality"
-            )
-
-            if service_temporality == MetricTemporality.CUMULATIVE:
-                # 添加 increase 函数
+            server_config: Dict[str, Any] = group.get_server_config(server=params["service_name"])
+            if server_config["temporality"] == MetricTemporality.CUMULATIVE:
+                # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
 
-            view_config = cls._replace_variable(view_config, "${temporality}", service_temporality)
+            view_config = cls._replace_variable(view_config, "${temporality}", server_config["temporality"])
+            view_config = cls._replace_variable(view_config, "${server}", server_config["server_field"])
+            view_config = cls._replace_variable(view_config, "${service_name}", server_config["service_field"])
+            view_config = cls._replace_variable(
+                view_config, "${server_filter_method}", server_config["server_filter_method"]
+            )
 
             # 补充配置
             view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLER.value] = {
@@ -399,11 +408,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "span_id": params.get("apm_span_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
+                "only_simple_info": params.get("only_simple_info") or False,
             }
 
         return {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "only_simple_info": params.get("only_simple_info") or False,
         }
 
     @classmethod
