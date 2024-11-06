@@ -57,6 +57,8 @@
     return $t('更多');
   });
 
+  let resizeObserver = null;
+
   watch(
     () => [props.content],
     () => {
@@ -91,22 +93,38 @@
                 },
               }
             : undefined;
-        instance.initStringAsValue(appendText);
+        instance.initStringAsValue(renderText.value, appendText);
       });
     },
     { immediate: true },
   );
 
   onMounted(() => {
-    nextTick(() => {
-      const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
-      const elementMaxWidth = cellElement.offsetWidth * 4;
-      maxWidth.value = elementMaxWidth;
+    const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
+    const offsetWidth = cellElement.offsetWidth;
+    const elementMaxWidth = cellElement.offsetWidth * 3;
+    maxWidth.value = elementMaxWidth;
+
+    // 创建一个 ResizeObserver 实例
+    resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        // 获取元素的新高度
+        const newWidth = entry.contentRect.width * 3;
+
+        if (newWidth !== maxWidth.value) {
+          maxWidth.value = newWidth;
+        }
+      }
     });
+
+    // 开始监听元素
+    resizeObserver.observe(cellElement);
   });
 
   onUnmounted(() => {
     instance?.destroy?.();
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 <template>
