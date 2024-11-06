@@ -100,7 +100,7 @@ class BaseInstaller(abc.ABC):
         """
 
     @abc.abstractmethod
-    def run(self, scope: Dict[str, Any] = None):
+    def run(self, action: str, scope: Dict[str, Any] = None):
         """
         主动执行
         """
