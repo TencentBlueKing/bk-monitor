@@ -124,6 +124,7 @@ module.exports = async (baseConfig, { production, app }) => {
       ...config.output,
       path: distUrl,
       uniqueName: app,
+      clean: true,
     },
     entry: {
       ...config.entry,
@@ -147,5 +148,6 @@ module.exports = async (baseConfig, { production, app }) => {
           : {}),
       },
     },
+    cache: production ? false : config.cache,
   };
 };
