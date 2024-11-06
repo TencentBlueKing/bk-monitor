@@ -162,6 +162,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             view_config["hidden"] = True
             server_list: List[str] = group.fetch_server_list()
             for server in server_list:
+                if not server:
+                    continue
+
                 if server.endswith(params["service_name"]):
                     view_config["hidden"] = False
                     break
