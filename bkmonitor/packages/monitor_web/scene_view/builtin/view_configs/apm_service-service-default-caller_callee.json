@@ -1597,7 +1597,7 @@
               ],
               "support_operations": [
                 {
-                  "text": "主调",
+                  "text": "被调",
                   "value": "callee",
                   "tags": [
                     "caller_service",
@@ -1779,7 +1779,7 @@
               ],
               "support_operations": [
                 {
-                  "text": "被调",
+                  "text": "主调",
                   "value": "callee",
                   "tags": [
                     "caller_service",
