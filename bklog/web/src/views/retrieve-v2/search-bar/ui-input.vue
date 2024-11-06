@@ -448,7 +448,7 @@
   @import './ui-input.scss';
   @import 'tippy.js/dist/tippy.css';
 </style>
-<style>
+<style lang="scss">
   .tippy-box {
     &[data-theme='log-light'] {
       color: #63656e;
