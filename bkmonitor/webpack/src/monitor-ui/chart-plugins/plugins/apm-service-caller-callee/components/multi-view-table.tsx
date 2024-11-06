@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit, ProvideReactive, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -32,13 +32,11 @@ import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import CallerBarChart from '../chart/caller-bar-chart';
-import CallerPieChart from '../chart/caller-pie-chart';
 import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
-import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions } from '../type';
+import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
 
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
@@ -59,6 +57,7 @@ interface IMultiViewTableEvent {
   onShowDetail?: () => void;
   onDrill?: () => void;
   onTabChange?: () => void;
+  onDimensionKeyChange?: (key: string) => void;
 }
 @Component({
   name: 'MultiViewTable',
@@ -76,9 +75,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Number }) tableTotal: number;
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
-  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
 
+  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
+  @ProvideReactive('dimensionChartOpt') dimensionChartOpt: IDimensionChartOpt;
+  @ProvideReactive('curDimensionKey') curDimensionKey: string;
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -86,20 +87,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   isShowDimension = false;
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
-  dimensionValue = 1;
   drillValue = '';
-  column = [
-    {
-      label: '被调 IP',
-      prop: 'caller_service',
-    },
-    {
-      label: '被调接口',
-      prop: 'formal',
-      props: {},
-    },
-  ];
-  curDimensionKey = '';
+  // curDimensionKey = 'request_total';
   curRowData = {};
   request = ['request_total'];
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
@@ -116,10 +105,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
+
+  created() {
+    this.curDimensionKey = 'request_total';
+  }
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
   }
+
   @Watch('resizeStatus')
   handleResizeStatus() {
     this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
@@ -154,7 +148,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.pagination.current = 1;
   }
   @Watch('supportedCalculationTypes', { immediate: true })
-  handlePanelChange(val) {
+  handleCalculationTypesChange(val) {
     const txtVal = {
       avg_duration: '平均耗时',
       p95_duration: 'P95',
@@ -170,7 +164,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     });
     this.cachePanels = JSON.parse(JSON.stringify(this.panels));
   }
-
   get dialogSelectList() {
     return LIMIT_TYPE_LIST;
   }
@@ -185,6 +178,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       }
     }
     return Array.from(options.values());
+  }
+  get dimensionPanels() {
+    return this.panel?.dimension_panels || [];
+  }
+  get currentPanels() {
+    return this.dimensionPanels.filter(item => item.type === this.chartActive);
+  }
+
+  get commonOptions() {
+    return this.panel?.options?.common || {};
+  }
+  get groupByCalculationTypes() {
+    return this.commonOptions?.group_by?.supported_calculation_types;
+  }
+  get groupByChartLimit() {
+    return this.commonOptions?.group_by?.data?.limit || 30;
   }
 
   get showTableList() {
@@ -307,9 +316,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         const colList = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'].filter(Boolean);
         const nameMap = {
           avg_duration: this.$t('平均耗时'),
-          p50_duration: this.$t('P50平均耗时'),
-          p95_duration: this.$t('P95平均耗时'),
-          p99_duration: this.$t('P99平均耗时'),
+          p50_duration: this.$t('P50'),
+          p95_duration: this.$t('P95'),
+          p99_duration: this.$t('P99'),
         };
         for (const col of colList) {
           for (const name of keyList) {
@@ -332,6 +341,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
     }
     this.panels = panelList;
+    // console.log(this.panels, '---');
   }
 
   @Emit('showDetail')
@@ -351,7 +361,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   handleDimension(row, key) {
     this.isShowDimension = true;
-    this.curDimensionKey = key;
+    this.chartActive = 'caller-pie-chart';
+    const parts = key.split('_');
+    const metricCalType = parts.slice(0, 2).join('_');
+    const timeShift = parts.slice(2).join('_');
+    this.dimensionChartOpt = {
+      metric_cal_type: metricCalType,
+      time_shift: timeShift,
+    };
+    this.curDimensionKey = metricCalType;
+  }
+
+  handleDimensionKeyChange(id) {
+    this.$set(this.dimensionChartOpt, 'metric_cal_type', id);
+    this.curDimensionKey = id;
+    this.$emit('dimensionKeyChange', id);
   }
   pageChange(page) {
     this.pagination.current = page;
@@ -493,12 +517,38 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return value;
   }
 
+  renderHeader(h, { column }: any, item: any) {
+    const showKeys = ['growth_rates', 'proportions', 'p50_duration', 'p95_duration', 'p99_duration'];
+    const hasPrefix = (fieldName: string) => {
+      return showKeys.some(pre => fieldName.startsWith(pre));
+    };
+    return (
+      <span class='custom-header-main'>
+        <span
+          class={[{ 'item-txt': !hasPrefix(item.prop) }, { 'item-txt-no': hasPrefix(item.prop) }]}
+          v-bk-overflow-tips
+        >
+          {item.label}
+        </span>
+        {!hasPrefix(item.prop) && (
+          <i
+            class='icon-monitor icon-bingtu tab-row-icon'
+            onClick={e => {
+              e.stopPropagation();
+              this.handleDimension(column, item.prop);
+            }}
+          />
+        )}
+      </span>
+    );
+  }
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-    return (curColumn.columns || []).map((item, index) => (
+
+    return (curColumn.columns || []).map(item => (
       <bk-table-column
-        key={index}
+        key={item.prop}
         scopedSlots={{
           default: ({ row }) => {
             const txt = this.formatTableValShow(row[item.prop], item.prop);
@@ -526,9 +576,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             );
           },
         }}
-        label={item.label}
-        min-width={130}
+        // label={item.label}
+        min-width={160}
         prop={item.prop}
+        renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
         sortable
       />
     ));
@@ -736,46 +787,52 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           )}
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
-        {false && (
-          <bk-dialog
-            width={640}
-            ext-cls='multi-detail-dialog'
-            v-model={this.isShowDimension}
-            header-position={'left'}
-            show-footer={false}
-            theme='primary'
+
+        <bk-dialog
+          width={640}
+          ext-cls='multi-detail-dialog'
+          v-model={this.isShowDimension}
+          header-position={'left'}
+          show-footer={false}
+          theme='primary'
+        >
+          <div
+            class='multi-dialog-header'
+            slot='header'
           >
-            <div
-              class='multi-dialog-header'
-              slot='header'
+            <span class='head-title'>{this.$t('维度值分布')}</span>
+            <TabBtnGroup
+              class='multi-dialog-tab'
+              activeKey={this.chartActive}
+              list={this.chartPanels}
+              onChange={this.changeChartTab}
+            />
+            <bk-select
+              class='multi-dialog-select ml10'
+              v-model={this.curDimensionKey}
+              clearable={false}
+              onChange={this.handleDimensionKeyChange}
             >
-              <span class='head-title'>{this.$t('维度值分布')}</span>
-              <TabBtnGroup
-                class='multi-dialog-tab'
-                activeKey={this.chartActive}
-                list={this.chartPanels}
-                onChange={this.changeChartTab}
+              {this.groupByCalculationTypes.map(option => (
+                <bk-option
+                  id={option.value}
+                  key={option.value}
+                  name={option.text}
+                />
+              ))}
+            </bk-select>
+          </div>
+          <div class='multi-dialog-content'>
+            <span class='tips'>{this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}</span>
+            {this.isShowDimension && (
+              <DashboardPanel
+                id={'apm-table-dimension_panels'}
+                column={1}
+                panels={this.currentPanels}
               />
-              <bk-select
-                class='multi-dialog-select ml10'
-                v-model={this.dimensionValue}
-              >
-                {this.dialogSelectList.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            </div>
-            <div class='multi-dialog-content'>
-              <span class='tips'>{this.$t('仅展示前 30 条数据')}</span>
-              {this.isShowDimension &&
-                (this.chartActive === 'caller-pie-chart' ? <CallerPieChart /> : <CallerBarChart />)}
-            </div>
-          </bk-dialog>
-        )}
+            )}
+          </div>
+        </bk-dialog>
       </div>
     );
   }

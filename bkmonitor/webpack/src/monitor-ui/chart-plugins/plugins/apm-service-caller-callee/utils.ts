@@ -56,7 +56,7 @@ export const CHART_TYPE = [
   },
   {
     label: '柱状图',
-    id: 'apm-timeseries-chart',
+    id: 'caller-bar-chart',
   },
 ];
 
@@ -117,7 +117,7 @@ export const TAB_TABLE_TYPE = [
     // columns: TAB_TABLE_TIMEOUT_COLUMN,
   },
   {
-    label: '耗时(ms)',
+    label: '耗时（ms）',
     id: 'consuming',
     columns: [],
     // columns: TAB_TABLE_CONSUMING_COLUMN,
@@ -125,7 +125,7 @@ export const TAB_TABLE_TYPE = [
 ];
 
 export const LIMIT_TYPE_LIST = [
-  { id: 1, name: '请求量' },
+  { id: '1', name: '请求量' },
   { id: 2, name: '成功率（%）' },
   { id: 3, name: '异常率（%）' },
   { id: 4, name: '超时率（%）' },

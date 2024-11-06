@@ -39,7 +39,9 @@ import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
+import ApmCallerBarChart from '../plugins/caller-bar-chart/caller-bar-chart';
 import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
+import ApmCallerPieChart from '../plugins/caller-pie-chart/caller-pie-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
@@ -552,6 +554,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onZrClick={this.handleZrClick}
           />
         );
+      case 'caller-pie-chart':
+        return <ApmCallerPieChart panel={this.panel} />;
+      case 'caller-bar-chart':
+        return <ApmCallerBarChart panel={this.panel} />;
+
       // 不需要报错显示
       // case 'graph':
       default:

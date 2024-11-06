@@ -85,11 +85,33 @@
 
       .span-append {
         display: inline-block;
-        min-width: 130px;
+        min-width: 160px;
         height: 100%;
         line-height: 43px;
         border-bottom: 1px solid #dfe0e5;
-        // border: 1px solid red;
+      }
+    }
+    .custom-header-main {
+      position: relative;
+      width: 100%;
+      display: flex;
+      .item-txt,
+      .item-txt-no {
+        display: inline-block;
+        max-width: 95%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .item-txt-no {
+        min-width: 46px;
+        max-width: 99%;
+      }
+      .icon-bingtu {
+        color: #63656e;
+        margin-left: 5px;
+        font-size: 13px;
+        cursor: pointer;
       }
     }
 
@@ -242,13 +264,23 @@
   .multi-dialog-content {
     width: 100%;
     height: 300px;
-
+    .dashboard-panel {
+      .flex-dashboard {
+        height: 300px !important;
+        .flex-dashboard-item {
+          height: 100% !important;
+          border: none;
+        }
+        .chart-wrapper.hover-style {
+          box-shadow: none;
+        }
+      }
+    }
     .dashboard-panel .vue-grid-layout {
       background: #fff;
-
-      .chart-wrapper.hover-style {
-        box-shadow: none;
-      }
+    }
+    .monitor-chart-tooltips {
+      background: #000000cc;
     }
 
     .chart-base {
