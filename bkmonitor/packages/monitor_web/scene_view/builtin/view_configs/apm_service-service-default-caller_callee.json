@@ -1407,7 +1407,7 @@
                 "where": [
                   {
                     "key": "${server}",
-                    "method": "eq",
+                    "method": "${server_filter_method}",
                     "value": [
                       "${service_name}"
                     ],
@@ -1448,7 +1448,7 @@
                 "where": [
                   {
                     "key": "${server}",
-                    "method": "eq",
+                    "method": "${server_filter_method}",
                     "value": [
                       "${service_name}"
                     ],
