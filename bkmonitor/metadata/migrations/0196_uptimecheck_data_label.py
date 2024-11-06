@@ -5,9 +5,17 @@ from django.db import migrations
 
 def update_data_label(apps, schema_editor):
     ResultTable = apps.get_model('metadata', 'ResultTable')
-    ResultTable.objects.filter(
-        table_id__in=['uptimecheck.udp', 'uptimecheck.icmp', 'uptimecheck.tcp', 'uptimecheck.http']
-    ).update(data_label='uptimecheck')
+    # Mapping of table_id to the new data_label
+    table_label_mapping = {
+        'uptimecheck.udp': 'uptimecheck_udp',
+        'uptimecheck.icmp': 'uptimecheck_icmp',
+        'uptimecheck.tcp': 'uptimecheck_tcp',
+        'uptimecheck.http': 'uptimecheck_http',
+    }
+
+    # Update each table_id with the corresponding data_label
+    for table_id, data_label in table_label_mapping.items():
+        ResultTable.objects.filter(table_id=table_id).update(data_label=data_label)
 
 
 class Migration(migrations.Migration):
