@@ -36,7 +36,9 @@ import {
   JsonFormatWrapper,
   LogButton,
 } from '@blueking/monitor-retrieve/main';
+import { serviceRelationList } from 'monitor-api/modules/apm_log';
 
+import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import '@blueking/monitor-retrieve/css/main3f1cc38.css';
@@ -47,6 +49,8 @@ export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timezone') readonly timezone: string;
   // 是否立即刷新
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  // 视图变量
+  @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
   init = false;
   async created() {
@@ -112,7 +116,12 @@ export default class MonitorRetrieve extends tsc<void> {
   }
 
   async indexSetApi() {
-    return [];
+    const { app_name, service_name } = this.viewOptions;
+    const data = await serviceRelationList({
+      app_name,
+      service_name,
+    }).catch(() => []);
+    return data;
   }
 
   render() {
