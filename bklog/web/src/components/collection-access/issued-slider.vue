@@ -601,9 +601,6 @@
        *  集群list，与轮询共用
        */
       async requestIssuedClusterList(isPolling = '') {
-        this.tableListAll.splice(0, this.tableListAll.length);
-        this.tableList.splice(0, this.tableList.length);
-
         if (!isPolling) {
           this.loading = true;
         }
