@@ -256,9 +256,7 @@
 </template>
 
 <script>
-  // #if APP === 'apm'
   import VueDraggable from 'vuedraggable';
-  // #endif
   import { mapGetters } from 'vuex';
 
   import fieldsSettingOperate from './fields-setting-operate';
@@ -398,7 +396,7 @@
         await this.$http
           .request('retrieve/postFieldsConfig', {
             data: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
               display_fields: this.shadowVisible,
@@ -575,7 +573,7 @@
           sort_list: updateItem.sort_list,
           display_fields: updateItem.display_fields,
           config_id: undefined,
-          index_set_id: this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
           index_set_ids: this.unionIndexList,
           index_set_type: this.isUnionSearch ? 'union' : 'single',
         };
@@ -605,7 +603,7 @@
           await this.$http.request('retrieve/deleteFieldsConfig', {
             data: {
               config_id: configID,
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
@@ -654,7 +652,7 @@
             data: {
               ...(this.isUnionSearch
                 ? { index_set_ids: this.unionIndexList }
-                : { index_set_id: this.$route.params.indexId }),
+                : { index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId }),
               scope: 'default',
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
