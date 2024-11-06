@@ -67,6 +67,7 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
+import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -75,6 +76,7 @@ import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
+
 interface IChartWrapperProps {
   panel: PanelModel;
   chartChecked?: boolean;
@@ -171,7 +173,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get needWaterMask() {
     return !['log-retrieve'].includes(this.panel?.type);
   }
-
+  beforeCreate() {
+    initLogRetrieveWindowsFields();
+  }
   /**
    * @description: 供子组件更新loading的状态
    * @param {boolean} loading
