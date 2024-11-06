@@ -26,6 +26,9 @@ VM_RETENTION_TIME = "30d"
 QUERY_VM_SPACE_UID_LIST_KEY = "bkmonitorv3:vm-query:space_uid"
 QUERY_VM_SPACE_UID_CHANNEL_KEY = "bkmonitorv3:vm-query"
 
+ACCESS_DATA_LINK_SUCCESS_STATUS = "SUCCESS"
+ACCESS_DATA_LINK_FAILURE_STATUS = "FAILED"
+
 
 class TimestampLen(Enum):
     """时间戳长度"""

@@ -26,6 +26,7 @@ from metadata import models
 from metadata.models import BkBaseResultTable
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.vm.utils import report_metadata_data_link_component_status_metric
 from metadata.task.utils import bulk_handle
 from metadata.utils.redis_tools import RedisTools
 
@@ -465,6 +466,14 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             bkbase_data_id_name,
         )
 
+    report_metadata_data_link_component_status_metric(
+        namespace=data_id_config.namespace,
+        name=data_id_config.name,
+        status=data_id_status,
+        biz_id=data_id_config.bk_biz_id,
+        data_link_name=data_link_name,
+    )
+
     # 2. 根据链路套餐（类型）获取该链路需要的组件资源种类
     components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy)
     all_components_ok = True
@@ -499,6 +508,14 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                         component_status,
                     )
 
+            report_metadata_data_link_component_status_metric(
+                namespace=component_ins.namespace,
+                name=component_ins.name,
+                status=component_status,
+                biz_id=component_ins.bk_biz_id,
+                data_link_name=data_link_name,
+            )
+
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,error->[%s]",
@@ -515,6 +532,14 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
     with transaction.atomic():
         bkbase_rt_record.save()
+
+    report_metadata_data_link_component_status_metric(
+        namespace=data_id_config.namespace,
+        name=data_link_name,
+        status=bkbase_rt_record.status,
+        biz_id=data_id_config.bk_biz_id,
+        data_link_name=data_link_name,
+    )
     logger.info(
         "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
         data_link_name,

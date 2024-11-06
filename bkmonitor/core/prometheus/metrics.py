@@ -1148,4 +1148,16 @@ AIOPS_STRATEGY_ERROR_COUNT = Counter(
     labelnames=("exc_type",),
 )
 
+METADATA_DATA_LINK_ACCESS_COUNT = Counter(
+    name="bkmonitor_metadata_data_link_access_count",
+    documentation="监控元数据数据链路接入统计",
+    labelnames=("version", "status", "biz_id", "data_id", 'table_id', 'strategy'),
+)
+
+METADATA_DATA_LINK_COMPONENT_STATUS_COUNT = Counter(
+    name="bkmonitor_metadata_data_link_component_status_count",
+    documentation="监控元数据数据链路组件状态统计",
+    labelnames=("namespace", "name", "status", "biz_id", "data_link_name"),
+)
+
 TOTAL_TAG = "__total__"
