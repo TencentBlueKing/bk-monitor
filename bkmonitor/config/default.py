@@ -1106,6 +1106,9 @@ BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
 BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
+# aidev的apigw地址
+AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
@@ -1377,6 +1380,9 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
+
+# aidev的知识库ID
+AIDEV_KNOWLEDGE_BASE_IDS = []
 
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
