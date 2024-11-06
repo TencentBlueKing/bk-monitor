@@ -705,6 +705,7 @@ export default defineComponent({
             this.currentNodes = [];
             /** 如果拖动的是combo */
             if (item.get('type') === 'combo') {
+              // biome-ignore lint/complexity/noForEach: <explanation>
               graph.getNodes().forEach(node => {
                 if (node.getModel().subComboId === item.getID()) {
                   (this.currentNodes as INode[]).push(node);
@@ -728,8 +729,11 @@ export default defineComponent({
 
             if (item.get('type') === 'node') {
               const model = item.getModel();
-              // 获取节点内名为'topo-node-type-text'的Shape
-              const nameTextShape = item.get('group').find(s => s.get('name') === 'topo-node-name-text');
+              const isAggregatedNode = model.aggregated_nodes.length > 0;
+              // 聚合节点不会展示 节点名称用外层容器节点类型判断， 非聚合节点用节点名称判断
+              const nameTextShape = item
+                .get('group')
+                .find(s => s.get('name') === (isAggregatedNode ? 'topo-node-type-text' : 'topo-node-name-text'));
               const nameShapeBBox = nameTextShape?.getBBox?.() || {
                 width: 0,
                 y: 0,
@@ -763,6 +767,7 @@ export default defineComponent({
               x: model.x + dx,
               y: model.y + dy,
             });
+            // biome-ignore lint/complexity/noForEach: <explanation>
             (this.currentNodes as INode[]).forEach(node => {
               const model = node.getModel();
               graph.updateItem(node, {
@@ -822,6 +827,7 @@ export default defineComponent({
           const combos = graph.getCombos().filter(combo => !combo.getModel().parentId);
           let xCombo = combos[0];
           let xComboWidth = 0;
+          // biome-ignore lint/complexity/noForEach: <explanation>
           combos.forEach(combo => {
             const { width } = combo.getBBox();
             if (width > xComboWidth) {
@@ -967,6 +973,7 @@ export default defineComponent({
                 events: model.events || [],
               },
             ];
+            // biome-ignore lint/complexity/noForEach: <explanation>
             (model.aggregated_edges as ITopoNode[]).forEach(node => {
               node.id = random(10);
               const targetModel = nodes.find(item => item.id === node.target);
@@ -1035,6 +1042,7 @@ export default defineComponent({
       if (resourceNodeId.value) {
         const isNavSelectNode = navSelectNode.value.some(node => node.id === resourceNodeId.value);
         if (isNavSelectNode) {
+          // biome-ignore lint/complexity/noForEach: <explanation>
           navSelectNode.value.forEach(node => {
             graph.setItemState(graph.findById(node.id), 'running', true);
           });
@@ -1058,6 +1066,7 @@ export default defineComponent({
      */
     const formatResponseData = data => {
       const { combos = [], nodes = [], sub_combos = [] } = data || {};
+      // biome-ignore lint/complexity/noForEach: <explanation>
       nodes.forEach(node =>
         Object.assign(node, {
           width: 90,
@@ -1094,7 +1103,7 @@ export default defineComponent({
         labelCfg: {
           style: {
             fill: '#979BA5',
-            fontSize: 12,
+            fontSize: 16,
           },
         },
       });
@@ -1116,8 +1125,8 @@ export default defineComponent({
           : incidentId.value.substr(0, 10),
       })
         .then(res => {
-          let { latest, diff, complete } = res;
-          diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
+          const { latest, diff, complete } = res;
+          // diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
           complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
@@ -1125,6 +1134,7 @@ export default defineComponent({
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
+          // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
             processedNodes.push(...item.content.nodes);
@@ -1173,6 +1183,9 @@ export default defineComponent({
       const canvasWidth = graph.get('width');
       const canvasHeight = graph.get('height');
       const matrix = graph.get('group').getMatrix();
+      if (!matrix) {
+        return false;
+      }
       const { x, y, width } = node.getModel();
 
       /** 拖动画布偏移节点位置是不变的，需要考虑画布的偏移和缩放 */
@@ -1229,6 +1242,7 @@ export default defineComponent({
     /** 错误的线置于顶层 */
     const toFrontAnomalyEdge = () => {
       const edges = graph.getEdges();
+      // biome-ignore lint/complexity/noForEach: <explanation>
       edges.forEach(edge => {
         const edgeModel = edge.getModel();
         if (edgeModel.is_anomaly) {
@@ -1238,6 +1252,7 @@ export default defineComponent({
     };
     /** 渲染数据 */
     const renderGraph = (data = topoRawDataCache.value.complete, renderComplete = false) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       edgeInterval.forEach(interval => {
         clearInterval(interval);
       });
@@ -1698,7 +1713,7 @@ export default defineComponent({
       isPlay.value = value;
       if (value) {
         const len = topoRawDataCache.value.diff.length;
-        if (timelinePosition.value === len || timelinePosition.value + 1 === len) {
+        if (timelinePosition.value === len) {
           timelinePosition.value = topoRawDataCache.value.diff.length - 1;
           isPlay.value = false;
           emit('playing', false);

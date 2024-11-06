@@ -251,7 +251,7 @@ class Alarm(BaseContextObject):
                 if value.startswith("http://") or value.startswith("https://"):
                     dimension_list[1] = f"[{value}]({value})"
 
-        return ["{}={}".format(*dimension_list) for dimension_list in dimension_lists]
+        return ["{}={}".format(*dimension_list) for dimension_list in sorted(dimension_lists)]
 
     @cached_property
     def chart_image(self):

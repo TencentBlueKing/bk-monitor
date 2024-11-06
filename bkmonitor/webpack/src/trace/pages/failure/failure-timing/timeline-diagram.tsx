@@ -293,7 +293,7 @@ export default defineComponent({
     };
     /** 动态计算坐标轴刻度 */
     const handleTick = (ind = 10) => {
-      const startTime = addDays(tickArr.value[0], -1);
+      const startTime = addDays(tickArr.value[0], 0.1);
       const endTime = addDays(tickArr.value[tickArr.value.length - 1], 1);
       const calculateDays = calculateBetweenDays(startTime, endTime);
       isHour.value = calculateDays / ind <= 1;
@@ -377,9 +377,9 @@ export default defineComponent({
       });
     };
     /** 给定的日期添加指定的天数 */
-    const addDays = (date, days) => {
+    const addDays = (date, hours) => {
       const result = new Date(date);
-      result.setDate(result.getDate() + days);
+      result.setHours(result.getHours() + hours);
       return result;
     };
     const setTickArr = date => {
@@ -394,6 +394,7 @@ export default defineComponent({
         acc[time.getTime()] = [];
         return acc;
       }, {});
+      // biome-ignore lint/complexity/noForEach: <explanation>
       dataList.forEach(data => {
         const dataTime = data.create_time * 1000;
         const nearestTime = times.reduce((nearest, currentTime) => {
@@ -527,6 +528,7 @@ export default defineComponent({
       const len = child.length;
       return (
         <span class='alert-name'>
+          {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
           <label
             class='blue'
             title={name}
@@ -539,6 +541,7 @@ export default defineComponent({
             {name}{' '}
           </label>
           {len > 1 && (
+            // biome-ignore lint/a11y/noLabelWithoutControl: <explanation>
             <label>
               {t('等共 ')}
               <b
@@ -592,6 +595,7 @@ export default defineComponent({
         <div class='tool-div'>
           <div class='tool-text'>
             <i class={`icon-monitor item-icon icon-${level_name === 'alert_name' ? 'gaojing1' : 'Pod'}`} />
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
             <label class='tool-name'>{alertNameFn(alert_example, children, ind, alert_ids)}</label>
             {(is_root || is_feedback_root) && (
               <span class={['root', { 'feedback-root': is_feedback_root }]}>{t('根因')}</span>
@@ -645,6 +649,7 @@ export default defineComponent({
                   key={key}
                   class='tool-text'
                 >
+                  {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
                   <label
                     style={{ 'min-width': isEn ? '98px' : '90px' }}
                     class='tool-label'
@@ -663,6 +668,7 @@ export default defineComponent({
     /** 根据指定key值分类处理数据 */
     const groupBy = (dataArray, key) => {
       const result = {};
+      // biome-ignore lint/complexity/noForEach: <explanation>
       dataArray.forEach(item => {
         const keyValue = item[key];
         // 检查该key是否已存在于结果对象中，如果不存在，则初始化为空数组

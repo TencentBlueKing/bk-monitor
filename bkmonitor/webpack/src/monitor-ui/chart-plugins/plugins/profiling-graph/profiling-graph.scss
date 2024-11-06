@@ -48,25 +48,6 @@
     .diff-chart-view {
       display: flex;
       margin-bottom: 16px;
-
-      .diff-chart-card {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        height: 120px;
-        background: #fff;
-        border-radius: 2px;
-        box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0509803922);
-
-        & + .diff-chart-card {
-          margin-left: 16px;
-        }
-
-        .chart-title {
-          margin-left: 16px;
-          line-height: 31px;
-        }
-      }
     }
 
     .profiling-graph {

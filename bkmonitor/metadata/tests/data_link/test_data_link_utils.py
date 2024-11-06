@@ -33,11 +33,13 @@ def test_compose_bkdata_table_id():
     table_id = "100147_bkmonitor_time_series_test_game_service_report.__default__"
     expected = "bkm_100147_bkmonitor_time_series_te_2cd3f"
     assert compose_bkdata_table_id(table_id) == expected
+    assert len(compose_bkdata_table_id(table_id)) < 50
 
     # Case3. 超长情况，截断
     table_id = "100147_bkmonitor_time_series_test_game_service_report_custom_test.__default__"
     expected = "bkm_100147_bkmonitor_time_series_te_295a4"
     assert compose_bkdata_table_id(table_id) == expected
+    assert len(compose_bkdata_table_id(table_id)) < 50
 
 
 def test_compose_bkdata_data_id_name():
@@ -51,15 +53,18 @@ def test_compose_bkdata_data_id_name():
 
     # Case2. 超长情况，截断
     data_name = "test_lol_game_service_report_bk_monitor_data_link_game_service_test_for_compose_case"
-    expected = "bkm_data_link_game_service_test_for_compose_case_85ca5a"
+    expected = "bkm_link_game_service_test_for_compose_case_85ca5"
     assert compose_bkdata_data_id_name(data_name) == expected
+    assert len(compose_bkdata_data_id_name(data_name)) < 50
 
     # Case2. 超长情况，截断
     data_name = "test_val_game_service_report_bk_monitor_data_link_game_service_test_for_compose_case"
-    expected = "bkm_data_link_game_service_test_for_compose_case_d3e5c3"
+    expected = "bkm_link_game_service_test_for_compose_case_d3e5c"
     assert compose_bkdata_data_id_name(data_name) == expected
+    assert len(compose_bkdata_data_id_name(data_name)) < 50
 
     # Case3. 非法字符串
     data_name = "test_monitor_测试数据_111222"
     expected = "bkm_test_monitor_111222"
     assert compose_bkdata_data_id_name(data_name) == expected
+    assert len(compose_bkdata_data_id_name(data_name)) < 50

@@ -43,7 +43,7 @@ import {
   type IFilterCondition,
   EKind,
 } from './type';
-import { CALLER_CALLEE_TYPE } from './utils';
+import { CALLER_CALLEE_TYPE, getRecordCallOptionKind, setRecordCallOptionKind } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
 
@@ -65,6 +65,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
+  @InjectReactive('viewOptions') viewOptions;
 
   panelsData = [];
   tabList = CALLER_CALLEE_TYPE;
@@ -111,7 +112,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       }
     }
     console.info('routeCallOptions', routeCallOptions);
-    this.callType = routeCallOptions.kind || 'caller';
+    this.callType = getRecordCallOptionKind(this.viewOptions.filters) || routeCallOptions.kind || EKind.callee;
     const groupBy = this.groupByKindReset(this.callType, routeCallOptions.group_by || []);
     this.callOptions = {
       // panel 传递过来的一些变量
@@ -156,6 +157,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   // 左侧主被调切换
   changeTab(id: EKind) {
     this.callType = id;
+    setRecordCallOptionKind(this.viewOptions.filters, this.callType);
     this.resetCallOptions(id);
     this.replaceRouteQuery();
   }

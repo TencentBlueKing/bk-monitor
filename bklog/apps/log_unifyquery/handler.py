@@ -330,7 +330,11 @@ class UnifyQueryHandler(object):
                     if value:
                         new_value_list.append(value)
                 if new_value_list:
-                    self.query_string = " OR ".join(new_value_list)
+                    new_query_string = " OR ".join(new_value_list)
+                    if addition["field"] == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
                 continue
             if field_list:
                 condition_list.append("and")

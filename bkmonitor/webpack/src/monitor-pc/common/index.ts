@@ -37,7 +37,7 @@ export const applyGuidePage = (
     if (noSpaceCheck) return route;
     return {
       ...route,
-      beforeEnter: (to: RouteConfig, from: RouteConfig, next: Function) => beforeEnter(navId, next),
+      beforeEnter: (to: RouteConfig, from: RouteConfig, next: () => void) => beforeEnter(navId, next),
       meta: {
         ...route.meta,
         noChangeLoading: true,

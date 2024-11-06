@@ -317,6 +317,7 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
     custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
+    query_string = serializers.CharField(label="查询语句", required=False)
 
 
 class CustomTimeSeriesSerializer(BkMonitorTimeSeriesSerializer):

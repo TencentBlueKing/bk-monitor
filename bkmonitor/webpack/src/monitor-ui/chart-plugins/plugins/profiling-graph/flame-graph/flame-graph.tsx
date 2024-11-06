@@ -327,7 +327,15 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   handleContextMenuClick(item: ICommonMenuItem) {
     this.contextMenuRect.left = -1;
     if (item.id === 'copy') {
-      copyText(this.contextMenuRect.spanName);
+      let hasErr = false;
+      copyText(this.contextMenuRect.spanName, (errMsg: string) => {
+        this.$bkMessage({
+          message: errMsg,
+          theme: 'error',
+        });
+        hasErr = !!errMsg;
+      });
+      if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
     }
     if (item.id === 'reset') {
       this.initScale();

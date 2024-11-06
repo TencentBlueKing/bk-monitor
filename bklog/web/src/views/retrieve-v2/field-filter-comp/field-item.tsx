@@ -172,53 +172,55 @@ export default class FieldItem extends tsc<object> {
           class={{ 'filed-title': true, expanded: this.isExpand }}
           onClick={() => this.handleClickItem()}
         >
-          {/* 三角符号 */}
-          <div class={{ 'filed-item-triangle': true }}>
-            <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
-          </div>
-
-          {/* 字段类型对应的图标 */}
           <div>
-            <span
-              style={{
-                backgroundColor: this.fieldItem.is_full_text
-                  ? false
-                  : this.getFieldIconColor(this.fieldItem.field_type),
-              }}
-              class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
-              v-bk-tooltips={{
-                content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
-                disabled: !this.fieldTypeMap[this.fieldItem.field_type],
-              }}
-            ></span>
-          </div>
+            {/* 三角符号 */}
+            <div class={{ 'filed-item-triangle': true }}>
+              <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+            </div>
 
-          {/* 字段名 */}
-          <span class='overflow-tips field-name'>
-            <span v-bk-overflow-tips>
-              {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
-            </span>
-            <span
-              class='field-count'
-              v-show={this.isShowFieldsCount}
-            >
-              ({this.gatherFieldsCount})
-            </span>
-            {this.isUnionConflictFields(this.fieldItem.field_type) && (
-              <bk-popover
-                ext-cls='conflict-popover'
-                theme='light'
+            {/* 字段类型对应的图标 */}
+            <div>
+              <span
+                style={{
+                  backgroundColor: this.fieldItem.is_full_text
+                    ? false
+                    : this.getFieldIconColor(this.fieldItem.field_type),
+                }}
+                class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
+                v-bk-tooltips={{
+                  content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
+                  disabled: !this.fieldTypeMap[this.fieldItem.field_type],
+                }}
+              ></span>
+            </div>
+
+            {/* 字段名 */}
+            <span class='field-name'>
+              <span>
+                {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
+              </span>
+              <span
+                class='field-count'
+                v-show={this.isShowFieldsCount}
               >
-                <i class='conflict-icon bk-icon icon-exclamation-triangle-shape'></i>
-                <div slot='content'>
-                  <p>{this.$t('该字段在以下索引集存在冲突')}</p>
-                  {this.unionConflictFieldsName.map(item => (
-                    <bk-tag>{item}</bk-tag>
-                  ))}
-                </div>
-              </bk-popover>
-            )}
-          </span>
+                ({this.gatherFieldsCount})
+              </span>
+              {this.isUnionConflictFields(this.fieldItem.field_type) && (
+                <bk-popover
+                  ext-cls='conflict-popover'
+                  theme='light'
+                >
+                  <i class='conflict-icon bk-icon icon-exclamation-triangle-shape'></i>
+                  <div slot='content'>
+                    <p>{this.$t('该字段在以下索引集存在冲突')}</p>
+                    {this.unionConflictFieldsName.map(item => (
+                      <bk-tag>{item}</bk-tag>
+                    ))}
+                  </div>
+                </bk-popover>
+              )}
+            </span>
+          </div>
           <div
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}

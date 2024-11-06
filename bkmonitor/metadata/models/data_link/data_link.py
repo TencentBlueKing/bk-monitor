@@ -44,6 +44,11 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
     )
 
+    # 各个套餐所需要的链路资源
+    STRATEGY_RELATED_COMPONENTS = {
+        BK_STANDARD_V2_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+    }
+
     STORAGE_TYPE_MAP = {
         BK_STANDARD_V2_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
@@ -72,12 +77,12 @@ class DataLink(models.Model):
         )
         return compose_method(*args, **kwargs)
 
-    def compose_standard_time_series_configs(self, data_source, table_id, vm_cluster_name):
+    def compose_standard_time_series_configs(self, data_source, table_id, storage_cluster_name):
         """
         生成标准单指标单表时序数据链路配置
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID（Metadata中的）
-        @param vm_cluster_name: VM集群名称
+        @param storage_cluster_name: VM集群名称
         """
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
@@ -85,10 +90,11 @@ class DataLink(models.Model):
             self.data_link_name,
             data_source.bk_data_id,
             table_id,
-            vm_cluster_name,
+            storage_cluster_name,
         )
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
         logger.info(
             "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
             "compose configs",
@@ -100,13 +106,17 @@ class DataLink(models.Model):
             with transaction.atomic():
                 # 渲染所需的资源配置
                 vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
-                    name=bkbase_vmrt_name, data_link_name=self.data_link_name, namespace=self.namespace
+                    name=bkbase_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
                 )
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
-                    vm_cluster_name=vm_cluster_name,
+                    vm_cluster_name=storage_cluster_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
                 )
                 sinks = [
                     {
@@ -120,6 +130,7 @@ class DataLink(models.Model):
                     data_id_name=bkbase_data_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
@@ -187,7 +198,7 @@ class DataLink(models.Model):
         @param configs: 链路资源配置
         """
         try:
-            response = api.bkdata.apply_data_link(configs)
+            response = api.bkdata.apply_data_link({"config": configs})
             return response
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -221,10 +232,14 @@ class DataLink(models.Model):
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
                     bkbase_data_name=bkbase_data_name,
-                    bkbase_vmrt_name=bkbase_vmrt_name,
-                    bkbase_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
                     monitor_table_id=table_id,
-                    defaults={"storage_type": storage_type, "storage_id": storage_cluster_id},
+                    storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
+                    defaults={
+                        "bkbase_rt_name": bkbase_vmrt_name,
+                        "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
+                        "storage_type": storage_type,
+                        "storage_cluster_id": storage_cluster_id,
+                    },
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(

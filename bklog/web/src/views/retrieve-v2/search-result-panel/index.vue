@@ -8,7 +8,7 @@
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
 
-  const DEFAULT_FIELDS_WIDTH = 290;
+  const DEFAULT_FIELDS_WIDTH = 220;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },

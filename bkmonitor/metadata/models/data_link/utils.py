@@ -14,6 +14,7 @@ import logging
 import re
 from typing import Dict, Optional
 
+from django.conf import settings
 from jinja2 import Template
 
 from metadata import models
@@ -48,7 +49,10 @@ def get_bkdata_table_id(table_id: str) -> str:
 
 
 def compose_bkdata_table_id(table_id: str) -> str:
-    """获取计算平台结果表"""
+    """
+    获取计算平台结果表ID
+    @param table_id: 监控平台结果表ID
+    """
     # 按照 '__default__' 截断，取前半部分
     table_id = table_id.split(".__default__")[0]
     table_id = table_id.lower()
@@ -78,6 +82,20 @@ def compose_bkdata_table_id(table_id: str) -> str:
     return table_id
 
 
+def parse_and_get_rt_biz_id(table_id: str) -> int:
+    """
+    解析并获取监控平台结果表的业务ID信息
+    @param table_id: 监控平台结果表ID
+    @return: 业务ID
+    """
+    match = re.match(r'^(\d+)', table_id)
+    if match:
+        # 如果匹配成功，返回数字部分并转换为整数
+        return int(match.group(1))
+    else:
+        return settings.DEFAULT_BKDATA_BIZ_ID
+
+
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
     """渲染配置模板"""
     content = Template(tpl).render(**render_params)
@@ -96,16 +114,21 @@ def get_bkdata_data_id_name(data_name: str) -> str:
 
 
 def compose_bkdata_data_id_name(data_name: str) -> str:
+    """
+    组装bkdata数据源名称
+    @param data_name: 监控平台数据源名称
+    """
     # 剔除不符合的字符
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
     # 替换连续的下划线为单个下划线
     data_id_name = f"bkm_{re.sub(r'_+', '_', refine_data_name)}"
 
+    # 控制长度
     if len(refine_data_name) > 45:
         # 截取长度为45的字符串
-        truncated_name = refine_data_name[-45:].lower().strip('_')
+        truncated_name = refine_data_name[-39:].lower().strip('_')
         # 计算哈希值
-        hash_suffix = hashlib.md5(refine_data_name.encode()).hexdigest()[:6]
+        hash_suffix = hashlib.md5(refine_data_name.encode()).hexdigest()[:5]
         data_id_name = f"bkm_{truncated_name}_{hash_suffix}"
     # 拼装前缀和哈希值
     return data_id_name

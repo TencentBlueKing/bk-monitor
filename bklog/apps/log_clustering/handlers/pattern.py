@@ -348,11 +348,14 @@ class PatternHandler:
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def _get_pattern_data(self):
+        start_time, end_time = generate_time_range(
+            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
+        )
         try:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
-                .time_range(start_time=arrow.get("2024-01-01").timestamp)  # 此处只为查出全量，只需大于当前时间即可
+                .time_range(start_time=start_time.shift(days=-1).timestamp)  # 只查截止开始时间前一天的数据，避免历史数据膨胀
                 .query()
             )
         except Exception as e:  # pylint:disable=broad-except

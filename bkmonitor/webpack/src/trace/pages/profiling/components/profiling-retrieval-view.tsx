@@ -34,7 +34,7 @@ import ComparisonChart from './comparison-chart';
 import TrendChart from './trend-chart';
 
 import type { IQueryParams } from '../../../typings/trace';
-import type { DataTypeItem, RetrievalFormData } from '../typings/profiling-retrieval';
+import type { DataTypeItem, DateComparison, RetrievalFormData } from '../typings/profiling-retrieval';
 
 import './profiling-retrieval-view.scss';
 
@@ -58,11 +58,13 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['update:dataType', 'comparisonDateChange'],
-  setup(props, { emit }) {
+  emits: ['update:dataType'],
+  setup(props) {
     const { t } = useI18n();
 
+    const dateComparison = ref<DateComparison>({});
     const comparisonPosition = reactive([]);
+    const trendLoading = ref(false);
     const trendChartData = ref([]);
     /** 图表时间范围 */
     const chartTime = reactive({
@@ -85,22 +87,12 @@ export default defineComponent({
       }
     }
 
-    const trendQueryParams = computed(() => {
-      const {
-        filter_labels: { start, end, ...filterLabels },
-        diff_filter_labels: { start: diffStart, end: diffEnd, ...diffFilterLabels },
-        ...rest
-      } = props.queryParams;
-
-      return {
-        ...rest,
-        filter_labels: filterLabels,
-        diff_filter_labels: diffFilterLabels,
-      };
-    });
+    function handleTrendLoading(v) {
+      trendLoading.value = v;
+    }
 
     watch(
-      () => props.formData.dateComparison.enable,
+      () => props.formData.dateComparisonEnable,
       val => {
         if (!val) {
           comparisonPosition.splice(0);
@@ -110,11 +102,34 @@ export default defineComponent({
       }
     );
 
+    watch(
+      () => props.queryParams,
+      () => {
+        dateComparison.value = {};
+      }
+    );
+
+    const graphQueryParams = computed(() => {
+      const { filter_labels, diff_filter_labels, ...rest } = props.queryParams;
+      const { start, end, diffEnd, diffStart } = dateComparison.value;
+      return {
+        filter_labels: {
+          ...filter_labels,
+          ...(props.formData.dateComparisonEnable && start && end ? { start, end } : {}),
+        },
+        diff_filter_labels: {
+          ...diff_filter_labels,
+          ...(props.formData.dateComparisonEnable && diffStart && diffEnd ? { start: diffStart, end: diffEnd } : {}),
+        },
+        ...rest,
+      };
+    });
+
     /**
      * 设置对比项默认框选时间
      */
     function setDefaultDate() {
-      if (!trendChartData.value.length || !props.formData.dateComparison.enable) return;
+      if (!trendChartData.value.length || !props.formData.dateComparisonEnable) return;
       comparisonPosition[0] = [chartTime.start, chartTime.mid];
       comparisonPosition[1] = [chartTime.mid, chartTime.end];
       handleComparisonDateChange();
@@ -130,22 +145,23 @@ export default defineComponent({
     }
 
     function handleComparisonDateChange() {
-      emit('comparisonDateChange', {
-        enable: props.formData.dateComparison.enable,
-        start: comparisonPosition[0]?.[0],
-        end: comparisonPosition[0]?.[1],
-        diffStart: comparisonPosition[1]?.[0],
-        diffEnd: comparisonPosition[1]?.[1],
-      });
+      dateComparison.value = {
+        start: Math.floor(comparisonPosition[0]?.[0] / 1000) * 1000000,
+        end: Math.floor(comparisonPosition[0]?.[1] / 1000) * 1000000,
+        diffStart: Math.floor(comparisonPosition[1]?.[0] / 1000) * 1000000,
+        diffEnd: Math.floor(comparisonPosition[1]?.[1] / 1000) * 1000000,
+      };
     }
 
     return {
       t,
       trendChartData,
-      trendQueryParams,
+      trendLoading,
+      graphQueryParams,
       comparisonPosition,
       handleChartData,
       handleBrushEnd,
+      handleTrendLoading,
     };
   },
   render() {
@@ -174,41 +190,34 @@ export default defineComponent({
         </div>
         <TrendChart
           comparisonDate={this.comparisonPosition}
-          queryParams={this.trendQueryParams}
+          queryParams={this.queryParams}
           onChartData={this.handleChartData}
+          onLoading={this.handleTrendLoading}
         />
 
-        {this.formData.dateComparison.enable && (
+        {this.formData.dateComparisonEnable && (
           <div class='date-comparison-view'>
-            <div class='comparison-chart-card'>
-              <div class='title'>{this.t('查询项')}</div>
-              <div class='chart-wrap'>
-                <ComparisonChart
-                  colorIndex={0}
-                  comparisonDate={this.comparisonPosition[0]}
-                  data={this.trendChartData[0]}
-                  title={this.t('查询项')}
-                  onBrushEnd={val => this.handleBrushEnd(val, 'search')}
-                />
-              </div>
-            </div>
-            <div class='comparison-chart-card'>
-              <div class='title'>{this.t('对比项')}</div>
-              <div class='chart-wrap'>
-                <ComparisonChart
-                  colorIndex={1}
-                  comparisonDate={this.comparisonPosition[1]}
-                  data={this.trendChartData[1]}
-                  title={this.t('对比项')}
-                  onBrushEnd={val => this.handleBrushEnd(val, 'comparison')}
-                />
-              </div>
-            </div>
+            <ComparisonChart
+              colorIndex={0}
+              comparisonDate={this.comparisonPosition[0]}
+              data={this.trendChartData[0]}
+              loading={this.trendLoading}
+              title={this.t('查询项')}
+              onBrushEnd={val => this.handleBrushEnd(val, 'search')}
+            />
+            <ComparisonChart
+              colorIndex={1}
+              comparisonDate={this.comparisonPosition[1]}
+              data={this.trendChartData[1]}
+              loading={this.trendLoading}
+              title={this.t('对比项')}
+              onBrushEnd={val => this.handleBrushEnd(val, 'comparison')}
+            />
           </div>
         )}
 
         <div class='profiling-graph-view-content'>
-          <ProfilingGraph queryParams={this.queryParams} />
+          <ProfilingGraph queryParams={this.graphQueryParams} />
         </div>
       </div>
     );
