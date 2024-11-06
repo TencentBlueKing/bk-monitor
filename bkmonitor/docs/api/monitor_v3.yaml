@@ -978,6 +978,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/collect/run/
+  is_hidden: true
+  label: 重试部分实例或主机
+  label_en: run collect config
+  name: run_collect_config
+  path: /v2/monitor_v3/run_collect_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/collect/batch_retry/
   is_hidden: true
   label: 批量重试采集配置的失败实例
