@@ -89,6 +89,7 @@ const createMonitorConfig = config => {
       'sortablejs',
       'clipboard',
       'vue-tsx-support',
+      'qs',
       /dayjs\//,
       'dayjs',
       /lodash/,
@@ -96,6 +97,9 @@ const createMonitorConfig = config => {
       ({ request, context }, cb) => {
         if (request === 'echarts') {
           return cb(undefined, request.replace(request, request));
+        }
+        if (request === 'resize-detector') {
+          return cb(undefined, '@blueking/fork-resize-detector');
         }
         cb();
       },

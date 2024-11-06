@@ -39,7 +39,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/mainf2a8413.css';
+import '@blueking/monitor-retrieve/css/main097a684.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
@@ -55,8 +55,6 @@ export default class MonitorRetrieve extends tsc<void> {
   isInit = false;
   empty = true;
   loading = true;
-  /** 关联蓝鲸日志的业务ID */
-  relatedBkBizId = -1;
   async created() {
     this.init();
   }
@@ -72,7 +70,7 @@ export default class MonitorRetrieve extends tsc<void> {
     if (data) {
       this.empty = false;
       const spaceUid =
-      window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
+        window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
       window.space_uid = `${spaceUid}`;
       initMonitorState({
         bkBizId: window.bk_biz_id,
@@ -101,7 +99,7 @@ export default class MonitorRetrieve extends tsc<void> {
   }
 
   async indexSetApi() {
-    const { app_name, service_name } = this.viewOptions;
+    const { app_name, service_name } = this.viewOptions.filters;
     const data = await serviceRelationList({
       app_name,
       service_name,
@@ -111,15 +109,11 @@ export default class MonitorRetrieve extends tsc<void> {
 
   async getServiceLogInfo() {
     const data = await serviceLogInfo({
-      app_name: this.viewOptions.app_name,
-      service_name: this.viewOptions.service_name,
+      app_name: this.viewOptions.filters.app_name,
+      service_name: this.viewOptions.filters.service_name,
     })
       .then(data => {
-        if (data) {
-          this.relatedBkBizId = data.related_bk_biz_id;
-          return data;
-        }
-        return false;
+        return !!data;
       })
       .catch(() => {
         return false;
@@ -132,7 +126,7 @@ export default class MonitorRetrieve extends tsc<void> {
    */
   handleRelated() {
     const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
-      this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)
+      this.bkBizId || window.bk_biz_id
     }`;
     window.open(url);
   }

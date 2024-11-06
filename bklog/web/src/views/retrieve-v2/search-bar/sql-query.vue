@@ -242,7 +242,7 @@
   @import 'tippy.js/dist/tippy.css';
 </style>
 <style lang="scss">
-  .tippy-box {
+  [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
       color: #63656e;
       background-color: #fff;

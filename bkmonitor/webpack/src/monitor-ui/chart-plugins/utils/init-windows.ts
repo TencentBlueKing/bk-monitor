@@ -43,13 +43,15 @@ export const initLogRetrieveWindowsFields = () => {
     //   log_desensitize: 'on',
     //   bk_log_trace: 'on',
     //   bk_log_to_trace: 'on',
-    // bkdata_aiops_toggle: 'on',
+    bkdata_aiops_toggle: 'on',
     //   bk_custom_report: 'on',
     //   es_cluster_type_setup: 'on',
     //   feature_bkdata_dataid: 'on',
     // //   is_auto_deploy_plugin: 'on',
-    // field_analysis_config: 'on',
+    field_analysis_config: 'on',
     //   direct_esquery_search: 'on',
     //   bklog_search_new: 'on',
   };
+  // window.FIELD_ANALYSIS_CONFIG = [];
+  // window.FEATURE_TOGGLE_WHITE_LIST = {};
 };

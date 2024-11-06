@@ -1,7 +1,7 @@
-@import "@/scss/mixins/flex.scss";
+@import '@/scss/mixins/flex.scss';
 
-.tippy-box {
-  &[data-theme="segment-light"] {
+[data-tippy-root] .tippy-box {
+  &[data-theme='segment-light'] {
     color: #26323d;
     background-color: #fff;
     box-shadow: 0 0 6px 0 #dcdee5;
