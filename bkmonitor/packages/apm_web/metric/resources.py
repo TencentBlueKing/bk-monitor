@@ -3014,16 +3014,21 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
+                growth_rate: Optional[float] = None
+
                 if record[baseline] == 0 and record[alias] == 0:
                     # 两个数据都为 0 时，设定增长率为 0%
-                    record.setdefault("growth_rates", {})[alias] = 0
-                    continue
-                elif not record[alias] or record[baseline] is None:
-                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
-                    record.setdefault("growth_rates", {})[alias] = None
-                    continue
+                    growth_rate = 0
+                elif not record[alias] and record[baseline]:
+                    # 往期无数据，同比正增长 100%
+                    growth_rate = 100
+                elif record[alias] and not record[baseline]:
+                    # 当前无数据，同比负增长 100%
+                    growth_rate = -100
+                elif record[alias] and record[baseline]:
+                    growth_rate = (record[baseline] - record[alias]) / record[alias] * 100
 
-                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
+                record.setdefault("growth_rates", {})[alias] = growth_rate
 
     @classmethod
     def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
@@ -3154,6 +3159,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
     def _display_format(
         cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
+        total: float = 0
         processed_records: List[Dict[str, Any]] = []
         for record in records:
             # 计算结果保留两位小数，同时对非数值类型进行异常兜底，默认设置为 0
@@ -3167,10 +3173,20 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
                 value = int(value)
 
+            total += value
+
             # tooltips 按 GroupBy 顺序拼接
             name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
 
             processed_records.append({"name": name, "value": value})
+
+        for record in processed_records:
+            # 分母为 0，占比也设置为 0
+            if total == 0:
+                record["proportion"] = 0
+                continue
+
+            record["proportion"] = round((record["value"] / total) * 100, 2)
 
         return processed_records
 
