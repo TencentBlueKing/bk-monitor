@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import abc
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 
@@ -97,6 +97,12 @@ class BaseInstaller(abc.ABC):
     def start(self):
         """
         启动
+        """
+
+    @abc.abstractmethod
+    def run(self, action: str = None, scope: Dict[str, Any] = None):
+        """
+        主动执行
         """
 
     @abc.abstractmethod
