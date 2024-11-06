@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { monitorLink } from '../../retrieve-v2/monitor/utils';
 export function getConditionRouterParams(searchList, searchMode, isNewLink) {
   const indexItem = window.mainComponent.$store.state.indexItem;
   const getIPChooserStr = ipChooser => {
@@ -75,5 +76,8 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink) {
     params,
     query: filterQuery,
   };
+  if (window.__IS_MONITOR_APM__) {
+    return monitorLink(routeData);
+  }
   return window.mainComponent.$router.resolve(routeData).href;
 }

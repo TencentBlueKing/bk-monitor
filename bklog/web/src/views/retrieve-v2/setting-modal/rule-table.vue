@@ -254,9 +254,7 @@
   import RegisterColumn from '@/views/retrieve/result-comp/register-column';
   import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
   import TextHighlight from 'vue-text-highlight';
-  // #if APP === 'apm'
   import VueDraggable from 'vuedraggable';
-  // #endif
   import RuleTopTools from './component/rule-top-tools.vue';
 
   export default {
