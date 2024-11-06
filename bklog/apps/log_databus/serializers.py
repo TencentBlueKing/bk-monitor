@@ -904,10 +904,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
             if not attrs.get("fields"):
                 raise ValidationError(_("[字段提取]请输入需要提取的字段信息"))
 
-            # table_id 不能包含 bklog
-            if "bklog" in attrs["table_id"]:
-                raise ValidationError(_("存储索引名不能包含bklog关键字"))
-
             # 过滤掉标准字段，并检查time_field数量
             fields = []
             valid_fields = []
