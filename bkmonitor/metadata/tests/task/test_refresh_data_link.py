@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
-from metadata.task.refresh_data_link import _refresh_data_link_status
+from metadata.task.tasks import _refresh_data_link_status
 
 
 @pytest.fixture
