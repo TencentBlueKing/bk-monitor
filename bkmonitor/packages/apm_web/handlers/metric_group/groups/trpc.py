@@ -248,22 +248,33 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def get_server_config(
         self, server: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> Dict[str, Any]:
-        sdk_names: List[str] = self.metric_helper.get_field_option_values_by_groups(
+        # 根据特殊维度探测上报方式，不同上报方式需要采用不同的指标计算/筛选方式
+        apps: List[str] = self.metric_helper.get_field_option_values_by_groups(
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
+                    "field": TRPCMetricTag.APP,
                     "filter_dict": {f"{TRPCMetricTag.CALLER_SERVER}__eq": server},
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
+                    "field": TRPCMetricTag.APP,
                     "filter_dict": {f"{TRPCMetricTag.CALLEE_SERVER}__eq": server},
                 },
             ],
             start_time=start_time,
             end_time=end_time,
         )
-        if sdk_names:
-            return {"temporality": MetricTemporality.DELTA}
-        return {"temporality": MetricTemporality.CUMULATIVE}
+        if apps:
+            return {
+                "temporality": MetricTemporality.CUMULATIVE,
+                "server_filter_method": "eq",
+                "server_field": "${server}",
+                "service_field": "${service_name}",
+            }
+        return {
+            "temporality": MetricTemporality.DELTA,
+            "server_filter_method": "reg",
+            "server_field": TRPCMetricTag.TARGET,
+            "service_field": ".*${service_name}$",
+        }
