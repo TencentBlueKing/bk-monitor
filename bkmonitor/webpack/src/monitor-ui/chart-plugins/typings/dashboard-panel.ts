@@ -494,6 +494,7 @@ export class PanelModel implements IPanelModel {
   dashboardId?: string;
   // 图标带icon说明
   descrition!: string;
+  dimension_panels?: PanelModel[];
   // 维度列表
   dimensions: string[];
   // 是否正在drag中
