@@ -83,7 +83,7 @@ export default class AiopsTabtitle extends tsc<IProps> {
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('维度下钻')}</span>
-            {this.showMetricRecommendation && (
+            {this.showDimensionDrill || this.dimensionDrillDownLoading ? (
               <span
                 class={['aiops-tab-title-message']}
                 v-bkloading={{
@@ -93,36 +93,41 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   extCls: 'metric_loading',
                 }}
               >
-                {!this.showDimensionDrill ? (
-                  <div>
-                    <i class='icon-monitor icon-tips tips-icon' />
-                    {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                  </div>
-                ) : (
-                  [
-                    this.dimensionDrillDownErr ? (
-                      <span class='err-text'>
-                        <span>
-                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
-                          {this.$t('模型输出异常')}
-                        </span>
-                      </span>
-                    ) : undefined,
-                    <span class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}>
-                      {this.$t('异常维度')}
-                      <font> {this.dimensionInfo.anomaly_dimension_count}</font>
-                      {isExitDimensionInfo ? ',' : ''}
-                    </span>,
+                {[
+                  this.dimensionDrillDownErr ? (
                     <span
-                      style='marginLeft: 6px'
-                      class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                      key='dimension-err-text'
+                      class='err-text'
                     >
-                      {this.$t('异常维度值')}
-                      <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
-                    </span>,
-                  ]
-                )}
+                      <span>
+                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
+                        {this.$t('模型输出异常')}
+                      </span>
+                    </span>
+                  ) : undefined,
+                  <span
+                    key='dimension-info-text'
+                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                  >
+                    {this.$t('异常维度')}
+                    <font> {this.dimensionInfo.anomaly_dimension_count}</font>
+                    {isExitDimensionInfo ? ',' : ''}
+                  </span>,
+                  <span
+                    key='dimension-count-text'
+                    style='marginLeft: 6px'
+                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                  >
+                    {this.$t('异常维度值')}
+                    <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
+                  </span>,
+                ]}
               </span>
+            ) : (
+              <div>
+                <i class='icon-monitor icon-tips tips-icon' />
+                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+              </div>
             )}
           </span>
         </div>
