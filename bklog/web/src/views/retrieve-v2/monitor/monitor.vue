@@ -28,13 +28,15 @@
 window.__IS_MONITOR_APM__ = true;
 import { computed, ref, watch, defineProps, onMounted } from 'vue';
 
-import useStore from '@/hooks/use-store';
-import { ConditionOperator } from '@/store/condition-operator';
-import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import * as authorityMap from '@/common/authority-map';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useStore from '@/hooks/use-store';
+import { updateTimezone } from '@/language/dayjs';
+import { ConditionOperator } from '@/store/condition-operator';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
-import { updateTimezone } from '@/language/dayjs';
+
 import SelectIndexSet from '../condition-comp/select-index-set.tsx';
 import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 import SearchBar from '../search-bar/index.vue';
@@ -47,7 +49,7 @@ const props = defineProps({
   },
   timeRange: {
     type: Array,
-    default: null,
+    default: () => ['now-15m', 'now'],
   },
   timezone: {
     type: String,
@@ -63,8 +65,6 @@ const store = useStore();
 const router = useRouter();
 const route = useRoute();
 
-const spaceUid = computed(() => store.state.spaceUid);
-const bkBizId = computed(() => store.state.bkBizId);
 const indexSetParams = computed(() => store.state.indexItem);
 const routeQueryParams = computed(() => {
   const { ids, isUnionIndex, search_mode } = store.state.indexItem;
@@ -81,18 +81,48 @@ const routeQueryParams = computed(() => {
   };
 });
 
+const getApmIndexSetList = async () => {
+  store.commit('retrieve/updateIndexSetList', []);
+  return props.indexSetApi().then(res => {
+    let indexSetList = [];
+    if (res.length) {
+      // 有索引集
+      // 根据权限排序
+      const s1 = [];
+      const s2 = [];
+      for (const item of res) {
+        if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+          s1.push(item);
+        } else {
+          s2.push(item);
+        }
+      }
+      indexSetList = s1.concat(s2);
+      // 索引集数据加工
+      indexSetList.forEach(item => {
+        item.index_set_id = `${item.index_set_id}`;
+        item.indexName = item.index_set_name;
+        item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+      });
+      store.commit('retrieve/updateIndexSetList', indexSetList);
+      return indexSetList;
+    }
+  })
+}
+
 /**
  * 拉取索引集列表
  */
 const getIndexSetList = () => {
-  store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
+  if(!props.indexSetApi) return
+  getApmIndexSetList().then(res => {
     // 拉取完毕根据当前路由参数回填默认选中索引集
-    store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+    store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
       store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
     });
-  });
+  })
 };
 
 const handleIndexSetSelected = payload => {
@@ -138,11 +168,10 @@ const setRouteParams = () => {
   const query = { ...route.query, ...params };
   const resolver = new RetrieveUrlResolver({
     ...routeQueryParams.value,
+    bizId: String(window.bk_biz_id),
     datePickerValue: store.state.indexItem.datePickerValue,
   });
-
   Object.assign(query, resolver.resolveParamsToUrl());
-  console.log(query)
   if (!isEqual(query, route.query)) {
     router.replace({
       query,
@@ -150,12 +179,12 @@ const setRouteParams = () => {
   }
 };
 
-const handleSpaceIdChange = () => {
-  store.commit('resetIndexsetItemParams');
+const init = () => {
+  const result = handleTransformToTimestamp(props.timeRange);
+  store.commit('resetIndexsetItemParams', { start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, timezone: props.timezone });
   store.commit('updateIndexId', '');
   store.commit('updateUnionIndexList', []);
   getIndexSetList();
-  store.dispatch('requestFavoriteList');
 };
 
 
@@ -167,22 +196,6 @@ watch(
   { deep: true },
 );
 
-watch(spaceUid, () => {
-  handleSpaceIdChange();
-  const routeQuery = route.query ?? {};
-  if (routeQuery.spaceUid !== spaceUid.value) {
-    const resolver = new RouteUrlResolver({ route });
-
-    router.replace({
-      query: {
-        ...resolver.getDefUrlQuery(),
-        spaceUid: spaceUid.value,
-        bizId: bkBizId.value,
-        indexId: undefined
-      },
-    });
-  }
-});
 
 watch(
   () => props.timeRange,
@@ -205,6 +218,10 @@ watch(
     store.dispatch('requestIndexSetQuery');
   }
 );
+
+watch(() => props.refleshImmediate, () => {
+  store.dispatch('requestIndexSetQuery');
+})
 
 const activeTab = ref('origin');
 const searchBarHeight = ref(0);
@@ -234,9 +251,7 @@ watch(
 );
 
 onMounted(() => {
-  const result = handleTransformToTimestamp(props.timeRange);
-  store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, timezone: props.timezone });
-  handleSpaceIdChange();
+  init();
 })
 </script>
 <template>
@@ -244,6 +259,7 @@ onMounted(() => {
     <div class="sub-head">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
+        @collection="getIndexSetList"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>

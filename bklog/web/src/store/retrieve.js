@@ -44,7 +44,7 @@ export default {
       fieldsWidth: {},
       displayFields: [],
     },
-    activeVersion: 'v2'
+    activeVersion: 'v2',
   },
   mutations: {
     updateActiveVersion(state, version) {
@@ -69,6 +69,7 @@ export default {
       state.filedSettingConfigID = payload;
     },
     updateIndexSetList(state, payload) {
+      console.log(payload);
       state.indexSetList.length = 0;
       state.indexSetList = [];
       state.indexSetList.push(...payload);
