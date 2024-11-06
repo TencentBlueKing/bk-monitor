@@ -93,12 +93,12 @@ const createMonitorConfig = config => {
       'dayjs',
       /lodash/,
       /vue-json-pretty/,
-      // ({ request, context }, cb) => {
-      //   if (request === 'echarts') {
-      //     return cb(undefined, request.replace(request, request));
-      //   }
-      //   cb();
-      // },
+      ({ request, context }, cb) => {
+        if (request === 'echarts') {
+          return cb(undefined, request.replace(request, request));
+        }
+        cb();
+      },
     ],
     plugins: config.plugins.filter(Boolean).map(plugin => {
       return plugin instanceof webpack.ProgressPlugin
