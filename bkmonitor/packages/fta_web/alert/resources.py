@@ -1411,7 +1411,7 @@ class SearchEventResource(ApiAuthResource):
 
     @classmethod
     def search_fta_alerts(cls, alert, validated_request_data, show_dsl=False):
-        # 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
+        # todo 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
         start_time = alert.begin_time
         end_time = alert.end_time if alert.end_time else int(time.time())
         interval = EventQueryHandler.calculate_agg_interval(start_time, end_time)

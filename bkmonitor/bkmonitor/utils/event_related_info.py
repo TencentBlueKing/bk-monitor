@@ -73,6 +73,7 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
     获取事件最近的日志
     1. 自定义事件：查询事件关联的最近一条事件信息
     2. 日志关键字：查询符合条件的一条日志信息
+    3. 第三方告警源： 查询符合条件的一条告警信息
     """
     if not alert.strategy:
         return ""
@@ -90,6 +91,7 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+        (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
     ):
         content = get_alert_relation_info_for_log(alert, not length_limit)
 
@@ -327,6 +329,8 @@ def get_data_source_log(alert, data_source, query_config, source_time, is_raw=Fa
             record["bklog_link"] = bklog_link
     if query_config["data_source_label"] in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]:
         content = record["event"]["content"]
+    elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
+        content = record["description"]
     else:
         content = json.dumps(record, ensure_ascii=False)
     return content
