@@ -126,7 +126,7 @@ export default class MyComponent extends tsc<object> {
       // );
     } else {
       const isFavorite = this.$route.name === 'favorite-dashboard';
-      grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
         this.$store.getters.bizId
       }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
