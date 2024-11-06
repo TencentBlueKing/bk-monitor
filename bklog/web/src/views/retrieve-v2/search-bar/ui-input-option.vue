@@ -161,7 +161,7 @@
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
-    if (typeof props.value === 'string' && props.value.length || activeFieldItem.value.field_name === "_ip-select_") {
+    if ((typeof props.value === 'string' && props.value.length) || activeFieldItem.value.field_name === '_ip-select_') {
       return true;
     }
 
@@ -1140,6 +1140,7 @@
         border-radius: 2px;
 
         &.tag-item {
+          color: #63656e;
           background: #f0f1f5;
           border-color: #f0f1f5;
 

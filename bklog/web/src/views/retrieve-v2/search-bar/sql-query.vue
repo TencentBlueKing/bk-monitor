@@ -216,7 +216,7 @@
         }
 
         .cm-scroller {
-          font-family: Menlo, Monaco, Consolas, Courier, "PingFang SC", "Microsoft Yahei", monospace;
+          font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
           font-size: 12px;
 
           .cm-gutters {
@@ -241,7 +241,7 @@
 <style scoped>
   @import 'tippy.js/dist/tippy.css';
 </style>
-<style>
+<style lang="scss">
   .tippy-box {
     &[data-theme='log-light'] {
       color: #63656e;
