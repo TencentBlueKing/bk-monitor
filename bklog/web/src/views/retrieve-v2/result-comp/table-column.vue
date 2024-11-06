@@ -102,7 +102,6 @@
         if (this.hasClickEvent) this.$emit('content-click');
       },
       handleJsonSegmentClick({ isLink, option }) {
-        debugger;
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
         const { depth, operation, value } = option;

@@ -60,7 +60,7 @@
           v-model="expandTextView"
           theme="primary"
           @change="handleChangeExpandView"
-          style="margin: 0 12px"
+          style="margin: 0 12px 0 0"
           class="bklog-option-item"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
@@ -70,33 +70,27 @@
           theme="primary"
           class="bklog-option-item"
           @change="handleChangeIsWarp"
+          style="margin: 0 12px 0 0"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
-        <div
-          style="display: flex; align-items: center; margin-left: 12px"
-          class="bklog-option-item"
-        >
-          <bk-checkbox
-            :value="isJsonFormat"
-            theme="primary"
-            @change="handleJsonFormat"
-            ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
-          >
 
-          <span
-            style="padding: 0 15px"
-            v-if="isJsonFormat"
-          >
-            <bk-input
-              type="number"
-              class="json-depth-num"
-              :value="jsonFormatDeep"
-              :min="1"
-              :max="15"
-              @change="handleJsonFormatDeepChange"
-            ></bk-input>
-          </span>
-        </div>
+        <bk-checkbox
+          :value="isJsonFormat"
+          theme="primary"
+          @change="handleJsonFormat"
+          style="margin: 0 12px 0 0"
+          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
+        >
+
+        <bk-input
+          type="number"
+          class="json-depth-num"
+          :value="jsonFormatDeep"
+          :min="1"
+          :max="15"
+          @change="handleJsonFormatDeepChange"
+          v-if="isJsonFormat"
+        ></bk-input>
       </div>
       <div class="tools-more">
         <div class="operation-icons">

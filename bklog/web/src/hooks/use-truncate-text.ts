@@ -34,7 +34,6 @@ type TextOption = {
 };
 export default (options: ComputedRef<TextOption>) => {
   const getTextWidth = (text, font) => {
-    // 创建一个离屏 canvas 元素
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     context.font = font;
@@ -52,33 +51,36 @@ export default (options: ComputedRef<TextOption>) => {
       return text;
     }
 
-    const ellipsText = '...more';
-    const ellipsisWidth = getTextWidth(ellipsText, font);
-    const avaliableWidth = maxWidth - ellipsisWidth - 18;
+    const availableWidth = maxWidth;
 
+    // 移除 <mark> 标签
+    const groups = text.split(/<\/?mark>/g);
+
+    // 计算最大宽度字符串
     let truncatedText = '';
     let currentWidth = 0;
+    let temp = true;
+    const length = groups.length;
+    let groupIndex = 0;
+    groupLoop: for (const group of groups) {
+      groupIndex++;
 
-    for (let char of text) {
-      const charWidth = getTextWidth(char, font);
-
-      if (currentWidth + charWidth > avaliableWidth) {
-        break;
+      for (const char of group) {
+        const charWidth = getTextWidth(char, font);
+        if (currentWidth + charWidth > availableWidth) {
+          break groupLoop;
+        }
+        truncatedText += char;
+        currentWidth += charWidth;
       }
 
-      truncatedText += char;
-      currentWidth += charWidth;
+      if (groupIndex < length) {
+        truncatedText += temp ? '<mark>' : '</mark>';
+        temp = !temp;
+      }
     }
 
-    const openingTagPattern = /<mark>/g;
-    const closingTagPattern = /<\/mark>/g;
-
-    // 计算截取文本中的 <mark> 和 </mark> 标签数量
-    const openCount = (truncatedText.match(openingTagPattern) || []).length;
-    const closeCount = (truncatedText.match(closingTagPattern) || []).length;
-
-    // 如果 <mark> 标签数量多于 </mark>，则追加一个 </mark>
-    if (openCount > closeCount) {
+    if (!temp) {
       truncatedText += '</mark>';
     }
 
