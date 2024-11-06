@@ -1945,19 +1945,19 @@
               },
               {
                 "value": "success_rate",
-                "text": "成功率"
+                "text": "成功率（%）"
               },
               {
                 "value": "timeout_rate",
-                "text": "超时率"
+                "text": "超时率（%）"
               },
               {
                 "value": "exception_rate",
-                "text": "异常率"
+                "text": "异常率（%）"
               },
               {
                 "value": "avg_duration",
-                "text": "平均耗时"
+                "text": "平均耗时（ms）"
               }
             ],
             "data": {
