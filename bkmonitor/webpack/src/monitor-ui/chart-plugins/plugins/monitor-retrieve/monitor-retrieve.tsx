@@ -34,12 +34,12 @@ import {
   logStore,
   i18n,
 } from '@blueking/monitor-retrieve/main';
-import { serviceRelationList } from 'monitor-api/modules/apm_log';
+import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/mainb34e140.css';
+import '@blueking/monitor-retrieve/css/mainf2a8413.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
@@ -48,38 +48,56 @@ export default class MonitorRetrieve extends tsc<void> {
   // 是否立即刷新
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
   // 视图变量
-  @InjectReactive('viewOptions') viewOptions: IViewOptions;
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  // 当前使用的业务id
+  @InjectReactive('bkBizId') readonly bkBizId: number | string;
 
-  init = false;
+  isInit = false;
+  empty = true;
+  loading = true;
+  /** 关联蓝鲸日志的业务ID */
+  relatedBkBizId = -1;
   async created() {
-    const spaceUid =
-      window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
-    window.space_uid = `${spaceUid}`;
-    initMonitorState({
-      bkBizId: window.bk_biz_id,
-      spaceUid,
-    });
-    initGlobalComponents();
-    window.mainComponent = new Vue({
-      store: logStore,
-      router: this.$router,
-      i18n,
-      render: h =>
-        h(Log, {
-          props: {
-            indexSetApi: this.indexSetApi,
-            timeRange: this.timeRange,
-            timezone: this.timezone,
-            refleshImmediate: this.refleshImmediate,
-          },
-        }),
-    });
-    await this.$nextTick();
-    window.mainComponent.$mount(this.$el.querySelector('#main'));
+    this.init();
   }
   beforeDestroy() {
     window.mainComponent.$destroy();
     window.mainComponent = null;
+  }
+
+  async init() {
+    this.loading = true;
+    const data = await this.getServiceLogInfo();
+    this.loading = false;
+    if (data) {
+      this.empty = false;
+      const spaceUid =
+      window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
+      window.space_uid = `${spaceUid}`;
+      initMonitorState({
+        bkBizId: window.bk_biz_id,
+        spaceUid,
+      });
+      initGlobalComponents();
+      window.mainComponent = new Vue({
+        store: logStore,
+        router: this.$router,
+        i18n,
+        render: h =>
+          h(Log, {
+            props: {
+              indexSetApi: this.indexSetApi,
+              timeRange: this.timeRange,
+              timezone: this.timezone,
+              refleshImmediate: this.refleshImmediate,
+            },
+          }),
+      });
+      await this.$nextTick();
+      window.mainComponent.$mount(this.$el.querySelector('#main'));
+    } else {
+      this.empty = true;
+    }
   }
 
   async indexSetApi() {
@@ -91,10 +109,59 @@ export default class MonitorRetrieve extends tsc<void> {
     return data;
   }
 
+  async getServiceLogInfo() {
+    const data = await serviceLogInfo({
+      app_name: this.viewOptions.app_name,
+      service_name: this.viewOptions.service_name,
+    })
+      .then(data => {
+        if (data) {
+          this.relatedBkBizId = data.related_bk_biz_id;
+          return data;
+        }
+        return false;
+      })
+      .catch(() => {
+        return false;
+      });
+    return data;
+  }
+
+  /**
+   * @desc 关联日志
+   */
+  handleRelated() {
+    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
+      this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)
+    }`;
+    window.open(url);
+  }
+
   render() {
     return (
       <div class='monitor-retrieve'>
-        <div id='main' />
+        {this.empty ? (
+          <div class='empty-chart-log'>
+            {this.loading ? (
+              window.i18n.tc('加载中...')
+            ) : (
+              <bk-exception type='building'>
+                <span>{this.$t('暂无关联日志')}</span>
+                <div class='text-wrap'>
+                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <bk-button
+                    theme='primary'
+                    onClick={() => this.handleRelated()}
+                  >
+                    {this.$t('日志采集')}
+                  </bk-button>
+                </div>
+              </bk-exception>
+            )}
+          </div>
+        ) : (
+          <div id='main' />
+        )}
       </div>
     );
   }

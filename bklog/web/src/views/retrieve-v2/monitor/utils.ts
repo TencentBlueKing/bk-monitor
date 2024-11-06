@@ -29,6 +29,17 @@ interface IRouterParams {
   query: Record<string, any>;
 }
 export function monitorLink(routeParams: IRouterParams) {
+  if(routeParams.name === 'retrieve') {
+    const params = {
+      ...window.mainComponent.$router.query,
+      ...window.mainComponent.$router.params,
+      ...routeParams,
+      name: 'apm-others',
+      path: '/apm/service'
+    };
+    const url = window.mainComponent.$router.resolve(params).href;
+    return url;
+  }
   const url = window.mainComponent.$router.resolve(routeParams).href;
   const link = `${window.bk_log_search_url}${url}`;
   return link;

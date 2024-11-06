@@ -1329,6 +1329,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
             : undefined /** 时间对比 */,
+        ...(this.$route.query?.addition ? { addition: this.$route.query.addition } : {}),
       },
     });
   }

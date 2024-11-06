@@ -169,6 +169,8 @@ const setRouteParams = () => {
   const query = { ...route.query, ...params };
   const resolver = new RetrieveUrlResolver({
     ...routeQueryParams.value,
+    ...route.query,
+    indexId: params.indexId,
     bizId: String(window.bk_biz_id),
     datePickerValue: store.state.indexItem.datePickerValue,
   });
