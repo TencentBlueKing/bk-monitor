@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { isEn } from '../../../../i18n/i18n';
+import { isEn } from '../../../../i18n/lang';
 
 import './log-retrieval-dialog.scss';
 

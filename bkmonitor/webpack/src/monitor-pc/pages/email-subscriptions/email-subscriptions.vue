@@ -30,7 +30,7 @@
       class="collapse-wrap"
       :title="$t('已订阅')"
       :active-name="subAcitveList"
-      @item-click="(arr) => handleItemClick(arr, 'subAcitveList')"
+      @item-click="arr => handleItemClick(arr, 'subAcitveList')"
     >
       <span
         class="header-btn"
@@ -57,8 +57,8 @@
           :outer-border="true"
           :header-border="false"
           :pagination="subscribedPagination"
-          @page-change="(page) => changelistPage(page, 'subscribed')"
-          @page-limit-change="(limit) => handlePageLimitChange(limit, 'subscribed')"
+          @page-change="page => changelistPage(page, 'subscribed')"
+          @page-limit-change="limit => handlePageLimitChange(limit, 'subscribed')"
         >
           <template v-for="(item, index) in subListColumnsMap">
             <!-- 启停状态 -->
@@ -131,27 +131,32 @@
                   :text="true"
                   :disabled="isPermissionDenied(scope.row)"
                   @click="handleToEdit(scope.row)"
-                >{{ $t('编辑') }}</bk-button>
+                  >{{ $t('编辑') }}</bk-button
+                >
                 <bk-button
                   v-show="isAllowSubscriptions(scope.row)"
                   :text="true"
                   @click="handleSubscriptions(scope.row, true)"
-                >{{ $t('订阅') }}</bk-button>
+                  >{{ $t('订阅') }}</bk-button
+                >
                 <bk-button
                   v-show="!isAllowSubscriptions(scope.row)"
                   :text="true"
                   @click="handleSubscriptions(scope.row, false)"
-                >{{ $t('取消订阅') }}</bk-button>
+                  >{{ $t('取消订阅') }}</bk-button
+                >
                 <bk-button
                   :text="true"
                   :disabled="isPermissionDenied(scope.row)"
                   @click="handleDele(scope.row, scope.$index)"
-                >{{ $t('删除') }}</bk-button>
+                  >{{ $t('删除') }}</bk-button
+                >
                 <bk-button
                   :text="true"
                   :disabled="isPermissionDenied(scope.row)"
                   @click="handleToClone(scope.row)"
-                >{{ $t('克隆') }}</bk-button>
+                  >{{ $t('克隆') }}</bk-button
+                >
               </div>
             </template>
           </bk-table-column>
@@ -218,7 +223,7 @@ import {
 import { deepClone, getCookie, transformDataKey } from 'monitor-common/utils/utils';
 import { Component, Vue } from 'vue-property-decorator';
 
-import { isEn } from '../../i18n/i18n';
+import { isEn } from '../../i18n/lang';
 
 import ListCollapse from './components/list-collapse.vue';
 // import { getReceiver } from 'monitor-api/modules/notice_group'
@@ -229,7 +234,6 @@ import TableSkeleton from '../../components/skeleton/table-skeleton';
 
 const { i18n } = window;
 const frequencyMap: string[] = [
-  ,
   i18n.tc('仅一次'),
   i18n.tc('每天'),
   i18n.tc('每周'),
@@ -436,11 +440,12 @@ export default class EmailSubscriptions extends Vue {
    * 人员信息
    */
   private getReceiver() {
-    this.subscribedLoading = true
-    return groupList({ bk_biz_id: this.$store.getters.bizId || +window.cc_biz_id }).then(res => {
-      this.groupList = res;
-    })
-    .finally(() => this.subscribedLoading = false);
+    this.subscribedLoading = true;
+    return groupList({ bk_biz_id: this.$store.getters.bizId || +window.cc_biz_id })
+      .then(res => {
+        this.groupList = res;
+      })
+      .finally(() => (this.subscribedLoading = false));
   }
 
   private handleItemClick(arr: string[], type: 'subAcitveList' | 'sendActiveList') {

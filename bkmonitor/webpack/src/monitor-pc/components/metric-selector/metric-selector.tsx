@@ -35,7 +35,7 @@ import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { Debounce, copyText, deepClone, docCookies } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
-import { isEn } from '../../i18n/i18n';
+import { isEn } from '../../i18n/lang';
 import metricTipsContentMixin from '../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from '../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
