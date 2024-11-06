@@ -29,6 +29,7 @@ from metadata.models import (
     DataSourceOption,
 )
 from metadata.models.data_link import DataLink
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import create_vm_data_link
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
@@ -310,7 +311,7 @@ def get_data_type_cluster(data_id: int) -> Dict:
 
 def report_metadata_data_link_access_metric(
     version: str,
-    status: str,
+    status: int,
     biz_id: int,
     data_id: int,
     table_id: str,
@@ -319,7 +320,7 @@ def report_metadata_data_link_access_metric(
     """
     上报接入链路相关指标
     @param version: 链路版本（V3/V4）
-    @param status: 接入状态（失败/成功） 以是否成功向bkbase发起请求为准
+    @param status: 接入状态（失败-1/成功1） 以是否成功向bkbase发起请求为准
     @param biz_id: 业务ID
     @param data_id: 数据ID
     @param table_id: 结果表ID
@@ -327,48 +328,35 @@ def report_metadata_data_link_access_metric(
     """
     try:
         logger.info("try to report metadata data link component status metric,data_id->[%s]", data_id)
-        metrics.METADATA_DATA_LINK_ACCESS_COUNT.labels(
+        metrics.METADATA_DATA_LINK_ACCESS_INFO.labels(
             version=version,
-            status=status,
             biz_id=biz_id,
             data_id=data_id,
             table_id=table_id,
             strategy=strategy,
-        )
+        ).set(status)
         metrics.report_all()
     except Exception as err:  # pylint: disable=broad-except
         logger.error("report metadata data link access metric error->[%s],data_id->[%s]", err, data_id)
         return
 
 
-def report_metadata_data_link_component_status_metric(
-    namespace: str,
-    name: str,
-    status: str,
-    biz_id: int,
-    data_link_name: str,
-):
+def report_metadata_data_link_status_info(data_link_name: str, biz_id: str, kind: str, status: str):
     """
-    上报组件状态指标
-    @param namespace: 命名空间
-    @param name: 组件名称
-    @param status: 组件状态
-    @param biz_id: 业务ID
+    上报数据链路状态信息
     @param data_link_name: 数据链路名称
+    @param biz_id: 业务ID
+    @param kind: 数据链路类型
+    @param status: 数据链路状态
     """
     try:
-        logger.info("try to report metadata data link component status metric,name->[%s]", name)
-        metrics.METADATA_DATA_LINK_COMPONENT_STATUS_COUNT.labels(
-            namespace=namespace,
-            name=name,
-            status=status,
-            biz_id=biz_id,
-            data_link_name=data_link_name,
+        logger.info("try to report metadata data link status info,data_link_name->[%s]", data_link_name)
+        status_number = DataLinkResourceStatus.get_choice_value(status)
+        metrics.METADATA_DATA_LINK_STATUS_INFO.labels(data_link_name=data_link_name, biz_id=biz_id, kind=kind).set(
+            status_number
         )
-        metrics.report_all()
-    except Exception as err:  # pylint: disable=broad-except
-        logger.error("report metadata data link component status metric error->[%s],name->[%s]", err, name)
-        return
+    except Exception as err:
+        logger.error("report metadata data link status info error->[%s],data_link_name->[%s]", err, data_link_name)
 
 
 def get_vm_cluster_id_name(
