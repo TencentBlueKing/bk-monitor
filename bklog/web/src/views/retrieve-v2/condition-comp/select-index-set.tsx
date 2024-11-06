@@ -534,7 +534,11 @@ export default class QueryStatement extends tsc<object> {
           },
         })
         .then(() => {
-          this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
+          if (window.__IS_MONITOR_APM__) {
+            this.$emit('collection');
+          } else {
+            this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
+          }
         });
     } finally {
       this.isCollectionLoading = false;
