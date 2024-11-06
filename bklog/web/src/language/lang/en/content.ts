@@ -950,4 +950,7 @@ export default {
     'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
   '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
     'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
+  暂未保留原始日志: 'The original log has not been kept yet',
+  '超出集群最大可保存天数，当前最大可保存{n}天':
+    'The maximum number of days can be preserved by the cluster, and the current maximum can be saved {n}',
 };

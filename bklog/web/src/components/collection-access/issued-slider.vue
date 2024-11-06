@@ -26,7 +26,7 @@
           class="collect-link"
         >
           {{ $t('编辑采集项') }}
-          <span style=" padding: 3px 9px;background-color: #f0f1f5">
+          <span style="padding: 3px 9px; background-color: #f0f1f5">
             <span class="bk-icon bklog-icon bklog-position"></span>
             {{ collectionName }}
           </span>
@@ -325,7 +325,7 @@
       },
       applyData: {
         type: Object,
-        require: true,
+        default: () => {},
       },
     },
     data() {
@@ -601,9 +601,6 @@
        *  集群list，与轮询共用
        */
       async requestIssuedClusterList(isPolling = '') {
-        this.tableListAll.splice(0, this.tableListAll.length);
-        this.tableList.splice(0, this.tableList.length);
-
         if (!isPolling) {
           this.loading = true;
         }
