@@ -98,6 +98,16 @@
     /* stylelint-disable-next-line declaration-no-important */
     padding: 0 !important;
   }
+
+  .favorite-query-list {
+    background-color: #ffffff;
+  }
+
+  .bk-form .bk-label,
+  .bk-form-radio .bk-radio-text,
+  .bk-form-checkbox .bk-checkbox-text {
+    font-size: 12px;
+  }
 }
 
 .bk-log-drag {

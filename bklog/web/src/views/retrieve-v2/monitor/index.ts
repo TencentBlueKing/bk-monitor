@@ -24,37 +24,26 @@
 * IN THE SOFTWARE.
 */
 window.__IS_MONITOR_APM__ = true
+import Vue from 'vue';
 
 import LogButton from '@/components/log-button';
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
 import i18n from '@/language/i18n';
 
-import http from '../../../api';
 import MonitorRetrieve from './monitor.vue';
 const logStore = useStore();
 const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);
 };
-const initDevelopmentLog = () => {
-  return http.request('meta/getEnvConstant').then(res => {
-    const { data } = res;
-    Object.keys(data).forEach(key => {
-      window[key] = data[key];
-    });
-    window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
-    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
-    window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
-    window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.BK_DOC_URL = JSON.parse(data.BK_DOC_URL); // sql-query-options 使用
-  })
+const initGlobalComponents = () => {
+  Vue.component('JsonFormatWrapper', JsonFormatWrapper);
+  Vue.component('LogButton', LogButton);
 }
 export {
   MonitorRetrieve,
-  initMonitorState,
-  initDevelopmentLog,
   logStore,
   i18n,
-  LogButton,
-  JsonFormatWrapper
+  initMonitorState,
+  initGlobalComponents
 }
