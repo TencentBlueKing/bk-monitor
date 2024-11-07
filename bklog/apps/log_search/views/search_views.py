@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import csv
 import json
 import math
 from urllib import parse
@@ -53,6 +54,7 @@ from apps.log_search.constants import (
     RESULT_WINDOW_COST_TIME,
     ExportStatus,
     ExportType,
+    FileType,
     IndexSetType,
     SearchScopeEnum,
 )
@@ -540,11 +542,21 @@ class SearchViewSet(APIViewSet):
         )
         result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
-        for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
+
+        file_type = data["file_type"]
+        if file_type == FileType.CSV.value:
+            fieldnames = result_list[0].keys() if result_list else []
+            csv_writer = csv.DictWriter(output, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            for item in result_list:
+                csv_writer.writerow(item)
+        else:
+            for item in result_list:
+                output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
         response = HttpResponse(output.getvalue())
         response["Content-Type"] = "application/x-msdownload"
-        file_name = f"bk_log_search_{index}.txt"
+        # response["Content-Type"] = "text/csv"
+        file_name = f"bk_log_search_{index}.{file_type}"
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
         response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
@@ -574,6 +586,56 @@ class SearchViewSet(APIViewSet):
         user_operation_record.delay(operation_record)
 
         return response
+
+    @detail_route(methods=["POST"], url_path="quick_export")
+    def quick_export(self, request, index_set_id=None):
+        """
+        @api /search/index_set/$index_set_id/async_export/ 15-搜索-异步导出日志
+        @apiDescription 异步下载检索日志
+        @apiName async_export
+        @apiGroup 11_Search
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam host_scopes [Dict] 检索模块ip等信息
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam interval [String] 匹配规则
+        @apiParamExample {Json} 请求参数
+        {
+            "bk_biz_id":"215",
+            "keyword":"*",
+            "time_range":"5m",
+            "start_time":"2021-06-08 11:02:21",
+            "end_time":"2021-06-08 11:07:21",
+            "host_scopes":{
+                "modules":[
+
+                ],
+                "ips":""
+            },
+            "addition":[
+
+            ],
+            "begin":0,
+            "size":188,
+            "interval":"auto",
+            "isTrusted":true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "task_id": 1,
+                "prompt": "任务提交成功，系统处理后将通过邮件通知，请留意！"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return self._export(request, index_set_id, is_quick_export=True)
 
     @detail_route(methods=["POST"], url_path="async_export")
     def async_export(self, request, index_set_id=None):
@@ -623,6 +685,9 @@ class SearchViewSet(APIViewSet):
             "message": ""
         }
         """
+        return self._export(request, index_set_id, is_quick_export=False)
+
+    def _export(self, request, index_set_id, is_quick_export):
         data = self.params_valid(SearchExportSerializer)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
@@ -636,7 +701,8 @@ class SearchViewSet(APIViewSet):
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
             export_fields=data["export_fields"],
-        ).async_export()
+            file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
