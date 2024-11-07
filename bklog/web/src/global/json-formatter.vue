@@ -12,7 +12,6 @@
             >{{ item.name }}</span
           ></span
         >
-        <span class="field-split">:</span>
         <span
           class="field-value"
           :data-field-name="item.name"
@@ -29,7 +28,6 @@
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
-
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -92,7 +90,7 @@
       return convertToObject(parseTableRowData(props.jsonValue, field.field_name));
     }
 
-    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue,field.field_name) : props.jsonValue;
+    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue, field.field_name) : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
@@ -144,7 +142,7 @@
     color: var(--table-fount-color);
 
     .bklog-root-field {
-      margin-right: 2px;
+      margin-right: 4px;
       line-height: 20px;
 
       &:not(:first-child) {
@@ -159,6 +157,10 @@
           padding: 0 2px;
           background: #e6e6e6;
           border-radius: 2px;
+        }
+
+        &::after {
+          content: ':';
         }
       }
 
@@ -216,10 +218,6 @@
     &.is-json {
       display: inline-block;
       width: 100%;
-
-      .bklog-root-field {
-        display: inline-flex;
-      }
     }
 
     &.is-wrap-line {
