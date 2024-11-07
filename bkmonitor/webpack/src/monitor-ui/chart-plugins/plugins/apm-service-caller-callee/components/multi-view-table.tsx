@@ -467,7 +467,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
         )
       );
       return;
@@ -513,7 +513,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee`
         )
       );
       return;
@@ -524,7 +524,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
         )
       );
       return;
