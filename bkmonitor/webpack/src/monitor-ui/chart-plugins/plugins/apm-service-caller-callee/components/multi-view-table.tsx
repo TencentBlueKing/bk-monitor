@@ -635,7 +635,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                       </bk-popover>
                     );
                   }
-                  if (isHas && ['service', 'topo'].includes(opt.value)) {
+                  if (isHas && ['service', 'topo', 'trace'].includes(opt.value)) {
                     const isClick = this.serviceList.includes(row[opt.tags[0]]);
                     return (
                       <span
@@ -662,17 +662,17 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                       </span>
                     );
                   }
-                  if (isHas && opt.value === 'trace') {
-                    return (
-                      <span
-                        key={opt.value}
-                        class={['operation-item']}
-                        onClick={() => this.handleFieldOperations(opt, row, true, intersection[0])}
-                      >
-                        {opt.text}
-                      </span>
-                    );
-                  }
+                  // if (isHas && opt.value === 'trace') {
+                  //   return (
+                  //     <span
+                  //       key={opt.value}
+                  //       class={['operation-item']}
+                  //       onClick={() => this.handleFieldOperations(opt, row, true, intersection[0])}
+                  //     >
+                  //       {opt.text}
+                  //     </span>
+                  //   );
+                  // }
                 })}
               </div>
             );
