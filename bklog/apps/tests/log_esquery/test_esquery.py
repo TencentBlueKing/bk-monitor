@@ -62,6 +62,9 @@ SEARCH_DICT = {
     "aggs": None,
     "highlight": None,
     "debug": True,
+    "slice_search": False,
+    "slice_id": 0,
+    "slice_max": 0,
 }
 
 SCROLL_DICT = {
@@ -153,7 +156,7 @@ ES_QUERY_INDICES = {
 CLUSTER_INFOS = {
     "2_bklog.test3333": {
         "cluster_config": {
-            "domain_name": "1.1.1.1",
+            "domain_name": "x.x.x.x",
             "port": 10000,
             "version": "1.0",
             "cluster_id": 231,
@@ -345,6 +348,9 @@ SERIALIZER_RESULT = {
     "track_total_hits": True,
     "scroll": None,
     "include_nested_fields": False,
+    "slice_search": False,
+    "slice_id": 0,
+    "slice_max": 0,
 }
 
 
