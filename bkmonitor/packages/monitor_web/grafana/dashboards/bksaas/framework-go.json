@@ -1385,7 +1385,7 @@
 
           ],
           "refId":"A",
-          "source":"sum((gin_request_duration_sum{namespace=~\"$namespace\",bk_module=\"$bk_module\", uri=~\".\"}) / (gin_request_duration_count{namespace=~\"$namespace\",bk_module=\"$bk_module\", uri=~\".\"})) by (uri) ",
+          "source":"avg((gin_request_duration_sum{namespace=~\"$namespace\",bk_module=\"$bk_module\", uri=~\".\"}) / (gin_request_duration_count{namespace=~\"$namespace\",bk_module=\"$bk_module\", uri=~\".\"})) by (uri) ",
           "step":"",
           "type":"range"
         }
@@ -4833,7 +4833,7 @@
   },
   "timezone":"default",
   "title":"bksaas/framework-go",
-  "version":49,
+  "version":50,
   "weekStart":"",
   "__inputs":[
     {
