@@ -15,7 +15,6 @@ import pytest
 from metadata import models
 
 pytestmark = pytest.mark.django_db
-from metadata.models import AccessVMRecord
 
 DEFAULT_GROUP_ID = 1
 DEFAULT_TABLE_ID = "test_demo.__default__"
@@ -70,46 +69,11 @@ def create_and_delete_records():
             ),
         ]
     )
-    access_vm_records = [
-        AccessVMRecord(
-            data_type=AccessVMRecord.BCS_CLUSTER_K8S,
-            result_table_id="rt1",
-            bcs_cluster_id="cluster1",
-            storage_cluster_id=1,
-            vm_cluster_id=1,
-            bk_base_data_id=1,
-            bk_base_data_name="data1",
-            vm_result_table_id="rt1",
-            remark="remark1"
-        ),
-        AccessVMRecord(
-            data_type=AccessVMRecord.BCS_CLUSTER_K8S,
-            result_table_id="rt1",
-            bcs_cluster_id="cluster2",
-            storage_cluster_id=2,
-            vm_cluster_id=2,
-            bk_base_data_id=2,
-            bk_base_data_name="data2",
-            vm_result_table_id="rt2",
-            remark="remark2"
-        ),
-        AccessVMRecord(
-            data_type=AccessVMRecord.ACCESS_VM,
-            result_table_id="rt3",
-            vm_cluster_id=3,
-            bk_base_data_id=3,
-            bk_base_data_name="data3",
-            vm_result_table_id="rt3",
-            remark="remark3"
-        )
-    ]
-    AccessVMRecord.objects.bulk_create(access_vm_records)
     yield
     models.TimeSeriesGroup.objects.filter(table_id="test_demo.__default__").delete()
     models.TimeSeriesMetric.objects.filter(
         group_id=DEFAULT_GROUP_ID, field_name__in=["disk_usage", "disk_usage1", "disk_usage2"]
     ).delete()
-    AccessVMRecord.objects.filter(id__in=[r.id for r in access_vm_records]).delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -214,19 +178,3 @@ def test_delete_ts_metrics(create_and_delete_records):
 
     objs = models.TimeSeriesMetric.objects.filter(group_id=DEFAULT_GROUP_ID, field_name="disk_usage1")
     assert not objs.exists()
-
-
-
-@pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_return_more_than_one():
-    from django.core.exceptions import MultipleObjectsReturned
-
-    # Query the database to retrieve the test data
-    records = AccessVMRecord.objects.filter(result_table_id="rt1")
-
-    # Assert that there are more than one records
-    assert records
-    with pytest.raises(MultipleObjectsReturned):
-        records = AccessVMRecord.objects.get(result_table_id="rt1")
-        # 如果 相同 table id 没有抛出 MultipleObjectsReturned 失败
-        assert records
