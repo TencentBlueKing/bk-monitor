@@ -287,4 +287,5 @@ onMounted(() => {
 </template>
 <style lang="scss">
 @import './monitor.scss';
+@import '../segment-pop.scss';
 </style>
