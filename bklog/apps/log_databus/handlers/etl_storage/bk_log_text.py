@@ -64,14 +64,6 @@ class BkLogTextEtlStorage(EtlStorage):
             if es_version.startswith("5.")
             else {"es_type": "text"},
         }
-        # 加入大小写敏感和分词配置
-        original_text_field["option"].update(
-            {
-                "is_case_sensitive": etl_params.get("original_text_is_case_sensitive", False),
-                "tokenize_on_chars": etl_params.get("original_text_tokenize_on_chars", ""),
-            }
-        )
-
         if es_analyzer:
             original_text_field["option"]["es_analyzer"] = es_analyzer
 

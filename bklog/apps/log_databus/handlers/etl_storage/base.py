@@ -257,13 +257,6 @@ class EtlStorage(object):
                 if es_version.startswith("5.")
                 else {"es_type": "text"},
             }
-            # 加入大小写敏感和分词配置
-            original_text_field["option"].update(
-                {
-                    "is_case_sensitive": etl_params.get("original_text_is_case_sensitive", False),
-                    "tokenize_on_chars": etl_params.get("original_text_tokenize_on_chars", ""),
-                }
-            )
             if es_analyzer:
                 original_text_field["option"]["es_analyzer"] = es_analyzer
             field_list.append(original_text_field)
@@ -368,9 +361,6 @@ class EtlStorage(object):
                     if analyzer_name:
                         field_option["es_analyzer"] = analyzer_name
 
-            # 加入大小写敏感和分词配置
-            field_option["is_case_sensitive"] = field.get("is_case_sensitive", False)
-            field_option["tokenize_on_chars"] = field.get("tokenize_on_chars", "")
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
                 field_option["es_include_in_all"] = True
@@ -674,12 +664,14 @@ class EtlStorage(object):
         return True
 
     @classmethod
-    def parse_result_table_config(cls, result_table_config, result_table_storage=None):
+    def parse_result_table_config(cls, result_table_config, result_table_storage=None, final_fields_dict=None):
         """
         根据meta配置返回前端格式
         :param result_table_config metadata_get_result_table
         :param result_table_storage metadata_get_result_table_storage
+        :param 从mappings拉取的的字段信息
         """
+        final_fields_dict = final_fields_dict or {}
 
         # 存储配置 && 清洗配置
         collector_config = {"etl_params": result_table_config.get("option", {})}
@@ -700,6 +692,17 @@ class EtlStorage(object):
         # log clustering fields
         log_clustering_fields = cls._get_log_clustering_default_fields()
         for field in result_table_config["field_list"]:
+            # 在option中加入大小写敏感和分词配置
+            field["option"] = field.get("option", {})
+            final_field_dict = final_fields_dict.get(field["field_name"])
+            if final_field_dict:
+                field["option"].update(
+                    {
+                        "is_case_sensitive": final_field_dict.get("is_case_sensitive", "false"),
+                        "tokenize_on_chars": final_field_dict.get("tokenize_on_chars", ""),
+                    }
+                )
+
             # 判断是不是标准字段
             if not field.get("is_built_in", False):
                 field["is_built_in"] = True if field["field_name"].lower() in built_in_fields else False
@@ -709,7 +712,7 @@ class EtlStorage(object):
                 continue
 
             # 如果有指定别名，则需要调转位置(field_name：ES入库的字段名称；alias_name：数据源的字段名称)
-            field_option = field.get("option", {})
+            field_option = field["option"]
             if field_option.get("real_path"):
                 if cls.path_separator_node_name in field_option["real_path"]:
                     field["alias_name"] = field_option["real_path"].replace(f"{cls.path_separator_node_name}.", "")
