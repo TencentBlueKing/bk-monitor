@@ -133,14 +133,16 @@ def process_stage_string(query_string):
 
 def process_metric_string(query_string):
     """
-    将query_string中的指标ID信息替换为event.metric,并给value加上*
+    将query_string中的指标ID信息替换为event.metric，并给value加上*
     """
-    query_string = query_string.replace("event.metric", "指标ID")
-    pattern = r"指标ID\s*:\s*([^\s+]*)"
-    for _ in re.findall(pattern, query_string, re.IGNORECASE):
-        match = re.search(pattern, query_string, re.IGNORECASE)
-        start, end = match.span()
-        value = re.sub(r"\"|'", '', match.group(1)) + "*"
-        query_string = query_string[:start] + f"event.metric : {value}" + query_string[end:]
-    query_string = re.sub(r"\s+", " ", query_string).strip()
+
+    def replacer(match):
+        value = match.group('value').replace('"', '').replace("'", "")
+        if not value.endswith('*'):
+            value += '*'
+        return f'event.metric : {value}'
+
+    pattern = r"(指标ID|event.metric)\s*:\s*(?P<value>[^\s+]*)"
+    query_string = re.sub(pattern, replacer, query_string, re.IGNORECASE)
+    query_string = re.sub(r'\s+', ' ', query_string).strip()
     return query_string
