@@ -183,8 +183,6 @@ const setRouteParams = () => {
 
 const init = () => {
   const result = handleTransformToTimestamp(props.timeRange);
-  
-  // console.log(JSON.parse)
   const resolver = new RouteUrlResolver({ route });
   store.commit('updateIndexItem', { ...resolver.convertQueryToStore(), start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, });
   store.commit('updateIndexId', '');
