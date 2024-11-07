@@ -129,6 +129,7 @@ export default {
         tag: 'union-source',
         width: 230,
       },
+      lazyRoot: null,
     };
   },
   computed: {
@@ -223,6 +224,11 @@ export default {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
+    },
+    tableShowRowIndex: {
+      handler() {
+        console.log('');
+      },
     },
   },
   methods: {
@@ -491,5 +497,8 @@ export default {
         }
       }, 200);
     },
+  },
+  mounted() {
+    this.lazyRoot = this.$el.parentNode;
   },
 };
