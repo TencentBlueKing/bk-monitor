@@ -50,14 +50,20 @@
     };
   });
 
-  useIntersectionObserver(lazyRenderCell, entry => {
-    if (entry.isIntersecting) {
+  // useIntersectionObserver(lazyRenderCell, entry => {
+  //   if (entry.isIntersecting) {
+  //     isVisible.value = true;
+  //   } else {
+  //     if (props.visibleOnly) {
+  //       isVisible.value = false;
+  //     }
+  //   }
+  // });
+
+  onMounted(() => {
+    requestAnimationFrame(() => {
       isVisible.value = true;
-    } else {
-      if (props.visibleOnly) {
-        isVisible.value = false;
-      }
-    }
+    });
   });
 </script>
 

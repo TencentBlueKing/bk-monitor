@@ -141,7 +141,7 @@ export default ({ fields, onSegmentClick }) => {
       }
     });
 
-    initRootOperator(depth);
+    return initRootOperator(depth);
     // .then(() => {
     //   rootFieldOperator.values().forEach(val => {
     //     if (val.isJson) {
