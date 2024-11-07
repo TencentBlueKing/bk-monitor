@@ -15,7 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.core.cache import cache
 from django.db.models import Q
@@ -387,9 +387,8 @@ class DynamicUnifyQueryResource(Resource):
             for i in response.get("series", []):
                 if "dimensions" not in i:
                     continue
-                for dimension in dimension_fields:
-                    if dimension not in i["dimensions"]:
-                        i["dimensions"][dimension] = ""
+                # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
+                i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
 
         return response
 
@@ -3015,16 +3014,21 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
+                growth_rate: Optional[float] = None
+
                 if record[baseline] == 0 and record[alias] == 0:
                     # 两个数据都为 0 时，设定增长率为 0%
-                    record.setdefault("growth_rates", {})[alias] = 0
-                    continue
-                elif not record[alias] or record[baseline] is None:
-                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
-                    record.setdefault("growth_rates", {})[alias] = None
-                    continue
+                    growth_rate = 0
+                elif not record[alias] and record[baseline]:
+                    # 往期无数据，同比正增长 100%
+                    growth_rate = 100
+                elif record[alias] and not record[baseline]:
+                    # 当前无数据，同比负增长 100%
+                    growth_rate = -100
+                elif record[alias] and record[baseline]:
+                    growth_rate = (record[baseline] - record[alias]) / record[alias] * 100
 
-                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
+                record.setdefault("growth_rates", {})[alias] = growth_rate
 
     @classmethod
     def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
@@ -3138,14 +3142,52 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
         group_key_result_map: Dict[Tuple, Any] = {}
         time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
         for record in records:
-            # 时间偏移场景，需要还原到当前时间
-            record["time"] = record["_time_"] // 1000 + time_offset_sec
+            # 时间偏移场景，需要转为字符串时间
+            record["time"] = datetime.datetime.fromtimestamp(record["_time_"] // 1000 + time_offset_sec).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
             group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
         processed_records: List[Dict[str, Any]] = []
         for group_key, result in group_key_result_map.items():
             processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _display_format(
+        cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        total: float = 0
+        processed_records: List[Dict[str, Any]] = []
+        for record in records:
+            # 计算结果保留两位小数，同时对非数值类型进行异常兜底，默认设置为 0
+            value: Union[int, float] = 0
+            try:
+                value: Union[int, float] = round(record["result"], 2)
+            except Exception:  # noqa
+                pass
+
+            # 请求量必须是整型
+            if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+                value = int(value)
+
+            total += value
+
+            # tooltips 按 GroupBy 顺序拼接
+            name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
+
+            processed_records.append({"name": name, "value": value})
+
+        for record in processed_records:
+            # 分母为 0，占比也设置为 0
+            if total == 0:
+                record["proportion"] = 0
+                continue
+
+            record["proportion"] = round((record["value"] / total) * 100, 2)
+
         return processed_records
 
     @classmethod
@@ -3160,6 +3202,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
 
     def perform_request(self, validated_request_data):
         group_name: str = validated_request_data["metric_group_name"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
         time_shift: str = validated_request_data.get("time_shift") or "0s"
         group_fields: List[str] = validated_request_data.get("group_by") or []
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
@@ -3173,14 +3216,14 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
         )
         records: List[Dict[str, Any]] = group.handle(
             validated_request_data["method"],
-            qs_type=validated_request_data["metric_cal_type"],
+            qs_type=metric_cal_type,
             limit=validated_request_data["limit"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
         )
         records = self._format(time_shift, group_fields, records)
 
-        result: Dict[str, Any] = {"dimensions_list": records}
+        result: Dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
         if validated_request_data.get("with_filter_dict"):
             result["extra_filter_dict"] = self._get_extra_filter_dict(records)
         return result

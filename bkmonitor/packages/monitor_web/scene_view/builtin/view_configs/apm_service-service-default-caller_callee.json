@@ -46,7 +46,7 @@
                   "where": [
                     {
                       "key": "${server}",
-                      "method": "eq",
+                      "method": "${server_filter_method}",
                       "value": [
                         "${service_name}"
                       ],
@@ -77,7 +77,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -122,7 +122,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -187,7 +187,7 @@
                   "where": [
                     {
                       "key": "${server}",
-                      "method": "eq",
+                      "method": "${server_filter_method}",
                       "value": [
                         "${service_name}"
                       ],
@@ -233,7 +233,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -280,7 +280,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -325,7 +325,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -372,7 +372,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -422,7 +422,7 @@
                   "where": [
                     {
                       "key": "${server}",
-                      "method": "eq",
+                      "method": "${server_filter_method}",
                       "value": [
                         "${service_name}"
                       ],
@@ -468,7 +468,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -515,7 +515,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -560,7 +560,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -607,7 +607,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -625,6 +625,17 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
+            "enable_panels_selector": true,
+            "child_panels_selector_variables": [
+              {
+                "id": "timeout_rate",
+                "code_type": "timeout"
+              },
+              {
+                "id": "exception_rate",
+                "code_type": "exception"
+              }
+            ],
             "is_support_group_by": true,
             "is_support_compare": true
           }
@@ -658,7 +669,7 @@
                   "where": [
                     {
                       "key": "${server}",
-                      "method": "eq",
+                      "method": "${server_filter_method}",
                       "value": [
                         "${service_name}"
                       ],
@@ -704,7 +715,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -743,7 +754,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -788,7 +799,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -827,7 +838,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -902,7 +913,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -948,7 +959,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -1002,7 +1013,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -1048,7 +1059,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -1102,7 +1113,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -1148,7 +1159,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -1202,7 +1213,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -1248,7 +1259,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -1312,7 +1323,7 @@
                     "where": [
                       {
                         "key": "${server}",
-                        "method": "eq",
+                        "method": "${server_filter_method}",
                         "value": [
                           "${service_name}"
                         ],
@@ -1349,7 +1360,7 @@
                       "where": [
                         {
                           "key": "${server}",
-                          "method": "eq",
+                          "method": "${server_filter_method}",
                           "value": [
                             "${service_name}"
                           ],
@@ -1370,6 +1381,90 @@
             "is_support_group_by": false,
             "is_support_compare": false
           }
+        }
+      ],
+      "dimension_panels": [
+        {
+          "id": "dimension_pie",
+          "title": "维度值分布",
+          "type": "caller-pie-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "${server_filter_method}",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dimension_bar",
+          "title": "维度值分布",
+          "type": "caller-bar-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "${server_filter_method}",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}"
+                  }
+                }
+              }
+            }
+          ]
         }
       ],
       "options": {
@@ -1532,7 +1627,7 @@
                     "caller": {
                       "field": "kind",
                       "value": [
-                        3,
+                        2,
                         5
                       ]
                     },
@@ -1684,7 +1779,7 @@
               ],
               "support_operations": [
                 {
-                  "text": "分析",
+                  "text": "主调",
                   "value": "callee",
                   "tags": [
                     "caller_service",
@@ -1726,7 +1821,7 @@
                     "callee": {
                       "field": "kind",
                       "value": [
-                        2,
+                        3,
                         4
                       ]
                     },
@@ -1814,7 +1909,7 @@
               "where": [
                 {
                   "key": "${server}",
-                  "method": "eq",
+                  "method": "${server_filter_method}",
                   "value": [
                     "${service_name}"
                   ],
@@ -1850,19 +1945,19 @@
               },
               {
                 "value": "success_rate",
-                "text": "成功率"
+                "text": "成功率（%）"
               },
               {
                 "value": "timeout_rate",
-                "text": "超时率"
+                "text": "超时率（%）"
               },
               {
                 "value": "exception_rate",
-                "text": "异常率"
+                "text": "异常率（%）"
               },
               {
                 "value": "avg_duration",
-                "text": "平均耗时"
+                "text": "平均耗时（ms）"
               }
             ],
             "data": {
@@ -1870,12 +1965,12 @@
               "method": "top_n",
               "metric_group_name": "trpc",
               "metric_cal_type": "${metric_cal_type}",
-              "limit": "${limit}",
+              "limit": 30,
               "time_shift": "${time_shift}",
               "where": [
                 {
                   "key": "${server}",
-                  "method": "eq",
+                  "method": "${server_filter_method}",
                   "value": [
                     "${service_name}"
                   ],
@@ -1900,7 +1995,7 @@
               "where": [
                 {
                   "key": "${server}",
-                  "method": "eq",
+                  "method": "${server_filter_method}",
                   "value": [
                     "${service_name}"
                   ],

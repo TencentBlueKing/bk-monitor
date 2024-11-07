@@ -5,13 +5,15 @@ from django.db import migrations
 
 def update_data_label(apps, schema_editor):
     ResultTable = apps.get_model('metadata', 'ResultTable')
-    ResultTable.objects.filter(table_id__in=['process_perf', 'process_port']).update(data_label='process')
+    ResultTable.objects.filter(table_id__in=['process.perf', 'process.port']).update(data_label='process')
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('metadata',
-         '0192_bkbaseresulttable_conditionalsinkconfig_databusconfig_dataidconfig_datalink_vmresulttableconfig_vmst'),
+        (
+            'metadata',
+            '0192_bkbaseresulttable_conditionalsinkconfig_databusconfig_dataidconfig_datalink_vmresulttableconfig_vmst',
+        ),
     ]
 
     operations = [

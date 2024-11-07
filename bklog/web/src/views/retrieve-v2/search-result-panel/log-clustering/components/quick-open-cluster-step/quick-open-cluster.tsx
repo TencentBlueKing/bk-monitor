@@ -53,8 +53,6 @@ export default class QuickOpenCluster extends tsc<IProps> {
   formData = {
     clustering_fields: '',
     filter_rules: [],
-    new_cls_strategy_enable: true,
-    normal_strategy_enable: false,
   };
   cloneFormData = null;
   confirmLading = false;
@@ -107,8 +105,6 @@ export default class QuickOpenCluster extends tsc<IProps> {
         const data = {
           bk_biz_id: this.bkBizId,
           clustering_fields: this.formData.clustering_fields,
-          new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
-          normal_strategy_enable: this.formData.normal_strategy_enable,
           filter_rules: this.formData.filter_rules
             .filter(item => item.value.length)
             .map(item => ({
@@ -271,33 +267,6 @@ export default class QuickOpenCluster extends tsc<IProps> {
               retrieve-params={this.retrieveParams}
               total-fields={this.totalFields}
             ></FilterRule>
-          </bk-form-item>
-          <bk-form-item
-            label={$i18n.t('告警配置')}
-            property='threshold'
-          >
-            <div class='cluster-set'>
-              <bk-checkbox v-model={this.formData.new_cls_strategy_enable}>
-                {$i18n.t('开启新类告警')}
-                <i
-                  class='log-icon icon-help'
-                  v-bk-tooltips={{
-                    content: $i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增'),
-                    placements: ['top'],
-                  }}
-                ></i>
-              </bk-checkbox>
-              <bk-checkbox v-model={this.formData.normal_strategy_enable}>
-                {$i18n.t('开启数量突增告警')}
-                <i
-                  class='log-icon icon-help'
-                  v-bk-tooltips={{
-                    content: $i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险'),
-                    placements: ['top'],
-                  }}
-                ></i>
-              </bk-checkbox>
-            </div>
           </bk-form-item>
           {/* <bk-form-item
             label={$i18n.t('告警屏蔽时间')}

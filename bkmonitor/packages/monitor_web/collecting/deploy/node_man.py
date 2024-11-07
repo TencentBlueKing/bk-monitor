@@ -508,6 +508,37 @@ class NodeManInstaller(BaseInstaller):
         self.collect_config.deployment_config.task_ids = [result["task_id"]]
         self.collect_config.deployment_config.save()
 
+    def run(self, action: str = None, scope: Dict[str, Any] = None):
+        """
+        执行插件采集
+        :param ACTION: 操作类型 INSTALL/UNINSTALL/START/STOP
+        """
+        subscription_id = self.collect_config.deployment_config.subscription_id
+
+        # 如果没有订阅任务ID，则直接返回
+        if not subscription_id:
+            return
+
+        # 如果没有指定操作类型，则默认为安装
+        if not action:
+            action = "INSTALL"
+        else:
+            action = action.upper()
+
+        # 执行采集配置
+        subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
+        params = {
+            "subscription_id": subscription_id,
+            "actions": {step["id"]: action for step in subscription_params["steps"]},
+        }
+
+        # 如果有指定范围，则只执行指定范围
+        if scope:
+            params["scope"] = scope.copy()
+            params["scope"]["bk_biz_id"] = self.collect_config.bk_biz_id
+
+        api.node_man.run_subscription(**params)
+
     def retry(self, instance_ids: List[int] = None):
         """
         重试插件采集，如果没有指定实例，则啊重试失败的实例

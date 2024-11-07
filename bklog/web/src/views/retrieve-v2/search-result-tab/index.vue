@@ -12,7 +12,7 @@
   });
   const emit = defineEmits(['input']);
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList?.find(item => item.index_set_id === store.state.indexId),
+    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
   const isAiopsToggle = computed(() => {
