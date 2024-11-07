@@ -113,6 +113,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
+  simpleLoading = false;
 
   created() {
     this.curDimensionKey = 'request_total';
@@ -520,6 +521,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   async getSimpleList(field, value) {
     const { kind } = this.dimensionParam;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    this.simpleLoading = true;
     const data = await getFieldOptionValues({
       app_name: this.appName,
       // 主调 -> 查被调服务候选值
@@ -538,6 +540,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         },
       ],
     });
+    this.simpleLoading = false;
     this.simpleList = data.map(item => ({
       isClick: this.serviceList.includes(item.value),
       ...item,
@@ -592,6 +595,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 {this.supportOperations.map(opt => {
                   const intersection = Array.from(new Set(opt.tags.filter(item => set1.has(item)))) || [];
                   const isHas = intersection.length > 0;
+                  const { kind } = this.dimensionParam;
+                  const pre = kind === 'callee' ? this.$t('被调') : this.$t('主调');
+                  const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
                   if (isHas && opt.value === 'callee') {
                     return (
                       <bk-popover
@@ -602,9 +608,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
                         <span>{opt.text}</span>
-                        <div slot='content'>
-                          <span>{this.$t('查看当前主调Service在被调分析的数据')}</span>
-                          <div>
+                        <div
+                          class='simple-list'
+                          slot='content'
+                        >
+                          <span>{this.$t(`查看当前${pre}Service在${after}分析的数据`)}</span>
+                          <div
+                            class='simple-list-item'
+                            v-bkloading={{ isLoading: this.simpleLoading, theme: 'primary', size: 'mini' }}
+                          >
                             {this.simpleList.map(item => (
                               <div
                                 key={item.value}

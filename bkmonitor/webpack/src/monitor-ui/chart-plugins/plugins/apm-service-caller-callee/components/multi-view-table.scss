@@ -360,4 +360,15 @@
       cursor: not-allowed;
     }
   }
+  .simple-list {
+    width: 100%;
+    min-height: 35px;
+  }
+  .simple-list-item {
+    width: 100%;
+    min-height: 20px;
+    .bk-loading {
+      top: 10px;
+    }
+  }
 }
