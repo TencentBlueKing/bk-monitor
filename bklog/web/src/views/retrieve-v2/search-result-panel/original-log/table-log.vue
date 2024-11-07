@@ -360,6 +360,8 @@
 
           &.bklog-result-list-col-index {
             .cell {
+              padding: 0;
+
               div {
                 padding: 8px 0;
                 line-height: 20px;

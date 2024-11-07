@@ -63,7 +63,6 @@
       <template v-if="tableShowRowIndex">
         <bk-table-column
           type="index"
-          :width="100"
           class-name="bklog-result-list-col-index"
         ></bk-table-column>
       </template>
