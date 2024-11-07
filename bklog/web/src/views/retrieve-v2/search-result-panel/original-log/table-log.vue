@@ -403,7 +403,7 @@
           }
 
           tr {
-            content-visibility: auto;
+            // content-visibility: auto;
           }
         }
 
