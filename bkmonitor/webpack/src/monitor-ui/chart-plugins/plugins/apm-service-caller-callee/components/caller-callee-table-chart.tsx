@@ -240,6 +240,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     });
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
+    const timeParams = {
+      start_time: this.pointTime?.startTime || startTime,
+      end_time: this.pointTime?.endTime || endTime,
+    };
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
@@ -249,8 +253,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: this.pointTime?.startTime || startTime,
-        end_time: this.pointTime?.endTime || endTime,
+        ...timeParams,
+        // start_time: this.pointTime?.startTime || startTime,
+        // end_time: this.pointTime?.endTime || endTime,
       },
     };
     newParams.where = replaceRegexWhere([
@@ -259,6 +264,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.pointWhere,
       // ...this.drillWhere,
     ]);
+    this.dimensionParam = { ...this.dimensionParam, whereParams: newParams.where, timeParams };
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;

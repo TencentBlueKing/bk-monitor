@@ -144,7 +144,7 @@
       color: #3a84ff;
       cursor: pointer;
       .operation-item {
-        margin-left: 6px;
+        margin-left: 12px;
         cursor: pointer;
         &.disabled {
           color: #c4c6cc;
@@ -293,7 +293,7 @@
       height: 300px;
     }
 
-    .tips {
+    .multi-tips {
       padding-left: 24px;
       margin-bottom: 8px;
       font-size: 12px;
