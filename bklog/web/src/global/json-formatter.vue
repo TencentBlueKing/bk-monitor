@@ -32,7 +32,7 @@
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  import jsonEditorTask from '../global/utils/json-editor-task';
+  // import jsonEditorTask from '../global/utils/json-editor-task';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -149,7 +149,7 @@
       if (isIntersecting.value) {
         setExpand(depth.value);
       } else {
-        jsonEditorTask(setExpand, [depth.value]);
+        isEditorInit.value = false;
       }
     },
   );
