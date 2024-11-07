@@ -15,10 +15,18 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from core.drf_resource import api
+
 
 class ChatSerializer(serializers.Serializer):
     session_id = serializers.CharField(required=False, allow_blank=True, default="")
     input = serializers.CharField(required=True, allow_blank=False)
+
+
+class ChatV2Serializer(serializers.Serializer):
+    query = serializers.CharField(required=True, allow_blank=False)
+    type = serializers.CharField(required=True, allow_blank=False)
+    polish = serializers.BooleanField(required=False, default=True)
 
 
 class ChatViewSet(viewsets.GenericViewSet):
@@ -53,3 +61,24 @@ class ChatViewSet(viewsets.GenericViewSet):
         sr.headers["Cache-Control"] = "no-cache"
         sr.headers["X-Accel-Buffering"] = "no"
         return sr
+
+    @action(methods=['post'], detail=False, url_path='chat_v2')
+    def chat_v2(self, request, *args, **kwargs):
+        # 如果没有配置 AIDEV 接口地址，则直接返回错误
+        if not settings.AIDEV_API_BASE_URL:
+            return Response({'error': 'AIDEV assistant is not configured'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+        serializer = ChatV2Serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        params = serializer.validated_data
+        params.update(
+            {
+                "knowledge_base_id": settings.AIDEV_KNOWLEDGE_BASE_IDS,
+                "stream": True,
+            }
+        )
+        results = api.aidev.create_knowledgebase_query(params)
+
+        return results

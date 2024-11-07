@@ -163,7 +163,7 @@ export default {
   网络错误: 'Network Error',
   出错了: 'Error',
   出错信息: 'Error message',
-  '恭喜，创建告警屏蔽成功': 'Congratulations, alarm mute successfully',
+  创建告警屏蔽成功: 'Aalarm mute successfully',
   '经过努力，新的插件生成了，恭喜': 'Congratulations, a new plugin has been generated',
   模型输出异常: 'Abnormal model output',
   '成功导入 {num} 个拨测任务': 'Imported {num} checks successful',

@@ -551,7 +551,7 @@ class SearchHandler(object):
             target_config, *_ = target_config
             return True, {**config.get("trace_config"), "field": target_config["field"]}
 
-    def search(self, search_type="default"):
+    def search(self, search_type="default", is_export=False):
         """
         search
         @param search_type:
@@ -574,6 +574,10 @@ class SearchHandler(object):
         if new_sort_list:
             self.sort_list = new_sort_list
 
+        # 下载操作
+        if is_export:
+            once_size = MAX_RESULT_WINDOW
+            self.size = MAX_RESULT_WINDOW
         result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
@@ -1778,11 +1782,19 @@ class SearchHandler(object):
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
                 value = item.get("value", [])
-                value = ",".join(value) if isinstance(value, list) else value
-                if value:
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
                     if field == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
-                    self.query_string = value
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    new_query_string = " OR ".join(new_value_list)
+                    if field == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
                 continue
 
             _type = "field"

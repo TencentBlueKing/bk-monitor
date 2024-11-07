@@ -28,9 +28,13 @@ import { Component, Ref, Watch } from 'vue-property-decorator';
 import {} from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { listStickySpaces } from 'monitor-api/modules/commons';
 import { APP_NAV_COLORS } from 'monitor-common/utils';
+import bus from 'monitor-common/utils/event-bus';
 import { getUrlParam } from 'monitor-common/utils/utils';
+import BizSelect from 'monitor-pc/components/biz-select/biz-select';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
+import NavTools from 'monitor-pc/pages/nav-tools';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
 
 import debounce from '../common/debounce-decorator';
@@ -41,6 +45,8 @@ import authorityStore from '../store/modules/authority';
 import type { ISpaceItem } from '../typings';
 
 import './app.scss';
+
+const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
 
 @Component
 export default class App extends tsc<object> {
@@ -54,6 +60,9 @@ export default class App extends tsc<object> {
   private needCopyLink = false;
   private needBack = false;
   private needMenu = !window.__POWERED_BY_BK_WEWEB__;
+  private spacestickyList: string[] = []; /** 置顶的空间列表 */
+
+  private globalSettingShow = false;
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
@@ -86,6 +95,14 @@ export default class App extends tsc<object> {
   get navRouteList() {
     return this.$store.getters.navRouteList;
   }
+  /** 业务列表 */
+  get bizIdList(): ISpaceItem[] {
+    return this.$store.getters.bizList;
+  }
+  // 当前是否全屏
+  get isFullScreen() {
+    return this.$store.getters.isFullScreen;
+  }
   @Watch('$route.name', { immediate: true })
   routeChange() {
     this.handleSowNav();
@@ -96,10 +113,32 @@ export default class App extends tsc<object> {
     this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
     Vue.prototype.$authorityStore = authorityStore;
   }
+  mounted() {
+    this.handleFetchStickyList();
+    bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
+  }
   // 设置是否需要menu
   handleSetNeedMenu() {
     const needMenu = getUrlParam('needMenu');
     this.needMenu = `${needMenu}` !== 'false';
+  }
+
+  /**
+   * 接收空间uid
+   * @param list 空间uid
+   */
+  handleWatchSpaceStickyList(list: string[]) {
+    this.spacestickyList = list;
+  }
+  /**
+   * 获取置顶列表
+   */
+  async handleFetchStickyList() {
+    const params = {
+      username: this.$store.getters.userName,
+    };
+    const res = await listStickySpaces(params).catch(() => []);
+    this.spacestickyList = res;
   }
   /**
    * 处理路由面包屑数据
@@ -160,6 +199,15 @@ export default class App extends tsc<object> {
       return false;
     }
     return true;
+  }
+  handleOpenSpace() {
+    (this.$refs.NavTools as any).handleSet({
+      id: 'space-manage',
+      name: window.i18n.tc('空间管理').toString(),
+    });
+  }
+  handleGlobSettingsShowChange(v: boolean) {
+    this.globalSettingShow = v;
   }
   // 切换业务
   handleBizChange(v: number) {
@@ -254,6 +302,9 @@ export default class App extends tsc<object> {
     return (
       <div class={{ 'fta-solution': true, 'is-micro-app': !this.needMenu }}>
         <bk-navigation
+          class={{
+            'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
+          }}
           default-open={this.menuToggle}
           navigation-type='top-bottom'
           need-menu={!!this.menuList && this.needMenu}
@@ -278,6 +329,13 @@ export default class App extends tsc<object> {
                   </li>
                 ))}
               </ul>
+              {(this.needMenu || (this.$route.name && this.$route.name !== 'share')) && (
+                <NavTools
+                  ref='NavTools'
+                  show={this.globalSettingShow}
+                  onChange={this.handleGlobSettingsShowChange}
+                />
+              )}
             </div>
           )}
           <span
@@ -290,12 +348,17 @@ export default class App extends tsc<object> {
               class='fta-menu'
               slot='menu'
             >
-              <div class='fta-menu-select'>
-                {this.menuToggle ? (
-                  this.menuSelect()
-                ) : (
-                  <span class='menu-title'>{this.bizName?.slice(0, 1).toLocaleUpperCase()}</span>
-                )}
+              <div class='biz-select'>
+                <BizSelect
+                  bizList={this.bizIdList}
+                  isShrink={!this.menuToggle}
+                  minWidth={380}
+                  stickyList={this.spacestickyList}
+                  theme='dark'
+                  value={+this.bizId}
+                  onChange={this.handleBizChange}
+                  onOpenSpaceManager={this.handleOpenSpace}
+                />
               </div>
               <bk-navigation-menu
                 before-nav-change={this.handleBeforeNavChange}

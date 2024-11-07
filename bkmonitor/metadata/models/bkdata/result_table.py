@@ -9,10 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
+
 from django.db import models
 
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.storage import ClusterInfo
+
+logger = logging.getLogger("metadata")
 
 
 class BkBaseResultTable(models.Model):
@@ -47,7 +51,8 @@ class BkBaseResultTable(models.Model):
     )
 
     # 计算平台结果表ID，只有在实际创建后才进行赋值
-    bkbase_table_id = models.IntegerField(verbose_name="计算平台结果表ID", null=True, blank=True)
+    bkbase_table_id = models.CharField(verbose_name="计算平台结果表ID", max_length=128, null=True, blank=True)
+    bkbase_rt_name = models.CharField(verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True)
 
     class Meta:
         verbose_name = "接入计算平台记录表"

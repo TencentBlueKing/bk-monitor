@@ -337,7 +337,7 @@ export default class FieldFilterComp extends tsc<object> {
         <div
           ref='fieldFilter'
           style={{ height: `${this.fieldContainerHeight}px` }}
-          class='field-filter-container'
+          class='field-filter-container-new'
         >
           {!this.totalFields.length && (
             <EmptyStatus

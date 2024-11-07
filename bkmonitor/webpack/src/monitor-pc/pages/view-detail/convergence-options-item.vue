@@ -70,6 +70,7 @@ export default class ConvergenceOptions extends Vue {
   readonly id: string;
   @Prop()
   readonly groupbyList: () => Promise<any[]>;
+  @Prop({ default: '' }) readonly defaultValue: string;
 
   selectList = [];
   isShowCloseIcon = false;
@@ -84,6 +85,14 @@ export default class ConvergenceOptions extends Vue {
     if (this.isDefault) {
       this.selectList.unshift({ id: 'all', name: this.$tc('全部') });
       this.checkData = 'all';
+    }
+    if(this.defaultValue) {
+      for(const item of this.selectList) {
+        if(item.id === this.defaultValue) {
+          this.checkData = item.id;
+          break;
+        }
+      }
     }
   }
 

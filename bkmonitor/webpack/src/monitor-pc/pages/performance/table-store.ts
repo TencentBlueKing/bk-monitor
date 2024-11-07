@@ -44,7 +44,7 @@ const commonTopoLevel = ['biz', 'module', 'set'];
 export default class TableStore {
   allClusterTopo = [];
   allData!: Readonly<Array<ITableRow>>;
-  bizList: any[] = [];
+  bizIdMap: Map<number, any> = new Map();
   cacheClusterMap = new Map();
   // 缓存options数据的字段
   cacheFieldOptionsSet = {
@@ -389,16 +389,16 @@ export default class TableStore {
   topoNameMap = {};
   total = 0;
   unresolveData = [];
-  constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
-    this.bizList = bizList;
+  constructor(data: Array<any>, options: ITableOptions, bizIdMap: Map<number, any>) {
+    this.bizIdMap = bizIdMap;
     this.updateData(data, options);
   }
 
   get columns() {
     const columns = {};
-    this.fieldData.forEach(field => {
+    for (const field of this.fieldData) {
       columns[field.id] = field;
-    });
+    }
     return columns;
   }
 
@@ -419,9 +419,10 @@ export default class TableStore {
 
   createTopoTree() {
     const topoNameMap = {};
-    const list = this.allData.reduce((pre, cur) => {
+    const list = [];
+    for (const cur of this.allData) {
       const modules = cur.module || [];
-      const list = modules.map(({ topo_link, topo_link_display }) => {
+      const moduleList = modules.map(({ topo_link, topo_link_display }) => {
         const topo = topo_link.map((id, index) => {
           topoNameMap[id] = topo_link_display[index];
           return {
@@ -431,8 +432,23 @@ export default class TableStore {
         });
         return topo;
       });
-      return pre.concat(list);
-    }, []);
+      list.push(...moduleList);
+    }
+    // const list = this.allData.reduce((pre, cur) => {
+    //   const modules = cur.module || [];
+    //   const list = modules.map(({ topo_link, topo_link_display }) => {
+    //     const topo = topo_link.map((id, index) => {
+    //       topoNameMap[id] = topo_link_display[index];
+    //       return {
+    //         id,
+    //         name: topo_link_display[index],
+    //       };
+    //     });
+    //     return topo;
+    //   });
+    //   return pre.concat(list);
+    // }, []);
+
     const dynamicRowData = this.allData
       ?.find(item => item?.module?.some(set => set.topo_link.length > 3))
       ?.module?.find(item => item.topo_link.length > 3);
@@ -441,17 +457,18 @@ export default class TableStore {
       const dynamicCol = Object.keys(dynamicRowData.bk_obj_name_map).filter(key => !commonTopoLevel.includes(key));
       const clusterIndex = this.fieldData.findIndex(field => field.id === 'bk_cluster');
       const setFieldList = [];
-      dynamicCol.reverse().forEach(id => {
+      const reverseList = dynamicCol.reverse();
+      for (const id of reverseList) {
         if (!this.fieldData.some(field => field.id === id)) {
           const options = [];
-          Object.entries(topoNameMap).forEach(([key, name]) => {
+          for (const [key, name] of Object.entries(topoNameMap)) {
             if (key.includes(`${id}|`)) {
               options.push({
                 id: key,
                 name,
               });
             }
-          });
+          }
           setFieldList.push({
             name: dynamicRowData.bk_obj_name_map[id] || id,
             id,
@@ -468,7 +485,7 @@ export default class TableStore {
             dynamic: true,
           });
         }
-      });
+      }
       setFieldList.length && this.fieldData.splice(clusterIndex - 1, 0, ...setFieldList);
     }
     const treeList = [];
@@ -496,20 +513,19 @@ export default class TableStore {
       }
     }
     this.topoNameMap = topoNameMap;
-    this.fieldData
-      .filter(item => ['bk_cluster'].includes(item.id))
-      .forEach(fieldData => {
-        const options = [];
-        Object.entries(topoNameMap).forEach(([id, name]) => {
-          if (id.match(/^set\|/)) {
-            options.push({
-              id,
-              name,
-            });
-          }
-        });
-        fieldData.options = options;
-      });
+    const filterList = this.fieldData.filter(item => ['bk_cluster'].includes(item.id));
+    for (const fieldData of filterList) {
+      const options = [];
+      for (const [id, name] of Object.entries(topoNameMap)) {
+        if (id.match(/^set\|/)) {
+          options.push({
+            id,
+            name,
+          });
+        }
+      }
+      fieldData.options = options;
+    }
     const topofield = this.fieldData.find(item => ['cluster_module'].includes(item.id));
     topofield.options = treeList;
     return treeList;
@@ -583,12 +599,12 @@ export default class TableStore {
       // originValue = moduleIds.concat(clusterIds);
     } else if (field.dynamic) {
       const data = [];
-      item.module?.forEach(m => {
+      for (const m of item.module || []) {
         const dataIndex = m.topo_link.findIndex(t => t.includes(`${field.id}|`));
         if (dataIndex > -1) {
           data.push(m.topo_link[dataIndex]);
         }
-      });
+      }
       originValue = data;
     }
     return {
@@ -601,10 +617,9 @@ export default class TableStore {
     const fieldData = this.fieldData.filter(field =>
       Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
     );
-
-    fieldData.forEach(field => {
+    for (const field of fieldData) {
       data = data.filter(item => this.isMatchedCondition(item, field));
-    });
+    }
     if (this.keyWord.trim() !== '') {
       data = this.filterDataByKeyword(data);
     }
@@ -674,7 +689,7 @@ export default class TableStore {
     item.mark = Object.prototype.hasOwnProperty.call(this.stickyValue, item.rowId);
     // item.order = this.sticky[item.rowId] ? 99999 : i
     // todo 排序进程
-    item?.component?.forEach(com => {
+    for (const com of item?.component || []) {
       switch (+com.status) {
         case -1:
           com.status = 2;
@@ -685,13 +700,12 @@ export default class TableStore {
         default:
           com.status = 1;
       }
-      // com.status = +com.status === -1 ? 2 : (+com.status === 0 ? 3 : 1)
-    });
+    }
     item?.component?.sort((b, a) => b.status - a.status);
     // 进程数量过多时是否省略
     // item.overflow = false
     // 业务名
-    const bizItem = this.bizList.find(set => +set.id === +item.bk_biz_id);
+    const bizItem = this.bizIdMap.get(+item.bk_biz_id);
     item.bk_biz_name = bizItem ? bizItem.text : '--';
     // 模块名
     item.bk_inst_name = item.module?.length ? item.module.map(m => m.bk_inst_name).join(' , ') : '--';

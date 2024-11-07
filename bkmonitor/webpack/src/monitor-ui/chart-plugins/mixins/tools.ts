@@ -77,47 +77,79 @@ export default class ToolsMixin extends Vue {
     isAll = false
   ) {
     try {
+      const getExpressionList = targets => {
+        const expressionList = [];
+        for (const t of targets) {
+          const expression = t?.data?.expression || '';
+          if (expression) {
+            expressionList.push({
+              active: false,
+              expression,
+            });
+          }
+        }
+        if (expressionList.length) {
+          expressionList[0].active = true;
+        }
+        return expressionList;
+      };
       let result: any = null;
+      const strategyConfig = panel?.toStrategy?.(metric, isAll);
       const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
-      const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
-      const interval = reviewInterval(
-        scopedVars.interval,
-        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval
-      );
-      const variablesService = new VariablesService({ ...scopedVars, interval });
-      if (isAll) {
+      if (strategyConfig) {
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
         result = {
-          expression: '',
-          query_configs: [],
+          ...strategyConfig,
+          expressionList,
         };
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        targets.forEach(target => {
+      } else {
+        const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
+        const interval = reviewInterval(
+          scopedVars.interval,
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          panel.collect_interval
+        );
+        const variablesService = new VariablesService({ ...scopedVars, interval });
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
+        if (isAll) {
+          result = {
+            expression: '',
+            expressionList: expressionList,
+            query_configs: [],
+          };
           // biome-ignore lint/complexity/noForEach: <explanation>
-          target.data?.query_configs?.forEach(queryConfig => {
-            const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
-            if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+          targets.forEach(target => {
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            target.data?.query_configs?.forEach(queryConfig => {
+              // const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
+              // if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+              //   let config = deepClone(queryConfig);
+              //   config = variablesService.transformVariables(config);
+              //   result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+              // }
               let config = deepClone(queryConfig);
               config = variablesService.transformVariables(config);
               result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
-            }
+            });
           });
-        });
-      } else {
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        targets.forEach(target => {
+        } else {
           // biome-ignore lint/complexity/noForEach: <explanation>
-          target.data?.query_configs?.forEach(queryConfig => {
-            if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result = {
-                ...target.data,
-                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
-              };
+          targets.forEach(target => {
+            for (const queryConfig of target.data?.query_configs || []) {
+              if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
+                let config = deepClone(queryConfig);
+                config = variablesService.transformVariables(config);
+                result = {
+                  ...target.data,
+                  query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
+                };
+                break;
+              }
             }
           });
-        });
+        }
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -75,6 +75,7 @@ import type {
   LegendActionType,
   MonitorEchartOptions,
   PanelModel,
+  ZrClickEvent,
 } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
@@ -96,6 +97,7 @@ interface ITimeSeriesEvent {
   onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
   onSeriesData?: any;
+  onZrClick: ZrClickEvent;
   onOptionsLoaded(): void;
 }
 @Component
@@ -216,6 +218,15 @@ export class LineChart
   // 自定义数据步长 collect_interval_display
   get collectIntervalDisplay() {
     return this.panel.options?.collect_interval_display;
+  }
+  // 是否允许对比
+  get isSupportCompare() {
+    return typeof this.panel.options?.is_support_compare !== 'boolean' ? true : this.panel.options.is_support_compare;
+  }
+
+  // 是否允许自定groupBy
+  get isSupportGroupBy() {
+    return !!this.panel.options?.is_support_group_by;
   }
 
   @Watch('viewOptions')
@@ -483,6 +494,7 @@ export class LineChart
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
+            dimensions: item.dimensions ?? {},
           })) as any
         );
         const boundarySeries = seriesResult
@@ -1310,6 +1322,10 @@ export class LineChart
     this.options = Object.freeze(option);
   }
 
+  @Emit('zrClick')
+  handleZrClick(params: ZrClickEvent) {
+    return params;
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -1350,11 +1366,13 @@ export class LineChart
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  needZrClick={this.panel.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
+                  onZrClick={this.handleZrClick}
                 />
               )}
             </div>

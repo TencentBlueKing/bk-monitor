@@ -33,6 +33,21 @@
   "liveNow":false,
   "panels":[
     {
+      "collapsed":false,
+      "gridPos":{
+        "h":1,
+        "w":24,
+        "x":0,
+        "y":0
+      },
+      "id":46,
+      "panels":[
+
+      ],
+      "title":"业务指标",
+      "type":"row"
+    },
+    {
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
@@ -67,7 +82,7 @@
         "h":5,
         "w":5,
         "x":0,
-        "y":0
+        "y":1
       },
       "id":24,
       "options":{
@@ -190,7 +205,7 @@
         "h":5,
         "w":4,
         "x":5,
-        "y":0
+        "y":1
       },
       "id":26,
       "options":{
@@ -304,7 +319,7 @@
               }
             ]
           },
-          "unit":"%"
+          "unit":"percent"
         },
         "overrides":[
 
@@ -314,7 +329,7 @@
         "h":5,
         "w":5,
         "x":9,
-        "y":0
+        "y":1
       },
       "id":32,
       "options":{
@@ -350,10 +365,11 @@
             }
           ],
           "format":"time_series",
+          "hide":false,
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
@@ -481,7 +497,7 @@
             }
           ],
           "refId":"A",
-          "source":"",
+          "source":"(1-(\n  sum(increase(bkmonitor:bk_plugin_execute_failed_count_total{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range])) +\n  sum(increase(bkmonitor:bk_plugin_execute_exception_count_total{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range]))\n) /\nclamp_min(sum(increase(bkmonitor:bk_plugin_execute_time_count{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range])), 1)) * 100",
           "step":"",
           "type":"range"
         }
@@ -525,7 +541,7 @@
         "h":5,
         "w":5,
         "x":14,
-        "y":0
+        "y":1
       },
       "id":34,
       "options":{
@@ -551,148 +567,23 @@
             "uid":"${DS_蓝鲸监控_-_指标数据}"
           },
           "expressionList":[
-            {
-              "active":true,
-              "alias":"失败率",
-              "expression":"(1 - (((a or vector(0)  + b) / c) or vector(0)) )* 100",
-              "functions":[
 
-              ]
-            }
           ],
           "format":"time_series",
+          "hide":false,
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
           "promqlAlias":"",
           "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
 
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":"auto",
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"bk_plugin_schedule_failed_count_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            },
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":"auto",
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"bk_plugin_schedule_exception_count_total",
-              "refId":"b",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            },
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":"auto",
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"bk_plugin_schedule_time_bucket",
-              "refId":"c",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            }
           ],
-          "refId":"A",
-          "source":"",
+          "refId":"B",
+          "source":"(1-(\n  sum(increase(bkmonitor:bk_plugin_schedule_failed_count_total{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range])) +\n  sum(increase(bkmonitor:bk_plugin_schedule_exception_count_total{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range]))\n) /\nclamp_min(sum(increase(bkmonitor:bk_plugin_schedule_time_count{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\"}[$__range])), 1)) * 100",
           "step":"",
           "type":"range"
         }
@@ -735,7 +626,7 @@
         "h":5,
         "w":5,
         "x":19,
-        "y":0
+        "y":1
       },
       "id":2,
       "options":{
@@ -849,11 +740,11 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -888,7 +779,7 @@
               "options":{
                 "mode":"exclude",
                 "names":[
-                  "SUM(bk_plugin_execute_failed_count_total)/2{version=1.0.0}"
+                  "version=1.0.1"
                 ],
                 "prefix":"All except:",
                 "readOnly":true
@@ -911,7 +802,7 @@
         "h":5,
         "w":8,
         "x":0,
-        "y":5
+        "y":6
       },
       "id":10,
       "options":{
@@ -951,11 +842,11 @@
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
-          "promqlAlias":"",
+          "promqlAlias":"version=$tag_version",
           "query_configs":[
             {
               "alias":"",
@@ -1007,7 +898,7 @@
             }
           ],
           "refId":"A",
-          "source":"",
+          "source":"sum by (version) (increase(bkmonitor:bk_plugin_execute_failed_count_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m]))",
           "step":"",
           "type":"range"
         }
@@ -1041,11 +932,11 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -1080,7 +971,7 @@
               "options":{
                 "mode":"exclude",
                 "names":[
-                  "AVG(bk_plugin_execute_exception_count_total)*60{version=1.0.0}"
+                  "version=1.0.4"
                 ],
                 "prefix":"All except:",
                 "readOnly":true
@@ -1103,7 +994,7 @@
         "h":5,
         "w":8,
         "x":8,
-        "y":5
+        "y":6
       },
       "id":12,
       "options":{
@@ -1139,15 +1030,16 @@
               ]
             }
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"version=$tag_version",
           "query_configs":[
             {
               "alias":"",
@@ -1199,8 +1091,9 @@
             }
           ],
           "refId":"A",
-          "source":"",
-          "step":""
+          "source":"sum by(version)(increase(bkmonitor:bk_plugin_execute_exception_count_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])) ",
+          "step":"",
+          "type":"range"
         }
       ],
       "title":"插件[EXECUTE]执行异常数量",
@@ -1232,11 +1125,11 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -1271,7 +1164,7 @@
         "h":5,
         "w":8,
         "x":16,
-        "y":5
+        "y":6
       },
       "id":16,
       "options":{
@@ -1311,11 +1204,11 @@
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
-          "promqlAlias":"",
+          "promqlAlias":"version=$tag_version",
           "query_configs":[
             {
               "alias":"",
@@ -1367,7 +1260,7 @@
             }
           ],
           "refId":"A",
-          "source":"",
+          "source":"sum by (version) (increase(bkmonitor:bk_plugin_execute_time_count{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])) ",
           "step":"",
           "type":"range"
         }
@@ -1401,11 +1294,541 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          }
+        },
+        "overrides":[
+
+        ]
+      },
+      "gridPos":{
+        "h":8,
+        "w":8,
+        "x":0,
+        "y":11
+      },
+      "id":18,
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"single",
+          "sort":"none"
+        }
+      },
+      "targets":[
+        {
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "expressionList":[
+            {
+              "active":true,
+              "alias":"",
+              "expression":"a/2",
+              "functions":[
+
+              ]
+            }
+          ],
+          "format":"time_series",
+          "host":[
+
+          ],
+          "mode":"code",
+          "module":[
+
+          ],
+          "promqlAlias":"version=$tag_version",
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":false,
+              "filter_dict":{
+
+              },
+              "functions":[
+                {
+                  "id":"increase",
+                  "params":[
+                    {
+                      "id":"window",
+                      "value":"2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by":[
+                "version"
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"SUM",
+              "metric_field":"bk_plugin_schedule_failed_count_total",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+                {
+                  "key":"bk_app_code",
+                  "method":"eq",
+                  "value":[
+                    "$bk_app_code"
+                  ]
+                },
+                {
+                  "condition":"and",
+                  "key":"bk_env",
+                  "method":"eq",
+                  "value":[
+                    "$bk_env"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum by (version) (increase(bkmonitor:bk_plugin_schedule_failed_count_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])) ",
+          "step":"",
+          "type":"range"
+        }
+      ],
+      "title":"插件[SCHEDULE]执行失败数量",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":0,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":3,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"always",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          }
+        },
+        "overrides":[
+          {
+            "__systemRef":"hideSeriesFrom",
+            "matcher":{
+              "id":"byNames",
+              "options":{
+                "mode":"exclude",
+                "names":[
+                  "version=1.0.5"
+                ],
+                "prefix":"All except:",
+                "readOnly":true
+              }
+            },
+            "properties":[
+              {
+                "id":"custom.hideFrom",
+                "value":{
+                  "legend":false,
+                  "tooltip":false,
+                  "viz":true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos":{
+        "h":8,
+        "w":8,
+        "x":8,
+        "y":11
+      },
+      "id":20,
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"single",
+          "sort":"none"
+        }
+      },
+      "targets":[
+        {
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "expressionList":[
+            {
+              "active":true,
+              "alias":"",
+              "expression":"a/2",
+              "functions":[
+
+              ]
+            }
+          ],
+          "format":"time_series",
+          "host":[
+
+          ],
+          "mode":"code",
+          "module":[
+
+          ],
+          "promqlAlias":"version=$tag_version",
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":false,
+              "filter_dict":{
+
+              },
+              "functions":[
+                {
+                  "id":"increase",
+                  "params":[
+                    {
+                      "id":"window",
+                      "value":"2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by":[
+                "version"
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"SUM",
+              "metric_field":"bk_plugin_schedule_exception_count_total",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+                {
+                  "key":"bk_app_code",
+                  "method":"eq",
+                  "value":[
+                    "$bk_app_code"
+                  ]
+                },
+                {
+                  "condition":"and",
+                  "key":"bk_env",
+                  "method":"eq",
+                  "value":[
+                    "$bk_env"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum by (version) (increase(bkmonitor:bk_plugin_schedule_exception_count_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m]))",
+          "step":"",
+          "type":"range"
+        }
+      ],
+      "title":"插件[SCHEDULE]执行异常数量",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":0,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":3,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"always",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          }
+        },
+        "overrides":[
+
+        ]
+      },
+      "gridPos":{
+        "h":8,
+        "w":8,
+        "x":16,
+        "y":11
+      },
+      "id":22,
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"single",
+          "sort":"none"
+        }
+      },
+      "targets":[
+        {
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "expressionList":[
+            {
+              "active":true,
+              "alias":"",
+              "expression":"a/2",
+              "functions":[
+
+              ]
+            }
+          ],
+          "format":"time_series",
+          "host":[
+
+          ],
+          "mode":"code",
+          "module":[
+
+          ],
+          "promqlAlias":"version=$tag_version",
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":false,
+              "filter_dict":{
+
+              },
+              "functions":[
+                {
+                  "id":"increase",
+                  "params":[
+                    {
+                      "id":"window",
+                      "value":"2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by":[
+                "version"
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"SUM",
+              "metric_field":"bk_plugin_schedule_time_count",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+                {
+                  "key":"bk_app_code",
+                  "method":"eq",
+                  "value":[
+                    "$bk_app_code"
+                  ]
+                },
+                {
+                  "condition":"and",
+                  "key":"bk_env",
+                  "method":"eq",
+                  "value":[
+                    "$bk_env"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum by (version) (increase(bkmonitor:bk_plugin_schedule_time_count{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])) ",
+          "step":"",
+          "type":"range"
+        }
+      ],
+      "title":"插件[SCHEDULE]执行次数",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":0,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":3,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -1437,7 +1860,7 @@
               "options":{
                 "mode":"exclude",
                 "names":[
-                  "SUM(django_http_requests_latency_seconds_by_view_method_count)/2"
+                  "插件执行数量"
                 ],
                 "prefix":"All except:",
                 "readOnly":true
@@ -1457,10 +1880,10 @@
         ]
       },
       "gridPos":{
-        "h":7,
-        "w":10,
+        "h":10,
+        "w":7,
         "x":0,
-        "y":10
+        "y":19
       },
       "id":36,
       "options":{
@@ -1502,11 +1925,11 @@
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
-          "promqlAlias":"",
+          "promqlAlias":"插件执行数量",
           "query_configs":[
             {
               "alias":"",
@@ -1566,7 +1989,7 @@
             }
           ],
           "refId":"A",
-          "source":"sum((increase(django_http_requests_latency_seconds_by_view_method_count{bk_app_code=\"$bk_app_code\", bk_env=\"$bk_env\", view=\"bk_plugin_framework.services.bpf_service.api.invoke.Invoke\"}[2m]))) / 2",
+          "source":"sum(increase(bkmonitor:django_http_requests_latency_seconds_by_view_method_count{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\",view=\"bk_plugin_framework.services.bpf_service.api.invoke.Invoke\"}[1m]))",
           "step":"",
           "type":"range"
         }
@@ -1600,11 +2023,11 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -1636,10 +2059,10 @@
         ]
       },
       "gridPos":{
-        "h":7,
-        "w":14,
-        "x":10,
-        "y":10
+        "h":10,
+        "w":7,
+        "x":7,
+        "y":19
       },
       "id":4,
       "options":{
@@ -1668,13 +2091,14 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
           "promqlAlias":"",
           "query_configs":[
             {
@@ -1719,8 +2143,9 @@
             }
           ],
           "refId":"A",
-          "source":"",
-          "step":""
+          "source":"avg by (queue_name) (avg_over_time(bkmonitor:celery_queue_length{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m]))",
+          "step":"",
+          "type":"range"
         }
       ],
       "title":"队列堆积消息数",
@@ -1734,37 +2159,7 @@
       "fieldConfig":{
         "defaults":{
           "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":0,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"auto",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
+            "mode":"thresholds"
           },
           "mappings":[
 
@@ -1777,7 +2172,7 @@
                 "value":null
               },
               {
-                "color":"red",
+                "color":"green",
                 "value":80
               }
             ]
@@ -1788,26 +2183,27 @@
         ]
       },
       "gridPos":{
-        "h":7,
-        "w":13,
-        "x":0,
-        "y":17
+        "h":10,
+        "w":5,
+        "x":14,
+        "y":19
       },
       "id":6,
       "options":{
-        "legend":{
+        "colorMode":"value",
+        "graphMode":"area",
+        "justifyMode":"auto",
+        "orientation":"auto",
+        "reduceOptions":{
           "calcs":[
-
+            "lastNotNull"
           ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
+          "fields":"",
+          "values":false
         },
-        "tooltip":{
-          "mode":"single",
-          "sort":"none"
-        }
+        "textMode":"auto"
       },
+      "pluginVersion":"9.1.0",
       "targets":[
         {
           "cluster":[
@@ -1832,11 +2228,11 @@
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
-          "promqlAlias":"",
+          "promqlAlias":"请求数",
           "query_configs":[
             {
               "alias":"总请求数",
@@ -1888,13 +2284,13 @@
             }
           ],
           "refId":"A",
-          "source":"",
+          "source":"sum(increase(bkmonitor:django_http_requests_before_middlewares_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[$__range]))",
           "step":"",
           "type":"range"
         }
       ],
       "title":"HTTP请求数",
-      "type":"timeseries"
+      "type":"stat"
     },
     {
       "datasource":{
@@ -1922,11 +2318,11 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
-            "showPoints":"auto",
+            "showPoints":"always",
             "spanNulls":false,
             "stacking":{
               "group":"A",
@@ -1954,14 +2350,37 @@
           }
         },
         "overrides":[
-
+          {
+            "__systemRef":"hideSeriesFrom",
+            "matcher":{
+              "id":"byNames",
+              "options":{
+                "mode":"exclude",
+                "names":[
+                  "200"
+                ],
+                "prefix":"All except:",
+                "readOnly":true
+              }
+            },
+            "properties":[
+              {
+                "id":"custom.hideFrom",
+                "value":{
+                  "legend":false,
+                  "tooltip":false,
+                  "viz":true
+                }
+              }
+            ]
+          }
         ]
       },
       "gridPos":{
-        "h":7,
-        "w":11,
-        "x":13,
-        "y":17
+        "h":10,
+        "w":5,
+        "x":19,
+        "y":19
       },
       "id":8,
       "options":{
@@ -2001,11 +2420,11 @@
           "host":[
 
           ],
-          "mode":"ui",
+          "mode":"code",
           "module":[
 
           ],
-          "promqlAlias":"",
+          "promqlAlias":"$tag_status",
           "query_configs":[
             {
               "alias":"",
@@ -2057,7 +2476,7 @@
             }
           ],
           "refId":"A",
-          "source":"",
+          "source":"sum by (status) (increase(bkmonitor:django_http_responses_total_by_status_total{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m]))",
           "step":"",
           "type":"range"
         }
@@ -2082,7 +2501,7 @@
             "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -2091,7 +2510,7 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
@@ -2099,7 +2518,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -2120,18 +2539,17 @@
                 "value":80
               }
             ]
-          },
-          "unit":"s"
+          }
         },
         "overrides":[
 
         ]
       },
       "gridPos":{
-        "h":7,
-        "w":24,
+        "h":9,
+        "w":12,
         "x":0,
-        "y":24
+        "y":29
       },
       "id":28,
       "options":{
@@ -2160,17 +2578,18 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"50分位",
           "query_configs":[
             {
-              "alias":"60",
+              "alias":"",
               "data_source_label":"bk_monitor",
               "data_type_label":"time_series",
               "display":true,
@@ -2219,8 +2638,9 @@
             }
           ],
           "refId":"A",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.5, sum by (le) (sum_over_time(bkmonitor:bk_plugin_execute_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -2233,15 +2653,16 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"80分位",
           "query_configs":[
             {
               "alias":"80",
@@ -2293,8 +2714,9 @@
             }
           ],
           "refId":"B",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.8, sum by (le) (sum_over_time(bkmonitor:bk_plugin_execute_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -2307,18 +2729,19 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"90分位",
           "query_configs":[
             {
-              "alias":"90",
+              "alias":"90分位",
               "data_source_label":"bk_monitor",
               "data_type_label":"time_series",
               "display":true,
@@ -2367,8 +2790,9 @@
             }
           ],
           "refId":"C",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.9, sum by (le) (sum_over_time(bkmonitor:bk_plugin_execute_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -2381,18 +2805,19 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"99分位",
           "query_configs":[
             {
-              "alias":"99",
+              "alias":"99分位",
               "data_source_label":"bk_monitor",
               "data_type_label":"time_series",
               "display":true,
@@ -2441,8 +2866,9 @@
             }
           ],
           "refId":"D",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.95, sum by (le) (sum_over_time(bkmonitor:bk_plugin_execute_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         }
       ],
       "title":"插件每次执行execute的耗时分布",
@@ -2465,7 +2891,7 @@
             "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -2474,7 +2900,7 @@
             },
             "lineInterpolation":"linear",
             "lineWidth":1,
-            "pointSize":5,
+            "pointSize":3,
             "scaleDistribution":{
               "type":"linear"
             },
@@ -2482,391 +2908,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          }
-        },
-        "overrides":[
-          {
-            "__systemRef":"hideSeriesFrom",
-            "matcher":{
-              "id":"byNames",
-              "options":{
-                "mode":"exclude",
-                "names":[
-                  "SUM(bk_plugin_schedule_failed_count_total)/2{version=1.0.0}"
-                ],
-                "prefix":"All except:",
-                "readOnly":true
-              }
-            },
-            "properties":[
-              {
-                "id":"custom.hideFrom",
-                "value":{
-                  "legend":false,
-                  "tooltip":false,
-                  "viz":true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos":{
-        "h":8,
-        "w":8,
-        "x":0,
-        "y":31
-      },
-      "id":18,
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"single",
-          "sort":"none"
-        }
-      },
-      "targets":[
-        {
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "expressionList":[
-            {
-              "active":true,
-              "alias":"",
-              "expression":"a/2",
-              "functions":[
-
-              ]
-            }
-          ],
-          "format":"time_series",
-          "host":[
-
-          ],
-          "mode":"ui",
-          "module":[
-
-          ],
-          "promqlAlias":"",
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
-
-              },
-              "functions":[
-                {
-                  "id":"increase",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
-              "group_by":[
-                "version"
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"SUM",
-              "metric_field":"bk_plugin_schedule_failed_count_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"",
-          "step":"",
-          "type":"range"
-        }
-      ],
-      "title":"插件[SCHEDULE]执行失败数量",
-      "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":0,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"auto",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          }
-        },
-        "overrides":[
-          {
-            "__systemRef":"hideSeriesFrom",
-            "matcher":{
-              "id":"byNames",
-              "options":{
-                "mode":"exclude",
-                "names":[
-                  "SUM(bk_plugin_schedule_exception_count_total)/2{version=1.0.0}"
-                ],
-                "prefix":"All except:",
-                "readOnly":true
-              }
-            },
-            "properties":[
-              {
-                "id":"custom.hideFrom",
-                "value":{
-                  "legend":false,
-                  "tooltip":false,
-                  "viz":true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos":{
-        "h":8,
-        "w":8,
-        "x":8,
-        "y":31
-      },
-      "id":20,
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"single",
-          "sort":"none"
-        }
-      },
-      "targets":[
-        {
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "expressionList":[
-            {
-              "active":true,
-              "alias":"",
-              "expression":"a/2",
-              "functions":[
-
-              ]
-            }
-          ],
-          "format":"time_series",
-          "host":[
-
-          ],
-          "mode":"ui",
-          "module":[
-
-          ],
-          "promqlAlias":"",
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
-
-              },
-              "functions":[
-                {
-                  "id":"increase",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
-              "group_by":[
-                "version"
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"SUM",
-              "metric_field":"bk_plugin_schedule_exception_count_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"",
-          "step":"",
-          "type":"range"
-        }
-      ],
-      "title":"插件[SCHEDULE]执行异常数量",
-      "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":0,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"auto",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -2894,180 +2936,10 @@
         ]
       },
       "gridPos":{
-        "h":8,
-        "w":8,
-        "x":16,
-        "y":31
-      },
-      "id":22,
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"single",
-          "sort":"none"
-        }
-      },
-      "targets":[
-        {
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "expressionList":[
-            {
-              "active":true,
-              "alias":"",
-              "expression":"a/2",
-              "functions":[
-
-              ]
-            }
-          ],
-          "format":"time_series",
-          "host":[
-
-          ],
-          "mode":"ui",
-          "module":[
-
-          ],
-          "promqlAlias":"",
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":false,
-              "filter_dict":{
-
-              },
-              "functions":[
-                {
-                  "id":"increase",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
-              "group_by":[
-                "version"
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"SUM",
-              "metric_field":"bk_plugin_schedule_time_count",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-                {
-                  "key":"bk_app_code",
-                  "method":"eq",
-                  "value":[
-                    "$bk_app_code"
-                  ]
-                },
-                {
-                  "condition":"and",
-                  "key":"bk_env",
-                  "method":"eq",
-                  "value":[
-                    "$bk_env"
-                  ]
-                }
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"",
-          "step":"",
-          "type":"range"
-        }
-      ],
-      "title":"插件[SCHEDULE]执行次数",
-      "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":0,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"auto",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          },
-          "unit":"s"
-        },
-        "overrides":[
-
-        ]
-      },
-      "gridPos":{
-        "h":7,
-        "w":24,
-        "x":0,
-        "y":39
+        "h":9,
+        "w":12,
+        "x":12,
+        "y":29
       },
       "id":30,
       "options":{
@@ -3096,14 +2968,15 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"50分位",
           "query_configs":[
             {
               "alias":"60",
@@ -3155,8 +3028,9 @@
             }
           ],
           "refId":"A",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.5, sum by (le) (sum_over_time(bkmonitor:bk_plugin_schedule_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -3169,15 +3043,16 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"80分位",
           "query_configs":[
             {
               "alias":"80",
@@ -3229,8 +3104,9 @@
             }
           ],
           "refId":"B",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.8, sum by (le) (sum_over_time(bkmonitor:bk_plugin_schedule_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -3243,15 +3119,16 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"90分位",
           "query_configs":[
             {
               "alias":"90",
@@ -3303,8 +3180,9 @@
             }
           ],
           "refId":"C",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.9, sum by (le) (sum_over_time(bkmonitor:bk_plugin_schedule_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         },
         {
           "cluster":[
@@ -3317,15 +3195,16 @@
           "expressionList":[
 
           ],
+          "format":"time_series",
           "hide":false,
           "host":[
 
           ],
+          "mode":"code",
           "module":[
 
           ],
-          "only_promql":false,
-          "promqlAlias":"",
+          "promqlAlias":"99分位",
           "query_configs":[
             {
               "alias":"99",
@@ -3377,12 +3256,28 @@
             }
           ],
           "refId":"D",
-          "source":"",
-          "step":""
+          "source":"histogram_quantile(0.95, sum by (le) (sum_over_time(bkmonitor:bk_plugin_schedule_time_bucket{bk_app_code=\"$bk_app_code\",bk_env=\"$bk_env\"}[1m])))",
+          "step":"",
+          "type":"range"
         }
       ],
       "title":"插件每次执行调度的耗时分布",
       "type":"timeseries"
+    },
+    {
+      "collapsed":false,
+      "gridPos":{
+        "h":1,
+        "w":24,
+        "x":0,
+        "y":38
+      },
+      "id":48,
+      "panels":[
+
+      ],
+      "title":"系统资源",
+      "type":"row"
     },
     {
       "datasource":{
@@ -3398,10 +3293,10 @@
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
-            "axisPlacement":"left",
+            "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -3418,7 +3313,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -3440,7 +3335,7 @@
               }
             ]
           },
-          "unit":"%"
+          "unit":"percent"
         },
         "overrides":[
 
@@ -3450,7 +3345,7 @@
         "h":12,
         "w":7,
         "x":0,
-        "y":46
+        "y":39
       },
       "id":38,
       "options":{
@@ -3511,7 +3406,7 @@
               "refId":"a",
               "result_table_id":"",
               "result_table_label":"kubernetes",
-              "time_field":"",
+              "time_field":"time",
               "where":[
                 {
                   "key":"namespace",
@@ -3546,10 +3441,10 @@
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
-            "axisPlacement":"left",
+            "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -3566,7 +3461,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -3587,8 +3482,7 @@
                 "value":80
               }
             ]
-          },
-          "unit":"bytes"
+          }
         },
         "overrides":[
 
@@ -3598,7 +3492,7 @@
         "h":12,
         "w":6,
         "x":7,
-        "y":46
+        "y":39
       },
       "id":40,
       "options":{
@@ -3694,10 +3588,10 @@
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
-            "axisPlacement":"left",
+            "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -3714,7 +3608,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -3736,7 +3630,7 @@
               }
             ]
           },
-          "unit":"%"
+          "unit":"percent"
         },
         "overrides":[
 
@@ -3746,7 +3640,7 @@
         "h":12,
         "w":6,
         "x":13,
-        "y":46
+        "y":39
       },
       "id":42,
       "options":{
@@ -3813,7 +3707,7 @@
             "axisPlacement":"auto",
             "barAlignment":0,
             "drawStyle":"line",
-            "fillOpacity":0,
+            "fillOpacity":25,
             "gradientMode":"none",
             "hideFrom":{
               "legend":false,
@@ -3830,7 +3724,7 @@
             "spanNulls":false,
             "stacking":{
               "group":"A",
-              "mode":"none"
+              "mode":"normal"
             },
             "thresholdsStyle":{
               "mode":"off"
@@ -3852,7 +3746,7 @@
               }
             ]
           },
-          "unit":"%"
+          "unit":"percent"
         },
         "overrides":[
 
@@ -3862,7 +3756,7 @@
         "h":12,
         "w":5,
         "x":19,
-        "y":46
+        "y":39
       },
       "id":44,
       "options":{
@@ -3998,7 +3892,7 @@
     ]
   },
   "time":{
-    "from":"now-3h",
+    "from":"now-1h",
     "to":"now"
   },
   "timepicker":{
@@ -4006,7 +3900,7 @@
   },
   "timezone":"default",
   "title":"bksaas/sops-plugin-python",
-  "version":5,
+  "version":98,
   "weekStart":"",
   "__inputs":[
     {

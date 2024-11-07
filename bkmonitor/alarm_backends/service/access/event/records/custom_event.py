@@ -120,6 +120,7 @@ class GseCustomStrEventRecord(EventRecord):
         try:
             dimensions["bk_target_ip"] = host_obj.bk_host_innerip
             dimensions["bk_target_cloud_id"] = host_obj.bk_cloud_id
+            dimensions["bk_host_id"] = host_obj.bk_host_id
             if host_obj.topo_link:
                 dimensions["bk_topo_node"] = sorted({node.id for node in chain(*list(host_obj.topo_link.values()))})
         except Exception as e:

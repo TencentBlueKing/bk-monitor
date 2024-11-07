@@ -360,6 +360,8 @@ class IncidentTopologyResource(IncidentBaseResource):
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
         aggregate_cluster = validated_request_data.get("aggregate_cluster", False)
+        auto_aggregate = validated_request_data.get("auto_aggregate", False)
+        aggregate_config = validated_request_data.get("aggregate_config", {})
 
         if not limit and not start_time:
             incident_snapshots = [incident.snapshot]
@@ -378,12 +380,10 @@ class IncidentTopologyResource(IncidentBaseResource):
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
-            if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident, aggregate_cluster=aggregate_cluster, entities_orders=entities_orders)
-            elif validated_request_data["aggregate_config"]:
+            if auto_aggregate or aggregate_config or aggregate_cluster:
                 snapshot.aggregate_graph(
                     incident,
-                    validated_request_data["aggregate_config"],
+                    aggregate_config=None if auto_aggregate else aggregate_config,
                     aggregate_cluster=aggregate_cluster,
                     entities_orders=entities_orders,
                 )
@@ -1147,6 +1147,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
             alert_doc = AlertDocument(**alert)
+            # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
+            alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc)

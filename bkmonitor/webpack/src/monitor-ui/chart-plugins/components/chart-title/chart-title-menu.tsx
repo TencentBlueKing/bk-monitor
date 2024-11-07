@@ -262,7 +262,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 </bk-popover>
               )}
               {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
-              {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right' />}
+              {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
             </li>
           );
           if (item.children?.length && !item.hasLink) {

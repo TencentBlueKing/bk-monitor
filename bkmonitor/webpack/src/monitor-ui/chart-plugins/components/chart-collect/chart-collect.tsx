@@ -35,6 +35,7 @@ import { isEnFn } from 'monitor-pc/utils';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 
+import type { CallOptions } from '../../plugins/apm-service-caller-callee/type';
 import type { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -74,6 +75,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   @InjectReactive('compareType') readonly compareType!: PanelToolsType.CompareId;
   // 图表特殊参数
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
   showCollectionDialog = false; // 展示收藏弹窗
   showDetail = false;
@@ -99,6 +101,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
               ...(this.viewOptions.filters?.current_target || {}),
               ...this.viewOptions,
               ...this.viewOptions.variables,
+              ...this.callOptions,
               interval,
             }),
           },
@@ -106,14 +109,22 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       };
     };
     const checkList = [];
+    // biome-ignore lint/complexity/noForEach: <explanation>
     this.localPanels?.forEach(item => {
       const { checked } = this.observablePanelsField?.[item.id] || item;
       if (item.type !== 'row' && item.canSetGrafana && checked) {
-        checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...item }))));
+        checkList.push({
+          ...transformVariables(JSON.parse(JSON.stringify({ ...item }))),
+          rawQueryPanel: item,
+        });
       }
+      // biome-ignore lint/complexity/noForEach: <explanation>
       item.panels?.forEach(panel => {
         if (panel.checked) {
-          checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...panel }))));
+          checkList.push({
+            ...transformVariables(JSON.parse(JSON.stringify({ ...panel }))),
+            rawQueryPanel: panel,
+          });
         }
       });
     });
@@ -162,7 +173,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   // 跳转至数据检索
   handleToDataRetrieval() {
     let targets = this.checkList.reduce((pre, item) => {
-      pre.push(...item.targets);
+      pre.push(...(item?.rawQueryPanel?.toDataRetrieval?.() || item.targets));
       return pre;
     }, []);
     const variablesService = new VariablesService(this.viewOptions);

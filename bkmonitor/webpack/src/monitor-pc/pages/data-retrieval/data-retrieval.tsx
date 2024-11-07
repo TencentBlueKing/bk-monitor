@@ -63,6 +63,7 @@ import {
 } from '../../components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { validateExpression } from '../../utils/index';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
@@ -85,7 +86,6 @@ import {
   type IFilterCondition,
   type TEditMode,
 } from './typings';
-
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import type { EmptyStatusType } from '../../components/empty-status/types';
 import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
@@ -489,9 +489,28 @@ export default class DataRetrieval extends tsc<object> {
     return JSON.stringify(favParams) !== JSON.stringify(localParams);
   }
 
+  /** 获取表达式中的变量名 */
+  get expressionVars() {
+    return this.localValue.reduce((pre, cur) => {
+      if (!cur.isMetric && cur.value) {
+        const { variables } = validateExpression(cur.value);
+        for (const varName of variables) {
+          pre[varName] = true;
+        }
+      }
+      return pre;
+    }, {});
+  }
+
+  /** 是否填写了表达式 */
+  get useExpression() {
+    return this.localValue.some(item => !item.isMetric);
+  }
+
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'UI') {
+      if (this.useExpression) return false;
       return this.localValue
         .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
@@ -804,7 +823,7 @@ export default class DataRetrieval extends tsc<object> {
       source: () => this.handleSwitchSource(item as DataRetrievalQueryItem, index),
       enable: () => this.handleSwitchEnable(item),
       copy: () => this.handleCopyItem(item),
-      delete: () => this.handleDeleteItem(index),
+      delete: () => this.handleDeleteItem(item, index),
     };
     fnMap[opt]?.();
   }
@@ -907,8 +926,8 @@ export default class DataRetrieval extends tsc<object> {
    * @description: 删除操作
    * @param {number} index
    */
-  handleDeleteItem(index: number) {
-    if (this.localValue.length === 1) return;
+  handleDeleteItem(item: IDataRetrieval.ILocalValue, index: number) {
+    if (this.handleDelIconDisabled(item).disabled) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -2358,6 +2377,26 @@ export default class DataRetrieval extends tsc<object> {
   }
 
   /**
+   * 判断删除Icon是否禁用
+   * @param item
+   * @returns
+   */
+  handleDelIconDisabled(item: IDataRetrieval.ILocalValue) {
+    const result = {
+      disabled: false,
+      tips: '',
+    };
+    if (this.localValue.length === 1) {
+      result.disabled = true;
+    } else if (item.isMetric) {
+      const disabled = this.expressionVars[item.alias];
+      result.disabled = disabled;
+      result.tips = disabled ? this.$tc('存在表达式依赖，不能删除') : '';
+    }
+    return result;
+  }
+
+  /**
    * @description: 操作按钮提示
    * @param {IDataRetrieval} opt
    * @param {IDataRetrieval} item
@@ -2367,7 +2406,7 @@ export default class DataRetrieval extends tsc<object> {
     const metricItem = item as DataRetrievalQueryItem;
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
-      delete: `${this.$t('删除')}`,
+      delete: this.handleDelIconDisabled(item).tips || `${this.$t('删除')}`,
       enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
@@ -3062,7 +3101,7 @@ export default class DataRetrieval extends tsc<object> {
                 key={opt}
                 class={[
                   'icon-monitor',
-                  { disabled: opt === 'delete' && this.localValue.length === 1 },
+                  { disabled: opt === 'delete' ? this.handleDelIconDisabled(item).disabled : false },
                   iconName,
                   sourceAcitve,
                   display,
@@ -3149,9 +3188,11 @@ export default class DataRetrieval extends tsc<object> {
               <span
                 class={['edit-mode-btn', { 'mode-disable': !this.canToPromql }]}
                 v-bk-tooltips={{
-                  content: this.$t('目前仅支持{0}切换PromQL', [
-                    `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
-                  ]),
+                  content: this.useExpression
+                    ? this.$t('存在表达式,暂不支持转换')
+                    : this.$t('目前仅支持{0}切换PromQL', [
+                        `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                      ]),
                   disabled: this.canToPromql,
                 }}
                 onClick={this.handleEditModeChange}
