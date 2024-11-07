@@ -188,6 +188,18 @@ class EsQuery(object):
             mappings=mappings,
         ).body
 
+        # 使用了分片
+        if self.search_dict["slice_search"]:
+            body.update(
+                {
+                    "slice": {
+                        "field": time_field,
+                        "id": self.search_dict["slice_id"],
+                        "max": self.search_dict["slice_max"],
+                    }
+                }
+            )
+
         if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"].strip(
             "*"
         ) != query_string.strip("*"):

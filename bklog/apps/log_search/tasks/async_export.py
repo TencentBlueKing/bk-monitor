@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import csv
 import datetime
 import json
 import os
@@ -48,6 +49,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
+    FileType,
     MsgModel,
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
@@ -67,6 +69,8 @@ def async_export(
     search_url_path: str,
     language: str,
     is_external: bool = False,
+    is_quick_export: bool = False,
+    file_type: str = "txt",
     external_user_email: str = "",
 ):
     """
@@ -78,6 +82,8 @@ def async_export(
     @param search_url_path {Str}
     @param language {Str}
     @param is_external {Bool}
+    @param is_quick_export {Bool}
+    @param file_type {str}
     @param external_user_email {Str}
     """
     random_hash = get_random_string(length=10)
@@ -91,6 +97,8 @@ def async_export(
         file_name=file_name,
         tar_file_name=tar_file_name,
         is_external=is_external,
+        is_quick_export=is_quick_export,
+        file_type=file_type,
         external_user_email=external_user_email,
     )
     try:
@@ -219,6 +227,8 @@ class AsyncExportUtils(object):
         file_name: str,
         tar_file_name: str,
         is_external: bool = False,
+        is_quick_export: bool = False,
+        file_type: str = "txt",
         external_user_email: str = "",
     ):
         """
@@ -233,11 +243,14 @@ class AsyncExportUtils(object):
         self.file_name = file_name
         self.tar_file_name = tar_file_name
         self.is_external = is_external
+        self.is_quick_export = is_quick_export
+        self.file_type = file_type
         self.external_user_email = external_user_email
-        self.file_path = f"{ASYNC_DIR}/{self.file_name}"
+        self.file_path = f"{ASYNC_DIR}/{self.file_name}.{self.file_type}"
         self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
         self.storage = self.init_remote_storage()
         self.notify = self.init_notify_type()
+        self.file_path_list = []
 
     def export_package(self):
         """
@@ -251,15 +264,53 @@ class AsyncExportUtils(object):
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
-        with open(self.file_path, "a+", encoding="utf-8") as f:
-            result_list = self.search_handler._deal_query_result(result_dict=result).get("origin_log_list")
-            for item in result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
-            if self.search_handler.scenario_id == Scenario.ES:
-                generate_result = self.search_handler.scroll_result(result)
-            else:
-                generate_result = self.search_handler.search_after_result(result, self.sorted_fields)
-            self.write_file(f, generate_result)
+        # 是否快速下载
+        if self.is_quick_export:
+            result_list = self.search_handler.multi_get_slice_data(
+                pre_file_name=self.file_name, file_type=self.file_type
+            )
+            error_log_file = f"{ASYNC_DIR}/{self.file_name}_error_log"
+            with open(error_log_file, 'w') as error_file:
+                with tarfile.open(self.tar_file_path, "w:gz") as tar:
+                    for idx, result in enumerate(result_list):
+                        if isinstance(result, tuple):
+                            self.file_path_list.append(result[0])
+                            tar.add(result[0], arcname=os.path.basename(result[0]))
+                        else:
+                            error_file.write(f"slice_{idx}_error: {result}\n")  # 追加错误信息
+            with tarfile.open(self.tar_file_path, "a:gz") as tar:  # 以追加模式打开
+                self.file_path_list.append(error_log_file)
+                tar.add(error_log_file, arcname=os.path.basename(error_log_file))
+            return
+
+        # csv / txt
+        result_list = self.search_handler._deal_query_result(result_dict=result).get("origin_log_list")
+        if self.search_handler.scenario_id == Scenario.ES:
+            generate_result = self.search_handler.scroll_result(result)
+        else:
+            generate_result = self.search_handler.search_after_result(result, self.sorted_fields)
+        if self.file_type == FileType.CSV.value:
+            with open(self.file_path, "a+", newline='', encoding="utf-8") as f:
+                fieldnames = result_list[0].keys() if result_list else []
+                csv_writer = csv.DictWriter(f, fieldnames=fieldnames)
+                # 检查文件是否为空，只在新文件时写入表头
+                if f.tell() == 0:
+                    csv_writer.writeheader()
+                for item in result_list:
+                    csv_writer.writerow(item)
+                for res in generate_result:
+                    origin_result_list = res.get("origin_log_list")
+                    for item in origin_result_list:
+                        csv_writer.writerow(item)
+        else:
+            with open(self.file_path, "a+", encoding="utf-8") as f:
+                for item in result_list:
+                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                if self.search_handler.scenario_id == Scenario.ES:
+                    generate_result = self.search_handler.scroll_result(result)
+                else:
+                    generate_result = self.search_handler.search_after_result(result, self.sorted_fields)
+                self.write_file(f, generate_result)
 
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             tar.add(self.file_path, arcname=self.file_name)
@@ -328,6 +379,11 @@ class AsyncExportUtils(object):
         """
         清空产生的临时文件
         """
+        if self.is_quick_export:
+            for file_path in self.file_path_list:
+                os.remove(file_path)
+            os.remove(self.tar_file_path)
+            return
         os.remove(self.file_path)
         os.remove(self.tar_file_path)
 
