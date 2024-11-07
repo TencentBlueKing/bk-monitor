@@ -214,6 +214,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return this.commonOptions?.angle[this.currentKind]?.support_operations;
   }
 
+  get perAfterString() {
+    const { kind } = this.dimensionParam;
+    const pre = kind === 'callee' ? this.$t('被调') : this.$t('主调');
+    const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
+    return { pre, after };
+  }
+
   get showTableList() {
     const { limit, current } = this.pagination;
     const groupByList = this.dimensionList.filter(item => item.active);
@@ -460,6 +467,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
         )
       );
+      return;
     }
     /** Trace */
     if (type === 'trace') {
@@ -478,25 +486,24 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       const queryString = query.join(' AND ');
 
       const conditionList = {};
-      Object.keys(filter).map(
-        key =>
-          // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-          (conditionList[key] = {
-            selectedCondition: {
-              label: '=',
-              value: 'equal',
-            },
-            isInclude: true,
-            selectedConditionValue: filter[key],
-          })
-      );
-
+      Object.keys(filter).map(key => {
+        const item = {
+          selectedCondition: {
+            label: '=',
+            value: 'equal',
+          },
+          isInclude: true,
+          selectedConditionValue: filter[key],
+        };
+        conditionList[key] = item;
+      });
       window.open(
         location.href.replace(
           location.hash,
           `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}`
         )
       );
+      return;
     }
     /** 查看 */
     if (type === 'service') {
@@ -516,9 +523,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           `#/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
         )
       );
+      return;
     }
   }
-  async getSimpleList(field, value) {
+  async getSimpleList(field: string, value: string) {
     const { kind } = this.dimensionParam;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.simpleLoading = true;
@@ -595,9 +603,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 {this.supportOperations.map(opt => {
                   const intersection = Array.from(new Set(opt.tags.filter(item => set1.has(item)))) || [];
                   const isHas = intersection.length > 0;
-                  const { kind } = this.dimensionParam;
-                  const pre = kind === 'callee' ? this.$t('被调') : this.$t('主调');
-                  const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
                   if (isHas && opt.value === 'callee') {
                     return (
                       <bk-popover
@@ -612,7 +617,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                           class='simple-list'
                           slot='content'
                         >
-                          <span>{this.$t(`查看当前${pre}Service在${after}分析的数据`)}</span>
+                          <span>
+                            {this.$t(
+                              `查看当前${this.perAfterString.pre}Service在${this.perAfterString.after}分析的数据`
+                            )}
+                          </span>
                           <div
                             class='simple-list-item'
                             v-bkloading={{ isLoading: this.simpleLoading, theme: 'primary', size: 'mini' }}
