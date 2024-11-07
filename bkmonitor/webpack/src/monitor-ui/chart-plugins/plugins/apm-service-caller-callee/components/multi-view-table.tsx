@@ -216,9 +216,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   get perAfterString() {
     const { kind } = this.dimensionParam;
-    const pre = kind === 'callee' ? this.$t('被调') : this.$t('主调');
     const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
-    return { pre, after };
+    return after;
   }
 
   get showTableList() {
@@ -396,15 +395,19 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const parts = key.split('_');
     const metricCalType = parts.slice(0, 2).join('_');
     const timeShift = parts.slice(2).join('_');
+    const metricCalTypeName = this.groupByCalculationTypes.find(item => item.value === metricCalType)?.text;
     this.dimensionChartOpt = {
       metric_cal_type: metricCalType,
       time_shift: timeShift,
+      metric_cal_type_name: metricCalTypeName,
     };
     this.curDimensionKey = metricCalType;
   }
 
   handleDimensionKeyChange(id) {
+    const metricCalTypeName = this.groupByCalculationTypes.find(item => item.value === id)?.text;
     this.$set(this.dimensionChartOpt, 'metric_cal_type', id);
+    this.$set(this.dimensionChartOpt, 'metric_cal_type_name', metricCalTypeName);
     this.curDimensionKey = id;
     this.$emit('dimensionKeyChange', id);
   }
@@ -513,6 +516,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee`
         )
       );
+      return;
     }
     /** 拓扑 */
     if (type === 'topo') {
@@ -602,6 +606,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 </bk-dropdown-menu>
                 {this.supportOperations.map(opt => {
                   const intersection = Array.from(new Set(opt.tags.filter(item => set1.has(item)))) || [];
+                  const pre = this.dimensionList.find(item => item.value === intersection[0]);
                   const isHas = intersection.length > 0;
                   if (isHas && opt.value === 'callee') {
                     return (
@@ -612,15 +617,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         trigger='click'
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
-                        <span>{opt.text}</span>
+                        <span class='operation-item'>{opt.text}</span>
                         <div
                           class='simple-list'
                           slot='content'
                         >
                           <span>
-                            {this.$t(
-                              `查看当前${this.perAfterString.pre}Service在${this.perAfterString.after}分析的数据`
-                            )}
+                            {this.simpleList.length === 0
+                              ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
+                              : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`)}
                           </span>
                           <div
                             class='simple-list-item'
@@ -1056,7 +1061,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             </bk-select>
           </div>
           <div class='multi-dialog-content'>
-            <span class='tips'>{this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}</span>
+            <span class='multi-tips'>{this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}</span>
             {this.isShowDimension && (
               <DashboardPanel
                 id={'apm-table-dimension_panels'}

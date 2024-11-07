@@ -58,16 +58,26 @@ class CallerPieChart extends CommonSimpleChart {
   options = {};
   legendData = [];
   defaultColors = Object.freeze([
-    '#699DF4',
-    '#F7B936',
-    '#1788C9',
-    '#C8E74A',
-    '#FF2D23',
-    '#57AC3E',
-    '#FF5422',
-    '#8C00A9',
-    '#A91947',
-    '#FB962E',
+    '#96C989',
+    '#F1CE1A',
+    '#7EC7E7',
+    '#E28D68',
+    '#5766ED',
+    '#EC6D93',
+    '#8F87E1',
+    '#6ECD94',
+    '#F6A52C',
+    '#5ACCCC',
+    '#CC7575',
+    '#4185EB',
+    '#DD6CD2',
+    '#8A88C1',
+    '#7CB3A3',
+    '#DBD84D',
+    '#8DBAD3',
+    '#D38D8D',
+    '#4E76B1',
+    '#BF92CB',
   ]);
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @InjectReactive('dimensionChartOpt') readonly dimensionChartOpt: IDataItem;
@@ -94,6 +104,7 @@ class CallerPieChart extends CommonSimpleChart {
         ...this.viewOptions,
         ...this.dimensionParam,
       });
+      const { metric_cal_type, time_shift } = this.dimensionChartOpt;
       const promiseList = this.panel.targets.map(item => {
         const params = variablesService.transformVariables(item.data, {
           ...this.viewOptions.filters,
@@ -106,7 +117,10 @@ class CallerPieChart extends CommonSimpleChart {
           ?.[item.apiFunc](
             {
               ...params,
-              ...this.dimensionChartOpt,
+              metric_cal_type,
+              time_shift,
+              where: this.dimensionParam.whereParams,
+              ...this.dimensionParam.timeParams,
             },
             {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -147,17 +161,31 @@ class CallerPieChart extends CommonSimpleChart {
     // biome-ignore lint/complexity/noForEach: <explanation>
     srcData.forEach((item, index) => {
       const defaultColor = this.defaultColors[index % this.defaultColors.length];
-      const { name, value, color = defaultColor, borderColor = defaultColor } = item;
-      legendList.push({ name, value, color, borderColor, show: true });
-      dataList.push({ name, value, itemStyle: { color } });
+      const { proportion, name, value, color = defaultColor, borderColor = defaultColor } = item;
+      legendList.push({ proportion, name, value, color, borderColor, show: true });
+      dataList.push({ proportion, name, value, itemStyle: { color } });
     });
     this.legendData = legendList;
     const echartOptions = deepClone(MONITOR_PIE_OPTIONS);
     this.options = Object.freeze(
       deepmerge(echartOptions, {
-        // tooltip: {
-        //   className: 'caller-pie-chart-tooltips',
-        // },
+        tooltip: {
+          className: 'caller-pie-chart-tooltips',
+          formatter: p => {
+            const data = p.data;
+            return `<div class="monitor-chart-tooltips">
+              <p class="tooltips-header">
+              ${data.name}
+              </p>
+              <p class="tooltips-header">
+              ${this.dimensionChartOpt.metric_cal_type_name}：${data.value}
+              </p>
+              <p class="tooltips-header">
+              ${this.$t('占比')}：${data.proportion}%
+              </p>
+              </div>`;
+          },
+        },
         series: [
           {
             label: {

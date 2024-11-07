@@ -55,16 +55,20 @@ class CallerBarChart extends CommonSimpleChart {
   emptyText = window.i18n.tc('查无数据');
   empty = true;
   cancelTokens = [];
-  options: MonitorEchartOptions = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '',
+  options = {};
+  baseOptions: MonitorEchartOptions = {
+    series: [],
+    grid: {
+      top: 30,
+      right: 32,
     },
-    animation: true,
     color: ['#689DF3'],
     xAxis: {
-      show: true,
       type: 'category',
+      axisPointer: {
+        type: 'shadow',
+      },
+      data: [],
     },
     yAxis: {
       type: 'value',
@@ -76,7 +80,31 @@ class CallerBarChart extends CommonSimpleChart {
         },
       },
     },
-    series: [],
+    tooltip: {
+      className: 'caller-pie-chart-tooltips',
+      show: true,
+      trigger: 'axis',
+      axisPointer: {
+        type: 'line',
+        label: {
+          backgroundColor: '#6a7985',
+        },
+      },
+      formatter: p => {
+        const data = p[0].data;
+        return `<div class="monitor-chart-tooltips">
+          <p class="tooltips-header">
+          ${data.name}
+          </p>
+          <p class="tooltips-header">
+          ${data.metricCalTypeName}：${data.value}
+          </p>
+          <p class="tooltips-header">
+          ${this.$t('占比')}：${data.proportion}%
+          </p>
+          </div>`;
+      },
+    },
   };
   // legendData = [];
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
@@ -85,6 +113,10 @@ class CallerBarChart extends CommonSimpleChart {
   @Watch('dimensionParam', { deep: true })
   onCallOptionsChange() {
     this.getPanelData();
+  }
+
+  get metricCalTypeName() {
+    return this.dimensionChartOpt?.metric_cal_type_name;
   }
   /**
    * @description: 获取图表数据
@@ -103,6 +135,7 @@ class CallerBarChart extends CommonSimpleChart {
         ...this.viewOptions,
         ...this.dimensionParam,
       });
+      const { metric_cal_type, time_shift } = this.dimensionChartOpt;
       const promiseList = this.panel.targets.map(item => {
         const params = variablesService.transformVariables(item.data, {
           ...this.viewOptions.filters,
@@ -115,7 +148,10 @@ class CallerBarChart extends CommonSimpleChart {
           ?.[item.apiFunc](
             {
               ...params,
-              ...this.dimensionChartOpt,
+              metric_cal_type,
+              time_shift,
+              where: this.dimensionParam.whereParams,
+              ...this.dimensionParam.timeParams,
             },
             {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -154,29 +190,27 @@ class CallerBarChart extends CommonSimpleChart {
     // const legendList = [];
     const dataList = [];
     const xAxisLabel = [];
+    const metricCalTypeName = this.dimensionChartOpt?.metric_cal_type_name;
     // biome-ignore lint/complexity/noForEach: <explanation>
     srcData.forEach(item => {
-      dataList.push(item.value);
+      const { proportion, name, value } = item;
+      dataList.push({ proportion, name, value, metricCalTypeName });
       xAxisLabel.push(item.name);
     });
     // this.legendData = legendList;
+    const seriesData = [
+      {
+        barMaxWidth: 20,
+        data: dataList,
+        type: 'bar',
+      },
+    ];
     this.options = Object.freeze(
-      deepmerge(this.options, {
-        grid: {
-          top: 30,
-          right: 32,
-        },
+      deepmerge(this.baseOptions, {
         xAxis: {
-          type: 'category',
           data: xAxisLabel,
         },
-        series: [
-          {
-            barMaxWidth: 20,
-            data: dataList,
-            type: 'bar',
-          },
-        ],
+        series: seriesData,
       })
     ) as MonitorEchartOptions;
   }
