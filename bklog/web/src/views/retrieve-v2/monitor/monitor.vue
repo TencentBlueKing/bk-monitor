@@ -33,7 +33,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import useStore from '@/hooks/use-store';
 import { updateTimezone } from '@/language/dayjs';
 import { ConditionOperator } from '@/store/condition-operator';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
+import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -165,16 +165,15 @@ const setRouteParams = () => {
   const params = isUnionIndex
   ? { indexId: undefined }
   : { indexId: ids?.[0] ?? route.query?.indexId };
-
   const query = { ...route.query, ...params };
   const resolver = new RetrieveUrlResolver({
     ...routeQueryParams.value,
-    ...route.query,
     indexId: params.indexId,
     bizId: String(window.bk_biz_id),
     datePickerValue: store.state.indexItem.datePickerValue,
   });
   Object.assign(query, resolver.resolveParamsToUrl());
+  
   if (!isEqual(query, route.query)) {
     router.replace({
       query,
@@ -184,7 +183,8 @@ const setRouteParams = () => {
 
 const init = () => {
   const result = handleTransformToTimestamp(props.timeRange);
-  store.commit('resetIndexsetItemParams', { start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, timezone: props.timezone });
+  const resolver = new RouteUrlResolver({ route });
+  store.commit('updateIndexItem', { ...resolver.convertQueryToStore(), start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, });
   store.commit('updateIndexId', '');
   store.commit('updateUnionIndexList', []);
   getIndexSetList();
