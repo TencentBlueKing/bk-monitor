@@ -28,15 +28,19 @@ import { Component, Prop, Watch, Emit, ProvideReactive, InjectReactive } from 'v
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
+import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
@@ -77,9 +81,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ type: String }) activeTabKey: string;
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
 
+  @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   @ProvideReactive('dimensionChartOpt') dimensionChartOpt: IDimensionChartOpt;
   @ProvideReactive('curDimensionKey') curDimensionKey: string;
+  @InjectReactive('viewOptions') viewOptions;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -88,7 +95,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
   drillValue = '';
-  // curDimensionKey = 'request_total';
+  serviceList = [];
   curRowData = {};
   request = ['request_total'];
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
@@ -102,6 +109,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     limitList: [10, 20, 50],
   };
   tableAppendWidth = 0;
+  simpleList = [];
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
@@ -164,9 +172,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     });
     this.cachePanels = JSON.parse(JSON.stringify(this.panels));
   }
-  get dialogSelectList() {
-    return LIMIT_TYPE_LIST;
+
+  get appName() {
+    return this.viewOptions?.app_name;
   }
+
   get dimensionOptions() {
     if (!this.tableListData?.length) return [];
     const options = new Map();
@@ -195,6 +205,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   get groupByChartLimit() {
     return this.commonOptions?.group_by?.data?.limit || 30;
   }
+  get currentKind() {
+    return this.dimensionParam?.kind || 'callee';
+  }
+  /** 对应的字段操作 */
+  get supportOperations() {
+    return this.commonOptions?.angle[this.currentKind]?.support_operations;
+  }
 
   get showTableList() {
     const { limit, current } = this.pagination;
@@ -221,6 +238,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
+    setTimeout(() => this.getServiceList());
+  }
+  async getServiceList() {
+    if (!this.appName) return;
+    const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    this.serviceList = listData.map(item => item.service_name).sort((a, b) => a.isClick - b.isClick);
   }
   handleGetDistribution() {
     this.isShowDimension = true;
@@ -407,10 +430,127 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.sortProp = prop;
     this.sortOrder = order;
   }
+
+  /** 字段操作 */
+  handleFieldOperations(opt: any, row: IDataItem, canClick = true, intersection = '') {
+    const type = opt.value;
+    if (!canClick) {
+      return;
+    }
+    const { kind } = this.dimensionParam;
+    const { app_name, service_name } = this.viewOptions;
+    /** 主被调 */
+    if (type === 'callee') {
+      const kindKey = kind === 'caller' ? 'callee' : 'caller';
+      const callOptions = {
+        kind: kindKey,
+        call_filter: [
+          {
+            key: intersection,
+            method: 'eq',
+            value: [row[intersection]],
+            condition: 'and',
+          },
+        ],
+      };
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
+        )
+      );
+    }
+    /** Trace */
+    if (type === 'trace') {
+      const groupBy = this.dimensionParam.group_by;
+      const tagTraceMapping = opt.tag_trace_mapping;
+      const filter = {
+        kind: tagTraceMapping[kind].value,
+        'resource.service.name': [service_name],
+      };
+      const query = [];
+      groupBy.map(item => {
+        if (row[item]) {
+          query.push(`${tagTraceMapping[item].field}: "${row[item]}"`);
+        }
+      });
+      const queryString = query.join(' AND ');
+
+      const conditionList = {};
+      Object.keys(filter).map(
+        key =>
+          // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+          (conditionList[key] = {
+            selectedCondition: {
+              label: '=',
+              value: 'equal',
+            },
+            isInclude: true,
+            selectedConditionValue: filter[key],
+          })
+      );
+
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}`
+        )
+      );
+    }
+    /** 查看 */
+    if (type === 'service') {
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee`
+        )
+      );
+    }
+    /** 拓扑 */
+    if (type === 'topo') {
+      const serviceName = this.serviceList.find(key => key === row[opt.tags[0]]);
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
+        )
+      );
+    }
+  }
+  async getSimpleList(field, value) {
+    const { kind } = this.dimensionParam;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const data = await getFieldOptionValues({
+      app_name: this.appName,
+      // 主调 -> 查被调服务候选值
+      field: kind === 'caller' ? 'callee_server' : 'caller_server',
+      // 使用被调指标
+      metric_field: kind === 'caller' ? 'rpc_server_handled_total' : 'rpc_client_handled_total',
+      filter_dict: {},
+      start_time: startTime,
+      end_time: endTime,
+      where: [
+        {
+          key: field,
+          method: 'eq',
+          value: [value],
+          condition: 'and',
+        },
+      ],
+    });
+    this.simpleList = data.map(item => ({
+      isClick: this.serviceList.includes(item.value),
+      ...item,
+    }));
+  }
+
   // 渲染左侧表格的列
   handleMultiColumn() {
+    const groupBy = this.dimensionParam.group_by;
+    const set1 = new Set(groupBy);
     const operationCol = (
       <bk-table-column
+        width={200}
         scopedSlots={{
           default: ({ row }) => {
             if (row?.isTotal) {
@@ -449,12 +589,84 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     })}
                   </ul>
                 </bk-dropdown-menu>
+                {this.supportOperations.map(opt => {
+                  const intersection = Array.from(new Set(opt.tags.filter(item => set1.has(item)))) || [];
+                  const isHas = intersection.length > 0;
+                  if (isHas && opt.value === 'callee') {
+                    return (
+                      <bk-popover
+                        ext-cls='caller-field-popover'
+                        placement='top'
+                        theme='light'
+                        trigger='click'
+                        onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
+                      >
+                        <span>{opt.text}</span>
+                        <div slot='content'>
+                          <span>{this.$t('查看当前主调Service在被调分析的数据')}</span>
+                          <div>
+                            {this.simpleList.map(item => (
+                              <div
+                                key={item.value}
+                                class={['field-item', { disabled: !item.isClick }]}
+                                v-bk-tooltips={{
+                                  content: this.$t('服务未接入'),
+                                  disabled: item.isClick,
+                                }}
+                                onClick={() => this.handleFieldOperations(opt, row, item.isClick, intersection[0])}
+                              >
+                                {item.value}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </bk-popover>
+                    );
+                  }
+                  if (isHas && ['service', 'topo'].includes(opt.value)) {
+                    const isClick = this.serviceList.includes(row[opt.tags[0]]);
+                    return (
+                      <span
+                        key={opt.value}
+                        class={['operation-item', { disabled: opt.value === 'service' && !isClick }]}
+                        v-bk-tooltips={
+                          opt.value === 'service'
+                            ? {
+                                content: this.$t('服务未接入'),
+                                disabled: isClick,
+                              }
+                            : { disabled: true }
+                        }
+                        onClick={() =>
+                          this.handleFieldOperations(
+                            opt,
+                            row,
+                            opt.value === 'service' ? isClick : true,
+                            intersection[0]
+                          )
+                        }
+                      >
+                        {opt.text}
+                      </span>
+                    );
+                  }
+                  if (isHas && opt.value === 'trace') {
+                    return (
+                      <span
+                        key={opt.value}
+                        class={['operation-item']}
+                        onClick={() => this.handleFieldOperations(opt, row, true, intersection[0])}
+                      >
+                        {opt.text}
+                      </span>
+                    );
+                  }
+                })}
               </div>
             );
           },
         }}
         label={this.$t('操作')}
-        min-width='100'
       />
     );
     const baseCol = this.dimensionList
