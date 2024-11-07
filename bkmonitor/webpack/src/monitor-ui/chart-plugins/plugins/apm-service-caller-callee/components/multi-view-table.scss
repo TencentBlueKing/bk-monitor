@@ -143,6 +143,14 @@
       width: 100%;
       color: #3a84ff;
       cursor: pointer;
+      .operation-item {
+        margin-left: 6px;
+        cursor: pointer;
+        &.disabled {
+          color: #c4c6cc;
+          cursor: not-allowed;
+        }
+      }
 
       .item-txt {
         display: inline-block;
@@ -158,8 +166,6 @@
 
       .icon-mc-copy {
         position: absolute;
-        position: absolute;
-        right: -20px;
         right: -20px;
         margin-left: 6px;
         color: #63656e;
@@ -249,7 +255,7 @@
     }
 
     .multi-dialog-select {
-      width: 110px;
+      width: 140px;
     }
   }
 
@@ -341,5 +347,28 @@
 
   &-item {
     margin-right: 6px;
+  }
+}
+.caller-field-popover {
+  .field-item {
+    cursor: pointer;
+    color: #3a84ff;
+    font-weight: 500;
+    padding: 4px 0;
+    &.disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+  .simple-list {
+    width: 100%;
+    min-height: 35px;
+  }
+  .simple-list-item {
+    width: 100%;
+    min-height: 20px;
+    .bk-loading {
+      top: 10px;
+    }
   }
 }
