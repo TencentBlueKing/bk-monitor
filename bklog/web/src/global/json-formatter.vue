@@ -53,6 +53,7 @@
 
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
+  const isEditorInit = ref(false);
 
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
@@ -72,12 +73,9 @@
   });
 
   const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
-    if (entry.isIntersecting) {
-      nextTick(() => {
-        setEditor(depth.value);
-      });
-    } else {
-      destroy();
+    if (entry.isIntersecting && !isEditorInit.value) {
+      isEditorInit.value = true;
+      setEditor(depth.value);
     }
   });
 
@@ -133,6 +131,7 @@
   watch(
     () => [formatCounter.value],
     () => {
+      isEditorInit.value = false;
       updateRootFieldOperator(rootList.value, depth.value);
       if (isIntersecting.value) {
         setEditor(depth.value);
@@ -149,8 +148,6 @@
       setExpand(depth.value);
     },
   );
-
-
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
