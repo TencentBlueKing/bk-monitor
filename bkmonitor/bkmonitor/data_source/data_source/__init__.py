@@ -2071,7 +2071,7 @@ class BkFtaEventDataSource(DataSource):
         if self.alert_name:
             if self.alert_name == constants.event.ALL_EVENT_PLUGIN_METRIC:
                 self.filter_dict["plugin_id__neq"] = "bkmonitor"
-            elif self.alert_name.startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
+            elif str(self.alert_name).startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
                 self.filter_dict["plugin_id"] = self.alert_name[len(constants.event.EVENT_PLUGIN_METRIC_PREFIX) :]
             else:
                 self.filter_dict["alert_name.raw"] = self.alert_name
