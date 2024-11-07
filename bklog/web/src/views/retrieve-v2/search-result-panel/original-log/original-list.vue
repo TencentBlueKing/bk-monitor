@@ -29,7 +29,10 @@
   <div>
     <bk-table
       ref="resultTable"
-      class="bklog-origin-list"
+      :class="[
+        'bklog-origin-list',
+        { 'is-hidden-index-column': !tableShowRowIndex, 'is-show-index-column': tableShowRowIndex },
+      ]"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -43,7 +46,7 @@
         type="expand"
       >
         <template #default="{ $index, row }">
-          <LazyRender>
+          <LazyRender :delay="1">
             <expand-view
               :kv-show-fields-list="kvShowFieldsList"
               :data="originTableList[$index]"
@@ -84,7 +87,7 @@
         <bk-table-column>
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <LazyRender>
+            <LazyRender :delay="1">
               <JsonFormatter
                 :jsonValue="row"
                 :fields="getShowTableVisibleFields"
@@ -118,39 +121,8 @@
           </LazyRender>
         </template>
       </bk-table-column>
-      <!-- 初次加载骨架屏loading -->
-      <template
-        v-if="tableLoading"
-        #empty
-      >
-        <bk-table-column>
-          <retrieve-loader
-            is-new-search
-            is-original-field
-            :visible-fields="getShowTableVisibleFields"
-            is-loading
-          >
-          </retrieve-loader>
-        </bk-table-column>
-      </template>
-      <template
-        v-else
-        #empty
-      >
+      <template #empty>
         <empty-view />
-      </template>
-      <!-- 下拉刷新骨架屏loading -->
-      <template
-        v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
-        #append
-      >
-        <retrieve-loader
-          is-new-search
-          is-original-field
-          :is-page-over="isPageOver"
-          :visible-fields="getShowTableVisibleFields"
-        >
-        </retrieve-loader>
       </template>
     </bk-table>
   </div>

@@ -1,5 +1,8 @@
 <template>
-  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]">
+  <div
+    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    ref="refJsonFormatterCell"
+  >
     <template v-for="item in rootList">
       <span
         :key="item.name"
@@ -23,11 +26,12 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
+  import { computed, ref, watch, nextTick } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -48,6 +52,8 @@
   });
 
   const formatCounter = ref(0);
+  const refJsonFormatterCell = ref();
+
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
@@ -60,9 +66,19 @@
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
-  const { updateRootFieldOperator, setExpand } = useJsonRoot({
+  const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
     fields: fieldList.value,
     onSegmentClick,
+  });
+
+  const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
+    if (entry.isIntersecting) {
+      nextTick(() => {
+        setEditor(depth.value);
+      });
+    } else {
+      destroy();
+    }
   });
 
   const convertToObject = val => {
@@ -118,6 +134,9 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
+      if (isIntersecting.value) {
+        setEditor(depth.value);
+      }
     },
     {
       immediate: true,
@@ -130,6 +149,8 @@
       setExpand(depth.value);
     },
   );
+
+
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
