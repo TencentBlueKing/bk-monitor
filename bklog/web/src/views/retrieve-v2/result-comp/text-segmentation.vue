@@ -16,7 +16,7 @@
   });
 
   const refContent = ref();
-  const refFieldValue = ref;
+  const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
   const isWrap = computed(() => store.state.tableLineIsWrap);
@@ -155,7 +155,6 @@
         refFieldValue.value.innerText = renderText.value;
       }
 
-      setObserveTimer && clearTimeout(setObserveTimer);
       resizeObserver?.unobserve?.(getCellElement());
     }
   });
