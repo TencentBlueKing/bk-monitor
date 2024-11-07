@@ -229,9 +229,9 @@
             this.isPageOver = true;
             this.newScrollHeight = el.scrollTop;
             this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
-              this.isPageOver = false;
               this.finishPolling = res.data.total < this.indexItem.begin;
-              this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                this.isPageOver = false;
                 this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
               });
             });
@@ -400,10 +400,6 @@
             align-items: center;
             justify-content: center;
             min-height: calc(100vh - 600px);
-          }
-
-          tr {
-            // content-visibility: auto;
           }
         }
 

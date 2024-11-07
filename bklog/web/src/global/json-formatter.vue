@@ -32,6 +32,7 @@
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  import jsonEditorTask from '../global/utils/json-editor-task';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -131,9 +132,9 @@
   watch(
     () => [formatCounter.value],
     () => {
-      isEditorInit.value = false;
       updateRootFieldOperator(rootList.value, depth.value);
       if (isIntersecting.value) {
+        isEditorInit.value = true;
         setEditor(depth.value);
       }
     },
@@ -145,7 +146,11 @@
   watch(
     () => [depth.value],
     () => {
-      setExpand(depth.value);
+      if (isIntersecting.value) {
+        setExpand(depth.value);
+      } else {
+        jsonEditorTask(setExpand, [depth.value]);
+      }
     },
   );
 </script>
