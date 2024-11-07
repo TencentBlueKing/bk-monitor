@@ -100,10 +100,10 @@ def process_stage_string(query_string):
     将query_string中的处理阶段信息替换为英文字段名
     example:
     >> process_stage_string('处理阶段 : 已通知 AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复')
-    >> 'is_handled : true AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复'
+    >> '(is_handled : true AND is_shielded : false) AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复'
     >>
-    >> process_stage_string('(((-处理阶段 : 已通知 )) AND 处理阶段 : 已流控) AND -指标ID : "bk_log_search.index_set.53"')
-    >>'((( is_handled : false )) AND is_blocked : true ) AND -指标ID : "bk_log_search.index_set.53"'
+    >> process_stage_string('NOT 处理阶段 : 已通知 OR -处理阶段 : 已屏蔽 ')
+    >> 'NOT (is_handled : true AND is_shielded : false) OR -is_shielded : true'
     """
     stage_mapping = {
         "已通知": "is_handled",
@@ -116,15 +116,17 @@ def process_stage_string(query_string):
         "is_blocked": "is_blocked",
     }
 
-    pattern = fr"(?P<prefix>-|not|)\s*(处理阶段|stage)\s*:\s*(?P<stage>{'|'.join(stage_mapping.keys())})"
-    # 遍历所有匹配到的处理阶段信息
+    pattern = fr"(处理阶段|stage)\s*:\s*(?P<stage>{'|'.join(stage_mapping.keys())})"
     for _ in re.findall(pattern, query_string, re.IGNORECASE):
         match = re.search(pattern, query_string, re.IGNORECASE)
-        value = "false" if match.group("prefix") else "true"
         stage = match.group("stage")
         start, end = match.span()
-        # 将查询字符串中的处理阶段信息替换为映射后的英文字段名和对应的值
-        query_string = query_string[:start] + f" {stage_mapping[stage]} : {value} " + query_string[end:]
+        # 当存在'处理阶段 : 已通知'时，加上 AND is_shielded : false，用于过滤掉已屏蔽的告警
+        if stage_mapping[stage] == "is_handled":
+            query_string = (query_string[:start] + f"({stage_mapping[stage]} : true AND is_shielded : false) "
+                            + query_string[end:])
+        else:
+            query_string = query_string[:start] + f"{stage_mapping[stage]} : true " + query_string[end:]
 
     # 去除查询字符串中的多余空白字符，并去除首尾的空白字符
     query_string = re.sub(r"\s+", " ", query_string).strip()
