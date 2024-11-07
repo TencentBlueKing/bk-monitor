@@ -1627,7 +1627,7 @@
                     "caller": {
                       "field": "kind",
                       "value": [
-                        3,
+                        2,
                         5
                       ]
                     },
@@ -1821,7 +1821,7 @@
                     "callee": {
                       "field": "kind",
                       "value": [
-                        2,
+                        3,
                         4
                       ]
                     },
