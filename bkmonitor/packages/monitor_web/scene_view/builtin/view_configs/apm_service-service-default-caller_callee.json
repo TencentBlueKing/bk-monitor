@@ -478,7 +478,7 @@
                         "key": "code_type",
                         "method": "eq",
                         "value": [
-                          "timeout"
+                          "${code_type}"
                         ],
                         "condition": "and"
                       }
@@ -570,7 +570,7 @@
                           "key": "code_type",
                           "method": "eq",
                           "value": [
-                            "timeout"
+                            "${code_type}"
                           ],
                           "condition": "and"
                         }
@@ -629,11 +629,17 @@
             "child_panels_selector_variables": [
               {
                 "id": "timeout_rate",
-                "code_type": "timeout"
+                "title": "超时率",
+                "variables": {
+                  "code_type": "timeout"
+                }
               },
               {
                 "id": "exception_rate",
-                "code_type": "exception"
+                "title": "异常率",
+                "variables": {
+                  "code_type": "exception"
+                }
               }
             ],
             "is_support_group_by": true,
