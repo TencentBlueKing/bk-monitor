@@ -35,9 +35,9 @@ from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
+    PARSE_FAILURE_FIELD,
     EtlConfig,
     MetadataTypeEnum,
-    PARSE_FAILURE_FIELD,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -257,6 +257,13 @@ class EtlStorage(object):
                 if es_version.startswith("5.")
                 else {"es_type": "text"},
             }
+            # 加入大小写敏感和分词配置
+            original_text_field["option"].update(
+                {
+                    "is_case_sensitive": etl_params.get("original_text_is_case_sensitive", False),
+                    "tokenize_on_chars": etl_params.get("original_text_tokenize_on_chars", ""),
+                }
+            )
             if es_analyzer:
                 original_text_field["option"]["es_analyzer"] = es_analyzer
             field_list.append(original_text_field)
@@ -361,6 +368,9 @@ class EtlStorage(object):
                     if analyzer_name:
                         field_option["es_analyzer"] = analyzer_name
 
+            # 加入大小写敏感和分词配置
+            field_option["is_case_sensitive"] = field.get("is_case_sensitive", False)
+            field_option["tokenize_on_chars"] = field.get("tokenize_on_chars", "")
             # ES_INCLUDE_IN_ALL
             if field["is_analyzed"] and es_version.startswith("5."):
                 field_option["es_include_in_all"] = True
@@ -639,7 +649,7 @@ class EtlStorage(object):
                         "es_doc_values": True,
                         "es_type": "keyword",
                         "field_index": etl_field_index,
-                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                        "real_path": f"{self.path_separator_node_name}.{field_name}",
                     },
                     "tag": "dimension",
                 }
@@ -855,7 +865,7 @@ class EtlStorage(object):
                         "es_doc_values": True,
                         "es_type": "keyword",
                         "field_index": etl_field_index,
-                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                        "real_path": f"{self.path_separator_node_name}.{field_name}",
                     },
                     "tag": "dimension",
                 }
@@ -899,14 +909,9 @@ class EtlStorage(object):
                     {
                         "result": "filename_item",
                         "keys": [
-                            field["alias_name"]
-                            if field["alias_name"]
-                            else field["field_name"]
-                            for field in path_fields
+                            field["alias_name"] if field["alias_name"] else field["field_name"] for field in path_fields
                         ],
-                        "regexp": etl_path_regexp.replace(
-                            "(?P<", "(?<"
-                        ),
+                        "regexp": etl_path_regexp.replace("(?P<", "(?<"),
                     }
                 ],
                 "next": {
