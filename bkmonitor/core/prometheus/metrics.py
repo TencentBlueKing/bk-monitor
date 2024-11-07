@@ -1158,12 +1158,13 @@ METADATA_CRON_TASK_COST_SECONDS = Histogram(
     name="bkmonitor_metadata_cron_task_cost_seconds",
     documentation="监控元数据定时任务耗时统计",
     labelnames=("task_name", "process_target"),
+    buckets=(0, 1, 5, 10, 30, 60, 120, 180, 240, 300, 600, 900, 1800, 3000, 6000, INF),
 )
 
-METADATA_DATA_LINK_ACCESS_INFO = Gauge(
-    name="bkmonitor_metadata_data_link_access_info",
+METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
-    labelnames=("version", "biz_id", "data_id", 'table_id', 'strategy'),
+    labelnames=("version", "biz_id", 'strategy', 'status'),
 )
 
 
