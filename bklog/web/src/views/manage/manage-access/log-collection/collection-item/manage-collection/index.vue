@@ -179,6 +179,7 @@
           params,
           query: {
             spaceUid: this.$store.state.spaceUid,
+            bizId: this.$store.state.bkBizId,
           },
         });
       },

@@ -58,6 +58,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
     normal_strategy_enable: false,
   };
   cloneFormData = null;
+  confirmLading = false;
   formRules = {
     clustering_fields: [
       {
@@ -85,6 +86,10 @@ export default class QuickOpenCluster extends tsc<IProps> {
     return this.$store.state.bkBizId;
   }
 
+  get isExternal() {
+    return this.$store.state.isExternal;
+  }
+
   @Emit('cluster-created')
   handleCreateCluster() {
     return true;
@@ -97,18 +102,21 @@ export default class QuickOpenCluster extends tsc<IProps> {
     const isRulePass = await this.filterRuleRef.handleCheckRuleValidate();
     if (!isRulePass) return;
     this.quickClusterFromRef.validate().then(async () => {
+      this.confirmLading = true;
       try {
         const data = {
           bk_biz_id: this.bkBizId,
           clustering_fields: this.formData.clustering_fields,
           new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
           normal_strategy_enable: this.formData.normal_strategy_enable,
-          filter_rules: this.formData.filter_rules.map(item => ({
-            fields_name: item.fields_name,
-            logic_operator: item.logic_operator,
-            op: item.op,
-            value: item.value[0],
-          })),
+          filter_rules: this.formData.filter_rules
+            .filter(item => item.value.length)
+            .map(item => ({
+              fields_name: item.fields_name,
+              logic_operator: item.logic_operator,
+              op: item.op,
+              value: item.value[0],
+            })),
         };
         const res = await $http.request('retrieve/createClusteringConfig', {
           params: {
@@ -130,6 +138,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
         }
       } catch (error) {
         console.warn(error);
+      } finally {
+        this.confirmLading = false;
       }
     });
   }
@@ -200,6 +210,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
         v-model={this.isShowDialog}
         confirm-fn={this.handleConfirmSubmit}
         header-position='left'
+        loading={this.confirmLading}
         mask-close={false}
         render-directive='if'
         theme='primary'
@@ -326,13 +337,15 @@ export default class QuickOpenCluster extends tsc<IProps> {
             2. {$i18n.t('可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本')}
           </p>
           <p>3. {$i18n.t('当版本变更时，可快速定位变更后新增问题')}</p>
-          <bk-button
-            style='margin-top: 32px;'
-            theme='primary'
-            onClick={this.handleAccessCluster}
-          >
-            {$i18n.t('接入日志聚类')}
-          </bk-button>
+          {!this.isExternal && (
+            <bk-button
+              style='margin-top: 32px;'
+              theme='primary'
+              onClick={this.handleAccessCluster}
+            >
+              {$i18n.t('接入日志聚类')}
+            </bk-button>
+          )}
         </div>
         <div class='right-box'>
           <img src={clusterImg} />

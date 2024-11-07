@@ -87,6 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
+            :labelHeight="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
@@ -233,7 +234,7 @@
         type="submit"
         @click="confirmModifyFields"
       >
-        {{ $t('应用') }}
+        {{ $t('保存') }}
       </bk-button>
       <bk-button
         :theme="'default'"
@@ -257,7 +258,6 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-  import { sessionShowFieldObj } from '@/common/util';
 
   import fieldsSettingOperate from './fields-setting-operate';
 
@@ -295,6 +295,7 @@
           handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
+        isSortFieldChanged: false,
       };
     },
     computed: {
@@ -382,13 +383,8 @@
             await this.submitFieldsSet(this.currentClickConfigID);
           }
           this.cancelModifyFields();
-          const showFieldObj = sessionShowFieldObj();
-          Object.assign(showFieldObj, { [this.indexId]: this.shadowVisible });
-          sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
-          this.$store.commit('updateClearTableWidth', 1);
           this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           await this.$store.dispatch('requestIndexSetFieldInfo');
-          this.$store.commit('resetVisibleFields', this.shadowVisible);
         } catch (error) {
           console.warn(error);
         } finally {
@@ -414,6 +410,7 @@
       },
       cancelModifyFields() {
         this.$emit('cancel');
+        this.isSortFieldChanged = false;
       },
       filterStatusIcon(val) {
         if (val === 'desc') {
@@ -434,15 +431,18 @@
         return '';
       },
       addField(fieldInfo) {
+        this.isSortFieldChanged = true;
         if (this.activeFieldTab === 'visible') {
           fieldInfo.is_display = true;
           this.shadowVisible.push(fieldInfo.field_name);
         } else {
           fieldInfo.isSorted = true;
+          this.isSortFieldChanged = true;
           this.shadowSort.push([fieldInfo.field_name, 'asc']);
         }
       },
       deleteField(fieldName, index) {
+        this.isSortFieldChanged = true;
         const arr = this.shadowTotal;
         if (this.activeFieldTab === 'visible') {
           this.shadowVisible.splice(index, 1);
@@ -456,6 +456,7 @@
           this.shadowSort.splice(index, 1);
           for (let i = 0; i < arr.length; i++) {
             if (arr[i].field_name === fieldName) {
+              this.isSortFieldChanged = true;
               arr[i].isSorted = false;
               return;
             }
@@ -474,6 +475,7 @@
           this.shadowTotal.forEach(fieldInfo => {
             if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
               fieldInfo.isSorted = true;
+              this.isSortFieldChanged = true;
               this.shadowSort.push([fieldInfo.field_name, 'asc']);
             }
           });
@@ -488,11 +490,13 @@
         } else {
           this.shadowTotal.forEach(fieldInfo => {
             fieldInfo.isSorted = false;
+            this.isSortFieldChanged = this.isSortFieldChanged || this.shadowSort.length;
             this.shadowSort.splice(0, this.shadowSort.length);
           });
         }
       },
       setOrder(item) {
+        this.isSortFieldChanged = true;
         item[1] = item[1] === 'asc' ? 'desc' : 'asc';
         this.$forceUpdate();
       },
@@ -579,6 +583,11 @@
             data,
           });
           if (this.activeFieldTab === 'sort') {
+            if (this.isSortFieldChanged) {
+              this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
+                this.isSortFieldChanged = false;
+              });
+            }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
         } catch (error) {
@@ -605,8 +614,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
-            this.$store.commit('updateClearTableWidth', 1);
             this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
@@ -721,7 +728,6 @@
           }
 
           .panel-name {
-            max-width: 100px;
             padding-left: 20px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -792,20 +798,20 @@
 
     .fields-tab-container {
       width: 723px;
-      padding: 10px 24px 0;
+      padding: 0px 10px 0 10px;
     }
 
     .fields-list-container {
       display: flex;
       width: 723px;
-      padding: 0 24px 14px;
-      margin-top: -20px;
+      padding: 0 10px 14px 10px;
+      margin-top: -30px;
 
       .total-fields-list,
       .visible-fields-list,
       .sort-fields-list {
-        width: 320px;
-        height: 319px;
+        width: 330px;
+        height: 268px;
         border: 1px solid #dcdee5;
 
         .text-action {
@@ -840,8 +846,8 @@
         }
 
         .select-list {
-          height: 276px;
-          padding: 10px 0;
+          height: 223px;
+          padding: 4px 0;
           overflow: auto;
 
           @include scroller;
@@ -849,7 +855,7 @@
           .select-item {
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 8px;
             font-size: 12px;
             line-height: 32px;
 
@@ -1004,7 +1010,7 @@
 
     .field-alias-setting {
       position: absolute;
-      top: 10px;
+      top: 0px;
       right: 20px;
       display: flex;
       align-items: center;

@@ -47,24 +47,52 @@
             {{ $t('原始') }}
           </bk-button>
         </div>
+        <bk-checkbox
+          :value="showRowIndex"
+          theme="primary"
+          @change="handleShowRowIndexChange"
+          style="margin: 0 12px"
+          class="bklog-option-item"
+        >
+          <span class="switch-label">{{ $t('行号') }}</span>
+        </bk-checkbox>
+        <bk-checkbox
+          v-model="expandTextView"
+          theme="primary"
+          @change="handleChangeExpandView"
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
+        >
+          <span class="switch-label">{{ $t('展开长字段') }}</span>
+        </bk-checkbox>
+        <bk-checkbox
+          :value="isWrap"
+          theme="primary"
+          class="bklog-option-item"
+          @change="handleChangeIsWarp"
+          style="margin: 0 12px 0 0"
+          ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
+        >
+
+        <bk-checkbox
+          :value="isJsonFormat"
+          theme="primary"
+          @change="handleJsonFormat"
+          style="margin: 0 12px 0 0"
+          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
+        >
+
+        <bk-input
+          type="number"
+          class="json-depth-num"
+          :value="jsonFormatDeep"
+          :min="1"
+          :max="15"
+          @change="handleJsonFormatDeepChange"
+          v-if="isJsonFormat"
+        ></bk-input>
       </div>
       <div class="tools-more">
-        <div style="margin-right: 12px">
-          <span class="switch-label">{{ $t('展开长字段') }}</span>
-          <bk-switcher
-            v-model="expandTextView"
-            theme="primary"
-            @change="handleChangeExpandView"
-          />
-        </div>
-        <div>
-          <span class="switch-label">{{ $t('换行') }}</span>
-          <bk-switcher
-            v-model="isWrap"
-            theme="primary"
-            @change="handleChangeIsWarp"
-          ></bk-switcher>
-        </div>
         <div class="operation-icons">
           <export-log
             :index-set-list="indexSetList"
@@ -150,7 +178,6 @@
     data() {
       return {
         contentType: 'table',
-        isWrap: true,
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
@@ -180,6 +207,10 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
+        isWrap: 'tableLineIsWrap',
+        jsonFormatDeep: state => state.tableJsonFormatDepth,
+        isJsonFormat: state => state.tableJsonFormat,
+        showRowIndex: state => state.tableShowRowIndex,
       }),
 
       routeIndexSet() {
@@ -195,6 +226,14 @@
           (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
           {},
         );
+      },
+      showFieldsConfigPopoverNum() {
+        return this.$store.state.showFieldsConfigPopoverNum;
+      },
+    },
+    watch: {
+      showFieldsConfigPopoverNum() {
+        this.handleAddNewConfig();
       },
     },
     mounted() {
@@ -232,11 +271,22 @@
         this.contentType = active;
         localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
       },
+      handleShowRowIndexChange(val) {
+        this.$store.commit('updateTableShowRowIndex', val);
+      },
       handleChangeExpandView(val) {
         this.$store.commit('updateIsLimitExpandView', val);
       },
       handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWarp', val);
+        this.$store.commit('updateTableLineIsWrap', val);
+      },
+      handleJsonFormat(val) {
+        this.$store.commit('updateTableJsonFormat', val);
+      },
+      handleJsonFormatDeepChange(val) {
+        const value = Number(val);
+        const target = value > 15 ? 15 : value < 1 ? 1 : value;
+        this.$store.commit('updatetableJsonFormatDepth', target);
       },
     },
   };
@@ -319,6 +369,12 @@
       > div {
         flex-shrink: 0;
       }
+
+      .bklog-option-item {
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+      }
     }
 
     .field-select {
@@ -354,6 +410,21 @@
       font-size: 14px;
       color: #979ba5;
       transform: rotateZ(45deg);
+    }
+  }
+</style>
+<style lang="scss">
+  .json-depth-num {
+    &.bk-form-control {
+      width: 96px;
+
+      .bk-input-number {
+        input {
+          &.bk-form-input {
+            height: 26px;
+          }
+        }
+      }
     }
   }
 </style>

@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from bkmonitor.documents.incident import IncidentDocument
 from constants.incident import (
@@ -157,7 +157,10 @@ class IncidentGraphEdge:
             "time_series": [[1713401520000, 0], [1713401520001, 1]],
             "metric_name": "condition.diskAlert"
         }
-    ]
+    ],
+    "is_anomaly": true,
+    "anomaly_score": 0.8,
+    "edge_cluster_id": "xxx"
     """
 
     source: IncidentGraphEntity
@@ -166,6 +169,7 @@ class IncidentGraphEdge:
     events: List[IncidentGraphEdgeEvent] = field(default_factory=list)
     is_anomaly: bool = False
     anomaly_score: float = 0
+    edge_cluster_id: str = None
     aggregated_edges: List["IncidentGraphEdge"] = field(default_factory=list)
     component_type: IncidentGraphComponentType = IncidentGraphComponentType.PRIMARY
 
@@ -186,10 +190,17 @@ class IncidentGraphEdge:
             "edge_type": self.edge_type.value,
             "is_anomaly": self.is_anomaly,
             "anomaly_score": self.anomaly_score,
+            "edge_cluster_id": self.edge_cluster_id,
             "events": [event.to_src_dict() for event in self.events],
             "aggregated_edges": [edge.to_src_dict() for edge in self.aggregated_edges],
             "component_type": self.component_type.value,
         }
+
+    def __str__(self):
+        return (
+            f"{self.source.entity_name}[{self.source.entity_type}]--{self.edge_type.value}-->"
+            f"{self.target.entity_name}[{self.target.entity_type}]"
+        )
 
 
 @dataclass
@@ -275,6 +286,7 @@ class IncidentSnapshot(object):
                 is_anomaly=edge_info.get("is_anomaly", False),
                 events=events,
                 anomaly_score=edge_info.get("anomaly_score", 0),
+                edge_cluster_id=edge_info.get("edge_cluster_id", ""),
                 component_type=IncidentGraphComponentType(
                     edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
                 ),
@@ -471,7 +483,11 @@ class IncidentSnapshot(object):
             self.find_entity_type_depths(next_entity_type, current_depth + 1, entity_type_depths)
 
     def aggregate_graph(
-        self, incident: IncidentDocument, aggregate_config: Dict = None, entities_orders: Dict = None
+        self,
+        incident: IncidentDocument,
+        aggregate_config: Dict = None,
+        aggregate_cluster: bool = False,
+        entities_orders: Dict = None,
     ) -> None:
         """聚合图谱
 
@@ -480,6 +496,24 @@ class IncidentSnapshot(object):
         :param entities_orders: 节点排序，默认用加入图谱的时间
         """
         entities_orders = entities_orders or {}
+
+        # 根据从属关系进行聚合
+        groups_by_configs = self.generate_groups_by_aggregate_configs(incident, aggregate_config)
+        self.aggregate_by_groups(groups_by_configs, entities_orders)
+
+        if aggregate_cluster:
+            # 根据调用关系聚类结果进行聚合
+            groups_by_clusters = self.generate_groups_by_edge_clusters()
+            self.aggregate_by_groups(groups_by_clusters, entities_orders)
+
+    def generate_groups_by_aggregate_configs(
+        self, incident: IncidentDocument, aggregate_config: Dict = None
+    ) -> Dict[Tuple, set]:
+        """根据从属关系的聚合配置生成需要聚合的分组.
+
+        :param incident: 故障详情
+        :param aggregate_config: 聚合配置，没有则按照是否有同质化边，且被聚合节点数大于等于3进行聚合
+        """
         group_by_entities = {}
 
         for entity_id, entity in self.incident_graph_entities.items():
@@ -510,7 +544,109 @@ class IncidentSnapshot(object):
                 group_by_entities[key] = set()
             group_by_entities[key].add(entity.entity_id)
 
-        for entity_ids in group_by_entities.values():
+        return group_by_entities
+
+    def generate_groups_by_edge_clusters(self) -> Dict[Tuple, set]:
+        """根据调用关系聚类结果进行分组.
+
+        :param incident: 故障详情
+        """
+        group_by_entities = {}
+
+        for from_key, from_edge in self.incident_graph_edges.items():
+            for to_key, to_edge in self.incident_graph_edges.items():
+                if from_key == to_key:
+                    continue
+
+                # 如果两个边的源节点和目标节点都不相同，那么这两个边也不进行聚合
+                if from_key[0] != to_key[0] and from_key[1] != to_key[1]:
+                    continue
+
+                # 如果聚类结果为空字符串（不进行聚类），或者两个边聚类结果不一致，则不进行聚合
+                if (
+                    from_edge.edge_cluster_id is None
+                    or from_edge.edge_cluster_id == ""
+                    or from_edge.edge_cluster_id != to_edge.edge_cluster_id
+                ):
+                    continue
+
+                if from_edge.edge_cluster_id not in group_by_entities:
+                    group_by_entities[from_edge.edge_cluster_id] = set()
+
+                if from_key[0] != to_key[0] and not self.is_merge_conflict(from_key[0], to_key[0]):
+                    group_by_entities[from_edge.edge_cluster_id].add(from_key[0])
+                    group_by_entities[from_edge.edge_cluster_id].add(to_key[0])
+
+                if from_key[1] != to_key[1] and not self.is_merge_conflict(from_key[1], to_key[1]):
+                    group_by_entities[from_edge.edge_cluster_id].add(from_key[1])
+                    group_by_entities[from_edge.edge_cluster_id].add(to_key[1])
+
+        # 防止同一集合的节点，因为有多个关联的调用关系，且相似度都一样，会被聚合两次
+        unique_node_sets = {}
+        for edge_cluster_id, node_set in group_by_entities.items():
+            frozen_node_set = frozenset(node_set)
+
+            if frozen_node_set not in unique_node_sets:
+                unique_node_sets[frozen_node_set] = edge_cluster_id
+
+        return {edge_cluster_id: set(frozen_node_set) for frozen_node_set, edge_cluster_id in unique_node_sets.items()}
+
+    def is_merge_conflict(self, entity_id1: str, entity_id2: str) -> bool:
+        """检测两个即将通过调用关系相似度聚类结果进行聚合的实体，是否有其他边存在冲突
+
+        :param entity_id1: 实体1的ID
+        :param entity_id2: 实体2的ID
+        :return: 是否有合并冲突
+        """
+        for entity_id in self.incident_graph_entities.keys():
+            if entity_id == entity_id1 or entity_id == entity_id2:
+                continue
+
+            # 检查第三个节点作为判断中的两个节点作为出边终点的情况
+            if (
+                entity_id in self.entity_targets[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
+                and entity_id in self.entity_targets[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
+            ):
+                edge1 = self.incident_graph_edges[(entity_id1, entity_id)]
+                edge2 = self.incident_graph_edges[(entity_id2, entity_id)]
+
+                if self.is_edge_conflict(edge1, edge2):
+                    return True
+
+            # 检查第三个节点作为判断中的两个节点作为入边起点的情况
+            if (
+                entity_id in self.entity_sources[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
+                and entity_id in self.entity_sources[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
+            ):
+                edge1 = self.incident_graph_edges[(entity_id, entity_id1)]
+                edge2 = self.incident_graph_edges[(entity_id, entity_id2)]
+
+                if self.is_edge_conflict(edge1, edge2):
+                    return True
+
+        return False
+
+    def is_edge_conflict(self, edge1: IncidentGraphEdge, edge2: IncidentGraphEdge) -> bool:
+        """判断两个边是否有冲突.
+
+        :param edge1: 拓扑图边
+        :param edge2: 拓扑图边
+        """
+        if bool(edge1.edge_cluster_id) ^ bool(edge2.edge_cluster_id):
+            return True
+
+        if edge1.edge_cluster_id and edge2.edge_cluster_id and edge1.edge_cluster_id != edge2.edge_cluster_id:
+            return True
+
+        return False
+
+    def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
+        """按照分组合并节点和边.
+
+        :param groups_by_entities: 根据特定规则合并节点的分组
+        :param entities_orders: 节点排序，默认用加入图谱的时间
+        """
+        for entity_ids in groups_by_entities.values():
             # 聚合相同维度超过两个的图谱实体
             if len(entity_ids) >= 2:
                 # 默认用entity_id字典序进行排序
@@ -568,24 +704,10 @@ class IncidentSnapshot(object):
                     # 聚合边的内容，如果主实体本身有一条指向到目标实体的边，则合并边上的内容，如果没有，则创建一条从主实体到被聚合目标实体的边
                     _from = (entity.entity_id, target_entity_id)
                     _to = (main_entity.entity_id, target_entity_id)
-                    if _to not in self.incident_graph_edges:
-                        self.incident_graph_edges[_to] = IncidentGraphEdge(
-                            source=main_entity,
-                            target=self.incident_graph_entities[target_entity_id],
-                            edge_type=edge_type,
-                            is_anomaly=self.incident_graph_edges[_from].is_anomaly,
-                            events=self.incident_graph_edges[_from].events,
-                            aggregated_edges=[],
-                            component_type=self.incident_graph_edges[_from].component_type,
-                        )
-                    elif _from in self.incident_graph_edges:
-                        self.incident_graph_edges[_to].is_anomaly = (
-                            self.incident_graph_edges[_to].is_anomaly or self.incident_graph_edges[_from].is_anomaly
-                        )
-                        self.incident_graph_edges[_to].events.extend(self.incident_graph_edges[_from].events)
-                        self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
 
-                    del self.incident_graph_edges[_from]
+                    self.merge_edges(_from, _to)
+
+            # 用相同的逻辑处理反向的边
             for edge_type in self.entity_sources[entity.entity_id].keys():
                 for source_entity_id in self.entity_sources[entity.entity_id][edge_type]:
                     if entity.entity_id in self.entity_targets[source_entity_id][edge_type]:
@@ -594,24 +716,40 @@ class IncidentSnapshot(object):
 
                     _from = (source_entity_id, entity.entity_id)
                     _to = (source_entity_id, main_entity.entity_id)
-                    if _to not in self.incident_graph_edges:
-                        self.incident_graph_edges[_to] = IncidentGraphEdge(
-                            source=self.incident_graph_entities[source_entity_id],
-                            target=main_entity,
-                            edge_type=edge_type,
-                            is_anomaly=self.incident_graph_edges[_from].is_anomaly,
-                            events=self.incident_graph_edges[_from].events,
-                            aggregated_edges=[],
-                            component_type=self.incident_graph_edges[_from].component_type,
-                        )
-                    elif _from in self.incident_graph_edges:
-                        self.incident_graph_edges[_to].is_anomaly = (
-                            self.incident_graph_edges[_to].is_anomaly or self.incident_graph_edges[_from].is_anomaly
-                        )
-                        self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
 
-                    del self.incident_graph_edges[_from]
+                    self.merge_edges(_from, _to)
 
             del self.entity_targets[entity.entity_id]
             del self.entity_sources[entity.entity_id]
             del self.incident_graph_entities[entity.entity_id]
+
+    def merge_edges(self, _from: Tuple[str, str], _to: Tuple[str, str]):
+        """合并两条边
+
+        :param _from: 被合并的边
+        :param _to: 合并后的边
+        """
+        if _to not in self.incident_graph_edges:
+            self.incident_graph_edges[_to] = IncidentGraphEdge(
+                source=self.incident_graph_entities[_to[0]],
+                target=self.incident_graph_entities[_to[1]],
+                edge_type=self.incident_graph_edges[_from].edge_type,
+                is_anomaly=self.incident_graph_edges[_from].is_anomaly,
+                edge_cluster_id=self.incident_graph_edges[_from].edge_cluster_id,
+                anomaly_score=self.incident_graph_edges[_from].anomaly_score,
+                events=self.incident_graph_edges[_from].events,
+                aggregated_edges=[],
+                component_type=self.incident_graph_edges[_from].component_type,
+            )
+        elif _from in self.incident_graph_edges:
+            self.incident_graph_edges[_to].is_anomaly = (
+                self.incident_graph_edges[_to].is_anomaly or self.incident_graph_edges[_from].is_anomaly
+            )
+            self.incident_graph_edges[_to].anomaly_score = max(
+                self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
+            )
+            self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
+            if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
+                self.incident_graph_edges[_to].edge_cluster_id = None
+
+        del self.incident_graph_edges[_from]

@@ -33,6 +33,7 @@ from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
+from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from constants.strategy import TargetFieldType
@@ -47,6 +48,7 @@ from core.errors.export_import import (
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
+from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
     ConfigType,
@@ -314,6 +316,19 @@ class ExportPackageResource(Resource):
 
         # 五分钟后删除文件夹
         remove_file.apply_async(args=(self.package_path,), countdown=300)
+
+        try:
+            username = get_local_username() or ""
+            event_content = (
+                "导出"
+                + f"{len(self.collect_config_ids)}条采集配置,"
+                + f"{len(self.strategy_config_ids)}个策略配置,"
+                + f"{len(self.view_config_ids)}个仪表盘"
+            )
+            send_frontend_report_event(self, self.bk_biz_id, username, event_content)
+        except Exception as e:
+            logger.exception(f"send frontend report event error: {e}")
+
         return {"download_path": download_path, "download_name": download_name}
 
     @step(state="PREPARE_FILE", message=_("准备文件中..."))
@@ -995,6 +1010,15 @@ class ImportConfigResource(Resource):
             collect_config_list.update(import_status=ImportDetailStatus.IMPORTING)
             strategy_config_list.update(import_status=ImportDetailStatus.IMPORTING)
             view_config_list.update(import_status=ImportDetailStatus.IMPORTING)
+
+        # 发送审计上报
+        try:
+            event_content = (
+                f"导入{len(collect_config_list)}条采集配置, {len(strategy_config_list)}个策略配置, {len(view_config_list)}个仪表盘"
+            )
+            send_frontend_report_event(self, bk_biz_id, username, event_content)
+        except Exception as e:
+            logger.exception(f"send frontend report event error: {e}")
 
         return {"import_history_id": self.import_history_instance.id}
 

@@ -77,6 +77,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
+from apps.log_search.utils import fetch_request_username
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -86,7 +87,7 @@ from apps.models import (
 )
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -376,6 +377,8 @@ class LogIndexSet(SoftDeleteModel):
 
     result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
 
+    max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
+
     def get_name(self):
         return self.index_set_name
 
@@ -391,13 +394,14 @@ class LogIndexSet(SoftDeleteModel):
     list_operate.__name__ = "操作列表"
 
     def save(self, *args, **kwargs):
-        queryset = LogIndexSet.objects.filter(
-            space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
-        )
-        if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
-            raise IndexSetNameDuplicateException(
-                IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+        if self.pk is None:
+            queryset = LogIndexSet.objects.filter(
+                space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
             )
+            if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
+                raise IndexSetNameDuplicateException(
+                    IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+                )
         super().save(*args, **kwargs)
 
     @property
@@ -524,7 +528,7 @@ class LogIndexSet(SoftDeleteModel):
                 # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
                 break
 
-        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
+        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, fetch_request_username()))
 
         index_set_data = array_group(
             list(
@@ -1403,3 +1407,22 @@ class StorageClusterRecord(SoftDeleteModel):
         verbose_name = _("索引集存储集群记录")
         verbose_name_plural = _("索引集存储集群记录")
         ordering = ("-updated_at",)
+
+
+class UserIndexSetCustomConfig(models.Model):
+    """用户索引集自定义配置"""
+
+    username = models.CharField(_("用户name"), max_length=256)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_hash = models.CharField("索引集哈希", max_length=32)
+    index_set_config = models.JSONField(_("用户索引集配置"), default=dict)
+
+    class Meta:
+        verbose_name = _("用户索引集自定义配置")
+        verbose_name_plural = _("用户索引集自定义配置")
+        unique_together = ('username', 'index_set_hash')
+
+    @classmethod
+    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+        return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()

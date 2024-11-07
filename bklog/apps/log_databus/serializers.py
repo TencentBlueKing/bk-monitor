@@ -40,6 +40,7 @@ from apps.log_databus.constants import (
     EtlConfig,
     KafkaInitialOffsetEnum,
     LabelSelectorOperator,
+    MetadataTypeEnum,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
     SyslogFilterFieldEnum,
@@ -192,7 +193,7 @@ class PluginParamSerializer(serializers.Serializer):
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
-    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000)
     multiline_timeout = serializers.IntegerField(label=_("最大耗时"), required=False, max_value=10)
     tail_files = serializers.BooleanField(label=_("是否增量采集"), required=False, default=True)
     ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=2678400)
@@ -352,7 +353,7 @@ class ContainerConfigSerializer(serializers.Serializer):
 
 class MultilineSerializer(serializers.Serializer):
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000, allow_null=True)
     multiline_timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
 
@@ -749,6 +750,16 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
         return ret
 
 
+class CollectorMetadataSerializer(serializers.Serializer):
+    field_name = serializers.CharField(label=_("字段名"), required=True)
+    value = serializers.CharField(label=_("字段的值"), required=True, allow_null=True, allow_blank=True)
+    metadata_type = serializers.ChoiceField(
+        label=_("元数据类型"),
+        required=True,
+        choices=MetadataTypeEnum.get_choices(),
+    )
+
+
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
     separator = serializers.CharField(
@@ -760,6 +771,14 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
+    enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
+    record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
+    path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True, allow_blank=True)
+    metadata_fields = serializers.ListField(
+        child=CollectorMetadataSerializer(),
+        label=_("元数据字段配置"),
+        required=False,
+    )
 
     def validate(self, attrs):
         ret = super().validate(attrs)
@@ -785,7 +804,11 @@ class CollectorRegexDebugSerializer(serializers.Serializer):
 class CollectorEtlTimeSerializer(serializers.Serializer):
     time_format = serializers.CharField(label=_("时间格式"), required=True)
     time_zone = serializers.IntegerField(label=_("时区"), required=True)
-    data = serializers.CharField(label=_("时间内容"), required=True)
+    data = serializers.CharField(
+        label=_("时间内容"),
+        required=True,
+        error_messages={'blank': _("字段对应时间不存在，校验失败;")},
+    )
 
 
 class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
@@ -801,6 +824,7 @@ class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
     is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
+    value = serializers.CharField(label=_("字段的值"), required=False, allow_null=True, allow_blank=True)
 
     def validate(self, field):
         field = super().validate(field)
@@ -879,10 +903,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
         if attrs["etl_config"] in EtlConfigEnum.get_dict_choices():
             if not attrs.get("fields"):
                 raise ValidationError(_("[字段提取]请输入需要提取的字段信息"))
-
-            # table_id 不能包含 bklog
-            if "bklog" in attrs["table_id"]:
-                raise ValidationError(_("存储索引名不能包含bklog关键字"))
 
             # 过滤掉标准字段，并检查time_field数量
             fields = []
@@ -1334,7 +1354,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
     class MultilineSerializer(serializers.Serializer):
         pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-        maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+        maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000, allow_null=True)
         timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
     class LabelSelectorSerializer(serializers.Serializer):

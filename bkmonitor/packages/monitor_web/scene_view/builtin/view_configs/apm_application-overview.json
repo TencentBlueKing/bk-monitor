@@ -87,6 +87,7 @@
           "alias": "主调",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -179,6 +180,7 @@
           "alias": "被调",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -295,6 +297,7 @@
           "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -375,7 +378,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -384,7 +387,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -414,7 +417,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -430,7 +433,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -439,7 +442,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -469,7 +472,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -660,6 +663,8 @@
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -761,6 +766,8 @@
           "alias": "P95",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -862,6 +869,8 @@
           "alias": "P99",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",

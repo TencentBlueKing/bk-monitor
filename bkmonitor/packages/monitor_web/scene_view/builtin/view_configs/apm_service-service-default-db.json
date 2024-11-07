@@ -64,6 +64,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -167,6 +168,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -255,7 +257,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -264,7 +266,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -297,7 +299,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -316,7 +318,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -325,7 +327,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -358,7 +360,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -564,6 +566,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -688,6 +692,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -812,6 +818,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "B",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1067,6 +1075,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1170,6 +1179,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1259,7 +1269,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1268,7 +1278,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -1300,7 +1310,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -1318,7 +1328,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -1327,7 +1337,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -1359,7 +1369,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -1583,6 +1593,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1707,6 +1719,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1831,6 +1845,8 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "B",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -2097,8 +2113,7 @@
           },
           "fields": {
             "endpoint_name": "endpoint_name",
-            "app_name": "app_name",
-            "service_name": "service_name"
+            "app_name": "app_name"
           }
         }
       ]

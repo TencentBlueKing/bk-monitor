@@ -15,6 +15,7 @@ import shutil
 import tarfile
 import tempfile
 import zipfile
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urljoin
@@ -57,11 +58,13 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
+from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.grafana.utils import get_org_id
 
 logger = logging.getLogger("monitor_web")
@@ -86,6 +89,32 @@ class ImportConfigResource(Resource):
             overwrite=params["overwrite"],
             incremental=params["incremental"],
         )
+
+        try:
+            username = get_request().user.username if get_request(peaceful=True) else "system"
+
+            # 统计configs里配置的数量
+            config_stats_info = defaultdict(int)
+            for path in params["configs"].keys():
+                config_type = ""
+                if path.startswith("rule/") and not path[len("rule/") :].startswith("snippets/"):
+                    config_type = "rule"
+                elif path.startswith("action/") and not path[len("action/") :].startswith("snippets/"):
+                    config_type = "action"
+                elif path.startswith("notice/") and not path[len("notice/") :].startswith("snippets/"):
+                    config_type = "notice"
+                elif path.startswith("assign_group/") and not path[len("assign_group/") :].startswith("snippets/"):
+                    config_type = "assign_group"
+                elif path.startswith("grafana/") and not path[len("grafana") :].startswith("snippets/"):
+                    config_type = "grafana"
+
+                if config_type:
+                    config_stats_info[config_type] += 1
+            event_content = "导入" + ",".join([f"{count}条{key}" for key, count in config_stats_info.items()])
+
+            send_frontend_report_event(self, params["bk_biz_id"], username, event_content)
+        except Exception as e:
+            logger.exception(f"send frontend report event failed: {e}")
 
         if errors:
             return {"result": False, "data": None, "errors": errors, "message": f"{len(errors)} configs import failed"}
@@ -165,6 +194,10 @@ class ExportConfigResource(Resource):
             set_template["name"]: {"bk_obj_id": "SET_TEMPLATE", "bk_inst_id": set_template["id"]}
             for set_template in api.cmdb.get_dynamic_query(bk_biz_id=bk_biz_id, dynamic_type="SET_TEMPLATE")["children"]
         }
+        dynamic_groups: Dict[str, Dict] = {
+            dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
+            for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
+        }
 
         # 查询关联通知及告警事件
         notice_group_ids = {}
@@ -193,6 +226,7 @@ class ExportConfigResource(Resource):
             topo_nodes=topo_nodes,
             service_templates=service_templates,
             set_templates=set_templates,
+            dynamic_groups=dynamic_groups,
         )
         yield from cls.transform_configs(parser, strategy_configs, with_id, lock_filename)
 
@@ -415,15 +449,21 @@ class ExportConfigFileResource(ExportConfigResource):
         with_id = serializers.BooleanField(label="带上ID", default=False)
 
     @classmethod
-    def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> str:
+    def create_tarfile(
+        cls, configs: Dict[str, Iterable[Tuple[str, str, str]]], config_stats_info: Dict[str, int]
+    ) -> str:
         """
         生成配置压缩包
+
+        同时统计不同配置的数量
         """
         temp_path = tempfile.mkdtemp()
         configs_path = os.path.join(temp_path, "configs")
         for config_type, files in configs.items():
             config_path = os.path.join(configs_path, config_type)
             for folder, name, file in files:
+                config_stats_info[config_type] += 1
+
                 # 文件名不支持/，需要替换为-
                 folder = folder.replace("/", "-")
                 name = name.replace("/", "-")
@@ -495,8 +535,9 @@ class ExportConfigFileResource(ExportConfigResource):
         }
 
         # 压缩包制作
-        tarfile_path = self.create_tarfile(configs)
-        path = f"as_code/export/{params['bk_biz_id']}-{arrow.get().strftime('%Y%m%d%H%M%S')}.tar.gz"
+        config_stats_info = defaultdict(int)
+        tarfile_path = self.create_tarfile(configs, config_stats_info)  # 传入config_stats_info 在里面的生成器中统计不同config的数量
+        path = f"as_code/export/{bk_biz_id}-{arrow.get().strftime('%Y%m%d%H%M%S')}.tar.gz"
         with open(tarfile_path, "rb") as f:
             default_storage.save(path, f)
 
@@ -507,6 +548,16 @@ class ExportConfigFileResource(ExportConfigResource):
         # 非http链接需要补全监控地址
         if not download_url.startswith("http"):
             download_url = urljoin(settings.BK_MONITOR_HOST, download_url)
+
+        try:
+            username = get_request().user.username if get_request(peaceful=True) else "system"
+            event_content = "导出" + ",".join(
+                [f"{count}条{config_type}" for config_type, count in config_stats_info.items()]
+            )
+
+            send_frontend_report_event(bk_biz_id, username, event_content)
+        except Exception as e:
+            logger.exception(f"send frontend report event failed: {e}")
 
         return {"download_url": download_url}
 

@@ -28,7 +28,6 @@
 import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ConditionOperator } from '@/store/condition-operator';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 
@@ -266,7 +265,8 @@ export default class CollectIndex extends tsc<IProps> {
     this.$store.commit('updateIsSetDefaultTableColumn', false);
     const isUnionIndex = cloneValue.index_set_ids.length > 0;
     const keyword = cloneValue.params.keyword;
-    const addition = cloneValue.params.addition;
+    const addition = cloneValue.params.addition ?? [];
+
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
     if (isUnionIndex) {
       this.$store.commit(
@@ -404,10 +404,7 @@ export default class CollectIndex extends tsc<IProps> {
           const params = { indexId: value.index_set_id };
           const resolver = new RetrieveUrlResolver({
             ...value.params,
-            addition: (value.params.addition ?? []).map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.formatApiOperatorToFront();
-            }),
+            addition: value.params.addition,
             search_mode: value.search_mode,
             spaceUid: value.space_uid,
             unionList: value.index_set_ids.map((item: number) => String(item)),

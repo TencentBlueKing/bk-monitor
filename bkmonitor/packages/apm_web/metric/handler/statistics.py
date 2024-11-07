@@ -24,6 +24,7 @@ from apm_web.metric_handler import (
     ServiceFlowDurationBucket,
     ServiceFlowDurationMax,
     ServiceFlowDurationMin,
+    ServiceFlowErrorRateCallee,
     ServiceFlowErrorRateCaller,
 )
 from apm_web.topo.handle import BaseQuery
@@ -62,7 +63,7 @@ ERROR_COUNT_COLUMNS = [
 ERROR_RATE_COLUMNS = [
     {"id": "service", "name": "服务名称", "type": "link"},
     {"id": "other_service", "name": "调用服务", "type": "string"},
-    {"id": "error_rate", "name": "错误列", "type": "number", "sortable": "custom"},
+    {"id": "error_rate", "name": "错误率", "type": "percent", "sortable": "custom"},
     {
         "id": "datapoints",
         "name": "缩略图",
@@ -201,7 +202,7 @@ class ServiceMetricStatistics(BaseQuery):
                 "callee": Template(
                     table_group_by=["to_apm_service_name", "from_apm_service_name"],
                     ignore_keys=["from_span_error", "to_span_error"],
-                    metric=ServiceFlowCount,
+                    metric=ServiceFlowErrorRateCallee,
                     columns=ERROR_RATE_COLUMNS,
                 ),
             }
@@ -425,7 +426,7 @@ class ServiceMetricStatistics(BaseQuery):
             else:
                 # 如果是错误率图表 需要从实例查询中获取错误率百分比而不是通过计算
                 data_type_value = instance_values_mapping.get((service_1_name, service_2_name), {}).get(
-                    template.metric.metric_id
+                    template.metric.metric_id, 0
                 )
 
             res.append(

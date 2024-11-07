@@ -603,3 +603,18 @@ class TestRecoverStatusChecker(TestCase):
         checker = RecoverStatusChecker([alert])
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.RECOVERED)
+
+    def test_strategy_recovered_by_status_setter(self):
+        new_strategy = copy.deepcopy(STRATEGY)
+        for detect in new_strategy["detects"]:
+            detect["recovery_config"]["status_setter"] = "recovery-nodata"
+        StrategyCacheManager.cache.set(
+            StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=STRATEGY["id"]), json.dumps(new_strategy)
+        )
+        new_event = copy.deepcopy(ANOMALY_EVENT)
+
+        alert = self.get_alert(event=new_event)
+        self.assertFalse(alert.is_no_data())
+        checker = RecoverStatusChecker([alert])
+        checker.check_all()
+        self.assertEqual(alert.status, EventStatus.RECOVERED)

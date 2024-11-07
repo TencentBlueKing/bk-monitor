@@ -2,12 +2,12 @@
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
-  import { getCharLength, getRegExp } from '@/common/util';
+  import { getCharLength, getRegExp, formatDateTimeField } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
+  import { operatorMapping, translateKeys } from './const-values';
   import { excludesFields } from './const.common';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
@@ -124,6 +124,24 @@
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
 
+  let requestTimer = null;
+  const rquestFieldEgges = (() => {
+    const fields = new Map();
+    return field => {
+      if (!fields.has(field.field_name) && !['field_name', '_ip-select_'].includes(field.field_name)) {
+        fields.set(field.field_name, field);
+      }
+
+      requestTimer && clearTimeout(requestTimer);
+      requestTimer = setTimeout(() => {
+        if (fields.size > 0) {
+          store.dispatch('requestIndexSetValueList', { fields: Array.from(fields.values()) });
+          fields.clear();
+        }
+      });
+    };
+  })();
+
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -161,7 +179,7 @@
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
-    if (typeof props.value === 'string' && props.value.length) {
+    if ((typeof props.value === 'string' && props.value.length) || activeFieldItem.value.field_name === '_ip-select_') {
       return true;
     }
 
@@ -319,6 +337,7 @@
     condition.value.operator = activeFieldItem.value.field_operator?.[0]?.operator;
     condition.value.relation = 'OR';
     condition.value.isInclude = ['text', 'string'].includes(activeFieldItem.value.field_type) ? false : null;
+    rquestFieldEgges(item);
 
     if (props.value.field === item.field_name) {
       restoreFieldAndCondition();
@@ -372,6 +391,11 @@
       isExitErrorTag.value
     ) {
       return;
+    }
+
+    // 如果是不需要条件值，清理掉缓存的条件值
+    if (!isShowConditonValueSetting.value) {
+      result.value = [];
     }
 
     resetParams();
@@ -750,8 +774,6 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
-      // condition.value.value.length = 0;
-      // condition.value.value = [];
     }
 
     operatorInstance.hide();
@@ -912,7 +934,7 @@
             <div class="full-text-sub-title">
               <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
             </div>
-            <div class="full-text-content">{{ $t('按【Enter】或点击【确定】，唤起IP选择器点击取消，关闭窗口') }}</div>
+            <div class="full-text-content">{{ $t('【Enter】唤起IP选择器，点击取消关闭窗口') }}</div>
           </template>
         </template>
         <template v-else>
@@ -952,7 +974,7 @@
                       :key="option.operator"
                       @click="() => handleUiValueOptionClick(option)"
                     >
-                      {{ option.label }}
+                      {{ $t(option.label) }}
                     </div>
                   </template>
                 </div>
@@ -1004,7 +1026,7 @@
                     <span
                       class="tag-item-text"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
-                      >{{ item }}</span
+                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
                     <span
                       class="tag-item-del bk-icon icon-close"
@@ -1046,7 +1068,7 @@
                       :key="`${item}-${index}`"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
-                      <div>{{ item }}</div>
+                      <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
                     </li>
                   </ul>
                 </div>

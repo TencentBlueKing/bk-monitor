@@ -31,7 +31,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel } from '../typings';
+import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel, type ZrClickEvent } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -56,15 +56,19 @@ interface IDashbordPanelProps {
   backToType?: SceneType;
   dashboardId?: string;
   singleChartNoPadding?: boolean;
+  layoutMargin?: [number, number];
 }
 interface IDashbordPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
+  onZrClick: (e: ZrClickEvent) => void;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
   // 视图集合
   @Prop({ required: true, type: Array }) panels: IPanelModel[];
+  // 视图间距
+  @Prop({ type: Array, default: () => [16, 8] }) layoutMargin: [number, number];
   // dashboard id
   @Prop({ required: true, type: String }) id: string;
   // 自动展示初始化列数
@@ -108,6 +112,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
 
   @Watch('panels', { immediate: true })
   handlePanelsChange() {
+    if (this.panels?.length < 1) return;
     if (this.column !== 'custom') {
       this.handleInitPanelsGridpos(this.panels);
     }
@@ -271,6 +276,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           } else if (w > 24 - preW) {
             x = 0;
             y = preY + preH;
+          } else if (x === preX && w <= 24 - preW) {
+            x = preX + preW;
           } else {
             y = preY + preH;
           }
@@ -556,6 +563,11 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Emit('backToOverview')
   handleBackToOverview() {}
 
+  @Emit('zrClick')
+  handelZrClick(date) {
+    return date;
+  }
+
   render() {
     if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
     return (
@@ -585,7 +597,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               isDraggable={true}
               isResizable={true}
               layout={this.layout}
-              margin={[16, 8]}
+              margin={this.layoutMargin}
               responsive={false}
               rowHeight={30}
               useCssTransforms={false}
@@ -614,6 +626,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       onChartCheck={v => this.handleChartCheck(v, panel)}
                       onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                       onCollectChart={() => this.handleCollectChart(panel)}
+                      onZrClick={this.handelZrClick}
                     />
                   </GridItem>
                 );

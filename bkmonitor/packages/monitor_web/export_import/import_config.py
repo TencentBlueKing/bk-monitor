@@ -255,7 +255,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
             for name, group_detail in user_groups_dict.items():
                 rule_id_mapping = {}
-                for rule_info in group_detail["duty_rules_info"]:
+                for rule_info in group_detail.get("duty_rules_info") or []:
                     # 优先沿用 hash 相同的旧 duty_rule 记录
                     rule = existed_hash_to_rule.get(rule_info["hash"])
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
@@ -264,9 +264,11 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     # 记录新旧 id 对应关系
                     rule_id_mapping[rule_info["id"]] = new_rule.id
                 # 更新用户组与规则的关联
-                group_detail["duty_rules"] = [
-                    rule_id_mapping.get(old_id, old_id) for old_id in group_detail["duty_rules"]
-                ]
+                group_detail["duty_rules"] = (
+                    [rule_id_mapping.get(old_id, old_id) for old_id in group_detail["duty_rules"]]
+                    if "duty_rules" in group_detail
+                    else []
+                )
 
             qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
             for user_group in qs:

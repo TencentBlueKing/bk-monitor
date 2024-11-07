@@ -28,7 +28,7 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { createMetricTitleTooltips, fitPosition } from '../../utils';
+import { createMetricTitleTooltips, deduplicateByField, fitPosition } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
 
@@ -75,6 +75,11 @@ export interface IChartTitleProps {
   inited?: boolean;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
+  // 数据步长（步长过大情况时需要）
+  collectIntervalDisplay?: string;
+  rawInterval?: string;
+  // 是否展示更多菜单
+  needMoreMenu?: boolean;
 }
 
 interface IChartTitleEvent {
@@ -103,6 +108,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ default: '0' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
+  @Prop({ default: true }) needMoreMenu: boolean;
   @Prop({ default: false }) customArea: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
@@ -112,6 +118,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ type: Boolean, default: true }) showTitleIcon: boolean;
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
   @Prop({ type: Boolean, default: true }) inited: boolean;
+  @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -160,6 +167,14 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   }
   get metricTitleData() {
     return this.metrics[0];
+  }
+
+  get metricTitleTooltips() {
+    return this.showMetricAlarm
+      ? createMetricTitleTooltips(this.metricTitleData)
+      : deduplicateByField(this.metrics, 'metric_id')
+          .map(metric => createMetricTitleTooltips(metric))
+          .join('<hr class="custom-hr" />');
   }
 
   get currentMetricsIds() {
@@ -281,7 +296,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       e.stopPropagation();
       if (e.target !== e.currentTarget) return;
       this.popoverInstance = this.$bkPopover(e.target, {
-        content: createMetricTitleTooltips(this.metricTitleData),
+        content: this.metricTitleTooltips,
         trigger: 'manual',
         theme: 'tippy-metric',
         arrow: true,
@@ -352,22 +367,24 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               {this.title}
             </div>
             {this.inited && [
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
+              (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
+              this.collectIntervalDisplay ? (
                 <span
                   key='title-interval'
                   class='title-interval'
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
                     delay: 200,
-                    appendTo: 'parent',
+                    appendTo: () => document.body,
                   }}
                 >
-                  {this.metricTitleData.collect_interval}
-                  {this.metricTitleData.collect_interval < 10 ? 'm' : 's'}
+                  {this.collectIntervalDisplay
+                    ? this.collectIntervalDisplay
+                    : `${this.metricTitleData.collect_interval}${this.metricTitleData.collect_interval < 10 ? 'm' : 's'}`}
                 </span>
               ) : undefined,
               (this.$scopedSlots as any)?.customSlot?.(),
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showTitleIcon && this.metrics.length ? (
                 <i
                   key={'custom-icon'}
                   style={{ display: this.showMore ? 'flex' : 'none' }}
@@ -412,7 +429,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 key={'更多'}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                  display: this.showMore ? 'flex' : 'none',
+                  display: this.showMore && this.needMoreMenu ? 'flex' : 'none',
                 }}
                 class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
@@ -429,7 +446,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <ChartMenu
           style={{
             left: `${this.menuLeft}px`,
-            display: this.showMenu ? 'flex' : 'none',
+            display: this.needMoreMenu && this.showMenu ? 'flex' : 'none',
             ...this.menuPosition,
           }}
           drillDownOption={this.drillDownOption}

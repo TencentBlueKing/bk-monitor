@@ -63,6 +63,7 @@ import {
 } from '../../components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { validateExpression } from '../../utils/index';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
@@ -72,6 +73,7 @@ import EventRetrieval from './event-retrieval/event-retrieval';
 import ExpressionItem from './expression-item/expression-item';
 import AddCollectDialog from './favorite-container/add-collect-dialog';
 import FavoriteIndex from './favorite-container/collect-index';
+import FilterDict from './filter-dict';
 import HandleBtn from './handle-btn/handle-btn';
 import {
   DataRetrievalPromqlItem,
@@ -84,7 +86,6 @@ import {
   type IFilterCondition,
   type TEditMode,
 } from './typings';
-
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import type { EmptyStatusType } from '../../components/empty-status/types';
 import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
@@ -383,9 +384,9 @@ export default class DataRetrieval extends tsc<object> {
   // 是否可以添加多指标
   get canAddStrategy(): boolean {
     const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
-    const leng = metricList.length;
-    if (!leng) return false;
-    if (leng === 1) return true;
+    const lens = metricList.length;
+    if (!lens) return false;
+    if (lens === 1) return true;
     return metricList.every(item => item.canSetMulitpeMetric);
   }
 
@@ -410,9 +411,9 @@ export default class DataRetrieval extends tsc<object> {
   get indexLists(): IIndexListItem[] {
     const indexList: IIndexListItem[] = [];
     if (this.filterQueryResult.length < 2) return [];
-    this.filterQueryResult.forEach(item => {
-      const leng = item.targets.length;
-      if (leng && item.group && item.index) {
+    for (const item of this.filterQueryResult) {
+      const lens = item.targets.length;
+      if (lens && item.group && item.index) {
         // 存在分组
         const group = indexList.find(group => group.id === item.group);
         const child = {
@@ -428,18 +429,18 @@ export default class DataRetrieval extends tsc<object> {
             children: [child],
           });
         }
-      } else if (leng && item.group && !item.index) {
+      } else if (lens && item.group && !item.index) {
         indexList.push({
           id: item.group,
           name: item.group,
         });
-      } else if (leng && !item.group && item.index) {
+      } else if (lens && !item.group && item.index) {
         indexList.push({
           id: item.index,
           name: item.index,
         });
       }
-    });
+    }
     /** 只有一个组情况下 平铺数据 */
     if (indexList.length === 1 && indexList[0].children) return indexList[0].children;
     return indexList;
@@ -447,7 +448,10 @@ export default class DataRetrieval extends tsc<object> {
   /** 指标监控对象数据 */
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
-    const res = list.reduce((total, cur) => (Array.isArray(cur.children) ? total.concat(cur.children) : total), []);
+    const res = list.reduce((total, cur) => {
+      const child = Array.isArray(cur.children) ? cur.children : [];
+      return total.concat(child);
+    }, []);
     return res;
   }
 
@@ -485,9 +489,28 @@ export default class DataRetrieval extends tsc<object> {
     return JSON.stringify(favParams) !== JSON.stringify(localParams);
   }
 
+  /** 获取表达式中的变量名 */
+  get expressionVars() {
+    return this.localValue.reduce((pre, cur) => {
+      if (!cur.isMetric && cur.value) {
+        const { variables } = validateExpression(cur.value);
+        for (const varName of variables) {
+          pre[varName] = true;
+        }
+      }
+      return pre;
+    }, {});
+  }
+
+  /** 是否填写了表达式 */
+  get useExpression() {
+    return this.localValue.some(item => !item.isMetric);
+  }
+
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'UI') {
+      if (this.useExpression) return false;
       return this.localValue
         .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
@@ -668,8 +691,10 @@ export default class DataRetrieval extends tsc<object> {
         const sortFavoriteList = res.slice(1, res.length - 1).sort((a, b) => a.name.localeCompare(b.name));
         const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
         this.favList[this.tabActive] = sortAfterList;
-        // 获取所有收藏的名字新增时判断是否重命名
-        this.favStrList = res.reduce((pre, cur) => pre.concat(cur.favorites.map(item => item.name)), []);
+        this.favStrList = res.reduce((pre, cur) => {
+          // 获取所有收藏的名字新增时判断是否重命名
+          return pre.concat(cur.favorites.map(item => item.name));
+        }, []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
           const urlFavoriteID = this.$route.query.favorite_id;
@@ -717,7 +742,7 @@ export default class DataRetrieval extends tsc<object> {
   async getMainlineObjectTopo() {
     const list = await getMainlineObjectTopo().catch(() => []);
     this.target.mainlineObjectTopoList = list;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
   }
 
   /**
@@ -730,9 +755,9 @@ export default class DataRetrieval extends tsc<object> {
   /** 图表查询结果 过滤隐藏的查询 */
   handleFilterQueryResult() {
     const hiddenAliasList = [];
-    this.localValue.forEach(item => {
+    for (const item of this.localValue) {
       !item.enable && hiddenAliasList.push(item.alias);
-    });
+    }
     let isExist = false;
     const result = this.queryResult.map(item => {
       const targets = item.targets.filter(set => !hiddenAliasList.includes(set.source));
@@ -798,7 +823,7 @@ export default class DataRetrieval extends tsc<object> {
       source: () => this.handleSwitchSource(item as DataRetrievalQueryItem, index),
       enable: () => this.handleSwitchEnable(item),
       copy: () => this.handleCopyItem(item),
-      delete: () => this.handleDeleteItem(index),
+      delete: () => this.handleDeleteItem(item, index),
     };
     fnMap[opt]?.();
   }
@@ -815,13 +840,13 @@ export default class DataRetrieval extends tsc<object> {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
         const promqlExpandedData = [];
-        this.promqlData.forEach(item => {
+        for (const item of this.promqlData) {
           const key = random(8);
           if (this.promqlExpandedData.includes(item.key)) {
             promqlExpandedData.push(key);
           }
           item.key = key;
-        });
+        }
         this.promqlExpandedData = promqlExpandedData;
       } else if (this.promqlData.length === 1) {
         this.promqlData[0].code = '';
@@ -878,10 +903,10 @@ export default class DataRetrieval extends tsc<object> {
   /** 检查该查询项的结果是否存在 */
   handleCheckExit(alias) {
     let isExist = false;
-    this.queryResult.forEach(item => {
+    for (const item of this.queryResult) {
       const targets = item.targets.filter(set => set.source === alias);
       !!targets?.length && (isExist = !!targets?.length);
-    });
+    }
     return isExist;
   }
   /**
@@ -901,8 +926,8 @@ export default class DataRetrieval extends tsc<object> {
    * @description: 删除操作
    * @param {number} index
    */
-  handleDeleteItem(index: number) {
-    if (this.localValue.length === 1) return;
+  handleDeleteItem(item: IDataRetrieval.ILocalValue, index: number) {
+    if (this.handleDelIconDisabled(item).disabled) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -1124,14 +1149,14 @@ export default class DataRetrieval extends tsc<object> {
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.target.value = value;
     this.target.targetType = data.nodeType;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
     this.handleQueryProxy();
   }
 
   /**
    * @description: 获取监控目标描述
    */
-  gettargetDes(): string {
+  getTargetDes(): string {
     const cloneTarget = JSON.parse(JSON.stringify(this.target.value || []));
     const nameList = this.target.mainlineObjectTopoList;
     let targetDes = '';
@@ -1144,7 +1169,12 @@ export default class DataRetrieval extends tsc<object> {
       });
       // 统计数量
       list = list.map(item => {
-        const count = list.reduce((pre, set) => (item.bk_obj_id === set.bk_obj_id ? pre + 1 : pre), 0);
+        const count = list.reduce((pre, set) => {
+          if (item.bk_obj_id === set.bk_obj_id) {
+            return pre + 1;
+          }
+          return pre;
+        }, 0);
         item.count = count;
         return item;
       });
@@ -1249,7 +1279,7 @@ export default class DataRetrieval extends tsc<object> {
     // 监控目标
     this.target.value = config.target;
     this.target.targetType = config.targetType;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
     // 刷新查询结果
     this.queryResult = [];
     this.handleQuery();
@@ -1685,7 +1715,7 @@ export default class DataRetrieval extends tsc<object> {
   routerParamsUpdate() {
     const targets = [];
     if (this.editMode === 'UI') {
-      this.localValue.forEach((item: DataRetrievalQueryItem) => {
+      for (const item of this.localValue as DataRetrievalQueryItem[]) {
         // 指标
         if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
           const queryConfigItem: any | IDataRetrieval.queryConfigsParams = {
@@ -1724,9 +1754,9 @@ export default class DataRetrieval extends tsc<object> {
           };
           targets.push(temp);
         }
-      });
+      }
     } else if (this.editMode === 'PromQL') {
-      this.promqlData.forEach(promqlItem => {
+      for (const promqlItem of this.promqlData) {
         if (!!promqlItem.code && promqlItem.enable) {
           const temp = {
             data: {
@@ -1743,7 +1773,7 @@ export default class DataRetrieval extends tsc<object> {
           };
           targets.push(temp);
         }
-      });
+      }
     }
 
     const routeParams = {
@@ -1866,7 +1896,7 @@ export default class DataRetrieval extends tsc<object> {
     }
     if (this.editMode === 'PromQL') {
       const promqlQuery = [];
-      this.promqlData.forEach(promqlItem => {
+      for (const promqlItem of this.promqlData) {
         if (!!promqlItem.code && promqlItem.enable) {
           promqlQuery.push({
             data_source_label: 'prometheus',
@@ -1874,9 +1904,10 @@ export default class DataRetrieval extends tsc<object> {
             promql: promqlItem.code,
             interval: promqlItem.step || 'auto',
             alias: promqlItem.alias,
+            filter_dict: promqlItem.filter_dict || undefined,
           });
         }
-      });
+      }
       return promqlQuery;
     }
   }
@@ -2131,7 +2162,7 @@ export default class DataRetrieval extends tsc<object> {
           const filterKeys = Object.keys(curQuery.filter_dict || {});
           if (filterKeys.length) {
             const where = [];
-            filterKeys.forEach(key => {
+            for (const key of filterKeys) {
               const filterVal = curQuery.filter_dict[key];
               if (key === 'variables' && !!filterVal) {
                 where.push(
@@ -2172,7 +2203,7 @@ export default class DataRetrieval extends tsc<object> {
                   value: Array.isArray(filterVal) ? filterVal : [filterVal],
                 });
               }
-            });
+            }
             totalWhere = totalWhere.concat(where);
           }
           let { method } = curQuery;
@@ -2221,7 +2252,7 @@ export default class DataRetrieval extends tsc<object> {
         }
         /** 多表达式带有functions */
         if (expressionList.length) {
-          expressionList.forEach(exp => {
+          for (const exp of expressionList) {
             const expItem: IDataRetrieval.IExpressionItem = {
               alias: '',
               enable: exp.active,
@@ -2232,7 +2263,7 @@ export default class DataRetrieval extends tsc<object> {
             };
             // 添加表达式
             localValue.push(expItem);
-          });
+          }
         }
       });
       this.localValue = this.handleFilterExpression(localValue);
@@ -2247,38 +2278,40 @@ export default class DataRetrieval extends tsc<object> {
   getRoutePromqlData(targets: any) {
     const promqlData = [];
     if (['code', 'source'].includes(targets?.[0]?.data?.mode)) {
-      targets.forEach(t => {
+      for (const t of targets) {
         const temp = {
           code: t.data.source,
           alias: t.data.promqlAlias,
           step: t.data.step,
+          filter_dict: t.data.filter_dict,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
-      });
+      }
       return promqlData;
     }
-    targets.forEach(target => {
+    for (const target of targets) {
       if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
         const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
+          filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
-    });
+    }
     return promqlData;
   }
   handleRoutePromqlData(promqlData: any[], from?: string, to?: string) {
     const result = [];
     const resultKey = [];
-    promqlData.forEach(item => {
+    for (const item of promqlData) {
       const tempItem = deepClone(item);
       tempItem.key = random(8);
       tempItem.alias = item.alias || this.getCurItemAlias(result as any);
       result.push(tempItem);
       resultKey.push(tempItem.key);
-    });
+    }
     this.editMode = 'PromQL';
     localStorage.setItem('bk_monitor_edit_mode_str', this.editMode);
     this.compareValue.tools.timeRange = from && to ? [from, to] : DEFAULT_TIME_RANGE;
@@ -2344,6 +2377,26 @@ export default class DataRetrieval extends tsc<object> {
   }
 
   /**
+   * 判断删除Icon是否禁用
+   * @param item
+   * @returns
+   */
+  handleDelIconDisabled(item: IDataRetrieval.ILocalValue) {
+    const result = {
+      disabled: false,
+      tips: '',
+    };
+    if (this.localValue.length === 1) {
+      result.disabled = true;
+    } else if (item.isMetric) {
+      const disabled = this.expressionVars[item.alias];
+      result.disabled = disabled;
+      result.tips = disabled ? this.$tc('存在表达式依赖，不能删除') : '';
+    }
+    return result;
+  }
+
+  /**
    * @description: 操作按钮提示
    * @param {IDataRetrieval} opt
    * @param {IDataRetrieval} item
@@ -2353,7 +2406,7 @@ export default class DataRetrieval extends tsc<object> {
     const metricItem = item as DataRetrievalQueryItem;
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
-      delete: `${this.$t('删除')}`,
+      delete: this.handleDelIconDisabled(item).tips || `${this.$t('删除')}`,
       enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
@@ -2844,7 +2897,7 @@ export default class DataRetrieval extends tsc<object> {
       const promqlData = [];
       const promiseList = [];
       const localValueFilter = this.localValue.filter((item: DataRetrievalQueryItem) => !!item.metric_id);
-      localValueFilter.forEach((item: DataRetrievalQueryItem) => {
+      for (const item of localValueFilter as DataRetrievalQueryItem[]) {
         const promiseItem = new Promise((resolve, reject) => {
           const queryConfigs = this.getQueryConfgs(undefined, item);
           const params = {
@@ -2865,7 +2918,7 @@ export default class DataRetrieval extends tsc<object> {
             });
         });
         promiseList.push(promiseItem);
-      });
+      }
       const dataList = await Promise.all(promiseList);
       /* 报错不提供转换 */
       if (isErr) return;
@@ -2887,7 +2940,7 @@ export default class DataRetrieval extends tsc<object> {
       const metricQueryData = [];
       const promiseList = [];
       const promqlDataFilter = this.promqlData.filter(item => !!item.code);
-      promqlDataFilter.forEach((item: DataRetrievalPromqlItem) => {
+      for (const item of promqlDataFilter as DataRetrievalPromqlItem[]) {
         const promiseItem = new Promise((resolve, reject) => {
           const params = {
             promql: item.code,
@@ -2904,14 +2957,14 @@ export default class DataRetrieval extends tsc<object> {
             })
             .catch(err => {
               isErr = true;
-              errMsg = err.data.message || '';
+              errMsg = err.data?.message || err.message || '';
               const promqlItem = this.promqlData.find(p => p.key === item.key);
               promqlItem.errMsg = errMsg;
               reject(err);
             });
         });
         promiseList.push(promiseItem);
-      });
+      }
       await Promise.all(promiseList);
       if (isErr) return;
       if (metricQueryData.length) {
@@ -2999,6 +3052,12 @@ export default class DataRetrieval extends tsc<object> {
       this.handleFavoriteHiddenAndShow(false);
     }
   }
+  handleDeletePromqlFilterDict(index: number) {
+    const promqlItem = this.promqlData[index];
+    if (Object.keys(promqlItem?.filter_dict || {}).length <= 0) return;
+    promqlItem.filter_dict = {};
+    this.handleQueryProxy();
+  }
 
   handleRefreshChange(v: number) {
     window.clearInterval(this.refreshInstance);
@@ -3042,7 +3101,7 @@ export default class DataRetrieval extends tsc<object> {
                 key={opt}
                 class={[
                   'icon-monitor',
-                  { disabled: opt === 'delete' && this.localValue.length === 1 },
+                  { disabled: opt === 'delete' ? this.handleDelIconDisabled(item).disabled : false },
                   iconName,
                   sourceAcitve,
                   display,
@@ -3129,9 +3188,11 @@ export default class DataRetrieval extends tsc<object> {
               <span
                 class={['edit-mode-btn', { 'mode-disable': !this.canToPromql }]}
                 v-bk-tooltips={{
-                  content: this.$t('目前仅支持{0}切换PromQL', [
-                    `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
-                  ]),
+                  content: this.useExpression
+                    ? this.$t('存在表达式,暂不支持转换')
+                    : this.$t('目前仅支持{0}切换PromQL', [
+                        `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                      ]),
                   disabled: this.canToPromql,
                 }}
                 onClick={this.handleEditModeChange}
@@ -3328,6 +3389,12 @@ export default class DataRetrieval extends tsc<object> {
                           onFocus={() => this.handlePromqlDataFocus(index)}
                         />
                       </div>
+                      {Object.keys(item.filter_dict || {}).length > 0 && (
+                        <FilterDict
+                          filterDict={item.filter_dict}
+                          onDelete={() => this.handleDeletePromqlFilterDict(index)}
+                        />
+                      )}
                       <span class='step-content'>
                         <bk-input
                           class='step-input'
@@ -3456,7 +3523,9 @@ export default class DataRetrieval extends tsc<object> {
                     theme: 'line',
                     isShow: this.isShowFavorite,
                     onHidden: () => this.handleFavoriteHiddenAndShow(false),
-                    onWidthChange: width => (this.favoriteWidth = width),
+                    onWidthChange: width => {
+                      this.favoriteWidth = width;
+                    },
                   }}
                 >
                   <FavoriteIndex
@@ -3599,7 +3668,9 @@ export default class DataRetrieval extends tsc<object> {
                   objectType={this.target.objectType}
                   showDialog={this.target.show}
                   onChange={this.handleTargetChange}
-                  onCloseDialog={() => (this.target.show = false)}
+                  onCloseDialog={() => {
+                    this.target.show = false;
+                  }}
                 />
               </div>
               <AddCollectDialog
@@ -3608,7 +3679,9 @@ export default class DataRetrieval extends tsc<object> {
                 favoriteSearchType={this.favoriteSearchType}
                 favStrList={this.favStrList}
                 keyword={this.favoriteKeywordsData}
-                onCancel={() => (this.editFavoriteData = null)}
+                onCancel={() => {
+                  this.editFavoriteData = null;
+                }}
                 onSubmit={value => this.handleSubmitFavorite(value)}
               />
             </div>

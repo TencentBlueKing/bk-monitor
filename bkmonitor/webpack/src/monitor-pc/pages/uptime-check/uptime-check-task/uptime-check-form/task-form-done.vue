@@ -105,7 +105,7 @@
   </article>
 </template>
 <script>
-import { isEn } from '../../../../i18n/i18n';
+import { isEn } from '../../../../i18n/lang';
 
 export default {
   name: 'UptimeCheckTaskDone',

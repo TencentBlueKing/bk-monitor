@@ -263,6 +263,10 @@ export default {
   显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
   自动聚合: 'Auto',
+  按从属关系聚合: 'Aggregate by Dependency',
+  按调用关系聚合: 'Aggregate by call relationship',
+  '如果同时开启了 按从属关系聚合，将先进行从属边的聚合，再进行调用边的聚合':
+    'If Aggregate by Dependency is enabled at the same time, subordinate edges will be aggregated first, followed by calling edges.',
   不聚合: 'No',
   聚合异常: 'Error ',
   查看资源: 'View Resource',
@@ -298,4 +302,18 @@ export default {
   可容忍: 'tolerableness',
   满意: 'satisfaction',
   日志数: 'Log count',
+  可通过关联另一个应用来实现不同应用间调用问题的定位:
+    'You can locate the call problem between different applications by associating another application.',
+  暂无匹配: 'No match found',
+  右键更多操作: 'Right-click for more actions',
+  在节点右键进行更多操作: 'Right-click on the node for more actions',
+  指标数据未开启: 'Metric data is not enabled',
+  日志数据未开启: 'Log data is not enabled',
+  调用链数据未开启: 'Trace data is not enabled',
+  性能分析数据未开启: 'Profiling data is not enabled',
+  '尚未接入服务{0}': 'Service {0} has not been accessed',
+  '数据统计中，请耐心等待': 'Data statistics in progress, please wait patiently',
+  'Grafana已经升级到10版本，来看看有哪些功能差异':
+    'Grafana has been upgraded to version 10.1. What are the differences in functions?',
+  '稍等几分钟后，前往 {0} 查看相关数据': 'Wait a few minutes and go to {0} to view related data',
 };

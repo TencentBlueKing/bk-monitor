@@ -180,7 +180,7 @@ class AddNullDataProcessor:
 
     @classmethod
     def process_formatted_data(cls, params: dict, data: list) -> list:
-        if params["type"] == "instant":
+        if params["type"] == "instant" or params["format"] != "time_series":
             return data
 
         if params.get("step"):
@@ -1208,7 +1208,9 @@ class GraphPromqlQueryResource(Resource):
                 "alias": "_result_",
                 "metric_field": "_result_",
                 "unit": "",
-                "target": ",".join(f'{key}="{value}"' for key, value in zip(s["group_keys"], s["group_values"])),
+                "target": ",".join(
+                    f'{key}="{value}"' for key, value in sorted(zip(s["group_keys"], s["group_values"]))
+                ),
                 "dimensions": dict(zip(s["group_keys"], s["group_values"])),
                 "datapoints": [[v[1], v[0]] for v in s["values"]],
             }
@@ -1344,7 +1346,7 @@ class DimensionUnifyQuery(Resource):
             data_label = serializers.CharField(label="数据标签", allow_blank=True, required=False)
             metrics = serializers.ListField(label="查询指标", allow_empty=False, child=MetricSerializer())
             table = serializers.CharField(label="结果表名", required=False, allow_blank=True)
-            group_by = serializers.ListField(label="聚合字段")
+            group_by = serializers.ListField(label="聚合字段", required=False, default=[])
             where = serializers.ListField(label="过滤条件")
             filter_dict = serializers.DictField(default={}, label="过滤条件")
             time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
@@ -1456,7 +1458,8 @@ class DimensionUnifyQuery(Resource):
             "type": "dimension",
             "scenario": "os",
             "params": {
-                "data_label": query_config["data_label"],
+                # query_config 未必都有这个字段： data_label
+                "data_label": query_config.get("data_label", ""),
                 "data_source_label": query_config["data_source_label"],
                 "data_type_label": query_config["data_type_label"],
                 "result_table_id": query_config["table"],
@@ -1466,6 +1469,9 @@ class DimensionUnifyQuery(Resource):
                 "interval": 600,
                 "field": request_params["dimension_field"],
                 "metric_field": query_config["metrics"][0]["field"],
+                "index_set_id": query_config.get("index_set_id", None),
+                "query_string": query_config.get("query_string", ""),
+                "filter_dict": query_config.get("filter_dict", {}),
             },
         }
         return resource.grafana.get_variable_value(params)

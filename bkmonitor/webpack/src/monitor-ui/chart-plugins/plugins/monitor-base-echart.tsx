@@ -46,6 +46,7 @@ interface IBaseProps extends IChartProps {
   showRestore?: boolean;
   needTooltips?: boolean;
   sortTooltipsValue?: boolean;
+  needZrClick?: boolean;
   tooltipsContentLastItemFn?: (v: any) => string;
 }
 @Component
@@ -57,6 +58,7 @@ class MonitorBaseEchart extends BaseEchart {
   // 是否需要排序tooltip内容
   @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
+  @Prop({ type: Boolean, default: false }) needZrClick: boolean;
   /* tooltips内容最后一项格式化函数 */
   @Prop({ type: Function, default: null }) tooltipsContentLastItemFn: (v: any) => string;
   // hover视图上 当前对应最近点数据
@@ -116,7 +118,10 @@ class MonitorBaseEchart extends BaseEchart {
                 position.left = +pos[0] - contentSize[0] - 20;
               }
               if (contentSize[0]) this.tooltipSize = contentSize;
-              return position;
+              return {
+                left: position.left,
+                top: position.top < -chartRect.y ? -chartRect.y : position.top,
+              };
             },
           },
         },
@@ -136,6 +141,30 @@ class MonitorBaseEchart extends BaseEchart {
         (this as any).curChartOption = (this as any).instance.getOption();
         this.groupId && ((this as any).instance.group = this.groupId);
         (this as any).instance.on('dataZoom', this.handleDataZoom);
+        if (this.needZrClick) {
+          (this as any).instance.getZr().on('click', params => {
+            const options = (this as any).instance.getOption();
+            if (!options.series?.length) return;
+            const pointInPixel = [params.offsetX, params.offsetY];
+            const pointInGrid = (this as any).instance.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
+            if (!pointInGrid) return;
+            const xAxisValue = this.curPoint.xAxis;
+            const yAxisValue = pointInGrid[1];
+            const dataIndex = this.curPoint.dataIndex;
+            const data = options.series
+              .map(s => ({
+                v: s.data?.[dataIndex]?.value?.[1],
+                s,
+              }))
+              .sort((a, b) => Math.abs(a.v - yAxisValue) - Math.abs(b.v - yAxisValue));
+            this.$emit('zrClick', {
+              xAxis: xAxisValue,
+              yAxis: data[0].v,
+              dimensions: data[0].s.dimensions,
+            });
+          });
+        }
+        this.$emit('loaded');
       }, 100);
     }
   }
@@ -188,7 +217,7 @@ class MonitorBaseEchart extends BaseEchart {
       () => {
         this.initChart();
         (this as any).instance.setOption(this.getMonitorEchartOptions(), {
-          notMerge: true,
+          notMerge: this.notMerge,
           lazyUpdate: false,
           silent: true,
         });
@@ -261,6 +290,7 @@ class MonitorBaseEchart extends BaseEchart {
     }
     let liHtmls = [];
     let ulStyle = '';
+    let hasWrapText = true;
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
       liHtmls.push(params[0].data.tooltips);
@@ -306,10 +336,11 @@ class MonitorBaseEchart extends BaseEchart {
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && this.tooltipSize) {
         const cols = Math.ceil(list.length / maxLen);
+        if (cols > 1) hasWrapText = false;
         this.tableToolSize = this.tableToolSize
           ? Math.min(this.tableToolSize, this.tooltipSize[0])
           : this.tooltipSize[0];
-        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.33)}px;`;
+        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 2 - 20)}px;`;
       }
     }
     const lastItem = this.tooltipsContentLastItemFn?.(params);
@@ -317,7 +348,7 @@ class MonitorBaseEchart extends BaseEchart {
             <p class="tooltips-header">
                 ${pointTime}
             </p>
-            <ul class="tooltips-content" style="${ulStyle}">
+            <ul class="tooltips-content ${hasWrapText ? 'wrap-text' : ''}" style="${ulStyle}">
                 ${liHtmls?.join('')}
                 ${lastItem || ''}
             </ul>
@@ -330,8 +361,6 @@ class MonitorBaseEchart extends BaseEchart {
           ref='chartInstance'
           style={{ minHeight: `${1}px` }}
           class='chart-base'
-          onClick={this.handleClick}
-          onDblclick={this.handleDblClick}
           onMouseleave={this.handleMouseleave}
           onMouseover={this.handleMouseover}
         />

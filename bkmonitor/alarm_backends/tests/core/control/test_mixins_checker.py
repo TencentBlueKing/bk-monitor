@@ -115,7 +115,6 @@ def mock_last_check_key(self, check_timestamp, dms_md5_list=None):
 
 
 class TestChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
@@ -277,6 +276,7 @@ class TestChecker(TestCase):
         MagicMock(return_value=(TARGET_INSTANCE_DIMENSIONS, [])),
     )
     @patch("alarm_backends.core.control.mixins.nodata.CheckMixin._produce_anomaly_info", mock_anomaly_info)
+    @patch("alarm_backends.core.control.mixins.nodata.CheckMixin._is_host_dimension_in_business", lambda x, y: True)
     def test_check__no_his_dms(self):
         check_timestamp = 10000
         mock_last_check_key(self, 9940)
@@ -348,8 +348,10 @@ class TestChecker(TestCase):
         ),
     )
     @patch("alarm_backends.core.control.mixins.nodata.CheckMixin._produce_anomaly_info", mock_anomaly_info)
+    @patch("alarm_backends.service.alert.manager.checker.close.HostManager", None)
     def test_check__no_his_and_missing_target(self):
         check_timestamp = 10000
         mock_last_check_key(self, 9940)
         data_points = [DataPoint(record, self.item) for record in RECORDS]
-        self.assertEqual(self.item.check(data_points, check_timestamp), ANOMALY_INFO[:2])
+        # 127.0.0.3 不在HostManager缓存中
+        self.assertEqual(self.item.check(data_points, check_timestamp), ANOMALY_INFO[1:2])

@@ -8,11 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import hashlib
 import json
 import logging
 import re
 from typing import Dict, Optional
 
+from django.conf import settings
 from jinja2 import Template
 
 from metadata import models
@@ -46,6 +48,54 @@ def get_bkdata_table_id(table_id: str) -> str:
     return table_id[:40]
 
 
+def compose_bkdata_table_id(table_id: str) -> str:
+    """
+    获取计算平台结果表ID
+    @param table_id: 监控平台结果表ID
+    """
+    # 按照 '__default__' 截断，取前半部分
+    table_id = table_id.split(".__default__")[0]
+    table_id = table_id.lower()
+
+    # 转换中划线和点为下划线
+    table_id = table_id.replace('-', '_').replace('.', '_')
+
+    # 处理负数开头和其他情况
+    if table_id.startswith('_'):
+        table_id = f'bkm_neg_{table_id.lstrip("_")}'
+    elif table_id[0].isdigit():
+        table_id = f'bkm_{table_id}'
+    else:
+        table_id = f'bkm_{table_id}'
+
+    # 确保不会出现连续的下划线
+    while '__' in table_id:
+        table_id = table_id.replace('__', '_')
+
+    # 计算哈希值,采用hash方式确保table_id唯一
+    hash_suffix = hashlib.md5(table_id.encode()).hexdigest()[:5]
+
+    if len(table_id) > 40:
+        table_id = f'{table_id[:35]}_{hash_suffix}'
+
+    # 确保长度不超过40
+    return table_id
+
+
+def parse_and_get_rt_biz_id(table_id: str) -> int:
+    """
+    解析并获取监控平台结果表的业务ID信息
+    @param table_id: 监控平台结果表ID
+    @return: 业务ID
+    """
+    match = re.match(r'^(\d+)', table_id)
+    if match:
+        # 如果匹配成功，返回数字部分并转换为整数
+        return int(match.group(1))
+    else:
+        return settings.DEFAULT_BKDATA_BIZ_ID
+
+
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
     """渲染配置模板"""
     content = Template(tpl).render(**render_params)
@@ -61,6 +111,27 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
     # 截取长度为45的字符串，同时拼装前缀
     return f"bkm_{refine_data_name[-45:].lower()}"
+
+
+def compose_bkdata_data_id_name(data_name: str) -> str:
+    """
+    组装bkdata数据源名称
+    @param data_name: 监控平台数据源名称
+    """
+    # 剔除不符合的字符
+    refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
+    # 替换连续的下划线为单个下划线
+    data_id_name = f"bkm_{re.sub(r'_+', '_', refine_data_name)}"
+
+    # 控制长度
+    if len(refine_data_name) > 45:
+        # 截取长度为45的字符串
+        truncated_name = refine_data_name[-39:].lower().strip('_')
+        # 计算哈希值
+        hash_suffix = hashlib.md5(refine_data_name.encode()).hexdigest()[:5]
+        data_id_name = f"bkm_{truncated_name}_{hash_suffix}"
+    # 拼装前缀和哈希值
+    return data_id_name
 
 
 def is_k8s_metric_data_id(data_name: str) -> bool:

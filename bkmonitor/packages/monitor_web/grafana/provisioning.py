@@ -13,6 +13,7 @@ import typing
 
 from blueapps.conf import settings
 
+from bk_dataview.api import get_or_create_user, sync_user_role
 from bk_dataview.provisioning import Dashboard, SimpleProvisioning
 from bkmonitor.commons.tools import is_ipv6_biz
 from monitor_web.grafana.utils import patch_home_panels
@@ -45,6 +46,12 @@ class BkMonitorProvisioning(SimpleProvisioning):
             )
         )
         not_created = dashboard_keys - created
+
+        if not_created:
+            # 确保admin用户存在
+            user = get_or_create_user("admin")
+            sync_user_role(org_id, user["id"], "Admin")
+
         for i in not_created:
             # 不存在则进行创建
             if cls.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json", bk_biz_id=org_name):

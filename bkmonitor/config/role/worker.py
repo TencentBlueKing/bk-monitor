@@ -161,12 +161,16 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
-    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每半小时触发
-    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/30 * * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每15分钟触发
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/15 * * * *", "global"),
     # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
     ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
     # apm_profile 定时发现profile服务 每十分钟触发
     ("apm.task.tasks.profile_discover_cron", "*/10 * * * *", "global"),
+    # apm 定时对已安装 collector 的集群进行后置操作 每半小时触发
+    ("apm.task.tasks.k8s_bk_collector_discover_cron", "*/15 * * * *", "global"),
+    # apm 定时检查预计算任务是否正常执行 每15分钟触发
+    ("apm.task.tasks.bmw_task_cron", "*/15 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -278,6 +282,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
+    # 新版链路状态自动兜底刷新,15min 一次
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds

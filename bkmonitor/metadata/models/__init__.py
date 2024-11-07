@@ -16,6 +16,7 @@ from .bcs import (
     ReplaceConfig,
     ServiceMonitorInfo,
 )
+from .bkdata import BkBaseResultTable
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
@@ -28,7 +29,16 @@ from .custom_report import (
     TimeSeriesMetric,
     TimeSeriesTag,
 )
-from .data_link import DataLinkResource, DataLinkResourceConfig
+from .data_link import (  # noqa
+    ConditionalSinkConfig,
+    DataBusConfig,
+    DataIdConfig,
+    DataLink,
+    DataLinkResource,
+    DataLinkResourceConfig,
+    VMResultTableConfig,
+    VMStorageBindingConfig,
+)
 from .data_pipeline import (
     DataPipeline,
     DataPipelineDataSource,
@@ -153,4 +163,5 @@ __all__ = [
     # record rule
     "RecordRule",
     "ResultTableFlow",
+    "BkBaseResultTable",
 ]

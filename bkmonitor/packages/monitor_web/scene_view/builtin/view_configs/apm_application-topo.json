@@ -107,6 +107,7 @@
                       "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -202,6 +203,7 @@
                       "alias_prefix": "callee",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -314,6 +316,7 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -399,7 +402,7 @@
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "unit": "percentunit",
-                      "expression": "a / b",
+                      "expression": "b / c",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -408,7 +411,7 @@
                             {
                               "field": "bk_apm_count",
                               "method": "SUM",
-                              "alias": "a"
+                              "alias": "b"
                             }
                           ],
                           "table": "${table_id}",
@@ -439,7 +442,7 @@
                             {
                               "field": "bk_apm_count",
                               "method": "SUM",
-                              "alias": "b"
+                              "alias": "c"
                             }
                           ],
                           "table": "${table_id}",
@@ -456,7 +459,7 @@
                         }
                       ],
                       "unify_query_param": {
-                        "expression": "a / b",
+                        "expression": "b / c",
                         "query_configs": [
                           {
                             "data_source_label": "custom",
@@ -465,7 +468,7 @@
                               {
                                 "field": "bk_apm_count",
                                 "method": "SUM",
-                                "alias": "a"
+                                "alias": "b"
                               }
                             ],
                             "table": "${table_id}",
@@ -496,7 +499,7 @@
                               {
                                 "field": "bk_apm_count",
                                 "method": "SUM",
-                                "alias": "b"
+                                "alias": "c"
                               }
                             ],
                             "table": "${table_id}",
@@ -687,6 +690,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -791,6 +796,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -895,6 +902,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1124,6 +1133,7 @@
                       "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1222,6 +1232,7 @@
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "stack": "all",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1335,6 +1346,7 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1421,7 +1433,7 @@
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "unit": "percentunit",
-                      "expression": "a / b",
+                      "expression": "b / c",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1430,7 +1442,7 @@
                             {
                               "field": "bk_apm_count",
                               "method": "SUM",
-                              "alias": "a"
+                              "alias": "b"
                             }
                           ],
                           "table": "${table_id}",
@@ -1462,7 +1474,7 @@
                             {
                               "field": "bk_apm_count",
                               "method": "SUM",
-                              "alias": "b"
+                              "alias": "c"
                             }
                           ],
                           "table": "${table_id}",
@@ -1480,7 +1492,7 @@
                         }
                       ],
                       "unify_query_param": {
-                        "expression": "a / b",
+                        "expression": "b / c",
                         "query_configs": [
                           {
                             "data_source_label": "custom",
@@ -1489,7 +1501,7 @@
                               {
                                 "field": "bk_apm_count",
                                 "method": "SUM",
-                                "alias": "a"
+                                "alias": "b"
                               }
                             ],
                             "table": "${table_id}",
@@ -1521,7 +1533,7 @@
                               {
                                 "field": "bk_apm_count",
                                 "method": "SUM",
-                                "alias": "b"
+                                "alias": "c"
                               }
                             ],
                             "table": "${table_id}",
@@ -1714,6 +1726,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1820,6 +1834,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",
@@ -1926,6 +1942,8 @@
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
+                      "unit": "ns",
+                      "expression": "A",
                       "query_configs": [
                         {
                           "data_source_label": "custom",

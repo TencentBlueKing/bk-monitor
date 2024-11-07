@@ -19,6 +19,7 @@ logger = logging.getLogger("apm")
 
 
 class BkCollectorConfig(object):
+    # bk-collector 插件名称
     PLUGIN_NAME = "bk-collector"
 
     @classmethod

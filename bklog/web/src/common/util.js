@@ -436,7 +436,11 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   visibleFieldsList.forEach(item => {
     const key = item.field_name;
 
-    const maxLength = fieldsWidthInfo[key]?.max_length || 0;
+    const mlength = fieldsWidthInfo[key]?.max_length || 0;
+    let maxLength = mlength;
+    if (mlength._isBigNumber) {
+      maxLength = mlength.toNumber() ?? 0;
+    }
     rowObj[key] = maxLength;
     rowWidth.push(maxLength);
   });
@@ -474,7 +478,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true) {
+export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -489,8 +493,9 @@ export function formatDate(val, isTimzone = true) {
     const milliseconds = val % 1000;
     // 创建 dayjs 对象
     const date = dayjs.tz(Number(val));
+
     // 如果毫秒部分不为 000，展示毫秒精度的时间
-    const formatStr = milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
     return date.format(formatStr);
   }
 
@@ -833,6 +838,19 @@ export const Debounce =
     return descriptor;
   };
 
+export const formatDateTimeField = (data, fieldType) => {
+  if (fieldType === 'date') {
+    return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
+  }
+
+  return data;
+};
+
 /**
  * 获取 row[key] 内容
  * @example return row.a.b || row['a.b']
@@ -1049,9 +1067,9 @@ export const utcFormatDate = val => {
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach((field, index) => {
+      visibleFields.forEach(field => {
         if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[index];
+          const catchWidth = catchFieldsWidthObj[field.field_name];
           field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
         } else {
           field.width = calculateTableColsWidth(field, tableData);
@@ -1158,12 +1176,26 @@ export const getCharLength = str => {
   return bitLen;
 };
 
-export const sessionShowFieldObj = () => {
-  // 显示字段缓存
-  const showFieldStr = sessionStorage.getItem('showFieldSession');
-  return !showFieldStr ? {} : JSON.parse(showFieldStr);
-};
-
 export const getRegExp = (searchValue, flags = 'ig') => {
   return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+};
+
+/** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
+export const getStorageIndexItem = indexList => {
+  const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+  if (catchIndexSetStr) {
+    const catchIndexSetList = JSON.parse(catchIndexSetStr);
+    const spaceUid = store.state.spaceUid;
+    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+      return catchIndexSetList[spaceUid];
+    }
+  }
+  return getHaveValueIndexItem(indexList);
+};
+
+/** 获取非无数据的索引集 */
+export const getHaveValueIndexItem = indexList => {
+  return (
+    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
+  );
 };

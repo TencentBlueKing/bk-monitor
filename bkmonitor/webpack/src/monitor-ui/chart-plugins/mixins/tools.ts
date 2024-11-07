@@ -39,8 +39,7 @@ import type { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 function removeUndefined(obj) {
-  Object.keys(obj).forEach(key => {
-    const value = obj[key];
+  for (const [key, value] of Object.entries(obj)) {
     if (isObject(value)) {
       // 如果属性值为对象或数组，则递归调用该函数
       removeUndefined(value);
@@ -55,7 +54,7 @@ function removeUndefined(obj) {
         delete obj[key];
       }
     }
-  });
+  }
   return obj; // 返回处理后的对象
 }
 
@@ -78,43 +77,79 @@ export default class ToolsMixin extends Vue {
     isAll = false
   ) {
     try {
+      const getExpressionList = targets => {
+        const expressionList = [];
+        for (const t of targets) {
+          const expression = t?.data?.expression || '';
+          if (expression) {
+            expressionList.push({
+              active: false,
+              expression,
+            });
+          }
+        }
+        if (expressionList.length) {
+          expressionList[0].active = true;
+        }
+        return expressionList;
+      };
       let result: any = null;
+      const strategyConfig = panel?.toStrategy?.(metric, isAll);
       const targets: PanelModel['targets'] = JSON.parse(JSON.stringify(panel.targets));
-      const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
-      const interval = reviewInterval(
-        scopedVars.interval,
-        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        panel.collect_interval
-      );
-      const variablesService = new VariablesService({ ...scopedVars, interval });
-      if (isAll) {
+      if (strategyConfig) {
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
         result = {
-          expression: '',
-          query_configs: [],
+          ...strategyConfig,
+          expressionList,
         };
-        targets.forEach(target => {
-          target.data?.query_configs?.forEach(queryConfig => {
-            const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
-            if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+      } else {
+        const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
+        const interval = reviewInterval(
+          scopedVars.interval,
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          panel.collect_interval
+        );
+        const variablesService = new VariablesService({ ...scopedVars, interval });
+        // 如有表达式需传入到策略
+        const expressionList = getExpressionList(targets);
+        if (isAll) {
+          result = {
+            expression: '',
+            expressionList: expressionList,
+            query_configs: [],
+          };
+          // biome-ignore lint/complexity/noForEach: <explanation>
+          targets.forEach(target => {
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            target.data?.query_configs?.forEach(queryConfig => {
+              // const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
+              // if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
+              //   let config = deepClone(queryConfig);
+              //   config = variablesService.transformVariables(config);
+              //   result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+              // }
               let config = deepClone(queryConfig);
               config = variablesService.transformVariables(config);
               result.query_configs.push({ ...queryConfigTransform(filterDictConvertedToWhere(config), scopedVars) });
+            });
+          });
+        } else {
+          // biome-ignore lint/complexity/noForEach: <explanation>
+          targets.forEach(target => {
+            for (const queryConfig of target.data?.query_configs || []) {
+              if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
+                let config = deepClone(queryConfig);
+                config = variablesService.transformVariables(config);
+                result = {
+                  ...target.data,
+                  query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
+                };
+                break;
+              }
             }
           });
-        });
-      } else {
-        targets.forEach(target => {
-          target.data?.query_configs?.forEach(queryConfig => {
-            if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
-              let config = deepClone(queryConfig);
-              config = variablesService.transformVariables(config);
-              result = {
-                ...target.data,
-                query_configs: [queryConfigTransform(filterDictConvertedToWhere(config), scopedVars)],
-              };
-            }
-          });
-        });
+        }
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
@@ -188,12 +223,12 @@ export default class ToolsMixin extends Vue {
       });
       return;
     }
-    targets.forEach(target => {
+    for (const target of targets) {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
           queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
         ) || [];
-    });
+    }
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
       item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')

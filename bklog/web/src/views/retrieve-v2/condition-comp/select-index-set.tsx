@@ -375,6 +375,7 @@ export default class QueryStatement extends tsc<object> {
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
       isUnionIndex: !this.isAloneType,
+      sort_list: [],
     };
 
     return payload;
@@ -448,6 +449,14 @@ export default class QueryStatement extends tsc<object> {
         } else {
           this.indexSearchType = 'single';
         }
+      }
+
+      if (this.isAloneType) {
+        const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+        const catchIndexSet = catchIndexSetStr ?? '{}';
+        const catchIndexSetList = JSON.parse(catchIndexSet);
+        catchIndexSetList[this.spaceUid] = this.selectAloneVal[0];
+        localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
       }
 
       this.aloneHistory = [];
@@ -541,14 +550,12 @@ export default class QueryStatement extends tsc<object> {
 
   /** 已选tag中的删除事件 */
   handleCloseSelectTag(item) {
-    console.log('@handleCloseSelectTag--');
     this.selectTagCatchIDList = this.selectTagCatchIDList.filter(catchVal => catchVal !== item.index_set_id);
     this.multipleFavoriteSelectID = null;
   }
 
   /** 切换多选或者单选 */
   handleClickSetType(type: IndexSetType) {
-    console.log('@handleClickSetType--');
     this.indexSearchType = type;
     this.multipleHistorySelectID = null;
     this.getIndexSetHistoryList(type);
@@ -1217,6 +1224,7 @@ export default class QueryStatement extends tsc<object> {
     return (
       <Select
         ref='selectInput'
+        style='max-width: 600px;'
         class={[
           'retrieve-index-select',
           { 'is-default-trigger': !this.selectedItemList.length && !this.selectedItem.index_set_name },

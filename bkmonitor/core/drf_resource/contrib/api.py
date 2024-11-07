@@ -18,6 +18,7 @@ import six
 from blueapps.account.conf import ConfFixture
 from blueapps.account.utils import load_backend
 from django.conf import settings
+from django.http import StreamingHttpResponse
 from django.utils import translation
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
@@ -178,6 +179,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         request_url = self.get_request_url(validated_request_data)
         logger.debug("request: {}".format(request_url))
 
+        # 是否是流式响应
+        is_stream = validated_request_data.pop("stream", False)
+
         try:
             headers = self.get_headers()
             kwargs = {
@@ -186,6 +190,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 "timeout": validated_request_data.get("timeout") or self.TIMEOUT,
                 "headers": headers,
                 "verify": False,
+                "stream": is_stream,
             }
             if self.method == "GET":
                 kwargs = self.before_request(kwargs)
@@ -199,6 +204,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                     headers=headers,
                     verify=False,
                     timeout=validated_request_data.get("timeout") or self.TIMEOUT,
+                    stream=is_stream,
                 )
             else:
                 non_file_data, file_data = self.split_request_data(validated_request_data)
@@ -225,7 +231,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             self.report_api_failure_metric(error_code=getattr(err, 'code', 0), exception_type=type(err).__name__)
             raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
 
-        result_json = result.json()
+        if is_stream:
+            return self.handle_stream_response(result)
+        else:
+            result_json = result.json()
 
         if not isinstance(result_json, dict):
             return result_json
@@ -315,3 +324,19 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         在提供数据给response_serializer之前，对数据作最后的处理，子类可进行重写
         """
         return response_data
+
+    def handle_stream_response(self, response):
+        # 处理流式响应
+        def event_stream():
+            for line in response.iter_lines():
+                if not line:
+                    continue
+
+                result = line.decode('utf-8') + '\n\n'
+                yield result
+
+        # 返回 StreamingHttpResponse
+        sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream; charset=utf-8")
+        sr.headers["Cache-Control"] = "no-cache"
+        sr.headers["X-Accel-Buffering"] = "no"
+        return sr

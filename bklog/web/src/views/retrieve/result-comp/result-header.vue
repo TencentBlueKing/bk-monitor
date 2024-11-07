@@ -65,18 +65,19 @@
           </template>
         </bk-popover>
       </div>
-      <div
+      <!-- <div
         v-if="!isAsIframe"
         id="bizSelectorGuide"
         class="biz-menu-box"
       >
         <biz-menu-select theme="light"></biz-menu-select>
-      </div>
+      </div> -->
     </div>
     <!-- 检索结果 -->
     <!-- <div class="result-text"></div> -->
     <!-- 检索日期 -->
     <div class="result-right">
+      <VersionSwitch version="v1"></VersionSwitch>
       <time-range
         :timezone="timezone"
         :value="datePickerValue"
@@ -191,12 +192,13 @@
   import StepBox from '@/components/step-box';
   import { debounce } from 'throttle-debounce';
   import { mapGetters, mapState } from 'vuex';
-
+  import VersionSwitch from '@/global/version-switch.vue';
   import TimeRange from '../../../components/time-range/time-range';
 
   export default {
     components: {
       BizMenuSelect,
+      VersionSwitch,
       TimeRange,
       StepBox,
     },
@@ -606,15 +608,15 @@
           margin-right: 2px;
         }
 
-        &::after {
-          position: absolute;
-          top: 6px;
-          right: -25px;
-          width: 1px;
-          height: 14px;
-          content: '';
-          background-color: #dcdee5;
-        }
+        // &::after {
+        //   position: absolute;
+        //   top: 6px;
+        //   right: -25px;
+        //   width: 1px;
+        //   height: 14px;
+        //   content: '';
+        //   background-color: #dcdee5;
+        // }
 
         .result-icon-box {
           width: 32px;

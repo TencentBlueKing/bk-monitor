@@ -978,6 +978,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/collect/run/
+  is_hidden: true
+  label: 重试部分实例或主机
+  label_en: run collect config
+  name: run_collect_config
+  path: /v2/monitor_v3/run_collect_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/collect/batch_retry/
   is_hidden: true
   label: 批量重试采集配置的失败实例
@@ -1381,6 +1392,17 @@
   label_en: search alarm strategy
   name: search_alarm_strategy_v3
   path: /v2/monitor_v3/search_alarm_strategy_v3/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/switch_by_labels/
+  is_hidden: false
+  label: 根据标签批量启停告警策略
+  label_en: switch alarm strategy by labels
+  name: switch_alarm_strategy_by_labels
+  path: /v2/monitor_v3/switch_alarm_strategy_by_labels/
   suggest_method: POST
 
 - api_type: operate
@@ -1801,6 +1823,17 @@
   name: search_alert
   path: /v2/monitor_v3/search_alert/
   method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/alert/alert/get_experience/
+  is_hidden: false
+  label: 获取告警处理经验
+  label_en: get_experience
+  name: get_experience
+  path: /v2/monitor_v3/get_experience/
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component

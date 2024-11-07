@@ -25,12 +25,13 @@ from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils import consul
+from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.utils import consul_tools, hash_util
-from metadata.utils.basic import get_biz_id_by_space_uid
+from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
 
 from .common import Label, OptionBase
 from .constants import (
@@ -144,6 +145,13 @@ class DataSource(models.Model):
         return self._mq_cluster
 
     @property
+    def datalink_version(self):
+        """数据源对应的数据链路版本"""
+        if self.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            return DATA_LINK_V4_VERSION_NAME
+        return DATA_LINK_V3_VERSION_NAME
+
+    @property
     def consul_config_path(self):
         """返回当前consul的配置路径"""
         return config.CONSUL_DATA_ID_PATH_FORMAT.format(
@@ -222,7 +230,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-        bk_biz_id = get_biz_id_by_space_uid(self.space_uid) or 0
+        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_data_id)
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -236,7 +244,7 @@ class DataSource(models.Model):
             "data_name": self.data_name,
             "is_platform_data_id": self.is_platform_data_id,
             "space_type_id": self.space_type_id,
-            "space_uid": self.space_uid,
+            "space_uid": space_uid,
             "bk_biz_id": bk_biz_id,
         }
 
@@ -315,10 +323,19 @@ class DataSource(models.Model):
         """从计算平台申请data_id"""
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
-        from metadata.models.data_link.service import apply_data_id, get_data_id
+        from metadata.models.data_link.service import (
+            apply_data_id,
+            apply_data_id_v2,
+            get_data_id,
+            get_data_id_v2,
+        )
 
         try:
-            apply_data_id(data_name)
+            if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
+                logger.info("apply_for_data_id_from_bkdata:apply data id from bkdata v2,data_name->[%s]", data_name)
+                apply_data_id_v2(data_name)
+            else:
+                apply_data_id(data_name)
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -328,7 +345,11 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id(data_name)
+                if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
+                    logger.info("apply_for_data_id_from_bkdata:get data id from bkdata v2,data_name->[%s]", data_name)
+                    data = get_data_id_v2(data_name)
+                else:
+                    data = get_data_id(data_name)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
@@ -480,9 +501,9 @@ class DataSource(models.Model):
 
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
-            # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
-            # 添加过滤条件，只接入时序数据到bkdata
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+            # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
+            # 添加过滤条件，只接入单指标单表时序数据到V4链路
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value:
                 logger.info(
                     "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
                 )

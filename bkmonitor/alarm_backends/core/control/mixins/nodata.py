@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from itertools import chain
+from typing import Dict
 
 import arrow
 from django.utils.module_loading import import_string
@@ -24,6 +25,7 @@ from alarm_backends.constants import (
     NO_DATA_VALUE,
 )
 from alarm_backends.core.cache import key
+from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from bkmonitor.utils.common_utils import count_md5
 
@@ -35,6 +37,23 @@ class CheckMixin(object):
     def no_data_level(self):
         no_data_config = getattr(self, "no_data_config", {})
         return int(no_data_config.get("level", NO_DATA_LEVEL))
+
+    def _is_host_dimension_in_business(self, dimensions: Dict[str, str]) -> bool:
+        """
+        判断主机维度是否在业务中
+        """
+        if "bk_target_ip" not in dimensions:
+            return True
+
+        ip = dimensions["bk_target_ip"]
+        bk_cloud_id = dimensions.get("bk_target_cloud_id", "0")
+
+        # 通过 CMDB 查询主机是否在业务中
+        host = HostManager.get(ip, bk_cloud_id)
+        if not host or host.bk_biz_id != self.strategy.bk_biz_id:
+            return False
+
+        return True
 
     def check(self, data_points, check_timestamp):
         scenario_cls = import_string("alarm_backends.service.nodata.scenarios.base.SCENARIO_CLS")
@@ -103,6 +122,11 @@ class CheckMixin(object):
                 if target_dms_md5 not in dimensions_md5_timestamp or (
                     last_point and dimensions_md5_timestamp[target_dms_md5] < int(last_point)
                 ):
+                    # 如果存在主机维度，判断其是否存在于业务中
+                    if not self._is_host_dimension_in_business(target_inst_dms):
+                        self.recover(target_dms_md5)
+                        continue
+
                     anomaly_data.append(self._produce_anomaly_info(check_timestamp, target_inst_dms, target_dms_md5))
                     logger.warning(
                         (

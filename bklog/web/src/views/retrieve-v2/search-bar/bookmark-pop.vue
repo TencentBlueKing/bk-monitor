@@ -39,6 +39,7 @@
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
   const unknownGroupID = computed(() => collectGroupList.value[collectGroupList.value.length - 1]?.group_id);
+  const privateGroupID = computed(() => collectGroupList.value[0]?.group_id);
   // 表单ref
   const popoverFormRef = ref();
   const favoriteData = ref({
@@ -216,7 +217,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { name, group_id, display_fields, visible_type, id, is_enable_display_fields } = favoriteData.value;
+    const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
     const searchParams =
       props.searchMode === 'sql'
@@ -227,7 +228,7 @@
       name,
       group_id,
       display_fields,
-      visible_type,
+      visible_type: group_id === privateGroupID.value ? 'private' : 'public',
       is_enable_display_fields,
       index_set_name: indexSetName.value,
       search_mode: props.searchMode,

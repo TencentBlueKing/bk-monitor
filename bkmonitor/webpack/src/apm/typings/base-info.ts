@@ -31,6 +31,10 @@ export interface IBaseParams {
   service_name: string;
 }
 
+export interface IBaseServiceInfo {
+  labels: string[];
+}
+
 export interface IBaseInfoList {
   label: TranslateResult;
   icon: null | string;
@@ -136,7 +140,7 @@ export interface IServiceRelation {
   log_relation?: ILogRelation;
   app_relation?: IAppRelation;
   apdex_relation?: IApdexRelation;
-  uri_relation?: IUriRelation;
+  uri_relation?: IUriRelation[];
 }
 
 export interface IServiceInfo {
@@ -144,6 +148,7 @@ export interface IServiceInfo {
   instance_count: number;
   extra_data: IExtraData;
   relation: IServiceRelation;
+  labels: string[];
 }
 
 export interface ILocationRelation {
@@ -153,7 +158,7 @@ export interface ILocationRelation {
   bizId: number | string;
   appId: string;
   apdex: number;
-  relatedBizId: number;
+  relatedBizId: number | string;
 }
 
 export interface ICmdbInfoItem {
@@ -173,6 +178,11 @@ export interface IAppInfoItem {
 }
 
 export interface IIndexSetItem {
+  id: string;
+  name: string;
+}
+
+export interface IApplicationItem {
   id: string;
   name: string;
 }

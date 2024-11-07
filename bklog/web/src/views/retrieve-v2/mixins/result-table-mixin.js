@@ -32,9 +32,9 @@ import {
   copyMessage,
   setDefaultTableWidth,
   TABLE_LOG_FIELDS_SORT_REGULAR,
-  sessionShowFieldObj,
   formatDateNanos,
 } from '@/common/util';
+import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import { mapState, mapGetters } from 'vuex';
@@ -57,6 +57,7 @@ export default {
     EmptyView,
     TimeFormatterSwitcher,
     OriginalLightHeight,
+    LazyRender,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
@@ -134,12 +135,12 @@ export default {
     ...mapState('globals', ['fieldTypeMap']),
     ...mapState([
       'isNotVisibleFieldsShow',
-      'clearTableWidth',
       'indexSetQueryResult',
-      'tableLineIsWarp',
+      'tableLineIsWrap',
       'indexSetOperatorConfig',
       'indexFieldInfo',
       'indexItem',
+      'tableShowRowIndex',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -162,6 +163,7 @@ export default {
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
       return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
+      // return [...(this.tableShowRowIndex ? [{ field_name: '行号', __is_row_index: true }] : []), ...list]
     },
     /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
     fullQuantityFields() {
@@ -205,6 +207,9 @@ export default {
     originFieldWidth() {
       return this.timeFieldType === 'date_nanos' ? 210 : 174;
     },
+    userSettingConfig() {
+      return this.$store.state.retrieve.catchFieldCustomConfig;
+    },
   },
   watch: {
     retrieveParams: {
@@ -218,36 +223,6 @@ export default {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
-    },
-    clearTableWidth() {
-      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-      const columnObj = JSON.parse(localStorage.getItem(storageStr));
-      const {
-        params: { indexId: routerIndexID },
-        query: { bizId },
-      } = this.$route;
-      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
-        return;
-      }
-      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
-      if (!isHaveBizId || columnObj[bizId].fields[indexKey] === undefined) {
-        return;
-      }
-
-      for (const bizKey in columnObj) {
-        if (bizKey === bizId) {
-          for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexKey) {
-              delete columnObj[bizId].fields[indexKey];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexKey, 1));
-              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
-            }
-          }
-        }
-      }
-
-      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     },
   },
   methods: {
@@ -286,43 +261,18 @@ export default {
     },
     // 展开表格行JSON
     tableRowClick(row, option, column) {
-      if (column.className?.includes('original-str')) return;
+      if (column?.className?.includes('original-str') ?? true) return;
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
     },
-    handleHeaderDragend(newWidth, oldWidth, { index }) {
-      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-      const {
-        params: { indexId: routerIndexID },
-        query: { bizId },
-      } = this.$route;
-      if (index === undefined || bizId === undefined || (routerIndexID === undefined && !this.isUnionSearch)) {
-        return;
-      }
-      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
-      // 缓存其余的宽度
-      const widthObj = {};
-      widthObj[index] = Math.ceil(newWidth);
-
-      let columnObj = JSON.parse(localStorage.getItem(storageStr));
-      if (columnObj === null) {
-        columnObj = {};
-        columnObj[bizId] = this.initSubsetObj(bizId, indexKey);
-      }
-      const isIncludebizId = Object.keys(columnObj).some(el => el === bizId);
-      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexKey));
-
-      for (const key in columnObj) {
-        if (key === bizId) {
-          if (columnObj[bizId].fields[indexKey] === undefined) {
-            columnObj[bizId].fields[indexKey] = {};
-            columnObj[bizId].indexsetIds.push(indexKey);
-          }
-          columnObj[bizId].fields[indexKey] = Object.assign(columnObj[bizId].fields[indexKey], widthObj);
-        }
-      }
-
-      localStorage.setItem(storageStr, JSON.stringify(columnObj));
+    handleHeaderDragend(newWidth, oldWidth, { columnKey }) {
+      const { fieldsWidth } = this.userSettingConfig;
+      const newFieldsWidthObj = Object.assign(fieldsWidth, {
+        [columnKey]: Math.ceil(newWidth),
+      });
+      this.$store.dispatch('userFieldConfigChange', {
+        fieldsWidth: newFieldsWidthObj,
+      });
     },
     initSubsetObj(bizId, indexKey) {
       const subsetObj = {};
@@ -333,8 +283,9 @@ export default {
       return subsetObj;
     },
 
-    renderHeaderAliasName(h, { _column, $index }) {
-      const field = this.getShowTableVisibleFields[$index - 1];
+    renderHeaderAliasName(h, args) {
+      const fieldIndex = args.column.index;
+      const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
@@ -415,9 +366,9 @@ export default {
                       displayFieldNames.push(field.field_name);
                     }
                   });
-                  const showFieldObj = sessionShowFieldObj();
-                  Object.assign(showFieldObj, { [this.$route.params.indexId]: displayFieldNames });
-                  sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
+                  this.$store.dispatch('userFieldConfigChange', {
+                    displayFields: displayFieldNames,
+                  });
                   this.$store.commit('resetVisibleFields', displayFieldNames);
                 },
               },
@@ -430,9 +381,9 @@ export default {
       // 是否是包含和不包含
       return ['exists', 'does not exists'].includes(operator);
     },
-    handleAddCondition(field, operator, value, isLink = false) {
+    handleAddCondition(field, operator, value, isLink = false, depth = undefined) {
       this.$store
-        .dispatch('setQueryCondition', { field, operator, value, isLink })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
@@ -440,8 +391,11 @@ export default {
           }
         });
     },
-    handleIconClick(type, content, field, row, isLink) {
-      let value = field.field_type === 'date' ? row[field.field_name] : content;
+    handleIconClick(type, content, field, row, isLink, depth) {
+      let value = ['date', 'date_nanos'].includes(field.field_type)
+        ? this.tableRowDeepView(row, field.field_name, field.field_type)
+        : content;
+
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
@@ -452,7 +406,7 @@ export default {
         // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
+        this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
       }
     },
     getFieldIcon(fieldType) {
@@ -462,12 +416,15 @@ export default {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
+      debugger;
       switch (option.operation) {
         case 'is':
         case 'is not':
+        case 'not':
         case 'new-search-page-is':
-          const { fieldName, operation, value } = option;
-          this.handleAddCondition(fieldName, operation, value === '--' ? [] : [value], isLink);
+          const { fieldName, operation, value, depth } = option;
+          const operator = operation === 'not' ? 'is not' : operation;
+          this.handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink, depth);
           break;
         case 'copy':
           copyMessage(option.value);
@@ -514,7 +471,7 @@ export default {
       }
       // 处理纳秒精度的UTC时间格式
       if (this.timeFieldType === 'date_nanos') {
-        return formatDateNanos(data);
+        return formatDateNanos(data, true, true);
       }
       return data;
     },

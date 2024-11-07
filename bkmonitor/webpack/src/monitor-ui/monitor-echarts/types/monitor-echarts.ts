@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
+import { BarChart, LineChart, MapChart, PieChart, HeatmapChart, CustomChart } from 'echarts/charts';
 import {
   GeoComponent,
   GraphicComponent,
@@ -35,6 +35,8 @@ import {
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
+  VisualMapComponent,
+  BrushComponent,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -71,6 +73,8 @@ echarts.use([
   PieChart,
   LineChart,
   MapChart,
+  HeatmapChart,
+  CustomChart,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -82,6 +86,8 @@ echarts.use([
   MarkPointComponent,
   GraphicComponent,
   GeoComponent,
+  VisualMapComponent,
+  BrushComponent,
 ]);
 
 export { echarts };

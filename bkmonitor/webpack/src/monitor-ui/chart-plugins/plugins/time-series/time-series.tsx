@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -75,6 +75,7 @@ import type {
   LegendActionType,
   MonitorEchartOptions,
   PanelModel,
+  ZrClickEvent,
 } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
@@ -96,6 +97,8 @@ interface ITimeSeriesEvent {
   onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
   onSeriesData?: any;
+  onZrClick: ZrClickEvent;
+  onOptionsLoaded(): void;
 }
 @Component
 export class LineChart
@@ -212,6 +215,19 @@ export class LineChart
   get needAllAlertMarkArea() {
     return this.panel.options?.time_series?.needAllAlertMarkArea;
   }
+  // 自定义数据步长 collect_interval_display
+  get collectIntervalDisplay() {
+    return this.panel.options?.collect_interval_display;
+  }
+  // 是否允许对比
+  get isSupportCompare() {
+    return typeof this.panel.options?.is_support_compare !== 'boolean' ? true : this.panel.options.is_support_compare;
+  }
+
+  // 是否允许自定groupBy
+  get isSupportGroupBy() {
+    return !!this.panel.options?.is_support_group_by;
+  }
 
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
@@ -321,7 +337,9 @@ export class LineChart
   }
   // 图表tooltip 可用于继承组件重写该方法
   handleSetTooltip() {
-    return {};
+    return {
+      extraCssText: 'max-width: 50%',
+    };
   }
   /**
    * @description: 获取图表数据
@@ -352,6 +370,15 @@ export class LineChart
         start_time: start_time ? dayjs(start_time).unix() : startTime,
         end_time: end_time ? dayjs(end_time).unix() : endTime,
       };
+      if (this.collectIntervalDisplay === '1d') {
+        // 如果数据步长为1天 则时间范围最小为7天
+        const weekTime = 7 * 24 * 60 * 60;
+        const dTime = 24 * 60 * 60;
+        if (params.end_time - params.start_time < weekTime) {
+          params.start_time = params.end_time - weekTime;
+        }
+        params.end_time = params.end_time + dTime;
+      }
       if (this.bkBizId) {
         params = Object.assign({}, params, {
           bk_biz_id: this.bkBizId,
@@ -368,7 +395,7 @@ export class LineChart
         ...this.viewOptions,
         interval,
       });
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const newPrarams = {
@@ -398,8 +425,14 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
+          const primaryKey = item?.primary_key;
+          const paramsArr = [];
+          if (primaryKey) {
+            paramsArr.push(primaryKey);
+          }
+          paramsArr.push(newPrarams);
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -423,7 +456,7 @@ export class LineChart
             });
         });
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
@@ -461,6 +494,7 @@ export class LineChart
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
+            dimensions: item.dimensions ?? {},
           })) as any
         );
         const boundarySeries = seriesResult
@@ -506,7 +540,7 @@ export class LineChart
             });
           });
         }
-        const formatData = seriesList.find(item => item.data?.length > 0)?.data;
+        const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
         const formatterFunc = this.handleSetFormatterFunc(formatData);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
@@ -576,6 +610,7 @@ export class LineChart
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
+      this.$emit('optionsLoaded');
     } catch (e) {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
@@ -893,7 +928,7 @@ export class LineChart
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
+        getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
       if (item.name) {
@@ -1040,13 +1075,13 @@ export class LineChart
         this.handleDrillDown(menuItem.childValue);
         break;
       case 'relate-alert':
-        this.panel?.targets?.forEach(target => {
+        for (const target of this.panel?.targets || []) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
-        });
+        }
         handleRelateAlert(this.panel, this.timeRange);
         break;
       default:
@@ -1095,7 +1130,9 @@ export class LineChart
     );
     const result = targets.map(item => {
       item.data.query_configs = item.data.query_configs.map(query => {
-        query.group_by = [id];
+        const groupBySet = new Set(query.group_by);
+        groupBySet.add(id);
+        query.group_by = [...groupBySet];
         query.where = [];
         query.filter_dict = {};
         return query;
@@ -1174,7 +1211,7 @@ export class LineChart
     if (!data || data.length === 0) {
       return 0;
     }
-    data.sort();
+    data.sort((a, b) => a - b);
     const len = data.length;
     if (data[0] === data[len - 1]) {
       if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
@@ -1192,7 +1229,7 @@ export class LineChart
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[Number(formattter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -1280,6 +1317,15 @@ export class LineChart
     }
   }
 
+  setOptions(option) {
+    if (!option) return;
+    this.options = Object.freeze(option);
+  }
+
+  @Emit('zrClick')
+  handleZrClick(params: ZrClickEvent) {
+    return params;
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -1287,6 +1333,7 @@ export class LineChart
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
+            collectIntervalDisplay={this.collectIntervalDisplay}
             descrition={this.panel.options?.header?.tips || ''}
             draging={this.panel.draging}
             drillDownOption={this.drillDownOptions}
@@ -1319,11 +1366,13 @@ export class LineChart
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  needZrClick={this.panel.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
+                  onZrClick={this.handleZrClick}
                 />
               )}
             </div>

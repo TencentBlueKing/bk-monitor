@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import pytest
-from monitor_web.constants import OVERVIEW_ICON
 
 from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
+from monitor_web.constants import OVERVIEW_ICON
 
 FILTER = [
     {'id': 'success', 'name': 0, 'status': 'success', 'tips': '正常'},
@@ -124,7 +124,7 @@ class TestGetKubernetesContainerList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -388,7 +388,7 @@ class TestGetKubernetesContainerList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {

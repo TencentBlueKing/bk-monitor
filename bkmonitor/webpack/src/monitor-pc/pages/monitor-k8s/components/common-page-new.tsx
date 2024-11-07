@@ -45,7 +45,7 @@ import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
-import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
@@ -141,7 +141,7 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
-const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
+const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime', 'callOptions'];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -477,8 +477,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     );
   }
   /* 当前单图模式下dashboard-panel是否需要padding */
+  /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    return this.isSingleChart && this.localPanels?.[0]?.type === 'apm-relation-graph';
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee'];
+    return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
+    // return (
+    //   this.isSingleChart &&
+    //   (this.localPanels?.[0]?.type ===  ||
+    //     this.localPanels?.[0]?.type === 'apm-service-caller-callee')
+    // );
   }
   /** 是否含overviewPanels */
   get hasOverviewPanels() {
@@ -713,9 +720,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   // 获取页签列表
   async getTabList(isInit?: boolean) {
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     const params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
+      start_time,
+      end_time,
     };
     if (this.sceneId === 'apm_service') {
       // APM 服务视图需要增加参数区分类型 参数为 【filter-变量】
@@ -790,6 +800,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    */
   async handleTabChange(id: string, needLoading = true) {
     needLoading && (this.loading = true);
+    // variables 内的变量是当前tab页的筛选变量所以在tab切换后应该清空
+    if (this.dashboardId !== id) {
+      this.variables = {};
+    }
     this.dashboardId = id;
     this.handleGetPanelData(id, needLoading);
   }
@@ -801,10 +815,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (!this.isEnableMethodSelect) {
       this.method = this.defaultViewOptions.method || this.defalutMethod || DEFAULT_METHOD;
     }
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     let params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
       id: this.dashboardId,
+      start_time,
+      end_time,
     };
     /** 注入侧栏的变量 或 apm自定义服务变量 */
     if (this.hasOtherParams || this.isApmServiceOverview) {
@@ -1169,15 +1186,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 获取变量
   handleGetVariables(list: FilterDictType): Record<string, any> {
     return list.reduce((pre, cur) => {
-      const temp = Object.entries(cur).reduce((total, curItem) => {
-        const value = curItem[1];
-
-        return {
-          ...total,
-          [curItem[0]]: (Array.isArray(value) ? !!value.length : !!String(value)) ? curItem[1] : undefined,
-        };
-      }, {});
-      return { ...pre, ...temp };
+      for (const [key, value] of Object.entries(cur)) {
+        // 检查值是否有效，并根据结果进行赋值
+        pre[key] = (Array.isArray(value) ? !!value.length : !!String(value)) ? value : undefined;
+      }
+      return pre;
     }, {});
   }
   /** 变量值更新 */
@@ -1189,9 +1202,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 变量数据请求完毕 */
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
-    this.filterCount = list.reduce((len, cur) => {
-      Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== '')) && (len += 1);
-      return len;
+    this.filterCount = list.reduce((accumulator, cur) => {
+      const allPropertiesValid = Object.entries(cur).every(([, value]) =>
+        Array.isArray(value) ? value.length > 0 : value !== ''
+      );
+      return allPropertiesValid ? accumulator + 1 : accumulator;
     }, 0);
     this.variables = this.handleGetVariables(list);
     this.handleUpdateViewOptions();
@@ -1241,7 +1256,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.filters?.[key] ||
           this.viewOptions?.filters?.[key] ||
           this.$route.query[`filter-${key}`] ||
-          this.$route.query[`var-${key}`] ||
           this.defaultViewOptions?.filters?.[key];
       }
       this.filters = filters;
@@ -1261,13 +1275,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   resetHostFields(target: Record<string, any>) {
     if (!target || !window.host_data_fields?.length) return target;
-    return window.host_data_fields.reduce((pre, cur) => ({ ...pre, [cur]: target[cur] }), {});
+    return window.host_data_fields.reduce((pre, cur) => {
+      pre[cur] = target[cur];
+      return pre;
+    }, {});
   }
   handleResetRouteQuery() {
     const filters = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.variables).forEach(key => {
       filters[`var-${key}`] = this.variables[key];
     });
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.filters).forEach(key => {
       const value = this.filters[key];
       filters[`filter-${key}`] = typeof value === 'object' ? JSON.stringify(value) : value;
@@ -1275,6 +1294,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
     /** queryData无变更的字段则不同步到路由参数 */
     const queryData = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.queryData).forEach(key => {
       const isArrayVal = Array.isArray(this.queryData[key]);
       const targetVal = this.queryData[key];
@@ -1488,19 +1508,21 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.queryData.search = [];
       }
     }
-    this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
       this.isSceneDataError = false;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const data = await getSceneViewList({
         scene_id: this.sceneId,
         type: this.localSceneType,
+        start_time,
+        end_time,
       }).catch(() => {
         this.isSceneDataError = true;
         return [];
       });
       this.tabList.forEach(tab => {
-        if (!!tab.panel_count) {
+        if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
 
           tab.panel_count = count;
@@ -1660,6 +1682,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         )}
         {this.sceneData && [
           <PageTitle
+            key='common-page-title'
             class='common-page-title'
             activeTab={this.dashboardId}
             bookMarkMode={this.sceneData.mode}
@@ -1762,6 +1785,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             {this.showMode !== 'list' &&
               this.selectorReady && [
                 <div
+                  key='dashboardPanelWrap'
                   ref='dashboardPanelWrap'
                   class='dashboard-panel-wrap'
                 >
@@ -1889,6 +1913,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   )}
                 </div>,
                 <div
+                  key='split-panel-wrapper'
                   style={{
                     width: `${this.splitPanelWidth}px`,
                     display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
@@ -1937,6 +1962,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           </div>,
           !this.readonly ? (
             <SettingModal
+              key='setting-modal'
               activeMenu={this.activeSettingId as string}
               beforeClose={this.handleBeforeCloseSettings}
               menuList={this.sceneData.settingMenuList as any}

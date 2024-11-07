@@ -1,0 +1,83 @@
+.caller-callee-tab-table-view {
+  width: calc(100% - 34px);
+  height: fit-content;
+  margin: 16px auto 10px;
+  background: #fafbfd;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px 0 #1919290d;
+
+  .tab-table-view-layout {
+    width: 100%;
+    height: fit-content;
+    border: none;
+
+    .layout-main {
+      height: fit-content;
+      background: #fff;
+
+      .layout-main-head {
+        width: 100%;
+        height: fit-content;
+
+        .tag-symbol {
+          margin: 0 4px;
+          color: #ff9c01;
+        }
+
+        .chart-point-tag {
+          .tag-symbol-txt {
+            display: inline-block;
+            // max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: top;
+          }
+        }
+      }
+
+      .layout-main-table {
+        margin-top: 16px;
+      }
+    }
+
+    .layout-aside {
+      height: 100%;
+
+      .aside-head {
+        width: 100%;
+        padding: 8px;
+      }
+
+      .aside-main {
+        height: fit-content;
+        background: #fafbfd;
+      }
+
+      .aside-item {
+        display: inline-block;
+        width: 100%;
+        height: 32px;
+        padding-left: 16px;
+        line-height: 32px;
+        color: #63656e;
+        cursor: pointer;
+        border: 1px solid #fafbfd;
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+          border: 1px solid #3a84ff;
+        }
+
+        .bk-checkbox-text {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .layout-main {
+      padding: 16px 24px 0;
+    }
+  }
+}

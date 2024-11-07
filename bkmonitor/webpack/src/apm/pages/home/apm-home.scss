@@ -1,0 +1,325 @@
+/* stylelint-disable declaration-no-important */
+.apm-home-wrap-page {
+  height: 100%;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  /*navbar */
+  .dashboard-tools-wrap {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+
+    .alarm-tools {
+      margin-right: 16px;
+    }
+
+    .dashboard-tools {
+      margin-right: 11px;
+
+      .dropdown-trigger {
+        padding: 0 16px;
+      }
+
+      .time-range {
+        padding: 0 16px;
+      }
+
+      .dashboard-tools-more {
+        padding-left: 6px;
+      }
+    }
+
+    .icon-mc-more-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 16px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #eaf3ff;
+      }
+    }
+  }
+
+  .bk-resize-layout-aside-content {
+    background: #fafbfd;
+  }
+
+  .apm-home-content {
+    height: calc(100% - 48px);
+
+    .collapse.icon-angle-right {
+      background-color: #3A84FF;
+    }
+  }
+
+  /*应用列表*/
+  .app-list {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: 12px;
+
+    .app-list-title {
+      width: 56px;
+      height: 22px;
+      margin: 0 0 12px 16px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+
+    .app-list-search {
+      display: flex;
+      margin: 0 16px 12px;
+
+      .bk-form-control {
+        flex: 1;
+      }
+
+      .app-list-add {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin-left: 8px;
+        background-color: #3a84ff;
+        border-radius: 2px;
+
+        &:hover {
+          cursor: pointer;
+          background-color: rgb(105, 157, 244);
+          border-color: rgb(105, 157, 244);
+          opacity: 1;
+        }
+
+        .icon-monitor {
+          display: inline-block;
+          color: #fff;
+        }
+      }
+    }
+
+    .app-list-data {
+      flex: 1;
+      overflow-y: auto;
+
+      .data-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 36px;
+        padding: 0 16px;
+        line-height: 36px;
+        cursor: pointer;
+
+        &:hover {
+          color: #313238;
+          background: #f0f1f5;
+
+          .item-content {
+            .operate {
+              display: block;
+
+              &:hover {
+                .more-btn {
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 20px;
+                  height: 20px;
+                  color: #63656e;
+                  background: #dcdee5;
+                  border-radius: 50%;
+                }
+              }
+            }
+
+            .operate.more-btn-disabled {
+              cursor: not-allowed;
+
+              .more-btn {
+                color: #C4C6CC;
+                background-color: #f0f1f5;
+              }
+
+            }
+
+            .item-service-count {
+              display: none;
+
+              .spinner {
+                width: 14px;
+                height: 14px;
+                margin-right: 6px;
+                background: url(../../static/img/spinner.svg);
+              }
+            }
+          }
+        }
+
+        .first-code {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
+          font-size: 10px;
+          color: #fff;
+          background: #85cca8;
+          border-radius: 4px;
+
+          & > span {
+            line-height: 14px;
+          }
+        }
+
+        .biz-name-01 {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          span:first-child {
+            overflow: hidden;
+            color: #313238;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          span:last-child {
+            display: inline-block;
+            flex: 1;
+            overflow: hidden;
+            color: #979ba5;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+        }
+
+        .bk-tag {
+          height: 16px;
+          padding: 0 4px;
+          font-family: MicrosoftYaHei;
+          font-size: 10px;
+          line-height: 16px;
+          color: #3A84FF;
+          text-align: left;
+          background: #F0F5FF;
+          border-radius: 2px;
+        }
+
+        .item-content {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          font-size: 12px;
+          line-height: 1;
+          color: #979ba5;
+          text-align: right;
+
+          .operate {
+            display: none;
+          }
+        }
+      }
+
+      .disabled {
+        &:hover {
+          background-color: #f5f7fa;
+        }
+
+        .first-code {
+          background-color: #dcdee5;
+        }
+
+        .item-content {
+          color: #c4c6cc;
+
+          &:hover {
+            cursor: pointer;
+          }
+      }
+
+    }
+
+    .data-item.disabled .biz-name-01 .biz-app-alias,
+    .data-item.disabled .biz-name-01 .biz-app-name
+     {
+        color: #c4c6cc;
+    }
+
+      .selected {
+        background-color: #e1ecff;
+
+        .biz-name-01 {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  // 服务
+  .app-list-service {
+    height: calc(100% - 48px);
+    padding: 18px 16px 0 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+  }
+
+  .app-add-icon {
+    font-size: 24px;
+  }
+}
+
+.table-operate-options-component-more-items {
+  padding: 4px 0;
+
+  .more-item:hover {
+    color: #63656e;
+  }
+
+  & :nth-last-child(2) {
+    position: relative;
+
+    &::after {
+      position: absolute;
+      bottom: -5px;
+      left: 10;
+      width: 80%;
+      height: 1px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }
+
+  & :last-child {
+    margin-top: 10px;
+    color: red;
+    border-color: #dcdee5;
+  }
+}

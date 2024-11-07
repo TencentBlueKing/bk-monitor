@@ -160,6 +160,8 @@ class UpdateOnlineService(BasePipeLineService):
             "delimeter",
             "max_log_length",
             "is_case_sensitive",
+            "regex_rule_type",
+            "regex_template_id",
         ]
         model_field_modified = False
         for field in model_fields:

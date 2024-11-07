@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import arrow
 import pytz
 from django.conf import settings
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -40,6 +40,7 @@ from bkmonitor.models import (
     MetricListCache,
     QueryConfigModel,
     StrategyActionConfigRelation,
+    StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
     UserGroup,
@@ -53,6 +54,7 @@ from bkmonitor.strategy.new_strategy import (
     get_metric_id,
     parse_metric_id,
 )
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
@@ -63,6 +65,7 @@ from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
+from core.drf_resource.contrib.cache import CacheResource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
@@ -1907,6 +1910,43 @@ class VerifyStrategyNameResource(Resource):
         return "ok"
 
 
+class BulkSwitchStrategyResource(Resource):
+    """
+    批量启停策略
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        labels = serializers.ListField(required=True, child=serializers.CharField())
+        action = serializers.ChoiceField(required=True, label="操作类型", choices=("on", "off"))
+        force = serializers.BooleanField(label="是否强制操作", default=False)
+
+    def perform_request(self, params):
+        bk_biz_id = params["bk_biz_id"]
+        # get_strategy_list_v2
+        query_set = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        # 是否强制覆盖已更新过的策略
+        if not params["force"]:
+            query_set = query_set.annotate(
+                time_difference=ExpressionWrapper(
+                    F('update_time') - F('create_time'), output_field=fields.DurationField()
+                )
+            ).filter(time_difference__lte=datetime.timedelta(seconds=1))
+        target_ids = set(query_set.values_list("id", flat=True).distinct())
+        filter_dict = {"label": params["labels"]}
+        # filter by label
+        resource.strategies.get_strategy_list_v2.filter_strategy_ids_by_label(filter_dict, target_ids, bk_biz_id)
+        if not target_ids:
+            return []
+        # update_partial_strategy
+        update_params = {
+            "ids": target_ids,
+            "edit_data": {"is_enabled": params["action"] == "on"},
+            "bk_biz_id": bk_biz_id,
+        }
+        return resource.strategies.update_partial_strategy_v2(**update_params)
+
+
 class SaveStrategyV2Resource(Resource):
     """
     保存策略
@@ -1989,7 +2029,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         class ConfigSerializer(serializers.Serializer):
             is_enabled = serializers.BooleanField(required=False)
             notice_group_list = serializers.ListField(required=False, child=serializers.IntegerField())
-            labels = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True)
+            labels = serializers.DictField(required=False)
             trigger_config = serializers.DictField(required=False)
             recovery_config = serializers.DictField(required=False)
             alarm_interval = serializers.IntegerField(required=False)
@@ -2031,11 +2071,45 @@ class UpdatePartialStrategyV2Resource(Resource):
         return src
 
     @staticmethod
-    def update_labels(strategy: Strategy, labels: List[str]):
+    def update_labels(strategy: Strategy, labels: Dict):
         """
-        更新策略标签
+        更新策略标签，追加或者替换标签
+        :param strategy: 需要更新标签的策略对象
+        :param labels: 包含更新标签所需信息的字典
+                        -如果字典中包含 "append_keys" 键，并且其值是一个包含 "labels" 的列表，则新的标签会被追加到现有标签中
+                            例如：
+                            labels = {
+                                "labels": ["label2", "label3"],
+                                "append_keys": ["labels"]
+                            }
+                            此时，新标签 "label2", "label3" 会被追加到现有标签中
+                        -如果未传递 "append_keys" 或 "append_keys" 中不包含 "labels"，则现有标签将被新的标签完全替换
+                            例如：
+                                labels = {
+                                    "labels": ["label2", "label3"]
+                                }
+                                或者
+                                labels = {
+                                    "labels": ["label2", "label3"],
+                                    "append_keys": ["other_key"]
+                                }
+                                此时，现有标签将被新标签 "label2", "label3" 完全替换
         """
-        strategy.labels = labels
+        old_labels: List = strategy.labels
+        # 1、如果有传append_keys，则表示要将新的标签追加到原有策略的标签中
+        if labels.get("append_keys"):
+            if "labels" in labels["append_keys"]:
+                # 将新的标签追加到旧标签中
+                updated_labels = list(set(old_labels) | set(labels.get("labels", [])))
+            else:
+                # labels["append_keys"] 追加逻辑的字段列表里没有 labels 字段则替换
+                updated_labels = labels.get("labels", [])
+        else:
+            # 2、如果没有传append_keys，则表示将原有策略的旧标签全部替换为新的标签
+            updated_labels = labels.get("labels", [])
+
+        # 3、保存策略标签
+        strategy.labels = updated_labels
         strategy.save_labels()
 
         return None, [], []
@@ -2224,12 +2298,14 @@ class UpdatePartialStrategyV2Resource(Resource):
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
-
+        username = get_global_user()
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
         updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
         updates_data["update_time"]["cls"] = StrategyModel
         updates_data["update_time"]["keys"] = ["update_time", "update_user"]
+        update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+        history = []
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
@@ -2241,12 +2317,22 @@ class UpdatePartialStrategyV2Resource(Resource):
                     updates_data[key]["keys"] = update_keys
                     updates_data[key]["objs"].extend(update_objs)
 
-            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
-            strategy.instance.update_user = get_global_user()
+            strategy.instance.update_time = update_time
+            strategy.instance.update_user = username
             updates_data["update_time"]["objs"].append(strategy.instance)
+            history.append(
+                StrategyHistoryModel(
+                    create_user=username,
+                    strategy_id=strategy.id,
+                    operate="update",
+                    content=strategy.to_dict(),
+                )
+            )
 
         for update_data in updates_data.values():
             update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
+        StrategyHistoryModel.objects.bulk_create(history)
 
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
@@ -2272,6 +2358,7 @@ class CloneStrategyV2Resource(Resource):
             strategy.id = 0
             strategy.name += "_copy"
             strategy.app = ""
+            strategy.source = settings.APP_CODE
 
             while StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], name=strategy.name).exists():
                 strategy.name += "_copy"
@@ -2327,14 +2414,55 @@ class GetPlainStrategyListV2Resource(Resource):
         }
 
 
-class GetTargetDetail(Resource):
-    """
-    获取监控目标详情
-    """
+class GetTargetDetailWithCache(CacheResource):
+    """获取监控目标详情，具有缓存功能"""
+
+    backend_cache_type = CacheType.CC_CACHE_ALWAYS
+    cache_user_related = False
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        strategy_id = serializers.IntegerField(required=True, label="策略ID")
+
+    def perform_request(self, validate_data):
+        """
+        为了获取最佳的性能，在执行request()方法之前，请先执行set_mapping()方法，传入策略和监控目标的映射关系字典，以避免频繁查询数据库。
+        并且请显示使用instance.request()的方式执行perform_request，而非使用instance()方式，
+        使用instance()方式执行时会重新实例化，导致先前执行的set_mapping失效。
+
+        example:
+            >>instance = GetTargetDetailWithCache()
+            >>instance.set_mapping({xxx})
+            >>instance.request(xxx)
+        """
+
+        strategy_id = validate_data["strategy_id"]
+        if not hasattr(self, "strategy_target_mapping"):
+            bk_biz_id = StrategyModel.objects.get(id=strategy_id).bk_biz_id
+            target = ItemModel.objects.get(strategy_id=strategy_id).target
+            logger.warning("Please call set_mapping() before calling perform_request().")
+        else:
+            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
+            target = self.strategy_target_mapping[strategy_id][1]
+
+        return self.get_target_detail(bk_biz_id, target)
+
+    def set_mapping(self, mapping: Dict) -> None:
+        """
+        设置策略和监控目标的映射关系
+        格式:{ strategy_id:(bk_biz_id,target) }
+        """
+
+        if not isinstance(mapping, dict):
+            logging.error("Invalid type for 'mapping'. Expected dict.")
+            raise TypeError("mapping must be a dict.")
+
+        self.strategy_target_mapping = mapping
+
+    def cache_write_trigger(self, target_info: Any) -> bool:
+        """获取到监控目标信息不为None，则进行缓存"""
+        if target_info:
+            return True
+        return False
 
     @classmethod
     def get_target_detail(cls, bk_biz_id: int, target: List[List[Dict]]):
@@ -2446,6 +2574,16 @@ class GetTargetDetail(Resource):
             "target_detail": target_detail,
         }
 
+
+class GetTargetDetail(Resource):
+    """
+    获取监控目标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["strategy_ids"]).only(
@@ -2454,10 +2592,16 @@ class GetTargetDetail(Resource):
         strategy_ids = [strategy.id for strategy in strategies]
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
+        get_target_detail_with_cache = GetTargetDetailWithCache()
+        # 提前设置策略与监控目标映射，避免频繁查询数据库
+        get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
+
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = self.get_target_detail(bk_biz_id, item.target)
+            # 使用instance.request()方式调用，而非instance()方式。
+            # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
+            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info
@@ -2633,7 +2777,6 @@ class PromqlToQueryConfig(Resource):
     # PromQL match相关算符正则
     re_ignoring_on_op = re.compile(r"(?![A-Za-z0-9_]) ?(ignoring|on) ?\(.*\) ?")
     re_group_op = re.compile(r"(?![A-Za-z0-9_]) ?(group_left|group_right) ?(\([0-9a-zA-Z_ ]*\))?")
-    re_time_step = r"\[\d+[smhdwy](\d+[smhdwy])*?\]"
     # 按表名判断数据源
     re_custom_time_series = re.compile(r"\d+bkmonitor_time_series_\d+")
     # 支持聚合方法
@@ -2651,7 +2794,6 @@ class PromqlToQueryConfig(Resource):
         promql = serializers.CharField(label="查询语句")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_config_format = serializers.ChoiceField(choices=("strategy", "graph"), default="strategy")
-        step = serializers.IntegerField(label="时间间隔", required=False)
 
     @classmethod
     def parse_time(cls, s: str) -> int:
@@ -2663,25 +2805,6 @@ class PromqlToQueryConfig(Resource):
         for part in parts:
             seconds += int(part[0]) * cls.time_trans_mapping[part[1]]
         return seconds
-
-    @staticmethod
-    def convert_seconds_to_readable_time(seconds):
-        units = [
-            ("y", 60 * 60 * 24 * 365),  # 年
-            ("w", 60 * 60 * 24 * 7),  # 周
-            ("d", 60 * 60 * 24),  # 天
-            ("h", 60 * 60),  # 小时
-            ("m", 60),  # 分钟
-            ("s", 1),  # 秒
-        ]
-
-        result = []
-        for unit, unit_seconds in units:
-            if seconds >= unit_seconds:
-                value, seconds = divmod(seconds, unit_seconds)
-                result.append(f"{value}{unit}")
-
-        return f"[{''.join(result)}]"
 
     @classmethod
     def check(cls, unify_query_config: Dict):
@@ -2826,11 +2949,12 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 根据table_id格式判定是否为data_label二段式
+            # 根据table_id格式判定是否为data_label二段式, 如果是则需要根据data_label去指标选择器缓存表中查询结果表ID
+            # 计算平台指标没有data_label，table_id 就直接是结果表ID result_table_id
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1:
+            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2845,19 +2969,12 @@ class PromqlToQueryConfig(Resource):
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                if query["data_source"] == DataSourceLabel.BKDATA:
-                    qs = MetricListCache.objects.filter(
-                        data_source_label=data_source_label,
-                        data_type_label=data_type_label,
-                        metric_field=query["field_name"],
-                    )
-                else:
-                    qs = MetricListCache.objects.filter(
-                        data_label=data_label,
-                        data_source_label=data_source_label,
-                        data_type_label=data_type_label,
-                        metric_field=query["field_name"],
-                    )
+                qs = MetricListCache.objects.filter(
+                    data_label=data_label,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    metric_field=query["field_name"],
+                )
                 if qs.exists():
                     result_table_id = qs.first().result_table_id
 
@@ -2910,10 +3027,6 @@ class PromqlToQueryConfig(Resource):
     def perform_request(self, params):
         promql = params["promql"]
         query_config_format = params["query_config_format"]
-        step = params.get("step", None)
-        if step is not None:
-            time_step = self.convert_seconds_to_readable_time(step)
-            promql = re.sub(self.re_time_step, time_step, promql)
         try:
             origin_config = api.unify_query.promql_to_struct(promql=promql)["data"]
         except Exception:

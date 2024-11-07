@@ -11,16 +11,23 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
+from core.prometheus import metrics
 from metadata import models
+from metadata.models import BkBaseResultTable
+from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.task.utils import bulk_handle
 from metadata.utils.redis_tools import RedisTools
 
@@ -138,7 +145,9 @@ def update_time_series_metrics(time_series_metrics):
                 table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
-                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], traceback_detail->[%s]",  # noqa
+                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], "
+                "traceback_detail->[%s]",
+                # noqa
                 time_series_group.bk_data_id,
                 time_series_group.table_id,
                 e,
@@ -158,10 +167,38 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages):
+def manage_es_storage(es_storages, cluster_id: int = None):
     """并发管理 ES 存储。"""
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(_manage_es_storage, es_storages)
+    logger.info("manage_es_storage: start to manage_es_storage")
+    start_time = time.time()
+    # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
+    if cluster_id in getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", []):
+        for es_storage in es_storages:
+            logger.info(
+                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],start to rotate index",
+                cluster_id,
+                es_storage.table_id,
+            )
+            _manage_es_storage(es_storage)
+            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
+            logger.info(
+                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],rotate index finished",
+                cluster_id,
+                es_storage.table_id,
+            )
+    # 否则，创建线程池，并发实施索引管理
+    else:
+        logger.info("manage_es_storage:cluster_id->[%s] not in v2_white_list,start to rotate index", cluster_id)
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(_manage_es_storage, es_storages)
+
+    cost_time = time.time() - start_time
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="manage_es_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("manage_es_storage:manage_es_storage cost time: %s", cost_time)
 
 
 def _manage_es_storage(es_storage):
@@ -178,44 +215,61 @@ def _manage_es_storage(es_storage):
     #             es_storage.storage_cluster.domain_name,
     #         )
     #         return
-
+    start_time = time.time()
     try:
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要
-        logger.info("table_id->[%s] start to create index", es_storage.table_id)
+        logger.info("manage_es_storage:table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
         if not es_storage.index_settings or es_storage.index_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id
+            )
             return
         if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but mapping_settings invalid",
+                es_storage.table_id,
+            )
             return
 
         if not es_storage.index_exist():
             #   如果该table_id的index在es中不存在，说明要走初始化流程
-            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
+            logger.info(
+                "manage_es_storage:table_id->[%s] found no index in es,will create new one", es_storage.table_id
+            )
             es_storage.create_index_and_aliases(es_storage.slice_gap)
         else:
             # 否则走更新流程
+            logger.info("manage_es_storage:table_id->[%s] found index in es,now try to update it", es_storage.table_id)
             es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
 
         # 创建快照
+        logger.info("manage_es_storage:table_id->[%s] try to create snapshot", es_storage.table_id)
         es_storage.create_snapshot()
         # 清理过期的index
+        logger.info("manage_es_storage:table_id->[%s] try to clean index", es_storage.table_id)
         es_storage.clean_index_v2()
         # 清理过期快照
+        logger.info("manage_es_storage:table_id->[%s] try to clean snapshot", es_storage.table_id)
         es_storage.clean_snapshot()
         # 重新分配索引数据
+        logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
-
-        logger.info("table_id->[%s] create index successfully", es_storage.table_id)
-        logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
+        logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
-        logger.error("es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
+        logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
         logger.exception(e)
+
+    cost_time = time.time() - start_time
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_manage_es_storage", process_target=es_storage.table_id
+    ).observe(cost_time)
+    metrics.report_all()
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -282,13 +336,20 @@ def multi_push_space_table_ids(space_list: List[Dict]):
     logger.info("multi push space table ids successfully")
 
 
-def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int, bcs_cluster_id: Optional[str] = None):
+def _access_bkdata_vm(
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    bcs_cluster_id: Optional[str] = None,
+    allow_access_v2_data_link: Optional[bool] = False,
+):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
     """
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
-    if settings.ENABLE_V2_VM_DATA_LINK or (
+    # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
+    if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -298,7 +359,12 @@ def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int, bcs_cluster_i
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
-    bk_biz_id: int, table_id: str, data_id: int, space_type: Optional[str] = None, space_id: Optional[str] = None
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    space_type: Optional[str] = None,
+    space_id: Optional[str] = None,
+    allow_access_v2_data_link: Optional[bool] = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -310,7 +376,13 @@ def access_bkdata_vm(
         obj = BCSClusterInfo.objects.filter(fq).first()
         bcs_cluster_id = obj.cluster_id if obj else None
 
-        _access_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id, bcs_cluster_id=bcs_cluster_id)
+        _access_bkdata_vm(
+            bk_biz_id=bk_biz_id,
+            table_id=table_id,
+            data_id=data_id,
+            bcs_cluster_id=bcs_cluster_id,
+            allow_access_v2_data_link=allow_access_v2_data_link,
+        )
     except Exception as e:
         logger.error(
             "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
@@ -349,3 +421,165 @@ def push_space_to_redis(space_type: str, space_id: str):
         return
 
     logger.info("async task push space_type: %s, space_id: %s to redis successfully", space_type, space_id)
+
+
+@app.task(ignore_result=True, queue="celery_long_task_cron")
+def bulk_refresh_data_link_status(bkbase_rt_records):
+    """
+    并发刷新链路状态
+    """
+    start_time = time.time()  # 记录开始时间
+    logger.info(
+        "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
+    )
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(_refresh_data_link_status, bkbase_rt_records)
+    cost_time = time.time() - start_time  # 总耗时
+    logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="_refresh_data_link_status", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+
+
+def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
+    """
+    刷新链路状态（各组件状态+整体状态）
+    @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
+    """
+    # 1. 获取基本信息
+    start_time = time.time()  # 记录开始时间
+    bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
+    data_link_name = bkbase_rt_record.data_link_name
+    bkbase_rt_name = bkbase_rt_record.bkbase_rt_name
+    logger.info(
+        "_refresh_data_link_status: data_link_name->[%s],bkbase_data_id_name->[%s],bkbase_rt_name->[%s]",
+        data_link_name,
+        bkbase_data_id_name,
+        bkbase_rt_name,
+    )
+    data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
+    data_link_strategy = data_link_ins.data_link_strategy
+    logger.info(
+        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s]",
+        data_link_name,
+        data_link_strategy,
+    )
+
+    # 2. 刷新数据源状态
+    try:
+        with transaction.atomic():
+            data_id_config = models.DataIdConfig.objects.get(name=bkbase_data_id_name)
+            data_id_status = get_data_link_component_status(
+                kind=data_id_config.kind, namespace=data_id_config.namespace, component_name=data_id_config.name
+            )
+            # 当和DB中的数据不一致时，才进行变更
+            if data_id_config.status != data_id_status:
+                logger.info(
+                    "_refresh_data_link_status:data_link_name->[%s],data_id_config status->[%s] is different "
+                    "with exist record,will change to->[%s]",
+                    data_link_name,
+                    data_id_config.status,
+                    data_id_status,
+                )
+                data_id_config.status = data_id_status
+                data_id_config.data_link_name = data_link_name
+                data_id_config.save()
+            report_metadata_data_link_status_info(
+                data_link_name=data_link_name,
+                biz_id=data_id_config.bk_biz_id,
+                kind=data_id_config.kind,
+                status=data_id_config.status,
+            )
+    except models.DataIdConfig.DoesNotExist:
+        logger.error(
+            "_refresh_data_link_status: data_link_name->[%s],data_id_config->[%s] does not exist",
+            data_link_name,
+            bkbase_data_id_name,
+        )
+
+    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
+    components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy)
+    all_components_ok = True
+
+    # 4. 遍历链路关联的所有类型资源，查询并刷新其状态
+    for component in components:
+        try:
+            with transaction.atomic():
+                component_ins = component.objects.get(name=bkbase_rt_name)
+                component_status = get_data_link_component_status(
+                    kind=component_ins.kind, namespace=component_ins.namespace, component_name=component_ins.name
+                )
+                logger.info(
+                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
+                    data_link_name,
+                    component_ins.name,
+                    component_ins.kind,
+                    component_status,
+                )
+                if component_status != DataLinkResourceStatus.OK.value:
+                    all_components_ok = False
+                # 和DB中数据不一致时，才进行更新操作
+                if component_ins.status != component_status:
+                    component_ins.status = component_status
+                    component_ins.save()
+                    logger.info(
+                        "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
+                        "status updated to->[%s]",
+                        data_link_name,
+                        component.name,
+                        component.kind,
+                        component_status,
+                    )
+
+            report_metadata_data_link_status_info(
+                data_link_name=data_link_name,
+                biz_id=component_ins.bk_biz_id,
+                kind=component_ins.kind,
+                status=component_ins.status,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,"
+                "error->[%s]",
+                data_link_name,
+                component.name,
+                component.kind,
+                e,
+            )
+
+    # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
+    if all_components_ok:
+        bkbase_rt_record.status = DataLinkResourceStatus.OK.value
+    else:
+        bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
+    with transaction.atomic():
+        bkbase_rt_record.save()
+
+    report_metadata_data_link_status_info(
+        data_link_name=data_link_name,
+        biz_id=data_id_config.bk_biz_id,
+        kind=data_id_config.kind,
+        status=bkbase_rt_record.status,
+    )
+
+    cost_time = time.time() - start_time
+
+    logger.info(
+        "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
+        data_link_name,
+        all_components_ok,
+        bkbase_rt_record.status,
+    )
+
+    # 6. 上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
+    ).observe(cost_time)
+
+    logger.info(
+        "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
+        data_link_name,
+        cost_time,
+    )

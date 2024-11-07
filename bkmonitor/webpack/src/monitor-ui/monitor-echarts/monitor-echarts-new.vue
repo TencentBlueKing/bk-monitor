@@ -25,9 +25,12 @@
 -->
 <template>
   <div
+    v-show="!noData"
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
+    @mouseenter="isHover = true"
+    @mouseleave="isHover = false"
   >
     <div
       v-if="chartTitle || $slots.title"
@@ -440,6 +443,8 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false,
   };
+  isHover = false; // 是否处于hover状态
+  isIntersecting = false; // 是否处于可视区域
   // 监控图表默认配置
   get defaultOptions(): MonitorEchartOptions {
     if (this.chartType === 'bar' || this.chartType === 'line') {
@@ -473,27 +478,30 @@ export default class MonitorEcharts extends Vue {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
-              y: chartRect.y + +pos[1],
               x: chartRect.x + +pos[0],
+              y: chartRect.y + +pos[1],
             };
             const position = {
-              top: 0,
               left: 0,
+              top: 0,
             };
             const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-            if (canSetBootom) {
+            if (canSetBootom > 0) {
               position.top = +pos[1] - Math.min(20, canSetBootom);
             } else {
               position.top = +pos[1] + canSetBootom - 20;
             }
             const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
-            if (canSetLeft) {
+            if (canSetLeft > 0) {
               position.left = +pos[0] + Math.min(20, canSetLeft);
             } else {
               position.left = +pos[0] - contentSize[0] - 20;
             }
             if (contentSize[0]) this.tooltipSize = contentSize;
-            return position;
+            return {
+              left: position.left,
+              top: position.top < -chartRect.y ? -chartRect.y - 50 : position.top,
+            };
           },
         },
       };
@@ -696,7 +704,8 @@ export default class MonitorEcharts extends Vue {
   // 注册Intersection监听
   registerObserver(): void {
     this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+      for (const entry of entries) {
+        this.isIntersecting = entry.isIntersecting;
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -709,7 +718,7 @@ export default class MonitorEcharts extends Vue {
             isVisiable && this.handleSeriesData();
           }
         }
-      });
+      }
     });
   }
   // 获取seriesData
@@ -718,8 +727,8 @@ export default class MonitorEcharts extends Vue {
     if (this.chartType === 'line' && !this.enableSelectionRestoreAll) {
       this.showRestore = !!startTime;
     }
-    this.intersectionObserver?.unobserve?.(this.$el);
-    this.intersectionObserver?.disconnect?.();
+    // this.intersectionObserver?.unobserve?.(this.$el);
+    // this.intersectionObserver?.disconnect?.();
     this.needObserver = false;
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
@@ -935,7 +944,10 @@ export default class MonitorEcharts extends Vue {
   }
   // 设置tooltip
   handleSetTooltip(params) {
-    if (!this.showTitleTool) return undefined;
+    if (!this.isIntersecting) {
+      return undefined;
+    }
+    // if (!this.isHover) return undefined;
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
       this.chartType === 'line' &&
         (this.curValue = {
@@ -993,7 +1005,7 @@ export default class MonitorEcharts extends Vue {
     if (list.length > maxLen && this.tooltipSize) {
       const cols = Math.ceil(list.length / maxLen);
       this.tableToolSize = this.tableToolSize ? Math.min(this.tableToolSize, this.tooltipSize[0]) : this.tooltipSize[0];
-      ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerHeight / 1.2)}px;`;
+      ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.8)}px;`;
     }
     const hasTrace = params.some(item => item.seriesName === 'bk_trace_value' && item.seriesType === 'scatter');
     /* 如果包含trace散点则不出现tooltip */
@@ -1420,6 +1432,8 @@ export default class MonitorEcharts extends Vue {
     }
     this.delegateMethod('dispose');
     this.chart = null;
+    this.intersectionObserver?.unobserve?.(this.$el);
+    this.intersectionObserver?.disconnect?.();
   }
 
   handleScatterTipOutside() {

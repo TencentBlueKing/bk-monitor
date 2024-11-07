@@ -87,6 +87,7 @@ class CollectConfigListResource(Resource):
         """
 
         subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+        updated_configs = []
 
         # 节点管理返回的状态数量
         for subscription_status in statistics_data:
@@ -127,7 +128,7 @@ class CollectConfigListResource(Resource):
             if config.cache_data != cache_data or config.operation_result != operation_result:
                 config.cache_data = cache_data
                 config.operation_result = operation_result
-                config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(config)
 
         # 更新k8s插件采集配置的状态
         for collect_config in config_data_list:
@@ -167,7 +168,9 @@ class CollectConfigListResource(Resource):
             if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
                 collect_config.cache_data = cache_data
                 collect_config.operation_result = operation_result
-                collect_config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(collect_config)
+
+        CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）
@@ -714,6 +717,36 @@ class RevokeTargetNodesResource(Resource):
         return "success"
 
 
+class RunCollectConfigResource(Resource):
+    """
+    主动执行部分实例或节点
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class ScopeParams(serializers.Serializer):
+            node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
+            nodes = serializers.ListField(required=True, label="节点列表")
+
+        scope = ScopeParams(label="事件订阅监听的范围", required=False)
+        action = serializers.CharField(label="操作", default="install")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+
+    def perform_request(self, params: Dict[str, Any]):
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
+        except CollectConfigMeta.DoesNotExist:
+            raise CollectConfigNotExist({"msg": params["id"]})
+
+        # 主动触发节点管理终止任务
+        installer = get_collect_installer(collect_config)
+        installer.run(params["action"], params.get("scope"))
+
+        return "success"
+
+
 class BatchRevokeTargetNodesResource(Resource):
     """
     批量终止采集配置的部署中的实例
@@ -887,6 +920,8 @@ class SaveCollectConfigResource(Resource):
                     target_nodes.append({"bk_host_id": node["bk_host_id"]})
                 elif "bk_inst_id" in node and "bk_obj_id" in node:
                     target_nodes.append({"bk_inst_id": node["bk_inst_id"], "bk_obj_id": node["bk_obj_id"]})
+                    if "bk_biz_id" in node:
+                        target_nodes[-1]["bk_biz_id"] = node["bk_biz_id"]
                 elif "bcs_cluster_id" in node:
                     target_nodes.append({"bcs_cluster_id": node["bcs_cluster_id"]})
             attrs["target_nodes"] = target_nodes
@@ -952,7 +987,10 @@ class SaveCollectConfigResource(Resource):
         self.update_metric_cache(collector_plugin)
 
         # 采集配置完成
-        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        try:
+            DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        except Exception as error:
+            logger.error(f"自动创建默认告警策略 DatalinkDefaultAlarmStrategyLoader error {str(error)}")
 
         return result
 
@@ -979,7 +1017,7 @@ class SaveCollectConfigResource(Resource):
                 data["params"][param_mode][param_name] = actual_password
 
     @staticmethod
-    def get_collector_plugin(data):
+    def get_collector_plugin(data) -> CollectorPluginMeta:
         plugin_id = data["plugin_id"]
         # 虚拟日志采集器
         if data["collect_type"] == CollectConfigMeta.CollectType.LOG:
@@ -1010,37 +1048,36 @@ class SaveCollectConfigResource(Resource):
             if plugin_id not in [settings.TENCENT_CLOUD_METRIC_PLUGIN_ID, qcloud_exporter_plugin_id]:
                 raise ValueError(f"Only support {settings.TENCENT_CLOUD_METRIC_PLUGIN_ID} k8s collector")
 
-            if plugin_id == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
-                plugin_id = qcloud_exporter_plugin_id
+            plugin_id = qcloud_exporter_plugin_id
 
-                # 检查是否配置了腾讯云指标插件配置
-                if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
-                    raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
+            # 检查是否配置了腾讯云指标插件配置
+            if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
+                raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
 
-                plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
-                plugin_params = {
-                    "plugin_id": plugin_id,
-                    "bk_biz_id": data['bk_biz_id'],
-                    "plugin_type": PluginType.K8S,
-                    "label": plugin_config.get("label", "os"),
-                    "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
-                    "description_md": plugin_config.get("description_md", ""),
-                    "logo": plugin_config.get("logo", ""),
-                    "version_log": plugin_config.get("version_log", ""),
-                    "metric_json": [],
-                    "collector_json": plugin_config["collector_json"],
-                    "config_json": plugin_config.get("config_json", []),
-                    "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
-                }
+            plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+            plugin_params = {
+                "plugin_id": plugin_id,
+                "bk_biz_id": data['bk_biz_id'],
+                "plugin_type": PluginType.K8S,
+                "label": plugin_config.get("label", "os"),
+                "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
+                "description_md": plugin_config.get("description_md", ""),
+                "logo": plugin_config.get("logo", ""),
+                "version_log": plugin_config.get("version_log", ""),
+                "metric_json": [],
+                "collector_json": plugin_config["collector_json"],
+                "config_json": plugin_config.get("config_json", []),
+                "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
+            }
 
-                # 检查是否已经创建了腾讯云指标采集插件
-                if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
-                    # 更新插件
-                    plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
-                    plugin_manager.update_version(plugin_params)
-                else:
-                    # 创建插件
-                    resource.plugin.create_plugin(plugin_params)
+            # 检查是否已经创建了腾讯云指标采集插件
+            if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
+                # 更新插件
+                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
+                plugin_manager.update_version(plugin_params)
+            else:
+                # 创建插件
+                resource.plugin.create_plugin(plugin_params)
 
         return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
 
@@ -1052,7 +1089,7 @@ class SaveCollectConfigResource(Resource):
             plugin_manager.delete_result_table(collector_plugin.release_version)
 
     @staticmethod
-    def update_metric_cache(collector_plugin):
+    def update_metric_cache(collector_plugin: CollectorPluginMeta):
         plugin_type = collector_plugin.plugin_type
         if plugin_type not in collector_plugin.VIRTUAL_PLUGIN_TYPE:
             version = collector_plugin.current_version

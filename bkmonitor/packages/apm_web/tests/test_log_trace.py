@@ -19,26 +19,16 @@ from apm_web.models.application import Application
 
 APP_NAME = "test_log_trace"
 SUBSCRIPTION_ID = 1
-OUTPUT_PARAM = {
-    "bk_data_token": "123",
-    "host": "127.0.0.1"
-}
+OUTPUT_PARAM = {"token": "123", "host": "127.0.0.1"}
 APPLICATION_ID = 1
 API_APPLICATION = {
     "bk_biz_id": 2,
     "app_name": "test_log_trace",
     "application_id": APPLICATION_ID,
     "datasource_info": {
-        "metric_config": {
-            "bk_data_id": 1,
-            "result_table_id": "2_test_log_trace",
-            "time_series_group_id": 1
-        },
-        "trace_config": {
-            "bk_data_id": 1,
-            "result_table_id": "2_test_log_trace"
-        }
-    }
+        "metric_config": {"bk_data_id": 1, "result_table_id": "2_test_log_trace", "time_series_group_id": 1},
+        "trace_config": {"bk_data_id": 1, "result_table_id": "2_test_log_trace"},
+    },
 }
 
 CREATE_APPLICATION = {
@@ -53,64 +43,45 @@ CREATE_APPLICATION = {
         "es_retention": 7,
         "es_number_of_replicas": 1,
         "es_shards": 3,
-        "es_slice_size": 1
+        "es_slice_size": 1,
     },
     "bk_biz_id": 2,
     "plugin_config": {
         "target_node_type": "INSTANCE",
         "target_object_type": "HOST",
-        "target_nodes": [
-            {
-                "bk_host_id": 53
-            }
-        ],
+        "target_nodes": [{"bk_host_id": 53}],
         "data_encoding": "UTF-8",
-        "paths": [
-            "/usr/local/test/test.log"
-        ]
-    }
+        "paths": ["/usr/local/test/test.log"],
+    },
 }
 PLUGIN_CONFIG = {
     "target_node_type": "INSTANCE",
     "target_object_type": "HOST",
-    "target_nodes": [
-        {
-            "bk_host_id": 48
-        }
-    ],
+    "target_nodes": [{"bk_host_id": 48}],
     "data_encoding": "UTF-8",
-    "paths": [
-        "/usr/local/test/log"
-    ],
+    "paths": ["/usr/local/test/log"],
     "bk_data_id": 1,
     "bk_biz_id": 2,
-    "subscription_id": 1
+    "subscription_id": 1,
 }
 
 SETUP = {
     "plugin_config": {
         "target_node_type": "INSTANCE",
-        "target_nodes": [
-            {
-                "bk_host_id": 53
-            }
-        ],
+        "target_nodes": [{"bk_host_id": 53}],
         "target_object_type": "HOST",
         "data_encoding": "UTF-8",
-        "paths": [
-            "/usr/local/test/test.log"
-        ],
+        "paths": ["/usr/local/test/test.log"],
         "bk_data_id": 1,
         "bk_biz_id": 2,
-        "subscription_id": 1
+        "subscription_id": 1,
     },
     "application_id": APPLICATION_ID,
-    "bk_biz_id": 2
+    "bk_biz_id": 2,
 }
 
 
 class TestLogTrace(object):
-
     @mock.patch("core.drf_resource.api.apm_api.create_application", lambda _: API_APPLICATION)
     @mock.patch("apm_web.models.Application.get_transfer_config", lambda _: {})
     @mock.patch("apm_web.models.Application.authorization", lambda _: {})
@@ -132,7 +103,7 @@ class TestLogTrace(object):
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
             datasource_option=validated_request_data["datasource_option"],
-            plugin_config=validated_request_data["plugin_config"]
+            plugin_config=validated_request_data["plugin_config"],
         )
         application = API_APPLICATION
         assert result.plugin_config == SETUP["plugin_config"]

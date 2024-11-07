@@ -104,8 +104,7 @@ export class VariablesService {
     const newData = deepClone(source);
     const mergeVars = { ...this.index, ...scopedVars };
     const setVariables = (data: Record<string, any>) => {
-      Object.keys(data).forEach(key => {
-        const val = data[key];
+      for (const [key, val] of Object.entries(data)) {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
             const v = this.replaceString(val.toString(), mergeVars);
@@ -136,7 +135,7 @@ export class VariablesService {
         } else if (Object.prototype.toString.call(val) === '[object Object]') {
           this.hasVariables(val) && setVariables(val);
         }
-      });
+      }
     };
     setVariables(newData);
     return newData;

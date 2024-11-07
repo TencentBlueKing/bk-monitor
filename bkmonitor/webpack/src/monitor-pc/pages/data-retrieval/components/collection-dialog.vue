@@ -158,13 +158,15 @@
         theme="primary"
         @click="handleCollectionToDashboard(true)"
         :disabled="!Object.keys(checkedDashboard).length"
-      >{{ $t('收藏并跳转') }}</bk-button>
+        >{{ $t('收藏并跳转') }}</bk-button
+      >
       <bk-button
         :loading="loading"
         theme="primary"
         @click="handleCollectionToDashboard(false)"
         :disabled="!Object.keys(checkedDashboard).length"
-      >{{ $t('直接收藏') }}</bk-button>
+        >{{ $t('直接收藏') }}</bk-button
+      >
       <bk-button @click="handleCloseDialog">
         {{ $t('取消') }}
       </bk-button>
@@ -313,19 +315,22 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
   //  收藏到仪表盘
   handleCollectionToDashboard(needJump = false) {
     this.loading = true;
-    const panels = this.collectionList.map(item => ({
-      name: item.title,
-      fill: item.fill,
-      min_y_zero: item.min_y_zero,
-      queries: item.targets.map(set => {
-        const { data } = set;
-        data.query_configs = data.query_configs.map(queryConfig => filterDictConvertedToWhere(queryConfig));
-        return {
-          ...data,
-          alias: set.alias || '',
-        };
-      }),
-    }));
+    const panels = this.collectionList.map(
+      item =>
+        item?.rawQueryPanel?.toDashboardPanels() || {
+          name: item.title,
+          fill: item.fill,
+          min_y_zero: item.min_y_zero,
+          queries: item.targets.map(set => {
+            const { data } = set;
+            data.query_configs = data.query_configs.map(queryConfig => filterDictConvertedToWhere(queryConfig));
+            return {
+              ...data,
+              alias: set.alias || '',
+            };
+          }),
+        }
+    );
     saveToDashboard({
       panels,
       dashboard_uids: [this.checkedDashboard.uid],
@@ -492,7 +497,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
       &:hover {
         color: #3a84ff;
         cursor: pointer;
-        background: rgba(58, 132, 255, .06);
+        background: rgba(58, 132, 255, 0.06);
         border-color: #3a84ff;
       }
     }

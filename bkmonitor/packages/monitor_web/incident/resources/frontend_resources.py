@@ -177,6 +177,8 @@ class IncidentBaseResource(Resource):
                         )
                     elif incident_value == IncidentStatus.RECOVERING.value:
                         incident_document.end_time = int(time.time())
+
+                    incident_document.status_order = IncidentStatus(incident_value).order
                 elif incident_key == "feedback":
                     IncidentOperationManager.record_feedback_incident(
                         incident_info["incident_id"],
@@ -346,6 +348,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         auto_aggregate = serializers.BooleanField(required=False, default=False, label="是否自动聚合")
         aggregate_config = serializers.JSONField(required=False, default=dict, label="聚合配置")
+        aggregate_cluster = serializers.BooleanField(required=False, default=False, label="是否根据边聚类聚合")
         limit = serializers.IntegerField(required=False, label="拓扑图数量", default=None)
         start_time = serializers.IntegerField(required=False, label="开始时间", default=None)
         end_time = serializers.IntegerField(required=False, label="结束时间", default=None)
@@ -356,6 +359,9 @@ class IncidentTopologyResource(IncidentBaseResource):
         limit = validated_request_data.get("limit")
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
+        aggregate_cluster = validated_request_data.get("aggregate_cluster", False)
+        auto_aggregate = validated_request_data.get("auto_aggregate", False)
+        aggregate_config = validated_request_data.get("aggregate_config", {})
 
         if not limit and not start_time:
             incident_snapshots = [incident.snapshot]
@@ -374,11 +380,12 @@ class IncidentTopologyResource(IncidentBaseResource):
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
-            if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident, entities_orders=entities_orders)
-            elif validated_request_data["aggregate_config"]:
+            if auto_aggregate or aggregate_config or aggregate_cluster:
                 snapshot.aggregate_graph(
-                    incident, validated_request_data["aggregate_config"], entities_orders=entities_orders
+                    incident,
+                    aggregate_config=None if auto_aggregate else aggregate_config,
+                    aggregate_cluster=aggregate_cluster,
+                    entities_orders=entities_orders,
                 )
             snapshots[incident_snapshot.id] = snapshot
 
@@ -1140,6 +1147,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id
             )
             alert_doc = AlertDocument(**alert)
+            # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
+            alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc)

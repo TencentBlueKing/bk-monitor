@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.decorators import user_visit_record
 from apm_web.meta.resources import (
     ApplicationInfoByAppNameResource,
     ApplicationInfoResource,
@@ -18,7 +19,9 @@ from apm_web.meta.resources import (
     CustomServiceDataViewResource,
     CustomServiceListResource,
     CustomServiceMatchListResource,
+    DataHistogramResource,
     DataSamplingResource,
+    DataStatusResource,
     DataViewConfigResource,
     DeleteApplicationResource,
     DeleteCustomSeriviceResource,
@@ -32,6 +35,7 @@ from apm_web.meta.resources import (
     ListApplicationResource,
     ListEsClusterGroupsResource,
     MetaConfigInfoResource,
+    MetaInstrumentGuides,
     MetricInfoResource,
     ModifyMetricResource,
     NoDataStrategyDisableResource,
@@ -45,6 +49,7 @@ from apm_web.meta.resources import (
     QueryExceptionEventResource,
     QueryExceptionTypeGraphResource,
     SamplingOptionsResource,
+    ServiceConfigResource,
     ServiceDetailResource,
     ServiceListResource,
     SetupResource,
@@ -52,6 +57,8 @@ from apm_web.meta.resources import (
     StartResource,
     StopResource,
     StorageFieldInfoResource,
+    StorageInfoResource,
+    StorageStatusResource,
 )
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -61,7 +68,6 @@ from bkmonitor.iam.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -70,8 +76,8 @@ class MetaInfoViewSet(ResourceViewSet):
         return [ViewBusinessPermission()]
 
     resource_routes = [
-        ResourceRoute("GET", api.apm_api.list_meta_es_cluster_info, endpoint="list_es_cluster_info"),
         ResourceRoute("GET", MetaConfigInfoResource, endpoint="meta_config_info"),
+        ResourceRoute("POST", MetaInstrumentGuides, endpoint="meta_instrument_guides"),
         ResourceRoute("GET", PushUrlResource, endpoint="push_url"),
         ResourceRoute("GET", ListEsClusterGroupsResource, endpoint="list_cluster_groups"),
     ]
@@ -192,9 +198,9 @@ class ApplicationViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", ListApplicationAsyncResource, endpoint="list_application_async"),
         ResourceRoute("POST", InstanceDiscoverKeysResource, endpoint="instance_discover_keys"),
-        ResourceRoute("POST", ServiceDetailResource, endpoint="service_detail"),
+        ResourceRoute("POST", ServiceDetailResource, endpoint="service_detail", decorators=[user_visit_record]),
         ResourceRoute("POST", EndpointDetailResource, endpoint="endpoint_detail"),
-        ResourceRoute("POST", ServiceListResource, endpoint="service_list"),
+        ResourceRoute("POST", ServiceListResource, endpoint="service_list", decorators=[user_visit_record]),
         ResourceRoute("POST", QueryExceptionEventResource, endpoint="query_exception_event"),
         ResourceRoute("POST", QueryExceptionDetailEventResource, endpoint="query_exception_detail_event"),
         ResourceRoute("POST", QueryExceptionEndpointResource, endpoint="query_exception_endpoint"),
@@ -213,8 +219,12 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", NoDataStrategyEnableResource, endpoint="nodata_strategy_enable"),
         ResourceRoute("POST", NoDataStrategyDisableResource, endpoint="nodata_strategy_disable"),
         ResourceRoute("POST", DataViewConfigResource, endpoint="data_view_config", pk_field="application_id"),
-        ResourceRoute("POST", DataSamplingResource, "data_sampling", pk_field="application_id"),
+        ResourceRoute("POST", DataHistogramResource, endpoint="data_histogram", pk_field="application_id"),
+        ResourceRoute("POST", DataSamplingResource, endpoint="data_sampling", pk_field="application_id"),
+        ResourceRoute("GET", DataStatusResource, endpoint="data_status", pk_field="application_id"),
+        ResourceRoute("POST", StorageInfoResource, endpoint="storage_info", pk_field="application_id"),
         ResourceRoute("POST", StorageFieldInfoResource, endpoint="storage_field_info", pk_field="application_id"),
+        ResourceRoute("GET", StorageStatusResource, endpoint="storage_status", pk_field="application_id"),
         # --- 自定义远程服务
         ResourceRoute("GET", CustomServiceListResource, endpoint="custom_service_list"),
         ResourceRoute("POST", CustomServiceConfigResource, endpoint="custom_service_config"),
@@ -226,4 +236,5 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", CustomServiceDataSourceResource, endpoint="custom_service_url_list"),
         ResourceRoute("GET", GETDataEncodingResource, endpoint="data_encoding"),
         ResourceRoute("POST", SimpleServiceList, endpoint="simple_service_list"),
+        ResourceRoute("POST", ServiceConfigResource, endpoint="service_config"),
     ]

@@ -94,6 +94,7 @@ class AsyncExportHandlers(object):
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
 
+        self.search_handler.size = result["hits"]["total"]
         # 判断是否超过支持异步的最大次数
         if result["hits"]["total"] > MAX_ASYNC_COUNT:
             self.search_handler.size = MAX_ASYNC_COUNT

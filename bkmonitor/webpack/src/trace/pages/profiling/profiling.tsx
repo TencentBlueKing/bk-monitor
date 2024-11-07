@@ -89,6 +89,7 @@ export default defineComponent({
 
     /** 当前选择服务的详情数据 */
     const selectServiceData = ref<ServicesDetail>();
+
     /** 查询数据状态 */
     const searchState = reactive<SearchState>({
       isShow: true,
@@ -102,6 +103,7 @@ export default defineComponent({
           app_name: '',
           service_name: '',
         },
+        dateComparisonEnable: false,
         where: [],
         comparisonWhere: [],
       },
@@ -174,6 +176,7 @@ export default defineComponent({
       } else {
         // Upload暂不支持对比模式
         searchState.formData.isComparison = false;
+        searchState.formData.dateComparisonEnable = false;
       }
     }
 
@@ -219,6 +222,7 @@ export default defineComponent({
       searchState.formData = {
         type: searchState.formData.type,
         isComparison: false,
+        dateComparisonEnable: false,
         where: [],
         comparisonWhere: [],
         server: {
@@ -265,6 +269,7 @@ export default defineComponent({
         searchState.formData = {
           type: SearchType.Profiling,
           isComparison: is_compared,
+          dateComparisonEnable: false,
           server: {
             app_name,
             service_name,
@@ -300,6 +305,7 @@ export default defineComponent({
         start: startTime,
         end: endTime,
       };
+
       return {
         is_compared: isComparison,
         filter_labels: where.reduce((pre, cur) => {
@@ -316,9 +322,10 @@ export default defineComponent({
     }
 
     /** 查询功能 */
-    function handleQuery() {
+    function handleQuery(autoQuery = true) {
       isEmpty.value = !canQuery.value;
       if (!canQuery.value) return;
+      if (!searchState.autoQuery && autoQuery) return;
       queryParams.value = getParams();
       setUrlParams();
     }
@@ -465,6 +472,7 @@ export default defineComponent({
         <ProfilingRetrievalView
           dataType={this.dataType}
           dataTypeList={this.dataTypeList}
+          formData={this.searchState.formData}
           queryParams={this.queryParams}
           onUpdate:dataType={this.handleDataTypeChange}
         />
@@ -529,7 +537,9 @@ export default defineComponent({
                     loading={this.searchState.loading}
                     onChangeAutoQuery={this.handleAutoQueryChange}
                     onClear={this.handleQueryClear}
-                    onQuery={this.handleQuery}
+                    onQuery={() => {
+                      this.handleQuery(false);
+                    }}
                   />
                 ),
               }}

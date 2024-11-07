@@ -367,6 +367,7 @@ class RunSubscriptionResource(NodeManAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         class ScopeParams(serializers.Serializer):
+            bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
             node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
             nodes = serializers.ListField(required=True, label="节点列表")
 

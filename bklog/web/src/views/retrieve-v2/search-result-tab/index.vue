@@ -1,8 +1,9 @@
 <script setup>
-  import { defineEmits, defineProps, computed } from 'vue';
-
+  import { defineEmits, defineProps, computed, watch } from 'vue';
+  import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   const { $t } = useLocale();
+  const store = useStore();
   const props = defineProps({
     value: {
       type: String,
@@ -10,15 +11,33 @@
     },
   });
   const emit = defineEmits(['input']);
+  const indexSetItem = computed(() =>
+    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
+  );
+
+  const isAiopsToggle = computed(() => {
+    return (
+      (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
+      indexSetItem.value?.scenario_id === 'bkdata'
+    );
+  });
+
   // 可切换Tab数组
   const panelList = computed(() => {
-    const list = [
-      { name: 'origin', label: $t('原始日志') },
-      { name: 'clustering', label: $t('日志聚类') },
-      // { name: 'chartAnalysis', label: $t('图表分析') },
+    return  [
+      { name: 'origin', label: $t('原始日志'), disabled: false },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
     ];
-    return list;
   });
+
+  const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
+  watch(() => isAiopsToggle.value, () => {
+    if (!isAiopsToggle.value && props.value === 'clustering') {
+      emit('input', 'origin');
+    }
+  }, { immediate: true })
+
   // after边框
   const isAfter = item => {
     const afterListMap = {
@@ -38,7 +57,7 @@
 <template>
   <div class="retrieve-tab">
     <span
-      v-for="item in panelList"
+      v-for="item in renderPanelList"
       :key="item.label"
       :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
       @click="handleActive(item.name)"

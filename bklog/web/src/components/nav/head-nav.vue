@@ -40,10 +40,7 @@
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
       <div class="nav-separator">|</div>
-      <BizMenuSelect
-        v-if="showHeadNaviBizSelect"
-        class="head-navi-left"
-      ></BizMenuSelect>
+      <BizMenuSelect class="head-navi-left"></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -80,7 +77,7 @@
             <span
               :class="{
                 'setting bk-icon icon-cog-shape icon-language-container': true,
-                active: isShowGlobalDialog || isShowGlobalDropdown
+                active: isShowGlobalDialog || isShowGlobalDropdown,
               }"
             ></span>
           </div>
@@ -344,21 +341,6 @@
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
-      },
-      showHeadNaviBizSelect() {
-        if (this.$route.name === 'retrieve') {
-          const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
-          const isOn = window.FEATURE_TOGGLE.bklog_search_new === 'on';
-          if (isDebug) {
-            const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
-            const bkBizId = this.$route.query.bizId;
-            if (bkBizId && whiteList.includes(bkBizId)) {
-              return true;
-            }
-          }
-
-          return isOn;
-        }
       },
     },
     watch: {
@@ -684,7 +666,7 @@
       }
 
       .nav-separator {
-        margin: -4px 2px 0 18px;
+        margin: 0px 2px 0 18px;
         font-size: 20px;
         color: #5f616b;
       }
@@ -758,34 +740,34 @@
 
       @include clearfix;
 
-    .setting {
-      position: relative;
-      font-size: 15px;
-      cursor: pointer;
-
-      &::before {
+      .setting {
         position: relative;
-        z-index: 999;
-      }
+        font-size: 15px;
+        cursor: pointer;
 
-      &.active,
-      &:hover {
-        color: #d3d9e4;
-      }
+        &::before {
+          position: relative;
+          z-index: 999;
+        }
 
-      &.active::after,
-      &:hover::after {
-        position: absolute;
-        left: 50%;
-        z-index: 99;
-        width: 30px;
-        height: 30px;
-        content: '';
-        background: linear-gradient(270deg, #253047, #263247);
-        border-radius: 50%;
-        transform: translateX(-50%);
+        &.active,
+        &:hover {
+          color: #d3d9e4;
+        }
+
+        &.active::after,
+        &:hover::after {
+          position: absolute;
+          left: 50%;
+          z-index: 99;
+          width: 30px;
+          height: 30px;
+          content: '';
+          background: linear-gradient(270deg, #253047, #263247);
+          border-radius: 50%;
+          transform: translateX(-50%);
+        }
       }
-    }
 
       .select-business {
         margin-right: 22px;
@@ -866,19 +848,12 @@
             display: flex;
             align-items: center;
           }
-          .icon-language {
-            font-size: 18px;
-          }
         }
 
         .active {
           color: #3c96ff;
         }
       }
-    }
-
-    .icon-language {
-      font-size: 20px;
     }
 
     .icon-chinese::before {

@@ -87,6 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
+            :labelHeight="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
@@ -233,7 +234,7 @@
         type="submit"
         @click="confirmModifyFields"
       >
-        {{ $t('应用') }}
+        {{ $t('保存') }}
       </bk-button>
       <bk-button
         :theme="'default'"
@@ -402,7 +403,6 @@
           if (this.currentClickConfigID !== this.filedSettingConfigID) {
             await this.submitFieldsSet(this.currentClickConfigID);
           }
-          this.$store.commit('updateClearTableWidth', 1);
           this.$emit('confirm', this.shadowVisible, this.showFieldAlias);
         } catch (error) {
           console.warn(error);
@@ -620,8 +620,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
-            this.$store.commit('updateClearTableWidth', 1);
             const { display_fields } = this.configTabPanels[0];
             this.$emit('modify-fields', display_fields, this.showFieldAlias);
           }
@@ -806,20 +804,20 @@
 
     .fields-tab-container {
       width: 723px;
-      padding: 10px 24px 0;
+      padding: 0px 10px 0 10px;
     }
 
     .fields-list-container {
       display: flex;
       width: 723px;
-      padding: 0 24px 14px;
-      margin-top: -20px;
+      padding: 0 10px 14px 10px;
+      margin-top: -30px;
 
       .total-fields-list,
       .visible-fields-list,
       .sort-fields-list {
-        width: 320px;
-        height: 319px;
+        width: 330px;
+        height: 268px;
         border: 1px solid #dcdee5;
 
         .text-action {
@@ -854,8 +852,8 @@
         }
 
         .select-list {
-          height: 276px;
-          padding: 10px 0;
+          height: 223px;
+          padding: 4px 0;
           overflow: auto;
 
           @include scroller;
@@ -863,7 +861,7 @@
           .select-item {
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 8px;
             font-size: 12px;
             line-height: 32px;
 
@@ -1018,7 +1016,7 @@
 
     .field-alias-setting {
       position: absolute;
-      top: 10px;
+      top: 0px;
       right: 20px;
       display: flex;
       align-items: center;
