@@ -15,7 +15,6 @@
             >{{ item.name }}</span
           ></span
         >
-        <span class="field-split">:</span>
         <span
           class="field-value"
           :data-field-name="item.name"
@@ -33,6 +32,7 @@
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  // import jsonEditorTask from '../global/utils/json-editor-task';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -54,6 +54,7 @@
 
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
+  const isEditorInit = ref(false);
 
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
@@ -73,12 +74,9 @@
   });
 
   const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
-    if (entry.isIntersecting) {
-      nextTick(() => {
-        setEditor(depth.value);
-      });
-    } else {
-      destroy();
+    if (entry.isIntersecting && !isEditorInit.value) {
+      isEditorInit.value = true;
+      setEditor(depth.value);
     }
   });
 
@@ -136,6 +134,7 @@
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
       if (isIntersecting.value) {
+        isEditorInit.value = true;
         setEditor(depth.value);
       }
     },
@@ -147,11 +146,13 @@
   watch(
     () => [depth.value],
     () => {
-      setExpand(depth.value);
+      if (isIntersecting.value) {
+        setExpand(depth.value);
+      } else {
+        isEditorInit.value = false;
+      }
     },
   );
-
-
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
@@ -164,7 +165,7 @@
     color: var(--table-fount-color);
 
     .bklog-root-field {
-      margin-right: 2px;
+      margin-right: 4px;
       line-height: 20px;
 
       &:not(:first-child) {
@@ -179,6 +180,10 @@
           padding: 0 2px;
           background: #e6e6e6;
           border-radius: 2px;
+        }
+
+        &::after {
+          content: ':';
         }
       }
 
@@ -236,10 +241,6 @@
     &.is-json {
       display: inline-block;
       width: 100%;
-
-      .bklog-root-field {
-        display: inline-flex;
-      }
     }
 
     &.is-wrap-line {

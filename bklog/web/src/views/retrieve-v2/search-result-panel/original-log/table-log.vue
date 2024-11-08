@@ -229,9 +229,9 @@
             this.isPageOver = true;
             this.newScrollHeight = el.scrollTop;
             this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
-              this.isPageOver = false;
               this.finishPolling = res.data.total < this.indexItem.begin;
-              this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                this.isPageOver = false;
                 this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
               });
             });
@@ -381,6 +381,8 @@
 
           &.bklog-result-list-col-index {
             .cell {
+              padding: 0;
+
               div {
                 padding: 8px 0;
                 line-height: 20px;
@@ -398,10 +400,6 @@
             align-items: center;
             justify-content: center;
             min-height: calc(100vh - 600px);
-          }
-
-          tr {
-            content-visibility: auto;
           }
         }
 

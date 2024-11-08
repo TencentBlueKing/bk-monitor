@@ -15,6 +15,7 @@ from monitor_web.strategies.default_settings.common import (
     NO_DATA_CONFIG,
     fatal_algorithms_config,
     fatal_detects_config,
+    nodata_recover_detects_config,
     remind_algorithms_config,
     remind_detects_config,
     warning_algorithms_config,
@@ -73,7 +74,7 @@ DEFAULT_K8S_STRATEGIES = [
         "notice": DEFAULT_NOTICE,
     },
     {
-        "detects": warning_detects_config(5, 5, 4),
+        "detects": nodata_recover_detects_config(5, 5, 4, 2),
         "items": [
             {
                 "algorithms": warning_algorithms_config("gte", 5),

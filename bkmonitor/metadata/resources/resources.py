@@ -883,6 +883,7 @@ class GetEventGroupResource(Resource):
         event_group_id = serializers.IntegerField(required=True, label="事件分组ID")
         with_result_table_info = serializers.BooleanField(required=False, label="是否需要带结果表信息")
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
+        event_infos_limit = serializers.IntegerField(required=False, default=None, label="事件信息列表上限")
 
     def perform_request(self, validated_request_data):
         try:
@@ -899,9 +900,9 @@ class GetEventGroupResource(Resource):
             event_group.update_event_dimensions_from_es()
 
         if not validated_request_data["with_result_table_info"]:
-            return event_group.to_json()
+            return event_group.to_json(validated_request_data["event_infos_limit"])
 
-        result = event_group.to_json()
+        result = event_group.to_json(validated_request_data["event_infos_limit"])
 
         # 查询增加结果表信息
         result_table = models.ResultTable.objects.get(table_id=event_group.table_id)
