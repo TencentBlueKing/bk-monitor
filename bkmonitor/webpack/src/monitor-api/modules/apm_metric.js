@@ -21,7 +21,7 @@ export const metricDetailStatistics = request('GET', 'apm/metric/metric/metric_s
 export const getFieldOptionValues = request('POST', 'apm/metric/metric/get_field_option_values/');
 export const calculateByRange = request('POST', 'apm/metric/metric/calculate_by_range/');
 export const queryDimensionsByLimit = request('POST', 'apm/metric/metric/query_dimensions_by_limit/');
-export const customMetricList = request('GET', 'apm/metric/metric/custom_metric_list/');
+export const customMetricDimensionList = request('GET', 'apm/metric/metric/custom_metric_dimension_list/');
 
 export default {
   errorListByTraceIds,
@@ -45,5 +45,5 @@ export default {
   getFieldOptionValues,
   calculateByRange,
   queryDimensionsByLimit,
-  customMetricList,
+  customMetricDimensionList,
 };

@@ -255,6 +255,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     "readable_name": i.readable_name,
                     "data_source_label": i.data_source_label,
                     "data_type_label": i.data_type_label,
+                    "filter_key_name": "service_name",
                 }
                 if metric_type == "Galileo":
                     variables.update(
@@ -267,7 +268,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
 
                 # 根据dimension获取monitor_name监控项
-                monitor_name = monitor_name_mapping.get(i.metric_field)
+                monitor_name = monitor_name_mapping.get(f"{i.metric_field}_value")
                 if not monitor_name:
                     continue
                 if monitor_name not in metric_group_mapping:
@@ -286,14 +287,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def get_monitor_name(cls, bk_biz_id, result_table_id) -> dict:
-        promql = f"count by (scope_name, monitor_name, __name__) ({{__name__=~\"{result_table_id}:.*\"}})"
+        promql = f"count by (scope_name, monitor_name, __name__) ({{__name__=~\"custom:{result_table_id}:.*\"}})"
         end_time = int(arrow.now().timestamp)
         start_time = end_time - 3600
         request_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
                 {
-                    "data_source_label": DataSourceLabel.CUSTOM,
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "promql": promql,
                     "interval": "auto",
