@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import inspect
 import time
+from pathlib import Path
 
 import requests
 from django.conf import settings
@@ -90,3 +92,25 @@ class FrontendReportEventResource(Resource):
         while len(departments) < 5:
             departments.append("")
         return departments
+
+
+def send_frontend_report_event(instance: Resource, bk_biz_id: int, username: str, event_content: str):
+    """
+    发送前端审计上报
+    """
+    dimensions = {
+        "resource": f"{Path(inspect.getabsfile(instance.__class__)).parent.name}.{instance.__class__.__name__}",
+        "user_name": username,
+    }
+
+    event_name = "导入导出审计"
+    timestamp = int(time.time() * 1000)
+
+    # 发送审计上报的请求
+    FrontendReportEventResource().request(
+        bk_biz_id=bk_biz_id,
+        dimensions=dimensions,
+        event_name=event_name,
+        event_content=event_content,
+        timestamp=timestamp,
+    )
