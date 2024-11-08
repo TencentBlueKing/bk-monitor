@@ -294,7 +294,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             f"({{__name__=~\"custom:{result_table_id}:.*\"}})"
         )
         end_time = int(arrow.now().timestamp)
-        start_time = end_time - 3600
+        start_time = end_time - 60
         request_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
