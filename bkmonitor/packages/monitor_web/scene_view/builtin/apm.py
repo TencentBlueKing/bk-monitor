@@ -117,6 +117,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         bk_biz_id = view.bk_biz_id
         app_name = params["app_name"]
+        service_name = params["service_name"]
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
@@ -247,7 +248,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                     continue
 
-                metric_type = "OpenTelemetry" if "scope_name" in [dim["id"] for dim in i.dimensions] else "Galileo"
+                # 根据dimension获取monitor_name监控项
+                metric_info = monitor_name_mapping.get(f"{i.metric_field}_value")
+                if not metric_info:
+                    continue
+                if service_name and metric_info["active_service_name"] != service_name:
+                    continue
                 variables = {
                     "id": f"idx_{idx}",
                     "table_id": i.result_table_id,
@@ -255,22 +261,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     "readable_name": i.readable_name,
                     "data_source_label": i.data_source_label,
                     "data_type_label": i.data_type_label,
-                    "filter_key_name": "service_name",
+                    "filter_key_name": metric_info["filter_service_name"],
+                    "filter_key_value": metric_info["filter_service_value"],
                 }
-                if metric_type == "Galileo":
-                    variables.update(
-                        {
-                            "filter_key_name": "target",
-                        }
-                    )
                 metric_panel = copy.deepcopy(metric_panel_template)
                 for var_name, var_value in variables.items():
                     metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
 
-                # 根据dimension获取monitor_name监控项
-                monitor_name = monitor_name_mapping.get(f"{i.metric_field}_value")
-                if not monitor_name:
-                    continue
+                monitor_name = metric_info["monitor_name"]
                 if monitor_name not in metric_group_mapping:
                     group_id = len(metric_group_mapping)
                     group_panel = copy.deepcopy(group_panel_template)
@@ -287,7 +285,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def get_monitor_name(cls, bk_biz_id, result_table_id) -> dict:
-        promql = f"count by (scope_name, monitor_name, __name__) ({{__name__=~\"custom:{result_table_id}:.*\"}})"
+        promql = (
+            f"count by (scope_name, monitor_name, service_name, target, __name__) "
+            f"({{__name__=~\"custom:{result_table_id}:.*\"}})"
+        )
         end_time = int(arrow.now().timestamp)
         start_time = end_time - 3600
         request_params = {
@@ -309,15 +310,31 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "end_time": end_time,
         }
 
+        key_mapping = {
+            "Galileo": {"monitor_name": "monitor_name", "filter_service_name": "target"},
+            "OpenTelemetry": {"monitor_name": "scope_name", "filter_service_name": "service_name"},
+        }
+
         monitor_name_mapping = {}
         try:
             series = resource.grafana.graph_unify_query(request_params)["series"]
             for metric in series:
                 metric_field = metric.get("dimensions", {}).get("__name__")
                 if metric_field:
-                    monitor_name_mapping[metric_field] = metric["dimensions"].get("monitor_name") or metric[
-                        "dimensions"
-                    ].get("scope_name")
+                    metric_type = "Galileo" if "monitor_name" in metric["dimensions"] else "OpenTelemetry"
+                    monitor_name_mapping[metric_field] = {
+                        "metric_type": metric_type,
+                        "monitor_name": metric["dimensions"].get(key_mapping[metric_type]["monitor_name"]),
+                        "filter_service_name": key_mapping[metric_type]["filter_service_name"],
+                        "filter_service_value": metric["dimensions"].get(
+                            key_mapping[metric_type]["filter_service_name"]
+                        ),
+                    }
+                    monitor_name_mapping[metric_field]["active_service_name"] = (
+                        monitor_name_mapping[metric_field]["filter_service_value"]
+                        if metric_type == "OpenTelemetry"
+                        else str(monitor_name_mapping[metric_field]["filter_service_value"]).replace("BCS.", "")
+                    )
         except Exception:  # pylint: disable=broad-except
             # Todo： 加日志
             pass
