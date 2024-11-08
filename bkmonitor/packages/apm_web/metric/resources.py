@@ -88,6 +88,7 @@ from constants.apm import (
     SpanKind,
     TelemetryDataType,
 )
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
@@ -3164,7 +3165,7 @@ class QueryDimensionsByLimitResource(Resource):
         return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
 
 
-class CustomMetricListResource(Resource):
+class CustomMetricDimensionListResource(Resource):
     """获取自定义指标列表"""
 
     class RequestSerializer(serializers.Serializer):
@@ -3183,12 +3184,14 @@ class CustomMetricListResource(Resource):
         result_table_id = application.fetch_datasource_info(
             TelemetryDataType.METRIC.datasource_type, attr_name="result_table_id"
         )
-        metric_list = [
-            {
-                "id": idx,
-                "name": metric.metric_field_name,
-                "metric_field": metric.metric_field,
-            }
-            for idx, metric in enumerate(MetricListCache.objects.filter(result_table_id=result_table_id))
-        ]
-        return metric_list
+        dimension_set = set()
+        for metric in MetricListCache.objects.filter(
+            result_table_id=result_table_id,
+            data_source_label=DataSourceLabel.CUSTOM,
+            data_type_label=DataTypeLabel.TIME_SERIES,
+        ):
+            if metric.dimensions and isinstance(metric.dimensions, list):
+                for dimension in metric.dimensions:
+                    if isinstance(dimension, dict) and "id" in dimension:
+                        dimension_set.add(dimension["id"])
+        return [{"id": idx, "name": dimension_name} for idx, dimension_name in enumerate(dimension_set)]

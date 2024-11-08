@@ -14,7 +14,7 @@ from apm_web.metric.resources import (
     ApdexQueryResource,
     CalculateByRangeResource,
     CollectServiceResource,
-    CustomMetricListResource,
+    CustomMetricDimensionListResource,
     DynamicUnifyQueryResource,
     EndpointDetailListResource,
     EndpointListResource,
@@ -137,5 +137,5 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
         ResourceRoute("POST", CalculateByRangeResource, "calculate_by_range"),
         ResourceRoute("POST", QueryDimensionsByLimitResource, "query_dimensions_by_limit"),
-        ResourceRoute("GET", CustomMetricListResource, "custom_metric_list"),
+        ResourceRoute("GET", CustomMetricDimensionListResource, "custom_metric_dimension_list"),
     ]
