@@ -27,8 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
+import TagInput from './tagInput.vue';
 
 import './index.scss';
 
@@ -50,7 +52,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: { GraphDragTool },
+  components: { GraphDragTool, DashboardDialog, TagInput },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -146,7 +148,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      height: `calc(100% - ${this.axiosOptionHeight + 32}px)`,
+      height: `calc(100% - ${this.axiosOptionHeight + 16}px)`,
     };
   }
 
@@ -289,7 +291,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return [
       <div class='dimensions-index-row'>
         <div class='label'>{this.$t('指标')}</div>
-        <div class='settings'></div>
+        <TagInput></TagInput>
       </div>,
       <div class='dimensions-index-row'>
         <div class='label'>{this.$t('维度')}</div>
@@ -347,6 +349,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     ];
   }
 
+  /** 打开添加到仪表盘dialog */
+  handleAdd() {
+    console.log(this.$refs.addDialog);
+    this.$refs.addDialog.handleShow();
+  }
+
   render() {
     return (
       <div class='graph-analysis-index'>
@@ -369,7 +377,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             >
               {this.$t('保存')}
             </bk-button>
-            <bk-button outline={true}>{this.$t('添加至仪表盘')}</bk-button>
+            <bk-button
+              outline={true}
+              onClick={this.handleAdd}
+            >
+              {this.$t('添加至仪表盘')}
+            </bk-button>
           </div>
         </div>
         <div class='graph-analysis-body'>
@@ -441,6 +454,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             </div>
           </div>
         </div>
+        <DashboardDialog ref='addDialog'></DashboardDialog>
       </div>
     );
   }
