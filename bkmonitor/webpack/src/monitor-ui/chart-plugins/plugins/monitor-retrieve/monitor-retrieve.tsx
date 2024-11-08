@@ -59,6 +59,7 @@ export default class MonitorRetrieve extends tsc<void> {
     this.init();
   }
   beforeDestroy() {
+    logStore.commit('resetState');
     window.mainComponent.$destroy();
     window.mainComponent = null;
   }

@@ -766,7 +766,7 @@ const store = new Vuex.Store({
       Object.assign(state, payload);
     },
     resetState(state) {
-      Object.assign(state, stateTpl);
+      Object.assign(state, deepClone(stateTpl));
     },
   },
   actions: {
