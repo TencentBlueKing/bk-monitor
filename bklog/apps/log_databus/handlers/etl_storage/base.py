@@ -664,14 +664,14 @@ class EtlStorage(object):
         return True
 
     @classmethod
-    def parse_result_table_config(cls, result_table_config, result_table_storage=None, final_fields_dict=None):
+    def parse_result_table_config(cls, result_table_config, result_table_storage=None, fields_dict=None):
         """
         根据meta配置返回前端格式
         :param result_table_config metadata_get_result_table
         :param result_table_storage metadata_get_result_table_storage
         :param 从mappings拉取的的字段信息
         """
-        final_fields_dict = final_fields_dict or {}
+        fields_dict = fields_dict or {}
 
         # 存储配置 && 清洗配置
         collector_config = {"etl_params": result_table_config.get("option", {})}
@@ -693,7 +693,7 @@ class EtlStorage(object):
         log_clustering_fields = cls._get_log_clustering_default_fields()
         for field in result_table_config["field_list"]:
             # 加入大小写敏感和分词配置
-            final_field_dict = final_fields_dict.get(field["field_name"])
+            final_field_dict = fields_dict.get(field["field_name"])
             if final_field_dict:
                 field.update(
                     {
