@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import csv
 import datetime
 import hashlib
 import json
@@ -29,6 +30,7 @@ from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
+import ujson
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
@@ -52,6 +54,7 @@ from apps.log_esquery.serializers import (
     EsQuerySearchAttrSerializer,
 )
 from apps.log_search.constants import (
+    ASYNC_DIR,
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
@@ -66,6 +69,7 @@ from apps.log_search.constants import (
     SEARCH_OPTION_HISTORY_NUM,
     TIME_FIELD_MULTIPLE_MAPPING,
     FieldDataTypeEnum,
+    FileType,
     IndexSetType,
     OperatorEnum,
     SearchScopeEnum,
@@ -1103,6 +1107,136 @@ class SearchHandler(object):
         while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = scroll_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "scroll": SCROLL,
+                    "scroll_id": _scroll_id,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
+            scroll_size = len(scroll_result["hits"]["hits"])
+            result_size += scroll_size
+            yield self._deal_query_result(scroll_result)
+
+    def multi_get_slice_data(self, pre_file_name, file_type):
+        cc = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if cc:
+            slice_max = cc.storage_shards_nums
+        else:
+            slice_max = 5
+        multi_execute_func = MultiExecuteFunc(max_workers=5)
+        for idx in range(slice_max):
+            body = {
+                "slice_id": idx,
+                "slice_max": slice_max,
+                "file_name": f"{pre_file_name}_slice_{idx}",
+                "file_type": file_type,
+            }
+            multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
+        result = multi_execute_func.run(return_exception=True)
+        # 按照顺序返回, 因为请求的列表是顺序的, 防止数据串位
+        return [result[k] for k in sorted(result.keys())]
+
+    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, file_type: str):
+        """
+        get_slice_data
+        @param slice_id:
+        @param slice_max:
+        @param file_name:
+        @param file_type:
+        @return:
+        """
+        result = self.slice_pre_get_result(
+            sorted_fields=self.sort_list, size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max
+        )
+        result_list = self._deal_query_result(result_dict=result).get("origin_log_list")
+        generate_result = self.sliced_scroll_result(result)
+
+        # 文件路径
+        file_path = f"{ASYNC_DIR}/{file_name}.{file_type}"
+
+        def content_generator():
+            for item in result_list:
+                yield item
+            for res in generate_result:
+                origin_result_list = res.get("origin_log_list", [])
+                for item in origin_result_list:
+                    yield item
+
+        if file_type == FileType.CSV.value:
+            with open(file_path, "a+", newline='', encoding="utf-8") as f:
+                fieldnames = result_list[0].keys() if result_list else []
+                csv_writer = csv.DictWriter(f, fieldnames=fieldnames)
+                # 检查文件是否为空，只在新文件时写入表头
+                if f.tell() == 0:
+                    csv_writer.writeheader()
+                for item in content_generator():
+                    csv_writer.writerow(item)
+        else:
+            with open(file_path, "a+", encoding="utf-8") as f:
+                for content in content_generator():
+                    f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
+        return (file_path,)
+
+    def slice_pre_get_result(self, sorted_fields: list, size: int, slice_id: int, slice_max: int):
+        """
+        slice_pre_get_result
+        @param sorted_fields:
+        @param size:
+        @param slice_id:
+        @param slice_max:
+        @return:
+        """
+        result = self.direct_esquery_search(
+            {
+                "indices": self.indices,
+                "scenario_id": self.scenario_id,
+                "storage_cluster_id": self.storage_cluster_id,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "query_string": self.query_string,
+                "filter": self.filter,
+                "sort_list": sorted_fields,
+                "start": self.start,
+                "size": size,
+                "aggs": self.aggs,
+                "highlight": self.highlight,
+                "time_zone": self.time_zone,
+                "time_range": self.time_range,
+                "time_field": self.time_field,
+                "use_time_range": self.use_time_range,
+                "time_field_type": self.time_field_type,
+                "time_field_unit": self.time_field_unit,
+                "scroll": SCROLL,
+                "collapse": self.collapse,
+                "slice_search": True,
+                "slice_id": slice_id,
+                "slice_max": slice_max,
+            },
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+            ),
+        )
+        return result
+
+    def sliced_scroll_result(self, scroll_result):
+        """
+        sliced_scroll_result
+        @param scroll_result:
+        @return:
+        """
+        # 记录第一次取出来的数据长度
+        result_size = len(scroll_result["hits"]["hits"])
+        # 记录总的长度
+        total_size = scroll_result["hits"]["total"]
+        # 判断是否还有数据未取出
+        while result_size < total_size:
+            _scroll_id = scroll_result["_scroll_id"]
+            scroll_result = self.direct_esquery_scroll(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
