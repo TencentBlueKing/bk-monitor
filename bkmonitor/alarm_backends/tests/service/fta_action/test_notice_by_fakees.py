@@ -189,18 +189,15 @@ class TestActionFakeESProcessor(TestCase):
         job_alert = AlertDocument(**alert_info)
         AlertDocument.bulk_create([job_alert])
 
-        action_config_patch = patch(
+        with patch(
             "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
             MagicMock(return_value=job_config),
-        )
+        ):
+            actions = create_actions(1, "abnormal", alerts=[job_alert])
+            self.assertEqual(len(actions), 1)
 
-        action_config_patch.start()
-        actions = create_actions(1, "abnormal", alerts=[job_alert])
-        self.assertEqual(len(actions), 1)
-
-        # assignee一定是一个有序的列表
-        self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
-        action_config_patch.stop()
+            # assignee一定是一个有序的列表
+            self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
 
     def test_shield_config_dimension_match_and(self):
         config = {
