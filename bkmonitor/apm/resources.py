@@ -58,7 +58,8 @@ from apm.models import (
 from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
-from apm_web.models import LogServiceRelation
+from apm_web.models import Application, LogServiceRelation
+from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -283,7 +284,10 @@ class ListApplicationResources(Resource):
 
 class ApplicationInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
+        application_id = serializers.IntegerField(label="应用id", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False)
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -304,7 +308,58 @@ class ApplicationInfoResource(Resource):
             return data
 
     def perform_request(self, validated_request_data):
-        return ApmApplication.objects.get(id=validated_request_data["application_id"])
+        application_id = validated_request_data.get("application_id", None)
+        space_uid = validated_request_data.get("space_uid", "")
+        bk_biz_id = validated_request_data.get("bk_biz_id", None)
+        app_name = validated_request_data.get("app_name", "")
+        if application_id:
+            return ApmApplication.objects.get(id=application_id)
+        if app_name:
+            if bk_biz_id:
+                return ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+            if space_uid:
+                bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
+                if bk_biz_id:
+                    return ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
+
+
+class DeleteApplicationSimpleResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False)
+
+    def perform_request(self, validated_request_data):
+        application_id = validated_request_data.get("application_id", None)
+        space_uid = validated_request_data.get("space_uid", "")
+        bk_biz_id = validated_request_data.get("bk_biz_id", None)
+        app_name = validated_request_data.get("app_name", "")
+        from apm_web.meta.resources import DeleteApplicationResource
+
+        if application_id:
+            app = Application.objects.filter(application_id=application_id).first()
+            if app:
+                DeleteApplicationResource()(bk_biz_id=app.bk_biz_id, app_name=app.app_name)
+                logger.info(f"删除应用 {app_name} 成功")
+                return application_id
+        if app_name:
+            if bk_biz_id:
+                app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+                if app:
+                    DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
+                    logger.info(f"删除应用 {app_name} 成功")
+                    return app.application_id
+            elif space_uid:
+                bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
+                if bk_biz_id:
+                    app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+                    if app:
+                        DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
+                        logger.info(f"删除应用 {app_name} 成功")
+                        return app.application_id
+        raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
 
 
 class ApdexSerializer(serializers.Serializer):
