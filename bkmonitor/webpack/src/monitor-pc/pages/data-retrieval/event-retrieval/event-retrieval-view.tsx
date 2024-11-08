@@ -92,6 +92,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
   isNoMoreData = false;
   /** 表格第一页的loading */
   tableLoading = false;
+  noData = false;
 
   /** 是否滚动到底 */
   isTheEnd = false;
@@ -290,6 +291,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     await this.backTopRef.handleBackTop();
     // this.handleGetTableData()
     this.chartKey = random(8);
+    this.noData = false;
     this.isFirstSearch &&
       setTimeout(() => {
         this.isFirstSearch = false;
@@ -337,7 +339,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     if (timeRange && Array.isArray(timeRange)) {
       // time = handleTimeRange(timeRange);
       time = handleTransformToTimestamp(timeRange || this.compareValue.tools.timeRange);
-      return !!time ? time : undefined;
+      return time || undefined;
     }
     if (temp?.start_time) {
       return [temp.start_time, temp.end_time];
@@ -349,6 +351,9 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    */
   handleChartDbclick() {
     this.handleTimeRangeChange(this.chartTimeRangeCache);
+  }
+  handleNoData(v) {
+    this.noData = v;
   }
 
   /**
@@ -504,7 +509,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
             </div>
             <div class='collapse-content'>
               <div class='chart'>
-                {this.chartKey ? (
+                {this.chartKey && !this.noData ? (
                   <MonitorEcharts
                     key={this.chartKey}
                     height={164}
@@ -515,6 +520,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                     reflesh-interval={this.compareValue.tools.refleshInterval}
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
+                    on-no-data-change={this.handleNoData}
                     onDblclick={this.handleChartDbclick}
                   />
                 ) : undefined}
