@@ -31,6 +31,7 @@ from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
 from metadata.models.constants import EVENT_GROUP_SLEEP_THRESHOLD, EventGroupStatus
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import es_tools
 
 logger = logging.getLogger("metadata")
@@ -96,6 +97,10 @@ def check_event_update():
     同步自定义事件维度及事件，每三分钟将会从ES同步一次
     """
     logger.info("check_event_update:start")
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_event_update", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     table_ids = set(
         models.EventGroup.objects.filter(is_enable=True, is_delete=False).values_list("table_id", flat=True)
@@ -130,6 +135,9 @@ def check_event_update():
     for t in processes:
         t.join()
     cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_event_update", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="check_event_update", process_target=None).observe(
         cost_time
     )
@@ -188,6 +196,11 @@ def check_custom_event_group_sleep():
     如果自定义事件超过半年没有被使用，则进行休眠，清理索引
     """
     logger.info("check_custom_event_group_sleep:start")
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_custom_event_group_sleep", status=TASK_STARTED, process_target=None
+    ).inc()
+
     start_time = time.time()
     event_groups = models.EventGroup.objects.filter(
         Q(last_check_report_time__isnull=True)
@@ -281,6 +294,10 @@ def check_custom_event_group_sleep():
         models.EventGroup.objects.filter(table_id=es.table_id).update(status=EventGroupStatus.SLEEP.value)
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_custom_event_group_sleep", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
         task_name="check_custom_event_group_sleep", process_target=None
     ).observe(cost_time)

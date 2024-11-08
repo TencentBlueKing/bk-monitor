@@ -28,6 +28,7 @@ from metadata.models.bcs.resource import (
     ServiceMonitorInfo,
 )
 from metadata.models.vm.utils import check_create_fed_vm_data_link
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.bcs import change_cluster_router, get_bcs_dataids
 
 logger = logging.getLogger("metadata")
@@ -41,6 +42,10 @@ def refresh_bcs_monitor_info():
     """
     刷新BCS集群监控信息
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_monitor_info", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     fed_clusters = {}
     try:
@@ -89,6 +94,10 @@ def refresh_bcs_monitor_info():
             logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_monitor_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，并上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_monitor_info", process_target=None).observe(
         cost_time
@@ -108,6 +117,11 @@ def refresh_bcs_metrics_label():
     """
     刷新BCS集群监控指标label
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_metrics_label", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     logger.debug("start refresh bcs metrics label")
     # 获取所有bcs相关dataid
@@ -161,6 +175,10 @@ def refresh_bcs_metrics_label():
         models.TimeSeriesMetric.objects.filter(field_id__in=field_ids).update(label=label_name)
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_metrics_label", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_metrics_label", process_target=None).observe(
         cost_time
@@ -174,6 +192,11 @@ def discover_bcs_clusters():
     """
     周期刷新bcs集群列表，将未注册进metadata的集群注册进来
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="discover_bcs_clusters", status=TASK_STARTED, process_target=None
+    ).inc()
+
     # BCS 接口仅返回非 DELETED 状态的集群信息
     start_time = time.time()
     logger.info("start to discover bcs clusters")
@@ -305,6 +328,9 @@ def discover_bcs_clusters():
         )
 
     # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="discover_bcs_clusters", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_monitor_info", process_target=None).observe(
         cost_time

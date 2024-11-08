@@ -30,6 +30,7 @@ from metadata.config import (
 )
 from metadata.models.constants import EsSourceType
 from metadata.task.tasks import manage_es_storage
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -52,6 +53,11 @@ def refresh_consul_storage():
     """
     刷新storage信息给unify-query使用
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     try:
         logger.info("start to refresh metadata es storage info")
@@ -60,6 +66,10 @@ def refresh_consul_storage():
         logger.error("refresh es storage failed for ->{}".format(e))
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_storage", process_target=None).observe(
         cost_time
@@ -73,6 +83,11 @@ def refresh_consul_es_info():
     """
     刷新es相关的consul信息，供unify-query使用
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_es_info", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     try:
         logger.info("start to refresh metadata es table info")
@@ -81,6 +96,10 @@ def refresh_consul_es_info():
         logger.error("refresh es table failed for ->{}".format(e))
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_es_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_es_info", process_target=None).observe(
         cost_time
@@ -206,6 +225,11 @@ def refresh_kafka_storage():
     """
     刷新kafka存储的topic信息
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_kafka_storage", status=TASK_STARTED, process_target=None
+    ).inc()
     logger.info("refresh_kafka_storage: start to refresh kafka storage")
     start_time = time.time()
     for kafka_storage in models.KafkaStorage.objects.all():
@@ -219,6 +243,10 @@ def refresh_kafka_storage():
                 )
             )
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_kafka_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_kafka_storage", process_target=None).observe(
         cost_time
@@ -349,6 +377,10 @@ def refresh_bcs_info():
     """
     刷新bcs_info到consul
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_info", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()
     try:
         logger.info("start to refresh resources")
@@ -358,6 +390,9 @@ def refresh_bcs_info():
     # 清理到期的回溯索引
     models.EsSnapshotRestore.clean_expired_restore()
     cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_info", process_target=None).observe(cost_time)
     metrics.report_all()
@@ -369,6 +404,10 @@ def refresh_es_restore():
     """
     刷新es回溯状态
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_es_restore", status=TASK_STARTED, process_target=None
+    ).inc()
     logger.info("refresh_es_restore:start to refresh es restore")
     start_time = time.time()
     not_done_restores = models.EsSnapshotRestore.objects.exclude(total_doc_count=F("complete_doc_count")).exclude(
@@ -385,6 +424,10 @@ def refresh_es_restore():
             )
             continue
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_es_restore", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
     # 统计耗时，上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_es_restore", process_target=None).observe(
         cost_time
