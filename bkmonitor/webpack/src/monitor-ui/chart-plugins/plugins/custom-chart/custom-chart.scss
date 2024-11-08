@@ -1,0 +1,60 @@
+.demo-btn {
+  margin: 20px;
+}
+
+.main-title {
+  position: relative;
+}
+
+.custom-method {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  align-self: flex-end;
+  transform: translateX(-50%);
+}
+
+.bk-button-group {
+  height: 26px;
+  padding: 4px;
+  background-color: #F0F1F5;
+  border-radius: 2px;
+
+  .bk-default.bk-button {
+    height: 18px;
+    margin-left: 0;
+    color: #4D4F56;
+    background-color: #F0F1F5;
+    border: none;
+    border-color:#C4C6CC;
+    border-right: 1px solid #C4C6CC;
+
+    &:last-child {
+      border: none;
+  }
+
+  div {
+    height: 18px;
+    font-size: 12px;
+    line-height: 18px;
+  }
+  }
+}
+
+
+.btn-more {
+  display: inline-block;
+
+  .bk-dropdown-menu .bk-dropdown-trigger {
+    font-size: 0;
+  }
+
+  .bk-dropdown-content {
+    font-size: 12px;
+  }
+}
+
+.bk-button-group .bk-default.bk-button-small.bk-button.is-selected {
+  background-color: #fff;
+  border: none;
+}
