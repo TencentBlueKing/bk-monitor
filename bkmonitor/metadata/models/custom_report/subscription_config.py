@@ -396,6 +396,8 @@ class CustomReportSubscription(models.Model):
             try:
                 logger.info("subscription task already exists.")
                 sub_config_obj = qs.first()
+                # 更新订阅巡检开启
+                api.node_man.switch_subscription(subscription_id=sub_config_obj.subscription_id, action="enable")
                 subscription_params["subscription_id"] = sub_config_obj.subscription_id
                 subscription_params["run_immediately"] = True
 
@@ -429,7 +431,8 @@ class CustomReportSubscription(models.Model):
                     subscription_id=subscription_id,
                     bk_data_id=bk_data_id,
                 )
-
+                # 创建的订阅默认开启巡检
+                api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
                 result = api.node_man.run_subscription(
                     subscription_id=subscription_id, actions={plugin_name: "INSTALL"}
                 )
