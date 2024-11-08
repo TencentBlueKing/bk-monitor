@@ -67,12 +67,11 @@
       </template>
     </bk-table-column>
 
-    <template v-if="tableShowRowIndex">
-      <bk-table-column
-        type="index"
-        class-name="bklog-result-list-col-index"
-      ></bk-table-column>
-    </template>
+    <bk-table-column
+      :width="tableShowRowIndex ? 50 : 0"
+      type="index"
+      class-name="bklog-result-list-col-index"
+    ></bk-table-column>
     <!-- 显示字段 -->
     <template>
       <bk-table-column
