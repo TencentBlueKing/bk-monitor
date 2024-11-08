@@ -1621,7 +1621,6 @@
                     "caller_service",
                     "caller_method",
                     "caller_ip",
-                    "callee_server",
                     "callee_service",
                     "callee_method",
                     "callee_ip",
@@ -1648,9 +1647,6 @@
                     },
                     "caller_ip": {
                       "field": "attributes.net.host.ip"
-                    },
-                    "callee_server": {
-                      "field": "attributes.trpc.callee_server"
                     },
                     "callee_service": {
                       "field": "attributes.trpc.callee_service"
@@ -1798,7 +1794,6 @@
                   "text": "Trace",
                   "value": "trace",
                   "tags": [
-                    "caller_server",
                     "caller_service",
                     "caller_method",
                     "caller_ip",
@@ -1812,9 +1807,6 @@
                     "code"
                   ],
                   "tag_trace_mapping": {
-                    "caller_server": {
-                      "field": "attributes.trpc.caller_server"
-                    },
                     "caller_service": {
                       "field": "attributes.trpc.caller_service"
                     },
