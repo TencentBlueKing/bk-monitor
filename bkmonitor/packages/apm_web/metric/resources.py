@@ -91,7 +91,6 @@ from constants.apm import (
     SpanKind,
     TelemetryDataType,
 )
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
