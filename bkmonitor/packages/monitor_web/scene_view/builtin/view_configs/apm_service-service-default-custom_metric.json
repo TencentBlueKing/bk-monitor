@@ -38,6 +38,7 @@
                     "title": "${metric_field}",
                     "subtitle": "${readable_name}",
                     "type": "list",
+                    "agg_methods": ["AVG", "SUM", "MAX", "MIN"],
                     "targets": [
                         {
                             "data_type": "list",
