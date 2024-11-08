@@ -697,7 +697,7 @@ class EtlStorage(object):
             if final_field_dict:
                 field.update(
                     {
-                        "is_case_sensitive": final_field_dict.get("is_case_sensitive", "false"),
+                        "is_case_sensitive": final_field_dict.get("is_case_sensitive", False),
                         "tokenize_on_chars": final_field_dict.get("tokenize_on_chars", ""),
                     }
                 )
