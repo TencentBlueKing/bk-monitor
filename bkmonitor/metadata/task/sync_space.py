@@ -19,6 +19,7 @@ from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
@@ -61,6 +62,7 @@ def sync_bkcc_space(allow_deleted=False):
     NOTE: 空间创建后，不需要单独推送
     """
     logger.info("start sync bkcc space task")
+    start_time = time.time()
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list = api.cmdb.get_business()
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -111,6 +113,12 @@ def sync_bkcc_space(allow_deleted=False):
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkcc_space", process_target=None).observe(cost_time)
+    metrics.report_all()
+    logger.info("sync bkcc space task cost time: %s", cost_time)
+
 
 @share_lock(identify="metadata__refresh_bkcc_space_name")
 def refresh_bkcc_space_name():
@@ -141,6 +149,7 @@ def refresh_bkcc_space_name():
 def sync_bkcc_space_data_source():
     """同步bkcc数据源和空间的关系及数据源的所属类型"""
     logger.info("start sync bkcc space data source task")
+    start_time = time.time()
 
     def _refine(data_id_dict, space_id, bk_data_id) -> bool:
         """移除已经存在的数据源关联"""
@@ -187,8 +196,13 @@ def sync_bkcc_space_data_source():
     # 组装数据，推送 redis 功能
     space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
     push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
-
-    logger.info("push bkcc type space to redis successfully, space: %s", json.dumps(space_id_list))
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="sync_bkcc_space_data_source", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+    logger.info("push bkcc type space to redis successfully, space: %s,cost: %s", json.dumps(space_id_list), cost_time)
 
 
 @share_lock(identify="metadata__sync_bcs_space")
@@ -198,6 +212,7 @@ def sync_bcs_space():
     TODO: 当仅有项目还没有集群时，关联的资源为空，应该在增加一个关联资源变动检测的任务
     """
     logger.info("start sync bcs space task")
+    start_time = time.time()
 
     bcs_type_id = SpaceTypes.BKCI.value
     projects = get_valid_bcs_projects()
@@ -230,7 +245,12 @@ def sync_bcs_space():
         create_bcs_spaces(diff_project_list)
     except Exception:
         logger.exception("create bcs project space error")
-    logger.info("create bcs space successfully, space: %s", json.dumps(diff_project_list))
+
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bcs_space", process_target=None).observe(cost_time)
+    metrics.report_all()
+    logger.info("create bcs space successfully, space: %s,cost: %s", json.dumps(diff_project_list), cost_time)
 
 
 @share_lock(identify="metadata_refresh_bcs_project_biz")
@@ -345,6 +365,7 @@ def refresh_cluster_resource():
     当绑定资源的集群信息变动时，刷新绑定的集群资源
     """
     logger.info("start sync bcs space cluster resource task")
+    start_time = time.time()
     # 拉取现阶段绑定的资源，注意资源类型仅为 bcs
     space_type = SpaceTypes.BKCI.value
     resource_type = SpaceTypes.BCS.value
@@ -445,6 +466,13 @@ def refresh_cluster_resource():
         push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list)
 
         logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
+
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_cluster_resource", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("sync bcs space cluster resource task cost time: %s", cost_time)
 
 
 @share_lock(identify="metadata_refresh_bkci_project")

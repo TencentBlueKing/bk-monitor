@@ -21,6 +21,7 @@ from django.db.models import F
 from django.utils.translation import ugettext as _
 
 from alarm_backends.core.lock.service_lock import share_lock
+from core.prometheus import metrics
 from metadata import models
 from metadata.config import (
     KAFKA_SASL_MECHANISM,
@@ -51,11 +52,20 @@ def refresh_consul_storage():
     """
     刷新storage信息给unify-query使用
     """
+    start_time = time.time()
     try:
         logger.info("start to refresh metadata es storage info")
         models.ClusterInfo.refresh_consul_storage_config()
     except Exception as e:
         logger.error("refresh es storage failed for ->{}".format(e))
+
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_consul_storage:task finished, cost time: %s" % cost_time)
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")
@@ -63,11 +73,20 @@ def refresh_consul_es_info():
     """
     刷新es相关的consul信息，供unify-query使用
     """
+    start_time = time.time()
     try:
         logger.info("start to refresh metadata es table info")
         models.ESStorage.refresh_consul_table_config()
     except Exception as e:
         logger.error("refresh es table failed for ->{}".format(e))
+
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_es_info", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_consul_es_info:task finished, cost time: %s" % cost_time)
 
 
 @share_lock(ttl=1800, identify="metadata_refreshInfluxdbRoute")
@@ -184,7 +203,11 @@ def refresh_datasource():
 
 @share_lock(identify="metadata_refreshKafkaStorage")
 def refresh_kafka_storage():
-    # 确认所有kafka存储都有对应的topic
+    """
+    刷新kafka存储的topic信息
+    """
+    logger.info("refresh_kafka_storage: start to refresh kafka storage")
+    start_time = time.time()
     for kafka_storage in models.KafkaStorage.objects.all():
         try:
             kafka_storage.ensure_topic()
@@ -195,6 +218,13 @@ def refresh_kafka_storage():
                     kafka_storage.table_id, traceback.format_exc()
                 )
             )
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_kafka_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_kafka_storage: kafka storage refresh success,cost->[%s]", cost_time)
 
 
 def refresh_kafka_topic_info():
@@ -319,6 +349,7 @@ def refresh_bcs_info():
     """
     刷新bcs_info到consul
     """
+    start_time = time.time()
     try:
         logger.info("start to refresh resources")
         models.PodMonitorInfo.refresh_all_to_consul()
@@ -326,11 +357,20 @@ def refresh_bcs_info():
         logger.error("refresh bcs info into consul failed for ->{}".format(e))
     # 清理到期的回溯索引
     models.EsSnapshotRestore.clean_expired_restore()
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_info", process_target=None).observe(cost_time)
+    metrics.report_all()
+    logger.info("refresh bcs info into consul success,use ->[%s] seconds", cost_time)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")
 def refresh_es_restore():
-    # 刷新回溯状态
+    """
+    刷新es回溯状态
+    """
+    logger.info("refresh_es_restore:start to refresh es restore")
+    start_time = time.time()
     not_done_restores = models.EsSnapshotRestore.objects.exclude(total_doc_count=F("complete_doc_count")).exclude(
         is_deleted=True
     )
@@ -344,6 +384,13 @@ def refresh_es_restore():
                 )
             )
             continue
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_es_restore", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh es restore success,use ->[%s] seconds", cost_time)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshInfluxDBProxyStorage")

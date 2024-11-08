@@ -12,12 +12,14 @@ specific language governing permissions and limitations under the License.
 import collections
 import itertools
 import logging
+import time
 
 from django.conf import settings
 
 from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.service.scheduler.app import app
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata import models
 from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.bcs.resource import (
@@ -36,6 +38,10 @@ CMDB_IP_SEARCH_MAX_SIZE = 100
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
 def refresh_bcs_monitor_info():
+    """
+    刷新BCS集群监控信息
+    """
+    start_time = time.time()
     fed_clusters = {}
     try:
         fed_clusters = api.bcs.get_federation_clusters()
@@ -82,6 +88,14 @@ def refresh_bcs_monitor_info():
         except Exception:  # noqa
             logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
 
+    cost_time = time.time() - start_time
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_monitor_info", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_bcs_monitor_info: task finished, cost time->[%s] seconds", cost_time)
+
 
 @app.task(ignore_result=True, queue="celery_cron")
 def refresh_dataid_resource(cluster_id, data_id):
@@ -91,6 +105,10 @@ def refresh_dataid_resource(cluster_id, data_id):
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMetricsInfo")
 def refresh_bcs_metrics_label():
+    """
+    刷新BCS集群监控指标label
+    """
+    start_time = time.time()
     logger.debug("start refresh bcs metrics label")
     # 获取所有bcs相关dataid
     data_ids, data_id_cluster_map = get_bcs_dataids()
@@ -106,20 +124,20 @@ def refresh_bcs_metrics_label():
     logger.debug("get bcs time_series_group_ids->{}".format(time_series_group_ids))
 
     # 基于group_id拿到对应的指标项
-    metrics = [
+    bcs_metrics = [
         item
         for item in models.TimeSeriesMetric.objects.filter(group_id__in=time_series_group_ids).values(
             "field_name", "field_id", "label"
         )
     ]
-    logger.debug("get bcs metrics->{}".format(metrics))
+    logger.debug("get bcs metrics->{}".format(bcs_metrics))
     # 遍历指标组
     label_result = {}
     label_prefix_map = settings.BCS_METRICS_LABEL_PREFIX.copy()
     default_label = ""
     if "*" in label_prefix_map.keys():
         default_label = label_prefix_map["*"]
-    for metric in metrics:
+    for metric in bcs_metrics:
         # 基于group的dataid，对数据补充集群id字段
         field_name = metric["field_name"]
         source_label = metric["label"]
@@ -141,7 +159,14 @@ def refresh_bcs_metrics_label():
     # 每个label批量更新一下
     for label_name, field_ids in label_result.items():
         models.TimeSeriesMetric.objects.filter(field_id__in=field_ids).update(label=label_name)
-    logger.debug("refresh bcs metrics label done")
+
+    cost_time = time.time() - start_time
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_metrics_label", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.debug("refresh bcs metrics label done,use->[%s] seconds", cost_time)
 
 
 @share_lock(ttl=3600, identify="metadata_discoverBCSClusters")
@@ -150,6 +175,7 @@ def discover_bcs_clusters():
     周期刷新bcs集群列表，将未注册进metadata的集群注册进来
     """
     # BCS 接口仅返回非 DELETED 状态的集群信息
+    start_time = time.time()
     logger.info("start to discover bcs clusters")
     try:
         bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
@@ -277,6 +303,13 @@ def discover_bcs_clusters():
         BCSClusterInfo.objects.exclude(cluster_id__in=cluster_list).update(
             status=BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED
         )
+
+    # 统计耗时，并上报指标
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_monitor_info", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
 
 
 def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):

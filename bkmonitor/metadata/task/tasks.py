@@ -437,9 +437,9 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
     cost_time = time.time() - start_time  # 总耗时
     logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
     # 统计耗时，并上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="_refresh_data_link_status", process_target=None).observe(
-        cost_time
-    )
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="bulk_refresh_data_link_status", process_target=None
+    ).observe(cost_time)
     metrics.report_all()
 
 

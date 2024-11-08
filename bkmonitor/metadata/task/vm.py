@@ -14,6 +14,7 @@ import logging
 import time
 
 from alarm_backends.core.lock.service_lock import share_lock
+from core.prometheus import metrics
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
@@ -88,5 +89,9 @@ def check_access_vm_task():
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 
-    end_time = time.time()  # 记录结束时间
-    logger.info("check_access_vm_task: check successfully，use %.2f seconds", end_time - start_time)
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="check_access_vm_task", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("check_access_vm_task: check successfully，use %.2f seconds", cost_time)
