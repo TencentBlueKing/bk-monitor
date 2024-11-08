@@ -5,24 +5,29 @@
     "name": "自定义指标维度列表",
     "variables": [
         {
-          "title": "维度列表",
-          "type": "dimension_list",
-          "targets": [
-            {
-              "datasource": "instance_list",
-              "dataType": "list",
-              "api": "apm_metric.customMetricDimensionList",
-              "data": {
-                "app_name": "$app_name"
-              },
-              "fields": {
-                "id": "id",
-                "name": "name",
-              }
-            }
-          ]
+            "title": "维度列表",
+            "type": "dimension_list",
+            "targets": [
+                {
+                    "datasource": "dimensions",
+                    "dataType": "list",
+                    "api": "scene_view.getSceneViewDimensions",
+                    "data": {
+                        "scene_id": "apm_service",
+                        "type": "overview",
+                        "id": "service-default-custom_metric",
+                        "apm_app_name": "$app_name",
+                        "apm_service_name": "$service_name"
+                    },
+                    "fields": {
+                        "id": "id",
+                        "name": "name"
+                    }
+                }
+            ]
         }
     ],
+    "service_name": "$service_name",
     "panels": [
 
     ],
@@ -37,7 +42,12 @@
                     "title": "${metric_field}",
                     "subtitle": "${readable_name}",
                     "type": "apm_custom_graph",
-                    "agg_methods": ["AVG", "SUM", "MAX", "MIN"],
+                    "agg_methods": [
+                        "AVG",
+                        "SUM",
+                        "MAX",
+                        "MIN"
+                    ],
                     "targets": [
                         {
                             "data_type": "list",
@@ -60,12 +70,14 @@
                                             }
                                         ],
                                         "interval": "$interval",
-                                        "group_by": ["$group_by"],
+                                        "group_by": [
+                                            "$group_by"
+                                        ],
                                         "where": [
 
                                         ],
                                         "filter_dict": {
-                                            "${filter_key_name}": "$service_name"
+                                            "${filter_key_name}": "${filter_key_value}"
                                         },
                                         "functions": [
                                             {
@@ -90,7 +102,7 @@
                             "enableContextmenu": true
                         },
                         "time_series": {
-                            "hoverAllTooltips": true
+                            "hoverAllTooltips": false
                         }
                     }
                 }
@@ -119,7 +131,7 @@
                     "api": "scene_view.getSceneViewDimensions",
                     "data": {
                         "scene_id": "apm_service",
-                        "type": "detail",
+                        "type": "overview",
                         "id": "service-default-custom_metric",
                         "apm_app_name": "$app_name",
                         "apm_service_name": "$service_name"
