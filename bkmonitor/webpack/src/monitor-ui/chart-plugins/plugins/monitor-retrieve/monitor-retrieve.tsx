@@ -39,7 +39,7 @@ import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/main097a684.css';
+import '@blueking/monitor-retrieve/css/mainb33d54b.css';
 import './monitor-retrieve.scss';
 @Component
 export default class MonitorRetrieve extends tsc<void> {
