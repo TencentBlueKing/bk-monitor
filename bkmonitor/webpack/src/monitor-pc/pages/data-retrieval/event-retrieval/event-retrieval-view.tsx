@@ -291,6 +291,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     await this.backTopRef.handleBackTop();
     // this.handleGetTableData()
     this.chartKey = random(8);
+    this.noData = false;
     this.isFirstSearch &&
       setTimeout(() => {
         this.isFirstSearch = false;
