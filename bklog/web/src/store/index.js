@@ -39,12 +39,13 @@ import {
   setDefaultTableWidth,
   formatDate,
   getStorageIndexItem,
+  // deepClone,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
 
-import { deepClone } from '../common/util';
+import { deepClone } from '../components/monitor-echarts/utils';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
@@ -167,6 +168,7 @@ const stateTpl = {
   apiErrorInfo: {},
   clusterParams: null,
 };
+
 const store = new Vuex.Store({
   // 模块
   modules: {
