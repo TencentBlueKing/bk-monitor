@@ -141,7 +141,8 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
-const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime', 'callOptions'];
+// 'search_mode', 'addition', 'keyword' 当前用作log-retrieve图的参数
+const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime', 'callOptions', 'search_mode', 'addition', 'keyword'];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -1329,7 +1330,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
             : undefined /** 时间对比 */,
-        ...(this.$route.query?.addition ? { addition: this.$route.query.addition } : {}),
       },
     });
   }
