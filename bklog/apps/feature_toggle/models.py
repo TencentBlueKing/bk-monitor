@@ -21,9 +21,9 @@ the project delivered to anyone in the future.
 """
 
 from django.db import models
-
 from django.utils.translation import ugettext_lazy as _
 
+from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.models import SoftDeleteModel
 
 
@@ -43,3 +43,18 @@ class FeatureToggle(SoftDeleteModel):
     class Meta:
         verbose_name = _("日志平台特性开关")
         verbose_name_plural = _("41_日志平台特性开关")
+
+    @classmethod
+    def check_data_desensitize(cls, username: str, bk_biz_id: str) -> bool:
+        """
+        根据用户名和业务ID判断数据是否需要脱敏
+        :param username: 用户名
+        :param bk_biz_id: 业务ID
+        """
+        feature_toggle = cls.objects.filter(name=LOG_DESENSITIZE).first()
+        if not feature_toggle or not isinstance(feature_toggle.feature_config, dict):
+            return True
+        user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+        if username in user_white_list.get(bk_biz_id, []):
+            return False
+        return True
