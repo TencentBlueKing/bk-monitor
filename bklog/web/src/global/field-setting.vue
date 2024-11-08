@@ -153,7 +153,7 @@
               :table-type="'originLog'"
               :is-preview-mode="!isEdit"
               :extract-method="cleanType"
-              :fields="copyBuiltField?.filter(item => item.field_name === 'data')"
+              :fields="originBuiltFields"
             >
             </setting-table>
             <div
@@ -171,7 +171,7 @@
               :extract-method="cleanType"
               :fields="tableField"
               :collector-config-id="collectorConfigId"
-              :built-fields="copyBuiltField?.filter(item => item.field_name !== 'data')"
+              :built-fields="indexBuiltField"
             >
             </setting-table>
             <div
@@ -230,7 +230,6 @@
   const isEdit = ref(false);
   const isEditConfigName = ref(false);
   const isEditRetention = ref(false);
-  const copyBuiltField = ref([]);
   const tableField = ref([]);
   const cleanType = ref('');
   const collectorConfigId = ref('');
@@ -246,6 +245,8 @@
     retention: '',
     etl_params: {
       retain_original_text: false,
+      original_text_tokenize_on_chars: '',
+      original_text_is_case_sensitive: '',
     },
     etl_config: '',
   });
@@ -369,6 +370,8 @@
     await initFormData();
     getStorage();
   };
+  const originBuiltFields = ref([]);
+  const indexBuiltField = ref([]);
 
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
@@ -386,7 +389,8 @@
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
-        copyBuiltField.value = collectData?.fields.filter(item => item.is_built_in);
+        indexBuiltField.value = collectData?.fields.filter(item => item.is_built_in && item.field_name !== 'data');
+        originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
       });
 
     await http
@@ -434,6 +438,9 @@
   const checkFieldsTable = () => {
     return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
   };
+
+  const originfieldTable = ref(null);
+
   const submit = () => {
     validateForm.value.validate().then(res => {
       if (res) {
@@ -444,12 +451,20 @@
         Promise.all(promises).then(
           async () => {
             confirmLoading.value = true;
+
+            const originfieldTableData = originfieldTable.value.getData();
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
               retention: formData.value.retention,
               etl_params: {
                 ...formData.value.etl_params,
+                original_text_is_case_sensitive: originfieldTableData?.length
+                  ? originfieldTableData[0].is_case_sensitive
+                  : '',
+                original_text_tokenize_on_chars: originfieldTableData?.length
+                  ? originfieldTableData[0].tokenize_on_chars
+                  : '',
               },
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData(),

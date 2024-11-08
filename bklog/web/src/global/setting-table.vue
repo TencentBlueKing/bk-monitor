@@ -188,14 +188,9 @@
             >
               <template #default="props">
                 <!-- 预览模式-->
-                <template v-if="(isPreviewMode && !props.row.is_edit) || props.row.is_built_in">
-                  <!-- <template v-if="props.row.is_analyzed">
-                    <div style="margin-left: 5px">
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}；
-                      {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
-                    </div>
-                  </template>
-                  <div v-else>{{ $t('不分词') }}</div> -->
+                <template
+                  v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
+                >
                   <div
                     style="width: 85%; margin-left: 10px"
                     v-if="props.row.is_analyzed"
@@ -314,7 +309,7 @@
               class="empty-text"
               slot="empty"
             >
-              {{ $t('请先选择字段提取模式') }}
+              {{ $t('暂无数据') }}
             </div>
           </template>
         </bk-table>
@@ -476,7 +471,6 @@
         return this.formData.tableList;
       },
       tableAllList() {
-        console.log(this.builtFields, 'this.builtFields');
         return [...this.tableList, ...this.builtFields];
       },
       changeTableList() {
@@ -553,7 +547,7 @@
         console.log(this.collectorConfigId, 'collectorConfigId');
         if (!this.collectorConfigId) return;
         this.$router.push({
-          name: 'collectEdit',
+          name: 'collectField',
           params: {
             collectorId: this.collectorConfigId,
           },
@@ -886,8 +880,21 @@
       getCustomizeDisabled(row, type = 'analyzed-item') {
         const { is_delete: isDelete, field_type: fieldType } = row;
         let atLastAnalyzed = this.currentIsAnalyzed;
-        if (type === 'analyzed') atLastAnalyzed = true;
-        return this.isPreviewMode || isDelete || fieldType !== 'string' || !atLastAnalyzed || this.isSetDisabled;
+        if (type === 'analyzed') {
+          // 原始日志表格分词禁用
+          if (this.tableType === 'originLog') {
+            atLastAnalyzed = false;
+          } else {
+            atLastAnalyzed = true;
+          }
+        }
+        return (
+          (this.isPreviewMode && !row.is_edit) ||
+          isDelete ||
+          fieldType !== 'string' ||
+          !atLastAnalyzed ||
+          this.isSetDisabled
+        );
       },
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);

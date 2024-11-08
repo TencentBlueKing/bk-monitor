@@ -543,6 +543,7 @@
         this.detail.loading = false;
         this.tableList?.splice(0, this.tableList?.length);
         this.tableAllList?.splice(0, this.tableAllList?.length);
+        this.stopStatusPolling();
       },
       calcTabNum() {
         const num = {
@@ -628,8 +629,8 @@
                       host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                     });
                   });
-                  this.tableListAll.splice(0, 0, ...data);
-                  this.tableList.splice(0, 0, ...data);
+                  this.tableListAll = data;
+                  this.tableList = data;
                 }
                 this.syncHostStatus(data);
                 this.tabHandler({ type: this.curTab }, true);
@@ -647,8 +648,8 @@
                   host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                 });
               });
-              this.tableListAll.splice(0, 0, ...data);
-              this.tableList.splice(0, 0, ...data);
+              this.tableListAll = data;
+              this.tableList = data;
               this.calcTabNum();
             }
           })
@@ -740,7 +741,7 @@
         });
       },
       requestDetail(row) {
-        if (!row) return;
+        if (!row || this.isContainer) return;
         this.detail.loading = true;
         this.currentActiveRow = row?.ip || '';
         this.currentRow = row;
