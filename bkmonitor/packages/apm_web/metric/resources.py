@@ -88,7 +88,6 @@ from constants.apm import (
     SpanKind,
     TelemetryDataType,
 )
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
@@ -3163,35 +3162,3 @@ class QueryDimensionsByLimitResource(Resource):
         )
         records = self._format(group_fields, records)
         return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
-
-
-class CustomMetricDimensionListResource(Resource):
-    """获取自定义指标列表"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
-
-    def perform_request(self, validated_data):
-        from bkmonitor.models import MetricListCache
-
-        bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["app_name"]
-        try:
-            application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
-        except Application.DoesNotExist:
-            raise ValueError("Application does not exist")
-        result_table_id = application.fetch_datasource_info(
-            TelemetryDataType.METRIC.datasource_type, attr_name="result_table_id"
-        )
-        dimension_set = set()
-        for metric in MetricListCache.objects.filter(
-            result_table_id=result_table_id,
-            data_source_label=DataSourceLabel.CUSTOM,
-            data_type_label=DataTypeLabel.TIME_SERIES,
-        ):
-            if metric.dimensions and isinstance(metric.dimensions, list):
-                for dimension in metric.dimensions:
-                    if isinstance(dimension, dict) and "id" in dimension:
-                        dimension_set.add(dimension["id"])
-        return [{"id": idx, "name": dimension_name} for idx, dimension_name in enumerate(dimension_set)]

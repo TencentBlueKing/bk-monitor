@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
+import logging
 from typing import Any, Dict, List, Optional, Set
 
 import arrow
@@ -35,6 +36,8 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
@@ -236,24 +239,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             group_panel_template = view_config["overview_panels"][0]
             metric_panel_template = group_panel_template["panels"].pop(0)
 
-            monitor_name_mapping = cls.get_monitor_name(bk_biz_id, result_table_id)
-            for idx, i in enumerate(
-                MetricListCache.objects.filter(
-                    result_table_id=result_table_id,
-                    data_source_label=DataSourceLabel.CUSTOM,
-                    data_type_label=DataTypeLabel.TIME_SERIES,
-                )
-            ):
+            metric_queryset = MetricListCache.objects.filter(
+                result_table_id=result_table_id,
+                data_source_label=DataSourceLabel.CUSTOM,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+            )
+            monitor_name_mapping = cls.get_monitor_name(bk_biz_id, result_table_id, count=metric_queryset.count())
+            for idx, i in enumerate(metric_queryset):
                 # 过滤内置指标
                 if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                     continue
-
-                # 根据dimension获取monitor_name监控项
+                # 根据dimension获取monitor_name监控项, 获取不到的则跳过
                 metric_info = monitor_name_mapping.get(f"{i.metric_field}_value")
                 if not metric_info:
                     continue
-                if service_name and metric_info["active_service_name"] != service_name:
+                # 根据service进行过滤，不满足条件的过滤
+                if service_name and metric_info["actual_service_name"] != service_name:
                     continue
+
+                # 进行panels的变量渲染
                 variables = {
                     "id": f"idx_{idx}",
                     "table_id": i.result_table_id,
@@ -284,7 +288,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_monitor_name(cls, bk_biz_id, result_table_id) -> dict:
+    def get_monitor_name(cls, bk_biz_id, result_table_id, count: int = 1000) -> dict:
         promql = (
             f"count by (scope_name, monitor_name, service_name, target, __name__) "
             f"({{__name__=~\"custom:{result_table_id}:.*\"}})"
@@ -303,16 +307,24 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     "filter_dict": {},
                 }
             ],
-            "slimit": 1000,
+            "slimit": count,
             "expression": "",
             "alias": "a",
             "start_time": start_time,
             "end_time": end_time,
         }
 
-        key_mapping = {
-            "Galileo": {"monitor_name": "monitor_name", "filter_service_name": "target"},
-            "OpenTelemetry": {"monitor_name": "scope_name", "filter_service_name": "service_name"},
+        metric_mapping_config = {
+            "Galileo": {
+                "monitor_name": "monitor_name",
+                "filter_service_name": "target",
+                "filter_service_prefix": "BCS.",
+            },
+            "OpenTelemetry": {
+                "monitor_name": "scope_name",
+                "filter_service_name": "service_name",
+                "filter_service_prefix": "",
+            },
         }
 
         monitor_name_mapping = {}
@@ -321,24 +333,29 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             for metric in series:
                 metric_field = metric.get("dimensions", {}).get("__name__")
                 if metric_field:
+                    # Todo: 后续明确区分方案后，最好调整下
                     metric_type = "Galileo" if "monitor_name" in metric["dimensions"] else "OpenTelemetry"
+                    mapping_config = metric_mapping_config[metric_type]
                     monitor_name_mapping[metric_field] = {
                         "metric_type": metric_type,
-                        "monitor_name": metric["dimensions"].get(key_mapping[metric_type]["monitor_name"]),
-                        "filter_service_name": key_mapping[metric_type]["filter_service_name"],
-                        "filter_service_value": metric["dimensions"].get(
-                            key_mapping[metric_type]["filter_service_name"]
-                        ),
+                        "monitor_name": metric["dimensions"].get(mapping_config["monitor_name"]),
+                        "filter_service_name": mapping_config["filter_service_name"],
+                        "filter_service_value": metric["dimensions"].get(mapping_config["filter_service_name"]),
                     }
-                    monitor_name_mapping[metric_field]["active_service_name"] = (
-                        monitor_name_mapping[metric_field]["filter_service_value"]
-                        if metric_type == "OpenTelemetry"
-                        else str(monitor_name_mapping[metric_field]["filter_service_value"]).replace("BCS.", "")
+                    monitor_name_mapping[metric_field]["actual_service_name"] = cls.remove_prefix(
+                        monitor_name_mapping[metric_field]["filter_service_value"],
+                        mapping_config["filter_service_prefix"],
                     )
-        except Exception:  # pylint: disable=broad-except
-            # Todo： 加日志
-            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
+
         return monitor_name_mapping
+
+    @classmethod
+    def remove_prefix(cls, text, prefix):
+        if text.startswith(prefix):
+            return text[len(prefix) :]
+        return text
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
