@@ -28,7 +28,7 @@ import { ref, defineExpose, computed } from "vue";
 import settingSVG from "@/images/icons/setting-fill.svg";
 import Draggable from "vuedraggable";
 import QueryPanelMetricAdd from "./QueryPanelMetricAdd.vue";
-import useLocale from '@/hooks/use-locale';
+import useLocale from "@/hooks/use-locale";
 const { $t } = useLocale();
 const formData = ref([
   { id: 1, name: "aaa" },

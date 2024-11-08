@@ -27,6 +27,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SqlPanel from './SqlPanel.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
@@ -52,7 +53,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: { GraphDragTool, DashboardDialog, TagInput },
+  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -63,6 +64,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeGraphCategory = GraphCategory.BAR;
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
+  isChartMode = false;
   graphCategoryList = [
     GraphCategory.LINE,
     GraphCategory.BAR,
@@ -354,11 +356,36 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     console.log(this.$refs.addDialog);
     this.$refs.addDialog.handleShow();
   }
-
+  changeModel() {
+    this.isChartMode = !this.isChartMode;
+    // const { query } = panelModel.value;
+    // // query为空，无需切换提示
+    // if (isEqual(query, new QueryPanelClass())) {
+    //   switchSqlMode();
+    //   return;
+    // }
+    // // sql模式，没有配置指标维度，无需切换提示
+    // if (query.raw_query && query.dimensions?.length === 0 && query.metrics?.length === 0 && !query.query_text) {
+    //   switchSqlMode();
+    //   return;
+    // }
+    // Confirm(t('common.提示'), t('dashboards.切换模式后，图表配置将会被清空，是否继续？'), () => {
+    //   switchSqlMode();
+    // });
+  }
   render() {
     return (
       <div class='graph-analysis-index'>
         <div class='graph-analysis-navi'>
+          <div class='option-switch'>
+            <bk-switcher
+              class='ml-medium mr-min'
+              theme='primary'
+              value={this.isChartMode}
+              onChange={this.changeModel}
+            ></bk-switcher>
+            <span>{this.$t('SQL模式')}</span>
+          </div>
           <div class='option-list'>
             <div class={{ active: this.activeItem === OptionList.Analysis }}>
               <span class='bklog-icon bklog-help'></span>
@@ -385,45 +412,50 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             </bk-button>
           </div>
         </div>
+
         <div class='graph-analysis-body'>
-          <div class='body-left'>
-            <div
-              style={this.axiosStyle}
-              class='graph-axios-options'
-            >
-              <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
-              <div class='graph-axios-drag'>
-                <GraphDragTool
-                  class='horizional-drag-tool'
-                  direction='horizional'
-                  onMove-end={this.handleHorizionMoveEnd}
-                ></GraphDragTool>
+          {this.isChartMode ? (
+            <SqlPanel></SqlPanel>
+          ) : (
+            <div class='body-left'>
+              <div
+                style={this.axiosStyle}
+                class='graph-axios-options'
+              >
+                <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
+                <div class='graph-axios-drag'>
+                  <GraphDragTool
+                    class='horizional-drag-tool'
+                    direction='horizional'
+                    onMove-end={this.handleHorizionMoveEnd}
+                  ></GraphDragTool>
+                </div>
+              </div>
+              <div
+                style={this.canvasStyle}
+                class='graph-canvas-options'
+              >
+                <div class='canvas-head'>
+                  {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
+                  <span class='icons'>
+                    <span
+                      class={{ active: this.activeCanvasType === 'bar' }}
+                      onClick={() => this.handleCanvasTypeChange('bar')}
+                    >
+                      <i class='bklog-icon bklog-bar'></i>
+                    </span>
+                    <span
+                      class={{ active: this.activeCanvasType === 'table' }}
+                      onClick={() => this.handleCanvasTypeChange('table')}
+                    >
+                      <i class='bklog-icon bklog-table'></i>
+                    </span>
+                  </span>
+                </div>
+                {this.renderCanvasChartAndTable()}
               </div>
             </div>
-            <div
-              style={this.canvasStyle}
-              class='graph-canvas-options'
-            >
-              <div class='canvas-head'>
-                {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
-                <span class='icons'>
-                  <span
-                    class={{ active: this.activeCanvasType === 'bar' }}
-                    onClick={() => this.handleCanvasTypeChange('bar')}
-                  >
-                    <i class='bklog-icon bklog-bar'></i>
-                  </span>
-                  <span
-                    class={{ active: this.activeCanvasType === 'table' }}
-                    onClick={() => this.handleCanvasTypeChange('table')}
-                  >
-                    <i class='bklog-icon bklog-table'></i>
-                  </span>
-                </span>
-              </div>
-              {this.renderCanvasChartAndTable()}
-            </div>
-          </div>
+          )}
           <div
             style={this.rightOptionStyle}
             class='body-right'
@@ -454,6 +486,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             </div>
           </div>
         </div>
+
         <DashboardDialog ref='addDialog'></DashboardDialog>
       </div>
     );
