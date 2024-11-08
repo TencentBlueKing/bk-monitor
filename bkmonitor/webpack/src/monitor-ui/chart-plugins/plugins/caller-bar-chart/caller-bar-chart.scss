@@ -33,13 +33,10 @@
   }
 }
 .caller-pie-chart-tooltips {
-  .tooltips-header {
-    word-break: break-all;
-    padding-right: 5px;
-    height: 20px;
+  .tooltips-span {
+    color: rgb(99, 101, 110) !important;
+    margin: 0px 0px 2px 6px;
     font-size: 12px;
-    font-weight: normal;
-    color: rgb(99, 101, 110);
-    line-height: 20px;
+    text-align: left;
   }
 }

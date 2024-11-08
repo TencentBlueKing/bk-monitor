@@ -93,13 +93,13 @@ class CallerBarChart extends CommonSimpleChart {
       formatter: p => {
         const data = p[0].data;
         return `<div class="monitor-chart-tooltips">
-          <p class="tooltips-header">
+          <p class="tooltips-span">
           ${data.name}
           </p>
-          <p class="tooltips-header">
+          <p class="tooltips-span">
           ${data.metricCalTypeName}：${data.value}
           </p>
-          <p class="tooltips-header">
+          <p class="tooltips-span">
           ${this.$t('占比')}：${data.proportion}%
           </p>
           </div>`;

@@ -443,7 +443,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   /** 字段操作 */
-  handleFieldOperations(opt: any, row: IDataItem, canClick = true, intersection = '') {
+  handleFieldOperations(opt: any, row: IDataItem, canClick = true, intersection = '', service = '') {
     const type = opt.value;
     if (!canClick) {
       return;
@@ -467,7 +467,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
         )
       );
       return;
@@ -639,7 +639,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                                   content: this.$t('服务未接入'),
                                   disabled: item.isClick,
                                 }}
-                                onClick={() => this.handleFieldOperations(opt, row, item.isClick, intersection[0])}
+                                onClick={() =>
+                                  this.handleFieldOperations(opt, row, item.isClick, intersection[0], item.value)
+                                }
                               >
                                 {item.value}
                               </div>
