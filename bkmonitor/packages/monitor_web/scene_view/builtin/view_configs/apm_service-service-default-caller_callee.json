@@ -1650,7 +1650,7 @@
                       "field": "attributes.net.host.ip"
                     },
                     "callee_server": {
-                      "field": "service.name"
+                      "field": "attributes.trpc.callee_server"
                     },
                     "callee_service": {
                       "field": "attributes.trpc.callee_service"
@@ -1813,7 +1813,7 @@
                   ],
                   "tag_trace_mapping": {
                     "caller_server": {
-                      "field": "service.name"
+                      "field": "attributes.trpc.caller_server"
                     },
                     "caller_service": {
                       "field": "attributes.trpc.caller_service"
@@ -1822,7 +1822,7 @@
                       "field": "attributes.trpc.caller_method"
                     },
                     "caller_ip": {
-                      "field": "attributes.net.host.ip"
+                      "field": "attributes.net.peer.ip"
                     },
                     "callee": {
                       "field": "kind",
@@ -1841,7 +1841,7 @@
                       "field": "attributes.trpc.callee_method"
                     },
                     "callee_ip": {
-                      "field": "attributes.net.peer.ip"
+                      "field": "attributes.net.host.ip"
                     },
                     "namespace": {
                       "field": "attributes.trpc.namespace"
