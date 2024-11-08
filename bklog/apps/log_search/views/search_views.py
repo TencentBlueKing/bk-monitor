@@ -36,7 +36,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -297,8 +297,14 @@ class SearchViewSet(APIViewSet):
                 data["is_desensitize"] = True
         if data.get("is_desensitize"):
             # 对脱敏白名单中的用户开放不脱敏的权限
-            is_desensitize = FeatureToggle.check_data_desensitize(get_request_username(), str(data.get("bk_biz_id")))
-            data["is_desensitize"] = is_desensitize
+            bk_biz_id = data.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    # 用户在脱敏白名单中,开放不脱敏权限
+                    data["is_desensitize"] = False
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
