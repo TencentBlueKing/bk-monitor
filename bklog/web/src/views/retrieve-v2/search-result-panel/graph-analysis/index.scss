@@ -75,7 +75,7 @@
   .graph-analysis-body {
     display: flex;
     width: 100%;
-    height: calc(100vh - 349px);
+    height: calc(100vh - 267px);
 
     .body-left {
       width: calc(100% - 360px);
@@ -110,6 +110,8 @@
             .settings {
               width: calc(100% - 46px);
               height: 32px;
+              padding: 3px 4px;
+              line-height: 32px;
               background: #f5f7fa;
               border-radius: 2px;
 
@@ -149,9 +151,10 @@
       .graph-canvas-options {
         padding: 12px 16px;
         margin: 16px;
+        margin-bottom: 0;
         background: #ffffff;
         border-radius: 2px;
-        box-shadow: 0 2px 4px 0 #1919290d;
+        box-shadow:  0 -2px 4px -1px #1919290d, -2px 0 4px -1px #1919290d, 2px 0 4px -1px #1919290d;
 
         .canvas-head {
           display: flex;
