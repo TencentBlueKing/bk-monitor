@@ -44,6 +44,7 @@ import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
 import ApmCallerPieChart from '../plugins/caller-pie-chart/caller-pie-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
+import CustomCharts from '../plugins/custom-chart/custom-chart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
 import ExceptionGuide from '../plugins/exception-guide/exception-guide';
 import IconChart from '../plugins/icon-chart/icon-chart';
@@ -559,6 +560,21 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'caller-bar-chart':
         return <ApmCallerBarChart panel={this.panel} />;
 
+      case 'apm_custom_graph':
+        return (
+          <CustomCharts
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
+          />
+        );
       // 不需要报错显示
       // case 'graph':
       default:
