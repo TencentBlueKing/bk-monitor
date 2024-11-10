@@ -19,10 +19,7 @@
                         "apm_app_name": "$app_name",
                         "apm_service_name": "$service_name"
                     },
-                    "fields": {
-                        "id": "id",
-                        "name": "name"
-                    }
+                    "fields": {"custom_metric_filters": "custom_metric_filters"}
                 }
             ]
         }
