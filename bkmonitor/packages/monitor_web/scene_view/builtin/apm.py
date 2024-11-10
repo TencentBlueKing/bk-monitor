@@ -353,7 +353,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def remove_prefix(cls, text, prefix):
-        if text.startswith(prefix):
+        if isinstance(text, str) and text.startswith(prefix):
             return text[len(prefix) :]
         return text
 
