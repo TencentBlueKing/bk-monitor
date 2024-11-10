@@ -23,36 +23,107 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
+
+import dayjs from 'dayjs';
+import { handleTimeRange } from 'monitor-pc/utils';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
+import { isShadowEqual } from '../../utils/utils';
 import BaseEchart from '../monitor-base-echart';
+import StatusTab from '../table-chart/status-tab';
 import TimeSeries from '../time-series/time-series';
 
-import './custom-chart.scss';
+import type { IViewOptions } from '../../typings';
 
+import './apm-custom-graph.scss';
+const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN'] as const;
 @Component
 export default class CustomChart extends TimeSeries {
-  methodList = ['SUM', 'AVG', 'MAX', 'MIN'];
-  currentMethod = '';
-  isDropdownShow = false;
+  methodList = APM_CUSTOM_METHODS.map(method => ({
+    id: method,
+    name: method,
+  }));
+  method = this.viewOptions?.method || 'AVG';
 
-  clickItem(method) {
-    this.currentMethod = method;
+  @Watch('viewOptions')
+  // 用于配置后台图表数据的特殊设置
+  handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
+    if (JSON.stringify(v) === JSON.stringify(o)) return;
+    if (isShadowEqual(v, o)) return;
+    this.superGetPanelData();
   }
-  dropdownShow() {
-    this.currentMethod = 'more';
-    this.isDropdownShow = true;
+  @Watch('timeRange')
+  // 数据时间间隔
+  handleTimeRangeChange() {
+    this.superGetPanelData();
   }
-  dropdownHide() {
-    this.isDropdownShow = false;
+  @Watch('refleshInterval')
+  // 数据刷新间隔
+  handleRefleshIntervalChange(v: number) {
+    if (this.refleshIntervalInstance) {
+      window.clearInterval(this.refleshIntervalInstance);
+    }
+    if (v <= 0) return;
+    this.refleshIntervalInstance = window.setInterval(() => {
+      this.inited && this.superGetPanelData();
+    }, this.refleshInterval);
+  }
+  @Watch('refleshImmediate')
+  // 立刻刷新
+  handleRefleshImmediateChange(v: string) {
+    if (v) this.superGetPanelData();
+  }
+  @Watch('timezone')
+  // 时区变更刷新图表
+  handleTimezoneChange(v: string) {
+    if (v) this.superGetPanelData();
+  }
+  @Watch('timeOffset')
+  handleTimeOffsetChange(v: string[], o: string[]) {
+    if (JSON.stringify(v) === JSON.stringify(o)) return;
+    this.superGetPanelData();
+  }
+
+  @Watch('customTimeRange')
+  customTimeRangeChange(val: [string, string]) {
+    if (!val) {
+      const { startTime, endTime } = handleTimeRange(this.timeRange);
+      this.superGetPanelData(
+        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+      );
+    } else {
+      this.superGetPanelData(val[0], val[1]);
+    }
+  }
+  /* 粒度 */
+  @Watch('downSampleRange')
+  handleDownSampleRangeChange() {
+    this.superGetPanelData();
+  }
+  @Watch('panel')
+  panelChange(val, old) {
+    if (isShadowEqual(val, old)) return;
+    this.superGetPanelData();
+  }
+  async superGetPanelData(start_time?: string, end_time?: string) {
+    this.getPanelData(start_time, end_time, {
+      method: this.method,
+    });
+  }
+  handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
+    this.method = method;
+    this.getPanelData(undefined, undefined, {
+      method,
+    });
   }
   render() {
-    const { legend } = this.panel?.options || { legend: {} };
+    const { legend } = this.panel?.options || ({ legend: {} } as any);
     return (
-      <div class='apdex-chart'>
+      <div class='time-series apm-custom-graph'>
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
@@ -76,59 +147,15 @@ export default class CustomChart extends TimeSeries {
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
             <div
-              class='bk-button-group'
-              slot='custom'
-              onClick={e => {
-                e.stopPropagation();
-              }}
+              class='custom-method-list'
+              onClick={e => e.stopPropagation()}
             >
-              {this.methodList.map(item => (
-                <bk-button
-                  key={item}
-                  class={[{ 'is-selected': item === this.currentMethod }]}
-                  size='small'
-                  onClick={() => {
-                    this.clickItem(item);
-                  }}
-                >
-                  {item}
-                </bk-button>
-              ))}
-              {this.methodList.length >= 5 ? (
-                <div class='btn-more'>
-                  <bk-dropdown-menu
-                    ref='dropdown'
-                    trigger='click'
-                    onHide={this.dropdownHide}
-                    onShow={this.dropdownShow}
-                  >
-                    <div slot='dropdown-trigger'>
-                      <bk-button
-                        class={[{ 'is-selected': this.currentMethod === 'more' }]}
-                        size='small'
-                      >
-                        {this.$t('更多')}
-                        <i class={['bk-icon icon-angle-down', { 'icon-flip': this.isDropdownShow }]} />
-                      </bk-button>
-                    </div>
-                    <ul
-                      class='bk-dropdown-list'
-                      slot='dropdown-content'
-                    >
-                      {this.methodList.slice(4).map(item => (
-                        <li key={item}>
-                          <a
-                            href='javascript:;'
-                            // onClick={}
-                          >
-                            {item}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </bk-dropdown-menu>
-                </div>
-              ) : null}
+              <StatusTab
+                needAll={false}
+                statusList={this.methodList}
+                value={this.method}
+                onChange={this.handleMethodChange}
+              />
             </div>
           </ChartHeader>
         )}
