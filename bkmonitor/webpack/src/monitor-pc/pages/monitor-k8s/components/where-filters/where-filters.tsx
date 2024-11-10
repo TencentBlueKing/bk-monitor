@@ -99,6 +99,8 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
       id: this.dashboardId,
       scene_id: this.$route.query?.sceneId,
       type: this.$route.query?.sceneType,
+      app_name: this.viewOptions.filters?.app_name,
+      service_name: this.viewOptions.filters?.service_name,
     }).catch(() => []);
   }
   @Emit('change')
