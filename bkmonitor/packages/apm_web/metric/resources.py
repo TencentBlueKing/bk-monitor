@@ -1160,7 +1160,6 @@ class InstanceListResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, validated_data):
-
         instances = RelationMetricHandler.list_instances(
             validated_data["bk_biz_id"],
             validated_data["app_name"],
@@ -2908,7 +2907,6 @@ class GetFieldOptionValuesResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-
         metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
@@ -2925,7 +2923,6 @@ class GetFieldOptionValuesResource(Resource):
 
 class CalculateByRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
-
         ZERO_TIME_SHIFT: str = "0s"
 
         class OptionsSerializer(serializers.Serializer):
