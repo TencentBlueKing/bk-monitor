@@ -181,8 +181,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   /** 场景类型 */
   localSceneType: SceneType = 'overview';
-  // 视图面板id
-  dashboardId = '';
+
   // 视图tab 列表
   tabList: ITabItem[] = [];
   // 是否展示loading
@@ -524,6 +523,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @ProvideReactive('showRestore') showRestore = false;
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  // dashboardId
+  @ProvideReactive('dashboardId') dashboardId = '';
+
   // 侧栏搜索
   @Provide('handleUpdateQueryData')
   handleUpdateQueryData(queryData: IQueryData) {
@@ -863,9 +865,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     // 判断左侧栏是否需要缓存
     this.selectorPanelKey = newSelectPanel && oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
-    this.sceneData.variables.forEach(item => {
+    for (const item of this.sceneData.variables) {
       variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
-    });
+    }
     /* 少量图表的索引默认收起来 */
     if (this.sceneData?.panelCount <= 6) {
       const indexStorage = new Storage();
@@ -902,13 +904,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const rowPanels = panels.filter(item => item.type === 'row');
     if (rowPanels.length === 1 && rowPanels[0]?.id === unGroupKey) {
       const resultPanels = [];
-      panels.forEach(item => {
+      for (const item of panels) {
         if (item.type === 'row') {
           resultPanels.push(...item.panels);
         } else {
           resultPanels.push(item);
         }
-      });
+      }
       return resultPanels;
     }
     /* 当有多个分组且未分组为空的情况则不显示未分组 */
@@ -1029,7 +1031,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     } else {
       const { panels } = this.sceneData;
       const list = [];
-      panels.forEach(panel => {
+      for (const panel of panels) {
         if (v.some(id => panel.id.toString() === id.toString())) {
           list.push({ ...panel });
         } else if (panel.panels?.length) {
@@ -1040,7 +1042,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               panels,
             });
         }
-      });
+      }
       this.localPanels = list;
     }
     this.searchValue = v;
@@ -1061,7 +1063,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       return pre;
     }, {});
     const searchList: ISearchItem[] = Object.values(mergeSearch);
-    currentPanels.forEach(panel => {
+    for (const panel of currentPanels) {
       const listPanel = list.find(item => item.id === panel.id);
       searchList.some(item => {
         if (!item.values?.length) {
@@ -1108,7 +1110,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         }
         return false;
       });
-    });
+    }
     const rowPanel: IPanelModel = list.find(item => item.type === 'row');
     if (rowPanel) rowPanel.collapsed = true;
     this.localPanels = list;
@@ -1520,12 +1522,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.isSceneDataError = true;
         return [];
       });
-      this.tabList.forEach(tab => {
+      for (const tab of this.tabList) {
         if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
           tab.panel_count = count;
         }
-      });
+      }
     }
   }
 

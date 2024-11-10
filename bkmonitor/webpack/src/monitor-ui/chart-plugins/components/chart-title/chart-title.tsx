@@ -366,7 +366,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             >
               {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
             </div>
-            <div class='custom-method'>{this.$slots.custom}</div>
             {this.inited && [
               (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
               this.collectIntervalDisplay ? (

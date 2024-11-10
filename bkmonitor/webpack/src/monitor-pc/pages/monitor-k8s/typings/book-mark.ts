@@ -270,6 +270,7 @@ export class BookMarkModel implements IBookMark {
   }
   // 搜索列表
   get searchData() {
+    // const panels = sceneType === 'overview' ? this.overview_panels : this.panels;
     if (!this.panels?.length) return [];
     // 自定义模式下特殊处理
     if (!this.hasGroup) {
@@ -404,15 +405,19 @@ export class BookMarkModel implements IBookMark {
           return false;
         });
         if (rowPanelList.length) {
-          rowPanelList.forEach(item => (item.collapsed = true));
+          for (const item of rowPanelList) {
+            item.collapsed = true;
+          }
         }
       } else {
         // 自定义模式下重新设置唯一id
-        panels.forEach(item => {
+        for (const item of panels) {
           item.id = random(10);
           if (item.type === 'row' && item.panels?.length) {
             panelCount += item.panels.length;
-            item.panels.forEach(set => (set.id = random(10)));
+            for (const set of item.panels) {
+              set.id = random(10);
+            }
             if (!this.isShowPreciseFilter) {
               this.isShowPreciseFilter = item.panels.some(set => typeof set.dimensions !== 'undefined');
             }
@@ -422,7 +427,7 @@ export class BookMarkModel implements IBookMark {
               this.isShowPreciseFilter = typeof item.dimensions !== 'undefined';
             }
           }
-        });
+        }
       }
     }
     if (sceneType === 'overview') {

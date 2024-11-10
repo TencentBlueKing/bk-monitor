@@ -346,7 +346,7 @@ export class LineChart
    * @param {*}
    * @return {*}
    */
-  async getPanelData(start_time?: string, end_time?: string) {
+  async getPanelData(start_time?: string, end_time?: string, scopeVars?: Record<string, any>) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
@@ -359,7 +359,7 @@ export class LineChart
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
-      this.showRestore = start_time;
+      this.showRestore = !!start_time;
     }
     try {
       this.unregisterOberver();
@@ -394,6 +394,7 @@ export class LineChart
       const variablesService = new VariablesService({
         ...this.viewOptions,
         interval,
+        ...scopeVars,
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
@@ -408,6 +409,7 @@ export class LineChart
                 ...this.viewOptions.variables,
                 time_shift,
                 interval,
+                ...scopeVars,
               },
               noTransformVariables
             ),

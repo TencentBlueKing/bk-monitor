@@ -27,7 +27,7 @@ import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
 import { filterDictConvertedToWhere } from '../utils/utils';
 
-import type { IExtendMetricData, MonitorEchartOptions } from './index';
+import type { MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
@@ -217,6 +217,7 @@ export class DataQuery implements IDataQuery {
   datasource?: null | string;
   // 数据类型 table time_series ...
   dataType?: string;
+  expression?: string;
   field?: Record<string, string> = {};
   // 变量的映射关系
   fields?: Record<string, string> = {};
@@ -288,10 +289,13 @@ export class DataQuery implements IDataQuery {
   /** 对象生成有序的二维数组 */
   handleCreateFieldsSort(fields: Record<string, string>): FieldsSortType {
     const fieldsSort: FieldsSortType = [];
-    Object.entries(fields)
-      ?.map(item => item[0])
-      ?.sort()
-      ?.forEach(key => fieldsSort.push([key, fields[key]]));
+    const list =
+      Object.entries(fields)
+        ?.map(item => item[0])
+        ?.sort() || [];
+    for (const key of list) {
+      fieldsSort.push([key, fields[key]]);
+    }
     return fieldsSort;
   }
   /** 根据接口数据提取对应的filter_dict值 */
@@ -320,7 +324,7 @@ export class DataQuery implements IDataQuery {
     const localFieldsSort = fieldsSort || this.fieldsSort;
     let isExist = true;
     const itemIds = [];
-    localFieldsSort.forEach(set => {
+    for (const set of localFieldsSort) {
       const [itemKey, filterDictKey] = set;
       const key = isFilterDict ? filterDictKey : itemKey;
       let value = item[key];
@@ -334,7 +338,7 @@ export class DataQuery implements IDataQuery {
             ? value.value
             : value; // 兼容对象结构的value
       itemIds.push(value);
-    });
+    }
     return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
   }
 }
@@ -576,7 +580,9 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart'].includes(this.type);
+    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart', 'apm-custom-graph'].includes(
+      this.type
+    );
   }
   setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
     this.rawTargetQueryMap.set(target, data);
@@ -622,7 +628,7 @@ export class PanelModel implements IPanelModel {
     if (!targets.length) return undefined;
     return targets;
   }
-  public toStrategy(metric: IExtendMetricData, isAll = false) {
+  public toStrategy() {
     const queries = this.targets
       .map(set => {
         if (this.rawTargetQueryMap.has(set)) {
@@ -723,7 +729,7 @@ export class VariableModel implements IVariableModel {
   type = '';
   value: Record<string, any> = {};
   constructor(model) {
-    Object.keys(model || {}).forEach(key => {
+    for (const key of Object.keys(model || {})) {
       if (key === 'targets') {
         this.targets = model[key].map(item => new VariableDataQuery(item, model.options?.variables?.multiple ?? true));
         const target = this.targets[0];
@@ -737,7 +743,7 @@ export class VariableModel implements IVariableModel {
       } else {
         this[key] = model[key];
       }
-    });
+    }
   }
   /** 变量是否支持多选 */
   get isMultiple() {
