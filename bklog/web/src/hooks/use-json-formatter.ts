@@ -294,8 +294,10 @@ export default class UseJsonFormatter {
   setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
     const root = this.getTargetRoot();
-    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-    this.setNodeValueWordSplit(root, fieldName);
+    if (root) {
+      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(root, fieldName);
+    }
   }
 
   setValue(depth) {

@@ -1,6 +1,9 @@
 {
   "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
   "exclude": ["node_modules", "dist", "local.settings.js"],
+  "vueCompilerOptions": {
+    "target": 2.7
+  },
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -16,6 +19,6 @@
     "pretty": true,
     "jsx": "preserve",
     "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"],
-    "removeComments": false
+    "removeComments": false,
   }
 }

@@ -64,10 +64,31 @@
 
   let resizeObserver = null;
 
+  const debounceSetSegmentTag = debounce(() => {
+    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
+      return;
+    }
+
+    instance.config.jsonValue = props.content;
+    instance.destroy?.();
+
+    const appendText =
+      showMore.value && !isLimitExpandView.value
+        ? {
+            text: btnText.value,
+            onClick: handleClickMore,
+            attributes: {
+              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+            },
+          }
+        : undefined;
+    instance.initStringAsValue(props.content, appendText);
+  });
+
   watch(
-    () => [props.content],
+    () => [renderText.value],
     () => {
-      textTruncateOption.value.text = props.content;
+      debounceSetSegmentTag();
     },
     {
       immediate: true,
@@ -82,49 +103,19 @@
     showAll.value = !showAll.value;
   };
 
-  const debounceSetSegmentTag = debounce(() => {
-    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
-      return;
-    }
-
-    instance.config.jsonValue = renderText.value;
-    instance.destroy?.();
-
-    const appendText =
-      showMore.value && !isLimitExpandView.value
-        ? {
-            text: btnText.value,
-            onClick: handleClickMore,
-            attributes: {
-              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-            },
-          }
-        : undefined;
-    instance.initStringAsValue(renderText.value, appendText);
-  });
-
-  watch(
-    () => [renderText.value],
-    () => {
-      nextTick(() => {
-        debounceSetSegmentTag();
-      });
-    },
-  );
-
   const getCellElement = () => {
-    return refContent.value?.parentElement?.closest?.('.bklog-lazy-render-cell');
+    return refContent.value?.parentElement;
   };
 
   const debounceUpdateSegmentTag = debounce(() => {
     const cellElement = getCellElement();
+
     if (cellElement) {
       const offsetWidth = cellElement.offsetWidth;
       const elementMaxWidth = cellElement.offsetWidth * 3;
       maxWidth.value = elementMaxWidth;
-      nextTick(() => debounceSetSegmentTag());
     }
-  });
+  }, 120);
 
   const createResizeObserve = () => {
     const cellElement = getCellElement();
@@ -139,34 +130,34 @@
         debounceUpdateSegmentTag();
       }
     });
+
+    resizeObserver?.observe(getCellElement());
   };
 
   let setObserveTimer = null;
-
   useIntersectionObserver(refContent, entry => {
     isIntersecting.value = entry.isIntersecting;
     if (entry.isIntersecting) {
-      // 开始监听元素
-      resizeObserver?.observe(getCellElement());
       // 进入可视区域重新计算宽度
-      debounceUpdateSegmentTag();
+      debounceSetSegmentTag();
     } else {
       if (refFieldValue.value) {
-        refFieldValue.value.innerText = renderText.value;
+        debounceSetSegmentTag.cancel();
+        refFieldValue.value.innerText = props.content;
       }
-
-      resizeObserver?.unobserve?.(getCellElement());
     }
   });
 
   onMounted(() => {
     createResizeObserve();
-    debounceUpdateSegmentTag();
   });
 
   onBeforeUnmount(() => {
-    instance?.destroy?.();
-    resizeObserver.disconnect();
+    const target = getCellElement();
+    if (target) {
+      resizeObserver?.unobserve(target);
+    }
+    resizeObserver?.disconnect();
     resizeObserver = null;
   });
 </script>
@@ -203,6 +194,17 @@
     overflow: hidden;
     font-size: 12px;
     white-space: pre-line;
+    text-align: left;
+    position: relative;
+    word-break: break-all;
+    font:
+      12px Menlo,
+      Monaco,
+      Consolas,
+      Courier,
+      'PingFang SC',
+      'Microsoft Yahei',
+      monospace;
 
     &.is-expand-all {
       max-height: max-content;
@@ -233,8 +235,8 @@
 
         .btn-more-action {
           position: absolute;
-          right: 16px;
-          bottom: 10px;
+          right: 0;
+          bottom: 2px;
           padding-left: 18px;
           color: #3a84ff;
           cursor: pointer;
@@ -255,16 +257,6 @@
 
     &.is-inline {
       display: flex;
-    }
-  }
-
-  .bk-table-row {
-    &.hover-row {
-      .bklog-text-segment {
-        .btn-more-action {
-          background-color: #f5f7fa;
-        }
-      }
     }
   }
 </style>

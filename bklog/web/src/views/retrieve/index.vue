@@ -1800,6 +1800,7 @@
       },
       // 首次加载设置表格默认宽度自适应
       setDefaultTableColumn() {
+        console.log('xxxxxxxx------------')
         const catchFieldsWidthObj = this.$store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
         const tableList = this.tableData?.list ?? [];
         this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);

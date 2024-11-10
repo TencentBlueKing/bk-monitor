@@ -27,6 +27,7 @@
 import './public-path';
 
 import Vue from 'vue';
+import { debounce } from 'lodash';
 // import VueJsonPretty from 'vue-json-pretty';
 
 import LogButton from '@/components/log-button';
@@ -51,6 +52,7 @@ import store from './store';
 
 import './static/style.css';
 // import 'vue-json-pretty/lib/styles.css';
+
 
 const provider = new WebTracerProvider();
 provider.register({
@@ -137,3 +139,11 @@ if (process.env.NODE_ENV === 'development') {
   });
   Vue.config.devtools = true;
 }
+
+// const _ResizeObserver = window.ResizeObserver;
+// window.ResizeObserver = class ResizeObserver extends _ResizeObserver{
+//    constructor(callback) {
+//      callback = debounce(callback, 200);
+//      super(callback);
+//    }
+// }

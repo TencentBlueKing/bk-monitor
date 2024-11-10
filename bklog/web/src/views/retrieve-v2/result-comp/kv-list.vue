@@ -335,10 +335,11 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
-
   /* stylelint-disable no-descending-specificity */
   .kv-list-wrapper {
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+
     .log-item {
       display: flex;
       align-items: baseline;

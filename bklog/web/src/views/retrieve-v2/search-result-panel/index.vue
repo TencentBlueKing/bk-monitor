@@ -7,6 +7,7 @@
   import NoIndexSet from '../result-comp/no-index-set';
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
+  import LogResult from './log-result/index';
 
   const DEFAULT_FIELDS_WIDTH = 220;
 
@@ -42,7 +43,7 @@
 
   const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
-    heightNum.value = height;
+    heightNum.value = height + 4;
   };
   const handleFieldsShowChange = status => {
     if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
@@ -82,6 +83,7 @@
       <div
         :class="[
           'search-result-content',
+          'scroll-y',
           {
             'is-trend-chart-show': isTrendChartShow,
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
@@ -100,14 +102,13 @@
           v-show="isOriginShow"
         ></div>
 
+        <LogResult
+          v-if="isOriginShow"
+          :queue-status="queueStatus"
+          :retrieve-params="retrieveParams"
+          :total-count="totalCount"
+        />
         <keep-alive>
-          <OriginalLog
-            v-if="isOriginShow"
-            :height="heightNum"
-            :queue-status="queueStatus"
-            :retrieve-params="retrieveParams"
-            :total-count="totalCount"
-          />
           <LogClustering
             v-if="activeTab === 'clustering'"
             :height="heightNum"

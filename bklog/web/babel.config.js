@@ -39,7 +39,7 @@ module.exports = function (api) {
         debug: false,
       },
     ],
-    '@vue/babel-preset-jsx',
+    ['@vue/babel-preset-jsx', { compositionAPI: true }],
   ];
   const plugins = [
     '@babel/plugin-transform-runtime',

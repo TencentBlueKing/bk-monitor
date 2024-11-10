@@ -118,6 +118,10 @@
               overflow: auto;
             }
 
+            &.scroll-y {
+              overflow-y: auto;
+            }
+
             &.is-trend-chart-show {
               .result-table-container {
                 height: 100%;

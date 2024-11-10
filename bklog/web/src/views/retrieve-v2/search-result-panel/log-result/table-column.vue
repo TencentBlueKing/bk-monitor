@@ -26,30 +26,24 @@
 
 <template>
   <div
-    class="bklog-column-container"
-    @click.stop
+    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
+    class="bklog-column-wrapper"
+    @click.stop="handleClickContent"
   >
-    <!-- eslint-disable vue/no-v-html -->
-    <span
-      v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-      :class="['field-container', 'add-to', { active: hasClickEvent }]"
-      @click.stop="handleClickContent"
-    >
-      <template v-if="isJsonFormat">
-        <JsonFormatter
-          :jsonValue="content"
-          :fields="field"
-          @menu-click="handleJsonSegmentClick"
-        ></JsonFormatter>
-      </template>
-      <template v-else>
-        <text-segmentation
-          :content="content"
-          :field="field"
-          @menu-click="handleJsonSegmentClick"
-        />
-      </template>
-    </span>
+    <template v-if="isJsonFormat">
+      <JsonFormatter
+        :jsonValue="content"
+        :fields="field"
+        @menu-click="handleJsonSegmentClick"
+      ></JsonFormatter>
+    </template>
+    <template v-else>
+      <text-segmentation
+        :content="content"
+        :field="field"
+        @menu-click="handleJsonSegmentClick"
+      />
+    </template>
   </div>
 </template>
 
@@ -91,12 +85,6 @@
         return this.formatJson && /^\[|\{/.test(this.content);
       },
     },
-    mounted() {
-      setTimeout(this.registerObserver, 20);
-    },
-    beforeUnmount() {
-      this.unregisterOberver();
-    },
     methods: {
       handleClickContent() {
         if (this.hasClickEvent) this.$emit('content-click');
@@ -109,33 +97,15 @@
         const operator = operation === 'not' ? 'is not' : operation;
         this.$emit('icon-click', operator, value, isLink, depth); // type, content, field, row, isLink
       },
-      unregisterOberver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
-        }
-      },
-      // 注册Intersection监听
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterOberver();
-        }
-        this.intersectionObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (this.intersectionObserver) {
-              if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
-            }
-          });
-        });
-        this.intersectionObserver?.observe(this.$el);
-      },
     },
   };
 </script>
 
 <style lang="scss" scoped>
-  .bklog-column-container {
-    padding: 8px 0;
+  .bklog-column-wrapper {
+    padding: 0;
+    display: flex;
+    align-items: flex-start;
+    height: 100%;
   }
 </style>
