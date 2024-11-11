@@ -71,7 +71,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     TimeEnum,
     TimeFieldTypeEnum,
-    TimeFieldUnitEnum,
+    TimeFieldUnitEnum, MAX_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -1051,7 +1051,8 @@ class SearchHandler(object):
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        while search_after_size == max_result_window and result_size < self.size:
+        while search_after_size == max_result_window and result_size < (self.index_set_obj.max_async_count
+                                                                        or MAX_ASYNC_COUNT):
             search_after = []
             for sorted_field in sorted_fields:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))

@@ -35,7 +35,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     ExportStatus,
     ExportType,
-    IndexSetType,
+    IndexSetType, MAX_RESULT_WINDOW,
 )
 from apps.log_search.exceptions import (
     MissAsyncExportException,
@@ -94,7 +94,9 @@ class AsyncExportHandlers(object):
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
 
-        self.search_handler.size = result["hits"]["total"]
+        if result["hits"]["total"] < MAX_RESULT_WINDOW:
+            self.search_handler.size = result["hits"]["total"]
+
         # 判断是否超过支持异步的最大次数
         if result["hits"]["total"] > MAX_ASYNC_COUNT:
             self.search_handler.size = MAX_ASYNC_COUNT
