@@ -479,7 +479,7 @@
                       },
                       {
                         "key": "${code_field}",
-                        "method": "eq",
+                        "method": "${code_method}",
                         "value": "${code_values}",
                         "condition": "and"
                       }
@@ -569,7 +569,7 @@
                         },
                         {
                           "key": "${code_field}",
-                          "method": "eq",
+                          "method": "${code_method}",
                           "value": "${code_values}",
                           "condition": "and"
                         }
@@ -631,6 +631,7 @@
                 "title": "超时率",
                 "variables": {
                   "code_field": "code_type",
+                  "code_method": "eq",
                   "code_values": [
                     "timeout"
                   ]
@@ -641,6 +642,7 @@
                 "title": "异常率",
                 "variables": {
                   "code_field": "code_type",
+                  "method": "eq",
                   "code_values": [
                     "exception"
                   ]

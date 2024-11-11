@@ -195,7 +195,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     ][0]["data"]
                     code_condition: Dict[str, Any] = {
                         "key": "code",
-                        "method": "neq",
+                        "method": "eq",
                         "value": ["0", "ret_0"],
                         "condition": "and",
                     }
@@ -204,7 +204,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                     view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
                         1
-                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"]}
+                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"], "code_method": "neq"}
             except CodeRedefinedConfigRelation.DoesNotExist:
                 pass
 
