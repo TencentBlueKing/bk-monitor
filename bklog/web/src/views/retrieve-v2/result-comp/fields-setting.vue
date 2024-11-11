@@ -331,7 +331,7 @@
       },
       currentClickConfigData() {
         // 当前选中的配置
-        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels[0];
+        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
       },
       fieldWidth() {
         return this.$store.state.isEnLanguage ? '60' : '114';
@@ -347,7 +347,7 @@
       },
     },
     created() {
-      this.currentClickConfigID = this.filedSettingConfigID;
+      this.currentClickConfigID = this.configTabPanels.length ? this.filedSettingConfigID : 0;
       this.initRequestConfigListShow();
     },
     methods: {
@@ -634,7 +634,7 @@
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
         this.shadowVisible = this.currentClickConfigData.display_fields
-          .map(displayName => {
+          ?.map(displayName => {
             for (const field of this.shadowTotal) {
               if (field.field_name === displayName) {
                 field.is_display = true;
@@ -642,7 +642,7 @@
               }
             }
           })
-          .filter(Boolean);
+          ?.filter(Boolean) || [];
       },
       /** 获取配置列表 */
       async getFiledConfigList() {
