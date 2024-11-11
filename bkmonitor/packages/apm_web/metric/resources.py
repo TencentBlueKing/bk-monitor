@@ -2836,6 +2836,8 @@ class HostInstanceDetailListResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)

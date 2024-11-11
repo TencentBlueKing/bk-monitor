@@ -82,6 +82,8 @@ class GetSceneViewListResource(ApiAuthResource):
         apm_category = serializers.CharField(label="服务分类(APM场景变量)", required=False, allow_null=True)
         apm_kind = serializers.CharField(label="服务类型(APM场景变量)", required=False, allow_null=True)
         apm_predicate_value = serializers.CharField(label="服务类型具体值(APM场景变量)", required=False, allow_null=True)
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
         def validate(self, params):
             return validate_scene_type(params)
@@ -221,6 +223,9 @@ class GetSceneViewResource(ApiAuthResource):
         bk_cloud_id = serializers.CharField(label="主机云区域ID", required=False, allow_null=True)
         bk_host_id = serializers.CharField(label="主机ID", required=False, allow_null=True)
         # ---
+
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
         def validate(self, params):
             return validate_scene_type(params)
