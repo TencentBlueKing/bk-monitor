@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
   import useMutationObserver from '@/hooks/use-mutation-observer';
   import lazyTaskManager from './utils/lazy-task-manager';
@@ -37,6 +37,11 @@
       default: null,
     },
     index: {
+      type: Number,
+      default: 0,
+    },
+    // 用于监听触发强制计算高度
+    forceCounter: {
       type: Number,
       default: 0,
     },
@@ -89,6 +94,13 @@
   onBeforeUnmount(() => {
     lazyTaskManager.removeTask(props.index);
   });
+
+  watch(
+    () => [props.forceCounter],
+    () => {
+      updateCell();
+    },
+  );
 </script>
 
 <style>

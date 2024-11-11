@@ -1,25 +1,45 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { computed, defineComponent, ref, watch, h } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
 
-import {
-  parseTableRowData,
-  formatDateNanos,
-  formatDate,
-  copyMessage,
-  TABLE_LOG_FIELDS_SORT_REGULAR,
-  setDefaultTableWidth,
-} from '@/common/util';
+import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
-import TableColumn from './table-column.vue';
-import LogCell from './log-cell';
-import OperatorTools from '../original-log/operator-tools.vue';
-import useScrollLoading from './use-scroll-loading';
 import LazyRender from '@/global/lazy-render.vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
 import ExpandView from '../original-log/expand-view.vue';
-import useHeaderRender from './use-render-header';
-import './log-rows.scss';
+import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
+import LogCell from './log-cell';
+import TableColumn from './table-column.vue';
+import useHeaderRender from './use-render-header';
+import useScrollLoading from './use-scroll-loading';
+
+import './log-rows.scss';
 
 export default defineComponent({
   props: {
@@ -42,7 +62,7 @@ export default defineComponent({
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const formatJson = computed(() => store.state.tableJsonFormat);
     const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
-
+    const isLimitExpandView = computed(() => store.state.isLimitExpandView);
     const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const listRequestCounter = computed(() => indexSetQueryResult.value.request_counter);
@@ -53,6 +73,7 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataMap = new WeakMap();
+    const forceCounter = ref(0);
 
     const renderColumns = computed(() => {
       return [
@@ -65,7 +86,7 @@ export default defineComponent({
           width: 50,
           align: 'center',
           resize: false,
-          renderBodyCell: ({ row, rowIndex }, h) => {
+          renderBodyCell: ({ row }) => {
             const config = row.__component_row_config;
 
             const hanldeExpandClick = () => {
@@ -92,7 +113,7 @@ export default defineComponent({
           align: 'center',
           resize: false,
           class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
-          renderBodyCell: ({ row, column, rowIndex }, h) => {
+          renderBodyCell: ({ row }) => {
             return row.__component_row_index + 1;
           },
         },
@@ -104,9 +125,9 @@ export default defineComponent({
           width: 80,
           fixed: 'right',
           resize: false,
-          renderBodyCell: ({ row, column, rowIndex }, h) => {
+          renderBodyCell: ({ row }) => {
             return (
-              //@ts-ignore
+              // @ts-ignore
               <OperatorTools
                 handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
                 index={row.__component_row_index}
@@ -202,9 +223,9 @@ export default defineComponent({
               width: field.width,
               align: 'top',
               resize: true,
-              renderBodyCell: ({ row, column, rowIndex }, h) => {
+              renderBodyCell: ({ row }) => {
                 return (
-                  //@ts-ignore
+                  // @ts-ignore
                   <TableColumn
                     content={getTableColumnContent(row, field)}
                     field={field}
@@ -215,7 +236,7 @@ export default defineComponent({
                   ></TableColumn>
                 );
               },
-              renderHeaderCell: ({ column }, h) => {
+              renderHeaderCell: () => {
                 const sortable = field.es_doc_values && field.tag !== 'union-source';
                 return renderHead(field, order => {
                   if (sortable) {
@@ -240,7 +261,7 @@ export default defineComponent({
           align: 'top',
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
-          renderBodyCell: ({ row, column, rowIndex }, h) => {
+          renderBodyCell: ({ row }) => {
             return <span class='time-field'>{getOriginTimeShow(row[timeField.value])}</span>;
           },
         },
@@ -252,13 +273,13 @@ export default defineComponent({
           minWidth: '100%',
           width: 'auto',
           resize: false,
-          renderBodyCell: ({ row, column, rowIndex }, h) => {
+          renderBodyCell: ({ row }) => {
             return (
               <JsonFormatter
-                jsonValue={row}
+                class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 formatJson={formatJson.value}
-                class='bklog-column-wrapper'
+                jsonValue={row}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               ></JsonFormatter>
             );
@@ -285,11 +306,11 @@ export default defineComponent({
     };
 
     const expandOption = {
-      render: ({ row, column, rowIndex }, h) => {
+      render: ({ row }) => {
         return (
           <ExpandView
-            kv-show-fields-list={kvShowFieldsList.value}
             data={row}
+            kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
             onValue-click={(type, content, isLink, field, depth) =>
               handleIconClick(type, content, field, row, isLink, depth)
@@ -310,6 +331,13 @@ export default defineComponent({
       () => [listRequestCounter.value],
       () => {
         tableData.value = loadTableData();
+      },
+    );
+
+    watch(
+      () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
+      () => {
+        forceCounter.value++;
       },
     );
 
@@ -335,8 +363,8 @@ export default defineComponent({
                 <LogCell
                   key={column.key}
                   width={column.width}
-                  minWidth={column.minWidth ?? 'auto'}
                   class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
+                  minWidth={column.minWidth ?? 'auto'}
                   resize={column.resize}
                   onResize-width={w => handleColumnWidthChange(w, column)}
                 >
@@ -374,7 +402,7 @@ export default defineComponent({
       return null;
     };
 
-    return { renderColumns, tableData, isLoading, expandOption, renderHeadVNode, renderScrollTop };
+    return { renderColumns, tableData, isLoading, expandOption, renderHeadVNode, renderScrollTop, forceCounter };
   },
   render(h) {
     return (
@@ -385,10 +413,10 @@ export default defineComponent({
         {this.renderHeadVNode()}
         {this.tableData.length === 0 ? (
           <bk-exception
-            class='exception-wrap-item exception-part'
-            type='search-empty'
-            scene='part'
             style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
           ></bk-exception>
         ) : (
           ''
@@ -396,21 +424,22 @@ export default defineComponent({
         {this.tableData.map((row, rowIndex) => {
           return (
             <LazyRender
+              key={row.__component_row_key}
               class='bklog-row-container'
               delay={1}
-              key={row.__component_row_key}
+              forceCounter={this.forceCounter}
               index={rowIndex}
             >
               <div
-                class='bklog-list-row'
                 key={row.__component_row_key}
+                class='bklog-list-row'
               >
                 {this.renderColumns.map(column => (
                   <LogCell
                     key={column.key}
                     width={column.width}
-                    minWidth={column.minWidth ?? 'auto'}
                     class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
+                    minWidth={column.minWidth ?? 'auto'}
                   >
                     {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
                   </LogCell>
