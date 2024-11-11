@@ -919,7 +919,7 @@ export const parseTableRowData = (
     return JSON.stringify(data);
   }
 
-  return data || data === 0 ? data : emptyCharacter;
+  return data === null || data === undefined || data === '' ? emptyCharacter : data;
 };
 
 /** 表格内字体样式 */

@@ -253,8 +253,7 @@ class Alarm(BaseContextObject):
 
         try:
             dimension_str = [
-                "{}={}".format(*dimension_list)
-                for dimension_list in sorted(dimension_lists, key=lambda x: list(x.keys())[0])
+                "{}={}".format(*dimension_list) for dimension_list in sorted(dimension_lists, key=lambda x: x[0])
             ]
         except Exception:
             dimension_str = ["{}={}".format(*dimension_list) for dimension_list in dimension_lists]
