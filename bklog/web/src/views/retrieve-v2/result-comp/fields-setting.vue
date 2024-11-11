@@ -641,7 +641,7 @@
                 return displayName;
               }
             }
-          }) 
+          })
           ?.filter(Boolean) || [];
       },
       /** 获取配置列表 */
