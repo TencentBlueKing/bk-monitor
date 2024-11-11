@@ -25,18 +25,12 @@
  */
 import { Component, Watch } from 'vue-property-decorator';
 
-import dayjs from 'dayjs';
-import { handleTimeRange } from 'monitor-pc/utils';
-
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
-import { isShadowEqual } from '../../utils/utils';
 import BaseEchart from '../monitor-base-echart';
 import StatusTab from '../table-chart/status-tab';
 import TimeSeries from '../time-series/time-series';
-
-import type { IViewOptions } from '../../typings';
 
 import './apm-custom-graph.scss';
 const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN'] as const;
@@ -50,75 +44,15 @@ export default class CustomChart extends TimeSeries {
 
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
-  handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
-    if (JSON.stringify(v) === JSON.stringify(o)) return;
-    if (isShadowEqual(v, o)) return;
-    this.superGetPanelData();
-  }
-  @Watch('timeRange')
-  // 数据时间间隔
-  handleTimeRangeChange() {
-    this.superGetPanelData();
-  }
-  @Watch('refleshInterval')
-  // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
-    }
-    if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
-      this.inited && this.superGetPanelData();
-    }, this.refleshInterval);
-  }
-  @Watch('refleshImmediate')
-  // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
-    if (v) this.superGetPanelData();
-  }
-  @Watch('timezone')
-  // 时区变更刷新图表
-  handleTimezoneChange(v: string) {
-    if (v) this.superGetPanelData();
-  }
-  @Watch('timeOffset')
-  handleTimeOffsetChange(v: string[], o: string[]) {
-    if (JSON.stringify(v) === JSON.stringify(o)) return;
-    this.superGetPanelData();
-  }
-
-  @Watch('customTimeRange')
-  customTimeRangeChange(val: [string, string]) {
-    if (!val) {
-      const { startTime, endTime } = handleTimeRange(this.timeRange);
-      this.superGetPanelData(
-        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
-      );
-    } else {
-      this.superGetPanelData(val[0], val[1]);
-    }
-  }
-  /* 粒度 */
-  @Watch('downSampleRange')
-  handleDownSampleRangeChange() {
-    this.superGetPanelData();
-  }
-  @Watch('panel')
-  panelChange(val, old) {
-    if (isShadowEqual(val, old)) return;
-    this.superGetPanelData();
-  }
-  async superGetPanelData(start_time?: string, end_time?: string) {
-    this.getPanelData(start_time, end_time, {
-      method: this.method,
-    });
+  handleFieldDictChange() {
+    this.getPanelData();
   }
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
     this.method = method;
-    this.getPanelData(undefined, undefined, {
+    this.customScopedVars = {
       method,
-    });
+    };
+    this.getPanelData();
   }
   render() {
     const { legend } = this.panel?.options || ({ legend: {} } as any);
