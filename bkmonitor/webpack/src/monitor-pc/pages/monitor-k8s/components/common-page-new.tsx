@@ -646,7 +646,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           filters.bk_target_ip = undefined;
         }
       } else if (key.match(/^var-/)) {
-        variables[key.replace('var-', '')] = typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val) ? +val : val;
+        const varName = key.replace('var-', '');
+        if (typeof val === 'string') {
+          if (/^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
+            variables[varName] = +val;
+          } else {
+            try {
+              variables[varName] = JSON.parse(val);
+            } catch {
+              variables[varName] = val;
+            }
+          }
+        } else {
+          variables[varName] = val;
+        }
       } else if (key.match(/^groups/)) {
         this.groups = Array.isArray(val) ? val : [val];
       } else if (!['key'].includes(key)) {
@@ -1285,7 +1298,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const filters = {};
     // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.variables).forEach(key => {
-      filters[`var-${key}`] = this.variables[key];
+      const value = this.variables[key];
+      filters[`var-${key}`] = typeof value === 'object' ? JSON.stringify(value) : value;
     });
     // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.filters).forEach(key => {

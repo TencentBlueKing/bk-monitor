@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { CancelToken } from 'monitor-api/index';
@@ -61,7 +61,8 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
   value = [];
   created() {
     try {
-      this.value = JSON.parse(this.viewOptions[this.variableName]);
+      const value = this.viewOptions[this.variableName];
+      this.value = Array.isArray(value) ? value : JSON.parse(this.viewOptions[this.variableName]);
     } catch {
       this.value = [];
     }
@@ -99,14 +100,17 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
       id: this.dashboardId,
       scene_id: this.$route.query?.sceneId,
       type: this.$route.query?.sceneType,
-      app_name: this.viewOptions.filters?.app_name,
-      service_name: this.viewOptions.filters?.service_name,
+      apm_app_name: this.viewOptions.filters?.app_name,
+      apm_service_name: this.viewOptions.filters?.service_name,
     }).catch(() => []);
   }
-  @Emit('change')
   handleConditionChange(condition: IConditionItem[]) {
+    // if (JSON.stringify(this.value) === JSON.stringify(condition)) return;
     this.value = condition;
-    return condition;
+    this.$emit(
+      'change',
+      condition.filter(item => item.value?.length)
+    );
   }
   render() {
     return (

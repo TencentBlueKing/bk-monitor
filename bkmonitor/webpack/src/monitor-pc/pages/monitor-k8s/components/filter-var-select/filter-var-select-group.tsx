@@ -329,7 +329,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   handelWhereFiltersChange(conditions: IConditionItem[]) {
     return [
       {
-        custom_metric_filters: JSON.stringify(conditions),
+        custom_metric_filters: conditions,
       },
     ];
   }
