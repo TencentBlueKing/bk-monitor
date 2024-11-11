@@ -27,7 +27,7 @@
     },
     visibleOnly: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     minHeight: {
       type: String,
@@ -66,6 +66,7 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
+    height: 100%;
     min-height: 40px;
 
     &.is-not-intersecting {
