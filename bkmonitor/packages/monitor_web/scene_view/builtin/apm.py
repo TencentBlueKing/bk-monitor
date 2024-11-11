@@ -18,11 +18,9 @@ from apm_web.constants import HostAddressType
 from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
-from apm_web.handlers.metric_group import CalculationType
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric.constants import SeriesAliasType
-from apm_web.models import Application
-from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
+from apm_web.models import Application, CodeRedefinedConfigRelation
+from constants.apm import MetricTemporality
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -185,38 +183,32 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config, "${server_filter_method}", server_config["server_filter_method"]
             )
 
-            # 补充配置
-            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLER.value] = {
-                "server": TRPCMetricTag.CALLER_SERVER,
-                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value],
-                "tags": TRPCMetricTag.caller_tags(),
-                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
-            }
-            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLEE.value] = {
-                "server": TRPCMetricTag.CALLEE_SERVER,
-                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value],
-                "tags": TRPCMetricTag.callee_tags(),
-                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
-            }
-            view_config["overview_panels"][0]["options"]["common"]["statistics"]["supported_calculation_types"] = [
-                {"value": value, "text": text} for value, text in CalculationType.choices()
-            ]
-            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_calculation_types"] = [
-                {"value": value, "text": text}
-                for value, text in CalculationType.choices()
-                if value
-                in [
-                    CalculationType.REQUEST_TOTAL,
-                    CalculationType.AVG_DURATION,
-                    CalculationType.SUCCESS_RATE,
-                    CalculationType.TIMEOUT_RATE,
-                    CalculationType.EXCEPTION_RATE,
-                ]
-            ]
-            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_methods"] = [
-                {"value": CalculationType.TOP_N, "text": "top"},
-                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
-            ]
+            ret_code_as_exception: str = "false"
+            try:
+                code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+                    bk_biz_id=view.bk_biz_id, app_name=app_name, service_name=params["service_name"]
+                )
+                if code_redefined_config.ret_code_as_exception:
+                    ret_code_as_exception = "true"
+                    success_rate_panel_data: Dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
+                        "targets"
+                    ][0]["data"]
+                    code_condition: Dict[str, Any] = {
+                        "key": "code",
+                        "method": "eq",
+                        "value": ["0", "ret_0"],
+                        "condition": "and",
+                    }
+                    success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
+                    success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
+
+                    view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
+                        1
+                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"], "code_method": "neq"}
+            except CodeRedefinedConfigRelation.DoesNotExist:
+                pass
+
+            view_config = cls._replace_variable(view_config, "${ret_code_as_exception}", ret_code_as_exception)
 
         return view_config
 

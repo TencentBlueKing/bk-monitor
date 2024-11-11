@@ -416,6 +416,11 @@ export type PanelOption = {
   unit?: string; // 单位
   is_support_compare: boolean;
   is_support_group_by: boolean;
+  enable_panels_selector?: boolean;
+  child_panels_selector_variables?: {
+    id?: string;
+    title?: string;
+  };
   need_zr_click_event?: boolean; // 是否需要zrender click 事件
   header?: {
     tips: string; // 提示
@@ -494,6 +499,7 @@ export class PanelModel implements IPanelModel {
   dashboardId?: string;
   // 图标带icon说明
   descrition!: string;
+  dimension_panels?: PanelModel[];
   // 维度列表
   dimensions: string[];
   // 是否正在drag中

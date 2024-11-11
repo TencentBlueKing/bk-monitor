@@ -15,7 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.core.cache import cache
 from django.db.models import Q
@@ -80,7 +80,10 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
-from bkmonitor.utils.time_tools import get_datetime_range
+from bkmonitor.utils.time_tools import (
+    get_datetime_range,
+    parse_time_compare_abbreviation,
+)
 from constants.apm import (
     ApmMetrics,
     MetricTemporality,
@@ -241,6 +244,7 @@ class DynamicUnifyQueryResource(Resource):
                     "options": validate_data["group_by_limit"]["options"],
                     "start_time": validate_data["start_time"],
                     "end_time": validate_data["end_time"],
+                    "with_filter_dict": True,
                 }
             )["extra_filter_dict"]
             validate_data["extra_filter_dict"].update(group_limit_filter_dict)
@@ -2923,7 +2927,17 @@ class GetFieldOptionValuesResource(Resource):
         return [{"value": value, "text": value} for value in sorted(option_values)]
 
 
-class CalculateByRangeResource(Resource):
+class RecordHelperMixin:
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions") or {}:
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
+
+
+class CalculateByRangeResource(Resource, RecordHelperMixin):
     class RequestSerializer(serializers.Serializer):
 
         ZERO_TIME_SHIFT: str = "0s"
@@ -2938,6 +2952,7 @@ class CalculateByRangeResource(Resource):
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
+            ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -3000,16 +3015,21 @@ class CalculateByRangeResource(Resource):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
+                growth_rate: Optional[float] = None
+
                 if record[baseline] == 0 and record[alias] == 0:
                     # 两个数据都为 0 时，设定增长率为 0%
-                    record.setdefault("growth_rates", {})[alias] = 0
-                    continue
-                elif not record[alias] or record[baseline] is None:
-                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
-                    record.setdefault("growth_rates", {})[alias] = None
-                    continue
+                    growth_rate = 0
+                elif not record[alias] and record[baseline]:
+                    # 往期无数据，同比正增长 100%
+                    growth_rate = 100
+                elif record[alias] and not record[baseline]:
+                    # 当前无数据，同比负增长 100%
+                    growth_rate = -100
+                elif record[alias] and record[baseline]:
+                    growth_rate = (record[baseline] - record[alias]) / record[alias] * 100
 
-                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
+                record.setdefault("growth_rates", {})[alias] = growth_rate
 
     @classmethod
     def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
@@ -3025,14 +3045,6 @@ class CalculateByRangeResource(Resource):
                     record.setdefault("proportions", {})[alias] = None
                     continue
                 record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
-
-    @classmethod
-    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not records:
-            return []
-        if "time" in records[0].get("dimensions") or {}:
-            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
-        return records
 
     def perform_request(self, validated_request_data):
         def _collect(_alias: Optional[str], **_kwargs):
@@ -3079,7 +3091,8 @@ class CalculateByRangeResource(Resource):
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
 
-class QueryDimensionsByLimitResource(Resource):
+class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
+    ZERO_TIME_SHIFT: str = "0s"
     CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
 
     class RequestSerializer(serializers.Serializer):
@@ -3091,6 +3104,7 @@ class QueryDimensionsByLimitResource(Resource):
                     required=True,
                 )
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3112,9 +3126,11 @@ class QueryDimensionsByLimitResource(Resource):
         metric_cal_type = serializers.ChoiceField(
             label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
         )
+        time_shift = serializers.CharField(label="时间偏移", required=False)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
         options = OptionsSerializer(label="配置", required=False, default={})
+        with_filter_dict = serializers.BooleanField(label="是否提供过滤条件", required=False, default=False)
 
         def validate(self, attrs):
             # 合并查询条件
@@ -3124,15 +3140,56 @@ class QueryDimensionsByLimitResource(Resource):
             return attrs
 
     @classmethod
-    def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
+    def _format(cls, time_shift: str, group_fields: List[str], records: List[Dict[str, Any]]):
         group_key_result_map: Dict[Tuple, Any] = {}
+        time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
         for record in records:
+            # 时间偏移场景，需要转为字符串时间
+            record["time"] = datetime.datetime.fromtimestamp(record["_time_"] // 1000 + time_offset_sec).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
             group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
         processed_records: List[Dict[str, Any]] = []
         for group_key, result in group_key_result_map.items():
             processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _display_format(
+        cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        total: float = 0
+        processed_records: List[Dict[str, Any]] = []
+        for record in records:
+            # 计算结果保留两位小数，同时对非数值类型进行异常兜底，默认设置为 0
+            value: Union[int, float] = 0
+            try:
+                value: Union[int, float] = round(record["result"], 2)
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+            # 请求量必须是整型
+            if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+                value = int(value)
+
+            total += value
+
+            # tooltips 按 GroupBy 顺序拼接
+            name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
+
+            processed_records.append({"name": name, "value": value})
+
+        for record in processed_records:
+            # 分母为 0，占比也设置为 0
+            if total == 0:
+                record["proportion"] = 0
+                continue
+
+            record["proportion"] = round((record["value"] / total) * 100, 2)
+
         return processed_records
 
     @classmethod
@@ -3147,21 +3204,28 @@ class QueryDimensionsByLimitResource(Resource):
 
     def perform_request(self, validated_request_data):
         group_name: str = validated_request_data["metric_group_name"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
+        time_shift: str = validated_request_data.get("time_shift") or "0s"
         group_fields: List[str] = validated_request_data.get("group_by") or []
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
             group_name,
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
+            time_shift=time_shift,
             group_by=group_fields,
             filter_dict=validated_request_data.get("filter_dict"),
             **(validated_request_data["options"].get(group_name) or {}),
         )
         records: List[Dict[str, Any]] = group.handle(
             validated_request_data["method"],
-            qs_type=validated_request_data["metric_cal_type"],
+            qs_type=metric_cal_type,
             limit=validated_request_data["limit"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
         )
-        records = self._format(group_fields, records)
-        return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
+        records = self._format(time_shift, group_fields, records)
+
+        result: Dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
+        if validated_request_data.get("with_filter_dict"):
+            result["extra_filter_dict"] = self._get_extra_filter_dict(records)
+        return result

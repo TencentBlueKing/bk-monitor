@@ -101,7 +101,11 @@ export type IChartOption = {
   dimensions?: IDataItem;
   interval?: number;
 };
-
+export type IDimensionChartOpt = {
+  metric_cal_type: string;
+  time_shift: string;
+  metric_cal_type_name: string;
+};
 export type IFilterData = {
   caller: IColumn[];
   callee: IColumn[];
