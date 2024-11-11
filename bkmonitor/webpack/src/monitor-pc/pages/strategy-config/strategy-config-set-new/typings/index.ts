@@ -35,7 +35,7 @@ import type { TranslateResult } from 'vue-i18n';
 export type unitType = 'm' | 's';
 export interface ICommonItem {
   id: number | string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   type?: string;
   is_dimension?: boolean;
 }
@@ -269,7 +269,7 @@ export class MetricDetail {
             return {
               ...condition,
               value: condition.value.map(num => {
-                return isNaN(num) || num === '' ? num : Number(num);
+                return Number.isNaN(Number(num)) || num === '' ? num : Number(num);
               }),
             };
           }
@@ -342,7 +342,10 @@ export class MetricDetail {
   }
   // 是否可设置检索语句
   get canSetQueryString() {
-    return this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log';
+    return (
+      (this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log') ||
+      (this.data_source_label === 'custom' && this.data_type_label === 'event')
+    );
   }
   // 是否可以设置实时查询
   get canSetRealTimeSearch() {
@@ -471,7 +474,7 @@ export enum DetectionRuleTypeEnum {
 
 export interface IDetectionType {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   show: boolean;
   disabled?: boolean;
   default?: any;

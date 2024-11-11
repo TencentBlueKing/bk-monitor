@@ -125,8 +125,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
           const clusterPopoverState = localStorage.getItem('CLUSTER_MORE_POPOVER');
           if (!Boolean(clusterPopoverState)) {
             const dom = document.querySelector('#more-operator');
-            dom.addEventListener('popoverShowEvent', this.operatorTargetEvent);
-            dom.dispatchEvent(new Event('popoverShowEvent'));
+            dom?.addEventListener('popoverShowEvent', this.operatorTargetEvent);
+            dom?.dispatchEvent(new Event('popoverShowEvent'));
             localStorage.setItem('CLUSTER_MORE_POPOVER', 'true');
           }
           this.isShowDialog = false;
@@ -145,8 +145,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
     this.popoverInstance = this.$bkPopover(event.target, {
       content: `<div style='width: 230px; padding: 4px 8px; line-height: 18px;'>
           <div style='display: flex; justify-content: space-between'>
-            <i 
-              class='bk-icon icon-info' 
+            <i
+              class='bk-icon icon-info'
               style='color: #979BA5; font-size: 14px; margin: 2px 4px 0 0;'>
             </i>
             <div style='font-size: 12px; color: #63656E;'>
@@ -156,8 +156,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
             </div>
           </div>
           <div style='display: flex; justify-content: flex-end; margin-top: 8px;'>
-            <div 
-              id='i-know' 
+            <div
+              id='i-know'
               style='color: #FFF;
               background: #3A84FF;
               padding: 4px 8px;

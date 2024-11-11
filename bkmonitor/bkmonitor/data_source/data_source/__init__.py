@@ -2051,10 +2051,10 @@ class BkFtaEventDataSource(DataSource):
 
         if alert_name:
             # 如果传了告警名称，就直接用
-            self.alert_name = alert_name
+            self.alert_name = str(alert_name)
         elif self.metrics:
             # 如果没有传告警名称，那必定传了 metrics，从 metrics 提取
-            self.alert_name = self.metrics[0]["field"]
+            self.alert_name = str(self.metrics[0]["field"])
             self.metrics[0].update(
                 {
                     "field": "_index",

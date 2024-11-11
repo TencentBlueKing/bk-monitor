@@ -122,7 +122,6 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V3_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_SUCCESS_STATUS,
             strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
@@ -133,7 +132,6 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V3_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_FAILURE_STATUS,
             strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
@@ -314,7 +312,6 @@ def report_metadata_data_link_access_metric(
     status: int,
     biz_id: int,
     data_id: int,
-    table_id: str,
     strategy: str,
 ) -> None:
     """
@@ -323,18 +320,13 @@ def report_metadata_data_link_access_metric(
     @param status: 接入状态（失败-1/成功1） 以是否成功向bkbase发起请求为准
     @param biz_id: 业务ID
     @param data_id: 数据ID
-    @param table_id: 结果表ID
     @param strategy: 链路策略（套餐类型）
     """
     try:
         logger.info("try to report metadata data link component status metric,data_id->[%s]", data_id)
-        metrics.METADATA_DATA_LINK_ACCESS_INFO.labels(
-            version=version,
-            biz_id=biz_id,
-            data_id=data_id,
-            table_id=table_id,
-            strategy=strategy,
-        ).set(status)
+        metrics.METADATA_DATA_LINK_ACCESS_TOTAL.labels(
+            version=version, biz_id=biz_id, strategy=strategy, status=status
+        ).inc()
         metrics.report_all()
     except Exception as err:  # pylint: disable=broad-except
         logger.error("report metadata data link access metric error->[%s],data_id->[%s]", err, data_id)
@@ -553,7 +545,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V4_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_SUCCESS_STATUS,
             strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
@@ -563,7 +554,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V4_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_FAILURE_STATUS,
             strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
         )
@@ -581,7 +571,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V4_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_SUCCESS_STATUS,
             strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
         )
@@ -591,7 +580,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             version=DATA_LINK_V4_VERSION_NAME,
             data_id=data_id,
             biz_id=bk_biz_id,
-            table_id=table_id,
             status=ACCESS_DATA_LINK_FAILURE_STATUS,
             strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
         )

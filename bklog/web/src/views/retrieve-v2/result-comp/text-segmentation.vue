@@ -36,7 +36,7 @@
     fontSize: 12,
     text: props.content,
     maxWidth: maxWidth.value,
-    font: '12px monospace',
+    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
@@ -175,7 +175,7 @@
     span {
       &.segment-content {
         span {
-          font: 12px monospace;
+          font-size: 12px;
         }
 
         .btn-more-action {

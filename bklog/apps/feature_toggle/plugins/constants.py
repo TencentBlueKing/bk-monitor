@@ -49,3 +49,6 @@ FIELD_ANALYSIS_CONFIG = "field_analysis_config"
 
 # 直接进行esquery_search查询的开关
 DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
+
+# 日志脱敏开关
+LOG_DESENSITIZE = "log_desensitize"
