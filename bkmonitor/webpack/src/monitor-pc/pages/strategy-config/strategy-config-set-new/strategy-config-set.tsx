@@ -415,6 +415,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   get isDetailMode() {
     return this.$route.name === 'strategy-config-detail';
   }
+  // 是否为编辑页面
+  get isEditMode() {
+    return this.$route.name === 'strategy-config-edit';
+  }
   // 已选中的维度合法列表
   get legalDimensionList() {
     return this.metricData.reduce(
@@ -2006,7 +2010,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleGetTargetParams() {
     const [metricItem] = this.metricData;
     if (!metricItem) return [];
-    if (metricItem.canSetTarget && this.target?.length) {
+    if ((this.isEditMode || metricItem.canSetTarget) && this.target?.length) {
       let field = '';
       if (metricItem.objectType === 'HOST') {
         field = hostTargetFieldType[metricItem.targetType];
