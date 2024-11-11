@@ -39,7 +39,6 @@ import {
   setDefaultTableWidth,
   formatDate,
   getStorageIndexItem,
-  // deepClone,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';

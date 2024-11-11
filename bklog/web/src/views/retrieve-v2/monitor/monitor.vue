@@ -82,6 +82,7 @@ const routeQueryParams = computed(() => {
 });
 
 const getApmIndexSetList = async () => {
+  store.commit('retrieve/updateIndexSetLoading', true);
   store.commit('retrieve/updateIndexSetList', []);
   return props.indexSetApi().then(res => {
     let indexSetList = [];
@@ -107,7 +108,9 @@ const getApmIndexSetList = async () => {
       store.commit('retrieve/updateIndexSetList', indexSetList);
       return indexSetList;
     }
-  })
+  }).finally(() => {
+    store.commit('retrieve/updateIndexSetLoading', false);
+  });
 }
 
 /**

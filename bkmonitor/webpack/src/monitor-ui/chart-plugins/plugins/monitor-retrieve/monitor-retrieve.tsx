@@ -61,9 +61,11 @@ export default class MonitorRetrieve extends tsc<void> {
     this.init();
   }
   beforeDestroy() {
-    logStore.commit('resetState');
-    window.mainComponent.$destroy();
-    window.mainComponent = null;
+    if (!this.empty) {
+      logStore.commit('resetState');
+      window.mainComponent.$destroy();
+      window.mainComponent = null;
+    }
   }
 
   async init() {
@@ -145,7 +147,11 @@ export default class MonitorRetrieve extends tsc<void> {
               <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>
                 <div class='text-wrap'>
-                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <pre class='text-row'>
+                    {this.$t(
+                      '关联日志方法：\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n2. 在服务配置 - 关联日志出关联对应索引集\n3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项'
+                    )}
+                  </pre>
                   <bk-button
                     theme='primary'
                     onClick={() => this.handleRelated()}
