@@ -128,7 +128,7 @@
             }
           });
         });
-        this.intersectionObserver.observe(this.$el);
+        this.intersectionObserver?.observe(this.$el);
       },
     },
   };
