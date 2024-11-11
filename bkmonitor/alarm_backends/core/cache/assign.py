@@ -133,6 +133,7 @@ class AssignCacheManager(CacheManager):
         for rule in rules:
             group_id = rule["assign_group_id"]
             rule["group_name"] = group_base_info[group_id]["name"]
+            # todo 动态分组转换，将动态分组转换成主机列表
             group_rules[rule["assign_group_id"]].append(rule)
 
         pipeline = cls.cache.pipeline()
