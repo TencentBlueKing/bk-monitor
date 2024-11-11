@@ -8,9 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import json
+import logging
 from typing import Any, Dict, List, Optional, Set
 
+import arrow
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -20,9 +23,17 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application, CodeRedefinedConfigRelation
-from constants.apm import MetricTemporality
+from bkmonitor.models import MetricListCache
+from constants.apm import (
+    MetricTemporality,
+    TelemetryDataType,
+)
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
@@ -36,6 +47,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-overview",
         "apm_application-service",
         "apm_application-topo",
+        "apm_application-custom_metric",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
@@ -52,6 +64,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
+        "apm_service-service-default-custom_metric",
         "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
@@ -68,6 +81,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-topo",
         "service-default-db",
         "service-default-caller_callee",
+        "service-default-custom_metric",
     ]
     APM_TRACE_PREFIX = "apm_trace"
 
@@ -102,6 +116,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         bk_biz_id = view.bk_biz_id
         app_name = params["app_name"]
+        service_name = params["service_name"]
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
@@ -210,7 +225,137 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             view_config = cls._replace_variable(view_config, "${ret_code_as_exception}", ret_code_as_exception)
 
+        # APM自定义指标
+        if builtin_view == "apm_service-service-default-custom_metric" and app_name:
+            try:
+                application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
+                result_table_id = application.fetch_datasource_info(
+                    TelemetryDataType.METRIC.datasource_type, attr_name="result_table_id"
+                )
+            except Application.DoesNotExist:
+                raise ValueError("Application does not exist")
+
+            metric_group_mapping = dict()
+            group_panel_template = view_config["overview_panels"][0]
+            metric_panel_template = group_panel_template["panels"].pop(0)
+
+            metric_queryset = MetricListCache.objects.filter(
+                result_table_id=result_table_id,
+                data_source_label=DataSourceLabel.CUSTOM,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+            )
+            monitor_name_mapping = cls.get_monitor_name(bk_biz_id, result_table_id, count=metric_queryset.count())
+            for idx, i in enumerate(metric_queryset):
+                # 过滤内置指标
+                if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
+                    continue
+                # 根据dimension获取monitor_name监控项, 获取不到的则跳过
+                metric_info = monitor_name_mapping.get(f"{i.metric_field}_value")
+                if not metric_info:
+                    continue
+                # 根据service进行过滤，不满足条件的过滤
+                if service_name and metric_info["actual_service_name"] != service_name:
+                    continue
+
+                # 进行panels的变量渲染
+                variables = {
+                    "id": f"idx_{idx}",
+                    "table_id": i.result_table_id,
+                    "metric_field": i.metric_field,
+                    "readable_name": i.readable_name,
+                    "data_source_label": i.data_source_label,
+                    "data_type_label": i.data_type_label,
+                    "filter_key_name": metric_info["filter_service_name"],
+                    "filter_key_value": metric_info["filter_service_value"],
+                }
+                metric_panel = copy.deepcopy(metric_panel_template)
+                for var_name, var_value in variables.items():
+                    metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
+
+                monitor_name = metric_info["monitor_name"]
+                if monitor_name not in metric_group_mapping:
+                    group_id = len(metric_group_mapping)
+                    group_panel = copy.deepcopy(group_panel_template)
+                    group_variables = {
+                        "group_id": group_id,
+                        "group_name": monitor_name,
+                    }
+                    for var_name, var_value in group_variables.items():
+                        group_panel = cls._replace_variable(group_panel, "${{{}}}".format(var_name), var_value)
+                    metric_group_mapping[monitor_name] = group_panel
+                metric_group_mapping[monitor_name]["panels"].append(metric_panel)
+            view_config["overview_panels"] = list(metric_group_mapping.values())
         return view_config
+
+    @classmethod
+    def get_monitor_name(cls, bk_biz_id, result_table_id, count: int = 1000) -> dict:
+        promql = (
+            f"count by (scope_name, monitor_name, service_name, target, __name__) "
+            f"({{__name__=~\"custom:{result_table_id}:.*\"}})"
+        )
+        end_time = int(arrow.now().timestamp)
+        start_time = end_time - 60
+        request_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": promql,
+                    "interval": "auto",
+                    "alias": "a",
+                    "filter_dict": {},
+                }
+            ],
+            "slimit": count,
+            "expression": "",
+            "alias": "a",
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+
+        metric_mapping_config = {
+            "Galileo": {
+                "monitor_name": "monitor_name",
+                "filter_service_name": "target",
+                "filter_service_prefix": "BCS.",
+            },
+            "OpenTelemetry": {
+                "monitor_name": "scope_name",
+                "filter_service_name": "service_name",
+                "filter_service_prefix": "",
+            },
+        }
+
+        monitor_name_mapping = {}
+        try:
+            series = resource.grafana.graph_unify_query(request_params)["series"]
+            for metric in series:
+                metric_field = metric.get("dimensions", {}).get("__name__")
+                if metric_field:
+                    # Todo: 后续明确区分方案后，最好调整下
+                    metric_type = "Galileo" if "monitor_name" in metric["dimensions"] else "OpenTelemetry"
+                    mapping_config = metric_mapping_config[metric_type]
+                    monitor_name_mapping[metric_field] = {
+                        "metric_type": metric_type,
+                        "monitor_name": metric["dimensions"].get(mapping_config["monitor_name"]),
+                        "filter_service_name": mapping_config["filter_service_name"],
+                        "filter_service_value": metric["dimensions"].get(mapping_config["filter_service_name"]),
+                    }
+                    monitor_name_mapping[metric_field]["actual_service_name"] = cls.remove_prefix(
+                        monitor_name_mapping[metric_field]["filter_service_value"],
+                        mapping_config["filter_service_prefix"],
+                    )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
+
+        return monitor_name_mapping
+
+    @classmethod
+    def remove_prefix(cls, text, prefix):
+        if isinstance(text, str) and text.startswith(prefix):
+            return text[len(prefix) :]
+        return text
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):

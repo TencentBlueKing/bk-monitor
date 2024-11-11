@@ -1,0 +1,114 @@
+{
+    "id": "custom_metric",
+    "type": "metric_list",
+    "mode": "auto",
+    "name": "自定义指标",
+    "variables": [
+        {
+          "title": "指标列表",
+          "type": "list",
+          "targets": [
+            {
+              "datasource": "instance_list",
+              "dataType": "list",
+              "api": "apm_metric.customMetricList",
+              "data": {
+                "app_name": "$app_name"
+              },
+              "fields": {
+                "id": "metric_field"
+              }
+            }
+          ]
+        }
+    ],
+    "panels": [
+
+    ],
+    "overview_panels": [
+        {
+            "id": "${id}",
+            "title": "${metric_field}",
+            "type": "list",
+            "targets": [
+                {
+                    "data_type": "list",
+                    "api": "grafana.graphUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "自定义指标展示",
+                    "data": {
+                        "app_name": "$app_name",
+                        "expression": "A",
+                        "query_configs": [
+                            {
+                                "data_source_label": "${data_source_label}",
+                                "data_type_label": "${data_type_label}",
+                                "table": "${table_id}",
+                                "metrics": [
+                                    {
+                                        "field": "${metric_field}",
+                                        "method": "AVG",
+                                        "alias": "A"
+                                    }
+                                ],
+                                "group_by": [
+
+                                ],
+                                "where": [
+
+                                ],
+                                "filter_dict": {
+
+                                },
+                                "functions": [
+
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ],
+            "options": {
+                "apm_time_series": {
+                    "metric": "request_count",
+                    "unit": "number",
+                    "enableContextmenu": true
+                },
+                "time_series": {
+                    "hoverAllTooltips": true
+                }
+            }
+        }
+    ],
+    "options": {
+        "panel_tool": {
+            "method_select": true,
+            "columns_toggle": true,
+            "compare_select": true,
+            "split_switcher": false,
+            "interval_select": true
+        },
+        "enable_group": true,
+        "view_editable": true,
+        "selector_panel": null,
+        "alert_filterable": true,
+        "enable_index_list": true,
+        "variable_editable": true,
+        "group_panel": {
+            "targets": [
+                {
+                    "datasource": "dimensions",
+                    "dataType": "list",
+                    "api": "scene_view.getSceneViewDimensions",
+                    "data": {
+                        "scene_id": "apm_application",
+                        "type": "detail",
+                        "id": "custom_metric",
+                        "apm_app_name": "$app_name"
+                    }
+                }
+            ]
+        },
+        "only_index_list": true
+    }
+}

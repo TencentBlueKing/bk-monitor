@@ -283,4 +283,5 @@ export default {
   P50平均耗时: 'P50 average time',
   P95平均耗时: 'P95 average time',
   P99平均耗时: 'P99 average time',
+  搜索指标名称: 'Search metric name',
 };

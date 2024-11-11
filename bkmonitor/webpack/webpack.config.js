@@ -148,5 +148,6 @@ module.exports = async (baseConfig, { production, app }) => {
         ...vueAlias,
       },
     },
+    devtool: 'source-map',
   };
 };

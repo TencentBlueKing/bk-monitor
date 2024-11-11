@@ -1,0 +1,141 @@
+{
+    "id": "custom_metric",
+    "type": "metric_list",
+    "mode": "auto",
+    "name": "自定义指标维度列表",
+    "variables": [
+        {
+            "title": "维度列表",
+            "type": "dimension_list",
+            "targets": [
+                {
+                    "datasource": "dimensions",
+                    "dataType": "list",
+                    "api": "scene_view.getSceneViewDimensions",
+                    "data": {
+                        "scene_id": "apm_service",
+                        "type": "overview",
+                        "id": "service-default-custom_metric",
+                        "apm_app_name": "$app_name",
+                        "apm_service_name": "$service_name"
+                    },
+                    "fields": {"custom_metric_filters": "custom_metric_filters"}
+                }
+            ]
+        }
+    ],
+    "service_name": "$service_name",
+    "panels": [
+
+    ],
+    "overview_panels": [
+        {
+            "id": "${group_id}",
+            "title": "${group_name}",
+            "type": "row",
+            "panels": [
+                {
+                    "id": "${id}",
+                    "title": "${metric_field}",
+                    "subtitle": "${readable_name}",
+                    "type": "apm_custom_graph",
+                    "agg_methods": [
+                        "AVG",
+                        "SUM",
+                        "MAX",
+                        "MIN"
+                    ],
+                    "targets": [
+                        {
+                            "data_type": "list",
+                            "api": "grafana.graphUnifyQuery",
+                            "datasource": "time_series",
+                            "alias": "自定义指标展示",
+                            "data": {
+                                "app_name": "$app_name",
+                                "expression": "A",
+                                "query_configs": [
+                                    {
+                                        "data_source_label": "${data_source_label}",
+                                        "data_type_label": "${data_type_label}",
+                                        "table": "${table_id}",
+                                        "metrics": [
+                                            {
+                                                "field": "${metric_field}",
+                                                "method": "$method",
+                                                "alias": "A"
+                                            }
+                                        ],
+                                        "interval": "$interval",
+                                        "group_by": [
+                                            "$group_by"
+                                        ],
+                                        "where": [
+                                            "$custom_metric_filters"
+                                        ],
+                                        "filter_dict": {
+                                            "${filter_key_name}": "${filter_key_value}"
+                                        },
+                                        "functions": [
+                                            {
+                                                "id": "time_shift",
+                                                "params": [
+                                                    {
+                                                        "id": "n",
+                                                        "value": "$time_shift"
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "options": {
+                        "apm_time_series": {
+                            "metric": "request_count",
+                            "unit": "number",
+                            "enableContextmenu": true
+                        },
+                        "time_series": {
+                            "hoverAllTooltips": false
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "options": {
+        "panel_tool": {
+            "method_select": false,
+            "columns_toggle": true,
+            "compare_select": true,
+            "split_switcher": false,
+            "interval_select": true
+        },
+        "enable_group": true,
+        "view_editable": true,
+        "selector_panel": null,
+        "alert_filterable": true,
+        "enable_index_list": true,
+        "variable_editable": false,
+        "group_panel": {
+            "targets": [
+                {
+                    "datasource": "dimensions",
+                    "dataType": "list",
+                    "api": "scene_view.getSceneViewDimensions",
+                    "data": {
+                        "scene_id": "apm_service",
+                        "type": "overview",
+                        "id": "service-default-custom_metric",
+                        "apm_app_name": "$app_name",
+                        "apm_service_name": "$service_name"
+                    }
+                }
+            ]
+        },
+        "only_index_list": true
+    }
+}
