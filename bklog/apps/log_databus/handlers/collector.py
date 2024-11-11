@@ -3181,8 +3181,28 @@ class CollectorHandler(object):
         # 注入索引集标签
         tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
         is_send_path_create_notify = is_send_std_create_notify = False
+        import logging
+
+        # 获取一个日志记录器
+        logger = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger.addHandler(console_handler)
+        logger.info("collector.py------xxx1")
         for config in data["config"]:
             if config["paths"] and not is_send_path_create_notify:
+                logger.info("collector.py------paths")
                 # 创建路径采集项
                 path_collector_config = self.create_bcs_collector(
                     {
@@ -3213,6 +3233,7 @@ class CollectorHandler(object):
                 IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
 
             if config["enable_stdout"] and not is_send_std_create_notify:
+                logger.info("collector.py------enable_stdout")
                 # 创建标准输出采集项
                 std_collector_config = self.create_bcs_collector(
                     {
@@ -3393,6 +3414,24 @@ class CollectorHandler(object):
         }
 
     def create_bcs_collector(self, collector_config_params, conf, async_bkdata: bool = True):
+        import logging
+
+        # 获取一个日志记录器
+        logger = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger.addHandler(console_handler)
         self.check_collector_config(collector_config_params=collector_config_params)
         try:
             self.data = CollectorConfig.objects.create(**collector_config_params)
@@ -3400,6 +3439,7 @@ class CollectorHandler(object):
             logger.warning(f"collector config name duplicate => [{collector_config_params['collector_config_name']}]")
             raise CollectorConfigNameDuplicateException()
         collector_scenario = CollectorScenario.get_instance(CollectorScenarioEnum.CUSTOM.value)
+        logger.info("collector.py------00000000001")
         self.data.bk_data_id = collector_scenario.update_or_create_data_id(
             bk_data_id=self.data.bk_data_id,
             data_link_id=self.data.data_link_id,
@@ -3409,7 +3449,9 @@ class CollectorHandler(object):
             else collector_config_params["collector_config_name_en"],
             encoding=META_DATA_ENCODING,
         )
+        logger.info("collector.py------00000000002")
         self.data.save()
+        logger.info("collector.py------00000000003")
 
         # add user_operation_record
         operation_record = {
@@ -3420,17 +3462,24 @@ class CollectorHandler(object):
             "action": UserOperationActionEnum.CREATE,
             "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
         }
+        logger.info("collector.py------00000000004")
         user_operation_record.delay(operation_record)
+        logger.info("collector.py------00000000005")
 
         self._authorization_collector(self.data)
+        logger.info("collector.py------00000000006")
         # 创建数据平台data_id
         if async_bkdata:
+            logger.info("collector.py------00000000007")
             async_create_bkdata_data_id.delay(self.data.collector_config_id)
-
+        logger.info("collector.py------00000000008")
         custom_config = get_custom(collector_config_params["custom_type"])
+        logger.info("collector.py------00000000009")
         from apps.log_databus.handlers.etl import EtlHandler
 
+        logger.info("collector.py------000000000010")
         etl_handler = EtlHandler(self.data.collector_config_id)
+        logger.info("collector.py------000000000011")
         etl_params = {
             "table_id": collector_config_params["collector_config_name_en"],
             "storage_cluster_id": conf["storage_cluster_id"],
@@ -3441,10 +3490,14 @@ class CollectorHandler(object):
             "etl_config": custom_config.etl_config,
             "fields": custom_config.fields,
         }
+        logger.info("collector.py------000000000012")
         etl_result = etl_handler.update_or_create(**etl_params)
+        logger.info("collector.py------000000000013")
         self.data.index_set_id = etl_result["index_set_id"]
         self.data.table_id = etl_result["table_id"]
+        logger.info("collector.py------000000000014")
         custom_config.after_hook(self.data)
+        logger.info("collector.py------000000000015")
         return self.data
 
     def check_collector_config(self, collector_config_params):

@@ -21,15 +21,33 @@ the project delivered to anyone in the future.
 """
 import copy
 import json
+import logging
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
+
+# from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 from apps.log_databus.serializers import BCSCollectorSerializer
 from apps.utils.drf import custom_params_valid
 
+# 获取一个日志记录器
+logger = logging.getLogger(__name__)
+
+# 设置日志记录级别
+logger.setLevel(logging.INFO)
+
+# 创建处理器并设置级别为INFO
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# 创建格式化器并添加到处理器
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+
+# 将处理器添加到日志记录器
+logger.addHandler(console_handler)
 PATH_STD_PARAMS = {
     "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
@@ -90,7 +108,7 @@ PATH_STD_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         }
     ],
     "description": "",
@@ -182,7 +200,7 @@ PATH_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -210,7 +228,7 @@ PATH_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
     ],
     "description": "",
@@ -286,7 +304,7 @@ STD_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -309,7 +327,7 @@ STD_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
     ],
     "description": "",
@@ -365,6 +383,7 @@ NOT_PATH_STD_RESULT = {
 }
 
 PARAMS = {
+    "storage_cluster_id": 3,
     "bk_biz_id": 2,
     "project_id": "3e11f4212ca2444d92a869c26fcbd4a9",
     "collector_config_name": "bcs_create1",
@@ -456,7 +475,7 @@ MULTIPLE_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -484,7 +503,7 @@ MULTIPLE_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -512,7 +531,7 @@ MULTIPLE_RESULT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
     ],
     "description": "",
@@ -560,7 +579,7 @@ RESULT_DICT = {
             },
             "status": "FAILED",
             "status_detail": "配置下发失败: expected string or " "bytes-like object",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -588,7 +607,7 @@ RESULT_DICT = {
             },
             "status": None,
             "status_detail": "",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
         {
             "all_container": True,
@@ -616,7 +635,7 @@ RESULT_DICT = {
             },
             "status": None,
             "status_detail": "",
-            "stdout_conf": {"bk_data_id": 101, "bkdata_data_id": None},
+            "stdout_conf": {"bk_data_id": 100, "bkdata_data_id": None},
         },
     ],
     "description": "",
@@ -636,59 +655,61 @@ OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
 BK_APP_CODE = "bk_bcs"
 
-ES_CLUSTERS = [
+logger.info("+++++++++++++++++++++++++++++++++++++++++")
+
+cluster_info = [
     {
-        "cluster_config": {
-            "domain_name": "127.0.0.1",
-            "port": 9200,
-            "extranet_domain_name": "",
-            "extranet_port": 0,
-            "schema": "http",
-            "is_ssl_verify": False,
-            "ssl_verification_mode": "none",
-            "ssl_insecure_skip_verify": False,
-            "ssl_certificate_authorities": "",
-            "ssl_certificate": "",
-            "ssl_certificate_key": "",
-            "raw_ssl_certificate_authorities": "",
-            "raw_ssl_certificate": "",
-            "raw_ssl_certificate_key": "",
-            "cluster_id": 3,
-            "cluster_name": "es7_cluster",
-            "version": "7.2",
-            "custom_option": {
-                "bk_biz_id": 2,
-                "hot_warm_config": {
-                    "is_enabled": False,
-                    "hot_attr_name": "",
-                    "hot_attr_value": "",
-                    "warm_attr_name": "",
-                    "warm_attr_value": "",
+        'cluster_config': {
+            'domain_name': '127.0.0.1',
+            'port': 9200,
+            'extranet_domain_name': '',
+            'extranet_port': 0,
+            'schema': 'http',
+            'is_ssl_verify': False,
+            'ssl_verification_mode': 'none',
+            'ssl_insecure_skip_verify': False,
+            'ssl_certificate_authorities': '',
+            'ssl_certificate': '',
+            'ssl_certificate_key': '',
+            'raw_ssl_certificate_authorities': '',
+            'raw_ssl_certificate': '',
+            'raw_ssl_certificate_key': '',
+            'cluster_id': 3,
+            'cluster_name': 'es7_cluster',
+            'version': '7.2',
+            'custom_option': {
+                'bk_biz_id': 2,
+                'hot_warm_config': {
+                    'is_enabled': False,
+                    'hot_attr_name': '',
+                    'hot_attr_value': '',
+                    'warm_attr_name': '',
+                    'warm_attr_value': '',
                 },
-                "source_type": "other",
-                "visible_config": {"visible_type": "all_biz", "visible_bk_biz": [], "bk_biz_labels": {}},
-                "setup_config": {
-                    "retention_days_max": 3,
-                    "retention_days_default": 1,
-                    "number_of_replicas_max": 1,
-                    "number_of_replicas_default": 0,
-                    "es_shards_default": 1,
-                    "es_shards_max": 3,
+                'source_type': 'other',
+                'visible_config': {'visible_type': 'all_biz', 'visible_bk_biz': [], 'bk_biz_labels': {}},
+                'setup_config': {
+                    'retention_days_max': 3,
+                    'retention_days_default': 1,
+                    'number_of_replicas_max': 1,
+                    'number_of_replicas_default': 0,
+                    'es_shards_default': 1,
+                    'es_shards_max': 3,
                 },
-                "admin": ["system"],
-                "description": "",
-                "enable_archive": False,
-                "enable_assessment": True,
+                'admin': ['system'],
+                'description': '',
+                'enable_archive': False,
+                'enable_assessment': True,
             },
-            "registered_system": "_default",
-            "creator": "system",
-            "create_time": 1684943948,
-            "last_modify_user": "admin",
-            "last_modify_time": 1715674078,
-            "is_default_cluster": True,
+            'registered_system': '_default',
+            'creator': 'system',
+            'create_time': 1684943948,
+            'last_modify_user': 'admin',
+            'last_modify_time': 1715674078,
+            'is_default_cluster': True,
         },
-        "cluster_type": "elasticsearch",
-        "auth_info": {"password": "8E6", "username": "elastic"},
+        'cluster_type': 'elasticsearch',
+        'auth_info': {'password': '8E6lprO6OPiT', 'username': 'elastic'},
     }
 ]
 
@@ -698,29 +719,37 @@ ES_CLUSTERS = [
     "apps.api.TransferApi",
     get_result_table=lambda _: {},
     create_result_table=lambda _: {"table_id": TABLE_ID},
-    get_cluster_info=lambda _: ES_CLUSTERS,
     get_data_id=lambda _: None,
+    get_cluster_info=lambda _: cluster_info,
 )
 @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-class TestBcsCollector(TestCase):
+@patch("apps.log_databus.handlers.collector.CollectorHandler._authorization_collector")
+@patch("apps.decorators.user_operation_record.delay")
+class TestBcsCollectorApi(TestCase):
     @patch.multiple(
         "apps.api.TransferApi",
         get_result_table=lambda _: {},
         create_result_table=lambda _: {"table_id": TABLE_ID},
-        get_cluster_info=lambda _: ES_CLUSTERS,
         get_data_id=lambda _: None,
+        get_cluster_info=lambda _: cluster_info,
     )
-    @patch.object(CollectorScenario, "update_or_create_data_id")
+    @patch(
+        "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id", return_value=100
+    )
+    @patch("apps.log_databus.handlers.collector.CollectorHandler._authorization_collector")
+    @patch("apps.decorators.user_operation_record.delay")
     def setUp(self, mock_bk_data_id, *args, **kwargs):
-        mock_bk_data_id.side_effect = [100, 101]
-
         # 调用create_bcs_collector接口,初始化数据
         params = copy.deepcopy(PARAMS)
         data = custom_params_valid(serializer=BCSCollectorSerializer, params=params)
         handler = CollectorHandler()
+        logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++++++4")
         result = handler.create_bcs_container_config(data=data, bk_app_code=BK_APP_CODE)
+        logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++++++5")
         handler.sync_bcs_container_bkdata_id(result)
+        logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++++++6")
         handler.sync_bcs_container_task(result)
+        logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++++++7")
         RESULT_DICT.update(
             {
                 "file_index_set_id": result["file_index_set_id"],
@@ -730,10 +759,11 @@ class TestBcsCollector(TestCase):
                 "std_index_set_id": result["std_index_set_id"],
             }
         )
+        logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++++++8")
 
     @patch("apps.api.TransferApi.get_result_table", lambda _: {})
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": "TABLE_ID"})
-    def test_bcs_collector(self, *args, **kwargs):
+    def test_bcs_collector_api(self, *args, **kwargs):
         rule_id = RESULT_DICT["rule_id"]
         update_path = f"/api/v1/databus/collectors/{rule_id}/update_bcs_collector/"
         list_params = {"bk_biz_id": PARAMS["bk_biz_id"], "bcs_cluster_id": PARAMS["bcs_cluster_id"]}
