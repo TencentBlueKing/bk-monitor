@@ -106,6 +106,8 @@ from fta_web.alert.utils import (
     add_overview,
     get_previous_month_range_unix,
     slice_time_interval,
+    get_previous_week_range_unix,
+    generate_date_ranges,
 )
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
@@ -123,6 +125,73 @@ from monitor_web.models import CustomEventGroup
 
 logger = logging.getLogger("root")
 
+
+class GetFtaData(Resource):
+
+    def perform_request(self, validated_request_data):
+        results_format = validated_request_data.get("results", "json")
+        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
+            "end_time", None
+        )
+        biz_list = api.cmdb.get_business()
+        target_biz_ids = []
+        # 如果有预期的业务 id 则取预期的业务内容
+        if target_biz_ids:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
+        else:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
+    
+        if not start_time or not end_time:
+            start_time, end_time = get_previous_week_range_unix()
+        
+        ret = []
+        scenario = constants.QuickSolutionsConfig.SCENARIO
+
+        # 日期为第一层 再分业务获取对应的告警数量
+        for day_start, day_end in generate_date_ranges(start_time, end_time):
+            for biz in biz_list:
+                scenario_totals = {scenario_name: 0 for scenario_name in scenario.keys()}
+                for scenario_name, scenario_list in scenario.items():
+                    request_body = {
+                        "bk_biz_ids": [biz.bk_biz_id],
+                        "status": [],
+                        "conditions": [],
+                        "query_string": "",
+                        "start_time": int(day_start.timestamp()),
+                        "end_time": int(day_end.timestamp())
+                    }
+                
+                    conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
+                    # 将生成的条件括在括号内
+                    query_string = f'({conditions})'
+                    request_body['query_string'] = query_string
+                    handler = AlertQueryHandler(**request_body)
+                    result = handler.search()
+                    scenario_totals[scenario_name] = result['total']
+                ret.append({
+                "日期": day_start.date(),
+                "业务": biz.display_name,
+                **scenario_totals
+                })
+        if results_format == "file":
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["日期", "业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in ret:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return ret
 
 class GetTmpData(Resource):
     def perform_request(self, validated_request_data):
