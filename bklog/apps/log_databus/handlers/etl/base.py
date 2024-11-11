@@ -163,14 +163,36 @@ class EtlHandler(object):
         fields=None,
         username="",
     ):
+        import logging
+
+        # 获取一个日志记录器
+        logger1 = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger1.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger1.addHandler(console_handler)
+        logger1.info("base.py------01")
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
-
+        logger1.info("base.py------02")
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+        logger1.info("base.py------03")
+
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
+        logger1.info("base.py------04")
 
         if self.data.is_clustering:
             clustering_handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
@@ -198,6 +220,7 @@ class EtlHandler(object):
                         field["option"]["real_path"] = field["option"]["real_path"].replace(
                             f"{EtlStorage.separator_node_name}.", ""
                         )
+        logger1.info("base.py------05")
 
         # 判断是否已存在同result_table_id
         if CollectorConfig(table_id=table_id).get_result_table_by_id():
@@ -205,6 +228,7 @@ class EtlHandler(object):
             raise CollectorResultTableIDDuplicateException(
                 CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=table_id)
             )
+        logger1.info("base.py------06")
 
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
@@ -220,12 +244,15 @@ class EtlHandler(object):
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
         )
+        logger1.info("base.py------07")
 
         if not view_roles:
             view_roles = []
+        logger1.info("base.py------08")
 
         # 2. 创建索引集
         index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+        logger1.info("base.py------09")
 
         # add user_operation_record
         operation_record = {
@@ -245,10 +272,15 @@ class EtlHandler(object):
                 "fields": fields,
             },
         }
+        logger1.info("base.py------010")
+
         user_operation_record.delay(operation_record)
+        logger1.info("base.py------11")
+
         if self.data.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
+        logger1.info("base.py------12")
 
         return {
             "collector_config_id": self.data.collector_config_id,
@@ -301,6 +333,25 @@ class EtlHandler(object):
         """
         创建索引集
         """
+        import logging
+
+        # 获取一个日志记录器
+        logger1 = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger1.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger1.addHandler(console_handler)
+        logger1.info("base.py------xxxx1")
         # view_roles的来源
         indexes = [
             {
@@ -311,11 +362,17 @@ class EtlHandler(object):
             }
         ]
         index_set_name = _("[采集项]") + self.data.collector_config_name
+        logger1.info("base.py------xxxx2")
 
         if self.data.index_set_id:
             index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
+
             if not view_roles:
+                logger1.info("base.py------xxxx3")
+
                 view_roles = index_set_handler.data.view_roles
+            logger1.info("base.py------xxxx4")
+
             index_set = index_set_handler.update(
                 index_set_name=index_set_name,
                 storage_cluster_id=storage_cluster_id,
@@ -324,9 +381,13 @@ class EtlHandler(object):
                 indexes=indexes,
                 username=username,
             )
+            logger1.info("base.py------xxxx5")
+
         else:
             if not view_roles:
                 view_roles = []
+            logger1.info("base.py------xxxx6")
+
             index_set = IndexSetHandler.create(
                 index_set_name=index_set_name,
                 space_uid=bk_biz_id_to_space_uid(self.data.bk_biz_id),
@@ -339,8 +400,11 @@ class EtlHandler(object):
                 username=username,
             )
             self.data.index_set_id = index_set.index_set_id
+
         self.data.etl_config = etl_config
+        logger1.info("base.py------xxxx7")
         self.data.save()
+        logger1.info("base.py------xxxx8")
 
         return model_to_dict(index_set)
 

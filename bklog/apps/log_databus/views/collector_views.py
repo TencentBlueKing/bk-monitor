@@ -2103,16 +2103,39 @@ class CollectorViewSet(ModelViewSet):
 
     @detail_route(methods=["POST"], url_path="update_bcs_collector")
     def update_bcs_collector(self, request, collector_config_id=None):
+        import logging
+
+        # 获取一个日志记录器
+        logger = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger.addHandler(console_handler)
+        logger.info("update_bcs_collector------xxx1")
         auth_info = Permission.get_auth_info(request, raise_exception=False)
+        logger.info("update_bcs_collector------xxx2")
         if not auth_info:
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
+        logger.info("update_bcs_collector------xxx3")
+
         rule_id = int(collector_config_id)
-        return Response(
-            CollectorHandler().update_bcs_container_config(
-                data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
-            )
+        result = CollectorHandler().update_bcs_container_config(
+            data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
         )
+        logger.info("update_bcs_collector------xxx4")
+
+        return Response(result)
 
     @detail_route(methods=["POST"], url_path="retry_bcs_collector")
     def retry_bcs_collector(self, request, collector_config_id=None):

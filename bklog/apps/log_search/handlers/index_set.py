@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import json
 import re
 from collections import defaultdict
-from typing import Optional, List
+from typing import List, Optional
 
 from django.conf import settings
 from django.db import transaction
@@ -88,8 +88,8 @@ from apps.log_search.models import (
     Scenario,
     Space,
     StorageClusterRecord,
-    UserIndexSetFieldsConfig,
     UserIndexSetCustomConfig,
+    UserIndexSetFieldsConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -361,11 +361,33 @@ class IndexSetHandler(APIModel):
         target_fields=None,
         sort_fields=None,
     ):
+        import logging
+
+        # 获取一个日志记录器
+        logger1 = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger1.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger1.addHandler(console_handler)
+        logger1.info("index_set.py------xxxx1")
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
         view_roles = []
         if not bk_app_code:
+            logger1.info("index_set.py------xxxx2")
             bk_app_code = get_request_app_code()
+        logger1.info("index_set.py------xxxx3")
+
         index_set = index_set_handler(
             index_set_name,
             space_uid,
@@ -385,6 +407,7 @@ class IndexSetHandler(APIModel):
             target_fields=target_fields,
             sort_fields=sort_fields,
         ).create_index_set()
+        logger1.info("index_set.py------xxxx4")
 
         # add user_operation_record
         operation_record = {
@@ -414,6 +437,7 @@ class IndexSetHandler(APIModel):
             },
         }
         user_operation_record.delay(operation_record)
+        logger1.info("index_set.py------xxxx5")
 
         return index_set
 
@@ -1243,14 +1267,37 @@ class BaseIndexSetHandler(object):
         """
         创建索引集
         """
+        import logging
+
+        # 获取一个日志记录器
+        logger1 = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger1.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger1.addHandler(console_handler)
+        logger1.info("base.py------aaa1")
         self.pre_create()
         logger.info("[create_index_set]pre_create index_set_name=>{}".format(self.index_set_name))
+        logger1.info("base.py------aaa2")
 
         index_set = self.create()
         logger.info("[create_index_set]create index_set_name=>{}".format(self.index_set_name))
+        logger1.info("base.py------aaa3")
 
         self.post_create(index_set)
         logger.info("[create_index_set]post_create index_set_name=>{}".format(self.index_set_name))
+        logger1.info("base.py------aaa4")
+
         return index_set
 
     def update_index_set(self, index_set_obj):
@@ -1291,6 +1338,25 @@ class BaseIndexSetHandler(object):
             self.is_trace_log_pre_check()
 
     def create(self):
+        import logging
+
+        # 获取一个日志记录器
+        logger1 = logging.getLogger(__name__)
+
+        # 设置日志记录级别
+        logger1.setLevel(logging.INFO)
+
+        # 创建处理器并设置级别为INFO
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        # 创建格式化器并添加到处理器
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # 将处理器添加到日志记录器
+        logger1.addHandler(console_handler)
+        logger1.info("base.py-create------bbbbbb1")
         # 创建索引集
         self.index_set_obj = LogIndexSet.objects.create(
             index_set_name=self.index_set_name,
@@ -1316,6 +1382,7 @@ class BaseIndexSetHandler(object):
                 self.index_set_obj.index_set_id, self.index_set_name, len(self.indexes)
             )
         )
+        logger1.info("base.py-create------bbbbbb2")
 
         # 创建索引集的同时添加索引
         for index in self.indexes:
@@ -1324,9 +1391,12 @@ class BaseIndexSetHandler(object):
                 time_filed=index.get("time_field"),
                 result_table_id=index["result_table_id"],
             )
+        logger1.info("base.py-create------bbbbbb3")
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
+        logger1.info("base.py-create------bbbbbb4")
+
         return self.index_set_obj
 
     @staticmethod
@@ -1727,10 +1797,10 @@ class IndexSetFieldsConfigHandler(object):
 
 class UserIndexSetConfigHandler(object):
     def __init__(
-            self,
-            index_set_id: int = None,
-            index_set_ids: List[int] = None,
-            index_set_type: str = IndexSetType.SINGLE.value,
+        self,
+        index_set_id: int = None,
+        index_set_ids: List[int] = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids
