@@ -12,6 +12,7 @@ from collections import defaultdict
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.business import BusinessManager
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.local import local
@@ -103,6 +104,20 @@ class AssignCacheManager(CacheManager):
         return local.assign_cache[cache_key]
 
     @classmethod
+    def parse_dynamic_group(cls, condition):
+        if condition["field"] != "dynamic_group":
+            return condition
+        # 将动态分组解析成主机id列表
+        dynamic_groups = DynamicGroupManager.multi_get(condition["value"])
+        bk_host_ids = set()
+        for dynamic_group in dynamic_groups:
+            if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                bk_host_ids.update(dynamic_group["bk_inst_ids"])
+        condition["field"] = "bk_host_id"
+        condition["value"] = list(bk_host_ids)
+        return condition
+
+    @classmethod
     def refresh(cls):
         biz_list = BusinessManager.all()
         # 拉取生效的屏蔽配置，因为是缓存，把未来十分钟内会生效的屏蔽配置也拉进来
@@ -133,7 +148,11 @@ class AssignCacheManager(CacheManager):
         for rule in rules:
             group_id = rule["assign_group_id"]
             rule["group_name"] = group_base_info[group_id]["name"]
-            # todo 动态分组转换，将动态分组转换成主机列表
+            # 动态分组转换，将动态分组转换成主机列表
+            conditions = []
+            for condition in rule["conditions"]:
+                conditions.append(cls.parse_dynamic_group(condition))
+
             group_rules[rule["assign_group_id"]].append(rule)
 
         pipeline = cls.cache.pipeline()
