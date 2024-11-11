@@ -1,9 +1,11 @@
 <script setup>
-  import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue';
+  import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useTruncateText from '@/hooks/use-truncate-text';
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { debounce } from 'lodash';
 
   const emit = defineEmits(['menu-click']);
 
@@ -14,12 +16,15 @@
   });
 
   const refContent = ref();
+  const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
+  const isIntersecting = ref(false);
+  const isSegmentTagInit = ref(false);
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -76,31 +81,53 @@
 
     showAll.value = !showAll.value;
   };
+
+  const debounceSetSegmentTag = debounce(() => {
+    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
+      return;
+    }
+
+    instance.config.jsonValue = renderText.value;
+    instance.destroy?.();
+
+    const appendText =
+      showMore.value && !isLimitExpandView.value
+        ? {
+            text: btnText.value,
+            onClick: handleClickMore,
+            attributes: {
+              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+            },
+          }
+        : undefined;
+    instance.initStringAsValue(renderText.value, appendText);
+  });
+
   watch(
     () => [renderText.value],
     () => {
       nextTick(() => {
-        instance.config.jsonValue = renderText.value;
-        instance.destroy?.();
-
-        const appendText =
-          showMore.value && !isLimitExpandView.value
-            ? {
-                text: btnText.value,
-                onClick: handleClickMore,
-                attributes: {
-                  class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-                },
-              }
-            : undefined;
-        instance.initStringAsValue(renderText.value, appendText);
+        debounceSetSegmentTag();
       });
     },
-    { immediate: true },
   );
 
-  onMounted(() => {
-    const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
+  const getCellElement = () => {
+    return refContent.value?.parentElement?.closest?.('.bklog-lazy-render-cell');
+  };
+
+  const debounceUpdateSegmentTag = debounce(() => {
+    const cellElement = getCellElement();
+    if (cellElement) {
+      const offsetWidth = cellElement.offsetWidth;
+      const elementMaxWidth = cellElement.offsetWidth * 3;
+      maxWidth.value = elementMaxWidth;
+      nextTick(() => debounceSetSegmentTag());
+    }
+  });
+
+  const createResizeObserve = () => {
+    const cellElement = getCellElement();
     const offsetWidth = cellElement.offsetWidth;
     const elementMaxWidth = cellElement.offsetWidth * 3;
     maxWidth.value = elementMaxWidth;
@@ -109,19 +136,35 @@
     resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
         // 获取元素的新高度
-        const newWidth = entry.contentRect.width * 3;
-
-        if (newWidth !== maxWidth.value) {
-          maxWidth.value = newWidth;
-        }
+        debounceUpdateSegmentTag();
       }
     });
+  };
 
-    // 开始监听元素
-    resizeObserver.observe(cellElement);
+  let setObserveTimer = null;
+
+  useIntersectionObserver(refContent, entry => {
+    isIntersecting.value = entry.isIntersecting;
+    if (entry.isIntersecting) {
+      // 开始监听元素
+      resizeObserver.observe(getCellElement());
+      // 进入可视区域重新计算宽度
+      debounceUpdateSegmentTag();
+    } else {
+      if (refFieldValue.value) {
+        refFieldValue.value.innerText = renderText.value;
+      }
+
+      resizeObserver?.unobserve?.(getCellElement());
+    }
   });
 
-  onUnmounted(() => {
+  onMounted(() => {
+    createResizeObserve();
+    debounceUpdateSegmentTag();
+  });
+
+  onBeforeUnmount(() => {
     instance?.destroy?.();
     resizeObserver.disconnect();
     resizeObserver = null;
@@ -148,6 +191,7 @@
     >
     <span
       class="field-value"
+      ref="refFieldValue"
       :data-field-name="field.field_name"
       >{{ renderText }}</span
     >
@@ -173,16 +217,25 @@
     }
 
     span {
+      line-height: 20px;
+
       &.segment-content {
         span {
-          font-size: 12px;
+          font:
+            12px Menlo,
+            Monaco,
+            Consolas,
+            Courier,
+            'PingFang SC',
+            'Microsoft Yahei',
+            monospace;
         }
 
         .btn-more-action {
           position: absolute;
           right: 16px;
           bottom: 10px;
-          padding-left: 22px;
+          padding-left: 18px;
           color: #3a84ff;
           cursor: pointer;
           background-color: #fff;
@@ -191,7 +244,7 @@
             &::before {
               position: absolute;
               top: 50%;
-              left: 0;
+              left: 4px;
               content: '...';
               transform: translateY(-50%);
             }

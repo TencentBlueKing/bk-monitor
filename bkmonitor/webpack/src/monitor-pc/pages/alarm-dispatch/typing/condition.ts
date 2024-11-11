@@ -28,7 +28,7 @@ import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import { getAssignConditionKeys, searchObjectAttribute } from 'monitor-api/modules/assign';
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
 import { getVariableValue } from 'monitor-api/modules/grafana';
-import { listUsersUser } from 'monitor-api/modules/model';
+import { listUsersUser, groupsIpChooserDynamicGroup } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
@@ -86,7 +86,7 @@ export const KEY_FILTER_TAGS = [
 
 /* 标签包含的key选项 */
 export const KEY_TAG_MAPS = {
-  [EKeyTags.cmdb]: ['set', 'module', 'host'],
+  [EKeyTags.cmdb]: ['set', 'module', 'host', 'dynamic_group'],
   [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.strategy_id', STRATEGY_LABELS],
   [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source'],
 };
@@ -199,17 +199,36 @@ export async function allKVOptions(
       end?.();
     }
   };
+  // 获取动态分组
+  groupsIpChooserDynamicGroup({ scope_list: [{ scope_id: bkBizIds[0], scope_type: 'biz' }] })
+    .then(data => {
+      setData(
+        'valueMap',
+        'dynamic_group',
+        data.map(item => ({
+          id: item.id,
+          name: item.name,
+        }))
+      );
+      awaitAll();
+    })
+    .catch(() => {
+      awaitAll();
+    });
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
-      const keys = keyRes
-        .map(item => {
-          return {
-            id: item.key,
-            name: item.display_key,
-          };
-        })
-        .filter(item => item.id !== 'tags');
+      const keys = [
+        ...keyRes
+          .map(item => {
+            return {
+              id: item.key,
+              name: item.display_key,
+            };
+          })
+          .filter(item => item.id !== 'tags'),
+        { id: 'dynamic_group', name: window.i18n.t('动态分组') },
+      ];
       setData('keys', '', keys);
       awaitAll();
     })
