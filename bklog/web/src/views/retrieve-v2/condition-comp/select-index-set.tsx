@@ -424,10 +424,12 @@ export default class QueryStatement extends tsc<object> {
         this.indexSearchType = 'single';
         this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
       }
+      // #if APP !== 'apm'
       // 获取多选收藏
       this.getMultipleFavoriteList();
       // 获取单选或多选历史记录列表
       this.getIndexSetHistoryList(this.indexSearchType);
+      // #endif
       // 获取到缓存的常用标签
       const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
       const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
@@ -991,6 +993,7 @@ export default class QueryStatement extends tsc<object> {
       );
     };
     const favoriteAndHistory = () => {
+      if (window.__IS_MONITOR_APM__) return null;
       return (
         <div class='favorite-and-history'>
           <bk-tab
@@ -1163,7 +1166,7 @@ export default class QueryStatement extends tsc<object> {
                       onClick={() => this.handelClickIndexSet(item)}
                     >
                       <span class='index-info'>
-                        {indexHandDom(item)}
+                        {!window.__IS_MONITOR_APM__ && indexHandDom(item)}
                         {item.isNotVal && <i class='not-val' />}
                         <span
                           class='index-name'
