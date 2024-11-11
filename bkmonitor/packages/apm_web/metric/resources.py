@@ -3168,7 +3168,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             value: Union[int, float] = 0
             try:
                 value: Union[int, float] = round(record["result"], 2)
-            except Exception:  # noqa
+            except Exception:  # pylint: disable=broad-except
                 pass
 
             # 请求量必须是整型
