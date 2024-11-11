@@ -63,6 +63,14 @@
     }
   }
 
+  .search-bar-container {
+    .search-sql-query {
+      .empty-placeholder-text {
+        color: #c4c6cc;
+      }
+    }
+  }
+
   .empty-chart-log {
     display: flex;
     flex: 1;
