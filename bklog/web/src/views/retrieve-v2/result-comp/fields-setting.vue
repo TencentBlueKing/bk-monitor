@@ -331,7 +331,7 @@
       },
       currentClickConfigData() {
         // 当前选中的配置
-        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0] || 0;
+        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
       },
       fieldWidth() {
         return this.$store.state.isEnLanguage ? '60' : '114';
