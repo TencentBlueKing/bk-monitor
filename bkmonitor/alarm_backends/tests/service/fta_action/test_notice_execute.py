@@ -500,7 +500,7 @@ def get_strategy_dict(group_id):
         "notice": {  # 通知设置
             "id": 1,
             "config_id": 55555,  # 套餐ID，如果不选套餐请置为0
-            # 'relation_id': 12345,
+            'relation_id': 1,
             "user_groups": [group_id],  # 告警组ID
             "signal": ["abnormal", "recovered", "ack"],
             # 触发信号，abnormal-异常，recovered-恢复，closed-关闭，execute-执行动作时, execute_success-执行成功, execute_failed-执行失败
@@ -3968,7 +3968,7 @@ class TestActionProcessor(TransactionTestCase):
                 self.assertEqual(ActionInstance.objects.filter(id__in=actions0, need_poll=False).count(), 1)
                 self.assertEqual(alert.cycle_handle_record["1"]["execute_times"], 2)
                 ActionInstance.objects.filter(id__in=actions0).delete()
-                unshielded_actions = create_actions(**checker.unshielded_actions)
+                unshielded_actions = create_actions(**checker.unshielded_actions[0])
 
                 # 四个通知方式，产生了5个子任务
                 self.assertEqual(len(unshielded_actions), 6)
