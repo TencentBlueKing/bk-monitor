@@ -26,8 +26,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import * as monaco from "monaco-editor";
+import { bkResizeLayout } from "bk-magic-vue";
+import useLocale from "@/hooks/use-locale";
+const { $t } = useLocale();
 const editorContainer = ref(null);
-const topPanelHeight = ref("");
+let editorInstance = null;
 window.MonacoEnvironment = {
   // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
   // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
@@ -49,12 +52,17 @@ window.MonacoEnvironment = {
       : "./editor.worker.js";
   },
 };
+// resize后重新计算高度
+function resize() {
+  if (editorInstance) {
+    editorInstance.layout();
+  }
+}
 onMounted(() => {
   // 在组件挂载后初始化 Monaco Editor
-  //   console.log(Math.floor((document.body.clientHeight - 52) / 2));
-  topPanelHeight.value = Math.floor((document.body.clientHeight - 52) / 2);
   if (editorContainer.value) {
-    monaco.editor.create(editorContainer.value, {
+    // editorContainer.value.style.height = "100%"; // 设置高度
+    editorInstance = monaco.editor.create(editorContainer.value, {
       value: "123",
       language: "javascript", // 设置语言类型
       theme: "vs-dark", // 设置编辑器主题
@@ -64,22 +72,38 @@ onMounted(() => {
 </script>
 <template>
   <div class="body-left">
-    <!-- <bk-resize-layout
+    <bk-resize-layout
       class="full-height"
       placement="top"
-      :initial-divide="topPanelHeight"
+      :initial-divide="274"
+      @after-resize="resize"
       :min="274"
       :border="false"
-    > -->
-    <div ref="editorContainer" class="editorContainer"></div>
-    <!-- <div ref="editorContainer" :style="{ height: `${topPanelHeight}px` }"></div> -->
-    <!-- <div slot="main">main</div> -->
-    <!-- </bk-resize-layout> -->
+    >
+      <div
+        ref="editorContainer"
+        slot="aside"
+        :immediate="true"
+        class="editorContainer"
+      ></div>
+      <!-- <div ref="editorContainer" :style="{ height: `${topPanelHeight}px` }"></div> -->
+      <div slot="main">main</div>
+    </bk-resize-layout>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.editorContainer {
-  height: 100%;
+.body-left {
+  .full-height {
+    height: 100%;
+
+    .editorContainer {
+      height: 100%;
+
+      .monaco-edito {
+        height: 100%;
+      }
+    }
+  }
 }
 </style>
