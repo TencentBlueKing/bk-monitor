@@ -1,5 +1,8 @@
 <template>
-  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]">
+  <div
+    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    ref="refJsonFormatterCell"
+  >
     <template v-for="item in rootList">
       <span
         :key="item.name"
@@ -12,7 +15,6 @@
             >{{ item.name }}</span
           ></span
         >
-        <span class="field-split">:</span>
         <span
           class="field-value"
           :data-field-name="item.name"
@@ -24,12 +26,13 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
+  import { computed, ref, watch, nextTick } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
-
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  // import jsonEditorTask from '../global/utils/json-editor-task';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -50,6 +53,9 @@
   });
 
   const formatCounter = ref(0);
+  const refJsonFormatterCell = ref();
+  const isEditorInit = ref(false);
+
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
@@ -62,9 +68,16 @@
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
-  const { updateRootFieldOperator, setExpand } = useJsonRoot({
+  const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
     fields: fieldList.value,
     onSegmentClick,
+  });
+
+  const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
+    if (entry.isIntersecting && !isEditorInit.value) {
+      isEditorInit.value = true;
+      setEditor(depth.value);
+    }
   });
 
   const convertToObject = val => {
@@ -92,7 +105,7 @@
       return convertToObject(parseTableRowData(props.jsonValue, field.field_name));
     }
 
-    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue,field.field_name) : props.jsonValue;
+    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue, field.field_name) : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
@@ -120,6 +133,10 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
+      if (isIntersecting.value) {
+        isEditorInit.value = true;
+        setEditor(depth.value);
+      }
     },
     {
       immediate: true,
@@ -129,7 +146,11 @@
   watch(
     () => [depth.value],
     () => {
-      setExpand(depth.value);
+      if (isIntersecting.value) {
+        setExpand(depth.value);
+      } else {
+        isEditorInit.value = false;
+      }
     },
   );
 </script>
@@ -144,7 +165,7 @@
     color: var(--table-fount-color);
 
     .bklog-root-field {
-      margin-right: 2px;
+      margin-right: 4px;
       line-height: 20px;
 
       &:not(:first-child) {
@@ -159,6 +180,10 @@
           padding: 0 2px;
           background: #e6e6e6;
           border-radius: 2px;
+        }
+
+        &::after {
+          content: ':';
         }
       }
 
@@ -216,10 +241,6 @@
     &.is-json {
       display: inline-block;
       width: 100%;
-
-      .bklog-root-field {
-        display: inline-flex;
-      }
     }
 
     &.is-wrap-line {

@@ -331,9 +331,10 @@ export default class UseJsonFormatter {
 
       if (target?.hasAttribute('data-has-word-split')) {
         target.removeAttribute('data-has-word-split');
-        if (typeof this.config.jsonValue === 'string') {
-          target.innerText = this.config.jsonValue;
-        }
+      }
+
+      if (target && typeof this.config.jsonValue === 'string') {
+        target.innerHTML = this.config.jsonValue;
       }
     }
   }
