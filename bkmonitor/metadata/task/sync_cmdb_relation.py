@@ -17,6 +17,7 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
+from core.prometheus import metrics
 from metadata.models import (
     ClusterInfo,
     DataSource,
@@ -25,6 +26,7 @@ from metadata.models import (
     Space,
     TimeSeriesGroup,
 )
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -36,6 +38,11 @@ def sync_relation_redis_data():
     同步cmdb-relation内置数据
     """
     logger.info("sync_relation_redis_data started")
+    start_time = time.time()
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_relation_redis_data", status=TASK_STARTED, process_target=None
+    ).inc()
     # 获取对应的Redis数据
     redis_key = settings.BUILTIN_DATA_RT_REDIS_KEY
     redis_data = RedisTools.hgetall(redis_key)
@@ -127,4 +134,12 @@ def sync_relation_redis_data():
                     logger.error(f"sync_relation_redis_data error: Failed to create new DS&RT, error={e}, field={key}")
                     continue
 
-    logger.info("sync_relation_redis_data finished successfully")
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_relation_redis_data", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_relation_redis_data", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("sync_relation_redis_data finished successfully,use->[%s] seconds", cost_time)

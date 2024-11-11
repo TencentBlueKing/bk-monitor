@@ -29,6 +29,7 @@ from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.task.utils import bulk_handle
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -169,6 +170,11 @@ def update_time_series_metrics(time_series_metrics):
 @app.task(ignore_result=True, queue="celery_long_task_cron")
 def manage_es_storage(es_storages, cluster_id: int = None):
     """并发管理 ES 存储。"""
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="manage_es_storage", status=TASK_STARTED, process_target=None
+    ).inc()
+
     logger.info("manage_es_storage: start to manage_es_storage")
     start_time = time.time()
     # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
@@ -193,6 +199,12 @@ def manage_es_storage(es_storages, cluster_id: int = None):
             executor.map(_manage_es_storage, es_storages)
 
     cost_time = time.time() - start_time
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="manage_es_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+
     # 统计耗时，并上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="manage_es_storage", process_target=None).observe(
         cost_time
@@ -215,6 +227,12 @@ def _manage_es_storage(es_storage):
     #             es_storage.storage_cluster.domain_name,
     #         )
     #         return
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_manage_es_storage", status=TASK_STARTED, process_target=es_storage.table_id
+    ).inc()
+
     start_time = time.time()
     try:
         # 先预创建各个时间段的index，
@@ -265,6 +283,10 @@ def _manage_es_storage(es_storage):
         logger.exception(e)
 
     cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_manage_es_storage", status=TASK_FINISHED_SUCCESS, process_target=es_storage.table_id
+    ).inc()
     # 统计耗时，并上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
         task_name="_manage_es_storage", process_target=es_storage.table_id
@@ -428,6 +450,11 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
     """
     并发刷新链路状态
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
+    ).inc()
+
     start_time = time.time()  # 记录开始时间
     logger.info(
         "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
@@ -436,10 +463,13 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
         executor.map(_refresh_data_link_status, bkbase_rt_records)
     cost_time = time.time() - start_time  # 总耗时
     logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
-    # 统计耗时，并上报指标
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="_refresh_data_link_status", process_target=None).observe(
-        cost_time
-    )
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="bulk_refresh_data_link_status", process_target=None
+    ).observe(cost_time)
     metrics.report_all()
 
 
@@ -448,6 +478,11 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     刷新链路状态（各组件状态+整体状态）
     @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_refresh_data_link_status", status=TASK_STARTED, process_target=bkbase_rt_record.data_link_name
+    ).inc()
+
     # 1. 获取基本信息
     start_time = time.time()  # 记录开始时间
     bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
@@ -572,6 +607,12 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         all_components_ok,
         bkbase_rt_record.status,
     )
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_refresh_data_link_status",
+        status=TASK_FINISHED_SUCCESS,
+        process_target=bkbase_rt_record.data_link_name,
+    ).inc()
 
     # 6. 上报指标
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(

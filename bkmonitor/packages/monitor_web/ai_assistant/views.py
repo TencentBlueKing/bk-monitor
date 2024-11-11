@@ -67,6 +67,8 @@ class ChatViewSet(viewsets.GenericViewSet):
         # 如果没有配置 AIDEV 接口地址，则直接返回错误
         if not settings.AIDEV_API_BASE_URL:
             return Response({'error': 'AIDEV assistant is not configured'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        if not settings.AIDEV_KNOWLEDGE_BASE_IDS:
+            return Response({'error': 'knowledge base is not configured'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ChatV2Serializer(data=request.data)
         if not serializer.is_valid():
