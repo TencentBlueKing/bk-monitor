@@ -59,6 +59,7 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
   cancelToken = null;
   dimensionList: ICommonItem[] = [];
   value = [];
+  showConditionInput = false;
   created() {
     try {
       const value = this.viewOptions[this.variableName];
@@ -117,13 +118,22 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
   render() {
     return (
       <div class='where-filters'>
-        <ConditionInput
-          conditionList={structuredClone(this.value)}
-          dimensionsList={this.dimensionList}
-          getDataApi={this.getDimensionValue}
-          title=''
-          onChange={this.handleConditionChange}
-        />
+        {this.showConditionInput ? (
+          <ConditionInput
+            conditionList={structuredClone(this.value)}
+            dimensionsList={this.dimensionList}
+            getDataApi={this.getDimensionValue}
+            title=''
+            onChange={this.handleConditionChange}
+          />
+        ) : (
+          <span
+            class='filter-add-btn'
+            onClick={() => (this.showConditionInput = true)}
+          >
+            <i class='icon-monitor icon-mc-add' />
+          </span>
+        )}
       </div>
     );
   }
