@@ -2952,6 +2952,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
+            ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -3103,6 +3104,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
                     required=True,
                 )
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 

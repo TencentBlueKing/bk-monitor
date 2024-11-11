@@ -19,7 +19,7 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.models import Application
+from apm_web.models import Application, CodeRedefinedConfigRelation
 from constants.apm import MetricTemporality
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
@@ -182,6 +182,33 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             view_config = cls._replace_variable(
                 view_config, "${server_filter_method}", server_config["server_filter_method"]
             )
+
+            ret_code_as_exception: str = "false"
+            try:
+                code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+                    bk_biz_id=view.bk_biz_id, app_name=app_name, service_name=params["service_name"]
+                )
+                if code_redefined_config.ret_code_as_exception:
+                    ret_code_as_exception = "true"
+                    success_rate_panel_data: Dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
+                        "targets"
+                    ][0]["data"]
+                    code_condition: Dict[str, Any] = {
+                        "key": "code",
+                        "method": "neq",
+                        "value": ["0", "ret_0"],
+                        "condition": "and",
+                    }
+                    success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
+                    success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
+
+                    view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
+                        1
+                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"]}
+            except CodeRedefinedConfigRelation.DoesNotExist:
+                pass
+
+            view_config = cls._replace_variable(view_config, "${ret_code_as_exception}", ret_code_as_exception)
 
         return view_config
 

@@ -56,7 +56,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -197,7 +198,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -432,7 +434,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -475,11 +478,9 @@
                         "condition": "and"
                       },
                       {
-                        "key": "code_type",
+                        "key": "${code_field}",
                         "method": "eq",
-                        "value": [
-                          "${code_type}"
-                        ],
+                        "value": "${code_values}",
                         "condition": "and"
                       }
                     ]
@@ -567,11 +568,9 @@
                           "condition": "and"
                         },
                         {
-                          "key": "code_type",
+                          "key": "${code_field}",
                           "method": "eq",
-                          "value": [
-                            "${code_type}"
-                          ],
+                          "value": "${code_values}",
                           "condition": "and"
                         }
                       ]
@@ -631,14 +630,20 @@
                 "id": "timeout_rate",
                 "title": "超时率",
                 "variables": {
-                  "code_type": "timeout"
+                  "code_field": "code_type",
+                  "code_values": [
+                    "timeout"
+                  ]
                 }
               },
               {
                 "id": "exception_rate",
                 "title": "异常率",
                 "variables": {
-                  "code_type": "exception"
+                  "code_field": "code_type",
+                  "code_values": [
+                    "exception"
+                  ]
                 }
               }
             ],
@@ -685,7 +690,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -1424,7 +1430,8 @@
                 "options": {
                   "trpc": {
                     "kind": "${kind}",
-                    "temporality": "${temporality}"
+                    "temporality": "${temporality}",
+                    "ret_code_as_exception": "${ret_code_as_exception}"
                   }
                 }
               }
@@ -1465,7 +1472,8 @@
                 "options": {
                   "trpc": {
                     "kind": "${kind}",
-                    "temporality": "${temporality}"
+                    "temporality": "${temporality}",
+                    "ret_code_as_exception": "${ret_code_as_exception}"
                   }
                 }
               }
@@ -1919,7 +1927,8 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}"
+                  "temporality": "${temporality}",
+                  "ret_code_as_exception": "${ret_code_as_exception}"
                 }
               }
             }
@@ -1979,7 +1988,8 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}"
+                  "temporality": "${temporality}",
+                  "ret_code_as_exception": "${ret_code_as_exception}"
                 }
               }
             }
