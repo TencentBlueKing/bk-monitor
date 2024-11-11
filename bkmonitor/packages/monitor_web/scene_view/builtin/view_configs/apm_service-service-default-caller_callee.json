@@ -642,7 +642,7 @@
                 "title": "异常率",
                 "variables": {
                   "code_field": "code_type",
-                  "method": "eq",
+                  "code_method": "eq",
                   "code_values": [
                     "exception"
                   ]
