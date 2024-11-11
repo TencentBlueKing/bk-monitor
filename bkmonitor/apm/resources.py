@@ -58,7 +58,6 @@ from apm.models import (
 from apm.models.profile import ProfileService
 from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
-from apm_web.models import Application, LogServiceRelation
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -324,6 +323,15 @@ class ApplicationInfoResource(Resource):
         raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
 
 
+def delete_application(app):
+    from apm_web.meta.resources import DeleteApplicationResource
+
+    if app:
+        DeleteApplicationResource()(bk_biz_id=app.bk_biz_id, app_name=app.app_name)
+        logger.info(f"删除应用 {app.app_name} 成功")
+        return app.application_id
+
+
 class DeleteApplicationSimpleResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id", required=False)
@@ -336,29 +344,23 @@ class DeleteApplicationSimpleResource(Resource):
         space_uid = validated_request_data.get("space_uid", "")
         bk_biz_id = validated_request_data.get("bk_biz_id", None)
         app_name = validated_request_data.get("app_name", "")
-        from apm_web.meta.resources import DeleteApplicationResource
+        from apm_web.models import Application
 
         if application_id:
             app = Application.objects.filter(application_id=application_id).first()
             if app:
-                DeleteApplicationResource()(bk_biz_id=app.bk_biz_id, app_name=app.app_name)
-                logger.info(f"删除应用 {app_name} 成功")
-                return application_id
+                return delete_application(app)
         if app_name:
             if bk_biz_id:
                 app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
                 if app:
-                    DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
-                    logger.info(f"删除应用 {app_name} 成功")
-                    return app.application_id
+                    return delete_application(app)
             elif space_uid:
                 bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
                 if bk_biz_id:
                     app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
                     if app:
-                        DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
-                        logger.info(f"删除应用 {app_name} 成功")
-                        return app.application_id
+                        return delete_application(app)
         raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
 
 
@@ -1427,6 +1429,8 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         index_set_id = serializers.IntegerField()
 
     def perform_request(self, data):
+        from apm_web.models import LogServiceRelation
+
         log_relation = (
             LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
             .order_by("created_at")
