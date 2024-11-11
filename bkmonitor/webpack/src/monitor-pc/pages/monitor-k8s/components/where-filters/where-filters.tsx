@@ -105,8 +105,10 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
     }).catch(() => []);
   }
   handleConditionChange(condition: IConditionItem[]) {
-    // if (JSON.stringify(this.value) === JSON.stringify(condition)) return;
-    this.value = condition;
+    const value = this.value?.filter(item => item.value?.length);
+    const newValue = condition.filter(item => item.value?.length);
+    if (JSON.stringify(value) === JSON.stringify(newValue)) return;
+    this.value = structuredClone(condition);
     this.$emit(
       'change',
       condition.filter(item => item.value?.length)
@@ -116,7 +118,7 @@ export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersE
     return (
       <div class='where-filters'>
         <ConditionInput
-          conditionList={structuredClone(this.value || [])}
+          conditionList={structuredClone(this.value)}
           dimensionsList={this.dimensionList}
           getDataApi={this.getDimensionValue}
           title=''
