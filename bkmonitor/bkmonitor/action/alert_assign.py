@@ -340,6 +340,8 @@ class AlertAssignMatchManager:
             "notice_users": self.notice_users,
             "ip": getattr(self.alert.event, "ip", None),
             "bk_cloud_id": str(self.alert.event.bk_cloud_id) if hasattr(self.alert.event, "bk_cloud_id") else None,
+            # 新增bk_host_id 用以匹配动态分组
+            "bk_host_id": str(self.alert.event.bk_host_id) if hasattr(self.alert.event, "bk_host_id") else None,
         }
         # 第二部分： 告警维度
         alert_dimensions = [d.to_dict() for d in self.alert.dimensions]
