@@ -136,6 +136,8 @@ declare global {
     bk_shared_res_url: string;
     footer_version: string;
     __AuthMap__: Map<string, Map<string, boolean>>;
+    csrf_token: string;
+    enable_ai_assistant?: boolean;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
