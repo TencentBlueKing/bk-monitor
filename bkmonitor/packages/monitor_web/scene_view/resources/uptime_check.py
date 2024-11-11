@@ -187,7 +187,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                     "interval": task.get_period(),
                     "filter_dict": {"task_id": str(task.id)},
                     "where": [],
-                    "table": f"uptimecheck.{task.protocol.lower()}",
+                    "data_label": f"uptimecheck_{task.protocol.lower()}",
                     "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
                     "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
                 }
@@ -197,10 +197,6 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
             "start_time": params["start_time"],
             "end_time": params["end_time"],
         }
-
-        # 通过independent_dataid判断是否是独立数据源
-        if task.indepentent_dataid:
-            query_params["query_configs"][0]["data_label"] = f"uptimecheck_{task.protocol.lower()}"
 
         result = resource.grafana.graph_unify_query(query_params)
         series_list = []
@@ -234,7 +230,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "bk_biz_id": task.bk_biz_id,
             "interval": task.get_period(),
-            "table": f"uptimecheck.{task.protocol.lower()}",
+            "data_label": f"uptimecheck_{task.protocol.lower()}",
             "filter_dict": {"task_id": str(task.id)},
             "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
             "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
