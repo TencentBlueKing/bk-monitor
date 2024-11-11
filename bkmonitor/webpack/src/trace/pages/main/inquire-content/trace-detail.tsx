@@ -55,6 +55,7 @@ import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import {
   DEFAULT_TRACE_DATA,
+  QUERY_TRACE_RELATION_APP,
   SOURCE_CATEGORY_EBPF,
   TRACE_INFO_TOOL_FILTERS,
   VIRTUAL_SPAN,
@@ -542,7 +543,7 @@ export default defineComponent({
         cacheFilterToolsValues.statistics = val;
       } else {
         searchCancelFn();
-        const selects = val.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = val.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用 选项
         const displays = ['source_category_opentelemetry'].concat(selects);
         const { trace_id: traceId } = traceData.value;
         contentLoading.value = true;
@@ -553,6 +554,7 @@ export default defineComponent({
           trace_id: traceId,
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
+          query_trace_relation_app: val.includes(QUERY_TRACE_RELATION_APP),
         };
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
