@@ -41,6 +41,14 @@ export interface IConditionItem {
   method: 'eq';
   value: string | string[];
 }
+
+/** 时间对比 */
+export interface DateComparison {
+  start?: number;
+  end?: number;
+  diffStart?: number;
+  diffEnd?: number;
+}
 export interface RetrievalFormData {
   /** 查询类型 */
   type: SearchType;
@@ -51,6 +59,8 @@ export interface RetrievalFormData {
     app_name: string;
     service_name: string;
   };
+  /** 时间对比开关 */
+  dateComparisonEnable: boolean;
   /** 查询项条件 */
   where: IConditionItem[];
   /** 对比项条件 */

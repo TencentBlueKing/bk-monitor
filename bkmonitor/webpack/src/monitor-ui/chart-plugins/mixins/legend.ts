@@ -31,7 +31,7 @@ import type { ILegendItem, LegendActionType, MonitorEchartOptions } from '../typ
 
 @Component
 export default class ResizeMixin extends Vue {
-  legendData: ILegendItem[];
+  legendData: ILegendItem[] = [];
   // 鼠标是否进入图表内
   @Prop({ default: false, type: Boolean }) showHeaderMoreTool: boolean;
   handleLegendChange() {
@@ -70,7 +70,7 @@ export default class ResizeMixin extends Vue {
         formatter: params => {
           if (params.dataIndex === 0) {
             const divide = Number((params.value / totalValue).toFixed(2));
-            const ratio = isNaN(divide) ? 0 : divide * 100;
+            const ratio = Number.isNaN(divide) ? 0 : divide * 100;
             return `${ratio}%\n${params.name}`;
           }
           return '';

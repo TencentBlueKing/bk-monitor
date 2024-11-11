@@ -236,7 +236,7 @@ class DataFlowHandler(BaseAiopsHandler):
         if fields_name_list:
             if all_fields_dict.get(clustering_field) and all_fields_dict.get(clustering_field) in fields_name_list:
                 fields_name_list.remove(all_fields_dict.get(clustering_field))
-            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list])
+            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list if field])
 
         for index, filter_rule in enumerate(filter_rules):
             # 切割嵌套字段
@@ -342,7 +342,8 @@ class DataFlowHandler(BaseAiopsHandler):
     @classmethod
     def _generate_fields(cls, is_dimension_fields: list, clustering_field: str):
         if clustering_field == DEFAULT_CLUSTERING_FIELD:
-            return copy.copy(is_dimension_fields), copy.copy(is_dimension_fields)
+            fields = [f"`{field}`" for field in is_dimension_fields]
+            return fields, fields
         # 转换节点之后的fields数组
         dst_transform_fields = []
         # 转换节点的fields数组

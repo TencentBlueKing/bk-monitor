@@ -255,6 +255,8 @@
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => !state.retrieve.isTrendDataLoading,
+        totalFields: state => state.indexFieldInfo.fields ?? [],
+        visibleFields: state => state.visibleFields ?? [],
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',

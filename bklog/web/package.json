@@ -18,7 +18,7 @@
     "@babel/helper-module-imports": "^7.24.7",
     "@blueking/bkmonitor-cli": "2.0.0-beta.13",
     "@blueking/bkui-library": "^0.0.0-beta.5",
-    "@blueking/date-picker": "^2.0.0-beta.32",
+    "@blueking/date-picker": "^2.0.0-beta.33",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/login-modal": "^1.0.1",
     "@blueking/notice-component-vue2": "^2.0.3",

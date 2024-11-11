@@ -1,0 +1,40 @@
+.apm-heatmap {
+  z-index: 7;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+
+  &-header {
+    display: flex;
+    flex: 0 0 46px;
+    align-items: center;
+    width: 100%;
+    height: 46px;
+  }
+
+  &-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    height: calc(100% - 46px);
+    padding-bottom: 6px;
+
+    .chart-instance {
+      display: flex;
+      flex: 1;
+      flex-grow: 2;
+    }
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+}

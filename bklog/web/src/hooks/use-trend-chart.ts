@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, Ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
+import { addListener, removeListener } from 'resize-detector';
 
 import chartOption from './trend-chart-options';
 
@@ -94,23 +95,6 @@ export default ({ target }: TrandChartOption) => {
 
     return timeunit[unit] * Number(num);
   };
-
-  // const getMinValue = (data, interval) => {
-  //   const minValue = data[0]?.[0];
-  //   if (!minValue || data?.length > 5) {
-  //     return 'dataMin';
-  //   }
-  //   return minValue - getIntervalValue(interval);
-  // };
-
-  // const getMaxValue = (data, interval) => {
-  //   const maxValue = data.slice(-1)?.[0]?.[0];
-
-  //   if (!maxValue || data?.length > 5) {
-  //     return 'dataMax';
-  //   }
-  //   return maxValue + getIntervalValue(interval);
-  // };
 
   const updateChartData = () => {
     const keys = [...optionData.keys()];
@@ -224,8 +208,6 @@ export default ({ target }: TrandChartOption) => {
     options.series[0].data = chartData;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
-    // options.xAxis[0].min = getMinValue(chartData, runningInterval);
-    // options.xAxis[0].max = getMaxValue(chartData, runningInterval);
 
     chartInstance.setOption(options);
     nextTick(() => {
@@ -258,6 +240,10 @@ export default ({ target }: TrandChartOption) => {
     }
   });
 
+  const handleCanvasResize = debounce(() => {
+    chartInstance?.resize();
+  });
+
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
@@ -279,6 +265,14 @@ export default ({ target }: TrandChartOption) => {
           }
         });
       };
+
+      addListener(target.value, handleCanvasResize);
+    }
+  });
+
+  onUnmounted(() => {
+    if (target.value) {
+      removeListener(target.value, handleCanvasResize);
     }
   });
 

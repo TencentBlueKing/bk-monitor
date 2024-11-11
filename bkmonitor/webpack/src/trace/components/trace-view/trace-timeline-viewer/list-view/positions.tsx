@@ -161,7 +161,7 @@ export default class Positions {
     if (yValue > this.ys[imax]) {
       return imax;
     }
-    let i;
+    let i: number;
     while (imin < imax) {
       i = (imin + 0.5 * (imax - imin)) | 0;
       if (yValue > this.ys[i]) {
@@ -178,7 +178,8 @@ export default class Positions {
         return i;
       }
     }
-    throw new Error(`unable to find floor index for y=${yValue}`);
+    console.error(`unable to find floor index for y=${yValue}`);
+    // throw new Error(`unable to find floor index for y=${yValue}`);
   }
 
   /**

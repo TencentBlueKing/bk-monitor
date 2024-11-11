@@ -336,7 +336,7 @@ class ContainerConfigSerializer(serializers.Serializer):
     )
     container = ContainerSerializer(required=False, label=_("指定容器"))
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"))
-    annotation_selector = AnnotationSelectorSerializer(required=False, label=_("注解"))
+    annotation_selector = AnnotationSelectorSerializer(required=False, label=_("注解"), default={"match_annotations": []})
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"))
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     params = PluginParamSerializer(required=True, label=_("插件参数"))
@@ -364,7 +364,7 @@ class BcsContainerConfigSerializer(serializers.Serializer):
     )
     container = ContainerSerializer(required=False, label=_("指定容器"), default={})
     label_selector = LabelSelectorSerializer(required=False, label=_("标签"), default={})
-    annotation_selector = AnnotationSelectorSerializer(required=False, label=_("注解"), default={})
+    annotation_selector = AnnotationSelectorSerializer(required=False, label=_("注解"), default={"match_annotations": []})
     paths = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("日志路径"), default=[])
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
@@ -903,10 +903,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
         if attrs["etl_config"] in EtlConfigEnum.get_dict_choices():
             if not attrs.get("fields"):
                 raise ValidationError(_("[字段提取]请输入需要提取的字段信息"))
-
-            # table_id 不能包含 bklog
-            if "bklog" in attrs["table_id"]:
-                raise ValidationError(_("存储索引名不能包含bklog关键字"))
 
             # 过滤掉标准字段，并检查time_field数量
             fields = []

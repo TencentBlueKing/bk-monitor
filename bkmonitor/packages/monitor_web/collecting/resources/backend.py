@@ -87,6 +87,7 @@ class CollectConfigListResource(Resource):
         """
 
         subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+        updated_configs = []
 
         # 节点管理返回的状态数量
         for subscription_status in statistics_data:
@@ -127,7 +128,7 @@ class CollectConfigListResource(Resource):
             if config.cache_data != cache_data or config.operation_result != operation_result:
                 config.cache_data = cache_data
                 config.operation_result = operation_result
-                config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(config)
 
         # 更新k8s插件采集配置的状态
         for collect_config in config_data_list:
@@ -167,7 +168,9 @@ class CollectConfigListResource(Resource):
             if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
                 collect_config.cache_data = cache_data
                 collect_config.operation_result = operation_result
-                collect_config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(collect_config)
+
+        CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）
@@ -714,6 +717,36 @@ class RevokeTargetNodesResource(Resource):
         return "success"
 
 
+class RunCollectConfigResource(Resource):
+    """
+    主动执行部分实例或节点
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class ScopeParams(serializers.Serializer):
+            node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
+            nodes = serializers.ListField(required=True, label="节点列表")
+
+        scope = ScopeParams(label="事件订阅监听的范围", required=False)
+        action = serializers.CharField(label="操作", default="install")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+
+    def perform_request(self, params: Dict[str, Any]):
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
+        except CollectConfigMeta.DoesNotExist:
+            raise CollectConfigNotExist({"msg": params["id"]})
+
+        # 主动触发节点管理终止任务
+        installer = get_collect_installer(collect_config)
+        installer.run(params["action"], params.get("scope"))
+
+        return "success"
+
+
 class BatchRevokeTargetNodesResource(Resource):
     """
     批量终止采集配置的部署中的实例
@@ -954,7 +987,10 @@ class SaveCollectConfigResource(Resource):
         self.update_metric_cache(collector_plugin)
 
         # 采集配置完成
-        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        try:
+            DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        except Exception as error:
+            logger.error(f"自动创建默认告警策略 DatalinkDefaultAlarmStrategyLoader error {str(error)}")
 
         return result
 
@@ -981,7 +1017,7 @@ class SaveCollectConfigResource(Resource):
                 data["params"][param_mode][param_name] = actual_password
 
     @staticmethod
-    def get_collector_plugin(data):
+    def get_collector_plugin(data) -> CollectorPluginMeta:
         plugin_id = data["plugin_id"]
         # 虚拟日志采集器
         if data["collect_type"] == CollectConfigMeta.CollectType.LOG:
@@ -1053,7 +1089,7 @@ class SaveCollectConfigResource(Resource):
             plugin_manager.delete_result_table(collector_plugin.release_version)
 
     @staticmethod
-    def update_metric_cache(collector_plugin):
+    def update_metric_cache(collector_plugin: CollectorPluginMeta):
         plugin_type = collector_plugin.plugin_type
         if plugin_type not in collector_plugin.VIRTUAL_PLUGIN_TYPE:
             version = collector_plugin.current_version

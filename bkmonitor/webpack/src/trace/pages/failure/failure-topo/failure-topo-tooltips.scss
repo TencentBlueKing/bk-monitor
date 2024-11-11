@@ -1,7 +1,6 @@
 /* stylelint-disable declaration-no-important */
-.failure-topo-tooltips:not(.edge-tooltip) {
+.failure-topo-tooltips:not(:has(.edge-tooltip-content)) {
   max-width: 400px;
-
 }
 
 .failure-topo-tooltips {
@@ -11,6 +10,27 @@
   border: 1px solid #454547;
   border-radius: 2px;
   box-shadow: 0 2px;
+
+  .node-root-icon {
+    position: absolute;
+    bottom: -5px;
+    left: 10px;
+    display: inline-block;
+    width: 24px;
+    height: 15px;
+    font-size: 10px;
+    line-height: 12px;
+    color: #fff;
+    text-align: center;
+    background: #f55555;
+    border: 1px solid #f55555;
+    border-radius: 8px;
+  }
+
+  .node-root-feedback-icon {
+    background: #ff9c01;
+    border: 1px solid #ff9c01;
+  }
 
   .edge-chart-wrap {
     position: relative;
@@ -156,7 +176,7 @@
     }
   }
 
-  &.edge-tooltip {
+  &.edge-tooltip:has(.edge-chart-wrap) {
     min-width: 380px;
     min-height: 248px;
     // padding: 0 16px;
@@ -519,6 +539,30 @@
     background-image: url('../../../static/img/failure/icon-Pod.svg');
   }
 
+  .icon-http {
+    background-image: url('../../../static/img/failure/icon-http.svg');
+  }
+
+  .icon-mc-service-unknown {
+    background-image: url('../../../static/img/failure/icon-mc-service-unknown.svg');
+  }
+
+  .icon-renwu {
+    background-image: url('../../../static/img/failure/icon-renwu.svg');
+  }
+
+  .icon-shujuku {
+    background-image: url('../../../static/img/failure/icon-shujuku.svg');
+  }
+
+  .icon-xiaoxizhongjianjian {
+    background-image: url('../../../static/img/failure/icon-xiaoxizhongjianjian.svg');
+  }
+
+  .icon-yuanchengfuwu {
+    background-image: url('../../../static/img/failure/icon-yuanchengfuwu.svg');
+  }
+
   .react-flow__edge.animated path {
     fill: none;
     stroke-dasharray: 5;
@@ -544,6 +588,7 @@
     align-items: center;
     justify-content: center;
     width: 20px !important;
+    min-width: 20px;
     height: 20px;
     margin-right: 6px;
     font-size: 16px;
@@ -595,13 +640,13 @@
         width: 40px;
         min-width: 40px;
         height: 22px;
+        padding-right: 1px;
         margin-right: 4px;
         margin-left: 4px;
         color: white;
         white-space: nowrap;
         background: #ea3636;
         border-radius: 2px;
-        padding-right: 1px;
       }
     }
 

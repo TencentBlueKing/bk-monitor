@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, watch } from 'vue';
+import { ref, reactive, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
+import ComparisonChart from './comparison-chart';
 import TrendChart from './trend-chart';
 
 import type { IQueryParams } from '../../../typings/trace';
-import type { DataTypeItem } from '../typings/profiling-retrieval';
+import type { DataTypeItem, DateComparison, RetrievalFormData } from '../typings/profiling-retrieval';
 
 import './profiling-retrieval-view.scss';
 
@@ -46,13 +49,121 @@ export default defineComponent({
       type: Array as PropType<DataTypeItem[]>,
       default: () => [],
     },
+    formData: {
+      type: Object as PropType<RetrievalFormData>,
+      required: true,
+    },
     queryParams: {
       type: Object as PropType<IQueryParams>,
       required: true,
     },
   },
   emits: ['update:dataType'],
-  setup() {},
+  setup(props) {
+    const { t } = useI18n();
+
+    const dateComparison = ref<DateComparison>({});
+    const comparisonPosition = reactive([]);
+    const trendLoading = ref(false);
+    const trendChartData = ref([]);
+    /** 图表时间范围 */
+    const chartTime = reactive({
+      start: 0,
+      end: 0,
+      mid: 0,
+    });
+    /**
+     * 获取trend图表数据
+     * @param data 图表数据
+     */
+    function handleChartData(data) {
+      trendChartData.value = data;
+      if (data.length) {
+        const len = data[0].datapoints.length;
+        chartTime.start = data[0].datapoints[0][1];
+        chartTime.end = data[0].datapoints[len - 1][1];
+        chartTime.mid = chartTime.start + (chartTime.end - chartTime.start) / 2;
+        setDefaultDate();
+      }
+    }
+
+    function handleTrendLoading(v) {
+      trendLoading.value = v;
+    }
+
+    watch(
+      () => props.formData.dateComparisonEnable,
+      val => {
+        if (!val) {
+          comparisonPosition.splice(0);
+        } else {
+          setDefaultDate();
+        }
+      }
+    );
+
+    watch(
+      () => props.queryParams,
+      () => {
+        dateComparison.value = {};
+      }
+    );
+
+    const graphQueryParams = computed(() => {
+      const { filter_labels, diff_filter_labels, ...rest } = props.queryParams;
+      const { start, end, diffEnd, diffStart } = dateComparison.value;
+      return {
+        filter_labels: {
+          ...filter_labels,
+          ...(props.formData.dateComparisonEnable && start && end ? { start, end } : {}),
+        },
+        diff_filter_labels: {
+          ...diff_filter_labels,
+          ...(props.formData.dateComparisonEnable && diffStart && diffEnd ? { start: diffStart, end: diffEnd } : {}),
+        },
+        ...rest,
+      };
+    });
+
+    /**
+     * 设置对比项默认框选时间
+     */
+    function setDefaultDate() {
+      if (!trendChartData.value.length || !props.formData.dateComparisonEnable) return;
+      comparisonPosition[0] = [chartTime.start, chartTime.mid];
+      comparisonPosition[1] = [chartTime.mid, chartTime.end];
+      handleComparisonDateChange();
+    }
+
+    function handleBrushEnd(data, type) {
+      if (type === 'search') {
+        comparisonPosition[0] = data;
+      } else {
+        comparisonPosition[1] = data;
+      }
+      handleComparisonDateChange();
+    }
+
+    function handleComparisonDateChange() {
+      dateComparison.value = {
+        start: Math.floor(comparisonPosition[0]?.[0] / 1000) * 1000000,
+        end: Math.floor(comparisonPosition[0]?.[1] / 1000) * 1000000,
+        diffStart: Math.floor(comparisonPosition[1]?.[0] / 1000) * 1000000,
+        diffEnd: Math.floor(comparisonPosition[1]?.[1] / 1000) * 1000000,
+      };
+    }
+
+    return {
+      t,
+      trendChartData,
+      trendLoading,
+      graphQueryParams,
+      comparisonPosition,
+      handleChartData,
+      handleBrushEnd,
+      handleTrendLoading,
+    };
+  },
   render() {
     return (
       <div class='profiling-retrieval-view-component'>
@@ -77,9 +188,36 @@ export default defineComponent({
             })}
           </Button.ButtonGroup>
         </div>
-        <TrendChart queryParams={this.queryParams} />
+        <TrendChart
+          comparisonDate={this.comparisonPosition}
+          queryParams={this.queryParams}
+          onChartData={this.handleChartData}
+          onLoading={this.handleTrendLoading}
+        />
+
+        {this.formData.dateComparisonEnable && (
+          <div class='date-comparison-view'>
+            <ComparisonChart
+              colorIndex={0}
+              comparisonDate={this.comparisonPosition[0]}
+              data={this.trendChartData[0]}
+              loading={this.trendLoading}
+              title={this.t('查询项')}
+              onBrushEnd={val => this.handleBrushEnd(val, 'search')}
+            />
+            <ComparisonChart
+              colorIndex={1}
+              comparisonDate={this.comparisonPosition[1]}
+              data={this.trendChartData[1]}
+              loading={this.trendLoading}
+              title={this.t('对比项')}
+              onBrushEnd={val => this.handleBrushEnd(val, 'comparison')}
+            />
+          </div>
+        )}
+
         <div class='profiling-graph-view-content'>
-          <ProfilingGraph queryParams={this.queryParams} />
+          <ProfilingGraph queryParams={this.graphQueryParams} />
         </div>
       </div>
     );

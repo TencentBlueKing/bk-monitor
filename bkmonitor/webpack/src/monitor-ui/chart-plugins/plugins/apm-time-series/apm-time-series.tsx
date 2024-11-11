@@ -497,6 +497,7 @@ export default class ApmTimeSeries extends TimeSeries {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
+            customArea={this.detailsSideData.show}
             descrition={this.panel.options?.header?.tips || ''}
             draging={this.panel.draging}
             drillDownOption={this.drillDownOptions}
@@ -516,10 +517,7 @@ export default class ApmTimeSeries extends TimeSeries {
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
             {this.enableContextmenu && (
-              <div
-                class='context-menu-info'
-                onClick={e => e.stopPropagation()}
-              >
+              <div class='context-menu-info'>
                 {this.showMouseTips && [
                   <i
                     key='1'

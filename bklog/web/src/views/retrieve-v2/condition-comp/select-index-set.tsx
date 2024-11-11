@@ -375,6 +375,7 @@ export default class QueryStatement extends tsc<object> {
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
       isUnionIndex: !this.isAloneType,
+      sort_list: [],
     };
 
     return payload;
@@ -1223,6 +1224,7 @@ export default class QueryStatement extends tsc<object> {
     return (
       <Select
         ref='selectInput'
+        style='max-width: 600px;'
         class={[
           'retrieve-index-select',
           { 'is-default-trigger': !this.selectedItemList.length && !this.selectedItem.index_set_name },

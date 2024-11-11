@@ -180,3 +180,38 @@
     },
   };
 </script>
+<style lang="scss">
+td {
+  &.original-str {
+    .cell {
+      display: flex;
+      text-overflow: unset;
+
+        .str-content {
+          &.origin-str {
+            width: 100%;
+
+            .origin-content {
+              word-break: break-all;
+              white-space: pre-line;
+            }
+          }
+        }
+      }
+    }
+
+    &.is-wrap {
+      .cell {
+        .str-content {
+          &.origin-str {
+            .origin-content {
+              display: flex;
+              flex-direction: column;
+              flex-wrap: wrap;
+            }
+          }
+        }
+      }
+    }
+}
+</style>

@@ -7,7 +7,7 @@
   import BookmarkPop from './bookmark-pop';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-
+  import { ConditionOperator } from '@/store/condition-operator';
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
@@ -62,10 +62,15 @@
     () => {
       uiQueryValue.value.splice(0);
       uiQueryValue.value.push(
-        ...addition.value.map(v => ({
-          ...v,
-          field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
-        })),
+        ...addition.value.map(v => {
+          const value = {
+            ...v,
+            field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
+          };
+
+          const instance = new ConditionOperator(value);
+          return { ...value, ...instance.getShowCondition() };
+        }),
       );
     },
     { immediate: true, deep: true },

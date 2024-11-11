@@ -9,17 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import HostAddressType
+from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_group import CalculationType
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
-from core.drf_resource import api
+from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -41,6 +44,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-component-default-topo",
         "apm_service-component-db-db",
         "apm_service-component-messaging-endpoint",
+        "apm_service-service-default-caller_callee",
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
@@ -65,8 +69,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-log",
         "service-default-topo",
         "service-default-db",
+        "service-default-caller_callee",
     ]
-
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -137,10 +141,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                 view_config = cls._replace_variable(view_config, "${span_id}", span_id)
 
-                span = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
-                if span:
-                    cls._handle_log_chart_keyword(view_config, span)
-
             return view_config
 
         # APM观测场景处
@@ -153,17 +153,72 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             return cls._get_non_host_view_config(builtin_view, params)
 
+        if builtin_view == "apm_service-service-default-caller_callee":
+            group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+                metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+            )
+
+            # 探测服务，存在再展示页面
+            view_config["hidden"] = True
+            server_list: List[str] = group.fetch_server_list()
+            for server in server_list:
+                if not server:
+                    continue
+
+                if server.endswith(params["service_name"]):
+                    view_config["hidden"] = False
+                    break
+
+            # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
+            if view_config["hidden"] or params.get("only_simple_info"):
+                return view_config
+
+            server_config: Dict[str, Any] = group.get_server_config(server=params["service_name"])
+            if server_config["temporality"] == MetricTemporality.CUMULATIVE:
+                # 指标为累加类型，需要添加 increase 函数
+                cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
+            view_config = cls._replace_variable(view_config, "${temporality}", server_config["temporality"])
+            view_config = cls._replace_variable(view_config, "${server}", server_config["server_field"])
+            view_config = cls._replace_variable(view_config, "${service_name}", server_config["service_field"])
+            view_config = cls._replace_variable(
+                view_config, "${server_filter_method}", server_config["server_filter_method"]
+            )
+
+            # 补充配置
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLER.value] = {
+                "server": TRPCMetricTag.CALLER_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value],
+                "tags": TRPCMetricTag.caller_tags(),
+                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLEE.value] = {
+                "server": TRPCMetricTag.CALLEE_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value],
+                "tags": TRPCMetricTag.callee_tags(),
+                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["statistics"]["supported_calculation_types"] = [
+                {"value": value, "text": text} for value, text in CalculationType.choices()
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_calculation_types"] = [
+                {"value": value, "text": text}
+                for value, text in CalculationType.choices()
+                if value
+                in [
+                    CalculationType.REQUEST_TOTAL,
+                    CalculationType.AVG_DURATION,
+                    CalculationType.SUCCESS_RATE,
+                    CalculationType.TIMEOUT_RATE,
+                    CalculationType.EXCEPTION_RATE,
+                ]
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_methods"] = [
+                {"value": CalculationType.TOP_N, "text": "top"},
+                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
+            ]
+
         return view_config
-
-    @classmethod
-    def _handle_log_chart_keyword(cls, view_config, span_host):
-        """
-        处理日志标签页默认的查询条件
-        对于Trace检索日志处, 使用 trace_id 作为查询关键词
-        """
-
-        for overview_panel in view_config.get("overview_panels", []):
-            overview_panel["options"] = {"related_log_chart": {"defaultKeyword": span_host["trace_id"]}}
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
@@ -194,6 +249,29 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         """替换模版中的变量"""
         content = json.dumps(view_config)
         return json.loads(content.replace(target, str(value)))
+
+    @classmethod
+    def _add_functions(cls, view_config: Dict[str, Any], functions: List[Dict[str, Any]]):
+        for panel in (
+            (view_config.get("overview_panels") or [])
+            + (view_config.get("extra_panels") or [])
+            + (view_config.get("panels") or [])
+        ):
+            cls._add_functions(panel, functions)
+
+        for target in view_config.get("targets") or []:
+            target_data = target.get("data")
+            if not target_data:
+                continue
+
+            for query_config in target_data.get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
+
+            if not target_data.get("unify_query_param"):
+                continue
+
+            for query_config in target_data["unify_query_param"].get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
     def _add_config_from_host(cls, view, view_config):
@@ -256,7 +334,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 scene_id=scene_id,
                 type="",
                 defaults={
-                    "config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log", "profiling"]
+                    "config": [
+                        "overview",
+                        "caller_callee",
+                        "topo",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "instance",
+                        "host",
+                        "log",
+                        "profiling",
+                    ]
                 },
             )
 
@@ -319,11 +408,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "span_id": params.get("apm_span_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
+                "only_simple_info": params.get("only_simple_info") or False,
             }
 
         return {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "only_simple_info": params.get("only_simple_info") or False,
         }
 
     @classmethod

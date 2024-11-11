@@ -228,9 +228,7 @@ export default defineComponent({
     };
     const nodeClick = item => {
       if (item.level_name !== 'status') {
-        selectedNode.value = item;
-        console.log(item, '===');
-        console.log(selectedNode.value, 'selectedNode.value');
+        // selectedNode.value = item;
         emit('nodeClick', item);
       }
     };
@@ -247,6 +245,7 @@ export default defineComponent({
         handleData(item.children);
       }
       item.isOpen = false;
+      handleData(item.children);
       /** 如果都收起的情况下，默认展开第一个 */
       // const isAllExpand = alertAggregateData.value.findIndex(item => item.isOpen) === -1;
       // if (isAllExpand) {
@@ -330,11 +329,11 @@ export default defineComponent({
       getIncidentAlertAggregate();
       cacheAggregateData.value = JSON.parse(JSON.stringify(aggregateBys.value));
       nextTick(() => {
-        treeRef.value.addEventListener('scroll', scrollChange, true);
+        treeRef.value?.addEventListener('scroll', scrollChange, true);
       });
     });
     onUnmounted(() => {
-      treeRef.value.removeEventListener('scroll', scrollChange, true);
+      treeRef.value?.removeEventListener('scroll', scrollChange, true);
     });
     return {
       t,

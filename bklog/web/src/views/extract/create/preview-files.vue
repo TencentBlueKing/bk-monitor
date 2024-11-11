@@ -180,7 +180,7 @@
         isLoading: false,
         previewIp: [],
         timeRange: '1w', // 时间跨度 ["1d", "1w", "1m", "all", "custom"]
-        timeValue: [startTime, endTime],
+        timeValue: [formatDate(startTime), formatDate(endTime)],
         isSearchChild: false,
         explorerList: [],
         historyStack: [], // 预览地址历史
@@ -189,7 +189,7 @@
     },
     computed: {
       timeStringValue() {
-        return [formatDate(this.timeValue[0]), formatDate(this.timeValue[1])];
+        return [this.timeValue[0], this.timeValue[1]];
       },
     },
     watch: {

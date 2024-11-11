@@ -51,10 +51,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WEBHOOK_TIMEOUT", slz.IntegerField(label="Webhook超时时间", default=3)),
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
-        (
-            "K8S_OPERATOR_SERVICE_NAME",
-            slz.CharField(label="集群内operator服务默认名称", default="bkmonitor-operator-stack-operator"),
-        ),
+        ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
@@ -171,12 +168,13 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
         ("APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE", slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland")),
-        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=500)),
-        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=30)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
         ("IS_FTA_MIGRATED", slz.BooleanField(label="是否已经迁移自愈", default=False)),
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
+        ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),
@@ -285,6 +283,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
         ("ES_CLUSTER_BLACKLIST", slz.ListField(label="ES 黑名单集群列表", default=[])),
+        ("ENABLE_V2_ROTATION_ES_CLUSTER_IDS", slz.ListField(label="启用新版索引轮转的ES集群ID列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
         (
             "BCS_DATA_CONVERGENCE_CONFIG",
@@ -302,6 +301,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
+        ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
         ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
@@ -312,8 +312,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("K8S_PLUGIN_COLLECT_CLUSTER_ID", slz.CharField(label="默认K8S插件采集集群ID", default="")),
         ("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG", slz.JSONField(label="腾讯云监控插件配置", default={})),
         ("ENABLED_TARGET_CACHE_BK_BIZ_IDS", slz.ListField(label="启用监控目标缓存的业务ID列表", default=[])),
-        ("ES_INDEX_ROTATION_SLEEP_INTERVAL", slz.IntegerField(label="ES索引轮转等待间隔", default=30)),
+        ("ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS", slz.IntegerField(label="ES索引轮转等待间隔", default=3)),
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
+        ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
+        ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
+        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
     ]
 )
 

@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
     NO_DATA_CONFIG,
+    nodata_recover_detects_config,
     remind_algorithms_config,
     remind_detects_config,
     warning_algorithms_config,
@@ -386,7 +387,7 @@ DEFAULT_K8S_STRATEGIES = [
         "notice": DEFAULT_NOTICE,
     },
     {
-        "detects": remind_detects_config(5, 5, 1),
+        "detects": nodata_recover_detects_config(5, 5, 1, 3),
         "items": [
             {
                 "algorithms": remind_algorithms_config("gt", 0),

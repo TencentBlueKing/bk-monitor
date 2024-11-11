@@ -99,7 +99,7 @@
         class="dropdown-trigger-text"
         slot="dropdown-trigger"
       >
-        <span> {{ $t('配置导入') }} </span>
+        <span> {{ $t('字段配置模板') }} </span>
         <i :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
       </div>
       <ul

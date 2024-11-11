@@ -63,6 +63,7 @@
     right: -1px;
     z-index: 999;
     display: none;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
     border-color: #dcdee5 #dcdee5 transparent transparent;
     border-style: solid;
     border-width: 14px;

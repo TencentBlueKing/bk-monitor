@@ -234,7 +234,7 @@
         type="submit"
         @click="confirmModifyFields"
       >
-        {{ $t('应用') }}
+        {{ $t('保存') }}
       </bk-button>
       <bk-button
         :theme="'default'"

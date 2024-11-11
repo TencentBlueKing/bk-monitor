@@ -31,7 +31,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel } from '../typings';
+import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel, type ZrClickEvent } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -61,6 +61,7 @@ interface IDashbordPanelProps {
 interface IDashbordPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
+  onZrClick: (e: ZrClickEvent) => void;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
@@ -562,6 +563,11 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Emit('backToOverview')
   handleBackToOverview() {}
 
+  @Emit('zrClick')
+  handelZrClick(date) {
+    return date;
+  }
+
   render() {
     if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
     return (
@@ -620,6 +626,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       onChartCheck={v => this.handleChartCheck(v, panel)}
                       onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                       onCollectChart={() => this.handleCollectChart(panel)}
+                      onZrClick={this.handelZrClick}
                     />
                   </GridItem>
                 );

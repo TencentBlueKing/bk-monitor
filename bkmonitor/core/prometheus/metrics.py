@@ -1142,4 +1142,36 @@ AIOPS_STRATEGY_CHECK = Gauge(
     ),
 )
 
+AIOPS_STRATEGY_ERROR_COUNT = Counter(
+    name="bkmonitor_aiops_strategy_error_count",
+    documentation="智能监控策略错误统计数",
+    labelnames=("exc_type",),
+)
+
+METADATA_DATA_LINK_STATUS_INFO = Gauge(
+    name="bkmonitor_metadata_data_link_info",
+    documentation="监控元数据数据链路状态统计",
+    labelnames=("data_link_name", "biz_id", "kind"),
+)
+
+METADATA_CRON_TASK_COST_SECONDS = Histogram(
+    name="bkmonitor_metadata_cron_task_cost_seconds",
+    documentation="监控元数据定时任务耗时统计",
+    labelnames=("task_name", "process_target"),
+    buckets=(0, 1, 5, 10, 30, 60, 120, 180, 240, 300, 600, 900, 1800, 3000, 6000, INF),
+)
+
+METADATA_CRON_TASK_STATUS_TOTAL = Counter(
+    name="bkmonitor_metadata_cron_task_status_total",
+    documentation="监控元数据定时任务状态统计",
+    labelnames=("task_name", "status", "process_target"),
+)
+
+METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
+    name="bkmonitor_metadata_data_link_access_total",
+    documentation="监控元数据数据链路接入统计",
+    labelnames=("version", "biz_id", 'strategy', 'status'),
+)
+
+
 TOTAL_TAG = "__total__"
