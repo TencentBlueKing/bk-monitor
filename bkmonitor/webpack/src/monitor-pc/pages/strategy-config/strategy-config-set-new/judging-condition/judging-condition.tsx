@@ -40,13 +40,17 @@ import StrategyVariateList from '../../strategy-config-set/strategy-variate-list
 import CommonItem from '../components/common-form-item';
 import VerifyItem from '../components/verify-item';
 import { levelList } from '../type';
+import { MetricType, type EditModeType, type ICommonItem, type MetricDetail } from '../typings/index';
 
 import type { IOptionsItem } from '../../../calendar/types';
-import type { EditModeType, ICommonItem, MetricDetail } from '../typings/index';
 
 import './judging-condition.scss';
 
 export const DEFAULT_TIME_RANGES: ITimeRangeMultipleProps['value'] = [['00:00', '23:59']]; // 默认的生效时间段
+export enum RecoveryConfigStatusSetter {
+  RECOVERY = 'recovery',
+  RECOVERY_NODATA = 'recovery-nodata',
+}
 export interface IJudgingData {
   triggerConfig: {
     count: number;
@@ -57,6 +61,7 @@ export interface IJudgingData {
   };
   recoveryConfig: {
     checkWindow: number;
+    statusSetter: RecoveryConfigStatusSetter;
   };
   noDataConfig: {
     continuous: number;
@@ -109,6 +114,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
       recoveryConfig: {
         // 恢复条件
         checkWindow: 0,
+        statusSetter: RecoveryConfigStatusSetter.RECOVERY,
       },
       noDataConfig: {
         // 无数据告警
@@ -175,11 +181,21 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     return !(this.metricData.length && ['time_series', 'log'].includes(this.metricData[0]?.data_type_label));
   }
 
+  get isRecoveryDisable() {
+    return !(
+      this.metricData.length && [MetricType.TimeSeries].includes(this.metricData[0]?.data_type_label as MetricType)
+    );
+  }
+
   get dimensionsOfSeries() {
     return this.$store.state['strategy-config'].dimensionsOfSeries.map(id => ({
       id,
       name: id,
     }));
+  }
+
+  get recoveryConfigStatusSetter() {
+    return this.localData.recoveryConfig.statusSetter === RecoveryConfigStatusSetter.RECOVERY_NODATA;
   }
 
   @Watch('optionalDimensions')
@@ -241,6 +257,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   }
   handleGoto(name) {
     skipToDocsLink(name);
+  }
+  // 恢复条件 checkbox 值改变后回调
+  handleRecoveryConfigChange(v) {
+    this.localData.recoveryConfig.statusSetter = v
+      ? RecoveryConfigStatusSetter.RECOVERY_NODATA
+      : RecoveryConfigStatusSetter.RECOVERY;
+    this.emitValueChange();
   }
 
   /**
@@ -344,9 +367,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         >
           <i18n
             class='i18n-path'
-            path='连续{0}个周期内不满足条件表示恢复'
+            path='连续{0}个周期内不满足条件表示恢复{1}'
           >
             <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+            {!this.isRecoveryDisable && this.recoveryConfigStatusSetter ? (
+              <span class='bold-span'>{this.$t('或无数据')}</span>
+            ) : null}
           </i18n>
         </CommonItem>
         <CommonItem
@@ -453,19 +479,33 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           show-semicolon
         >
           <VerifyItem errorMsg={this.errMsg.recoveryConfig}>
-            <i18n
-              class='i18n-path'
-              path='连续{0}个周期内不满足条件表示恢复'
-            >
-              <bk-input
-                class='small-input'
-                v-model={this.localData.recoveryConfig.checkWindow}
-                behavior='simplicity'
-                size='small'
-                type='number'
-                on-change={this.emitValueChange}
-              />
-            </i18n>
+            <div class='judging-recovery-config'>
+              <i18n
+                class='i18n-path'
+                path='连续{0}个周期内不满足条件表示恢复{1}'
+              >
+                <bk-input
+                  class='small-input'
+                  v-model={this.localData.recoveryConfig.checkWindow}
+                  behavior='simplicity'
+                  size='small'
+                  type='number'
+                  on-change={this.emitValueChange}
+                />
+                <bk-checkbox
+                  v-bk-tooltips={{
+                    content: this.$t('只有监控指标关键字可配置无数据'),
+                    placements: ['top'],
+                    disabled: !this.isRecoveryDisable,
+                  }}
+                  disabled={this.isRecoveryDisable}
+                  value={this.recoveryConfigStatusSetter}
+                  onChange={this.handleRecoveryConfigChange}
+                >
+                  {this.$t('或无数据')}
+                </bk-checkbox>
+              </i18n>
+            </div>
           </VerifyItem>
         </CommonItem>
         <CommonItem

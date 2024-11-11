@@ -58,7 +58,8 @@ import * as strategyAuth from '../authority-map';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
+import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
+import { DetectionRuleTypeEnum, MetricDetail, MetricType } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
@@ -2323,7 +2324,14 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           v-bk-tooltips={{
             placements: ['top-start'],
             boundary: 'boundary',
-            content: () => this.$t('连续{0}个周期内不满足条件表示恢复', [props.row.recovery]),
+            content: () =>
+              this.$t('连续{0}个周期内不满足条件表示恢复{1}', [
+                props.row.recovery,
+                props.row.dataType === MetricType.TimeSeries &&
+                props.row.recoveryStatusSetter === RecoveryConfigStatusSetter.RECOVERY_NODATA
+                  ? this.$t('或无数据')
+                  : '',
+              ]),
             disabled: props.row.recovery === '--' /* 兼容关联告警 */,
             delay: 200,
             allowHTML: false,
