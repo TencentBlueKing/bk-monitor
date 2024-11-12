@@ -11,6 +11,8 @@
   const { $t } = useLocale();
   const router = useRouter();
   const store = useStore();
+
+  const refTrigger = ref();
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
   const indexSetItem = computed(() => store.state.indexItem.items[0]);
@@ -137,6 +139,7 @@
         type: val === 'logMasking' ? 'masking' : undefined,
       },
     });
+    refTrigger.value?.click?.();
     window.open(href, '_blank');
   };
 
@@ -173,7 +176,7 @@
     trigger="click"
   >
     <slot name="trigger">
-      <div class="more-operation">
+      <div class="more-operation" ref="refTrigger">
         <span class="bklog-icon">{{ $t('设置') }}</span>
         <span
           class="setting-icon"
