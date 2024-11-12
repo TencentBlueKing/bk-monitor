@@ -292,7 +292,7 @@
         isUnionSearch: 'isUnionSearch',
       }),
       sizDownload() {
-        return Math.ceil(((this.totalCount / 10000) * 1) / 3);
+        return Math.ceil(this.totalCount / 10000 / 3);
       },
       submitSelectFiledList() {
         // 下载时提交的字段
