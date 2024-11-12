@@ -37,7 +37,7 @@ import {
   setPreviewDataOfServer,
 } from 'monitor-common/rotation-utils/calendar-preview';
 import { RotationTabTypeEnum } from 'monitor-common/rotation-utils/common';
-import { type RuleDetailModel, transformRulesDetail } from 'monitor-common/rotation-utils/utils';
+import { randomColor, type RuleDetailModel, transformRulesDetail } from 'monitor-common/rotation-utils/utils';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import FormItem from './components/form-item';
@@ -237,7 +237,10 @@ export default defineComponent({
                 </FormItem>
                 <FormItem label={this.type === RotationTabTypeEnum.REGULAR ? this.t('值班规则') : this.t('轮值规则')}>
                   {this.rules.map(rule => (
-                    <div class='rule-item-wrap'>
+                    <div
+                      key={rule.id}
+                      class='rule-item-wrap'
+                    >
                       {rule.ruleTime.map((time, ind) => (
                         <div class='rule-item'>
                           {rule.ruleTime.length > 1 && [

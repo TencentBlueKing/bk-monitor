@@ -175,6 +175,7 @@ export default defineComponent({
                       <div class='week-list'>
                         {this.weekList.map(date => (
                           <div
+                            key={date.id}
                             class={['list-item date', date.id === this.localValue[0] && 'selected']}
                             onClick={() => this.handleSelect(date.id, 'date')}
                           >
@@ -186,6 +187,7 @@ export default defineComponent({
                       <div class='data-list'>
                         {this.calendarList.map(item => (
                           <div
+                            key={item.value}
                             class={[
                               'list-item',
                               this.currentDate === Number(item.value) && 'current',
@@ -204,6 +206,7 @@ export default defineComponent({
                     <div class='content'>
                       {this.timeList.map(time => (
                         <div
+                          key={time}
                           class={['item time', time === this.localValue[1] && 'selected']}
                           onClick={() => this.handleSelect(time, 'time')}
                         >

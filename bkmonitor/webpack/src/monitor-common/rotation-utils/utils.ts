@@ -392,6 +392,7 @@ export function transformWeeklyName(data: number[]) {
 }
 
 export interface RuleDetailModel {
+  id: string;
   ruleTime: {
     day: string;
     timer: string[];
@@ -431,6 +432,7 @@ export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): 
       };
     });
     return {
+      id: random(8),
       ruleTime,
       ruleUser: rule.duty_users.map(item => {
         const res = { users: item, orderIndex };

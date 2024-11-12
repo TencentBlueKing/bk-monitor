@@ -159,12 +159,14 @@ export default defineComponent({
                   class='date-type-select'
                   v-model={item.type}
                   clearable={false}
+                  filterable={false}
                   onChange={() => this.handleDateTypeChange(item)}
                 >
                   {this.typeList.map(type => (
                     <Select.Option
-                      label={type.label}
-                      value={type.value}
+                      id={type.value}
+                      key={type.value}
+                      name={type.label}
                     />
                   ))}
                 </Select>
@@ -178,8 +180,9 @@ export default defineComponent({
                   >
                     {WeekDataList.map(week => (
                       <Select.Option
-                        label={week.label}
-                        value={week.id}
+                        id={week.id}
+                        key={week.id}
+                        name={week.label}
                       />
                     ))}
                   </Select>

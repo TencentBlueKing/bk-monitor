@@ -348,15 +348,18 @@ export default defineComponent({
             class='date-type-select'
             v-model={localValue.date.type}
             clearable={false}
+            filterable={false}
             onChange={handleDateTypeChange}
           >
             <Select.Option
-              label={t('按周')}
-              value={RotationSelectTypeEnum.Weekly}
+              id={RotationSelectTypeEnum.Weekly}
+              key={RotationSelectTypeEnum.Weekly}
+              name={t('按周')}
             />
             <Select.Option
-              label={t('按月')}
-              value={RotationSelectTypeEnum.Monthly}
+              id={RotationSelectTypeEnum.Monthly}
+              key={RotationSelectTypeEnum.Monthly}
+              name={t('按月')}
             />
           </Select>
           {localValue.date.type === RotationSelectTypeEnum.Weekly && (
@@ -409,6 +412,7 @@ export default defineComponent({
             <Select
               v-model={localValue.date.periodSettings.unit}
               clearable={false}
+              filterable={false}
               onChange={handleEmitData}
             >
               {/* <Select.Option
@@ -416,8 +420,8 @@ export default defineComponent({
                 value='hour'
               /> */}
               <Select.Option
-                label={t('天')}
-                value='day'
+                id='day'
+                name={t('天')}
               />
             </Select>
           </FormItem>
