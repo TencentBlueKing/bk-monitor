@@ -119,7 +119,7 @@ if (hasRouteHash) {
           bkPaasHost: window.bk_paas_host,
           jobUrl: window.bk_job_url,
         });
-        new Vue({
+        window.mainComponent = new Vue({
           el: '#app',
           router,
           store,
