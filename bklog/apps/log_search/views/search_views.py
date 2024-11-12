@@ -20,7 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import csv
 import json
 import math
 from urllib import parse
@@ -54,7 +53,6 @@ from apps.log_search.constants import (
     RESULT_WINDOW_COST_TIME,
     ExportStatus,
     ExportType,
-    FileType,
     IndexSetType,
     SearchScopeEnum,
 )
@@ -542,21 +540,11 @@ class SearchViewSet(APIViewSet):
         )
         result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
-
-        file_type = data["file_type"]
-        if file_type == FileType.CSV.value:
-            fieldnames = result_list[0].keys() if result_list else []
-            csv_writer = csv.DictWriter(output, fieldnames=fieldnames)
-            csv_writer.writeheader()
-            for item in result_list:
-                csv_writer.writerow(item)
-        else:
-            for item in result_list:
-                output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
+        for item in result_list:
+            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
         response = HttpResponse(output.getvalue())
         response["Content-Type"] = "application/x-msdownload"
-        # response["Content-Type"] = "text/csv"
-        file_name = f"bk_log_search_{index}.{file_type}"
+        file_name = f"bk_log_search_{index}.txt"
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
         response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
@@ -590,9 +578,9 @@ class SearchViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="quick_export")
     def quick_export(self, request, index_set_id=None):
         """
-        @api /search/index_set/$index_set_id/async_export/ 15-搜索-异步导出日志
-        @apiDescription 异步下载检索日志
-        @apiName async_export
+        @api /search/index_set/$index_set_id/quick_export/ 15-搜索-快速导出日志
+        @apiDescription 快速下载检索日志
+        @apiName quick_export
         @apiGroup 11_Search
         @apiParam bk_biz_id [Int] 业务id
         @apiParam keyword [String] 搜索关键字
@@ -701,7 +689,7 @@ class SearchViewSet(APIViewSet):
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
             export_fields=data["export_fields"],
-            file_type=data["file_type"],
+            export_file_type=data["file_type"],
         ).async_export(is_quick_export=is_quick_export)
         return Response(
             {

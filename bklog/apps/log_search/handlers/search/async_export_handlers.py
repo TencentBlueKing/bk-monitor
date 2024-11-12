@@ -31,16 +31,13 @@ from rest_framework.reverse import reverse
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
-    MAX_ASYNC_COUNT,
     MAX_GET_ATTENTION_SIZE,
-    MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
 )
 from apps.log_search.exceptions import (
     MissAsyncExportException,
-    OverAsyncExportMaxCount,
     PreCheckAsyncExportException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -69,7 +66,7 @@ class AsyncExportHandlers(object):
         search_dict: dict = None,
         export_fields=None,
         index_set_ids: list = None,
-        file_type: str = "txt",
+        export_file_type: str = "txt",
     ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
@@ -84,7 +81,7 @@ class AsyncExportHandlers(object):
             )
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
-        self.file_type = file_type
+        self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
         # 判断fields是否支持
@@ -97,14 +94,6 @@ class AsyncExportHandlers(object):
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
-
-        self.search_handler.size = result["hits"]["total"]
-        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
-        if result["hits"]["total"] > max_count:
-            if is_quick_export:
-                raise OverAsyncExportMaxCount(OverAsyncExportMaxCount.MESSAGE.format(max_async_export_count=max_count))
-            else:
-                self.search_handler.size = max_count
 
         async_task = AsyncTask.objects.create(
             **{
@@ -132,7 +121,7 @@ class AsyncExportHandlers(object):
             language=get_request_language_code(),
             is_external=self.is_external,
             is_quick_export=is_quick_export,
-            file_type=self.file_type,
+            export_file_type=self.export_file_type,
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_handler.size
