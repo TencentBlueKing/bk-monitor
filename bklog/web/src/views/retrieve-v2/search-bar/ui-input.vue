@@ -2,7 +2,6 @@
   import { ref, computed, set } from 'vue';
 
   import { getOperatorKey, formatDateTimeField } from '@/common/util';
-  import { operatorMapping, translateKeys } from './const-values';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -12,9 +11,10 @@
     FulltextOperatorKey,
     FulltextOperator,
   } from './const.common';
+  import { operatorMapping, translateKeys } from './const-values';
+  import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import IPSelector from './ip-selector';
 
   const props = defineProps({
     value: {
@@ -384,8 +384,8 @@
           <span class="match-value-text">
             <IPSelector
               v-model="item.value[0]"
-              :isShow.sync="showIpSelector"
-              :bkBizId="bkBizId"
+              :bk-biz-id="bkBizId"
+              :is-show.sync="showIpSelector"
               @change="handleIPChange"
             ></IPSelector>
           </span>
@@ -444,7 +444,7 @@
     </div>
   </ul>
 </template>
-<style scoped lang="scss">
+<style lang="scss">
   @import './ui-input.scss';
   @import 'tippy.js/dist/tippy.css';
 </style>
