@@ -65,40 +65,7 @@ class CheckCMSIResource(CMSIBaseResource):
         # 获取 receiver__username:str, receiver: str --> revie
 
         if validated_request_data.get("receiver__username"):
-            receivers: List[str] = validated_request_data["receiver__username"].split(",")
-            if settings.BK_USERINFO_API_BASE_URL and isinstance(self, (SendMail,SendSms)):
-                receivers_info = {}
-
-                # 获取用户信息
-                param = {"usernames": validated_request_data["receiver__username"], "fields": "email,phone"}
-                receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
-
-                # 转化格式  -> {username: { "email": email, "phone": phone }}
-                # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
-                receivers_info = {
-                    receiver["username"]: {
-                        "email": receiver["email"],
-                        "phone": f"+{receiver['phone_country_code']}{receiver['phone']}",
-                    }
-                    for receiver in receivers_info
-                }
-
-
-                # 提前获取失败原因为 "用户不存在" 的用户, 并且不会他们进行发送
-                not_exist_usernames = [
-                    username for username in receivers if username not in receivers_info.keys()
-                ]
-                self.message_detail.update({username: "用户不存在" for username in not_exist_usernames})
-
-                # 删除不存在的用户无需给发送内容
-                receivers = list(set(receivers) - set(not_exist_usernames))
-
-                # 对应不同的子类，转化对应的receivers返回出去
-                if isinstance(self, SendMail):
-                    validated_request_data["receiver"] = ",".join([info["email"] for info in receivers_info.values()])
-                elif isinstance(self, SendSms):
-                    validated_request_data["receiver"] = ",".join([info["phone"] for info in receivers_info.values()])
-                # receivers 直接传递到最后
+            self.get_receivers_from_receiver_username(validated_request_data)
         elif isinstance(validated_request_data["receiver"], list):
             receivers = validated_request_data["receiver"]
         else:
@@ -136,9 +103,9 @@ class CheckCMSIResource(CMSIBaseResource):
             return response_data
 
     def get_receivers_from_receiver_username(self, validated_request_data):
+        receivers: List[str] = validated_request_data["receiver__username"].split(",")
+
         if settings.BK_USERINFO_API_BASE_URL and isinstance(self, (SendMail, SendSms)):
-            receivers_username: str = validated_request_data["receiver__username"]
-            receivers = receivers_username.split(",")
             receivers_info = {}
 
             # 获取用户信息
@@ -156,9 +123,7 @@ class CheckCMSIResource(CMSIBaseResource):
             }
 
             # 提前获取失败原因为 "用户不存在" 的用户, 并且不会他们进行发送
-            not_exist_usernames = [
-                username for username in receivers_username.split(",") if username not in receivers_info.keys()
-            ]
+            not_exist_usernames = [username for username in receivers if username not in receivers_info.keys()]
             self.message_detail.update({username: "用户不存在" for username in not_exist_usernames})
 
             # 删除不存在的用户无需给发送内容
@@ -169,8 +134,6 @@ class CheckCMSIResource(CMSIBaseResource):
                 validated_request_data["receiver"] = ",".join([info["email"] for info in receivers_info.values()])
             if isinstance(self, SendSms):
                 validated_request_data["receiver"] = ",".join([info["phone"] for info in receivers_info.values()])
-        else:
-            receivers = validated_request_data["receiver__username"]
 
 
 class GetMsgType(CMSIBaseResource):
@@ -280,6 +243,7 @@ class GetMsgType(CMSIBaseResource):
             )
 
         return response_data
+
 
 # 目前并没有太多的用到
 class SendMsg(CheckCMSIResource):
