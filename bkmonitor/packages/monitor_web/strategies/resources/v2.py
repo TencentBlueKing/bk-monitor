@@ -1432,11 +1432,13 @@ class GetMetricListV2Resource(Resource):
                         fields = fields[1:]
                     fields = [field.strip() for field in fields if field.strip()]
 
-                    if len(fields) > 2:
-                        continue
-
-                    if len(fields) == 2:
+                    if len(fields) == 3:
+                        exact_query.append(
+                            Q(result_table_id=f"{fields[0]}.{fields[1]}", metric_field__icontains=fields[2])
+                        )
+                    elif len(fields) == 2:
                         exact_query.append(Q(data_label=fields[0], metric_field__icontains=fields[1]))
+
                     continue
 
                 # metric_id格式的查询
