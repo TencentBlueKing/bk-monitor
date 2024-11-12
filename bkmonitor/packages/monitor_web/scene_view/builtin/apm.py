@@ -157,12 +157,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # APM观测场景处
         # 主机场景
         if builtin_view == "apm_service-service-default-host":
-            if all(list(params.values())) and HostHandler.list_application_hosts(
-                view.bk_biz_id,
-                params.get("app_name"),
-                params.get("service_name"),
-                start_time=params.get("start_time"),
-                end_time=params.get("end_time"),
+            if (
+                app_name
+                and service_name
+                and HostHandler.list_application_hosts(
+                    view.bk_biz_id,
+                    app_name,
+                    service_name,
+                    start_time=params.get("start_time"),
+                    end_time=params.get("end_time"),
+                )
             ):
                 cls._add_config_from_host(view, view_config)
                 return view_config
