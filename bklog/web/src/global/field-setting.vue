@@ -11,6 +11,7 @@
       :quick-close="true"
       :title="$t('字段配置')"
       :width="640"
+      @hidden="handleCloseSlider"
     >
       <div slot="header">
         {{ t('字段配置') }}
@@ -44,11 +45,11 @@
               :icon-offset="120"
               :label="$t('采集名')"
               :property="'collector_config_name'"
-              :required="isEdit || isEditConfigName"
+              :required="isEdit"
               :rules="basicRules.collector_config_name"
             >
               <bk-input
-                v-if="isEdit || isEditConfigName"
+                v-if="isEdit"
                 class="w520"
                 v-model="formData.collector_config_name"
                 maxlength="50"
@@ -57,10 +58,6 @@
               </bk-input>
               <div v-else>
                 {{ formData.collector_config_name }}
-                <i
-                  :class="['bk-icon icon-edit-line icons']"
-                  @click="isEditConfigName = true"
-                ></i>
               </div>
             </bk-form-item>
             <bk-form-item
@@ -126,11 +123,11 @@
               ext-cls="en-bk-form"
               :label="$t('日志保存天数')"
               :property="'retention'"
-              :required="isEdit || isEditRetention"
+              :required="isEdit"
               :rules="basicRules.retention"
             >
               <bk-input
-                v-if="isEdit || isEditRetention"
+                v-if="isEdit"
                 v-model="formData.retention"
               >
                 <template slot="append">
@@ -139,10 +136,6 @@
               </bk-input>
               <div v-else>
                 {{ formData.retention }}
-                <i
-                  :class="['bk-icon icon-edit-line icons']"
-                  @click="isEditRetention = true"
-                ></i>
               </div>
             </bk-form-item>
             <div class="add-collection-title">{{ $t('索引配置') }}</div>
@@ -161,9 +154,15 @@
               class="setting-desc"
             >
               {{ $t('暂未保留原始日志') }}
+              <span
+                class="field-add-btn"
+                @click="batchAddField"
+              >
+                {{ $t('前往配置') }}<span class="bklog-icon bklog-jump"></span>
+              </span>
             </div>
 
-            <div class="setting-title">{{ $t('索引日志配置') }}</div>
+            <div class="setting-title">{{ $t('索引字段配置') }}</div>
             <setting-table
               ref="indexfieldTable"
               :table-type="'indexLog'"
@@ -189,6 +188,7 @@
           </bk-form>
           <div class="submit-container">
             <bk-button
+              v-if="isEdit"
               class="king-button mr10"
               :loading="confirmLoading"
               data-test-id="fieldSettingSlider_button_confirm"
@@ -214,7 +214,7 @@
   import { computed, ref, nextTick } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
-  import { useRoute } from 'vue-router/composables';
+  import { useRoute,useRouter } from 'vue-router/composables';
   import http from '@/api';
   import { deepClone } from '@/common/util';
 
@@ -224,12 +224,11 @@
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
+  const router = useRouter();
 
   const showSlider = ref(false);
   const sliderLoading = ref(false);
   const isEdit = ref(false);
-  const isEditConfigName = ref(false);
-  const isEditRetention = ref(false);
   const tableField = ref([]);
   const cleanType = ref('');
   const collectorConfigId = ref('');
@@ -282,12 +281,6 @@
       {
         required: true,
         trigger: 'blur',
-        validator: val => {
-          if (val) {
-            isEditConfigName.value = false;
-          }
-          return val;
-        },
       },
     ],
     collector_config_name_en: [
@@ -327,9 +320,6 @@
               item => item.storage_cluster_id === formData.value.storage_cluster_id,
             );
             maxRetention.value = currentStorageCluster?.setup_config?.retention_days_max || 30;
-            if (val <= maxRetention.value) {
-              isEditRetention.value = false;
-            }
             return val <= maxRetention.value;
           }
         },
@@ -376,7 +366,12 @@
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
+    console.log(indexSetId);
+    console.log(indexSetList);
+    
+    const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    console.log(currentIndexSet);
+    
     if (!currentIndexSet.collector_config_id) return;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await http
@@ -495,6 +490,23 @@
       }
     });
   };
+  const batchAddField = () => {
+    console.log(collectorConfigId.value, 'collectorConfigId');
+        if (!collectorConfigId.value) return;
+        router.replace({
+          name: 'collectField',
+          params: {
+            collectorId: collectorConfigId.value,
+          },
+          query: {
+            spaceUid: store.state.spaceUid,
+          },
+        });
+  }
+  // 关闭侧边栏后退出编辑模式
+  const handleCloseSlider = () => {
+    isEdit.value = false;
+  }
 </script>
 
 <style lang="scss" scoped>
@@ -521,9 +533,10 @@
     .add-collection-title {
       width: 100%;
       padding-top: 18px;
+      margin-bottom: 12px;
       font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
+      font-weight: 700;
+      color: #313238
     }
 
     .setting-title {
@@ -535,6 +548,12 @@
 
     .setting-desc {
       padding: 10px 0;
+      color: #EA3636;
+
+      .field-add-btn{
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
 
     .field-setting-form {
@@ -593,7 +612,7 @@
 
     .field-preview-form {
       .bk-form-item {
-        margin-top: 5px;
+        margin-top: 0;
       }
     }
 

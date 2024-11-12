@@ -1883,15 +1883,15 @@
       width: 100%;
       padding-top: 36px;
       padding-bottom: 10px;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
       font-size: 14px;
       font-weight: 600;
-      color: #63656e;
+      color: #313238;
       border-bottom: 1px solid #dcdee5;
     }
 
     .add-collection-import {
-      padding: 12px 24px;
+      padding: 8px 24px;
       font-size: 16px;
 
       span {
