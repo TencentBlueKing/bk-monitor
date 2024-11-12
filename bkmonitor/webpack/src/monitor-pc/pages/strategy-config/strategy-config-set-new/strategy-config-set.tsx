@@ -1819,7 +1819,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       await saveStrategyV2(
         transformDataKey(Object.assign(params, this.id && !this.isClone ? { id: this.id } : {}), true)
       )
-        .then(() => {
+        .then(strategy => {
+          // 保存策略成功后 主动刷新target列表
+          if (strategy.id) {
+            getTargetDetail(
+              {
+                refresh: 1,
+                strategy_ids: [strategy.id],
+              },
+              { needMessage: false }
+            ).catch(() => {});
+          }
           this.$bkMessage({
             theme: 'success',
             message: this.id && !this.isClone ? this.$t('编辑策略成功') : this.$t('创建策略成功'),
