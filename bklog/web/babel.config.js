@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+const isMonitorProduction = process.env.NODE_ENV === 'production' && process.env.APP === 'apm';
 module.exports = function (api) {
   api?.cache.never();
   const presets = [
@@ -31,7 +32,10 @@ module.exports = function (api) {
       '@babel/preset-env',
       {
         targets: {
-          browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
+          browsers:
+            process.env.APP === 'apm'
+              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
+              : ['> 1%', 'last 2 versions', 'not ie <= 8'],
           node: 'current',
         },
         useBuiltIns: 'usage',
@@ -43,13 +47,15 @@ module.exports = function (api) {
   ];
   const plugins = [
     '@babel/plugin-transform-runtime',
-    [
-      'babel-plugin-import-bk-magic-vue',
-      {
-        baseLibName: 'bk-magic-vue',
-      },
-    ],
-  ];
+    isMonitorProduction
+      ? undefined
+      : [
+          'babel-plugin-import-bk-magic-vue',
+          {
+            baseLibName: 'bk-magic-vue',
+          },
+        ],
+  ].filter(Boolean);
   return {
     presets,
     plugins,

@@ -41,7 +41,6 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -84,6 +83,7 @@ const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 })
 class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strategyAuth, false)) {
   @Prop({ type: String, default: '' }) fromRouteName: IStrategyConfigProps['fromRouteName'];
+  @Prop({ type: String, default: '' }) strategyType: string;
   @Prop({ type: String, default: '' }) noticeName: IStrategyConfigProps['noticeName'];
   @Prop({ type: String, default: '' }) serviceCategory: IStrategyConfigProps['serviceCategory'];
   @Prop({ type: [String, Number], default: '' }) taskId: IStrategyConfigProps['taskId'];
@@ -1936,7 +1936,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   // 处理监控项tooltips
   handleDescTips(data) {
-    const tips = data.map(item => `<div>${xssFilter(item.tip)}</div>`).join('');
+    const tips = data.map(item => `<div>${item.tip}</div>`).join('');
     const res = `<div class="item-description">${tips}</div>`;
     return res;
   }

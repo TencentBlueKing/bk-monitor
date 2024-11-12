@@ -89,7 +89,8 @@
       return;
     }
 
-    if ((!isUnionSearch.value && !!route.params?.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+    const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+    if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
       // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
@@ -109,7 +110,7 @@
         .request(
           urlStr,
           {
-            params: { index_set_id: route.params.indexId },
+            params: { index_set_id: indexId },
             data: queryData,
           },
           {
@@ -122,7 +123,6 @@
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
             const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-
             const sumCount = setChartData(data);
             store.commit('retrieve/updateTrendDataCount', sumCount);
           }

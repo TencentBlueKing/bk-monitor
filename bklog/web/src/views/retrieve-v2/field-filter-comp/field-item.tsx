@@ -118,7 +118,9 @@ export default class FieldItem extends tsc<object> {
     this.instanceDestroy();
     this.analysisActive = true;
     this.fieldAnalysisInstance = new FieldAnalysis().$mount();
-    const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
+    const indexSetIDs = this.isUnionSearch
+      ? this.unionIndexList
+      : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
