@@ -17,9 +17,11 @@ import time
 
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
+from alarm_backends.core.storage.redis import Cache
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
@@ -53,25 +55,42 @@ def handler(bk_biz_id, app_name):
 
 
 def topo_discover_cron():
+    from apm_web.constants import ApmCacheKey
+
+    cache = Cache("cache")
+    now = timezone.now()
+    half_hour_ago = now - datetime.timedelta(minutes=30)
+    app_queryset = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
+    for app_obj in app_queryset:
+        if cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{app_obj.id}"):
+            continue
+        else:
+            cache.set(
+                f"{ApmCacheKey.APM_NEW_APPLICATION}{app_obj.id}", app_obj.id, ex=settings.NEW_APPLICATION_REFRESH_RATE
+            )  # 60*2
+            handler.delay(app_obj.bk_biz_id, app_obj.app_name)
+
     # 10分钟刷新一次
     interval = 10
     slug = datetime.datetime.now().minute % interval
     ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
     to_be_refreshed = list(
         ApmApplication.objects.filter(Q(is_enabled=True) & ~Q(id__in=ebpf_application_ids)).values_list(
-            "bk_biz_id", "app_name", "id"
+            "bk_biz_id", "app_name", "id", "create_time"
         )
     )
+
     for index, application in enumerate(to_be_refreshed):
-        bk_biz_id, app_name, app_id = application
-        try:
-            with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
-                if index % interval == slug:
-                    logger.info(f"[topo_discover_cron] start. app_name: {app_name}, app_id: {app_id}")
-                    handler.delay(bk_biz_id, app_name)
-        except LockError:
-            logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
-            continue
+        bk_biz_id, app_name, app_id, create_time = application
+        if not cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{app_id}"):
+            try:
+                with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
+                    if index % interval == slug:
+                        logger.info(f"[topo_discover_cron] start. app_name: {app_name}, app_id: {app_id}")
+                        handler.delay(bk_biz_id, app_name)
+            except LockError:
+                logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
+                continue
 
 
 def refresh_apm_config():

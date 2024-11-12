@@ -1485,3 +1485,6 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
+
+# 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
+NEW_APPLICATION_REFRESH_RATE = 2 * 60
