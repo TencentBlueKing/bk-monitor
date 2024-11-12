@@ -433,6 +433,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         bcs_cluster_id = params.get("bcs_cluster_id")
         name = params.get("name")
         namespace = params.get("namespace")
+        filter_with_metric = False
+        filter_metrics = set()
+
         if resource_id == "service_monitor":
             if not (name and bcs_cluster_id):
                 return []
@@ -448,6 +451,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         elif resource_id == "service-default-custom_metric":
             view_config = GetSceneViewResource().request(params)
             panels = view_config.get("overview_panels")
+            filter_with_metric = True
         else:
             view_config = GetSceneViewResource().request(params)
             panels = view_config.get("panels") or view_config.get("overview_panels")
@@ -483,6 +487,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                             continue
                         data_source = (query_config["data_source_label"], query_config["data_type_label"])
                         result_table_ids[data_source].add(table)
+                        if filter_with_metric:
+                            for metric in query_config.get("metrics", []):
+                                filter_metrics.add(metric["field"])
 
         if k8s_metric_fields:
             k8s_metrics = MetricListCache.objects.filter(result_table_id="", metric_field__in=k8s_metric_fields)
@@ -496,6 +503,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                 metrics = MetricListCache.objects.filter(
                     data_source_label=data_source_label, data_type_label=data_type_label, related_id__in=tables
                 )
+
+            if filter_with_metric:
+                metrics = metrics.filter(metric_field__in=list(filter_metrics))
 
             yield from metrics
 
