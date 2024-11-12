@@ -310,7 +310,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
     const params = {
       page,
       page_size: limit,
-      conditions: [{ key: 'action_name', value: [this.detailInfo.name] }],
+      conditions: [{ key: 'action_id', value: [this.detailInfo.id] }],
       order_by: '-update_time',
       with_user_group: true,
     };
@@ -329,7 +329,7 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
    */
   async getMealTypeList() {
     const result = await getPlugins().catch(() => []);
-    this.mealTypeList = result.reduce((total: any, cur) => (total = [...total, ...cur.children]), []);
+    this.mealTypeList = result.reduce((total: any, cur) => total.concat(cur.children), []);
   }
 
   // 获取作业平台下拉数据
@@ -620,8 +620,11 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
                   class='form-container'
                   title={this.peripheralData.formName}
                 >
-                  {this.formData.map(item => (
-                    <div class='content-form-item'>
+                  {this.formData.map((item, index) => (
+                    <div
+                      key={`${index}_${item.label}`}
+                      class='content-form-item'
+                    >
                       <div
                         class='form-item-label'
                         v-bk-overflow-tips

@@ -12,17 +12,14 @@ specific language governing permissions and limitations under the License.
 import copy
 import csv
 import datetime
-import inspect
 import json
 import logging
 import os
 import re
 import shutil
 import tarfile
-import time
 import uuid
 from collections import defaultdict
-from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
@@ -51,7 +48,7 @@ from core.errors.export_import import (
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
-from monitor_web.commons.report.resources import FrontendReportEventResource
+from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
     ConfigType,
@@ -321,39 +318,18 @@ class ExportPackageResource(Resource):
         remove_file.apply_async(args=(self.package_path,), countdown=300)
 
         try:
-            self.send_frontend_report_event()
+            username = get_local_username() or ""
+            event_content = (
+                "导出"
+                + f"{len(self.collect_config_ids)}条采集配置,"
+                + f"{len(self.strategy_config_ids)}个策略配置,"
+                + f"{len(self.view_config_ids)}个仪表盘"
+            )
+            send_frontend_report_event(self, self.bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event error: {e}")
 
         return {"download_path": download_path, "download_name": download_name}
-
-    def send_frontend_report_event(self):
-        """
-        发送前端审计上报
-        """
-
-        dimensions = {
-            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_local_username() or "",
-        }
-
-        event_name = "导入导出审计"
-        event_content = (
-            "导出"
-            + f"{len(self.collect_config_ids)}条采集配置,"
-            + f"{len(self.strategy_config_ids)}个策略配置,"
-            + f"{len(self.view_config_ids)}个仪表盘"
-        )
-        timestamp = int(time.time() * 1000)
-
-        # 发送审计上报的请求
-        FrontendReportEventResource().request(
-            bk_biz_id=self.bk_biz_id,
-            dimensions=dimensions,
-            event_name=event_name,
-            event_content=event_content,
-            timestamp=timestamp,
-        )
 
     @step(state="PREPARE_FILE", message=_("准备文件中..."))
     def prepare_file(self):
@@ -1037,38 +1013,14 @@ class ImportConfigResource(Resource):
 
         # 发送审计上报
         try:
-            self.send_frontend_report_event(
-                bk_biz_id, username, len(collect_config_list), len(strategy_config_list), len(view_config_list)
+            event_content = (
+                f"导入{len(collect_config_list)}条采集配置, {len(strategy_config_list)}个策略配置, {len(view_config_list)}个仪表盘"
             )
+            send_frontend_report_event(self, bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event error: {e}")
 
         return {"import_history_id": self.import_history_instance.id}
-
-    def send_frontend_report_event(
-        self,
-        bk_biz_id: int,
-        username: str,
-        len_collect_config_list: int,
-        len_strategy_config_list: int,
-        len_view_config_list: int,
-    ):
-        event_name = "导入导出审计"
-        event_content = f"导入{len_collect_config_list}条采集配置, {len_strategy_config_list}个策略配置, {len_view_config_list}个仪表盘"
-        timestamp = int(time.time() * 1000)
-        dimensions = {
-            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": username,
-        }
-
-        # 发送审计上报的请求
-        FrontendReportEventResource().request(
-            bk_biz_id=bk_biz_id,
-            dimensions=dimensions,
-            event_name=event_name,
-            event_content=event_content,
-            timestamp=timestamp,
-        )
 
 
 class AddMonitorTargetResource(Resource):

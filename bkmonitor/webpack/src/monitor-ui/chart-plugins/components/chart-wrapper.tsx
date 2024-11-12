@@ -34,12 +34,15 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
+import ApmCallerBarChart from '../plugins/caller-bar-chart/caller-bar-chart';
 import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
+import ApmCallerPieChart from '../plugins/caller-pie-chart/caller-pie-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
@@ -561,6 +564,25 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onFullScreen={this.handleFullScreen}
             onLoading={this.handleChangeLoading}
             onZrClick={this.handleZrClick}
+          />
+        );
+      case 'caller-pie-chart':
+        return <ApmCallerPieChart panel={this.panel} />;
+      case 'caller-bar-chart':
+        return <ApmCallerBarChart panel={this.panel} />;
+
+      case 'apm_custom_graph':
+        return (
+          <ApmCustomGraph
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
           />
         );
       // 不需要报错显示

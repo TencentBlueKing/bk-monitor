@@ -56,7 +56,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -197,7 +198,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -432,7 +434,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -475,11 +478,9 @@
                         "condition": "and"
                       },
                       {
-                        "key": "code_type",
-                        "method": "eq",
-                        "value": [
-                          "timeout"
-                        ],
+                        "key": "${code_field}",
+                        "method": "${code_method}",
+                        "value": "${code_values}",
                         "condition": "and"
                       }
                     ]
@@ -567,11 +568,9 @@
                           "condition": "and"
                         },
                         {
-                          "key": "code_type",
-                          "method": "eq",
-                          "value": [
-                            "timeout"
-                          ],
+                          "key": "${code_field}",
+                          "method": "${code_method}",
+                          "value": "${code_values}",
                           "condition": "and"
                         }
                       ]
@@ -625,6 +624,31 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
+            "enable_panels_selector": true,
+            "child_panels_selector_variables": [
+              {
+                "id": "timeout_rate",
+                "title": "超时率",
+                "variables": {
+                  "code_field": "code_type",
+                  "code_method": "eq",
+                  "code_values": [
+                    "timeout"
+                  ]
+                }
+              },
+              {
+                "id": "exception_rate",
+                "title": "异常率",
+                "variables": {
+                  "code_field": "code_type",
+                  "code_method": "eq",
+                  "code_values": [
+                    "exception"
+                  ]
+                }
+              }
+            ],
             "is_support_group_by": true,
             "is_support_compare": true
           }
@@ -668,7 +692,8 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}"
+                      "temporality": "${temporality}",
+                      "ret_code_as_exception": "${ret_code_as_exception}"
                     }
                   }
                 },
@@ -1372,6 +1397,92 @@
           }
         }
       ],
+      "dimension_panels": [
+        {
+          "id": "dimension_pie",
+          "title": "维度值分布",
+          "type": "caller-pie-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "${server_filter_method}",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}",
+                    "ret_code_as_exception": "${ret_code_as_exception}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dimension_bar",
+          "title": "维度值分布",
+          "type": "caller-bar-chart",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 24
+          },
+          "targets": [
+            {
+              "api": "apm_metric.queryDimensionsByLimit",
+              "data": {
+                "app_name": "${app_name}",
+                "method": "top_n",
+                "metric_group_name": "trpc",
+                "metric_cal_type": "${metric_cal_type}",
+                "limit": 30,
+                "time_shift": "${time_shift}",
+                "where": [
+                  {
+                    "key": "${server}",
+                    "method": "${server_filter_method}",
+                    "value": [
+                      "${service_name}"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "group_by": "${group_by}",
+                "options": {
+                  "trpc": {
+                    "kind": "${kind}",
+                    "temporality": "${temporality}",
+                    "ret_code_as_exception": "${ret_code_as_exception}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
       "options": {
         "enable_group": false,
         "show_panel_count": false,
@@ -1404,10 +1515,400 @@
             "value": "time",
             "interval": 60
           },
-          "angle": {},
+          "angle": {
+            "caller": {
+              "server": "caller_server",
+              "metrics": {
+                "rpc_handled_total": "rpc_client_handled_total",
+                "rpc_handled_seconds_sum": "rpc_client_handled_seconds_sum",
+                "rpc_handled_seconds_count": "rpc_client_handled_seconds_count",
+                "rpc_handled_seconds_bucket": "rpc_client_handled_seconds_bucket"
+              },
+              "tags": [
+                {
+                  "value": "caller_service",
+                  "text": "主调 Service"
+                },
+                {
+                  "value": "caller_method",
+                  "text": "主调接口"
+                },
+                {
+                  "value": "caller_ip",
+                  "text": "主调 IP"
+                },
+                {
+                  "value": "caller_container",
+                  "text": "主调容器"
+                },
+                {
+                  "value": "caller_con_setid",
+                  "text": "主调 SetID"
+                },
+                {
+                  "value": "caller_group",
+                  "text": "主调流量组"
+                },
+                {
+                  "value": "callee_server",
+                  "text": "被调服务"
+                },
+                {
+                  "value": "callee_service",
+                  "text": "被调 Service"
+                },
+                {
+                  "value": "callee_method",
+                  "text": "被调接口",
+                  "default_group_by_field": true
+                },
+                {
+                  "value": "callee_ip",
+                  "text": "被调 IP"
+                },
+                {
+                  "value": "callee_container",
+                  "text": "被调容器"
+                },
+                {
+                  "value": "callee_con_setid",
+                  "text": "被调 SetID"
+                },
+                {
+                  "value": "namespace",
+                  "text": "物理环境"
+                },
+                {
+                  "value": "env_name",
+                  "text": "用户环境"
+                },
+                {
+                  "value": "code",
+                  "text": "返回码"
+                },
+                {
+                  "value": "version",
+                  "text": "版本"
+                },
+                {
+                  "value": "region",
+                  "text": "地域"
+                },
+                {
+                  "value": "canary",
+                  "text": "金丝雀"
+                },
+                {
+                  "value": "user_ext1",
+                  "text": "预留字段1"
+                },
+                {
+                  "value": "user_ext2",
+                  "text": "预留字段2"
+                },
+                {
+                  "value": "user_ext3",
+                  "text": "预留字段3"
+                }
+              ],
+              "support_operations": [
+                {
+                  "text": "被调",
+                  "value": "callee",
+                  "tags": [
+                    "caller_service",
+                    "caller_method",
+                    "callee_service",
+                    "callee_method"
+                  ]
+                },
+                {
+                  "text": "Trace",
+                  "value": "trace",
+                  "tags": [
+                    "caller",
+                    "caller_server",
+                    "caller_service",
+                    "caller_method",
+                    "caller_ip",
+                    "callee_service",
+                    "callee_method",
+                    "callee_ip",
+                    "namespace",
+                    "env_name",
+                    "code"
+                  ],
+                  "tag_trace_mapping": {
+                    "caller": {
+                      "field": "kind",
+                      "value": [
+                        3,
+                        4
+                      ]
+                    },
+                    "caller_server": {
+                      "field": "service.name"
+                    },
+                    "caller_service": {
+                      "field": "attributes.trpc.caller_service"
+                    },
+                    "caller_method": {
+                      "field": "attributes.trpc.caller_method"
+                    },
+                    "caller_ip": {
+                      "field": "attributes.net.host.ip"
+                    },
+                    "callee_service": {
+                      "field": "attributes.trpc.callee_service"
+                    },
+                    "callee_method": {
+                      "field": "attributes.trpc.callee_method"
+                    },
+                    "callee_ip": {
+                      "field": "attributes.net.peer.ip"
+                    },
+                    "namespace": {
+                      "field": "attributes.trpc.namespace"
+                    },
+                    "env_name": {
+                      "field": "attributes.trpc.envname"
+                    },
+                    "code": {
+                      "field": "attributes.trpc.status_code"
+                    }
+                  }
+                },
+                {
+                  "text": "拓扑",
+                  "value": "topo",
+                  "tags": [
+                    "callee_server"
+                  ]
+                },
+                {
+                  "text": "查看",
+                  "value": "service",
+                  "tags": [
+                    "callee_server"
+                  ]
+                }
+              ]
+            },
+            "callee": {
+              "server": "callee_server",
+              "metrics": {
+                "rpc_handled_total": "rpc_server_handled_total",
+                "rpc_handled_seconds_sum": "rpc_server_handled_seconds_sum",
+                "rpc_handled_seconds_count": "rpc_server_handled_seconds_count",
+                "rpc_handled_seconds_bucket": "rpc_server_handled_seconds_bucket"
+              },
+              "tags": [
+                {
+                  "value": "caller_server",
+                  "text": "主调服务"
+                },
+                {
+                  "value": "caller_service",
+                  "text": "主调 Service"
+                },
+                {
+                  "value": "caller_method",
+                  "text": "主调接口"
+                },
+                {
+                  "value": "caller_ip",
+                  "text": "主调 IP"
+                },
+                {
+                  "value": "caller_container",
+                  "text": "主调容器"
+                },
+                {
+                  "value": "caller_con_setid",
+                  "text": "主调 SetID"
+                },
+                {
+                  "value": "caller_group",
+                  "text": "主调流量组"
+                },
+                {
+                  "value": "callee_service",
+                  "text": "被调 Service"
+                },
+                {
+                  "value": "callee_method",
+                  "text": "被调接口",
+                  "default_group_by_field": true
+                },
+                {
+                  "value": "callee_ip",
+                  "text": "被调 IP"
+                },
+                {
+                  "value": "callee_container",
+                  "text": "被调容器"
+                },
+                {
+                  "value": "callee_con_setid",
+                  "text": "被调 SetID"
+                },
+                {
+                  "value": "namespace",
+                  "text": "物理环境"
+                },
+                {
+                  "value": "env_name",
+                  "text": "用户环境"
+                },
+                {
+                  "value": "code",
+                  "text": "返回码"
+                },
+                {
+                  "value": "version",
+                  "text": "版本"
+                },
+                {
+                  "value": "region",
+                  "text": "地域"
+                },
+                {
+                  "value": "canary",
+                  "text": "金丝雀"
+                },
+                {
+                  "value": "user_ext1",
+                  "text": "预留字段1"
+                },
+                {
+                  "value": "user_ext2",
+                  "text": "预留字段2"
+                },
+                {
+                  "value": "user_ext3",
+                  "text": "预留字段3"
+                }
+              ],
+              "support_operations": [
+                {
+                  "text": "主调",
+                  "value": "callee",
+                  "tags": [
+                    "caller_service",
+                    "caller_method",
+                    "callee_service",
+                    "callee_method"
+                  ]
+                },
+                {
+                  "text": "Trace",
+                  "value": "trace",
+                  "tags": [
+                    "caller_service",
+                    "caller_method",
+                    "caller_ip",
+                    "callee",
+                    "callee_server",
+                    "callee_service",
+                    "callee_method",
+                    "callee_ip",
+                    "namespace",
+                    "env_name",
+                    "code"
+                  ],
+                  "tag_trace_mapping": {
+                    "caller_service": {
+                      "field": "attributes.trpc.caller_service"
+                    },
+                    "caller_method": {
+                      "field": "attributes.trpc.caller_method"
+                    },
+                    "caller_ip": {
+                      "field": "attributes.net.peer.ip"
+                    },
+                    "callee": {
+                      "field": "kind",
+                      "value": [
+                        2,
+                        5
+                      ]
+                    },
+                    "callee_server": {
+                      "field": "service.name"
+                    },
+                    "callee_service": {
+                      "field": "attributes.trpc.callee_service"
+                    },
+                    "callee_method": {
+                      "field": "attributes.trpc.callee_method"
+                    },
+                    "callee_ip": {
+                      "field": "attributes.net.host.ip"
+                    },
+                    "namespace": {
+                      "field": "attributes.trpc.namespace"
+                    },
+                    "env_name": {
+                      "field": "attributes.trpc.envname"
+                    },
+                    "code": {
+                      "field": "attributes.trpc.status_code"
+                    }
+                  }
+                },
+                {
+                  "text": "拓扑",
+                  "value": "topo",
+                  "tags": [
+                    "caller_server"
+                  ]
+                },
+                {
+                  "text": "查看",
+                  "value": "service",
+                  "tags": [
+                    "caller_server"
+                  ]
+                }
+              ]
+            }
+          },
           "statistics": {
             "api": "apm_metric.calculateByRange",
-            "supported_calculation_types": [],
+            "supported_calculation_types": [
+              {
+                "value": "request_total",
+                "text": "请求量"
+              },
+              {
+                "value": "success_rate",
+                "text": "成功率"
+              },
+              {
+                "value": "timeout_rate",
+                "text": "超时率"
+              },
+              {
+                "value": "exception_rate",
+                "text": "异常率"
+              },
+              {
+                "value": "avg_duration",
+                "text": "平均耗时"
+              },
+              {
+                "value": "p50_duration",
+                "text": "P50 耗时"
+              },
+              {
+                "value": "p95_duration",
+                "text": "P95 耗时"
+              },
+              {
+                "value": "p99_duration",
+                "text": "P99 耗时"
+              }
+            ],
             "data": {
               "app_name": "${app_name}",
               "metric_group_name": "trpc",
@@ -1428,21 +1929,53 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}"
+                  "temporality": "${temporality}",
+                  "ret_code_as_exception": "${ret_code_as_exception}"
                 }
               }
             }
           },
           "group_by": {
             "api": "apm_metric.queryDimensionsByLimit",
-            "supported_methods": [],
-            "supported_calculation_types": [],
+            "supported_methods": [
+              {
+                "value": "top_n",
+                "text": "top"
+              },
+              {
+                "value": "bottom_n",
+                "text": "bottom"
+              }
+            ],
+            "supported_calculation_types": [
+              {
+                "value": "request_total",
+                "text": "请求量"
+              },
+              {
+                "value": "success_rate",
+                "text": "成功率（%）"
+              },
+              {
+                "value": "timeout_rate",
+                "text": "超时率（%）"
+              },
+              {
+                "value": "exception_rate",
+                "text": "异常率（%）"
+              },
+              {
+                "value": "avg_duration",
+                "text": "平均耗时（ms）"
+              }
+            ],
             "data": {
               "app_name": "${app_name}",
-              "cal_type": "${method}",
+              "method": "top_n",
               "metric_group_name": "trpc",
               "metric_cal_type": "${metric_cal_type}",
-              "limit": "${limit}",
+              "limit": 30,
+              "time_shift": "${time_shift}",
               "where": [
                 {
                   "key": "${server}",
@@ -1457,7 +1990,8 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}"
+                  "temporality": "${temporality}",
+                  "ret_code_as_exception": "${ret_code_as_exception}"
                 }
               }
             }

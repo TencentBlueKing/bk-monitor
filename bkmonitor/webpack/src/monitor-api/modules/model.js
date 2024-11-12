@@ -133,6 +133,7 @@ export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
 export const switchDutyRule = request('POST', 'rest/v2/duty_rules/switch/');
 export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
 export const chatChat = request('POST', 'rest/v2/ai_assistant/chat/chat/');
+export const chatChatV2 = request('POST', 'rest/v2/ai_assistant/chat/chat_v2/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
 export const listActionConfig = request('GET', 'fta/action/config/');
@@ -298,6 +299,7 @@ export default {
   switchDutyRule,
   updateDutyRule,
   chatChat,
+  chatChatV2,
   createActionConfig,
   destroyActionConfig,
   listActionConfig,

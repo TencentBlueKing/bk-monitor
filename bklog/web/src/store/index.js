@@ -1368,6 +1368,7 @@ const store = new Vuex.Store({
           const isNewSearchPage = item.operator === 'new-search-page-is';
           item.operator = isNewSearchPage ? 'is' : item.operator;
           const { field, operator, value } = item;
+
           let newSearchValue = null;
           if (searchMode === 'ui') {
             const mapOperator = getAdditionMappingOperator({ field, operator });

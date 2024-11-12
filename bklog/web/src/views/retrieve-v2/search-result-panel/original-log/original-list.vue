@@ -29,7 +29,10 @@
   <div>
     <bk-table
       ref="resultTable"
-      class="bklog-origin-list"
+      :class="[
+        'bklog-origin-list',
+        { 'is-hidden-index-column': !tableShowRowIndex, 'is-show-index-column': tableShowRowIndex },
+      ]"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -43,7 +46,7 @@
         type="expand"
       >
         <template #default="{ $index, row }">
-          <LazyRender>
+          <LazyRender :delay="1">
             <expand-view
               :kv-show-fields-list="kvShowFieldsList"
               :data="originTableList[$index]"
@@ -60,19 +63,17 @@
         </template>
       </bk-table-column>
 
-      <template v-if="tableShowRowIndex">
-        <bk-table-column
-          type="index"
-          :width="100"
-          class-name="bklog-result-list-col-index"
-        ></bk-table-column>
-      </template>
+      <bk-table-column
+        :width="tableShowRowIndex ? 50 : 0"
+        type="index"
+        class-name="bklog-result-list-col-index"
+      ></bk-table-column>
 
       <!-- 显示字段 -->
       <template>
         <bk-table-column :width="originFieldWidth">
           <template #default="{ row }">
-            <LazyRender>
+            <LazyRender :visibleOnly="!tableJsonFormat">
               <span
                 class="time-field"
                 :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
@@ -85,7 +86,10 @@
         <bk-table-column>
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <LazyRender>
+            <LazyRender
+              :delay="1"
+              :visibleOnly="!tableJsonFormat"
+            >
               <JsonFormatter
                 :jsonValue="row"
                 :fields="getShowTableVisibleFields"
@@ -119,39 +123,8 @@
           </LazyRender>
         </template>
       </bk-table-column>
-      <!-- 初次加载骨架屏loading -->
-      <template
-        v-if="tableLoading"
-        #empty
-      >
-        <bk-table-column>
-          <retrieve-loader
-            is-new-search
-            is-original-field
-            :visible-fields="getShowTableVisibleFields"
-            is-loading
-          >
-          </retrieve-loader>
-        </bk-table-column>
-      </template>
-      <template
-        v-else
-        #empty
-      >
+      <template #empty>
         <empty-view />
-      </template>
-      <!-- 下拉刷新骨架屏loading -->
-      <template
-        v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
-        #append
-      >
-        <retrieve-loader
-          is-new-search
-          is-original-field
-          :is-page-over="isPageOver"
-          :visible-fields="getShowTableVisibleFields"
-        >
-        </retrieve-loader>
       </template>
     </bk-table>
   </div>

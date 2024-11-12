@@ -85,7 +85,7 @@
   export default {
     components: {
       TextSegmentation,
-      JsonFormatter
+      JsonFormatter,
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
@@ -234,50 +234,9 @@
         const { operation, value, depth } = option;
         const operator = operation === 'not' ? 'is not' : operation;
         const field = this.totalFields.find(f => f.field_name === fieldName);
-        this.$emit('value-click', operator, value, isLink, field, depth); // type, content, field, row, isLink
+        this.$emit('value-click', operator, value, isLink, field, depth);
       },
-      handleMenuClick(operator, item, field, isLink = false) {
-        let params = {};
-        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(item), false);
-        if (!field) {
-          // disable时操作禁用
-          const disableStr = this.checkDisable(operator, item);
-          if (disableStr === 'is-disabled') return;
-        }
-        if (['is', 'not', 'new-search-page-is'].includes(operator)) {
-          if (!field && !this.getFieldType(item)) return;
 
-          if (this.getFieldType(item) === 'text') return;
-
-          if (!field && curValue === undefined) return;
-
-          params = {
-            fieldName: field ? field : item,
-            operation: operator,
-            value: item ? item : curValue,
-          };
-        }
-
-        if (operator === 'copy') {
-          if (!field && curValue === undefined) return;
-          params.operation = 'copy';
-          params.value = item ? item : curValue;
-        }
-
-        if (operator === 'display') {
-          const displayFieldNames = this.visibleFields.map(field => field.field_name);
-          const isDisplay = displayFieldNames.includes(item);
-          if (isDisplay) {
-            displayFieldNames.splice(displayFieldNames.indexOf(item), 1);
-          } else {
-            displayFieldNames.push(item);
-          }
-          params.operation = 'display';
-          params.displayFieldNames = displayFieldNames;
-        }
-
-        if (Object.keys(params).length) this.$emit('menu-click', params, isLink);
-      },
       /**
        * @desc 关联跳转
        * @param { string } field

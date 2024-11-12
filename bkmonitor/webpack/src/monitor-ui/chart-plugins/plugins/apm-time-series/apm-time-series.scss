@@ -43,6 +43,10 @@
   }
 
   &.apm-time-series {
+    .main-title {
+      position: relative;
+    }
+
     .title-center {
       position: absolute;
       right: 30px;
@@ -51,8 +55,8 @@
 
     .more-icon {
       position: absolute;
-      top: 2px;
-      right: 10px;
+      top: 0;
+      right: 0;
     }
   }
 }
