@@ -22,18 +22,12 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.log.resources import ServiceLogInfoResource
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
-from constants.apm import (
-    MetricTemporality,
-    TelemetryDataType,
-    TRPCMetricTag,
-    TrpcTagDrillOperation,
-)
+from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
-from apm_web.log.resources import ServiceLogInfoResource
-from apm_web.metric.constants import SeriesAliasType
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
