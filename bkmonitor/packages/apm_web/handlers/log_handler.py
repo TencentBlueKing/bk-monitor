@@ -179,7 +179,7 @@ class ServiceLogHandler:
                     bk_data_id = source_info.get("bk_data_id")
                     if bk_data_id:
                         data_ids.add(bk_data_id)
-            if len(data_ids) >= 10:
+            if len(data_ids) >= cls.LOG_RELATION_BY_UNIFY_QUERY:
                 break
 
         if not data_ids:
