@@ -1423,28 +1423,42 @@ class GetMetricListV2Resource(Resource):
             # 尝试解析指标ID格式的query字符串
             exact_query = []
             for query in filter_dict["query"]:
-                query_params_list = []
+                query = query.strip()
+
+                # promql格式的查询
+                if ":" in query:
+                    fields = query.split(":")
+                    if fields[0] in ["custom", "bkmonitor"]:
+                        fields = fields[1:]
+                    fields = [field.strip() for field in fields if field.strip()]
+
+                    if len(fields) == 3:
+                        exact_query.append(
+                            Q(result_table_id=f"{fields[0]}.{fields[1]}", metric_field__icontains=fields[2])
+                        )
+                    elif len(fields) == 2:
+                        exact_query.append(Q(data_label=fields[0], metric_field__icontains=fields[1]))
+
+                    continue
+
+                # metric_id格式的查询
                 fields = query.split(".")
                 if len(fields) == 2:
-                    query_params_list.extend(
+                    exact_query.extend(
                         [
-                            {"result_table_id": fields[0], "metric_field": fields[1]},
-                            {"data_label": fields[0], "metric_field": fields[1]},
+                            Q(data_label=fields[0], metric_field__icontains=fields[1]),
+                            Q(result_table_id=fields[0], metric_field__icontains=fields[1]),
                         ]
                     )
                 elif len(fields) >= 3:
-                    query_params_list.append(
-                        {"result_table_id": ".".join(fields[:2]), "metric_field": ".".join(fields[2:])}
+                    exact_query.append(
+                        Q(result_table_id=".".join(fields[:2]), metric_field__icontains=".".join(fields[2:]))
                     )
 
-                for query_params in query_params_list:
-                    filter_params = {
-                        f"{query_key}__icontains": query_value for query_key, query_value in query_params.items()
-                    }
-                    exact_query.append(Q(**filter_params))
-
             queries = []
-            for query, field in product(filter_dict["query"], ["result_table_id", "metric_field", "metric_field_name"]):
+            for query, field in product(
+                filter_dict["query"], ["data_label", "result_table_id", "metric_field", "metric_field_name"]
+            ):
                 queries.append(Q(**{f"{field}__icontains": query}))
 
             queries.extend(exact_query)
