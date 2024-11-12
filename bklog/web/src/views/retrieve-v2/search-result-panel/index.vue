@@ -1,10 +1,11 @@
 <script setup>
   import { computed, ref } from 'vue';
+
   import useStore from '@/hooks/use-store';
 
-  import FieldFilter from './field-filter';
-  import SearchResultChart from '../search-result-chart/index.vue';
   import NoIndexSet from '../result-comp/no-index-set';
+  import SearchResultChart from '../search-result-chart/index.vue';
+  import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
 
@@ -62,9 +63,8 @@
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
       <FieldFilter
-        v-show="isOriginShow"
-        v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
         v-model="isShowFieldStatistics"
+        v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
         v-log-drag="{
           minWidth: 160,
           maxWidth: 500,
@@ -76,19 +76,20 @@
           onHidden: () => (isShowFieldStatistics = false),
           onWidthChange: handleFilterWidthChange,
         }"
+        v-show="isOriginShow"
         :class="{ 'filet-hidden': !isShowFieldStatistics }"
         @field-status-change="handleFieldsShowChange"
       ></FieldFilter>
       <div
+        :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
         :class="[
           'search-result-content',
           {
             'is-trend-chart-show': isTrendChartShow,
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
-            'is-not-show-field-statistics': !isShowFieldStatistics
+            'is-not-show-field-statistics': !isShowFieldStatistics,
           },
         ]"
-        :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
       >
         <SearchResultChart
           v-show="isOriginShow"
@@ -111,8 +112,8 @@
           />
           <LogClustering
             v-if="activeTab === 'clustering'"
-            :height="heightNum"
             :active-tab="activeTab"
+            :height="heightNum"
             :retrieve-params="retrieveParams"
             @show-change="handleUpdateActiveTab"
           />
@@ -122,6 +123,6 @@
   </div>
 </template>
 
-<style scoped lang="scss">
+<style lang="scss">
   @import './index.scss';
 </style>

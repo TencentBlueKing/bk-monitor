@@ -1,9 +1,9 @@
 <script setup>
   import { ref, computed } from 'vue';
 
+  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import VersionSwitch from '@/global/version-switch.vue';
   import { isEqual } from 'lodash';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
@@ -61,13 +61,13 @@
 <template>
   <div class="subbar-container">
     <div
-      class="box-biz-select"
       :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
+      class="box-biz-select"
     >
       <SelectIndexSet
         style="min-width: 500px"
+        :popover-options="{ offset: '-6,10' }"
         @selected="handleIndexSetSelected"
-        :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
@@ -81,6 +81,6 @@
     </div>
   </div>
 </template>
-<style scoped lang="scss">
+<style lang="scss">
   @import './index.scss';
 </style>
