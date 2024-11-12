@@ -227,7 +227,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                     view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
                         1
-                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"], "code_method": "neq"}
+                    ]["variables"] = {
+                        "code_field": "code",
+                        "code_values": ["0", "ret_0"],
+                        "code_method": "neq",
+                        # 排除非 0 返回码可能是 timeout 的情况
+                        "code_extra_where": {
+                            "key": "code_type",
+                            "method": "neq",
+                            "value": ["timeout"],
+                            "condition": "and",
+                        },
+                    }
             except CodeRedefinedConfigRelation.DoesNotExist:
                 pass
 

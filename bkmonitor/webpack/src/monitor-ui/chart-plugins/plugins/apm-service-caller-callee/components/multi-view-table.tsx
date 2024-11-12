@@ -474,7 +474,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     /** Trace */
     if (type === 'trace') {
-      const groupBy = this.dimensionParam.group_by;
+      const groupBy = this.dimensionParam.group_by.filter(item => opt.tags.includes(item));
       const tagTraceMapping = opt.tag_trace_mapping;
       const filter = {
         kind: tagTraceMapping[kind].value,
@@ -513,7 +513,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service_name}&dashboardId=service-default-caller_callee`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee`
         )
       );
       return;
@@ -565,7 +565,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const set1 = new Set(groupBy);
     const operationCol = (
       <bk-table-column
-        width={200}
+        width={220}
         scopedSlots={{
           default: ({ row }) => {
             if (row?.isTotal) {
@@ -656,9 +656,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     return (
                       <span
                         key={opt.value}
-                        class={['operation-item', { disabled: opt.value === 'service' && !isClick }]}
+                        class={['operation-item', { disabled: ['service', 'topo'].includes(opt.value) && !isClick }]}
                         v-bk-tooltips={
-                          opt.value === 'service'
+                          ['service', 'topo'].includes(opt.value)
                             ? {
                                 content: this.$t('服务未接入'),
                                 disabled: isClick,
@@ -669,7 +669,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                           this.handleFieldOperations(
                             opt,
                             row,
-                            opt.value === 'service' ? isClick : true,
+                            ['service', 'topo'].includes(opt.value) ? isClick : true,
                             intersection[0]
                           )
                         }
