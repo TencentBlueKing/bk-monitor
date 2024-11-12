@@ -189,7 +189,7 @@ class EsQuery(object):
         ).body
 
         # 使用了分片
-        if self.search_dict["slice_search"]:
+        if self.search_dict.get("slice_search"):
             body.update(
                 {
                     "slice": {

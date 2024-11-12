@@ -33,9 +33,9 @@ from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleS
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
+    ExportFileType,
     FavoriteListOrderType,
     FavoriteVisibleType,
-    FileType,
     IndexSetType,
     InstanceTypeEnum,
     SearchMode,
@@ -485,7 +485,7 @@ class SearchExportSerializer(serializers.Serializer):
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
     file_type = serializers.ChoiceField(
-        label=_("下载文件类型"), required=False, choices=FileType.get_choices(), default=FileType.TXT.value
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.TXT.value
     )
 
 
