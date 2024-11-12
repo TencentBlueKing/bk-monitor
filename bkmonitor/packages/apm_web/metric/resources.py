@@ -220,6 +220,13 @@ class DynamicUnifyQueryResource(Resource):
         }
 
         require_fill_series = False
+
+        # 替换自定义统计指标方法
+        custom_metric_methods = validate_data["unify_query_param"].pop("custom_metric_methods", None)
+        if custom_metric_methods:
+            for config in unify_query_params["query_configs"]:
+                self.fill_custom_metric_method(config, custom_metric_methods)
+
         if validate_data.get("fill_bar"):
             interval = get_bar_interval_number(
                 validate_data["start_time"],
@@ -391,6 +398,18 @@ class DynamicUnifyQueryResource(Resource):
                 i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
 
         return response
+
+    @classmethod
+    def fill_custom_metric_method(cls, config, custom_metric_methods):
+        if not custom_metric_methods:
+            return
+        metric_functions = {func["id"]: func for func in config.get("functions", []) if func.get("id")}
+        for metric in config.get("metrics", []):
+            if metric["method"] in custom_metric_methods:
+                custom_method_config = custom_metric_methods[metric["method"]]
+                metric["method"] = custom_method_config["method"]
+                metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
+        config["functions"] = list(metric_functions.values())
 
 
 class ServiceListResource(PageListResource):
