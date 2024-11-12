@@ -389,9 +389,12 @@ export default defineComponent({
         } else {
           // 时序图和火焰图需要过滤【耗时选项】
           const { waterFallAndTopo } = cacheFilterToolsValues;
-          const newArr = ['flame', 'sequence'].includes(v)
-            ? waterFallAndTopo.filter(val => val !== 'duration' && val !== QUERY_TRACE_RELATION_APP)
+          let newArr = ['flame', 'sequence'].includes(v)
+            ? waterFallAndTopo.filter(val => val !== 'duration')
             : waterFallAndTopo;
+          if (v !== 'timeline') {
+            newArr = newArr.filter(val => val !== QUERY_TRACE_RELATION_APP);
+          }
           store.updateTraceViewFilters(newArr);
         }
       });
@@ -532,6 +535,7 @@ export default defineComponent({
     };
     // Span 类型过滤
     const handleSpanKindChange = async (val: string[]) => {
+      console.log('Span 类型过滤', val);
       // 耗时选项只影响视图元素变化 不需要重新请求接口数据
       if (getArrDifference(val, traceViewFilters.value)?.[0] === 'duration') {
         store.updateTraceViewFilters(val);
@@ -554,8 +558,10 @@ export default defineComponent({
           trace_id: traceId,
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
-          [QUERY_TRACE_RELATION_APP]: val.includes(QUERY_TRACE_RELATION_APP),
         };
+        if (state.activePanel === 'timeline') {
+          params[QUERY_TRACE_RELATION_APP] = val.includes(QUERY_TRACE_RELATION_APP);
+        }
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {

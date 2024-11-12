@@ -866,7 +866,6 @@ export default defineComponent({
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         trace_id: traceId,
-        [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
       };
 
       if (
@@ -876,6 +875,9 @@ export default defineComponent({
       ) {
         const selects = store.traceViewFilters.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用追踪 选项
         params.displays = ['source_category_opentelemetry'].concat(selects);
+      }
+      if (traceDetailElem.value?.activePanel === 'timeline') {
+        params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
       await traceDetail(params, {
         cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
