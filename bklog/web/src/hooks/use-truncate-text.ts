@@ -96,6 +96,10 @@ export default (options: ComputedRef<TextOption>) => {
       truncatedText += '</mark>';
     }
 
+    if (!temp) {
+      truncatedText += '</mark>';
+    }
+
     return truncatedText;
   };
 

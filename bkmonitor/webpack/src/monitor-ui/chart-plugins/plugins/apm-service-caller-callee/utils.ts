@@ -56,7 +56,7 @@ export const CHART_TYPE = [
   },
   {
     label: '柱状图',
-    id: 'apm-timeseries-chart',
+    id: 'caller-bar-chart',
   },
 ];
 
@@ -70,66 +70,23 @@ export const TAB_TABLE_REQUEST_COLUMN = [
     prop: 'proportions_request_total_0s',
   },
 ];
-export const TAB_TABLE_TIMEOUT_COLUMN = [
-  {
-    label: '成功率',
-    prop: 'successRate',
-  },
-  {
-    label: '超时率',
-    prop: 'timeoutRate',
-  },
-  {
-    label: '异常率',
-    prop: 'errorRate',
-  },
-];
-export const TAB_TABLE_CONSUMING_COLUMN = [
-  {
-    label: 'AVG',
-    prop: 'avg',
-  },
-  {
-    label: 'P50',
-    prop: 'p50',
-  },
-  {
-    label: 'P95',
-    prop: 'P95',
-  },
-  {
-    label: 'P99',
-    prop: 'P99',
-  },
-];
 
 export const TAB_TABLE_TYPE = [
   {
     label: '请求量',
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
-    // icon: 'icon-bingtu',
   },
   {
     label: '成功/异常/超时率',
     id: 'timeout',
     columns: [],
-    // columns: TAB_TABLE_TIMEOUT_COLUMN,
   },
   {
-    label: '耗时(ms)',
+    label: '耗时（ms）',
     id: 'consuming',
     columns: [],
-    // columns: TAB_TABLE_CONSUMING_COLUMN,
   },
-];
-
-export const LIMIT_TYPE_LIST = [
-  { id: 1, name: '请求量' },
-  { id: 2, name: '成功率（%）' },
-  { id: 3, name: '异常率（%）' },
-  { id: 4, name: '超时率（%）' },
-  { id: 5, name: '平均耗时(ms)' },
 ];
 
 export const SYMBOL_LIST = [

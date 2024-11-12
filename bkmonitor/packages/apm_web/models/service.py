@@ -8,8 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.constants import ServiceRelationLogTypeChoices
 from django.db import models
+
+from apm_web.constants import ServiceRelationLogTypeChoices
+from bkmonitor.utils.db import JsonField
 
 
 class ServiceBase(models.Model):
@@ -53,3 +55,8 @@ class ApdexServiceRelation(ServiceBase):
 
     apdex_key = models.CharField(max_length=32, verbose_name="apdex类型")
     apdex_value = models.IntegerField("apdex值")
+
+
+class CodeRedefinedConfigRelation(ServiceBase):
+    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)
+    rules = JsonField(verbose_name="匹配规则", null=True, blank=True)

@@ -100,24 +100,11 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       host: devConfig.host,
       open: false,
       static: [],
-      proxy: {
-        ...['/api', '/version_log'].reduce(
-          (pre, key) => ({
-            ...pre,
-            [key]: {
-              target: devConfig.devProxyUrl,
-              changeOrigin: true,
-              secure: false,
-              toProxy: true,
-              headers: {
-                referer: devConfig.devProxyUrl,
-              },
-            },
-          }),
-          {},
-        ),
-        ...devConfig.proxy,
-      },
+      proxy: [
+        {
+          ...devConfig.proxy,
+        },
+      ],
     });
     config.plugins.push(
       new wepack.DefinePlugin({
