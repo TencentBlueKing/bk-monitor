@@ -938,6 +938,10 @@ class CallerLineChart extends CommonSimpleChart {
       let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
       copyPanel.dashboardId = random(8);
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
       const variablesService = new VariablesService({
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -950,6 +954,7 @@ class CallerLineChart extends CommonSimpleChart {
           dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
           this.panel.collect_interval
         ),
+        ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
       for (const t of copyPanel.targets) {
@@ -957,6 +962,10 @@ class CallerLineChart extends CommonSimpleChart {
           q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
         }
         this.queryConfigsSetCallOptions(t?.data);
+      }
+      if (this.enablePanelsSelector) {
+        copyPanel.title = this.curTitle;
+        copyPanel.targets.map(item => (item.alias = this.curTitle));
       }
       return copyPanel;
     } catch (error) {
