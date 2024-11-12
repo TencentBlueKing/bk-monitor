@@ -58,7 +58,16 @@ class RelationQ:
         return res
 
     @classmethod
-    def generate_q(cls, bk_biz_id, source_info: Source, target_type: Type[Source], start_time, end_time, step=None):
+    def generate_q(
+        cls,
+        bk_biz_id,
+        source_info: Source,
+        target_type: Type[Source],
+        start_time,
+        end_time,
+        step=None,
+        path_resource=None,
+    ):
         """生成单个 relation 接口的查询条件"""
 
         return [
@@ -70,5 +79,6 @@ class RelationQ:
                 "source_info": source_info.to_source_info(),
                 "source_type": source_info.name,
                 "step": step or f"{end_time - start_time}s",
+                "path_resource": path_resource or [],
             }
         ]
