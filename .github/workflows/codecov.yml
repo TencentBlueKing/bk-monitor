@@ -21,7 +21,8 @@ env:
 jobs:
   run:
     # runs-on: ubuntu-20.04
-    runs-on: self-hosted
+    runs-on:
+      group: cvm-liunx-x64
     defaults:
       run:
         shell: bash
