@@ -35,6 +35,7 @@ import {
   i18n,
 } from '@blueking/monitor-retrieve/main';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -105,17 +106,23 @@ export default class MonitorRetrieve extends tsc<void> {
 
   async indexSetApi() {
     const { app_name, service_name } = this.viewOptions.filters;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const data = await serviceRelationList({
       app_name,
       service_name,
+      start_time: startTime,
+      end_time: endTime,
     }).catch(() => []);
     return data;
   }
 
   async getServiceLogInfo() {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const data = await serviceLogInfo({
       app_name: this.viewOptions.filters.app_name,
       service_name: this.viewOptions.filters.service_name,
+      start_time: startTime,
+      end_time: endTime,
     })
       .then(data => {
         return !!data;
