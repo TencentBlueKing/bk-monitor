@@ -199,6 +199,7 @@ class UptimeCheckTaskListResource(Resource):
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
             data_label=data_label,
+            table="",
             metrics=[
                 {"field": "available", "method": "AVG", "alias": "a"}
                 if metric == "available"
