@@ -51,7 +51,7 @@ class RelationQ:
                     if source_instance.id in node_ids:
                         continue
                     node_ids.append(source_instance.id)
-                    target_nodes.append(Node(source_type=target_source_type, source_info=source_instance))
+                    target_nodes.append(Node(source_type=target_source_type.name, source_info=source_instance))
 
             res.append(Relation(parent_id=source_info_id, nodes=target_nodes))
 

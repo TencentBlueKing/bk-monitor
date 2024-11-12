@@ -24,10 +24,7 @@ from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
-from constants.apm import (
-    MetricTemporality,
-    TelemetryDataType,
-)
+from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
@@ -158,12 +155,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # APM观测场景处
         if builtin_view == "apm_service-service-default-host":
-            if all(list(params.values())) and HostHandler.list_application_hosts(
-                view.bk_biz_id,
-                params.get("app_name"),
-                params.get("service_name"),
-                start_time=params.get("start_time"),
-                end_time=params.get("end_time"),
+            if (
+                app_name
+                and service_name
+                and HostHandler.list_application_hosts(
+                    view.bk_biz_id,
+                    app_name,
+                    service_name,
+                    start_time=params.get("start_time"),
+                    end_time=params.get("end_time"),
+                )
             ):
                 cls._add_config_from_host(view, view_config)
                 return view_config
