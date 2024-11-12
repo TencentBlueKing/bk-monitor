@@ -91,6 +91,7 @@ interface ICommonDetailProps {
   showMode?: ShowModeType;
   specialDrag?: boolean;
   collapse?: boolean;
+  isOnlyShowIndex?: boolean;
   defaultWidth?: number;
   scencId?: string;
   allPanelId?: string[];
@@ -138,6 +139,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   @Prop({ type: String, default: window.i18n.tc('详情') }) lineText: string;
   // 展示动态
   @Prop({ type: Boolean, default: false }) showAminate: boolean;
+  @Prop({ type: Boolean, default: false }) readonly isOnlyShowIndex: boolean;
   /** 是否需要指标维度索引面板 */
   @Prop({ type: Boolean, default: false }) needIndexSelect: boolean;
   @Prop({ type: Boolean, default: false }) specialDrag: boolean;
@@ -444,6 +446,10 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    * 初始化索引列表高度
    */
   initIndexListHeight() {
+    if (this.isOnlyShowIndex) {
+      this.indexListHeight = this.$el?.getBoundingClientRect().height - 10;
+      return;
+    }
     if (!!this.indexList.length && this.$el) {
       const data = this.storage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
       if (data) {
@@ -577,6 +583,87 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         </div>
       </div>
     );
+    const indexListTpl = () => (
+      <div class='index-tree-wrap'>
+        {/* 拉到顶 出现浅阴影 */}
+        {!this.isOnlyShowIndex && this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
+        {this.isOnlyShowIndex ? (
+          <div>
+            <div class='only-index-tree-header'>{this.$t('索引')}</div>
+            <div
+              class='only-index-search-input'
+              onClick={e => e.stopPropagation()}
+            >
+              <bk-input
+                v-model={this.indexSearchKeyword}
+                placeholder={this.$t('搜索指标名称')}
+                right-icon='bk-icon icon-search'
+                clearable
+                onBlur={this.handleBlurSearch}
+                onInput={this.handleInputSearch}
+              />
+              {/* <div
+                class='only-index-refresh'
+                v-bk-tooltips={{ content: this.$t('刷新') }}
+              >
+                <i class='icon-monitor icon-mc-alarm-recovered' />
+              </div> */}
+            </div>
+          </div>
+        ) : (
+          <div
+            class='index-tree-header'
+            onClick={this.handleExpandIndexList}
+          >
+            <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />
+            <span class='index-tree-header-text'>{this.$t('索引')}</span>
+            <div
+              class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
+              onClick={e => e.stopPropagation()}
+            >
+              {this.showIndexSearchInput ? (
+                <bk-input
+                  class='index-search-input'
+                  v-model={this.indexSearchKeyword}
+                  behavior='simplicity'
+                  right-icon='bk-icon icon-search'
+                  clearable
+                  onBlur={this.handleBlurSearch}
+                  onInput={this.handleInputSearch}
+                />
+              ) : (
+                <i
+                  class='bk-icon icon-search'
+                  slot='prefix'
+                  onClick={() => (this.showIndexSearchInput = true)}
+                />
+              )}
+            </div>
+          </div>
+        )}
+        <div />
+        <div
+          style={{
+            height: `${this.indexListHeight - 40}px`,
+          }}
+          class='index-tree-main'
+        >
+          {this.indexList.length ? (
+            <IndexList
+              ref='indexListRef'
+              emptyStatusType={this.indexListEmptyStatusType}
+              list={this.indexList}
+              type={this.indexListType}
+              onEmptyStatusOperation={this.handleIndexListEmptyOperation}
+              onSelect={this.handleScrollToIndex}
+              // height="100%"
+            />
+          ) : (
+            <EmptyStatus type='empty' />
+          )}
+        </div>
+      </div>
+    );
     const styles: any = {};
     if (this.showMode === 'list') {
       styles.overflow = 'hidden';
@@ -595,91 +682,46 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         v-bkloading={{ isLoading: this.isShow && this.loading }}
         v-resize={{ disabled: !this.enableResizeListener, handler: this.handleResize }}
       >
-        <div class='common-detail-main'>
-          {!this.showAminate ? (
-            // && !!this.indexList.length
-            <MonitorResizeLayout
-              ref='resizeLayoutRef'
-              default={this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
-              disabled={!this.expandIndexList}
-              max={this.maxIndexListHeight}
-              min={INDEX_LIST_MIN_HEIGHT}
-              placement={this.indexListPlacement}
-              toggleBefore={() => this.expandIndexList}
-              onResizing={this.hanldeResizing}
-              onTogglePlacement={this.handleTogglePlacement}
-              onTriggerMin={this.handleTriggerMinIndexList}
-              onUpdateHeight={this.handleResizeContentHeight}
-            >
-              <div
-                class='selector-list-slot'
-                slot='main'
+        {this.isOnlyShowIndex ? (
+          <div class='common-detail-main'>{indexListTpl()}</div>
+        ) : (
+          <div class='common-detail-main'>
+            {!this.showAminate ? (
+              // && !!this.indexList.length
+              <MonitorResizeLayout
+                ref='resizeLayoutRef'
+                default={this.indexList.length ? this.indexListHeight || ASIDE_DEFAULT_HEIGHT : 0}
+                disabled={!this.expandIndexList}
+                max={this.maxIndexListHeight}
+                min={INDEX_LIST_MIN_HEIGHT}
+                placement={this.indexListPlacement}
+                toggleBefore={() => this.expandIndexList}
+                onResizing={this.hanldeResizing}
+                onTogglePlacement={this.handleTogglePlacement}
+                onTriggerMin={this.handleTriggerMinIndexList}
+                onUpdateHeight={this.handleResizeContentHeight}
               >
-                {mainTpl}
-              </div>
-              <div
-                class='index-tree-wrap'
-                slot='aside'
-              >
-                {/* 拉到顶 出现浅阴影 */}
-                {this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
                 <div
-                  class='index-tree-header'
-                  onClick={this.handleExpandIndexList}
+                  class='selector-list-slot'
+                  slot='main'
                 >
-                  <span class={['icon-monitor icon-arrow-down', { active: this.expandIndexList }]} />
-                  <span class='index-tree-header-text'>{this.$t('索引')}</span>
-                  <div
-                    class={['index-search-bar', { 'full-width': this.showIndexSearchInput }]}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    {this.showIndexSearchInput ? (
-                      <bk-input
-                        class='index-search-input'
-                        v-model={this.indexSearchKeyword}
-                        behavior='simplicity'
-                        right-icon='bk-icon icon-search'
-                        clearable
-                        onBlur={this.handleBlurSearch}
-                        onInput={this.handleInputSearch}
-                      />
-                    ) : (
-                      <i
-                        class='bk-icon icon-search'
-                        slot='prefix'
-                        onClick={() => (this.showIndexSearchInput = true)}
-                      />
-                    )}
-                  </div>
+                  {mainTpl}
                 </div>
                 <div
-                  style={{
-                    height: `${this.indexListHeight - 40}px`,
-                  }}
-                  class='index-tree-main'
+                  class='index-tree-wrap'
+                  slot='aside'
                 >
-                  {this.indexList.length ? (
-                    <IndexList
-                      ref='indexListRef'
-                      emptyStatusType={this.indexListEmptyStatusType}
-                      list={this.indexList}
-                      type={this.indexListType}
-                      onEmptyStatusOperation={this.handleIndexListEmptyOperation}
-                      onSelect={this.handleScrollToIndex}
-                      // height="100%"
-                    />
-                  ) : (
-                    <EmptyStatus type='empty' />
-                  )}
+                  {indexListTpl()}
                 </div>
-              </div>
-            </MonitorResizeLayout>
-          ) : (
-            mainTpl
-          )}
-        </div>
+              </MonitorResizeLayout>
+            ) : (
+              mainTpl
+            )}
+          </div>
+        )}
         {!this.showAminate && (
           <MonitorDrag
+            isOnlyShowIndex={this.isOnlyShowIndex}
             isShow={this.isShow}
             lineText={this.lineText}
             maxWidth={this.maxWidthVal}

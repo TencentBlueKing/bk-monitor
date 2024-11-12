@@ -95,6 +95,7 @@
       <div class="tools-more">
         <div class="operation-icons">
           <export-log
+            v-if="!isMonitorApm"
             :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -146,8 +147,9 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
-
+// #if APP === 'apm'
   import ExportLog from '../../result-comp/export-log.vue';
+// #endif
   import FieldsSetting from '../../result-comp/fields-setting';
   import TableLog from './table-log.vue';
 
@@ -155,7 +157,9 @@
     components: {
       TableLog,
       FieldsSetting,
+      // #if APP === 'apm'
       ExportLog,
+      // #endif
     },
     inheritAttrs: false,
     props: {
@@ -214,7 +218,7 @@
       }),
 
       routeIndexSet() {
-        return this.$route.params.indexId;
+        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
 
       tableList() {
@@ -230,6 +234,9 @@
       showFieldsConfigPopoverNum() {
         return this.$store.state.showFieldsConfigPopoverNum;
       },
+      isMonitorApm() {
+        return window.__IS_MONITOR_APM__;
+      }
     },
     watch: {
       showFieldsConfigPopoverNum() {

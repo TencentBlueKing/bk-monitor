@@ -43,6 +43,7 @@ export interface IStrategyConfigProps {
   keywords?: string[];
   resultTableId?: string;
   strategyLabels?: string;
+  strategyType?: string;
 }
 export interface IHeader {
   value?: number;
@@ -52,7 +53,7 @@ export interface IHeader {
   keywordObj?: IFilterData[];
   condition?: Array<any>;
   conditionList?: Array<any>;
-  handleSearch: Function;
+  handleSearch: () => void;
 }
 export interface ITableInstance {
   page?: number;

@@ -37,7 +37,6 @@ from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomS
 from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey, TelemetryDataType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -285,12 +284,12 @@ class ServiceHandler:
 
         # Step1: 从 Flow 指标中获取
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
+        start_time, end_time = application.list_retention_time_range()
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int(start_time.timestamp()),
-                "end_time": int(end_time.timestamp()),
+                "start_time": start_time,
+                "end_time": end_time,
                 "where": [],
                 "group_by": [
                     "from_apm_service_name",  # index: 0
