@@ -93,23 +93,21 @@ var _wr = function(type) {
       window.parent.postMessage({ pathname: this.location.pathname }, "*");
     });
   });
-   window.addEventListener('message', function(e) {
-        if(e && e.data ) {
-        var dom = null;
-        switch(e.data) {
-            case 'create':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(2) a');
+window.addEventListener('message', function(e) {
+    if (e && e.data) {
+        switch (e.data) {
+        case 'create':
+            location.pathname = '/grafana/dashboard/new';
             break;
-            case 'folder':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(3) a');
+        case 'folder':
+            location.pathname = '/grafana/dashboards/folder/new';
             break;
-            case 'import':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(4) a');
+        case 'import':
+            location.pathname = '/grafana/dashboard/import';
             break;
         }
-        dom && dom.click()
-        }
-    })
+    }
+})
 </script>
         """
     },
