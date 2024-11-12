@@ -32,6 +32,7 @@ declare global {
     MONITOR_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
+    __IS_MONITOR_APM__?: boolean;
   }
 }
 

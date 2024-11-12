@@ -107,7 +107,7 @@
 </template>
 
 <script>
-  import _ from 'lodash';
+  import throttle from 'lodash/throttle';
 
   import StepBox from '../step-box/index.vue';
   // import cookie from 'cookie';
@@ -287,7 +287,7 @@
       /**
        * 窗口缩放
        */
-      handleReize: _.throttle(function () {
+      handleReize: throttle(function () {
         if (!this.isDone) {
           this.activeStep();
         }

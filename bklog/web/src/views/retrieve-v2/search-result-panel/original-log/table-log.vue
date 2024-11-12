@@ -276,7 +276,7 @@
         this.$http
           .request('retrieve/getWebConsoleUrl', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: queryData,
           })

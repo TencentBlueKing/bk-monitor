@@ -20,6 +20,8 @@ from constants.apm import MetricTemporality, TRPCMetricTag
 
 from .. import base, define
 
+SUCCESS_CODES: List[str] = ["0", "ret_0"]
+
 
 class TRPCMetricField:
     # 主调
@@ -79,6 +81,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
+        self.ret_code_as_exception: bool = kwargs.get("ret_code_as_exception") or False
         self.time_shift: Optional[str] = kwargs.get("time_shift")
         # 预留 interval 可配置入口
         self.interval = self.DEFAULT_INTERVAL
@@ -186,6 +189,17 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         )
         return list(self.qs(start_time, end_time).add_query(q).expression("a * 1000"))
 
+    def _code_redefined(self, code_type: str, q: QueryConfigBuilder) -> QueryConfigBuilder:
+        if not self.ret_code_as_exception:
+            return q.filter(code_type__eq=code_type)
+
+        if code_type == CodeType.EXCEPTION:
+            return q.filter(code__neq=SUCCESS_CODES)
+        elif code_type == CodeType.SUCCESS:
+            return q.filter(code__eq=SUCCESS_CODES)
+
+        return q.filter(code_type__eq=code_type)
+
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
@@ -195,6 +209,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .filter(code_type__eq=code_type)
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
+        code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
+
         total_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("b")
@@ -228,7 +244,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _top_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        return list(self._get_qs(qs_type, start_time, end_time).func(_id="topk", params=[{"value": limit}]))
+        qs: UnifyQuerySet = self._get_qs(qs_type, start_time, end_time)
+        if self.instant:
+            return list(qs.func(_id="topk", params=[{"value": limit}]))
+
+        # 时间聚合场景，需要排序找 TopN
+        records: List[Dict[str, Any]] = []
+        for record in qs:
+            if record.get("_result_") is None:
+                continue
+            records.append(record)
+
+        return sorted(records, key=lambda r: -r["_result_"])[:limit]
 
     def _bottom_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None

@@ -226,7 +226,11 @@ export default class FieldFilterComp extends tsc<object> {
     return isFront;
   }
 
-  @Watch('$route.params.indexId')
+  get indexSetId() {
+    return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+  }
+
+  @Watch('indexSetId')
   watchRouteIndexID() {
     // 切换索引集重置状态
     this.polymerizable = '0';

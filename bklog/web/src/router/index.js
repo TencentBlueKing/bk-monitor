@@ -278,6 +278,14 @@ const MaskingList = () =>
     '@/views/manage/log-clean/clean-masking/list'
   );
 
+// #if APP === 'apm'
+const MonitorRetrieve = () =>
+  import(
+    /* webpackChunkName: 'monitor-retrieve' */
+    '@/views/retrieve-v2/monitor/monitor.vue'
+  );
+// #endif
+
 const routes = [
   {
     path: '',
@@ -1036,6 +1044,17 @@ const routes = [
     name: 'playground',
     component: playground,
   },
+  // #if APP === 'apm'
+  {
+    path: '/monitor-retrieve/:indexId?',
+    name: 'monitor-retrieve',
+    component: MonitorRetrieve,
+    meta: {
+      title: '监控检索',
+      navId: 'monitor-retrieve',
+    },
+  },
+  // #endif
   {
     path: '*',
     name: 'exception',

@@ -85,11 +85,33 @@
 
       .span-append {
         display: inline-block;
-        min-width: 130px;
+        min-width: 160px;
         height: 100%;
         line-height: 43px;
         border-bottom: 1px solid #dfe0e5;
-        // border: 1px solid red;
+      }
+    }
+    .custom-header-main {
+      position: relative;
+      width: 100%;
+      display: flex;
+      .item-txt,
+      .item-txt-no {
+        display: inline-block;
+        max-width: 95%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .item-txt-no {
+        min-width: 46px;
+        max-width: 99%;
+      }
+      .icon-bingtu {
+        color: #63656e;
+        margin-left: 5px;
+        font-size: 13px;
+        cursor: pointer;
       }
     }
 
@@ -121,6 +143,14 @@
       width: 100%;
       color: #3a84ff;
       cursor: pointer;
+      .operation-item {
+        margin-left: 12px;
+        cursor: pointer;
+        &.disabled {
+          color: #c4c6cc;
+          cursor: not-allowed;
+        }
+      }
 
       .item-txt {
         display: inline-block;
@@ -136,8 +166,6 @@
 
       .icon-mc-copy {
         position: absolute;
-        position: absolute;
-        right: -20px;
         right: -20px;
         margin-left: 6px;
         color: #63656e;
@@ -227,7 +255,7 @@
     }
 
     .multi-dialog-select {
-      width: 110px;
+      width: 140px;
     }
   }
 
@@ -242,21 +270,30 @@
   .multi-dialog-content {
     width: 100%;
     height: 300px;
-
+    .dashboard-panel {
+      .flex-dashboard {
+        height: 300px !important;
+        .flex-dashboard-item {
+          height: 100% !important;
+          border: none;
+        }
+        .chart-wrapper.hover-style {
+          box-shadow: none;
+        }
+      }
+    }
     .dashboard-panel .vue-grid-layout {
       background: #fff;
-
-      .chart-wrapper.hover-style {
-        box-shadow: none;
-      }
+    }
+    .monitor-chart-tooltips {
+      background: #000000cc;
     }
 
     .chart-base {
       height: 300px;
     }
 
-    .tips {
-      padding-left: 24px;
+    .multi-tips {
       margin-bottom: 8px;
       font-size: 12px;
       color: #979ba5;
@@ -309,5 +346,28 @@
 
   &-item {
     margin-right: 6px;
+  }
+}
+.caller-field-popover {
+  .field-item {
+    cursor: pointer;
+    color: #3a84ff;
+    font-weight: 500;
+    padding: 4px 0;
+    &.disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+  .simple-list {
+    width: 100%;
+    min-height: 35px;
+  }
+  .simple-list-item {
+    width: 100%;
+    min-height: 20px;
+    .bk-loading {
+      top: 10px;
+    }
   }
 }

@@ -20,6 +20,7 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
 from apm_web.topo.handle.relation.define import (
     Node,
+    Relation,
     Source,
     SourceK8sNode,
     SourceK8sPod,
@@ -29,13 +30,8 @@ from apm_web.topo.handle.relation.define import (
     SourceSystem,
     TreeInfo,
 )
-from core.drf_resource import api, resource
-
-
-@dataclass
-class Relation:
-    parent_id: str
-    nodes: List[Node]
+from apm_web.topo.handle.relation.query import RelationQ
+from core.drf_resource import resource
 
 
 class Layer:
@@ -90,28 +86,7 @@ class ResourceLayer(Layer):
                 }
             )
 
-        response = api.unify_query.query_multi_resource_range(**{"query_list": query_lists})
-
-        res = []
-        for item in response.get("data", []):
-            if item.get("code") != 200 or (self.source_path and item.get("path") != self.source_path):
-                continue
-
-            source_info_id = Source.calculate_id_from_dict(item["source_info"])
-            target_nodes = []
-            node_ids = []
-
-            for i in item.get("target_list", []):
-                for j in i.get("items", []):
-                    source_instance = self.target_type.create(j)
-                    if source_instance.id in node_ids:
-                        continue
-                    node_ids.append(source_instance.id)
-                    target_nodes.append(Node(source_type=self.target_type.name, source_info=source_instance))
-
-            res.append(Relation(parent_id=source_info_id, nodes=target_nodes))
-
-        return res
+        return RelationQ.query(query_lists, expect_paths=self.source_path)
 
 
 class ServiceToServiceInstancesLayer(ResourceLayer):
