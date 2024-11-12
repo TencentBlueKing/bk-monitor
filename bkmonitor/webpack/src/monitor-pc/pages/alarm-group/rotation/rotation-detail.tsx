@@ -35,8 +35,8 @@ import {
   setPreviewDataOfServer,
 } from 'monitor-common/rotation-utils/calendar-preview';
 import { RotationTabTypeEnum } from 'monitor-common/rotation-utils/common';
+import { randomColor, type RuleDetailModel, transformRulesDetail } from 'monitor-common/rotation-utils/utils';
 
-import { type RuleDetailModel, randomColor, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RotationCalendarPreview from './rotation-calendar-preview';
 

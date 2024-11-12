@@ -28,49 +28,26 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { RotationSelectTypeEnum } from 'monitor-common/rotation-utils/common';
+import { validTimeOverlap } from 'monitor-common/rotation-utils/utils';
 import { isEn } from 'monitor-pc/i18n/lang';
 
 import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
-import { RotationSelectTypeEnum } from '../typings/common';
-import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
 
-import './replace-rotation-table-item.scss';
-type CustomTabType = 'classes' | 'duration';
-type WorkTimeType = 'datetime_range' | 'time_range';
-export interface ReplaceRotationDateModel {
-  key: number;
-  workDays?: number[];
-  workTime: string[][];
-}
-export interface ReplaceRotationUsersModel {
-  groupNumber?: number;
-  groupType: 'auto' | 'specified';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
-}
+import type {
+  CustomTabType,
+  ReplaceItemDataModel,
+  ReplaceRotationDateModel,
+  ReplaceRotationUsersModel,
+  WorkTimeType,
+} from 'monitor-common/rotation-utils/typings';
 
-export interface ReplaceItemDataModel {
-  id?: number;
-  date: {
-    type: RotationSelectTypeEnum;
-    /** 每周、每月：时间范围/起止时间 */
-    workTimeType: WorkTimeType;
-    /** 是否是自定义轮值类型 */
-    isCustom: boolean;
-    /** 自定义：指定时长/指定班次 */
-    customTab: CustomTabType;
-    /** 自定义轮值有效日期 */
-    customWorkDays: number[];
-    /** 单班时长 */
-    periodSettings: { unit: 'day' | 'hour'; duration: number };
-    value: ReplaceRotationDateModel[];
-  };
-  users: ReplaceRotationUsersModel;
-}
+import './replace-rotation-table-item.scss';
 
 export default defineComponent({
   name: 'ReplaceRotationTableItem',

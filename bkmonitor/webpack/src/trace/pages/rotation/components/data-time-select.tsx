@@ -27,8 +27,7 @@ import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
-
-import { generateTimeSlots } from '../utils';
+import { generateTimeSlots } from 'monitor-common/rotation-utils/utils';
 
 import './data-time-select.scss';
 

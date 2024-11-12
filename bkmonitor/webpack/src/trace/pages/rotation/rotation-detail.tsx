@@ -36,12 +36,12 @@ import {
   noOrderDutyData,
   setPreviewDataOfServer,
 } from 'monitor-common/rotation-utils/calendar-preview';
+import { RotationTabTypeEnum } from 'monitor-common/rotation-utils/common';
+import { type RuleDetailModel, transformRulesDetail } from 'monitor-common/rotation-utils/utils';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
-import { RotationTabTypeEnum } from './typings/common';
-import { type RuleDetailModel, randomColor, transformRulesDetail } from './utils';
 
 import type { IAuthority } from '../../typings/authority';
 
