@@ -108,6 +108,7 @@ from fta_web.alert.utils import (
     slice_time_interval,
     get_previous_week_range_unix,
     generate_date_ranges,
+    get_day_range_unix,
 )
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
@@ -130,9 +131,8 @@ class GetFtaData(Resource):
 
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
-        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
-            "end_time", None
-        )
+        thedate = validated_request_data.get("thedate", None)
+        # 获取日期
         biz_list = api.cmdb.get_business()
         target_biz_ids = []
         # 如果有预期的业务 id 则取预期的业务内容
@@ -141,8 +141,11 @@ class GetFtaData(Resource):
         else:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list}
     
-        if not start_time or not end_time:
+        if not thedate:
+            # 如果没有传入指定日期 则获取上一周的日期
             start_time, end_time = get_previous_week_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix()
         
         ret = []
         scenario = constants.QuickSolutionsConfig.SCENARIO
@@ -159,7 +162,7 @@ class GetFtaData(Resource):
                     # 查询条件
                     while fetched < total:
                         request_body = {
-                            "bk_biz_ids": target_biz_ids,
+                            "bk_biz_ids": list(biz_info.keys()),
                             "status": [],
                             "conditions": [],
                             "query_string": query_string,

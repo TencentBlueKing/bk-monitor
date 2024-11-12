@@ -23,6 +23,25 @@ def generate_date_ranges(start, end):
         yield current, min(end_of_day, datetime.fromtimestamp(end))
         current += timedelta(days=1)
         
+# 计算当日的开始时间和结束时间
+def get_day_range_unix(date_str=None):
+    # 解析日期字符串
+    if not date_str:
+        totay = datetime.now()
+    else:
+        totay = datetime.strptime(date_str, "%Y-%m-%d")
+    
+    # 获取当天 00:00 的时间
+    start_of_day = datetime(totay.year, totay.month, totay.day)
+    
+    # 获取当天 23:59 的时间
+    end_of_day = start_of_day + timedelta(hours=23, minutes=59, seconds=59)
+    
+    # 转换为 Unix 时间戳
+    start_of_day_unix = int(start_of_day.timestamp())
+    end_of_day_unix = int(end_of_day.timestamp())
+    
+    return start_of_day_unix, end_of_day_unix
 
 # 生成前一周的时间
 def get_previous_week_range_unix(today=None):
