@@ -535,7 +535,6 @@ export default defineComponent({
     };
     // Span 类型过滤
     const handleSpanKindChange = async (val: string[]) => {
-      console.log('Span 类型过滤', val);
       // 耗时选项只影响视图元素变化 不需要重新请求接口数据
       if (getArrDifference(val, traceViewFilters.value)?.[0] === 'duration') {
         store.updateTraceViewFilters(val);
