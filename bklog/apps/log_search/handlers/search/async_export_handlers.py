@@ -69,7 +69,7 @@ class AsyncExportHandlers(object):
         search_dict: dict = None,
         export_fields=None,
         index_set_ids: list = None,
-        file_type: str = "txt",
+        export_file_type: str = "txt",
     ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
@@ -84,7 +84,7 @@ class AsyncExportHandlers(object):
             )
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
-        self.file_type = file_type
+        self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
         # 判断fields是否支持
@@ -132,7 +132,7 @@ class AsyncExportHandlers(object):
             language=get_request_language_code(),
             is_external=self.is_external,
             is_quick_export=is_quick_export,
-            file_type=self.file_type,
+            export_file_type=self.export_file_type,
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_handler.size
