@@ -1341,7 +1341,6 @@ const store = new Vuex.Store({
 
         const formatValue = value => {
           let formatResult = value;
-          debugger;
           if (['text', 'string', 'keyword'].includes(textType)) {
             if (Array.isArray(formatResult)) {
               formatResult = formatResult.map(formatJsonString);
