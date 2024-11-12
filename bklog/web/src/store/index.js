@@ -1336,11 +1336,35 @@ const store = new Vuex.Store({
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
+
+      const formatJsonString = formatResult => {
+        if (typeof formatResult === 'string') {
+          return formatResult.replace(/"/g, '\\"');
+        }
+
+        return formatResult;
+      };
+
       const getSqlAdditionMappingOperator = ({ operator, field }) => {
+        const textType = getFieldType(field);
+
+        const formatValue = value => {
+          let formatResult = value;
+          if (['text', 'string', 'keyword'].includes(textType)) {
+            if (Array.isArray(formatResult)) {
+              formatResult = formatResult.map(formatJsonString);
+            } else {
+              formatResult = formatJsonString(formatResult);
+            }
+          }
+
+          return formatResult;
+        };
+
         let mappingKey = {
           // is is not 值映射
-          is: val => `${field}: "${val}"`,
-          'is not': val => `NOT ${field}: "${val}"`,
+          is: val => `${field}: "${formatValue(val)}"`,
+          'is not': val => `NOT ${field}: "${formatValue(val)}"`,
         };
 
         return mappingKey[operator] ?? operator; // is is not 值映射
