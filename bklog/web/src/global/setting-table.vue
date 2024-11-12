@@ -113,7 +113,6 @@
                   v-if="isPreviewMode && !props.row.is_edit"
                   class="overflow-tips"
                   v-bk-overflow-tips
-                  @click="editFieldNameItem(props.row)"
                 >
                   <span>{{ props.row.alias_name }}</span>
                 </div>
@@ -903,10 +902,7 @@
           !atLastAnalyzed ||
           this.isSetDisabled
         );
-      },
-      editFieldNameItem(row) {
-        console.log(row);
-      },
+      }
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
