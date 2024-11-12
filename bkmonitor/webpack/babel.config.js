@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+console.info(process.env.APP, '=======');
 module.exports = api => {
   api?.cache.never();
   const presets = [
@@ -45,7 +46,11 @@ module.exports = api => {
       ? [
           '@vue/babel-preset-jsx',
           {
-            compositionAPI: 'auto',
+            compositionAPI: 'native',
+            functional: true,
+            injectH: true,
+            vModel: true,
+            vOn: true,
           },
         ]
       : undefined,
