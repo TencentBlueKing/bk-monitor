@@ -11,9 +11,9 @@
         class="field-add-btn"
         @click="batchAddField"
       >
-        {{ $t('批量添加字段') }}<span class="bklog-icon bklog-jump"></span>
+        {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
       </div>
-      <div style="display: flex; align-items: center">
+      <div style="display: flex; align-items: flex-end">
         <bk-checkbox
           size="small"
           theme="primary"
@@ -65,18 +65,23 @@
               :label="$t('字段名')"
               :render-header="$renderHeader"
               :resizable="false"
-              min-width="100"
+              min-width="80"
+              align="left"
             >
               <template #default="props">
+              
+                <bk-popover :content="$t('字段名不支持快速修改')">
                 <div
                   v-if="!props.row.is_edit"
-                  class="overflow-tips"
+                  class="first-overflow-tips"
                   v-bk-overflow-tips
                 >
                   <span>{{ props.row.field_name }} </span>
+                
                 </div>
+              </bk-popover>
                 <bk-form-item
-                  v-else
+                   v-if="props.row.is_edit"
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
@@ -101,12 +106,14 @@
               :render-header="renderHeaderAliasName"
               :resizable="false"
               min-width="100"
+              align="left"
             >
               <template #default="props">
                 <div
-                  v-if="!props.row.is_edit"
+                  v-if="isPreviewMode && !props.row.is_edit"
                   class="overflow-tips"
                   v-bk-overflow-tips
+                  @click="editFieldNameItem(props.row)"
                 >
                   <span>{{ props.row.alias_name }}</span>
                 </div>
@@ -139,6 +146,7 @@
               align="center"
             >
               <template #default="props">
+                <bk-popover :content="$t('数据类型不支持快速修改')">
                 <div
                   v-if="!props.row.is_edit"
                   class="overflow-tips"
@@ -146,8 +154,9 @@
                 >
                   <span>{{ props.row.field_type }}</span>
                 </div>
+              </bk-popover>
                 <bk-form-item
-                  v-else
+                    v-if="props.row.is_edit"
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
                   <bk-select
@@ -192,7 +201,7 @@
                   v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
                 >
                   <div
-                    style="width: 85%; margin-left: 10px"
+                    style="width: 85%; margin-left: 15px"
                     v-if="props.row.is_analyzed"
                   >
                     <div>
@@ -201,7 +210,7 @@
                     <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                   </div>
                   <div
-                    style="width: 85%; margin-left: 10px"
+                    style="width: 85%; margin-left: 15px"
                     v-else
                   >
                     {{ $t('不分词') }}
@@ -896,6 +905,9 @@
           this.isSetDisabled
         );
       },
+      editFieldNameItem(row) {
+        console.log(row);
+      },
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
@@ -909,13 +921,15 @@
   /* stylelint-disable no-descending-specificity */
   .field-table-container {
     position: relative;
-    margin-top: 10px;
+    margin-bottom: 10px;
+    // margin-top: 10px;
 
     .field-header {
       display: flex;
       align-items: center;
+      align-items: flex-end;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
 
       .field-add-btn {
         font-size: 12px;
@@ -941,8 +955,12 @@
             top: 16px;
           }
 
+          .first-overflow-tips{
+            padding: 10px;
+          }
+
           .overflow-tips {
-            padding: 5px;
+            padding: 15px;
           }
         }
       }
