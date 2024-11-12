@@ -72,7 +72,6 @@
     }else{
       FieldSettingShow.value = false
     }
-   console.log(payload);
   }
 </script>
 <template>
