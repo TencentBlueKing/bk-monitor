@@ -390,7 +390,7 @@ export default defineComponent({
           // 时序图和火焰图需要过滤【耗时选项】
           const { waterFallAndTopo } = cacheFilterToolsValues;
           const newArr = ['flame', 'sequence'].includes(v)
-            ? waterFallAndTopo.filter(val => val !== 'duration')
+            ? waterFallAndTopo.filter(val => val !== 'duration' && val !== QUERY_TRACE_RELATION_APP)
             : waterFallAndTopo;
           store.updateTraceViewFilters(newArr);
         }
@@ -554,7 +554,7 @@ export default defineComponent({
           trace_id: traceId,
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
-          query_trace_relation_app: val.includes(QUERY_TRACE_RELATION_APP),
+          [QUERY_TRACE_RELATION_APP]: val.includes(QUERY_TRACE_RELATION_APP),
         };
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
