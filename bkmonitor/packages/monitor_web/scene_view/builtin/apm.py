@@ -22,12 +22,10 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.log.resources import ServiceLogInfoResource
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
-from constants.apm import (
-    MetricTemporality,
-    TelemetryDataType,
-)
+from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
@@ -157,6 +155,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             return view_config
 
         # APM观测场景处
+        # 主机场景
         if builtin_view == "apm_service-service-default-host":
             if all(list(params.values())) and HostHandler.list_application_hosts(
                 view.bk_biz_id,
@@ -170,6 +169,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             return cls._get_non_host_view_config(builtin_view, params)
 
+        # 日志场景
+        if builtin_view == "apm_service-service-default-log":
+            if ServiceLogInfoResource()(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                service_name=params.get("service_name"),
+            ):
+                cls._add_config_from_log(view_config)
+                return view_config
+            return cls._get_non_log_view_config()
+
+        # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
             group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
                 metric_group.GroupEnum.TRPC, bk_biz_id, app_name
@@ -415,6 +426,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
+    def _add_config_from_log(cls, view_config):
+        view_config["overview_panels"] = [
+            {
+                "id": 1,
+                "title": "",
+                "type": "log-retrieve",
+                "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+                "targets": [],
+            }
+        ]
+
+    @classmethod
     def _add_config_from_host(cls, view, view_config):
         """从主机监控中获取并增加配置"""
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
@@ -493,6 +516,31 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     @classmethod
     def is_builtin_scene(cls, scene_id: str) -> bool:
         return scene_id.startswith(cls.SCENE_ID)
+
+    @classmethod
+    def _get_non_log_view_config(cls):
+        title = _("暂未关联日志")
+        sub_title = _(
+            "关联日志方法:\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n" "2. 在服务配置 - 关联日志出关联对应索引集\n" "3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项"
+        )
+
+        return {
+            "id": "log",
+            "type": "overview",
+            "mode": "auto",
+            "name": _("日志"),
+            "panels": [],
+            "overview_panels": [
+                {
+                    "id": 1,
+                    "title": "",
+                    "type": "exception-guide",
+                    "targets": [{"data": {"type": "empty", "title": title, "subTitle": sub_title}}],
+                    "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+                }
+            ],
+            "order": [],
+        }
 
     @classmethod
     def _get_non_host_view_config(cls, builtin_view, params):

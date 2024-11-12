@@ -85,6 +85,7 @@
           {
             'is-trend-chart-show': isTrendChartShow,
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
+            'is-not-show-field-statistics': !isShowFieldStatistics
           },
         ]"
         :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
@@ -121,6 +122,6 @@
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
   @import './index.scss';
 </style>

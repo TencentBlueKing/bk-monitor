@@ -39,6 +39,7 @@ let devConfig = {
   host: devHost,
   devProxyUrl,
   proxy: {},
+  logProxy: {},
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
@@ -60,6 +61,11 @@ module.exports = async (baseConfig, { production, app }) => {
       proxy: [
         {
           ...devConfig.proxy,
+          proxyTimeout: 5 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+        },
+        {
+          ...devConfig.logProxy,
           proxyTimeout: 5 * 60 * 1000,
           timeout: 5 * 60 * 1000,
         },
@@ -115,7 +121,7 @@ module.exports = async (baseConfig, { production, app }) => {
   let vueAlias = {};
   if (['apm', 'fta', 'pc', 'mobile'].includes(app)) {
     vueAlias = {
-      vue$: 'vue/dist/vue.runtime.common.js',
+      vue$: path.resolve(`./src/${appDirName}/node_modules/vue/dist/vue.runtime.common.js`),
     };
   } else if (app === 'trace') {
     vueAlias = {
@@ -129,6 +135,7 @@ module.exports = async (baseConfig, { production, app }) => {
       ...config.output,
       path: distUrl,
       uniqueName: app,
+      clean: true,
     },
     entry: {
       ...config.entry,
@@ -149,5 +156,6 @@ module.exports = async (baseConfig, { production, app }) => {
       },
     },
     devtool: 'source-map',
+    cache: production ? false : config.cache,
   };
 };

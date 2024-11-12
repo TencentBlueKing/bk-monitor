@@ -28,6 +28,7 @@ import Vue from 'vue';
 import Authority from './authority';
 import EnClass from './en-class';
 import EnStyle from './en-style';
+import LogDrag from './log-drag';
 import MonitorLoading from './monitor-loading';
 import Watermark from './watermark';
 
@@ -36,3 +37,4 @@ Vue.use(Authority);
 Vue.use(EnStyle);
 Vue.use(EnClass);
 Vue.use(Watermark);
+Vue.use(LogDrag);

@@ -44,6 +44,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
 
+import { deepClone } from '../components/monitor-echarts/utils';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
@@ -61,6 +62,111 @@ import RouteUrlResolver from './url-resolver';
 import http from '@/api';
 
 Vue.use(Vuex);
+const stateTpl = {
+  userMeta: {}, // /meta/mine
+  pageLoading: true,
+  authDialogData: null,
+  // 是否将unix时间戳格式化
+  isFormatDate: true,
+  // 当前运行环境
+  runVersion: '',
+  // 系统当前登录用户
+  user: {},
+  // 是否作为iframe被嵌套
+  asIframe: false,
+  iframeQuery: {},
+  // 当前项目及Id
+  space: {},
+  spaceUid: '',
+  indexId: '',
+  indexItem: { ...IndexItem },
+  operatorDictionary: {},
+  /** 联合查询ID列表 */
+  unionIndexList: [],
+  /** 联合查询元素列表 */
+  unionIndexItemList: [],
+
+  // 收藏列表
+  favoriteList: [],
+
+  /** 索引集对应的字段列表信息 */
+  // @ts-ignore
+  indexFieldInfo: { ...IndexFieldInfo },
+  indexSetQueryResult: { ...IndexSetQueryResult },
+  indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
+  indexSetFieldConfigList: {
+    is_loading: false,
+    data: [],
+  },
+  indexSetOperatorConfig: {
+    /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+    isShowSourceField: false,
+  },
+  traceIndexId: '',
+  // 业务Id
+  bkBizId: '',
+  // 我的项目列表
+  mySpaceList: [],
+  currentMenu: {},
+  currentMenuItem: {},
+  topMenu: [],
+  menuList: [],
+  visibleFields: [],
+  // 数据接入权限
+  menuProject: [],
+  errorPage: ['notTraceIndex'],
+  // 全局配置
+  globalsData: {},
+  activeTopMenu: {},
+  activeManageNav: {},
+  activeManageSubNav: {},
+  // -- id, id对应数据
+  collectDetail: [0, {}],
+  showFieldsConfigPopoverNum: 0,
+  showRouterLeaveTip: false,
+  // 新人指引
+  userGuideData: {},
+  curCustomReport: null,
+  // demo 业务链接
+  demoUid: '',
+  spaceBgColor: '', // 空间颜色
+  isEnLanguage: false,
+  chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
+  isExternal: false, // 外部版
+  /** 是否展示全局脱敏弹窗 */
+  isShowGlobalDialog: false,
+  /** 当前全局设置弹窗的活跃id */
+  globalActiveLabel: 'masking-setting', // masking-setting
+  /** 全局设置列表 */
+  globalSettingList: [],
+  /** 日志灰度 */
+  maskingToggle: {
+    toggleString: 'off',
+    toggleList: [],
+  },
+  /** 外部版路由菜单 */
+  externalMenu: [],
+  isAppFirstLoad: true,
+  /** 是否清空了显示字段，展示全量字段 */
+  isNotVisibleFieldsShow: false,
+  showAlert: false, // 是否展示跑马灯
+  isLimitExpandView: false,
+  storeIsShowClusterStep: false,
+  retrieveDropdownData: {},
+  notTextTypeFields: [],
+  tableLineIsWrap: false,
+  tableJsonFormat: false,
+  tableJsonFormatDepth: 1,
+  tableShowRowIndex: false,
+  isSetDefaultTableColumn: false,
+  tookTime: 0,
+  searchTotal: 0,
+  showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+  clearSearchValueNum: 0,
+  // 存放接口报错信息的对象
+  apiErrorInfo: {},
+  clusterParams: null,
+};
 
 const store = new Vuex.Store({
   // 模块
@@ -70,111 +176,7 @@ const store = new Vuex.Store({
     globals,
   },
   // 公共 store
-  state: {
-    userMeta: {}, // /meta/mine
-    pageLoading: true,
-    authDialogData: null,
-    // 是否将unix时间戳格式化
-    isFormatDate: true,
-    // 当前运行环境
-    runVersion: '',
-    // 系统当前登录用户
-    user: {},
-    // 是否作为iframe被嵌套
-    asIframe: false,
-    iframeQuery: {},
-    // 当前项目及Id
-    space: {},
-    spaceUid: '',
-    indexId: '',
-    indexItem: { ...IndexItem },
-    operatorDictionary: {},
-    /** 联合查询ID列表 */
-    unionIndexList: [],
-    /** 联合查询元素列表 */
-    unionIndexItemList: [],
-
-    // 收藏列表
-    favoriteList: [],
-
-    /** 索引集对应的字段列表信息 */
-    // @ts-ignore
-    indexFieldInfo: { ...IndexFieldInfo },
-    indexSetQueryResult: { ...IndexSetQueryResult },
-    indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
-    indexSetFieldConfigList: {
-      is_loading: false,
-      data: [],
-    },
-    indexSetOperatorConfig: {
-      /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
-      isShowSourceField: false,
-    },
-    traceIndexId: '',
-    // 业务Id
-    bkBizId: '',
-    // 我的项目列表
-    mySpaceList: [],
-    currentMenu: {},
-    currentMenuItem: {},
-    topMenu: [],
-    menuList: [],
-    visibleFields: [],
-    // 数据接入权限
-    menuProject: [],
-    errorPage: ['notTraceIndex'],
-    // 全局配置
-    globalsData: {},
-    activeTopMenu: {},
-    activeManageNav: {},
-    activeManageSubNav: {},
-    // -- id, id对应数据
-    collectDetail: [0, {}],
-    showFieldsConfigPopoverNum: 0,
-    showRouterLeaveTip: false,
-    // 新人指引
-    userGuideData: {},
-    curCustomReport: null,
-    // demo 业务链接
-    demoUid: '',
-    spaceBgColor: '', // 空间颜色
-    isEnLanguage: false,
-    chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
-    isExternal: false, // 外部版
-    /** 是否展示全局脱敏弹窗 */
-    isShowGlobalDialog: false,
-    /** 当前全局设置弹窗的活跃id */
-    globalActiveLabel: 'masking-setting', // masking-setting
-    /** 全局设置列表 */
-    globalSettingList: [],
-    /** 日志灰度 */
-    maskingToggle: {
-      toggleString: 'off',
-      toggleList: [],
-    },
-    /** 外部版路由菜单 */
-    externalMenu: [],
-    isAppFirstLoad: true,
-    /** 是否清空了显示字段，展示全量字段 */
-    isNotVisibleFieldsShow: false,
-    showAlert: false, // 是否展示跑马灯
-    isLimitExpandView: false,
-    storeIsShowClusterStep: false,
-    retrieveDropdownData: {},
-    notTextTypeFields: [],
-    tableLineIsWrap: false,
-    tableJsonFormat: false,
-    tableJsonFormatDepth: 1,
-    tableShowRowIndex: false,
-    isSetDefaultTableColumn: false,
-    tookTime: 0,
-    searchTotal: 0,
-    showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
-    clearSearchValueNum: 0,
-    // 存放接口报错信息的对象
-    apiErrorInfo: {},
-    clusterParams: null,
-  },
+  state: deepClone(stateTpl),
   // 公共 getters
   getters: {
     runVersion: state => state.runVersion,
@@ -349,7 +351,6 @@ const store = new Vuex.Store({
 
         return result;
       }, {});
-
       Object.assign(state.indexItem, defaultValue, copyValue);
     },
 
@@ -761,6 +762,13 @@ const store = new Vuex.Store({
     updateClearSearchValueNum(state, payload) {
       state.clearSearchValueNum = payload;
     },
+    // 初始化监控默认数据
+    initMonitorState(state, payload) {
+      Object.assign(state, payload);
+    },
+    resetState(state) {
+      Object.assign(state, deepClone(stateTpl));
+    },
   },
   actions: {
     /**
@@ -895,8 +903,9 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        if (route.params.indexId) {
-          ids.push(route.params.indexId);
+        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        if (indexId) {
+          ids.push(indexId);
         }
       }
 
