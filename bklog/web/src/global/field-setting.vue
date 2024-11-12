@@ -366,12 +366,7 @@
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    console.log(indexSetId);
-    console.log(indexSetList);
-    
     const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
-    console.log(currentIndexSet);
-    
     if (!currentIndexSet.collector_config_id) return;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await http

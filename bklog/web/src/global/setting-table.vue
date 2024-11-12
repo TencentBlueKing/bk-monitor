@@ -553,7 +553,6 @@
         this.$emit('reset');
       },
       batchAddField() {
-        console.log(this.collectorConfigId, 'collectorConfigId');
         if (!this.collectorConfigId) return;
         this.$router.push({
           name: 'collectField',
