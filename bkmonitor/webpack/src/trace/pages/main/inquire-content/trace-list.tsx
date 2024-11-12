@@ -55,7 +55,7 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
-import { SPAN_KIND_MAPS } from '../../../store/constant';
+import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
@@ -866,6 +866,7 @@ export default defineComponent({
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         trace_id: traceId,
+        [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
       };
 
       if (
@@ -873,7 +874,7 @@ export default defineComponent({
         (store.traceViewFilters.length > 1 ||
           (store.traceViewFilters.length === 1 && !store.traceViewFilters.includes('duration')))
       ) {
-        const selects = store.traceViewFilters.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = store.traceViewFilters.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用追踪 选项
         params.displays = ['source_category_opentelemetry'].concat(selects);
       }
       await traceDetail(params, {
