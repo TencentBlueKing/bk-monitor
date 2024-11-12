@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-const wepack = require('webpack');
+const webpack = require('webpack');
 const WebpackBar = require('webpackbar');
 const path = require('path');
 const fs = require('fs');
@@ -92,7 +92,7 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { app, mobile, production, email = false }) => {
+module.exports = (baseConfig, { app, mobile, production, fta, email = false }) => {
   const isMonitorRetrieveBuild = app === 'apm' && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
@@ -109,7 +109,7 @@ module.exports = (baseConfig, { app, mobile, production, email = false }) => {
       ],
     });
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
@@ -184,7 +184,7 @@ module.exports = (baseConfig, { app, mobile, production, email = false }) => {
       },
     },
     plugins: baseConfig.plugins.map(plugin => {
-      return plugin instanceof wepack.ProgressPlugin
+      return plugin instanceof webpack.ProgressPlugin
         ? new WebpackBar({
             profile: true,
             name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
