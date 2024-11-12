@@ -33,7 +33,7 @@ import StatusTab from '../table-chart/status-tab';
 import TimeSeries from '../time-series/time-series';
 
 import './apm-custom-graph.scss';
-const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN'] as const;
+const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'] as const;
 @Component
 export default class CustomChart extends TimeSeries {
   methodList = APM_CUSTOM_METHODS.map(method => ({
