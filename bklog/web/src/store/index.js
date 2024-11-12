@@ -1225,11 +1225,6 @@ const store = new Vuex.Store({
         set(state.indexFieldInfo, 'aggs_items', {});
       }
 
-      // 如果在当前时间段已经缓存过当前字段的推荐，此时跳过此次请求
-      if (payload.fields?.every(field => state.indexFieldInfo.aggs_items[field.field_name] !== undefined)) {
-        return Promise.resolve(true);
-      }
-
       const isDefaultQuery = !(payload?.fields?.length ?? false);
       const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
@@ -1419,7 +1414,12 @@ const store = new Vuex.Store({
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
           const keywords = keyword.length > 0 ? [keyword] : [];
           const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
-          const newSearchKeyword = keywords.concat(newSearchKeywords).join(' AND ');
+          if (newSearchKeywords.length) {
+            const lastIndex = newSearchKeywords.length - 1;
+            newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
+          }
+
+          const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');
         }
