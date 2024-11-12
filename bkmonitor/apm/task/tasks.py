@@ -60,15 +60,15 @@ def topo_discover_cron():
     cache = Cache("cache")
     now = timezone.now()
     half_hour_ago = now - datetime.timedelta(minutes=30)
-    app_queryset = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
-    for app_obj in app_queryset:
-        if cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{app_obj.id}"):
+    amp_app_queryset = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
+    for amp_app in amp_app_queryset:
+        if cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{amp_app.id}"):
             continue
         else:
             cache.set(
-                f"{ApmCacheKey.APM_NEW_APPLICATION}{app_obj.id}", app_obj.id, ex=settings.NEW_APPLICATION_REFRESH_RATE
+                f"{ApmCacheKey.APM_NEW_APPLICATION}{amp_app.id}", amp_app.id, ex=settings.NEW_APPLICATION_REFRESH_RATE
             )  # 60*2
-            handler.delay(app_obj.bk_biz_id, app_obj.app_name)
+            handler.delay(amp_app.bk_biz_id, amp_app.app_name)
 
     # 10分钟刷新一次
     interval = 10
