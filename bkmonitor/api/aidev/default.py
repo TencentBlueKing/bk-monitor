@@ -34,3 +34,4 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
 
     action = "/aidev/resource/knowledgebase/query/"
     method = "POST"
+    IS_STREAM = True
