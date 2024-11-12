@@ -30,14 +30,14 @@ import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
-
-import HistoryDialog from '../../components/history-dialog/history-dialog';
 import {
   getAutoOrderList,
   getPreviewParams,
   noOrderDutyData,
   setPreviewDataOfServer,
-} from './components/calendar-preview';
+} from 'monitor-common/rotation-utils/calendar-preview';
+
+import HistoryDialog from '../../components/history-dialog/history-dialog';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';

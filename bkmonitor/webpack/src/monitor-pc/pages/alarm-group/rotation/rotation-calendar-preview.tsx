@@ -31,7 +31,7 @@ import {
   type ICalendarDataUser,
   calendarDataConversion,
   getCalendarNew,
-} from '../../../../trace/pages/rotation/components/calendar-preview';
+} from 'monitor-common/rotation-utils/calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
