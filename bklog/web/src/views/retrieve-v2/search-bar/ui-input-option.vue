@@ -157,7 +157,7 @@
   });
 
   // 无需配置值（Value）的条件列表
-  const withoutValueConditionList = ['does not exists', 'exists'];
+  const withoutValueConditionList = ['does not exists', 'exists', 'is false', 'is true'];
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
@@ -1157,6 +1157,7 @@
         border-radius: 2px;
 
         &.tag-item {
+          color: #63656e;
           background: #f0f1f5;
           border-color: #f0f1f5;
 

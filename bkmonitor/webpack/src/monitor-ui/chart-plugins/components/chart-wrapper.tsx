@@ -34,12 +34,15 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
+import ApmCallerBarChart from '../plugins/caller-bar-chart/caller-bar-chart';
 import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
+import ApmCallerPieChart from '../plugins/caller-pie-chart/caller-pie-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
@@ -67,6 +70,7 @@ import TextUnit from '../plugins/text-unit/text-unit';
 import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
+import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -75,6 +79,7 @@ import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
+
 interface IChartWrapperProps {
   panel: PanelModel;
   chartChecked?: boolean;
@@ -102,6 +107,8 @@ interface IChartWrapperEvent {
 @Component({
   components: {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
+    MonitorRetrieve: () =>
+      import(/* webpackChunkName: "MonitorRetrieve" */ '../plugins/monitor-retrieve/monitor-retrieve'),
   },
 })
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -166,7 +173,12 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   get isCollapsed() {
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
-
+  get needWaterMask() {
+    return !['log-retrieve'].includes(this.panel?.type);
+  }
+  beforeCreate() {
+    initLogRetrieveWindowsFields();
+  }
   /**
    * @description: 供子组件更新loading的状态
    * @param {boolean} loading
@@ -460,6 +472,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'log-retrieve':
+        return <monitor-retrieve />;
       case 'exception-guide':
         return (
           <ExceptionGuide
@@ -552,6 +566,25 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onZrClick={this.handleZrClick}
           />
         );
+      case 'caller-pie-chart':
+        return <ApmCallerPieChart panel={this.panel} />;
+      case 'caller-bar-chart':
+        return <ApmCallerBarChart panel={this.panel} />;
+
+      case 'apm_custom_graph':
+        return (
+          <ApmCustomGraph
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+          />
+        );
       // 不需要报错显示
       // case 'graph':
       default:
@@ -586,7 +619,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         // onMouseenter={() => (this.showHeaderMoreTool = true)}
         // onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
-        {window?.graph_watermark && (
+        {window?.graph_watermark && this.needWaterMask && (
           <div
             class='wm'
             v-watermark={{

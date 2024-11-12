@@ -214,6 +214,9 @@ export default {
     userSettingConfig() {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
+    indexSetId() {
+      return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    },
   },
   watch: {
     retrieveParams: {
@@ -223,7 +226,7 @@ export default {
         this.cacheOverFlowCol = [];
       },
     },
-    '$route.params.indexId'() {
+    indexSetId() {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
@@ -396,6 +399,7 @@ export default {
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            console.log(openUrl);
             window.open(openUrl, '_blank');
           }
         });

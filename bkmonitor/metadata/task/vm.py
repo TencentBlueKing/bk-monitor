@@ -14,9 +14,11 @@ import logging
 import time
 
 from alarm_backends.core.lock.service_lock import share_lock
+from core.prometheus import metrics
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.db import filter_model_by_in_page
 
 logger = logging.getLogger("metadata")
@@ -28,6 +30,10 @@ def check_access_vm_task():
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_access_vm_task", status=TASK_STARTED, process_target=None
+    ).inc()
     start_time = time.time()  # 记录开始时间
     logger.info("check_access_vm_task:start to check result table and access vm")
     # 获取有关联数据源的结果表
@@ -88,5 +94,12 @@ def check_access_vm_task():
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 
-    end_time = time.time()  # 记录结束时间
-    logger.info("check_access_vm_task: check successfully，use %.2f seconds", end_time - start_time)
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="check_access_vm_task", process_target=None).observe(
+        cost_time
+    )
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_access_vm_task", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.report_all()
+    logger.info("check_access_vm_task: check successfully，use %.2f seconds", cost_time)

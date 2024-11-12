@@ -13,11 +13,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 from django.conf import settings
+from django.db import transaction
 from django.utils.translation import ugettext as _
 
 from api.cmdb.define import TopoNode, TopoTree
 from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import api
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from core.errors.collecting import (
     CollectConfigNeedUpgrade,
@@ -285,6 +286,28 @@ class NodeManInstaller(BaseInstaller):
 
         return diff_result["nodes"]
 
+    def _release_package(self, release_version):
+        """
+        发布插件包
+        """
+        if release_version.is_packaged:
+            return
+
+        plugin_manager = PluginManagerFactory.get_manager(plugin=self.plugin)
+        with transaction.atomic():
+            register_info = {
+                "plugin_id": self.plugin.plugin_id,
+                "config_version": release_version.config_version,
+                "info_version": release_version.info_version,
+            }
+            ret = resource.plugin.plugin_register(**register_info)
+            plugin_manager.release(
+                config_version=release_version.config_version,
+                info_version=release_version.info_version,
+                token=ret["token"],
+                debug=False,
+            )
+
     def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
         """
         首次安装插件采集
@@ -306,9 +329,12 @@ class NodeManInstaller(BaseInstaller):
         if self.collect_config.pk and self.collect_config.need_upgrade:
             raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
 
+        release_version = self.plugin.packaged_release_version
+        self._release_package(release_version)
+
         # 创建新的部署记录
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": release_version,
             "target_node_type": install_config["target_node_type"],
             "target_nodes": install_config["target_nodes"],
             "params": install_config["params"],
@@ -362,8 +388,11 @@ class NodeManInstaller(BaseInstaller):
         # 创建新的部署记录
         params["collector"]["period"] = current_version.params["collector"]["period"]
 
+        release_version = self.plugin.packaged_release_version
+        self._release_package(release_version)
+
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": release_version,
             "target_node_type": current_version.target_node_type,
             "target_nodes": current_version.target_nodes,
             "params": params,

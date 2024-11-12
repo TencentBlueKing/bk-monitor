@@ -72,6 +72,13 @@
     onSegmentClick,
   });
 
+  const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
+    if (entry.isIntersecting && !isEditorInit.value) {
+      isEditorInit.value = true;
+      setEditor(depth.value);
+    }
+  });
+
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
       const originValue = val.replace(/<\/?mark>/gim, '');
@@ -125,9 +132,10 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
-      requestAnimationFrame(() => {
+      if (isIntersecting.value) {
+        isEditorInit.value = true;
         setEditor(depth.value);
-      });
+      }
     },
     {
       immediate: true,
@@ -137,9 +145,11 @@
   watch(
     () => [depth.value],
     () => {
-      requestAnimationFrame(() => {
+      if (isIntersecting.value) {
         setExpand(depth.value);
-      });
+      } else {
+        isEditorInit.value = false;
+      }
     },
   );
 
@@ -240,9 +250,6 @@
     &.is-json {
       display: inline-block;
       width: 100%;
-      .bklog-root-field {
-        display: inline-flex;
-      }
     }
 
     &.is-wrap-line {

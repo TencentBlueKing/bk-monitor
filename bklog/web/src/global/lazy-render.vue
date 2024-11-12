@@ -45,6 +45,14 @@
       type: Number,
       default: 0,
     },
+    minHeight: {
+      type: String,
+      default: '40px',
+    },
+    root: {
+      type: HTMLDivElement,
+      default: null,
+    },
   });
 
   const lazyRenderCell = ref(null);
@@ -108,6 +116,7 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
+    height: 100%;
     min-height: 40px;
 
     &.is-not-intersecting {

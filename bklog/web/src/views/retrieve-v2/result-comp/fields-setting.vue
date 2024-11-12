@@ -331,7 +331,7 @@
       },
       currentClickConfigData() {
         // 当前选中的配置
-        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels[0];
+        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
       },
       fieldWidth() {
         return this.$store.state.isEnLanguage ? '60' : '114';
@@ -347,7 +347,7 @@
       },
     },
     created() {
-      this.currentClickConfigID = this.filedSettingConfigID;
+      this.currentClickConfigID = this.configTabPanels.length ? this.filedSettingConfigID : 0;
       this.initRequestConfigListShow();
     },
     methods: {
@@ -396,7 +396,7 @@
         await this.$http
           .request('retrieve/postFieldsConfig', {
             data: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
               display_fields: this.shadowVisible,
@@ -573,7 +573,7 @@
           sort_list: updateItem.sort_list,
           display_fields: updateItem.display_fields,
           config_id: undefined,
-          index_set_id: this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
           index_set_ids: this.unionIndexList,
           index_set_type: this.isUnionSearch ? 'union' : 'single',
         };
@@ -603,7 +603,7 @@
           await this.$http.request('retrieve/deleteFieldsConfig', {
             data: {
               config_id: configID,
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
@@ -634,7 +634,7 @@
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
         this.shadowVisible = this.currentClickConfigData.display_fields
-          .map(displayName => {
+          ?.map(displayName => {
             for (const field of this.shadowTotal) {
               if (field.field_name === displayName) {
                 field.is_display = true;
@@ -642,7 +642,7 @@
               }
             }
           })
-          .filter(Boolean);
+          ?.filter(Boolean) || [];
       },
       /** 获取配置列表 */
       async getFiledConfigList() {
@@ -652,7 +652,7 @@
             data: {
               ...(this.isUnionSearch
                 ? { index_set_ids: this.unionIndexList }
-                : { index_set_id: this.$route.params.indexId }),
+                : { index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId }),
               scope: 'default',
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },

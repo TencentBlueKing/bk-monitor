@@ -50,10 +50,7 @@
       type="expand"
     >
       <template #default="{ $index, row }">
-        <LazyRender
-          :root="lazyRoot"
-          :delay="1"
-        >
+        <LazyRender :delay="1">
           <expand-view
             :kv-show-fields-list="kvShowFieldsList"
             :data="originTableList[$index]"
@@ -90,11 +87,7 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <LazyRender
-            :root="lazyRoot"
-            :delay="1"
-            :visibleOnly="!tableJsonFormat"
-          >
+          <LazyRender :delay="1">
             <table-column
               :content="getTableColumnContent(row, field)"
               :field="field"

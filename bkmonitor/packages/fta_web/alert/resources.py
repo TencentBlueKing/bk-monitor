@@ -142,8 +142,8 @@ class GetTmpData(Resource):
             params = {
                 'bk_biz_ids': [biz],
                 'status': [],
-                'conditions': [],
-                'query_string': '告警来源 : "tnm" AND -告警名称 : "Ping告警" AND -告警名称 : "上报超时告警" AND -告警名称 : "服务器系统时间偏移告警"',
+                'conditions': constants.QuickSolutionsConfig.CONDITIONS_REQ,
+                'query_string': "",
                 'start_time': start_time,
                 'end_time': end_time,
                 'fields': ['plugin_id'],
@@ -154,14 +154,14 @@ class GetTmpData(Resource):
         for biz, alert in ret.items():
             if biz not in biz_info or not alert:
                 continue
-            tmp = alert['"tnm"']
+            tmp = alert.get('"tnm"', 0)
             bkmonitor = alert.get('"bkmonitor"', 0)
             row = {
                 "biz": biz,
                 "biz_name": biz_info[biz].display_name,
                 "tmp": tmp,
                 "tmp_bk": bkmonitor + tmp,
-                "tmp_bk_ratio": tmp / (tmp + bkmonitor),
+                "tmp_bk_ratio": tmp / (tmp + bkmonitor) if tmp != 0 else 0,
             }
             results.append(row)
         if results_format == "file":
