@@ -1052,8 +1052,8 @@ class SearchHandler(object):
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        while search_after_size == max_result_window and result_size < (
-            self.index_set_obj.max_async_count or MAX_ASYNC_COUNT
+        while search_after_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
         ):
             search_after = []
             for sorted_field in sorted_fields:
@@ -1103,8 +1103,8 @@ class SearchHandler(object):
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
-        while scroll_size == max_result_window and result_size < (
-            self.index_set_obj.max_async_count or MAX_ASYNC_COUNT
+        while scroll_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
         ):
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = scroll_func(
