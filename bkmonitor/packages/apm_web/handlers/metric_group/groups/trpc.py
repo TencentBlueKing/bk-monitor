@@ -194,7 +194,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             return q.filter(code_type__eq=code_type)
 
         if code_type == CodeType.EXCEPTION:
-            return q.filter(code__neq=SUCCESS_CODES)
+            return q.filter(code__neq=SUCCESS_CODES, code_type__neq=CodeType.TIMEOUT)
         elif code_type == CodeType.SUCCESS:
             return q.filter(code__eq=SUCCESS_CODES)
 

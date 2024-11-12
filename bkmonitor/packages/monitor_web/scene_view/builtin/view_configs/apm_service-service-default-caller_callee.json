@@ -482,7 +482,8 @@
                         "method": "${code_method}",
                         "value": "${code_values}",
                         "condition": "and"
-                      }
+                      },
+                       "${code_extra_where}"
                     ]
                   },
                   {
@@ -572,7 +573,8 @@
                           "method": "${code_method}",
                           "value": "${code_values}",
                           "condition": "and"
-                        }
+                        },
+                        "${code_extra_where}"
                       ]
                     },
                     {
@@ -634,7 +636,8 @@
                   "code_method": "eq",
                   "code_values": [
                     "timeout"
-                  ]
+                  ],
+                  "code_extra_where": {}
                 }
               },
               {
@@ -645,7 +648,8 @@
                   "code_method": "eq",
                   "code_values": [
                     "exception"
-                  ]
+                  ],
+                  "code_extra_where": {}
                 }
               }
             ],
