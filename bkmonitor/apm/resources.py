@@ -19,6 +19,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
 from apm.core.handlers.application_hepler import ApplicationHelper
@@ -281,12 +282,50 @@ class ListApplicationResources(Resource):
         return ApmApplication.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
 
+class ApplicationRequestSerializer(serializers.Serializer):
+    application_id = serializers.IntegerField(label="应用id", required=False)
+    bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+    app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
+    space_uid = serializers.CharField(label="空间唯一标识", required=False)
+
+    def validate(self, attrs):
+        application_id = attrs.get("application_id", None)
+        space_uid = attrs.get("space_uid", "")
+        bk_biz_id = attrs.get("bk_biz_id", None)
+        app_name = attrs.get("app_name", "")
+        from apm_web.models import Application
+
+        if application_id:
+            app = Application.objects.filter(application_id=application_id).first()
+            if app:
+                attrs['bk_biz_id'] = app.bk_biz_id
+                attrs['app_name'] = app.app_name
+                return attrs
+            raise ValidationError(f"the application({application_id}) does not exist")
+
+        if app_name and bk_biz_id:
+            app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if app:
+                attrs['application_id'] = app.application_id
+                return attrs
+            raise ValidationError(f"the application({app_name}) does not exist")
+
+        if app_name and space_uid:
+            bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
+            if bk_biz_id:
+                app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+                if app:
+                    attrs['application_id'] = app.application_id
+                    attrs['bk_biz_id'] = bk_biz_id
+                    return attrs
+                # space_uid和app_name都合法并存在，但是组合起来查不到数据
+                raise ValidationError(f"the application({app_name}) does not exist")
+
+        raise ValidationError("miss required fields: application_id, or bk_biz_id + app_name, or space_uid + app_name")
+
+
 class ApplicationInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id", required=False)
-        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
-        app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
-        space_uid = serializers.CharField(label="空间唯一标识", required=False)
+    RequestSerializer = ApplicationRequestSerializer
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -308,60 +347,19 @@ class ApplicationInfoResource(Resource):
 
     def perform_request(self, validated_request_data):
         application_id = validated_request_data.get("application_id", None)
-        space_uid = validated_request_data.get("space_uid", "")
-        bk_biz_id = validated_request_data.get("bk_biz_id", None)
-        app_name = validated_request_data.get("app_name", "")
-        if application_id:
-            return ApmApplication.objects.get(id=application_id)
-        if app_name:
-            if bk_biz_id:
-                return ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-            if space_uid:
-                bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
-                if bk_biz_id:
-                    return ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
-
-
-def delete_application(app):
-    from apm_web.meta.resources import DeleteApplicationResource
-
-    if app:
-        DeleteApplicationResource()(bk_biz_id=app.bk_biz_id, app_name=app.app_name)
-        logger.info(f"删除应用 {app.app_name} 成功")
-        return app.application_id
+        return ApmApplication.objects.get(id=application_id)
 
 
 class DeleteApplicationSimpleResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id", required=False)
-        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
-        app_name = serializers.CharField(label="应用名称", max_length=50, required=False)
-        space_uid = serializers.CharField(label="空间唯一标识", required=False)
+    RequestSerializer = ApplicationRequestSerializer
 
     def perform_request(self, validated_request_data):
-        application_id = validated_request_data.get("application_id", None)
-        space_uid = validated_request_data.get("space_uid", "")
-        bk_biz_id = validated_request_data.get("bk_biz_id", None)
-        app_name = validated_request_data.get("app_name", "")
-        from apm_web.models import Application
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        app_name = validated_request_data.get("app_name")
+        from apm_web.meta.resources import DeleteApplicationResource
 
-        if application_id:
-            app = Application.objects.filter(application_id=application_id).first()
-            if app:
-                return delete_application(app)
-        if app_name:
-            if bk_biz_id:
-                app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-                if app:
-                    return delete_application(app)
-            elif space_uid:
-                bk_biz_id = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
-                if bk_biz_id:
-                    app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-                    if app:
-                        return delete_application(app)
-        raise ValueError("Missing required fields: application_id ,or bk_biz_id + app_name, or space_uid + app_name")
+        DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
+        logger.info(f"删除应用 {app_name} 成功")
 
 
 class ApdexSerializer(serializers.Serializer):
