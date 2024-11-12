@@ -1,99 +1,55 @@
-<!-- eslint-disable vue/no-deprecated-slot-attribute -->
-<!--
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
--->
-
 <template>
   <div
     class="field-table-container"
     v-bkloading="{ isLoading: isExtracting }"
   >
     <div
-      v-if="!isPreviewMode"
-      class="field-method-head"
+      class="field-header"
+      v-if="tableType === 'indexLog'"
     >
-      <!-- <span class="field-method-link fr mr10" @click.stop="isReset = true">{{ 重置 }}</span> -->
-      <div :class="{ 'table-setting': true, 'disabled-setting': isSettingDisable || isSetDisabled }">
-        <div class="fr form-item-flex bk-form-item">
-          <!-- <label class="bk-label has-desc" v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">
-            <span>{{ $t('保留原始日志') }}</span>
-          </label> -->
-          <div class="bk-form-content">
-            <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
-              v-model="retainExtraText"
-              :checked="false"
-              :false-value="false"
-              :true-value="true"
-              @change="handleKeepField"
-            >
-              <span
-                style="margin-right: 20px; line-height: 30px"
-                class="bk-label"
-                >{{ $t('保留未定义字段') }}</span
-              >
-            </bk-checkbox>
-            <!-- <bk-switcher size="small" theme="primary" v-model="retainOriginalText"></bk-switcher> -->
-          </div>
-        </div>
-        <!-- <bk-switcher
+      <div
+        class="field-add-btn"
+        @click="batchAddField"
+      >
+        {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
+      </div>
+      <div style="display: flex; align-items: flex-end">
+        <bk-checkbox
           size="small"
           theme="primary"
-          class="visible-deleted-btn"
-          v-model="deletedVisible"
-          @change="visibleHandle">
-        </bk-switcher> -->
-        <span
-          :class="`bk-icon toggle-icon icon-${deletedVisible ? 'eye-slash' : 'eye'}`"
-          data-test-id="fieldExtractionBox_span_hideItem"
-          @click="visibleHandle"
+          class="visible-built-btn"
+          v-model="builtFieldVisible"
         >
-        </span>
-        <span class="visible-deleted-text">
-          {{ $t('已隐藏 {n} 项', { n: deletedNum }) }}
-        </span>
+          {{ $t('显示内置字段') }}
+        </bk-checkbox>
+
+        <bk-input
+          class="field-header-search"
+          style="width: 220px"
+          :placeholder="$t('请输入字段名/别名')"
+          v-model="keyword"
+          right-icon="bk-icon icon-search"
+        >
+        </bk-input>
       </div>
     </div>
-
-    <div class="preview-panel-left">
+    <div>
       <bk-form
         ref="fieldsForm"
         :label-width="0"
         :model="formData"
       >
         <bk-table
-          class="field-table"
-          :class="!isPreviewMode ? 'add-field-table' : ''"
+          class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
           row-key="field_index"
           col-border
           size="small"
+          :max-height="isPreviewMode ? 300 : 320"
         >
           <template>
-            <bk-table-column
+            <!-- <bk-table-column
               label=""
               align="center"
               :resizable="false"
@@ -103,24 +59,29 @@
               <template slot-scope="props">
                 <span>{{ props.row.field_index }}</span>
               </template>
-            </bk-table-column>
+            </bk-table-column> -->
             <!-- 字段名 -->
             <bk-table-column
               :label="$t('字段名')"
               :render-header="$renderHeader"
               :resizable="false"
-              min-width="100"
+              min-width="80"
+              align="left"
             >
               <template #default="props">
+              
+                <bk-popover :content="$t('字段名不支持快速修改')">
                 <div
-                  v-if="isPreviewMode"
-                  class="overflow-tips"
+                  v-if="!props.row.is_edit"
+                  class="first-overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_name }}</span>
+                  <span>{{ props.row.field_name }} </span>
+                
                 </div>
+              </bk-popover>
                 <bk-form-item
-                  v-else
+                   v-if="props.row.is_edit"
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
@@ -142,14 +103,14 @@
             </bk-table-column>
             <!-- 重命名 -->
             <bk-table-column
-              v-if="isPreviewMode || extractMethod === 'bk_log_json'"
               :render-header="renderHeaderAliasName"
               :resizable="false"
               min-width="100"
+              align="left"
             >
               <template #default="props">
                 <div
-                  v-if="isPreviewMode"
+                  v-if="isPreviewMode && !props.row.is_edit"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -175,67 +136,26 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 字段说明 -->
-            <!-- <bk-table-column
-              :render-header="renderHeaderDescription"
-              :resizable="false"
-              min-width="100"
-            >
-              <template #default="props">
-                <div
-                  v-if="isPreviewMode"
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                >
-                  <span>{{ props.row.description }}</span>
-                </div>
-                <bk-input
-                  v-else
-                  v-model.trim="props.row.description"
-                  :disabled="props.row.is_delete || isSetDisabled"
-                ></bk-input>
-              </template>
-            </bk-table-column> -->
             <!-- 类型 -->
             <bk-table-column
-              :label="$t('类型')"
+              :label="$t('数据类型')"
               :render-header="$renderHeader"
               :resizable="false"
               min-width="100"
+              align="center"
             >
               <template #default="props">
+                <bk-popover :content="$t('数据类型不支持快速修改')">
                 <div
-                  v-if="isPreviewMode"
+                  v-if="!props.row.is_edit"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
                   <span>{{ props.row.field_type }}</span>
                 </div>
-                <!-- <bk-form-item v-else
-                  :required="true"
-                  :rules="props.row.is_delete ? notCheck : rules.field_type"
-                  :property="'tableList.' + props.$index + '.field_type'">
-                  <bk-select
-                    :clearable="false"
-                    :disabled="props.row.is_delete"
-                    v-model="props.row.field_type"
-                    @selected="(value) => {
-                      fieldTypeSelect(value, props.row, props.$index)
-                    }">
-                    <bk-option v-for="option in globalsData.field_data_type"
-                      :key="option.id"
-                      :id="option.id"
-                      :name="option.name">
-                    </bk-option>
-                  </bk-select>
-                </bk-form-item> -->
-                <!-- 替代方案 -->
-                <!-- <bk-form-item v-else
-                :class="{ 'is-required is-error': props.row.typeErr }"
-                 :rules="props.row.is_delete ? notCheck : rules.field_type"
-                 :property="'tableList.' + props.$index + '.field_type'"> -->
+              </bk-popover>
                 <bk-form-item
-                  v-else
+                    v-if="props.row.is_edit"
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
                   <bk-select
@@ -267,37 +187,6 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!--<bk-table-column :label="聚合" align="center" :resizable="false" width="50">
-              <template slot-scope="props">
-                <bk-popover v-if="props.row.is_time" :content="$t('时间字段默认设置可以聚合')">
-                  <bk-checkbox
-                    disabled
-                    v-model="props.row.is_dimension">
-                  </bk-checkbox>
-                </bk-popover>
-                <bk-checkbox v-else
-                  :disabled="isPreviewMode || props.row.is_delete || props.row.is_analyzed"
-                  v-model="props.row.is_dimension">
-                </bk-checkbox>
-              </template>
-            </bk-table-column>-->
-            <!-- 字符串类型下才能设置分词， 分词和维度只能选其中一个，且分词和时间不能同时存在, 选定时间后就同时勾选维度-->
-            <!-- 分词 -->
-            <!-- <bk-table-column
-              :render-header="renderHeaderParticipleName"
-              :resizable="false"
-              :width="getParticipleWidth"
-              align="center"
-            >
-              <template #default="props">
-                <bk-checkbox
-                  v-model="props.row.is_analyzed"
-                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                  @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)"
-                >
-                </bk-checkbox>
-              </template>
-            </bk-table-column> -->
             <!-- 分词符 -->
             <bk-table-column
               :render-header="renderHeaderParticipleName"
@@ -307,14 +196,24 @@
             >
               <template #default="props">
                 <!-- 预览模式-->
-                <template v-if="isPreviewMode">
-                  <template v-if="props.row.is_analyzed">
+                <template
+                  v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
+                >
+                  <div
+                    style="width: 85%; margin-left: 15px"
+                    v-if="props.row.is_analyzed"
+                  >
                     <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}；
-                      {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
+                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                     </div>
-                  </template>
-                  <div v-else>{{ $t('不分词') }}</div>
+                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
+                  </div>
+                  <div
+                    style="width: 85%; margin-left: 15px"
+                    v-else
+                  >
+                    {{ $t('不分词') }}
+                  </div>
                 </template>
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
@@ -391,9 +290,7 @@
                           <div>
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                           </div>
-                          <div style="margin-top: -10px">
-                            {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
-                          </div>
+                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                         </div>
                         <div
                           style="width: 85%"
@@ -416,102 +313,49 @@
                 </template>
               </template>
             </bk-table-column>
-            <!-- 操作 -->
-            <bk-table-column
-              v-if="getOperatorDisabled && !isPreviewMode"
-              width="60"
-              :label="$t('操作')"
-              :render-header="$renderHeader"
-              :resizable="false"
-              align="center"
-              prop="plugin_version"
-            >
-              <template #default="props">
-                <span
-                  :style="`color:${isSetDisabled ? '#dcdee5' : '#3a84ff'};`"
-                  class="table-link"
-                  @click="isDisableOperate(props.row)"
-                >
-                  {{ props.row.is_delete ? $t('复原') : $t('隐藏') }}
-                </span>
-              </template>
-            </bk-table-column>
             <div
               class="empty-text"
               slot="empty"
             >
-              {{ $t('请先选择字段提取模式') }}
+              {{ $t('暂无数据') }}
             </div>
           </template>
         </bk-table>
       </bk-form>
     </div>
-
-    <div class="preview-panel-right">
-      <div class="preview-title preview-item">
-        {{ $t('预览（值）') }}
-      </div>
-      <template v-if="deletedVisible">
-        <div
-          v-for="(row, index) in hideDeletedTable"
-          class="preview-item"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          :key="index"
-          :title="row.value"
-        >
-          {{ row.value }}
-        </div>
-      </template>
-      <template v-else>
-        <div
-          v-for="(row, index) in tableList"
-          class="preview-item"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
-          :key="index"
-          :title="row.value"
-        >
-          {{ row.value }}
-        </div>
-      </template>
-    </div>
-
-    <bk-dialog
-      v-model="isReset"
-      :title="$t('重置确认')"
-      theme="primary"
-      @confirm="resetField"
-    >
-      {{ $t('重置将丢失当前的配置信息，重置为上一次保存的配置内容。确认请继续。') }}
-    </bk-dialog>
   </div>
 </template>
-
 <script>
   import { mapGetters } from 'vuex';
 
   export default {
-    name: 'FieldTable',
+    name: 'settingTable',
     props: {
       isEditJson: {
         type: Boolean,
         default: undefined,
       },
+      isPreviewMode: {
+        type: Boolean,
+        default: true,
+      },
+      // 分为原始日志表格和索引日志表格
       tableType: {
         type: String,
-        default: 'edit',
+        default: 'originLog',
       },
       extractMethod: {
         type: String,
         default: 'bk_log_json',
       },
-      deletedVisible: {
-        type: Boolean,
-        default: true,
-      },
       // jsonText: {
       //     type: Array
       // },
       fields: {
+        type: Array,
+        default: () => [],
+      },
+      builtFields: {
         type: Array,
         default: () => [],
       },
@@ -539,6 +383,10 @@
         type: Boolean,
         default: false,
       },
+      collectorConfigId: {
+        type: [Number, String],
+        default: '',
+      },
     },
     data() {
       return {
@@ -552,11 +400,12 @@
         // timeCheckResult: false,
         checkLoading: false,
         retainOriginalText: true, // 保留原始日志
-        retainExtraText: false,
         currentIsAnalyzed: false,
         currentParticipleState: '',
         currentTokenizeOnChars: '',
         currentIsCaseSensitive: false,
+        builtFieldVisible: false,
+        keyword: '',
         participleList: [
           {
             id: 'default',
@@ -626,30 +475,25 @@
       isSettingDisable() {
         return !this.fields.length;
       },
-      deletedNum() {
-        return this.formData.tableList.filter(item => item.is_delete).length;
-      },
-      isPreviewMode() {
-        return this.tableType === 'preview';
-      },
       tableList() {
         return this.formData.tableList;
       },
-      hideDeletedTable() {
-        return this.formData.tableList.filter(item => !item.is_delete);
+      tableAllList() {
+        return [...this.tableList, ...this.builtFields];
       },
       changeTableList() {
-        return this.deletedVisible ? this.hideDeletedTable : this.tableList;
+        const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
+        if (this.keyword) {
+          const query = this.keyword.toLowerCase();
+          return currentTableList.filter(
+            item => item.field_name.toLowerCase().includes(query) || item.alias_name.toLowerCase().includes(query),
+          );
+        } else {
+          return currentTableList;
+        }
       },
       getParticipleWidth() {
         return this.$store.getters.isEnLanguage ? '65' : '50';
-      },
-      retainExtraJsonIsOpen() {
-        return this.globalsData?.retain_extra_json ?? false;
-      },
-      getOperatorDisabled() {
-        if (this.selectEtlConfig === 'bk_log_json') return true;
-        return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
       },
     },
     watch: {
@@ -659,12 +503,8 @@
           this.reset();
         },
       },
-      retainExtraJson(newVal) {
-        this.retainExtraText = newVal;
-      },
     },
     async mounted() {
-      this.retainExtraText = this.retainExtraJson;
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
     },
@@ -685,10 +525,6 @@
           return list;
         }, arr);
         arr.forEach(item => (item.previous_type = item.field_type));
-
-        if (!this.isPreviewMode) {
-          arr = arr.filter(item => !item.is_built_in);
-        }
 
         if (this.isEditJson === false && !this.isTempField) {
           // 新建JSON时，类型如果不是数字，则默认为字符串
@@ -714,6 +550,18 @@
       },
       resetField() {
         this.$emit('reset');
+      },
+      batchAddField() {
+        if (!this.collectorConfigId) return;
+        this.$router.push({
+          name: 'collectField',
+          params: {
+            collectorId: this.collectorConfigId,
+          },
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
       },
       // 当前字段类型是否禁用
       isTypeDisabled(row, option) {
@@ -805,15 +653,6 @@
         this.currentParticipleState = state;
         this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
-      // formatChange(val) {
-      //   this.timeCheckResult = false;
-      //   this.dialogField.time_format = val;
-      // },
-      // viewStandard() {
-      //   if (this.isSettingDisable) return;
-
-      //   this.$emit('standard');
-      // },
       judgeNumber(value) {
         if (value === 0) return false;
 
@@ -976,11 +815,9 @@
         promises.push(this.checkType());
         return promises;
       },
-      visibleHandle() {
-        if (this.isSettingDisable) return;
-
-        this.$emit('delete-visible', !this.deletedVisible);
-      },
+      // visibleHandle() {
+      //   if (this.isSettingDisable) return;
+      // },
       handleKeepLog(value) {
         this.$emit('handle-keep-log', value);
       },
@@ -994,7 +831,7 @@
             class: 'render-header',
           },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('重命名')]),
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
             h('span', this.$t('(选填)')),
             h('span', {
               class: 'icon bklog-icon bklog-info-fill',
@@ -1005,18 +842,6 @@
                 },
               ],
             }),
-          ],
-        );
-      },
-      renderHeaderDescription(h) {
-        return h(
-          'div',
-          {
-            class: 'render-header',
-          },
-          [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段说明')]),
-            h('span', this.$t('(选填)')),
           ],
         );
       },
@@ -1043,11 +868,6 @@
           ],
         );
       },
-      isDisableOperate(row) {
-        if (this.isSetDisabled) return;
-        row.is_delete = !row.is_delete;
-        this.$emit('handle-table-data', this.changeTableList);
-      },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
         return otherFieldNameList.some(item => item.field_name === fieldName);
@@ -1067,29 +887,54 @@
       getCustomizeDisabled(row, type = 'analyzed-item') {
         const { is_delete: isDelete, field_type: fieldType } = row;
         let atLastAnalyzed = this.currentIsAnalyzed;
-        if (type === 'analyzed') atLastAnalyzed = true;
-        return this.isPreviewMode || isDelete || fieldType !== 'string' || !atLastAnalyzed || this.isSetDisabled;
-      },
+        if (type === 'analyzed') {
+          // 原始日志表格分词禁用
+          if (this.tableType === 'originLog') {
+            atLastAnalyzed = false;
+          } else {
+            atLastAnalyzed = true;
+          }
+        }
+        return (
+          (this.isPreviewMode && !row.is_edit) ||
+          isDelete ||
+          fieldType !== 'string' ||
+          !atLastAnalyzed ||
+          this.isSetDisabled
+        );
+      }
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
     },
   };
 </script>
-
-<style lang="scss" scoped>
+<style lang="scss">
   @import '@/scss/mixins/clearfix';
   @import '@/scss/mixins/overflow-tips.scss';
 
   /* stylelint-disable no-descending-specificity */
   .field-table-container {
     position: relative;
-    display: flex;
+    margin-bottom: 10px;
+    // margin-top: 10px;
 
-    .field-method-head {
-      position: absolute;
-      top: -30px;
-      right: 0;
+    .field-header {
+      display: flex;
+      align-items: center;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 5px;
+
+      .field-add-btn {
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .visible-built-btn {
+        margin-right: 20px;
+      }
     }
 
     .add-field-table {
@@ -1103,6 +948,14 @@
 
           .tooltips-icon {
             top: 16px;
+          }
+
+          .first-overflow-tips{
+            padding: 10px;
+          }
+
+          .overflow-tips {
+            padding: 15px;
           }
         }
       }
@@ -1150,10 +1003,6 @@
           padding-right: 5px;
           padding-left: 5px;
         }
-      }
-
-      .bk-label {
-        display: none;
       }
 
       .render-header {
@@ -1210,65 +1059,8 @@
       }
     }
 
-    .preview-panel-left {
-      flex: 1;
-    }
-
-    .preview-panel-right {
-      width: 335px;
-      font-size: 12px;
-      color: #c4c6cc;
-      background: #63656e;
-      border-bottom: 1px solid #72757d;
-      border-radius: 0 2px 2px 0;
-
-      .preview-item {
-        height: 43px;
-        padding: 0 10px;
-        overflow: hidden;
-        line-height: 43px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        border-top: 1px solid #72757d;
-
-        &:first-child {
-          height: 43px;
-          border-top: 1px solid transparent;
-        }
-      }
-
-      .preview-title {
-        color: #fff;
-      }
-    }
-
     .bk-table .table-link {
       cursor: pointer;
-    }
-
-    .field-date {
-      display: inline-block;
-      padding: 0 10px;
-      font-size: 14px;
-      outline: none;
-
-      &:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.field-date-active {
-        color: #3a84ff;
-
-        .icon-date-picker {
-          color: #3a84ff;
-        }
-      }
-
-      &.field-date-disable {
-        color: #dcdee5;
-        cursor: not-allowed;
-      }
     }
 
     .icon-date-picker {
@@ -1277,25 +1069,6 @@
       &.active {
         color: #3a84ff;
       }
-    }
-  }
-
-  .field-date-dialog {
-    .prompt {
-      padding: 6px 7px;
-      margin-bottom: 20px;
-      font-size: 12px;
-      color: #63656e;
-      background: #f6f6f6;
-
-      span {
-        font-weight: 600;
-        color: #313238;
-      }
-    }
-
-    .bk-label {
-      text-align: left;
     }
   }
 

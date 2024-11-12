@@ -356,6 +356,11 @@ export default class QueryStatement extends tsc<object> {
     this.selectTagCatchIDList = !!val.length ? val : this.routeParamIndexId ? [this.routeParamIndexId] : [];
   }
 
+  @Watch('indexSearchType')
+  onIndexSearchTypeChange(newVal: IndexSetType) {
+    this.emitChange(newVal);
+  }
+
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
@@ -372,6 +377,11 @@ export default class QueryStatement extends tsc<object> {
     };
 
     return payload;
+  }
+
+  @Emit('change')
+  emitChange(type) {
+    return type;
   }
 
   /** 判断当前索引集是否有权限 */
