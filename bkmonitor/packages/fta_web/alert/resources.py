@@ -146,33 +146,44 @@ class GetFtaData(Resource):
         
         ret = []
         scenario = constants.QuickSolutionsConfig.SCENARIO
-
         # 日期为第一层 再分业务获取对应的告警数量
         for day_start, day_end in generate_date_ranges(start_time, end_time):
-            for biz in biz_list:
-                scenario_totals = {scenario_name: 0 for scenario_name in scenario.keys()}
+                # 初始化存储映射 告警名称/业务
+                scenario_totals = {scenario_name: {biz: 0 for biz in biz_info} for scenario_name in scenario.keys()}
                 for scenario_name, scenario_list in scenario.items():
-                    request_body = {
-                        "bk_biz_ids": [biz.bk_biz_id],
-                        "status": [],
-                        "conditions": [],
-                        "query_string": "",
-                        "start_time": int(day_start.timestamp()),
-                        "end_time": int(day_end.timestamp())
-                    }
-                
+                    page, page_size, fetched, total = 1, 1000, 0, 1
+                    # 分页处理
                     conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
                     # 将生成的条件括在括号内
                     query_string = f'({conditions})'
-                    request_body['query_string'] = query_string
-                    handler = AlertQueryHandler(**request_body)
-                    result = handler.search()
-                    scenario_totals[scenario_name] = result['total']
-                ret.append({
-                "日期": day_start.date(),
-                "业务": biz.display_name,
-                **scenario_totals
-                })
+                    # 查询条件
+                    while fetched < total:
+                        request_body = {
+                            "bk_biz_ids": target_biz_ids,
+                            "status": [],
+                            "conditions": [],
+                            "query_string": query_string,
+                            "start_time": int(day_start.timestamp()),
+                            "end_time": int(day_end.timestamp()),
+                            "page": page,
+                            "page_size": page_size,
+                        }
+                        handler = AlertQueryHandler(**request_body)
+                        result = handler.search()
+                        total = result['total']
+                        fetched += len(result['alerts'])
+                        page += 1
+                        # 更新结果总数 供后面判断
+                        for alert in result['alerts']:
+                            scenario_totals[scenario_name][alert['bk_biz_id']] += 1
+                            # 日期 业务 告警指标
+                for biz_id, biz in biz_info.items():
+                    # 最后按业务插入当天的告警数据统计
+                    ret.append({
+                        "日期": day_start.date(),
+                        "业务": biz.display_name,
+                        **{scenario_name: scenario_totals[scenario_name].get(biz_id, 0) for scenario_name in scenario.keys()}
+                    })
         if results_format == "file":
             
             timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
