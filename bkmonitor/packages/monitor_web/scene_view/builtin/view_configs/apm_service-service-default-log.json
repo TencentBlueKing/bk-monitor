@@ -3,7 +3,39 @@
   "type": "overview",
   "mode": "custom",
   "name": "日志",
-  "overview_panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "log-retrieve",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": [
+        {
+          "dataType": "log_predicate",
+          "api": "apm_log.serviceLogInfo",
+          "data": {
+            "app_name": "${app_name}",
+            "bk_biz_id": "${bk_biz_id}",
+            "service_name": "${service_name}"
+          }
+        },
+        {
+          "dataType": "condition",
+          "api": "apm_log.serviceRelationList",
+          "data": {
+            "app_name": "${app_name}",
+            "bk_biz_id": "${bk_biz_id}",
+            "service_name": "${service_name}"
+          }
+        }
+      ]
+    }
+  ],
   "panels": [],
   "order": []
 }
