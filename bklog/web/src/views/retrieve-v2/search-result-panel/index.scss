@@ -27,6 +27,12 @@
       }
     }
 
+    &.is-not-show-field-statistics {
+      & > :deep(.monitor-echarts-container .title-wrapper-new .chart-title .title-click) {
+        padding-left: 110px;
+      }
+    }
+
     .split-line {
       width: 100%;
       margin: 3px 0 6px;

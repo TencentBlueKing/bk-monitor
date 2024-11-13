@@ -65,7 +65,7 @@ export default ({ fields, onSegmentClick }) => {
 
         if (!value.isJson) {
           value.editor?.destroy();
-          value.editor?.initStringAsValue();
+          // value.editor?.initStringAsValue();
         }
       });
 
@@ -73,6 +73,40 @@ export default ({ fields, onSegmentClick }) => {
     });
 
     return initEditPromise;
+  };
+
+  const setEditor = depth => {
+    rootFieldOperator.values().forEach(value => {
+      if (!value.editor) {
+        value.editor = new UseJsonFormatter({
+          target: value.ref,
+          fields,
+          jsonValue: value.value,
+          onSegmentClick,
+        });
+      }
+
+      if (value.isJson && value.ref.value) {
+        value.editor?.initEditor(depth);
+        value.editor?.setValue.call(value.editor, depth);
+      }
+
+      if (!value.isJson) {
+        value.editor?.initStringAsValue();
+      }
+    });
+  };
+
+  const destroy = () => {
+    rootFieldOperator.values().forEach(value => {
+      if (value.isJson && value.ref.value) {
+        value.editor?.initEditor(0);
+      }
+
+      if (!value.isJson) {
+        value.editor?.destroy();
+      }
+    });
   };
 
   const updateRootFieldOperator = (rootFieldList: RootField[], depth: number) => {
@@ -107,13 +141,14 @@ export default ({ fields, onSegmentClick }) => {
       }
     });
 
-    initRootOperator(depth).then(() => {
-      rootFieldOperator.values().forEach(val => {
-        if (val.isJson) {
-          val.editor?.setValue.call(val.editor, depth);
-        }
-      });
-    });
+    return initRootOperator(depth);
+    // .then(() => {
+    //   rootFieldOperator.values().forEach(val => {
+    //     if (val.isJson) {
+    //       val.editor?.setValue.call(val.editor, depth);
+    //     }
+    //   });
+    // });
   };
 
   const setExpand = depth => {
@@ -127,5 +162,7 @@ export default ({ fields, onSegmentClick }) => {
   return {
     updateRootFieldOperator,
     setExpand,
+    setEditor,
+    destroy,
   };
 };

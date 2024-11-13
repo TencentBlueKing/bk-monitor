@@ -271,7 +271,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return { method, value: valueList };
   }
   handleValueChange(value: string[], item: IFilterOption) {
-    console.info(value, item, '===========');
     item.value = value;
   }
   render() {

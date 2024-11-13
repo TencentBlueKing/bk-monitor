@@ -17,8 +17,25 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 
 
+class SourceProvider:
+    source_mapping = {}
+
+    @classmethod
+    def registry_source(cls, s):
+        cls.source_mapping[s.name] = s
+        return s
+
+    @classmethod
+    def get_source(cls, name):
+        if name not in cls.source_mapping:
+            raise ValueError(f"retrieve not exist source name: {name} required: {list(cls.source_mapping.keys())}")
+        return cls.source_mapping[name]
+
+
 @dataclass
 class Source:
+    """资源实体类"""
+
     name = None
 
     _ignore_fields = ["name"]
@@ -60,6 +77,7 @@ class Source:
         raise NotImplementedError
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceService(Source):
     apm_application_name: str
@@ -71,6 +89,7 @@ class SourceService(Source):
         return self.apm_service_name
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceServiceInstance(Source):
     apm_application_name: str
@@ -83,6 +102,7 @@ class SourceServiceInstance(Source):
         return self.apm_service_instance_name
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceSystem(Source):
     bk_target_ip: str
@@ -109,6 +129,7 @@ class SourceSystem(Source):
         return response[0].bk_host_id
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceK8sPod(Source):
     bcs_cluster_id: str
@@ -121,6 +142,7 @@ class SourceK8sPod(Source):
         return self.pod
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceK8sNode(Source):
     bcs_cluster_id: str
@@ -132,6 +154,7 @@ class SourceK8sNode(Source):
         return self.node
 
 
+@SourceProvider.registry_source
 @dataclass
 class SourceK8sService(Source):
     bcs_cluster_id: str
@@ -215,3 +238,9 @@ class TreeInfo:
     is_complete: bool
     runtime: dict
     layers_have_data: List[bool]
+
+
+@dataclass
+class Relation:
+    parent_id: str
+    nodes: List[Node]

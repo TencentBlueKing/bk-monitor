@@ -60,7 +60,7 @@ export default (authMap: { [propsName: string]: string }, inCreated = true) => {
     }
     // 显示申请权限的详情
     @Provide('handleShowAuthorityDetail')
-    handleShowAuthorityDetail(actionId: string) {
+    handleShowAuthorityDetail(actionId?: string) {
       authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
     }
     created() {
