@@ -358,7 +358,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         >
           <i18n
             class='i18n-path'
-            path='连续{0}个周期内不满足条件表示恢复{1}'
+            path='连续{0}个周期内不满足触发条件{1}'
           >
             <span class='bold-span'>{recoveryConfig.checkWindow}</span>
             {!isRecoveryDisable(this.metricData) && isStatusSetterNoData(this.localData.recoveryConfig.statusSetter) ? (
@@ -473,7 +473,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             <div class='judging-recovery-config'>
               <i18n
                 class='i18n-path'
-                path='连续{0}个周期内不满足条件表示恢复{1}'
+                path='连续{0}个周期内不满足触发条件{1}'
               >
                 <bk-input
                   class='small-input'
