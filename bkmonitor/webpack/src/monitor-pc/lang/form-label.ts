@@ -1637,8 +1637,7 @@ export default {
   告警确认时: 'Acknowledged',
   日志关键字事件: 'Log Keyword Event',
   日志关键字采集: 'Log keyword collection',
-  '连续{0}个周期内不满足条件表示恢复{1}':
-    'If the condition is not met for {0} consecutive cycles, it means recovery{1}',
+  '连续{0}个周期内不满足触发条件{1}': 'If the trigger condition is not met for {0} consecutive cycles{1}',
   或无数据: ' or no data',
   '连续{0}个周期内不满足触发条件表示恢复':
     'If the trigger condition is not met for {0} consecutive cycles, it indicates recovery.',
