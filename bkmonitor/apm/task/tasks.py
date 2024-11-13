@@ -57,6 +57,7 @@ def handler(bk_biz_id, app_name):
 
 
 def topo_discover_cron():
+    # 半小时内新创建的应用，每 2 分钟执行一次拓扑发现
     now = timezone.now()
     half_hour_ago = now - datetime.timedelta(minutes=settings.APPLICATION_QUICK_REFRESH_DELTA)
     newly_created_applications = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
