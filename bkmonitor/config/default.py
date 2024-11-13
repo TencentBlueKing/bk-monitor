@@ -515,6 +515,12 @@ APM_APP_QPS = 500
 
 APM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
+# 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
+APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+
+# 新建应用的创建时间到当前时间的时长范围，单位：分钟
+APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"
