@@ -109,7 +109,10 @@
             ></bk-alert>
           </span>
         </div>
-        <div class="filed-select-box">
+        <div
+          class="filed-select-box"
+          v-if="downloadType !== 'quick'"
+        >
           <span class="middle-title">{{ $t('下载范围') }}</span>
           <bk-radio-group
             class="filed-radio-box"
@@ -140,7 +143,7 @@
             </bk-option>
           </bk-select>
         </div>
-        <div class="filed-select-box">
+        <!-- <div class="filed-select-box">
           <span class="middle-title">{{ $t('文件类型') }}</span>
           <bk-select
             style="margin-top: 10px"
@@ -156,7 +159,7 @@
             >
             </bk-option>
           </bk-select>
-        </div>
+        </div> -->
         <!-- v-if="isShowMaskingTemplate" -->
         <div
           v-if="false"
@@ -344,13 +347,19 @@
         this.isShowExportDialog = true;
       },
       handleClickSubmit() {
-        this.openDownloadUrl();
+        if (this.downloadType === 'quick') {
+          this.quickDownload();
+        } else if (this.downloadType === 'all') {
+          this.downloadAsync();
+        } else {
+          this.openDownloadUrl();
+        }
         this.isShowExportDialog = false;
       },
       quickDownload() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quickDownload/`;
+        const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
         const data = {
           ...params,
           size: this.totalCount,
@@ -362,18 +371,12 @@
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (res?.result ?? true) {
+            if (res.result) {
               this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
+                theme: 'success',
+                message: res.data.prompt,
               });
-              return;
             }
-            const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
-            const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
-              : `bk_log_search.${this.documentType}`;
-            blobDownload(res, downloadName);
           })
           .finally(() => {
             this.isShowExportDialog = false;
@@ -400,7 +403,7 @@
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (res?.result ?? true) {
+            if (typeof res !== 'string') {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
