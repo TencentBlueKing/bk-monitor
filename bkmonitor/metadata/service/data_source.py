@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import time
 from typing import Dict, List, Optional
 
 import kafka
+from django.conf import settings
 from kafka.admin import KafkaAdminClient, NewPartitions
 
 from metadata import config, models
@@ -155,11 +157,14 @@ def modify_data_id_source(data_id_list: List[int], source_type: str) -> bool:
     if diff_data_ids:
         logger.error("modify_data_id_source:data_ids: %s not found", json.dumps(diff_data_ids))
         raise ValueError(f"data_ids: {json.dumps(diff_data_ids)} not found")
+
     # 如果source_type为bkdata，则表示链路迁移，需要删除 consul 中配置
     if source_type == DataIdCreatedFromSystem.BKDATA.value:
         datasources.update(created_from=source_type)
         for datasource in datasources:
             datasource.delete_consul_config()
+            time.sleep(settings.DELETE_CONSUL_WAIT_SECONDS)
+            datasource.delete_consul_config()  # 重试一次
             logger.info("modify_data_id_source:delete data_id: %s consul config", datasource.bk_data_id)
     elif source_type == DataIdCreatedFromSystem.BKGSE.value:
         datasources.update(created_from=source_type)
