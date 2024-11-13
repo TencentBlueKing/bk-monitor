@@ -1,6 +1,6 @@
 .alarm-condition {
   margin: -10px 0px -8px -30px;
-  
+
   .flex-wrap {
     flex-wrap: wrap;
   }
@@ -119,6 +119,26 @@
 
       /* stylelint-disable-next-line declaration-no-important */
       cursor: not-allowed !important;
+    }
+  }
+
+  .judging-recovery-config {
+    .i18n-path {
+      .bk-form-checkbox {
+        margin-left: 8px;
+
+        &.is-checked {
+          .bk-checkbox-text {
+            color: #63656e;
+          }
+        }
+      }
+
+      .bk-checkbox-text {
+        font-size: 12px;
+        color: #979ba5;
+        user-select: none;
+      }
     }
   }
 

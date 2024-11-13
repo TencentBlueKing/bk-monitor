@@ -364,7 +364,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 interactive: this.showTitleIcon,
               }}
             >
-              {this.title}
+              {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
             </div>
             {this.inited && [
               (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||

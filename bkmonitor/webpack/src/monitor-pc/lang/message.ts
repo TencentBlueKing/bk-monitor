@@ -296,6 +296,7 @@ export default {
   '{0}当数据连续丢失{1}个周期触发无数据告警':
     'No-Data alarm triggered when {0} data is lost continuously for {1} cycles',
   只有监控指标及日志关键字可配置无数据: 'Only monitoring metrics and log keywords can be configured without data',
+  只有监控指标关键字可配置无数据: 'Only monitoring metrics keywords can be configured without data',
   '由于插件定义时未定义参数，此处无需填写。':
     'Because there is no parameter defined when the plugin is defined, there is no need to fill in here. ',
   '可能出现下发失败或无数据上报，是否继续下发':

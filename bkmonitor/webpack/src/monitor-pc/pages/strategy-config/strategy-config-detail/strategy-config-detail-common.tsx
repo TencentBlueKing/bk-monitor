@@ -45,11 +45,12 @@ import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils'
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
-import { handleSetTargetDesc } from '../common';
+import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
+import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
 import {
   type INoticeValue,
@@ -85,6 +86,7 @@ interface IAnalyzingConditions {
   };
   recoveryConfig: {
     checkWindow: number;
+    statusSetter: RecoveryConfigStatusSetter;
   };
   noDataConfig: {
     continuous: number;
@@ -236,6 +238,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     recoveryConfig: {
       // 恢复条件
       checkWindow: 5,
+      statusSetter: RecoveryConfigStatusSetter.RECOVERY,
     },
     noDataConfig: {
       continuous: 10,
@@ -773,6 +776,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     };
     this.analyzingConditions.recoveryConfig = {
       checkWindow: detect.recovery_config.check_window || 0,
+      statusSetter: detect.recovery_config.status_setter || RecoveryConfigStatusSetter.RECOVERY,
     };
     this.analyzingConditions.noDataConfig = {
       continuous: item.no_data_config.continuous || 0,
@@ -1207,9 +1211,13 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     this.$t('恢复条件'),
                     <i18n
                       class='i18n-path'
-                      path='连续{0}个周期内不满足条件表示恢复'
+                      path='连续{0}个周期内不满足条件表示恢复{1}'
                     >
                       <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                      {!isRecoveryDisable(this.metricData) &&
+                      isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                        <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                      ) : null}
                     </i18n>
                   )}
                   {commonItem(
