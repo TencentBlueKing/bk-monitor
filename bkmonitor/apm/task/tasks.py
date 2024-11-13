@@ -17,6 +17,7 @@ import time
 
 from django.conf import settings
 from django.db.models import Q
+from django.utils import timezone
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
@@ -55,7 +56,7 @@ def handler(bk_biz_id, app_name):
 def topo_discover_cron():
     # 10分钟刷新一次
     interval = 10
-    current_time = datetime.datetime.now()
+    current_time = timezone.now()
     interval_quick = settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL
     slug_quick = current_time.minute % interval_quick
     slug = current_time.minute % interval
@@ -70,7 +71,7 @@ def topo_discover_cron():
         try:
             with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
                 # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
-                if (current_time - create_time.replace(tzinfo=None)) < datetime.timedelta(
+                if (current_time - create_time) < datetime.timedelta(
                     minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
                 ):
                     if app_id % interval_quick == slug_quick:
