@@ -169,7 +169,12 @@ def update_time_series_metrics(time_series_metrics):
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
 def manage_es_storage(es_storages, cluster_id: int = None):
-    """并发管理 ES 存储。"""
+    """
+    ES索引轮转异步任务
+    @param es_storages: 待轮转采集项
+    @param cluster_id: 集群ID
+    @return:
+    """
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="manage_es_storage", status=TASK_STARTED, process_target=None
@@ -177,26 +182,30 @@ def manage_es_storage(es_storages, cluster_id: int = None):
 
     logger.info("manage_es_storage: start to manage_es_storage")
     start_time = time.time()
-    # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
-    if cluster_id in getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", []):
-        for es_storage in es_storages:
-            logger.info(
-                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],start to rotate index",
-                cluster_id,
-                es_storage.table_id,
-            )
+
+    # 不再使用白名单，默认全量使用新方式轮转
+    for es_storage in es_storages:
+        logger.info(
+            "manage_es_storage:cluster_id->[%s],table_id->[%s],start to rotate index",
+            cluster_id,
+            es_storage.table_id,
+        )
+        try:
             _manage_es_storage(es_storage)
             time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
             logger.info(
-                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],rotate index finished",
+                "manage_es_storage:cluster_id->[%s],table_id->[%s],rotate index finished",
                 cluster_id,
                 es_storage.table_id,
             )
-    # 否则，创建线程池，并发实施索引管理
-    else:
-        logger.info("manage_es_storage:cluster_id->[%s] not in v2_white_list,start to rotate index", cluster_id)
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(_manage_es_storage, es_storages)
+        except Exception as e:
+            logger.error(
+                "manage_es_storage:cluster_id->[%s],table_id->[%s],rotate index failed, error->[%s]",
+                cluster_id,
+                es_storage.table_id,
+                e,
+            )
+            continue
 
     cost_time = time.time() - start_time
 
