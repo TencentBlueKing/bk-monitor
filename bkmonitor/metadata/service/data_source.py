@@ -10,11 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-import time
 from typing import Dict, List, Optional
 
 import kafka
-from django.conf import settings
 from kafka.admin import KafkaAdminClient, NewPartitions
 
 from metadata import config, models
@@ -163,8 +161,6 @@ def modify_data_id_source(data_id_list: List[int], source_type: str) -> bool:
         datasources.update(created_from=source_type)
         for datasource in datasources:
             datasource.delete_consul_config()
-            time.sleep(settings.DELETE_CONSUL_WAIT_SECONDS)
-            datasource.delete_consul_config()  # 重试一次
             logger.info("modify_data_id_source:delete data_id: %s consul config", datasource.bk_data_id)
     elif source_type == DataIdCreatedFromSystem.BKGSE.value:
         datasources.update(created_from=source_type)

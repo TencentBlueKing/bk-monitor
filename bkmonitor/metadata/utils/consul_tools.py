@@ -82,13 +82,15 @@ class HashConsul(object):
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
         return consul_client.kv.get(key, recurse=True)
 
-    def put(self, key, value, is_force_update=False, bk_data_id: Optional[int] = None, *args, **kwargs):
+    def put(self, key, value, modify_index, is_force_update=False, bk_data_id: Optional[int] = None, *args, **kwargs):
         """
         KV数据更新, 如果更新成功或者内容无更新，则返回True
         如果更新失败，则返回False
         :param key: 键值
         :param value: 内容，期待传入的是字典或者数组
+        :param modify_index: 期望的修改索引
         :param is_force_update: 是否需要强行更新
+        :param bk_data_id: 数据源ID
         :return: True | False
         """
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
@@ -102,7 +104,8 @@ class HashConsul(object):
         old_value = consul_client.kv.get(key)[1]
         if old_value is None:
             logger.info("old_value is missing, will refresh consul.")
-            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+            # 只有老值不存在时，才需要modify_index机制作为CAS锁
+            return consul_client.kv.put(key=key, value=json.dumps(value), cas=modify_index, *args, **kwargs)
 
         # 2. 判断本地的更暖心内容及其哈希值
         old_hash = hash_util.object_md5(json.loads(old_value["Value"]))
