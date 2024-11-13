@@ -289,7 +289,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         </div>,
       ];
     };
-
+    if (this.isChartMode) {
+      return [<SqlPanel ref='sqlPanelRef'></SqlPanel>];
+    }
     return [
       <div class='dimensions-index-row'>
         <div class='label'>{this.$t('指标')}</div>
@@ -324,6 +326,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     this.axiosOptionHeight = target;
+    if (this.isChartMode && this.$refs.sqlPanelRef) {
+      this.$refs.sqlPanelRef.resize();
+    }
   }
   handleVerticalMoveEnd({ offsetX }) {
     let target = this.rightOptionWidth - offsetX;
@@ -414,48 +419,48 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         </div>
 
         <div class='graph-analysis-body'>
-          {this.isChartMode ? (
+          {/* {this.isChartMode ? (
             <SqlPanel></SqlPanel>
-          ) : (
-            <div class='body-left'>
-              <div
-                style={this.axiosStyle}
-                class='graph-axios-options'
-              >
-                <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
-                <div class='graph-axios-drag'>
-                  <GraphDragTool
-                    class='horizional-drag-tool'
-                    direction='horizional'
-                    onMove-end={this.handleHorizionMoveEnd}
-                  ></GraphDragTool>
-                </div>
-              </div>
-              <div
-                style={this.canvasStyle}
-                class='graph-canvas-options'
-              >
-                <div class='canvas-head'>
-                  {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
-                  <span class='icons'>
-                    <span
-                      class={{ active: this.activeCanvasType === 'bar' }}
-                      onClick={() => this.handleCanvasTypeChange('bar')}
-                    >
-                      <i class='bklog-icon bklog-bar'></i>
-                    </span>
-                    <span
-                      class={{ active: this.activeCanvasType === 'table' }}
-                      onClick={() => this.handleCanvasTypeChange('table')}
-                    >
-                      <i class='bklog-icon bklog-table'></i>
-                    </span>
-                  </span>
-                </div>
-                {this.renderCanvasChartAndTable()}
+          ) : ( */}
+          <div class='body-left'>
+            <div
+              style={this.axiosStyle}
+              class='graph-axios-options'
+            >
+              <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
+              <div class='graph-axios-drag'>
+                <GraphDragTool
+                  class='horizional-drag-tool'
+                  direction='horizional'
+                  onMove-end={this.handleHorizionMoveEnd}
+                ></GraphDragTool>
               </div>
             </div>
-          )}
+            <div
+              style={this.canvasStyle}
+              class='graph-canvas-options'
+            >
+              <div class='canvas-head'>
+                {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
+                <span class='icons'>
+                  <span
+                    class={{ active: this.activeCanvasType === 'bar' }}
+                    onClick={() => this.handleCanvasTypeChange('bar')}
+                  >
+                    <i class='bklog-icon bklog-bar'></i>
+                  </span>
+                  <span
+                    class={{ active: this.activeCanvasType === 'table' }}
+                    onClick={() => this.handleCanvasTypeChange('table')}
+                  >
+                    <i class='bklog-icon bklog-table'></i>
+                  </span>
+                </span>
+              </div>
+              {this.renderCanvasChartAndTable()}
+            </div>
+          </div>
+          {/* )} */}
           <div
             style={this.rightOptionStyle}
             class='body-right'
