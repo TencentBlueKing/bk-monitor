@@ -55,10 +55,10 @@ import { downFile } from '../../../utils';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
 import * as strategyAuth from '../authority-map';
+import { isRecoveryDisable, isStatusSetterNoData } from '../common';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { DetectionRuleTypeEnum, MetricDetail, MetricType } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
@@ -2327,8 +2327,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             content: () =>
               this.$t('连续{0}个周期内不满足条件表示恢复{1}', [
                 props.row.recovery,
-                props.row.dataType === MetricType.TimeSeries &&
-                props.row.recoveryStatusSetter === RecoveryConfigStatusSetter.RECOVERY_NODATA
+                !isRecoveryDisable(props.row.queryConfigs) && isStatusSetterNoData(props.row.recoveryStatusSetter)
                   ? this.$t('或无数据')
                   : '',
               ]),

@@ -34,15 +34,16 @@ import TimePickerMultiple, {
   type IProps as ITimeRangeMultipleProps,
 } from '../../../../components/time-picker-multiple/time-picker-multiple';
 import { HANDLE_SHOW_SETTING } from '../../../nav-tools';
+import { isRecoveryDisable, isStatusSetterNoData } from '../../common';
 import StrategyTemplatePreview from '../../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 // import CommonItem from '../components/common-form-item.vue'
 import CommonItem from '../components/common-form-item';
 import VerifyItem from '../components/verify-item';
 import { levelList } from '../type';
-import { MetricType, type EditModeType, type ICommonItem, type MetricDetail } from '../typings/index';
 
 import type { IOptionsItem } from '../../../calendar/types';
+import type { EditModeType, ICommonItem, MetricDetail } from '../typings/index';
 
 import './judging-condition.scss';
 
@@ -181,21 +182,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     return !(this.metricData.length && ['time_series', 'log'].includes(this.metricData[0]?.data_type_label));
   }
 
-  get isRecoveryDisable() {
-    return !(
-      this.metricData.length && [MetricType.TimeSeries].includes(this.metricData[0]?.data_type_label as MetricType)
-    );
-  }
-
   get dimensionsOfSeries() {
     return this.$store.state['strategy-config'].dimensionsOfSeries.map(id => ({
       id,
       name: id,
     }));
-  }
-
-  get recoveryConfigStatusSetter() {
-    return this.localData.recoveryConfig.statusSetter === RecoveryConfigStatusSetter.RECOVERY_NODATA;
   }
 
   @Watch('optionalDimensions')
@@ -370,7 +361,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             path='连续{0}个周期内不满足条件表示恢复{1}'
           >
             <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-            {!this.isRecoveryDisable && this.recoveryConfigStatusSetter ? (
+            {!isRecoveryDisable(this.metricData) && isStatusSetterNoData(this.localData.recoveryConfig.statusSetter) ? (
               <span class='bold-span'>{this.$t('或无数据')}</span>
             ) : null}
           </i18n>
@@ -496,10 +487,10 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   v-bk-tooltips={{
                     content: this.$t('只有监控指标关键字可配置无数据'),
                     placements: ['top'],
-                    disabled: !this.isRecoveryDisable,
+                    disabled: !isRecoveryDisable(this.metricData),
                   }}
-                  disabled={this.isRecoveryDisable}
-                  value={this.recoveryConfigStatusSetter}
+                  disabled={isRecoveryDisable(this.metricData)}
+                  value={isStatusSetterNoData(this.localData.recoveryConfig.statusSetter)}
                   onChange={this.handleRecoveryConfigChange}
                 >
                   {this.$t('或无数据')}

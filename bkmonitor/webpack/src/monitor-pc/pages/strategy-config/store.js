@@ -182,7 +182,6 @@ export default class TableStore {
         queryConfigs,
         itemDescription: this.getItemDescription(item.items[0].query_configs),
         intervalNotifyMode,
-        dataType: queryConfig.data_type_label,
         dataTypeLabelName,
         dataMode,
         notifyInterval,

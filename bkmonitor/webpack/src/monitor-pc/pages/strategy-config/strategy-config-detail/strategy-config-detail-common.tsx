@@ -45,7 +45,7 @@ import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils'
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
-import { handleSetTargetDesc } from '../common';
+import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
@@ -424,19 +424,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       return false;
     }
     return this.metricData[0]?.canSetDetEctionRules || this.editMode === 'Source';
-  }
-
-  /**
-   * @description 是否非时序数据（指标数据）
-   */
-  get isRecoveryDisable() {
-    return !(
-      this.metricData.length && [MetricType.TimeSeries].includes(this.metricData[0]?.data_type_label as MetricType)
-    );
-  }
-
-  get recoveryConfigStatusSetter() {
-    return this.analyzingConditions?.recoveryConfig?.statusSetter === RecoveryConfigStatusSetter.RECOVERY_NODATA;
   }
 
   created() {
@@ -1227,7 +1214,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       path='连续{0}个周期内不满足条件表示恢复{1}'
                     >
                       <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                      {!this.isRecoveryDisable && this.recoveryConfigStatusSetter ? (
+                      {!isRecoveryDisable(this.metricData) &&
+                      isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
                         <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
                       ) : null}
                     </i18n>
