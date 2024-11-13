@@ -1478,6 +1478,16 @@ class FavoriteListOrderType(ChoicesEnum):
     )
 
 
+class FavoriteType(ChoicesEnum):
+    """
+    收藏类型
+    """
+    SEARCH = "search"
+    CHART = "chart"
+
+    _choices_labels = ((SEARCH, _("检索")), (CHART, _("图表")))
+
+
 # 用户指引步骤
 USER_GUIDE_STEP_LIST = [
     {"title": _("业务选择框"), "target": "#bizSelectorGuide", "content": _("业务选择框的位置全部换到左侧导航")},
