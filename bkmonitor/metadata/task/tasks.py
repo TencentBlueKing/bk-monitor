@@ -627,6 +627,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
         task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
     ).observe(cost_time)
+    metrics.report_all()
 
     logger.info(
         "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
