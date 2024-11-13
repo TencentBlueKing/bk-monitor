@@ -289,7 +289,7 @@ class AsyncExportUtils(object):
             self.write_file(f, generate_result)
 
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
-            tar.add(self.file_path, arcname=os.path.basename(self.file_path))
+            tar.add(self.file_path, arcname=self.file_name)
 
     def export_upload(self):
         """
