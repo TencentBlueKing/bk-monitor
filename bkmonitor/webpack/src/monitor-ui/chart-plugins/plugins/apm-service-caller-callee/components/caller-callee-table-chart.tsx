@@ -315,24 +315,24 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
             tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
-            tableData.push(resetColItem(item, item));
+            tableData.push(resetColItem(item, res?.data[0]));
           }
         }
         if (!isTotal) {
           this.tableListData = tableData;
-          if (metric_cal_type !== 'request_total') {
-            this.$set(this.diffTableList, metric_cal_type, tableData);
-          } else {
-            this.tableTabData = tableData;
-          }
+          // if (metric_cal_type !== 'request_total') {
+          //   this.$set(this.diffTableList, metric_cal_type, tableData);
+          // } else {
+          //   this.tableTabData = tableData;
+          // }
           this.tableTotal = res?.total || 0;
           return;
         }
-        if (metric_cal_type !== 'request_total') {
-          this.$set(this.totalList, metric_cal_type, tableData);
-        } else {
-          this.totalListData = tableData;
-        }
+        // if (metric_cal_type !== 'request_total') {
+        //   this.$set(this.totalList, metric_cal_type, tableData);
+        // } else {
+        // }
+        this.totalListData = tableData;
       })
       .catch(() => {
         this.tableLoading = false;
@@ -411,7 +411,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
-    // this.tableTabList = list;
+    this.tableTabList = list;
+    this.tableLoading = true;
     this.handleClearData();
     list.map(item => {
       this.getTableDataList(false, item);
