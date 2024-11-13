@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-const wepack = require('webpack');
+const webpack = require('webpack');
 const WebpackBar = require('webpackbar');
 const path = require('path');
 const fs = require('fs');
@@ -32,6 +32,7 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+const { createMonitorConfig } = require('./scripts/create-monitor');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 8001;
@@ -91,7 +92,8 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
+module.exports = (baseConfig, { app, mobile, production, fta, email = false }) => {
+  const isMonitorRetrieveBuild = app === 'apm' && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
@@ -107,7 +109,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       ],
     });
     config.plugins.push(
-      new wepack.DefinePlugin({
+      new webpack.DefinePlugin({
         process: {
           env: {
             proxyUrl: JSON.stringify(devConfig.devProxyUrl),
@@ -115,11 +117,12 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
             devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
+            APP: JSON.stringify(`${app}`),
           },
         },
       }),
     );
-  } else if (!email) {
+  } else if (!email && !isMonitorRetrieveBuild) {
     config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
     config.plugins.push(
       new CopyWebpackPlugin({
@@ -131,8 +134,21 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
         ],
       }),
     );
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        process: {
+          env: {
+            NODE_ENV: JSON.stringify('production'),
+            APP: JSON.stringify(`${app}`),
+          },
+        },
+      }),
+    );
   }
-
+  // 监控检索构建
+  if (isMonitorRetrieveBuild) {
+    return createMonitorConfig(config);
+  }
   config.plugins.forEach((item, index) => {
     if (item instanceof CliMonacoWebpackPlugin) {
       item.options.languages.push('yaml');
@@ -150,7 +166,6 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       config.plugins[index] = new MonacoWebpackPlugin(item.options);
     }
   });
-
   return {
     ...config,
     output: {
@@ -169,7 +184,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       },
     },
     plugins: baseConfig.plugins.map(plugin => {
-      return plugin instanceof wepack.ProgressPlugin
+      return plugin instanceof webpack.ProgressPlugin
         ? new WebpackBar({
             profile: true,
             name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,

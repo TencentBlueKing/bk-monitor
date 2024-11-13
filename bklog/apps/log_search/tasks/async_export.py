@@ -131,8 +131,7 @@ def async_export(
                 language=language,
             )
         except Exception as e:  # pylint: disable=broad-except
-            async_task = set_failed_status(async_task=async_task, reason=f"send msg error: {e}")
-            raise
+            logger.error(f"async_task_id:{async_task_id}, send msg error: {e}")
 
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(e)

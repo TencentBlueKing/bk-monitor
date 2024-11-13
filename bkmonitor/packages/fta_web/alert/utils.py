@@ -10,11 +10,64 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import re
-from datetime import datetime
 
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
+# 生成从 start 到 end 的每日时间段 
+def generate_date_ranges(start, end):
+    current = datetime.fromtimestamp(start)
+    while current < datetime.fromtimestamp(end):
+        # 设置每天的结束时间为23:59:59
+        end_of_day = datetime(current.year, current.month, current.day, 23, 59, 59)
+        yield current, min(end_of_day, datetime.fromtimestamp(end))
+        current += timedelta(days=1)
+        
+# 计算当日的开始时间和结束时间
+def get_day_range_unix(date_str=None):
+    # 解析日期字符串
+    if not date_str:
+        totay = datetime.now()
+    else:
+        totay = datetime.strptime(date_str, "%Y-%m-%d")
+    
+    # 获取当天 00:00 的时间
+    start_of_day = datetime(totay.year, totay.month, totay.day)
+    
+    # 获取当天 23:59 的时间
+    end_of_day = start_of_day + timedelta(hours=23, minutes=59, seconds=59)
+    
+    # 转换为 Unix 时间戳
+    start_of_day_unix = int(start_of_day.timestamp())
+    end_of_day_unix = int(end_of_day.timestamp())
+    
+    return start_of_day_unix, end_of_day_unix
 
+# 生成前一周的时间
+def get_previous_week_range_unix(today=None):
+    # 如果未提供特定日期，则使用当前日期
+    if today is None:
+        today = datetime.now()
+
+    # 计算本周的第一天（假设一周的开始是星期一）
+    start_of_this_week = today - timedelta(days=today.weekday())
+
+    # 计算上周的第一天和最后一天
+    start_of_previous_week = start_of_this_week - timedelta(days=7)
+    end_of_previous_week = start_of_this_week - timedelta(seconds=1)
+
+    # 调整上周的第一天为00:00:00
+    start_of_previous_week = start_of_previous_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # 调整上周的最后一天为23:59:59
+    end_of_previous_week = end_of_previous_week.replace(hour=23, minute=59, second=59, microsecond=0)
+
+    # 转换为 Unix 时间戳
+    start_unix_timestamp = int(start_of_previous_week.timestamp())
+    end_unix_timestamp = int(end_of_previous_week.timestamp())
+
+    return start_unix_timestamp, end_unix_timestamp
+       
 def get_previous_month_range_unix(today=None):
     # 获取当前日期
     if today is None:
@@ -24,11 +77,9 @@ def get_previous_month_range_unix(today=None):
     last_day_of_previous_month = today.replace(day=1) - relativedelta(days=1)
 
     # 获取上个月的第一天（即上个月最后一天的月份的第一天）
-    first_day_of_previous_month = last_day_of_previous_month.replace(day=1)
 
-    # # 格式化日期为 YYYYMMDD
-    # first_day_str = first_day_of_previous_month.strftime('%Y%m%d')
-    # last_day_str = last_day_of_previous_month.strftime('%Y%m%d')
+    first_day_of_previous_month = last_day_of_previous_month.replace(day=1, hour=0, minute=0, second=0)
+    
 
     # 转换为 Unix 时间戳
     start_unix_timestamp = int(first_day_of_previous_month.timestamp())

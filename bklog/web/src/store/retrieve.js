@@ -44,7 +44,7 @@ export default {
       fieldsWidth: {},
       displayFields: [],
     },
-    activeVersion: 'v2'
+    activeVersion: 'v2',
   },
   mutations: {
     updateActiveVersion(state, version) {

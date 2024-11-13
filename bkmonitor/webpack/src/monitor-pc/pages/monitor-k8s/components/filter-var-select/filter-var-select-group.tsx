@@ -31,9 +31,11 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 import { handleGetReferenceKeyList } from '../../utils';
+import WhereFilters from '../where-filters/where-filters';
 import FilterVarSelect, { type CustomParamsType, type FilterDictType } from './filter-var-select';
 
-import type { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { IConditionItem } from '@/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
+import type { IVariableModel, IViewOptions, VariableModel } from 'monitor-ui/chart-plugins/typings';
 
 import './filter-var-select-group.scss';
 
@@ -51,7 +53,7 @@ export interface IProps {
 export interface IEvents {
   onChange: FilterDictType[];
   onDataReady: FilterDictType[];
-  onAddFilter: void;
+  onAddFilter: () => void;
 }
 
 export interface IApiPromiseStatus {
@@ -104,13 +106,11 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   /** 带有$开头的变量可选值映射表 */
   get varOptionalMap(): Map<string, string | string[]> {
     const varMap = new Map();
-    this.localPanelList?.forEach(item => {
-      const entries = Object.entries(item.value);
-      entries.forEach(varItem => {
-        const [key, value] = varItem;
+    for (const item of this.localPanelList || []) {
+      for (const [key, value] of Object.entries(item.value)) {
         varMap.set(key, value);
-      });
-    });
+      }
+    }
     return varMap;
   }
 
@@ -122,6 +122,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
         if (Array.isArray(value) ? !!value.length : value !== undefined) vars[key] = value;
         return vars;
       }, {});
+      // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
       return { ...total, ...varItems };
     }, {});
     return filterDict;
@@ -161,7 +162,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   async handleCreatePromiseMap(refresh = false, fieldsSort: Array<[string, string]> = []) {
     this.varPromiseStatusMap = {};
     /** 每个变量数据状态记录 */
-    this.localPanelList.forEach(item => {
+    for (const item of this.localPanelList) {
       let needRefresh = true;
       if (refresh && fieldsSort) {
         /** 更新接口只会请求存在依赖的的变量 */
@@ -171,7 +172,9 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
           const reg = new RegExp(`(\\$){?${varKey}}?`);
           return reg.test(JSON.stringify(item.targets));
         });
-        !isExitRef && (needRefresh = false);
+        if (!isExitRef) {
+          needRefresh = false;
+        }
       }
       if (item.checked && needRefresh) {
         const { fieldsKey, fieldsSort } = item;
@@ -179,7 +182,7 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
         const apiStatus = {
           isReady: false,
         };
-        fieldsSort.forEach(fielsItem => {
+        for (const fielsItem of fieldsSort) {
           /** 提取变量引用关系 */
           const reference = handleGetReferenceKeyList(JSON.stringify(item.targets));
           // @typescript-eslint/naming-convention
@@ -191,9 +194,9 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
             apiStatus, // 是否再等待接口返回
             component: this.$refs[fieldsKey] as FilterVarSelect, // 对应的变量组件
           };
-        });
+        }
       }
-    });
+    }
     await this.$nextTick();
     const isReady = await this.handleCheckPromiseStatus();
     if (isReady && !refresh) {
@@ -220,8 +223,10 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
             if (!item.apiStatus.isReady && refVarIsReady) {
               item.value = item.component ? await item.component?.handleGetOptionsList().catch(() => ({})) : {};
               item.apiStatus.isReady = !!item.value;
-              const currentPanel = this.localPanelList.find(item => item.fieldsKey === item.fieldsKey);
-              !!currentPanel && (currentPanel.value = { ...item.value });
+              const currentPanel = this.localPanelList.find(set => set.fieldsKey === item.fieldKey);
+              if (currentPanel) {
+                currentPanel.value = { ...item.value };
+              }
             }
             if (!item.apiStatus.isReady) ready = false;
           }
@@ -286,20 +291,22 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
   /** 获取所有子组件的值 */
   getAllChildrenFilterDict(): FilterDictType[] {
     const filterDictList: FilterDictType[] = [];
-    this.children.forEach(child => {
+    for (const child of this.children) {
       child.localCheckedFilterDict && filterDictList.push(child.localCheckedFilterDict);
-    });
+    }
     return filterDictList;
   }
 
   /** 选中变量 */
   handleAddVar(ids) {
     this.selectedVar = ids;
-    this.localPanelList.forEach(item => (item.checked = false));
-    this.selectedVar.forEach(title => {
+    for (const item of this.localPanelList) {
+      item.checked = false;
+    }
+    for (const title of this.selectedVar) {
       const varOption = this.localPanelList.find(opt => opt.title === title);
       varOption.checked = true;
-    });
+    }
     const filterDictList = this.localPanelList.filter(item => item.checked).map(item => item.value);
     this.handleVarChange(filterDictList);
   }
@@ -318,59 +325,77 @@ export default class FilterVarSelectGroup extends tsc<IProps, IEvents> {
    */
   @Emit('addFilter')
   handleAddFilter() {}
-
+  @Emit('change')
+  handelWhereFiltersChange(conditions: IConditionItem[]) {
+    return [
+      {
+        custom_metric_filters: conditions,
+      },
+    ];
+  }
   render() {
     return (
       <span class='filter-var-select-group'>
         <span class='filter-var-select-group-label'>Filters :</span>
-        <div class='filter-var-select-main'>
-          {this.localPanelList.map(item =>
-            item.checked ? (
-              <FilterVarSelect
-                key={item.title}
-                ref={item.fieldsKey}
-                autoGetOption={this.editable}
-                clearable={item.options?.variables?.clearable ?? true}
-                currentGroupValue={this.curentLocalValue}
-                customParams={this.filterCustomsParams}
-                editable={this.editable}
-                label={item.title}
-                multiple={item.options?.variables?.multiple ?? true}
-                panel={item}
-                required={item.options?.variables?.required}
-                variables={this.variables}
-                viewOptions={this.viewOptions}
-                whereRefMap={this.varOptionalMap}
-                onChange={val => this.handleVarSelectChange(item, val)}
-                onDefaultValue={val => this.handleSetDefaultValue(item, val)}
-                onValueChange={val => this.handleVarSelectChange(item, val)}
-              />
-            ) : undefined
-          )}
-          {!this.readonly && this.needAddBtn && (
-            <span
-              class='filter-add-btn'
-              onClick={this.handleAddFilter}
-            >
-              <i class='icon-monitor icon-mc-add' />
-            </span>
-          )}
-          {this.editable && (
-            <CustomSelect
-              class='filter-var-add'
-              value={this.selectedVar}
-              multiple
-              onSelected={this.handleAddVar}
-            >
-              {this.panelList.map(opt => (
-                <bk-option
-                  id={opt.title}
-                  name={opt.title}
+        {this.localPanelList?.some(item => item.type === 'dimension_list') ? (
+          <div class='where-filters-wrapper'>
+            <WhereFilters
+              panel={this.localPanelList.find(item => item.type === 'dimension_list') as VariableModel}
+              variableName='custom_metric_filters'
+              onChange={this.handelWhereFiltersChange}
+            />
+          </div>
+        ) : (
+          <div class='filter-var-select-main'>
+            {this.localPanelList.map(item =>
+              item.checked ? (
+                <FilterVarSelect
+                  key={item.title}
+                  ref={item.fieldsKey}
+                  autoGetOption={this.editable}
+                  clearable={item.options?.variables?.clearable ?? true}
+                  currentGroupValue={this.curentLocalValue}
+                  customParams={this.filterCustomsParams}
+                  editable={this.editable}
+                  label={item.title}
+                  multiple={item.options?.variables?.multiple ?? true}
+                  panel={item}
+                  required={item.options?.variables?.required}
+                  variables={this.variables}
+                  viewOptions={this.viewOptions}
+                  whereRefMap={this.varOptionalMap}
+                  onChange={val => this.handleVarSelectChange(item, val)}
+                  onDefaultValue={val => this.handleSetDefaultValue(item, val)}
+                  onValueChange={val => this.handleVarSelectChange(item, val)}
                 />
-              ))}
-            </CustomSelect>
-          )}
-        </div>
+              ) : undefined
+            )}
+            {!this.readonly && this.needAddBtn && (
+              <span
+                class='filter-add-btn'
+                onClick={this.handleAddFilter}
+              >
+                <i class='icon-monitor icon-mc-add' />
+              </span>
+            )}
+            {this.editable && (
+              <CustomSelect
+                class='filter-var-add'
+                value={this.selectedVar}
+                multiple
+                onSelected={this.handleAddVar}
+              >
+                {this.panelList.map(opt => (
+                  <bk-option
+                    id={opt.title}
+                    key={opt.title}
+                    name={opt.title}
+                  />
+                ))}
+              </CustomSelect>
+            )}
+          </div>
+        )}
       </span>
     );
   }

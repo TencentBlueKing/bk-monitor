@@ -15,6 +15,8 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
+  const indexSetList = computed(() => store.state.indexItem.ids ?? []);
+
   const isAiopsToggle = computed(() => {
     return (
       (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
@@ -24,19 +26,23 @@
 
   // 可切换Tab数组
   const panelList = computed(() => {
-    return  [
+    return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
+      { name: 'clustering', label: $t('日志聚类'), disabled: indexSetList.value.length > 1 && !isAiopsToggle.value },
     ];
   });
 
   const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
 
-  watch(() => isAiopsToggle.value, () => {
-    if (!isAiopsToggle.value && props.value === 'clustering') {
-      emit('input', 'origin');
-    }
-  }, { immediate: true })
+  watch(
+    () => isAiopsToggle.value,
+    () => {
+      if (!isAiopsToggle.value && props.value === 'clustering') {
+        emit('input', 'origin');
+      }
+    },
+    { immediate: true },
+  );
 
   // after边框
   const isAfter = item => {
