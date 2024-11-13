@@ -245,7 +245,6 @@ class GetMsgType(CMSIBaseResource):
         return response_data
 
 
-# 目前并没有太多的用到
 class SendMsg(CheckCMSIResource):
     """
     通用发送消息
