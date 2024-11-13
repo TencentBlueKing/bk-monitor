@@ -103,7 +103,6 @@ class HashConsul(object):
         old_value = consul_client.kv.get(key)[1]
         if old_value is None:
             logger.info("old_value is missing, will refresh consul.")
-            # 只有老值不存在时，才需要modify_index机制作为CAS锁
             return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
 
         # 2. 判断本地的更暖心内容及其哈希值
