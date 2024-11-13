@@ -2455,8 +2455,7 @@ class GetTargetDetailWithCache(CacheResource):
             target = ItemModel.objects.get(strategy_id=strategy_id).target
             logger.warning("Please call set_mapping() before calling perform_request().")
         else:
-            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
-            target = self.strategy_target_mapping[strategy_id][1]
+            bk_biz_id, target = self.strategy_target_mapping[strategy_id]
 
         return self.get_target_detail(bk_biz_id, target)
 
@@ -2597,6 +2596,7 @@ class GetTargetDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        refresh = serializers.BooleanField(required=False, default=False, label="是否刷新缓存")
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -2615,7 +2615,10 @@ class GetTargetDetail(Resource):
         for item in items:
             # 使用instance.request()方式调用，而非instance()方式。
             # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
-            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
+            if params["refresh"]:
+                info = get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            else:
+                info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info

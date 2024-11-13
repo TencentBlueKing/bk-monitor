@@ -133,6 +133,42 @@ def get_data_id_v2(
     return {"status": phase, "data_id": None}
 
 
+def get_data_link_component_config(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_config: try to get component config,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_config: kind is not valid,kind->[%s]", kind)
+        component_config = api.bkdata.get_data_link(kind=bkbase_kind, namespace=namespace, name=component_name)
+        return component_config
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_config: get component config failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return None
+
+
 def get_data_link_component_status(
     kind: str,
     component_name: str,

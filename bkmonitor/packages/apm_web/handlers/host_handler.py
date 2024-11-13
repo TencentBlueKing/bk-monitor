@@ -111,26 +111,28 @@ class HostHandler:
                             }
                         )
 
-        # step3: 从拓扑关联中取出主机
+        # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
         extra_ip_info = defaultdict(dict)
-        system_relations = RelationQ.query(
-            RelationQ.generate_q(
-                bk_biz_id=bk_biz_id,
-                source_info=SourceService(
-                    apm_application_name=app_name,
-                    apm_service_name=service_name,
-                ),
-                target_type=SourceSystem,
-                start_time=start_time,
-                end_time=end_time,
+        for path_item in ["system", "pod"]:
+            system_relations = RelationQ.query(
+                RelationQ.generate_q(
+                    bk_biz_id=bk_biz_id,
+                    source_info=SourceService(
+                        apm_application_name=app_name,
+                        apm_service_name=service_name,
+                    ),
+                    target_type=SourceSystem,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path_item],
+                )
             )
-        )
-        for r in system_relations:
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
-                if source_info.get("bk_target_ip"):
-                    query_ips.append(source_info["bk_target_ip"])
-                    extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
+            for r in system_relations:
+                for n in r.nodes:
+                    source_info = n.source_info.to_source_info()
+                    if source_info.get("bk_target_ip"):
+                        query_ips.append(source_info["bk_target_ip"])
+                        extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
 
         query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
 

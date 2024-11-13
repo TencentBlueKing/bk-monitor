@@ -23,6 +23,7 @@ from django.db import models
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
 from django.utils.translation import ugettext as _
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import config
@@ -1223,7 +1224,7 @@ class ResultTable(models.Model):
             # Note: 临时方案，ES相关配置变更后，需手动通知计算平台
             data_id = data_source_ins.bk_data_id
             try:
-                self.notify_log_data_id_changed(data_id)
+                self.notify_bkdata_log_data_id_changed(data_id=data_id)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "notify_log_data_id_changed error, table_id->{},data_id->{}".format(self.table_id, data_id)
@@ -1232,28 +1233,28 @@ class ResultTable(models.Model):
 
         logger.info("table_id->[%s] updated success." % self.table_id)
 
-    def notify_log_data_id_changed(self, data_id, max_retries=3, wait_second=1):
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def notify_bkdata_log_data_id_changed(self, data_id):
         """
         通知计算平台，ES相关配置变更
+        @param data_id: 数据源ID
         """
-        for attempt in range(1, max_retries + 1):
-            try:
-                api.bkdata.notify_log_data_id_changed(data_id)
-                logger.info(
-                    "notify_log_data_id_changed table_id->{},data_id ->{},notify es config changed success.".format(
-                        self.table_id, data_id
-                    )
+        try:
+            api.bkdata.notify_log_data_id_changed(data_id=data_id)
+            logger.info(
+                "notify_log_data_id_changed table_id->{},data_id ->{},notify es config changed success.".format(
+                    self.table_id, data_id
                 )
-                return  # 成功时返回
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    f"notify_log_data_id_changed Attempt {attempt}: Notification error for data_id->{data_id}, {e}"
-                )
-                if attempt < max_retries:
-                    time.sleep(wait_second)
-                else:
-                    logger.error(f"notify_log_data_id_changed All attempts failed data_id->{data_id}, stop retrying")
-                    raise
+            )
+            return True  # 成功时返回
+        except Exception as e:
+            logger.error(
+                "notify_log_data_id_changed table_id->[%s],data_id ->[%s],notify es config changed error->[%s]",
+                self.table_id,
+                data_id,
+                e,
+            )
+            raise e
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def upgrade_result_table(self, operator):

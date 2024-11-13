@@ -51,14 +51,23 @@ class RelationQ:
                     if source_instance.id in node_ids:
                         continue
                     node_ids.append(source_instance.id)
-                    target_nodes.append(Node(source_type=target_source_type, source_info=source_instance))
+                    target_nodes.append(Node(source_type=target_source_type.name, source_info=source_instance))
 
             res.append(Relation(parent_id=source_info_id, nodes=target_nodes))
 
         return res
 
     @classmethod
-    def generate_q(cls, bk_biz_id, source_info: Source, target_type: Type[Source], start_time, end_time, step=None):
+    def generate_q(
+        cls,
+        bk_biz_id,
+        source_info: Source,
+        target_type: Type[Source],
+        start_time,
+        end_time,
+        step=None,
+        path_resource=None,
+    ):
         """生成单个 relation 接口的查询条件"""
 
         return [
@@ -70,5 +79,6 @@ class RelationQ:
                 "source_info": source_info.to_source_info(),
                 "source_type": source_info.name,
                 "step": step or f"{end_time - start_time}s",
+                "path_resource": path_resource or [],
             }
         ]

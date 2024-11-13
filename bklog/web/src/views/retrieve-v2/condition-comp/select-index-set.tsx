@@ -777,9 +777,9 @@ export default class QueryStatement extends tsc<object> {
       })
       .then(res => {
         if (queryType === 'single') {
-          this.aloneHistory = res.data;
+          this.aloneHistory = (res.data ?? []).slice(10);
         } else {
-          this.multipleHistory = res.data;
+          this.multipleHistory = (res.data ?? []).slice(10);
         }
       })
       .finally(() => {

@@ -25,8 +25,19 @@
   const maxWidth = ref(0);
   const isIntersecting = ref(false);
   const isSegmentTagInit = ref(false);
+  const textTruncateOption = computed(() => ({
+    fontSize: 12,
+    text: props.content,
+    maxWidth: maxWidth.value,
+    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
+    showAll: isLimitExpandView.value || showAll.value,
+  }));
 
+  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const handleMenuClick = event => {
+    if (showMore.value && refFieldValue.value.querySelectorAll('.valid-text').length === 1) {
+      event.option.value = props.content;
+    }
     emit('menu-click', event);
   };
 
@@ -37,15 +48,7 @@
     onSegmentClick: handleMenuClick,
   });
 
-  const textTruncateOption = computed(() => ({
-    fontSize: 12,
-    text: props.content,
-    maxWidth: maxWidth.value,
-    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
-    showAll: isLimitExpandView.value || showAll.value,
-  }));
 
-  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const renderText = computed(() => {
     if (showAll.value || isLimitExpandView.value) {
       return props.content;
