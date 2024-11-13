@@ -32,6 +32,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
+import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
 import {
   BookMarkModel,
   type DashboardMode,
@@ -49,6 +50,7 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../compone
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
+
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
 import HostTree, {
@@ -141,7 +143,13 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
-const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime', 'callOptions'];
+const customRouterQueryKeys = [
+  'sliceStartTime',
+  'sliceEndTime',
+  'callOptions',
+  // log-retrieve图所需的路由参数
+  ...APM_LOG_ROUTER_QUERY_KEYS,
+];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -478,7 +486,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* 当前单图模式下dashboard-panel是否需要padding */
   /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee'];
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve'];
     return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
     // return (
     //   this.isSingleChart &&
@@ -1504,6 +1512,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.queryString = '';
     this.currentTitle = '';
     this.localSceneType = item.type as SceneType;
+    // 清除 log-retrieve 图所需的路由参数
+    for (const key of APM_LOG_ROUTER_QUERY_KEYS) {
+      this.customRouteQuery[key] = undefined;
+    }
     if (this.tab2SceneType && item.type === 'detail') {
       this.localSceneType = 'overview';
     }

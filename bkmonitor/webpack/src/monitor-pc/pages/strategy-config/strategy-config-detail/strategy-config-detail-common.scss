@@ -263,6 +263,10 @@ $levelColor: #ea3636 #ff9c01 #699df4;
 
               .bold-span {
                 margin: 0 2px;
+
+                &.bold-span-no-left-margin {
+                  margin-left: 0;
+                }
               }
             }
           }

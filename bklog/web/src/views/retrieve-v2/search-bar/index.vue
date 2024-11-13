@@ -4,7 +4,12 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
+  // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
+  // #else
+  // #code const BookmarkPop = () => null;
+  // #endif
+
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
   import { ConditionOperator } from '@/store/condition-operator';
@@ -127,7 +132,9 @@
   };
 
   const handleRefresh = isRefresh => {
+    // #if APP !== 'apm'
     emit('refresh', isRefresh);
+    // #endif
   };
 
   const handleHeightChange = height => {
@@ -192,7 +199,7 @@
     </div>
   </div>
 </template>
-<style scoped>
+<style scoped lang="scss">
   @import './index.scss';
 </style>
 <style>

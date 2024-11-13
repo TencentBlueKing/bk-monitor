@@ -2,10 +2,10 @@
     "id": "custom_metric",
     "type": "metric_list",
     "mode": "auto",
-    "name": "自定义指标维度列表",
+    "name": "自定义指标",
     "variables": [
         {
-            "title": "维度列表",
+            "title": "自定义指标维度列表",
             "type": "dimension_list",
             "targets": [
                 {
@@ -39,21 +39,66 @@
                     "title": "${metric_field}",
                     "subtitle": "${readable_name}",
                     "type": "apm_custom_graph",
-                    "agg_methods": [
-                        "AVG",
-                        "SUM",
-                        "MAX",
-                        "MIN"
-                    ],
                     "targets": [
                         {
                             "data_type": "list",
-                            "api": "grafana.graphUnifyQuery",
+                            "api": "apm_metric.dynamicUnifyQuery",
                             "datasource": "time_series",
-                            "alias": "自定义指标展示",
+                            "alias": "${metric_field}",
                             "data": {
                                 "app_name": "$app_name",
-                                "expression": "A",
+                                "unify_query_param": {
+                                    "expression": "A",
+                                    "query_configs": [
+                                        {
+                                            "data_source_label": "${data_source_label}",
+                                            "data_type_label": "${data_type_label}",
+                                            "table": "${table_id}",
+                                            "metrics": [
+                                                {
+                                                    "field": "${metric_field}",
+                                                    "method": "$method",
+                                                    "alias": "A"
+                                                }
+                                            ],
+                                            "interval": "$interval",
+                                            "group_by": [
+                                                "$group_by"
+                                            ],
+                                            "where": [
+                                                "$custom_metric_filters"
+                                            ],
+                                            "filter_dict": {
+                                                "${filter_key_name}": "${filter_key_value}"
+                                            },
+                                            "functions": [
+                                                {
+                                                    "id": "time_shift",
+                                                    "params": [
+                                                        {
+                                                            "id": "n",
+                                                            "value": "$time_shift"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "custom_metric_methods": {
+                                        "INC": {
+                                            "method": "SUM",
+                                            "function": {
+                                                "id": "increase",
+                                                "params": [
+                                                    {
+                                                        "id": "window",
+                                                        "value": "1m"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
                                 "query_configs": [
                                     {
                                         "data_source_label": "${data_source_label}",
@@ -93,10 +138,14 @@
                         }
                     ],
                     "options": {
-                        "apm_time_series": {
-                            "metric": "request_count",
-                            "unit": "number",
-                            "enableContextmenu": true
+                        "apm_custom_graph": {
+                            "agg_methods": [
+                                "AVG",
+                                "SUM",
+                                "MAX",
+                                "MIN",
+                                "INC"
+                            ]
                         },
                         "time_series": {
                             "hoverAllTooltips": false
@@ -115,7 +164,7 @@
             "interval_select": true
         },
         "enable_group": true,
-        "view_editable": true,
+        "view_editable": false,
         "selector_panel": null,
         "alert_filterable": true,
         "enable_index_list": true,

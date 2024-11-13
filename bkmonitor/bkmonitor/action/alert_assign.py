@@ -367,7 +367,8 @@ class AlertAssignMatchManager:
             bk_biz_id=self.bk_biz_id, ids=dynamic_group_ids, bk_obj_id="host"
         )
         for dynamic_group_host in dynamic_group_hosts.values():
-            host_ids.add(dynamic_group_host.bk_host_id)
+            for host in dynamic_group_host:
+                host_ids.add(host.bk_host_id)
 
         return list(host_ids)
 
