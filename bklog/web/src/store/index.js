@@ -1070,7 +1070,13 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = state.indexItem.addition.filter(item => !item.disabled && item.field !== '_ip-select_');
+      const addition = otherPrams.addition.map(a => {
+        if (['is true', 'is false'].includes(a.operator)) {
+          a.value = [''];
+        }
+
+        return a;
+      });
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1078,7 +1084,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        // addition,
+        addition,
       };
 
       // 更新联合查询的begin
@@ -1225,11 +1231,6 @@ const store = new Vuex.Store({
         set(state.indexFieldInfo, 'aggs_items', {});
       }
 
-      // 如果在当前时间段已经缓存过当前字段的推荐，此时跳过此次请求
-      if (payload.fields?.every(field => state.indexFieldInfo.aggs_items[field.field_name] !== undefined)) {
-        return Promise.resolve(true);
-      }
-
       const isDefaultQuery = !(payload?.fields?.length ?? false);
       const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
@@ -1336,11 +1337,35 @@ const store = new Vuex.Store({
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
+
+      const formatJsonString = formatResult => {
+        if (typeof formatResult === 'string') {
+          return formatResult.replace(/"/g, '\\"');
+        }
+
+        return formatResult;
+      };
+
       const getSqlAdditionMappingOperator = ({ operator, field }) => {
+        const textType = getFieldType(field);
+
+        const formatValue = value => {
+          let formatResult = value;
+          if (['text', 'string', 'keyword'].includes(textType)) {
+            if (Array.isArray(formatResult)) {
+              formatResult = formatResult.map(formatJsonString);
+            } else {
+              formatResult = formatJsonString(formatResult);
+            }
+          }
+
+          return formatResult;
+        };
+
         let mappingKey = {
           // is is not 值映射
-          is: val => `${field}: "${val}"`,
-          'is not': val => `NOT ${field}: "${val}"`,
+          is: val => `${field}: "${formatValue(val)}"`,
+          'is not': val => `NOT ${field}: "${formatValue(val)}"`,
         };
 
         return mappingKey[operator] ?? operator; // is is not 值映射
@@ -1395,7 +1420,12 @@ const store = new Vuex.Store({
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
           const keywords = keyword.length > 0 ? [keyword] : [];
           const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
-          const newSearchKeyword = keywords.concat(newSearchKeywords).join(' AND ');
+          if (newSearchKeywords.length) {
+            const lastIndex = newSearchKeywords.length - 1;
+            newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
+          }
+
+          const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');
         }

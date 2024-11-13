@@ -41,7 +41,6 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -56,10 +55,11 @@ import { downFile } from '../../../utils';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
 import * as strategyAuth from '../authority-map';
+import { isRecoveryDisable, isStatusSetterNoData } from '../common';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
+import { DetectionRuleTypeEnum, MetricDetail, MetricType } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
@@ -84,6 +84,7 @@ const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 })
 class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strategyAuth, false)) {
   @Prop({ type: String, default: '' }) fromRouteName: IStrategyConfigProps['fromRouteName'];
+  @Prop({ type: String, default: '' }) strategyType: string;
   @Prop({ type: String, default: '' }) noticeName: IStrategyConfigProps['noticeName'];
   @Prop({ type: String, default: '' }) serviceCategory: IStrategyConfigProps['serviceCategory'];
   @Prop({ type: [String, Number], default: '' }) taskId: IStrategyConfigProps['taskId'];
@@ -1936,7 +1937,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
   // 处理监控项tooltips
   handleDescTips(data) {
-    const tips = data.map(item => `<div>${xssFilter(item.tip)}</div>`).join('');
+    const tips = data.map(item => `<div>${item.tip}</div>`).join('');
     const res = `<div class="item-description">${tips}</div>`;
     return res;
   }
@@ -2323,7 +2324,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           v-bk-tooltips={{
             placements: ['top-start'],
             boundary: 'boundary',
-            content: () => this.$t('连续{0}个周期内不满足条件表示恢复', [props.row.recovery]),
+            content: () =>
+              this.$t('连续{0}个周期内不满足触发条件{1}', [
+                props.row.recovery,
+                !isRecoveryDisable(props.row.queryConfigs) && isStatusSetterNoData(props.row.recoveryStatusSetter)
+                  ? this.$t('或无数据')
+                  : '',
+              ]),
             disabled: props.row.recovery === '--' /* 兼容关联告警 */,
             delay: 200,
             allowHTML: false,

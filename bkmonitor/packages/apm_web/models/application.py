@@ -353,7 +353,7 @@ class Application(AbstractRecordModel):
                         data_status = DataStatus.NORMAL
                     else:
                         data_status = DataStatus.NO_DATA
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     logger.warning(
                         f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
                     )
