@@ -231,6 +231,17 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }));
     this.getPageList();
   }
+  transformDimensionToKey(dimensions: Record<string, any>) {
+    const keys = Object.keys(dimensions || []).sort();
+    if (keys.length === 0) {
+      return '';
+    }
+    let str = '';
+    for (const key of keys) {
+      str = `${key}:${dimensions[key]}|`;
+    }
+    return str;
+  }
   /** 获取表格数据 */
   getTableDataList(isTotal = false, metric_cal_type = 'request_total') {
     const variablesService = new VariablesService({
@@ -268,13 +279,19 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
-        const newData = (res?.data || []).map(item => {
-          const { dimensions, proportions, growth_rates } = item;
-          const col = {};
+        let list = (isTotal ? this.totalListData?.slice() : this.tableListData?.slice()) || [];
+        if (!list.length) {
+          list = res?.data || [];
+        }
+        const tableData = [];
+        const resetColItem = (item, rawItem, key = '', dimensions = {}) => {
+          const { proportions, growth_rates } = rawItem || {};
+          const col = {
+            key,
+          };
           [...timeShift, ...['0s']].map(key => {
             const baseKey = `${metric_cal_type}_${key}`;
-            col[baseKey] = item[key];
-
+            col[baseKey] = rawItem[key];
             const addToListIfNotEmpty = (source, prefix) => {
               if (Object.keys(source || {}).length > 0) {
                 col[`${prefix}_${baseKey}`] = source[key];
@@ -283,22 +300,36 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             addToListIfNotEmpty(proportions, 'proportions');
             addToListIfNotEmpty(growth_rates, 'growth_rates');
           });
-          return Object.assign(item, dimensions, col);
-        });
-        if (!isTotal) {
-          this.tableListData = newData;
-          if (metric_cal_type !== 'request_total') {
-            this.$set(this.diffTableList, metric_cal_type, newData);
+          return {
+            ...item,
+            ...dimensions,
+            ...col,
+          };
+        };
+        for (const item of list) {
+          if (!isTotal) {
+            const { dimensions } = item;
+            const key = item.key || this.transformDimensionToKey(dimensions);
+            const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
+            tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
-            this.tableTabData = newData;
+            tableData.push(resetColItem(item, item));
+          }
+        }
+        if (!isTotal) {
+          this.tableListData = tableData;
+          if (metric_cal_type !== 'request_total') {
+            this.$set(this.diffTableList, metric_cal_type, tableData);
+          } else {
+            this.tableTabData = tableData;
           }
           this.tableTotal = res?.total || 0;
           return;
         }
         if (metric_cal_type !== 'request_total') {
-          this.$set(this.totalList, metric_cal_type, newData);
+          this.$set(this.totalList, metric_cal_type, tableData);
         } else {
-          this.totalListData = newData;
+          this.totalListData = tableData;
         }
       })
       .catch(() => {
