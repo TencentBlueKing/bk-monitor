@@ -825,12 +825,6 @@ class CallerLineChart extends CommonSimpleChart {
       case 'explore': {
         // 跳转数据检索
         const copyPanel = this.getCopyPanel();
-        (copyPanel.targets || []).map(item => {
-          (item.data.query_configs || []).map(ele => {
-            const where = replaceRegexWhere(ele.where);
-            ele.where = where;
-          });
-        });
         this.handleExplore(copyPanel as any, {});
         break;
       }
@@ -974,6 +968,12 @@ class CallerLineChart extends CommonSimpleChart {
         copyPanel.title = this.curTitle;
         copyPanel.targets.map(item => (item.alias = this.curTitle));
       }
+      (copyPanel.targets || []).map(item => {
+        (item.data.query_configs || []).map(ele => {
+          const where = replaceRegexWhere(ele.where);
+          ele.where = where;
+        });
+      });
       return copyPanel;
     } catch (error) {
       console.log(error);
