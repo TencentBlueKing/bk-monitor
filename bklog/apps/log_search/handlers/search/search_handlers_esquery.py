@@ -20,7 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import csv
 import datetime
 import hashlib
 import json
@@ -70,7 +69,6 @@ from apps.log_search.constants import (
     SEARCH_OPTION_HISTORY_NUM,
     TIME_FIELD_MULTIPLE_MAPPING,
     FieldDataTypeEnum,
-    FileType,
     IndexSetType,
     OperatorEnum,
     SearchScopeEnum,
@@ -1127,64 +1125,54 @@ class SearchHandler(object):
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
 
-    def multi_get_slice_data(self, pre_file_name, file_type):
-        cc = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if cc:
-            slice_max = cc.storage_shards_nums
+    def multi_get_slice_data(self, pre_file_name, export_file_type, sort_list):
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            slice_max = collector_config.storage_shards_nums
         else:
-            slice_max = 5
-        multi_execute_func = MultiExecuteFunc(max_workers=5)
+            slice_max = 3
+        multi_execute_func = MultiExecuteFunc(max_workers=3)
         for idx in range(slice_max):
             body = {
                 "slice_id": idx,
                 "slice_max": slice_max,
                 "file_name": f"{pre_file_name}_slice_{idx}",
-                "file_type": file_type,
+                "export_file_type": export_file_type,
+                "sort_list": sort_list,
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
-        # 按照顺序返回, 因为请求的列表是顺序的, 防止数据串位
-        return [result[k] for k in sorted(result.keys())]
+        return list(result.values())
 
-    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, file_type: str):
+    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str, sort_list: list):
         """
         get_slice_data
         @param slice_id:
         @param slice_max:
         @param file_name:
-        @param file_type:
+        @param export_file_type:
+        @param sort_list:
         @return:
         """
         result = self.slice_pre_get_result(
-            sorted_fields=self.sort_list, size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max
+            sorted_fields=sort_list, size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max
         )
-        result_list = self._deal_query_result(result_dict=result).get("origin_log_list")
         generate_result = self.sliced_scroll_result(result)
 
         # 文件路径
-        file_path = f"{ASYNC_DIR}/{file_name}.{file_type}"
+        file_path = f"{ASYNC_DIR}/{file_name}.{export_file_type}"
 
         def content_generator():
-            for item in result_list:
+            for item in result.get("hits", {}).get("hits", []):
                 yield item
             for res in generate_result:
-                origin_result_list = res.get("origin_log_list", [])
+                origin_result_list = res.get("hits", {}).get("hits", [])
                 for item in origin_result_list:
                     yield item
 
-        if file_type == FileType.CSV.value:
-            with open(file_path, "a+", newline='', encoding="utf-8") as f:
-                fieldnames = result_list[0].keys() if result_list else []
-                csv_writer = csv.DictWriter(f, fieldnames=fieldnames)
-                # 检查文件是否为空，只在新文件时写入表头
-                if f.tell() == 0:
-                    csv_writer.writeheader()
-                for item in content_generator():
-                    csv_writer.writerow(item)
-        else:
-            with open(file_path, "a+", encoding="utf-8") as f:
-                for content in content_generator():
-                    f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
+        with open(file_path, "a+", encoding="utf-8") as f:
+            for content in content_generator():
+                f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
         return (file_path,)
 
     def slice_pre_get_result(self, sorted_fields: list, size: int, slice_id: int, slice_max: int):
@@ -1235,11 +1223,9 @@ class SearchHandler(object):
         @return:
         """
         # 记录第一次取出来的数据长度
-        result_size = len(scroll_result["hits"]["hits"])
-        # 记录总的长度
-        total_size = scroll_result["hits"]["total"]
+        scroll_size = len(scroll_result["hits"]["hits"])
         # 判断是否还有数据未取出
-        while result_size < total_size:
+        while scroll_size == MAX_RESULT_WINDOW:
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = self.direct_esquery_scroll(
                 {
@@ -1254,8 +1240,7 @@ class SearchHandler(object):
                 ),
             )
             scroll_size = len(scroll_result["hits"]["hits"])
-            result_size += scroll_size
-            yield self._deal_query_result(scroll_result)
+            yield scroll_result
 
     @staticmethod
     def get_bcs_manage_url(cluster_id, container_id):
