@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AiBlueking, { RoleType, type IMessage, ChatHelper, MessageStatus } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
-import { copyText, getCookie } from 'monitor-common/utils/utils';
+import { copyText, getCookie, random } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import { getEventPaths } from '../../utils';
@@ -106,6 +106,7 @@ const questions = [
   '如何接入第三方告警源？',
   '智能检测目前能支持哪些场景？',
 ];
+
 @Component
 export default class AiWhale extends tsc<object> {
   @Ref('robot') robotRef: HTMLDivElement;
@@ -162,13 +163,15 @@ export default class AiWhale extends tsc<object> {
     width: 342,
   };
   startPosition = {
-    right: 4,
-    left: window.innerWidth - 342 - 4,
+    right: 10,
+    left: window.innerWidth - 342 - 10,
+    bottom: 20,
+    top: window.innerHeight - 500 - 20,
   };
   showAIBlueking = false;
   chatHelper: ChatHelper = null;
   enableAiAssistant = true || !!window.enable_ai_assistant;
-
+  chartId = random(10);
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
@@ -458,8 +461,9 @@ export default class AiWhale extends tsc<object> {
       this.loading = false;
       const currentMessage = this.messages.at(-1);
       // loading 情况下终止
-      if (currentMessage.status === 'loading') {
-        currentMessage.content = this.$tc('聊天内容已中断');
+      if (currentMessage.status === MessageStatus.Loading) {
+        currentMessage.content = '聊天内容已中断';
+        currentMessage.status = MessageStatus.Error;
       }
     };
     // 错误处理
@@ -505,7 +509,7 @@ export default class AiWhale extends tsc<object> {
         stream: true,
         bk_biz_id: window.bk_biz_id,
       },
-      1,
+      this.chartId,
       {
         'X-CSRFToken': window.csrf_token || getCookie(window.csrf_cookie_name),
         'X-Requested-With': 'XMLHttpRequest',
@@ -513,6 +517,9 @@ export default class AiWhale extends tsc<object> {
       }
     );
     console.log('trigger send', message);
+  }
+  handleAiBluekingStop() {
+    this.chatHelper.stop(this.chartId);
   }
   handleAiBluekingClose() {
     this.showAIBlueking = false;
@@ -774,6 +781,7 @@ export default class AiWhale extends tsc<object> {
         onClear={this.handleAiBluekingClear}
         onClose={this.handleAiBluekingClose}
         onSend={this.handleAiBluekingSend}
+        onStop={this.handleAiBluekingStop}
       />
     );
   }
