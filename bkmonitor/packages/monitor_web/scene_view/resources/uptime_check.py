@@ -188,6 +188,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                     "filter_dict": {"task_id": str(task.id)},
                     "where": [],
                     "data_label": f"uptimecheck_{task.protocol.lower()}",
+                    "table": "",
                     "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
                     "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
                 }
