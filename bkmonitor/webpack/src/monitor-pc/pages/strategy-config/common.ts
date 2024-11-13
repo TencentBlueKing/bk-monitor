@@ -1,3 +1,6 @@
+import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
+import { MetricType, type MetricDetail } from './strategy-config-set-new/typings';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -66,4 +69,15 @@ export const handleSetTargetDesc = (
     targetResult.subMessage = '';
   }
   return targetResult;
+};
+
+// 判断 是否非时序数据（指标数据）
+export const IS_TIME_SERIES = [MetricType.TimeSeries];
+export const isRecoveryDisable = (metricData: MetricDetail[]) => {
+  return !(metricData.length && metricData.some(v => IS_TIME_SERIES.includes(v?.data_type_label as MetricType)));
+};
+
+// 判断 恢复条件是否选择 无数据
+export const isStatusSetterNoData = (v: RecoveryConfigStatusSetter) => {
+  return v === RecoveryConfigStatusSetter.RECOVERY_NODATA;
 };
