@@ -981,18 +981,12 @@ class DataSource(models.Model):
 
         # 1. 获取consul的句柄，获取最新的ModifyIndex
         hash_consul = consul_tools.HashConsul()
-        modify_index, value = hash_consul.get(self.consul_config_path)
-
-        if not value:
-            logger.info("data_source->[%s],consul is empty, will set modify_index as 0", self.bk_data_id)
-            modify_index = 0
 
         # 2. 刷新当前data_id的配置
         hash_consul.put(
             key=self.consul_config_path,
             value=self.to_json(is_consul_config=True),
             bk_data_id=self.bk_data_id,
-            modify_index=modify_index,
         )
         logger.info(
             "data_id->[{}] has update config to ->[{}] success".format(self.bk_data_id, self.consul_config_path)

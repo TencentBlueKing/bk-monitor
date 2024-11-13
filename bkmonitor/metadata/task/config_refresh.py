@@ -29,7 +29,11 @@ from metadata.config import (
     PERIODIC_TASK_DEFAULT_TTL,
 )
 from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
-from metadata.task.tasks import bulk_refresh_data_link_status, manage_es_storage
+from metadata.task.tasks import (
+    bulk_check_and_delete_ds_consul_config,
+    bulk_refresh_data_link_status,
+    manage_es_storage,
+)
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
@@ -399,7 +403,7 @@ def check_and_delete_ds_consul_config():
     """
     logger.info("check_and_delete_ds_consul_config: start to check and delete ds consul config")
     data_sources = models.DataSource.objects.filter(created_from=DataIdCreatedFromSystem.BKDATA.value)
-    bulk_refresh_data_link_status.delay(data_sources)
+    bulk_check_and_delete_ds_consul_config.delay(data_sources)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")
