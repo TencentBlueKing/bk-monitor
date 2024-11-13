@@ -47,14 +47,17 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
 
 
 class ServiceRelationListResource(Resource, HostIndexQueryMixin):
+    """服务索引集列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         service_name = serializers.CharField()
+        # [!!!] 当传递 span_id 时候 场景为 span 检索日志处
+        # [!!!] 当没有传递 span_id 时候 场景为观测场景 span 日志处
         span_id = serializers.CharField(label="SpanId", required=False)
 
     def perform_request(self, data):
-        res = []
 
         bk_biz_id = data["bk_biz_id"]
         app_name = data["app_name"]
@@ -102,8 +105,17 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                 }
             )
 
+        if data.get("span_id"):
+            return self.list_span_query_log_infos(index_set_ids, indexes)
+        return self.list_apm_log_infos(index_set_ids, indexes)
+
+    @classmethod
+    def list_span_query_log_infos(cls, index_set_ids, full_indexes):
+        res = []
         for item in index_set_ids:
-            index_set_info = next((i for i in indexes if str(i["index_set_id"]) == str(item["index_set_id"])), None)
+            index_set_info = next(
+                (i for i in full_indexes if str(i["index_set_id"]) == str(item["index_set_id"])), None
+            )
             if index_set_info:
                 res.append(
                     {
@@ -115,4 +127,16 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                     }
                 )
 
+        return res
+
+    @classmethod
+    def list_apm_log_infos(cls, index_set_ids, full_indexes):
+        res = []
+        for item in index_set_ids:
+            index_set_info = next(
+                (i for i in full_indexes if str(i["index_set_id"]) == str(item["index_set_id"])), None
+            )
+
+            if index_set_info:
+                res.append(index_set_info)
         return res

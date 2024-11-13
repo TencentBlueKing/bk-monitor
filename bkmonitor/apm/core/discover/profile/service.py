@@ -34,72 +34,53 @@ class ServiceDiscover(Discover):
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
-        # Step1: 查询所有出现过的服务
-        response = self.get_builder().with_api_type(ProfileApiType.SERVICE_NAME).execute()
-        service_names = list({i["service_name"] for i in response if i.get("service_name")})
-        logger.info(f"[ProfileServiceDiscover] found {len(service_names)} services: {service_names}")
+        # Step1: 获取 service_name，type，sample_type
+        result_list = (
+            self.get_builder()
+            .with_api_type(ProfileApiType.AGGREGATE)
+            .with_time(start_time, end_time)
+            .with_metric_fields("count(1)")
+            .with_dimension_fields("service_name,sample_type,type")
+            .with_offset_limit(0, 1000)
+            .execute()
+        )
 
         instances = []
-        for svr in service_names:
-            # Step2: 按照此服务下出现过的 type
-            types = self.get_builder().with_api_type(ProfileApiType.COL_TYPE).with_service_filter(svr).execute()
-            if not types:
-                logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}, continue")
-                continue
 
-            logger.info(f"[ProfileServiceDiscover] found {len(types)} types: {types}")
-            for item in types:
-                col_type = item.get("type")
-                if not col_type:
-                    logger.warning(
-                        f"[ProfileServiceDiscover] query {svr} types successfully, " f"but type is null! item: {item}"
+        # Step2: 遍历 service_name，type，sample_type三个键的字典组成的列表，再从字典内去获取字典内的type，sample_type，service_name去查询数据
+        if result_list:
+            for result_dict in result_list:
+                col_type = result_dict.get("type", "")
+                sample_type = result_dict.get("sample_type", "")
+                svr = result_dict.get("service_name", "")
+                # 如果这三个值都没有，直接 continue，查出来的可能也是重复的数据
+                if not col_type and not sample_type and not svr:
+                    logger.info(
+                        f"[ProfileServiceDiscover] "
+                        f"when service_name: {svr} and type: {col_type} and sample_type: {sample_type} has no value, "
+                        f"The queried data may be duplicated! ! !！！！"
                     )
                     continue
-
-                # Step3: 寻找此服务、此 type 下出现过的所有 sample_type
-                sample_types = (
+                sample_type_samplers = (
                     self.get_builder()
-                    .with_api_type(ProfileApiType.AGGREGATE)
                     .with_time(start_time, end_time)
-                    .with_metric_fields("count(1)")
-                    .with_dimension_fields("sample_type")
-                    .with_general_filters(
-                        {
-                            "service_name": f"op_eq|{svr}",
-                            "type": f"op_eq|{col_type}",
-                        }
-                    )
+                    .with_api_type(ProfileApiType.SAMPLE)
+                    .with_service_filter(svr)
+                    .with_offset_limit(0, 1)
+                    .with_type(col_type)
+                    .with_general_filters({"sample_type": f"op_eq|{sample_type}"})
                     .execute()
                 )
-
-                for sample_type in sample_types:
+                if not sample_type_samplers:
                     logger.info(
-                        f"[ProfileServiceDiscover] service: {svr} type: {col_type} "
-                        f"found sample_type: {sample_type.get('sample_type')}, total: {sample_type.get('count(1)')}",
+                        f"[ProfileServiceDiscover] "
+                        f"service_name: {svr} + type: {col_type} + sample_type: {sample_type} cannot find data！！！"
                     )
-                    if not sample_type.get("sample_type"):
-                        logger.warning(f"[ProfileServiceDiscover] aggregate get empty sample_type! data: {sample_type}")
-                        continue
-
-                    # Step4: 寻找此服务、此 type、此 sample_type下的一条数据
-                    sample_type_samplers = (
-                        self.get_builder()
-                        .with_time(start_time, end_time)
-                        .with_api_type(ProfileApiType.SAMPLE)
-                        .with_service_filter(svr)
-                        .with_offset_limit(0, 1)
-                        .with_type(col_type)
-                        .with_general_filters({"sample_type": f"op_eq|{sample_type['sample_type']}"})
-                        .execute()
-                    )
-                    if not sample_type_samplers:
-                        logger.info(
-                            f"[ProfileServiceDiscover] " f"receive a empty sample of service: {svr} / type: {col_type}"
-                        )
-                        continue
-                    sampler = sample_type_samplers[0]
-                    period = sampler.get("period")
-                    period_type = sampler.get("period_type")
+                    continue
+                sampler = sample_type_samplers[0]
+                if sampler:
+                    period = sampler.get("period", "")
+                    period_type = sampler.get("period_type", "")
                     instances.append(
                         ProfileService(
                             bk_biz_id=self.bk_biz_id,
@@ -110,8 +91,8 @@ class ServiceDiscover(Discover):
                             frequency=self._calculate_frequency(sampler),
                             data_type=col_type,
                             last_check_time=check_time,
-                            sample_type=sample_type["sample_type"],
-                            is_large=self.is_large_service(end_time, svr, col_type, sample_type["sample_type"]),
+                            sample_type=sample_type,
+                            is_large=self.is_large_service(end_time, svr, col_type, sample_type),
                         )
                     )
 

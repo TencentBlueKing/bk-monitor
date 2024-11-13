@@ -1231,17 +1231,11 @@
               this.setDetail(res.data.collector_config_id);
               // 物理环境编辑情况
               if (this.isFinishCreateStep) {
-                // 修改过非基本信息的值 重新下发 不改变步骤 直接展示下发组件 否则直接回列表
-                if (this.isUpdateIssuedShowValue() && !this.isContainerStep) {
-                  this.$emit('update:force-show-component', 'stepIssued');
-                  callback?.(false);
-                } else {
-                  if (callback) {
-                    callback(true);
-                    return;
-                  }
-                  this.cancel();
+                if (callback) {
+                  callback(true);
+                  return;
                 }
+                this.cancel();
               } else {
                 // 新增情况直接下一步
                 this.$emit('step-change');
@@ -1889,15 +1883,15 @@
       width: 100%;
       padding-top: 36px;
       padding-bottom: 10px;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
       font-size: 14px;
       font-weight: 600;
-      color: #63656e;
+      color: #313238;
       border-bottom: 1px solid #dcdee5;
     }
 
     .add-collection-import {
-      padding: 12px 24px;
+      padding: 8px 24px;
       font-size: 16px;
 
       span {

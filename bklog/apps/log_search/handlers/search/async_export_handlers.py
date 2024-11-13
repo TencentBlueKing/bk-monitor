@@ -31,7 +31,6 @@ from rest_framework.reverse import reverse
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
-    MAX_ASYNC_COUNT,
     MAX_GET_ATTENTION_SIZE,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
@@ -98,13 +97,8 @@ class AsyncExportHandlers(object):
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
 
-        self.search_handler.size = result["hits"]["total"]
-        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
-        if result["hits"]["total"] > max_count:
-            if is_quick_export:
-                raise OverAsyncExportMaxCount(OverAsyncExportMaxCount.MESSAGE.format(max_async_export_count=max_count))
-            else:
-                self.search_handler.size = max_count
+        if self.search_handler.size > MAX_QUICK_EXPORT_ASYNC_COUNT and is_quick_export:
+            raise OverAsyncExportMaxCount(OverAsyncExportMaxCount.MESSAGE.format(max_async_export_count=MAX_QUICK_EXPORT_ASYNC_COUNT))
 
         async_task = AsyncTask.objects.create(
             **{

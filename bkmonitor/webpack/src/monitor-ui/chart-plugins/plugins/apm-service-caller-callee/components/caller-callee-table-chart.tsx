@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Prop, Emit, InjectReactive, Watch, ProvideReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -89,6 +89,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
 
   @InjectReactive('callOptions') readonly callOptions!: CallOptions;
   @InjectReactive('filterTags') filterTags: IFilterData;
+  @ProvideReactive('dimensionParam') dimensionParam: Partial<CallOptions> = {};
 
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
@@ -117,11 +118,28 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
     return this.panelCommonOptions?.angle?.caller?.tags || [];
   }
+  @Watch('panel', { immediate: true })
+  handlePageChange() {
+    this.dimensionParam = structuredClone(this.callOptions);
+  }
+
+  @Watch('dimensionList', { immediate: true })
+  handleDimensionListChange(val) {
+    this.dimensionParam = {
+      ...this.dimensionParam,
+      group_by: val.filter(item => item.active).map(item => item.value),
+    };
+  }
+
   created() {
     this.handlePanelChange();
   }
   @Watch('callOptions', { deep: true })
-  onCallOptionsChanges() {
+  onCallOptionsChanges(val) {
+    this.dimensionParam = {
+      ...structuredClone(val),
+      group_by: this.dimensionList.filter(item => item.active).map(item => item.value),
+    };
     this.viewOptions?.service_name && this.getPanelData();
   }
   /** 点击选择图表中点 */
@@ -202,6 +220,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
+    this.tableListData = [];
     if (!(await this.beforeGetPanelData())) {
       return;
     }
@@ -221,6 +240,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     });
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
+    const timeParams = {
+      start_time: this.pointTime?.startTime || startTime,
+      end_time: this.pointTime?.endTime || endTime,
+    };
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
@@ -230,8 +253,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: this.pointTime?.startTime || startTime,
-        end_time: this.pointTime?.endTime || endTime,
+        ...timeParams,
+        // start_time: this.pointTime?.startTime || startTime,
+        // end_time: this.pointTime?.endTime || endTime,
       },
     };
     newParams.where = replaceRegexWhere([
@@ -240,6 +264,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.pointWhere,
       // ...this.drillWhere,
     ]);
+    this.dimensionParam = { ...this.dimensionParam, whereParams: newParams.where, timeParams };
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
@@ -466,6 +491,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   handleResizeTab(status: boolean) {
     this.resizeStatus = status;
   }
+  dimensionKeyChange(id) {
+    this.dimensionParam = { ...this.dimensionParam, dimension: id };
+  }
 
   render() {
     return (
@@ -541,6 +569,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 tableTabData={this.tableTabData}
                 tableTotal={this.tableTotal}
                 totalList={this.totalListData}
+                onDimensionKeyChange={this.dimensionKeyChange}
                 onDrill={this.handleDrill}
                 onShowDetail={this.handleShowDetail}
                 onTabChange={this.tabChangeHandle}
