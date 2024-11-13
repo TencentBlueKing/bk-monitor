@@ -61,6 +61,24 @@ class DataLinkResourceStatus(Enum):
 
     RECONCILING = "Reconciling"
 
+    choices_labels = (
+        (INITIALIZING, 0),
+        (CREATING, 2),
+        (PENDING, 3),
+        (FAILED, 4),
+        (OK, 1),
+        (RECONCILING, 5),
+        (TERMINATING, 6),
+    )
+
+    @classmethod
+    def get_choice_value(cls, key: str) -> int:
+        for item in DataLinkResourceStatus.choices_labels.value:
+            if key == item[0]:
+                return item[1]
+
+        return -1
+
 
 # 默认转换器及对应的处理格式
 DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"

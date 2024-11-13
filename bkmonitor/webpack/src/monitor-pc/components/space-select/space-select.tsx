@@ -46,6 +46,7 @@ interface IlocalSpaceList extends ISpaceItem {
   tags?: ItagsItem[];
   name?: string;
   show?: boolean;
+  preciseMatch?: boolean;
   isSpecial?: boolean;
   noAuth?: boolean;
   hasData?: boolean;
@@ -198,6 +199,7 @@ export default class SpaceSelect extends tsc<
       tags: [],
       isCheck: false,
       show: true,
+      preciseMatch: false,
       py_text: '',
       pyf_text: '',
       space_id: '',
@@ -273,6 +275,7 @@ export default class SpaceSelect extends tsc<
       tags: [],
       isCheck: false,
       show: true,
+      preciseMatch: false,
       py_text: '',
       space_id: '',
       space_type_id: ETagsType.BKCC,
@@ -321,7 +324,20 @@ export default class SpaceSelect extends tsc<
     this.setPaginationData(true);
   }
   setPaginationData(isInit = false) {
-    const showData = this.localSpaceList.filter(item => item.show);
+    const showData = [];
+    const prevArr = [];
+    const nextArr = [];
+
+    for (const item of this.localSpaceList) {
+      if (item.show) {
+        if (item.preciseMatch) {
+          prevArr.push(item);
+        } else {
+          nextArr.push(item);
+        }
+      }
+    }
+    showData.push(...prevArr, ...nextArr);
     this.pagination.count = showData.length;
     if (isInit) {
       this.pagination.current = 1;
@@ -355,6 +371,7 @@ export default class SpaceSelect extends tsc<
         tags,
         isCheck: false,
         show: true,
+        preciseMatch: false,
       };
       list.push(newItem);
       /* 空间类型 */
@@ -442,6 +459,7 @@ export default class SpaceSelect extends tsc<
     this.isOpen = false;
     this.localSpaceList.forEach(item => {
       item.show = true;
+      item.preciseMatch = false;
     });
     if (this.needCurSpace) {
       this.resetCurBiz();
@@ -465,7 +483,15 @@ export default class SpaceSelect extends tsc<
         }
         return true;
       })();
+      const preciseMatch =
+        item.space_name?.toLocaleLowerCase() === keyword ||
+        item.py_text === keyword ||
+        item.pyf_text === keyword ||
+        `${item.id}` === keyword ||
+        `${item.space_id}`.toLocaleLowerCase() === keyword;
+
       const searchShow =
+        preciseMatch ||
         item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
         item.py_text.indexOf(keyword) > -1 ||
         item.pyf_text.indexOf(keyword) > -1 ||
@@ -473,6 +499,7 @@ export default class SpaceSelect extends tsc<
         `${item.space_id}`.toLocaleLowerCase().includes(keyword) ||
         item.tags?.some(t => !!keyword && t.name.indexOf(keyword) > -1);
       item.show = typeShow && searchShow;
+      item.preciseMatch = typeShow && preciseMatch;
     });
     this.setPaginationData(true);
   }

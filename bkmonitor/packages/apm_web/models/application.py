@@ -353,7 +353,7 @@ class Application(AbstractRecordModel):
                         data_status = DataStatus.NORMAL
                     else:
                         data_status = DataStatus.NO_DATA
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     logger.warning(
                         f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
                     )
@@ -370,6 +370,11 @@ class Application(AbstractRecordModel):
                 application_id=self.application_id, relation_key=self.LANGUAGE_KEY
             ).values_list("relation_value", flat=True)
         )
+
+    def list_retention_time_range(self):
+        """获取应用的过期时间范围"""
+        s, e = get_datetime_range(period="day", distance=self.es_retention, rounding=False)
+        return int(s.timestamp()), int(e.timestamp())
 
     def get_all_config(self):
         return ApmMetaConfig.get_all_application_config_value(self.application_id)

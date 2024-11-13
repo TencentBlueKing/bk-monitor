@@ -874,7 +874,9 @@ class GetVariableValue(Resource):
             for biz_id in dimensions:
                 result.append({"label": biz_dict.get(biz_id, biz_id), "value": biz_id})
         # 拨测任务及节点翻译
-        if str(params["result_table_id"]).startswith("uptimecheck."):
+        if str(params["result_table_id"]).startswith("uptimecheck.") or str(params["result_table_id"]).startswith(
+            "uptimecheck_"
+        ):
             if dimension_field == "task_id":
                 uptime_check_tasks = UptimeCheckTask.objects.filter(id__in=dimensions).values("id", "name")
                 task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}

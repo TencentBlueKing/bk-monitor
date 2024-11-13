@@ -33,4 +33,4 @@ def refresh_data_link_status():
 
     bkbase_rt_records = models.BkBaseResultTable.objects.filter(monitor_table_id__in=table_id_list)
     logger.info("refresh_data_link_status: now try to bulk_refresh_data_link_status,len->[%s] ", len(bkbase_rt_records))
-    bulk_refresh_data_link_status.delay(bkbase_rt_records)
+    bulk_refresh_data_link_status.delay(bkbase_rt_records)  # task_id

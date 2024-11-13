@@ -307,10 +307,12 @@ class GetCustomEventGroup(Resource):
         time_range = serializers.CharField(required=True, label="时间范围")
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
         bk_biz_id = serializers.IntegerField(required=True)
+        event_infos_limit = serializers.IntegerField(required=False, default=1000, label="事件信息列表上限")
 
     def perform_request(self, validated_request_data):
         event_group_id = validated_request_data["bk_event_group_id"]
         need_refresh = validated_request_data["need_refresh"]
+        event_infos_limit = validated_request_data["event_infos_limit"]
         # 用户页面主动请求相关逻辑，不应该插入耗时过长的逻辑。
         # append_event_metric_list_cache(event_group_id)
         config = CustomEventGroup.objects.prefetch_related("event_info_list").get(pk=event_group_id)
@@ -319,7 +321,7 @@ class GetCustomEventGroup(Resource):
         )
         data = serializer.data
         event_info_list = api.metadata.get_event_group.request.refresh(
-            event_group_id=event_group_id, need_refresh=need_refresh
+            event_group_id=event_group_id, need_refresh=need_refresh, event_infos_limit=event_infos_limit
         )
         data["event_info_list"] = list()
 

@@ -25,7 +25,8 @@
 -->
 
 <template>
-  <div class="bklog-column-container"
+  <div
+    class="bklog-column-container"
     @click.stop
   >
     <!-- eslint-disable vue/no-v-html -->
@@ -56,7 +57,6 @@
   import { mapState } from 'vuex';
   import TextSegmentation from './text-segmentation';
   import JsonFormatter from '@/global/json-formatter.vue';
-
   export default {
     components: {
       TextSegmentation,
@@ -101,6 +101,7 @@
       handleClickContent() {
         if (this.hasClickEvent) this.$emit('content-click');
       },
+
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
@@ -127,7 +128,7 @@
             }
           });
         });
-        this.intersectionObserver.observe(this.$el);
+        this.intersectionObserver?.observe(this.$el);
       },
     },
   };

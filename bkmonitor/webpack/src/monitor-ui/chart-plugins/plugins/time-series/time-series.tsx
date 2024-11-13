@@ -167,6 +167,7 @@ export class LineChart
   seriesList = null;
   // 是否展示复位按钮
   showRestore = false;
+  customScopedVars: Record<string, any> = {};
 
   // datasource为time_series才显示保存到仪表盘，数据检索， 查看大图
   get menuList(): ChartTitleMenuType[] {
@@ -359,7 +360,7 @@ export class LineChart
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     if (!this.enableSelectionRestoreAll) {
-      this.showRestore = start_time;
+      this.showRestore = !!start_time;
     }
     try {
       this.unregisterOberver();
@@ -394,6 +395,7 @@ export class LineChart
       const variablesService = new VariablesService({
         ...this.viewOptions,
         interval,
+        ...this.customScopedVars,
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
@@ -408,6 +410,7 @@ export class LineChart
                 ...this.viewOptions.variables,
                 time_shift,
                 interval,
+                ...this.customScopedVars,
               },
               noTransformVariables
             ),
@@ -1017,7 +1020,7 @@ export class LineChart
    * @return {*}
    */
   handleMenuToolsSelect(menuItem: IMenuItem) {
-    const variablesService = new VariablesService({ ...this.viewOptions });
+    const variablesService = new VariablesService({ ...this.viewOptions, ...this.customScopedVars });
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
         this.handleCollectChart();
@@ -1042,6 +1045,7 @@ export class LineChart
             dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
             this.panel.collect_interval
           ),
+          ...this.customScopedVars,
         });
         copyPanel = variablesService.transformVariables(copyPanel);
         copyPanel.targets.forEach((t, tIndex) => {
@@ -1066,10 +1070,19 @@ export class LineChart
           ...(this.viewOptions.filters?.current_target || {}),
           ...this.viewOptions,
           ...this.viewOptions.variables,
+          ...this.customScopedVars,
         });
         break;
       case 'strategy': // 新增策略
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        this.handleAddStrategy(
+          this.panel,
+          null,
+          {
+            ...this.viewOptions,
+            ...this.customScopedVars,
+          },
+          true
+        );
         break;
       case 'drill-down': // 下钻 默认主机
         this.handleDrillDown(menuItem.childValue);
@@ -1125,6 +1138,7 @@ export class LineChart
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
         ...this.viewOptions.variables,
+        ...this.customScopedVars,
       },
       false
     );
@@ -1151,7 +1165,15 @@ export class LineChart
     const metricIds = this.metrics.map(item => item.metric_id);
     switch (alarmStatus.status) {
       case 0:
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        this.handleAddStrategy(
+          this.panel,
+          null,
+          {
+            ...this.viewOptions,
+            ...this.customScopedVars,
+          },
+          true
+        );
         break;
       case 1:
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
@@ -1189,7 +1211,10 @@ export class LineChart
    * @return {*}
    */
   handleMetricClick(metric: IExtendMetricData) {
-    this.handleAddStrategy(this.panel, metric, this.viewOptions);
+    this.handleAddStrategy(this.panel, metric, {
+      ...this.viewOptions,
+      ...this.customScopedVars,
+    });
   }
 
   /**
@@ -1198,7 +1223,15 @@ export class LineChart
    * @return {*}
    */
   handleAllMetricClick() {
-    this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+    this.handleAddStrategy(
+      this.panel,
+      null,
+      {
+        ...this.viewOptions,
+        ...this.customScopedVars,
+      },
+      true
+    );
   }
   /**
    * @description: 设置精确度
