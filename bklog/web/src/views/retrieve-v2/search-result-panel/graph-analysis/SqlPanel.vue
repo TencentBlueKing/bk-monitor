@@ -24,12 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, defineExpose, nextTick } from "vue";
 import * as monaco from "monaco-editor";
-import { bkResizeLayout } from "bk-magic-vue";
 import useLocale from "@/hooks/use-locale";
+import PreviewSql from "./common/PreviewSql.vue"
 const { $t } = useLocale();
 const editorContainer = ref(null);
+const showDialog = ref(false);
 let editorInstance = null;
 window.MonacoEnvironment = {
   // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
@@ -53,11 +54,14 @@ window.MonacoEnvironment = {
   },
 };
 // resize后重新计算高度
-function resize() {
+async function resize() {
   if (editorInstance) {
+    await nextTick();
     editorInstance.layout();
   }
 }
+function emitQuery() {}
+function emitStop() {}
 onMounted(() => {
   // 在组件挂载后初始化 Monaco Editor
   if (editorContainer.value) {
@@ -69,39 +73,83 @@ onMounted(() => {
     });
   }
 });
+defineExpose({
+  resize,
+});
 </script>
 <template>
-  <div class="body-left">
-    <bk-resize-layout
-      class="full-height"
-      placement="top"
-      :initial-divide="274"
-      @after-resize="resize"
-      :min="274"
-      :border="false"
-    >
-      <div
-        ref="editorContainer"
-        slot="aside"
-        :immediate="true"
-        class="editorContainer"
-      ></div>
-      <!-- <div ref="editorContainer" :style="{ height: `${topPanelHeight}px` }"></div> -->
-      <div slot="main">main</div>
-    </bk-resize-layout>
+  <div class="sql-editor">
+    <div ref="editorContainer" :immediate="true" class="editorContainer"></div>
+    <div class="sql-editor-tools">
+      <bk-button
+        @click="emitQuery"
+        class="sql-editor-query-button font-small mr-small"
+        theme="primary"
+        size="small"
+        v-bk-tooltips="{
+          content: $t('请先在左侧选择需要查询的数据源'),
+        }"
+      >
+        <!-- <template v-if="props.isQuerying">
+          <img :src="loading" class="sql-editor-query-button-spinner font-small" />
+        </template>
+        <template v-else> -->
+        <i class="bklog-icon bklog-bofang"></i>
+        <!-- </template> -->
+        <span class="ml-min">{{ $t("查询") }}</span>
+      </bk-button>
+      <bk-button
+        @click="emitStop"
+        class="sql-editor-view-button text-center pl-min pr-min mr-small cursor-pointer"
+        size="small"
+      >
+        <span class="icon bklog-icon bklog-stop" />
+        <span>{{ $t("中止") }}</span>
+      </bk-button>
+      <bk-button
+        class="sql-editor-view-button text-center pl-min pr-min cursor-pointer"
+        size="small"
+        @click="showDialog = true"
+      >
+        {{ $t("预览查询 SQL") }}
+      </bk-button>
+      <PreviewSql
+         :isShow="showDialog"
+        @update:isShow="newValue => showDialog = newValue"
+      />
+    </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.body-left {
-  .full-height {
+.sql-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+
+  .editorContainer {
     height: 100%;
 
-    .editorContainer {
+    .monaco-edito {
       height: 100%;
+    }
+  }
 
-      .monaco-edito {
-        height: 100%;
+  .sql-editor-tools {
+    margin: 16px;
+
+    .sql-editor-view-button {
+      height: 28px;
+      line-height: 26px;
+      color: #c4c6cc;
+      background-color: #313238;
+      border: 1px solid #63656e;
+      border-radius: 2px;
+      transition: border-color 0.3s ease-in-out;
+
+      &:hover {
+        border-color: #979ba5;
       }
     }
   }
