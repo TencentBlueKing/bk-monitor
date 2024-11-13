@@ -45,7 +45,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-overview",
         "apm_application-service",
         "apm_application-topo",
-        "apm_application-custom_metric",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
@@ -279,6 +278,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             service_name=service_name,
                             metric_field=i.metric_field,
                             count=metric_count,
+                            start_time=params.get("start_time"),
+                            end_time=params.get("end_time"),
                         )
                     # 根据dimension获取monitor_name监控项, 获取不到的则跳过
                     metric_info = monitor_info_mapping.get(f"{i.metric_field}_value")
@@ -299,7 +300,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     for var_name, var_value in variables.items():
                         metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
 
-                    monitor_name = metric_info["monitor_name"]
+                    monitor_name = metric_info["monitor_name"] or "default"
                     if monitor_name not in metric_group_mapping:
                         group_id = len(metric_group_mapping)
                         group_panel = copy.deepcopy(group_panel_template)
@@ -315,9 +316,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_monitor_info(cls, bk_biz_id, result_table_id, service_name, metric_field, count: int = 1000) -> dict:
-        end_time = int(arrow.now().timestamp)
-        start_time = int(end_time - 3600)
+    def get_monitor_info(
+        cls, bk_biz_id, result_table_id, service_name, metric_field, count: int = 1000, start_time=None, end_time=None
+    ) -> dict:
+        if not start_time or not end_time:
+            end_time = int(arrow.now().timestamp)
+            start_time = int(end_time - 3600)
         label_values_query = f"label_values(custom:{result_table_id.replace('.', ':')}:{metric_field}, sdk_name)"
         monitor_info_mapping = {}
         try:

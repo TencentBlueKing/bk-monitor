@@ -122,7 +122,7 @@ export default defineComponent({
     /** 关联是否为蓝鲸日志平台 */
     const isBkLog = ref(true);
     /** alert提示文字 */
-    const alertText = ref<TranslateResult | string>('');
+    const alertText = ref<string | TranslateResult>('');
     /** 第三方日志 */
     const thirdPartyLog = ref('');
     /** 搜索关键字 */
@@ -293,7 +293,11 @@ export default defineComponent({
         const variablesService = new VariablesService({
           ...viewOptions.value,
         });
-        const params = variablesService.transformVariables(predicateLogTarget.data);
+        const params = {
+          ...variablesService.transformVariables(predicateLogTarget.data),
+          start_time: start_time || formattedStartTime,
+          end_time: end_time || formattedEndTime,
+        };
         api[predicateLogTarget.apiModule]
           [predicateLogTarget.apiFunc](params, { needMessage: false })
           .then(data => {
@@ -305,9 +309,16 @@ export default defineComponent({
               if (conditionTarget) {
                 const payload = variablesService.transformVariables(conditionTarget.data);
                 api[conditionTarget.apiModule]
-                  [conditionTarget.apiFunc](payload, {
-                    needMessage: false,
-                  })
+                  [conditionTarget.apiFunc](
+                    {
+                      ...payload,
+                      start_time: start_time || formattedStartTime,
+                      end_time: end_time || formattedEndTime,
+                    },
+                    {
+                      needMessage: false,
+                    }
+                  )
                   .then(res => {
                     if (res.length) {
                       relatedIndexSetList.value = res;
@@ -456,7 +467,7 @@ export default defineComponent({
                 isScrollLoading.value = false;
               })
           );
-      } catch (e) {}
+      } catch {}
       setTimeout(() => {
         handleLoadingChange(false);
       }, 100);
@@ -530,8 +541,8 @@ export default defineComponent({
      */
     function goLink() {
       // 时间范围由 开始时间前一小时 + 耗时 + 结束时间后一小时
-      const startTime = injectStartTime.value - 36 * Math.pow(10, 5);
-      const endTime = injectEndTime.value + 36 * Math.pow(10, 5);
+      const startTime = injectStartTime.value - 36 * 10 ** 5;
+      const endTime = injectEndTime.value + 36 * 10 ** 5;
       const url = isBkLog.value
         ? `${window.bk_log_search_url}#/retrieve/${relatedIndexSetId.value}?bizId=${relatedBkBizId.value}&keyword=${traceId.value}&start_time=${startTime}&end_time=${endTime}`
         : thirdPartyLog.value;
@@ -578,7 +589,7 @@ export default defineComponent({
 
     const selectedOptionAlias = computed(() => {
       const target = relatedIndexSetList.value.find(item => {
-        return item.index_set_id == relatedIndexSetId.value;
+        return item.index_set_id === relatedIndexSetId.value;
       });
       return target?.index_set_name ?? '';
     });

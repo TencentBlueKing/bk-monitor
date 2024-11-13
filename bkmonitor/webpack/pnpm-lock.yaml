@@ -487,8 +487,8 @@ importers:
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/monitor-retrieve':
-        specifier: 1.0.0-beta.12
-        version: 1.0.0-beta.12
+        specifier: 1.0.0-beta.13
+        version: 1.0.0-beta.13
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.70)(vue@2.7.16)
@@ -2679,8 +2679,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/monitor-retrieve@1.0.0-beta.12:
-    resolution: {integrity: sha512-X3xAZbfip0jZKFCy/hw+7OYE6mDe4MQAC661oaDI2QYIIPMu4CZ6sBPe1jsBR2fLl671s2QIzdD7cIxyy2IcVQ==}
+  /@blueking/monitor-retrieve@1.0.0-beta.13:
+    resolution: {integrity: sha512-iSYF/bBLKjzQ7hf3vS7sLIkLfzKhl9eVbK9mRI1t3DLRkyCG++MPP8aF29TGfuPz5PhPPqGbsCiypS69CWiOdQ==}
     dev: false
 
   /@blueking/notice-component-vue2@2.0.5(dompurify@3.1.6):
