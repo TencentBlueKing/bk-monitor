@@ -165,6 +165,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       }
       this.getPageList();
     }
+    this.dimensionParam = { ...this.dimensionParam, pointTime: this.pointTime };
   }
 
   @Watch('activeKey')
