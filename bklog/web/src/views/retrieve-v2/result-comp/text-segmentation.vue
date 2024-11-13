@@ -48,7 +48,6 @@
     onSegmentClick: handleMenuClick,
   });
 
-
   const renderText = computed(() => {
     if (showAll.value || isLimitExpandView.value) {
       return props.content;
@@ -131,6 +130,10 @@
 
   const createResizeObserve = () => {
     const cellElement = getCellElement();
+
+    if (!cellElement) {
+      return;
+    }
     const offsetWidth = cellElement.offsetWidth;
     const elementMaxWidth = cellElement.offsetWidth * 3;
     maxWidth.value = elementMaxWidth;
@@ -169,7 +172,7 @@
 
   onBeforeUnmount(() => {
     instance?.destroy?.();
-    resizeObserver.disconnect();
+    resizeObserver?.disconnect();
     resizeObserver = null;
   });
 </script>

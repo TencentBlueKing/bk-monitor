@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -37,9 +37,11 @@ import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import TableColumn from './table-column.vue';
 import useHeaderRender from './use-render-header';
-import useScrollLoading from './use-scroll-loading';
 
 import './log-rows.scss';
+import useLazyRender from './use-lazy-render';
+import { LazyTaskScheduler, RowData } from './lazy-task';
+import { uniqueId } from 'lodash';
 
 export default defineComponent({
   props: {
@@ -73,8 +75,13 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const totalCount = computed(() => store.state.retrieve.trendDataCount);
-    const tableDataMap = new WeakMap();
     const forceCounter = ref(0);
+
+    const resultContainerId = ref(uniqueId('result_container_key_'));
+    LazyTaskScheduler.setParentSelector(`#${resultContainerId.value}`);
+    LazyTaskScheduler.setScrollSelector('.search-result-content.scroll-y');
+
+    const tableRowStore = new WeakMap();
 
     const renderColumns = computed(() => {
       return [
@@ -92,7 +99,7 @@ export default defineComponent({
 
             const hanldeExpandClick = () => {
               config.value.expand = !config.value.expand;
-              tableDataMap.set(row, { expand: config.value.expand });
+              tableRowStore.get(row).expand = config.value.expand;
             };
 
             return (
@@ -289,19 +296,51 @@ export default defineComponent({
       ];
     };
 
-    const loadTableData = () => {
-      return (indexSetQueryResult.value.list || []).map((row, index) => {
-        let isExpand = false;
-        if (tableDataMap.has(row)) {
-          isExpand = tableDataMap.get(row).expand;
-        }
+    const getStoreRowAttr = (row, attrName, value) => {
+      if (!tableRowStore.has(row)) {
+        tableRowStore.set(row, { [attrName]: value });
+        return value;
+      }
 
-        tableDataMap.set(row, { expand: isExpand });
+      if (!tableRowStore.get(row)[attrName]) {
+        Object.assign(tableRowStore.get(row), { [attrName]: value });
+        return value;
+      }
+
+      return tableRowStore.get(row)[attrName];
+    };
+
+    const handleScrollInView = (rowData: RowData) => {
+      rowData.getDomElement().classList.remove('is-not-intersecting');
+      rowData.getDomElement().classList.add('is-intersecting');
+      rowData.getDomElement().style?.setProperty('min-height', `${rowData.height()}px`);
+      Object.assign(tableRowStore.get(rowData.row), { isInSection: true });
+      rowData.row.__component_row_config.value.isInSection = true;
+    };
+
+    const handleScrollOutView = (rowData: RowData) => {
+      rowData.getDomElement().classList.remove('is-intersecting');
+      rowData.getDomElement().classList.add('is-not-intersecting');
+      Object.assign(tableRowStore.get(rowData.row), { isInSection: false });
+      rowData.row.__component_row_config.value.isInSection = false;
+    };
+
+    const loadTableData = () => {
+      console.log('--loadTableData')
+      return (indexSetQueryResult.value.list || []).map((row, index) => {
+        const isExpand = getStoreRowAttr(row, 'expand', false);
+        const isInSection = getStoreRowAttr(row, 'isInSection', true);
+
         Object.assign(row, {
           __component_row_key: `__component_row_key_${index}`,
           __component_row_index: index,
-          __component_row_config: ref({ expand: isExpand }),
+          __component_row_config: ref({ expand: isExpand, isInSection }),
         });
+        LazyTaskScheduler.injectTasks(
+          index,
+          [{ key: 'handleScrollInOutView', execute: handleScrollInView, cleanup: handleScrollOutView }],
+          row,
+        );
         return row;
       });
     };
@@ -332,6 +371,9 @@ export default defineComponent({
       () => [listRequestCounter.value],
       () => {
         tableData.value = loadTableData();
+        setTimeout(() => {
+          LazyTaskScheduler.updateRowStates();
+        });
       },
     );
 
@@ -390,11 +432,23 @@ export default defineComponent({
 
     const handleScrollEvent = top => {
       offsetTop.value = top;
+      LazyTaskScheduler.updateRowStates();
     };
+
+    onMounted(() => {
+      LazyTaskScheduler.updateRowStates();
+    });
+
+    onUnmounted(() => {
+      LazyTaskScheduler.destroy();
+    });
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop } = useScrollLoading(loadMoreTableData, handleScrollEvent);
+    const { scrollToTop } = useLazyRender({
+      loadMoreFn: loadMoreTableData,
+      scrollCallbackFn: handleScrollEvent,
+    });
 
     const renderScrollTop = () => {
       if (offsetTop.value > 300) {
@@ -411,12 +465,62 @@ export default defineComponent({
       return null;
     };
 
-    return { renderColumns, tableData, isLoading, expandOption, renderHeadVNode, renderScrollTop, forceCounter };
+    const renderRowCells = (row, rowIndex) => {
+      if (tableRowStore.get(row)?.isInSection ?? true) {
+        return [
+          <div
+            key={row.__component_row_key}
+            class='bklog-list-row'
+          >
+            {renderColumns.value.map(column => (
+              <LogCell
+                key={column.key}
+                width={column.width}
+                class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
+                minWidth={column.minWidth ?? 'auto'}
+              >
+                {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
+              </LogCell>
+            ))}
+          </div>,
+          row.__component_row_config.value.expand ? expandOption.render({ row }) : '',
+        ];
+      }
+
+      return null;
+    };
+
+    const renderRowVNode = () => {
+      return tableData.value.map((row, rowIndex) => {
+        return (
+          <div
+            key={row.__component_row_key}
+            class='bklog-row-container'
+            data-row-index={rowIndex}
+          >
+            {renderRowCells(row, rowIndex)}
+          </div>
+        );
+      });
+    };
+
+    return {
+      renderColumns,
+      tableData,
+      isLoading,
+      expandOption,
+      renderHeadVNode,
+      renderScrollTop,
+      renderRowVNode,
+      forceCounter,
+      resultContainerId,
+    };
   },
   render(h) {
     return (
       <div
         class='bklog-result-container'
+        id={this.resultContainerId}
         v-bkloading={{ isLoading: this.isLoading }}
       >
         {this.renderHeadVNode()}
@@ -430,34 +534,7 @@ export default defineComponent({
         ) : (
           ''
         )}
-        {this.tableData.map((row, rowIndex) => {
-          return (
-            <LazyRender
-              key={row.__component_row_key}
-              class='bklog-row-container'
-              delay={1}
-              forceCounter={this.forceCounter}
-              index={rowIndex + 1}
-            >
-              <div
-                key={row.__component_row_key}
-                class='bklog-list-row'
-              >
-                {this.renderColumns.map(column => (
-                  <LogCell
-                    key={column.key}
-                    width={column.width}
-                    class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
-                    minWidth={column.minWidth ?? 'auto'}
-                  >
-                    {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
-                  </LogCell>
-                ))}
-              </div>
-              {row.__component_row_config.value.expand ? this.expandOption.render({ row, rowIndex }, h) : ''}
-            </LazyRender>
-          );
-        })}
+        {this.renderRowVNode()}
         {this.renderScrollTop()}
         <div class='resize-guide-line'></div>
       </div>

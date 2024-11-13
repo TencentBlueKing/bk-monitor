@@ -119,19 +119,21 @@
 
   const createResizeObserve = () => {
     const cellElement = getCellElement();
-    const offsetWidth = cellElement.offsetWidth;
-    const elementMaxWidth = cellElement.offsetWidth * 3;
-    maxWidth.value = elementMaxWidth;
+    if (cellElement) {
+      const offsetWidth = cellElement.offsetWidth;
+      const elementMaxWidth = cellElement.offsetWidth * 3;
+      maxWidth.value = elementMaxWidth;
 
-    // 创建一个 ResizeObserver 实例
-    resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        // 获取元素的新高度
-        debounceUpdateSegmentTag();
-      }
-    });
+      // 创建一个 ResizeObserver 实例
+      resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          // 获取元素的新高度
+          debounceUpdateSegmentTag();
+        }
+      });
 
-    resizeObserver?.observe(getCellElement());
+      resizeObserver?.observe(getCellElement());
+    }
   };
 
   let setObserveTimer = null;

@@ -86,7 +86,6 @@
 
   onMounted(() => {
     lazyTaskManager.addTask(props.index, (isInBuffer, dir) => {
-      console.log('isInBuffer, dir', isInBuffer, dir)
       if (dir === 'up') {
         isVisible.value = isInBuffer;
       } else {

@@ -1126,6 +1126,7 @@ const store = new Vuex.Store({
               const rsolvedData = data;
               rsolvedData.is_error = false;
               const indexSetQueryResult = state.indexSetQueryResult;
+              console.log('-----rrrrrrrr', rsolvedData)
               const logList = parseBigNumberList(rsolvedData.list);
               const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
 

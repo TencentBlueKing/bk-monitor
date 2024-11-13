@@ -15,7 +15,6 @@
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       display: inline-flex;
-      // justify-content: space-between;
       line-height: 20px;
       position: relative;
       content-visibility: auto;
@@ -186,6 +185,17 @@
         }
       }
     }
+
+    &.is-intersecting {
+      will-change: scroll-position;
+    }
+
+    &.is-not-intersecting {
+      .bklog-list-row {
+        display: none;
+      }
+    }
+
 
     &.has-overflow-x {
       .bklog-list-row {
