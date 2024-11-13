@@ -72,6 +72,7 @@ export default defineComponent({
     const isLoading = computed(() => indexSetQueryResult.value.is_loading);
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+    const totalCount = computed(() => store.state.retrieve.trendDataCount);
     const tableDataMap = new WeakMap();
     const forceCounter = ref(0);
 
@@ -357,7 +358,10 @@ export default defineComponent({
     const renderHeadVNode = () => {
       if (props.contentType === 'table' && tableData.value.length > 0) {
         return (
-          <LazyRender class='bklog-row-container'>
+          <LazyRender
+            class='bklog-row-container'
+            delay={0}
+          >
             <div class='bklog-list-row '>
               {renderColumns.value.map(column => (
                 <LogCell
@@ -378,14 +382,19 @@ export default defineComponent({
       return null;
     };
 
-    const { scrollToTop } = useScrollLoading(
-      () => {
+    const loadMoreTableData = () => {
+      if (totalCount.value > tableData.value.length) {
         return store.dispatch('requestIndexSetQuery', { isPagination: true });
-      },
-      top => {
-        offsetTop.value = top;
-      },
-    );
+      }
+    };
+
+    const handleScrollEvent = top => {
+      offsetTop.value = top;
+    };
+
+    // 监听滚动条滚动位置
+    // 判定是否需要拉取更多数据
+    const { scrollToTop } = useScrollLoading(loadMoreTableData, handleScrollEvent);
 
     const renderScrollTop = () => {
       if (offsetTop.value > 300) {
@@ -394,7 +403,7 @@ export default defineComponent({
             class='btn-scroll-top'
             onClick={() => scrollToTop()}
           >
-            <i class='bklog-icon bklog-xiazai'></i> {$t('返回顶部')}
+            <i class='bklog-icon bklog-xiazai'></i>
           </span>
         );
       }
@@ -428,7 +437,7 @@ export default defineComponent({
               class='bklog-row-container'
               delay={1}
               forceCounter={this.forceCounter}
-              index={rowIndex}
+              index={rowIndex + 1}
             >
               <div
                 key={row.__component_row_key}

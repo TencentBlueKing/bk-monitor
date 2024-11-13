@@ -3,9 +3,8 @@
     ref="lazyRenderCell"
     class="bklog-lazy-render-cell"
     :class="{
-      'bklog-lazy-loading': !isVisible && delay,
-      'is-intersecting': isIntersecting,
-      'is-not-intersecting': !isIntersecting,
+      'is-intersecting': isVisible,
+      'is-not-intersecting': !isVisible,
       'has-overflow-x': hasOverflowX,
     }"
     :style="cellStyle"
@@ -58,7 +57,6 @@
   const lazyRenderCell = ref(null);
   const isVisible = ref(false);
   let observer = null;
-  const isIntersecting = ref(false);
   const localHeight = ref(0);
   const hasOverflowX = ref(false);
 
@@ -80,10 +78,6 @@
     }
   };
 
-  useIntersectionObserver(lazyRenderCell, entry => {
-    lazyTaskManager.updateVisibleIndexes(props.index, entry.isIntersecting);
-  });
-
   useMutationObserver(lazyRenderCell, () => {
     nextTick(() => {
       updateCell();
@@ -91,16 +85,27 @@
   });
 
   onMounted(() => {
-    lazyTaskManager.addTask(props.index, isInBuffer => {
-      isVisible.value = isInBuffer;
+    lazyTaskManager.addTask(props.index, (isInBuffer, dir) => {
+      console.log('isInBuffer, dir', isInBuffer, dir)
+      if (dir === 'up') {
+        isVisible.value = isInBuffer;
+      } else {
+        if (isInBuffer) {
+          isVisible.value = isInBuffer;
+        }
+      }
+
       if (isInBuffer) {
         updateCell();
       }
     });
+
+    lazyTaskManager.observeElement(lazyRenderCell.value, props.index);
   });
 
   onBeforeUnmount(() => {
     lazyTaskManager.removeTask(props.index);
+    lazyTaskManager.unobserveElement(lazyRenderCell.value);
   });
 
   watch(
@@ -118,10 +123,5 @@
     align-items: center;
     height: 100%;
     min-height: 40px;
-
-    &.is-not-intersecting {
-      opacity: 1;
-      transition: opacity 1s;
-    }
   }
 </style>
