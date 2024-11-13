@@ -461,7 +461,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("DOUBLE_CHECK_SUM_STRATEGY_IDS", slz.ListField(label=_("适用 SUM 聚合方法二次确认的策略ID列表"), default=[])),
         ("SMS_CONTENT_LENGTH", slz.IntegerField(label=_("发送短信内容最大长度（0表示不限制）"), default=0)),
         ("IS_ACCESS_BK_DATA", slz.BooleanField(label=_("是否开启与计算平台的功能对接"), default=False)),
-        ("NEW_APPLICATION_REFRESH_RATE", slz.BooleanField(label=_("新建应用的刷新频率，每 2 分钟执行一次拓扑发现"), default=2 * 60)),
+        ("APPLICATION_QUICK_REFRESH_INTERVAL", slz.BooleanField(label=_("新建应用的刷新频率"), default=120)),
         ("BCS_CLUSTER_BK_ENV_LABEL", slz.CharField(label=_("BCS 集群配置来源标签"), default="")),
         # IPv6相关配置
         ("IPV6_SUPPORT_BIZ_LIST", slz.ListField(label=_("支持ipv6的业务列表"), default=[])),

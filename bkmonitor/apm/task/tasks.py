@@ -23,6 +23,7 @@ from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.storage.redis import Cache
 from alarm_backends.service.scheduler.app import app
+from apm.constants import ApmCacheKey
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
@@ -43,6 +44,7 @@ from apm.utils.report_event import EventReportHelper
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
+cache = Cache("cache")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -55,20 +57,19 @@ def handler(bk_biz_id, app_name):
 
 
 def topo_discover_cron():
-    from apm_web.constants import ApmCacheKey
-
-    cache = Cache("cache")
     now = timezone.now()
     half_hour_ago = now - datetime.timedelta(minutes=30)
-    amp_app_queryset = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
-    for amp_app in amp_app_queryset:
-        if cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{amp_app.id}"):
+    newly_created_applications = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
+    for apm_app in newly_created_applications:
+        if cache.exists(ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=apm_app.id)):
             continue
         else:
             cache.set(
-                f"{ApmCacheKey.APM_NEW_APPLICATION}{amp_app.id}", amp_app.id, ex=settings.NEW_APPLICATION_REFRESH_RATE
-            )  # 60*2
-            handler.delay(amp_app.bk_biz_id, amp_app.app_name)
+                ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=apm_app.id),
+                apm_app.id,
+                ex=settings.APPLICATION_QUICK_REFRESH_INTERVAL,
+            )
+            handler.delay(apm_app.bk_biz_id, apm_app.app_name)
 
     # 10分钟刷新一次
     interval = 10
@@ -76,13 +77,13 @@ def topo_discover_cron():
     ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
     to_be_refreshed = list(
         ApmApplication.objects.filter(Q(is_enabled=True) & ~Q(id__in=ebpf_application_ids)).values_list(
-            "bk_biz_id", "app_name", "id", "create_time"
+            "bk_biz_id", "app_name", "id"
         )
     )
 
     for index, application in enumerate(to_be_refreshed):
-        bk_biz_id, app_name, app_id, create_time = application
-        if not cache.get(f"{ApmCacheKey.APM_NEW_APPLICATION}{app_id}"):
+        bk_biz_id, app_name, app_id = application
+        if not cache.exists(ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=app_id)):
             try:
                 with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
                     if index % interval == slug:

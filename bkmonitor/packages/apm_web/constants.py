@@ -924,7 +924,6 @@ class ApmCacheKey:
 
     # 存放应用下服务的数据状态
     APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
-    APM_NEW_APPLICATION = "apm:new_application:"
 
 
 class LogIndexSource:
