@@ -214,6 +214,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   getPageList() {
     this.tableLoading = true;
+    this.handleClearData();
     this.tableTabList.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
@@ -410,7 +411,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
-    this.tableTabList = list;
+    // this.tableTabList = list;
+    this.handleClearData();
     list.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
