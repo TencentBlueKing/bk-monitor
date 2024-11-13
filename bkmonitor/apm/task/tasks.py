@@ -21,7 +21,6 @@ from django.utils import timezone
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.core.storage.redis import Cache
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
@@ -43,7 +42,6 @@ from apm.utils.report_event import EventReportHelper
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
-cache = Cache("cache")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
