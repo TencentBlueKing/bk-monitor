@@ -362,7 +362,7 @@
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            if (res?.result ?? true) {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
@@ -375,7 +375,6 @@
               : `bk_log_search.${this.documentType}`;
             blobDownload(res, downloadName);
           })
-          .catch(() => {})
           .finally(() => {
             this.isShowExportDialog = false;
             this.selectFiledList = [];
@@ -401,7 +400,7 @@
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            if (res?.result ?? true) {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
@@ -414,7 +413,6 @@
               : `bk_log_search.${this.documentType}`;
             blobDownload(res, downloadName);
           })
-          .catch(() => {})
           .finally(() => {
             this.isShowExportDialog = false;
             this.selectFiledList = [];

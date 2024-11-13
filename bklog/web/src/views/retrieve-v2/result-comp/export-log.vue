@@ -362,7 +362,7 @@
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            if (res?.result ?? true) {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
