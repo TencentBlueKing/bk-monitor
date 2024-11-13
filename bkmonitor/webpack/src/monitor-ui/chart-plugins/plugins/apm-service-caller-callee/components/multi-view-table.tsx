@@ -504,7 +504,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}&listType=span`
         )
       );
       return;
