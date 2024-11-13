@@ -43,7 +43,7 @@ class ShieldStatusChecker(BaseChecker):
             return
 
         config_id = notice_relation.get("config_id")
-        relation_id = notice_relation.get("relation_id")
+        relation_id = notice_relation.get("id")
         if not (config_id and relation_id):
             return
 
