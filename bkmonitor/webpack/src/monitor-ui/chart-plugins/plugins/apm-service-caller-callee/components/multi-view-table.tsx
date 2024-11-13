@@ -820,7 +820,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         min-width={160}
         prop={item.prop}
         renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
-        sortable
+        sortable='custom'
       />
     ));
   }
