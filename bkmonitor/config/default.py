@@ -1488,3 +1488,6 @@ BK_DOC_VERSION = "3.9"
 
 # 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
 APPLICATION_QUICK_REFRESH_INTERVAL = 120
+
+# 新建应用的创建时间到当前时间的时长范围，单位：分钟
+APPLICATION_QUICK_REFRESH_DELTA = 30

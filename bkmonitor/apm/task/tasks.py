@@ -58,7 +58,7 @@ def handler(bk_biz_id, app_name):
 
 def topo_discover_cron():
     now = timezone.now()
-    half_hour_ago = now - datetime.timedelta(minutes=30)
+    half_hour_ago = now - datetime.timedelta(minutes=settings.APPLICATION_QUICK_REFRESH_DELTA)
     newly_created_applications = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
     for apm_app in newly_created_applications:
         if cache.exists(ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=apm_app.id)):
