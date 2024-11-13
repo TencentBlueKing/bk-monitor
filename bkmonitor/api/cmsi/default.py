@@ -110,7 +110,7 @@ class CheckCMSIResource(CMSIBaseResource):
 
             # 获取用户信息
             param = {"usernames": validated_request_data["receiver__username"], "fields": "email,phone"}
-            receivers_info = api.cmsi.get_user_sensitive_info(**param)["data"]
+            receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
 
             # 转化格式  -> {username: { "email": email, "phone": phone }}
             # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
