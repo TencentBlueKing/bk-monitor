@@ -23,7 +23,6 @@ from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.storage.redis import Cache
 from alarm_backends.service.scheduler.app import app
-from apm.constants import ApmCacheKey
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
@@ -57,42 +56,42 @@ def handler(bk_biz_id, app_name):
 
 
 def topo_discover_cron():
-    # 半小时内新创建的应用，每 2 分钟执行一次拓扑发现
-    now = timezone.now()
-    half_hour_ago = now - datetime.timedelta(minutes=settings.APPLICATION_QUICK_REFRESH_DELTA)
-    newly_created_applications = ApmApplication.objects.filter(create_time__gt=half_hour_ago)
-    for apm_app in newly_created_applications:
-        if cache.exists(ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=apm_app.id)):
-            continue
-        else:
-            cache.set(
-                ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=apm_app.id),
-                apm_app.id,
-                ex=settings.APPLICATION_QUICK_REFRESH_INTERVAL,
-            )
-            handler.delay(apm_app.bk_biz_id, apm_app.app_name)
-
     # 10分钟刷新一次
     interval = 10
+    interval_quick = settings.APPLICATION_QUICK_REFRESH_INTERVAL
+    slug_quick = datetime.datetime.now().minute % interval_quick
     slug = datetime.datetime.now().minute % interval
     ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
     to_be_refreshed = list(
         ApmApplication.objects.filter(Q(is_enabled=True) & ~Q(id__in=ebpf_application_ids)).values_list(
-            "bk_biz_id", "app_name", "id"
+            "bk_biz_id", "app_name", "id", "create_time"
         )
     )
-
+    current_time = timezone.now()
     for index, application in enumerate(to_be_refreshed):
-        bk_biz_id, app_name, app_id = application
-        if not cache.exists(ApmCacheKey.APM_APPLICATION_QUICK_REFRESH.format(application_id=app_id)):
-            try:
-                with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
-                    if index % interval == slug:
-                        logger.info(f"[topo_discover_cron] start. app_name: {app_name}, app_id: {app_id}")
+        bk_biz_id, app_name, app_id, create_time = application
+        try:
+            with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
+                # 在 settings.APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
+                if (current_time - create_time) < datetime.timedelta(minutes=settings.APPLICATION_QUICK_REFRESH_DELTA):
+                    if index % interval_quick == slug_quick:
+                        logger.info(
+                            f"[topo_discover_cron] the applications that were created within the last "
+                            f"{settings.APPLICATION_QUICK_REFRESH_DELTA} minutes are starting. "
+                            f"app_name: {app_name}, app_id: {app_id}"
+                        )
                         handler.delay(bk_biz_id, app_name)
-            except LockError:
-                logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
-                continue
+                else:
+                    if index % interval == slug:
+                        logger.info(
+                            f"[topo_discover_cron] the applications that were created more than"
+                            f" {settings.APPLICATION_QUICK_REFRESH_DELTA} minutes ago are starting. "
+                            f"app_name: {app_name}, app_id: {app_id}"
+                        )
+                        handler.delay(bk_biz_id, app_name)
+        except LockError:
+            logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
+            continue
 
 
 def refresh_apm_config():

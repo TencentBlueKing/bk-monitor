@@ -586,10 +586,3 @@ class ApmBmwTaskStatus:
     RUNNING = "running"
     # 未开启
     UNOPENED = "unopened"
-
-
-class ApmCacheKey:
-    """一些 APM 的缓存 Key"""
-
-    # 30钟内新建应用的id在缓存中的key
-    APM_APPLICATION_QUICK_REFRESH = "apm:application:quick_refresh:{application_id}"
