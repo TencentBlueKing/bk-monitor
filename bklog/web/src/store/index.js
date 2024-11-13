@@ -1070,7 +1070,13 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = state.indexItem.addition.filter(item => !item.disabled && item.field !== '_ip-select_');
+      const addition = otherPrams.addition.map(a => {
+        if (['is true', 'is false'].includes(a.operator)) {
+          a.value = [''];
+        }
+
+        return a;
+      });
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1078,7 +1084,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        // addition,
+        addition,
       };
 
       // 更新联合查询的begin
