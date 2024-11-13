@@ -138,7 +138,7 @@
         return this.finish[this.operateType];
       },
       isNotApplyPage() {
-        return this.applyData?.itsm_ticket_status !== 'applying';
+        return this.applyData.itsm_ticket_status !== 'applying';
       },
     },
     methods: {
@@ -156,7 +156,6 @@
             spaceUid: this.$store.state.spaceUid,
           },
         });
-        this.$emit('step-result-back');
       },
     },
   };
