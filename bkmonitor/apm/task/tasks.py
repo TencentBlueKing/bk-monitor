@@ -56,7 +56,7 @@ def handler(bk_biz_id, app_name):
 def topo_discover_cron():
     # 10分钟刷新一次
     interval = 10
-    interval_quick = settings.APPLICATION_QUICK_REFRESH_INTERVAL
+    interval_quick = settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL
     slug_quick = datetime.datetime.now().minute % interval_quick
     slug = datetime.datetime.now().minute % interval
     ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
@@ -66,24 +66,26 @@ def topo_discover_cron():
         )
     )
     current_time = timezone.now()
-    for index, application in enumerate(to_be_refreshed):
+    for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
         try:
             with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
-                # 在 settings.APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
-                if (current_time - create_time) < datetime.timedelta(minutes=settings.APPLICATION_QUICK_REFRESH_DELTA):
-                    if index % interval_quick == slug_quick:
+                # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
+                if (current_time - create_time) < datetime.timedelta(
+                    minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
+                ):
+                    if app_id % interval_quick == slug_quick:
                         logger.info(
                             f"[topo_discover_cron] the applications that were created within the last "
-                            f"{settings.APPLICATION_QUICK_REFRESH_DELTA} minutes are starting. "
+                            f"{settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes are starting. "
                             f"app_name: {app_name}, app_id: {app_id}"
                         )
                         handler.delay(bk_biz_id, app_name)
                 else:
-                    if index % interval == slug:
+                    if app_id % interval == slug:
                         logger.info(
                             f"[topo_discover_cron] the applications that were created more than"
-                            f" {settings.APPLICATION_QUICK_REFRESH_DELTA} minutes ago are starting. "
+                            f" {settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes ago are starting. "
                             f"app_name: {app_name}, app_id: {app_id}"
                         )
                         handler.delay(bk_biz_id, app_name)
