@@ -448,7 +448,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     if (!canClick) {
       return;
     }
-    const { kind, timeParams } = this.dimensionParam;
+    const { kind, timeParams, pointTime } = this.dimensionParam;
+    const interval = pointTime?.startTime ? 60 : 0;
+    const from = (timeParams.start_time - interval) * 1000;
+    const to = timeParams.end_time * 1000;
 
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
@@ -468,7 +471,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}&from=${from}&to=${to}`
         )
       );
       return;
@@ -504,7 +507,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${from}&end_time=${to}&listType=span`
         )
       );
       return;
@@ -514,7 +517,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee&from=${from}&to=${to}`
         )
       );
       return;
@@ -525,7 +528,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo&from=${from}&to=${to}`
         )
       );
       return;
