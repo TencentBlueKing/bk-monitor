@@ -448,7 +448,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     if (!canClick) {
       return;
     }
-    const { kind } = this.dimensionParam;
+    const { kind, timeParams } = this.dimensionParam;
+
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
     if (type === 'callee') {
@@ -467,7 +468,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
         )
       );
       return;
@@ -503,7 +504,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}`
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
         )
       );
       return;
@@ -513,7 +514,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
         )
       );
       return;
@@ -524,7 +525,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo&start_time=${timeParams.start_time}&end_time=${timeParams.end_time}`
         )
       );
       return;
@@ -609,6 +610,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   const pre = this.dimensionList.find(item => item.value === intersection[0]);
                   const isHas = intersection.length > 0;
                   if (isHas && opt.value === 'callee') {
+                    const tips =
+                      this.simpleList.length === 0
+                        ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
+                        : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`);
                     return (
                       <bk-popover
                         ext-cls='caller-field-popover'
@@ -617,16 +622,19 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         trigger='click'
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
-                        <span class='operation-item'>{opt.text}</span>
+                        <span
+                          class='operation-item'
+                          v-bk-tooltips={{
+                            content: tips,
+                          }}
+                        >
+                          {opt.text}
+                        </span>
                         <div
                           class='simple-list'
                           slot='content'
                         >
-                          <span>
-                            {this.simpleList.length === 0
-                              ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
-                              : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`)}
-                          </span>
+                          <span>{tips}</span>
                           <div
                             class='simple-list-item'
                             v-bkloading={{ isLoading: this.simpleLoading, theme: 'primary', size: 'mini' }}
@@ -653,6 +661,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   }
                   if (isHas && ['service', 'topo', 'trace'].includes(opt.value)) {
                     const isClick = this.serviceList.includes(row[opt.tags[0]]);
+                    const tipsData = {
+                      trace: this.$t('查看关联调用链'),
+                      topo: this.$t(`跳转到「${row[intersection[0]]}」拓扑页面`),
+                      service: this.$t(`跳转到「${row[intersection[0]]}」调用分析页面`),
+                    };
                     return (
                       <span
                         key={opt.value}
@@ -660,10 +673,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         v-bk-tooltips={
                           ['service', 'topo'].includes(opt.value)
                             ? {
-                                content: this.$t('服务未接入'),
-                                disabled: isClick,
+                                content: !isClick ? this.$t('服务未接入') : tipsData[opt.value],
                               }
-                            : { disabled: true }
+                            : { content: tipsData[opt.value] }
                         }
                         onClick={() =>
                           this.handleFieldOperations(
@@ -678,17 +690,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                       </span>
                     );
                   }
-                  // if (isHas && opt.value === 'trace') {
-                  //   return (
-                  //     <span
-                  //       key={opt.value}
-                  //       class={['operation-item']}
-                  //       onClick={() => this.handleFieldOperations(opt, row, true, intersection[0])}
-                  //     >
-                  //       {opt.text}
-                  //     </span>
-                  //   );
-                  // }
                 })}
               </div>
             );
