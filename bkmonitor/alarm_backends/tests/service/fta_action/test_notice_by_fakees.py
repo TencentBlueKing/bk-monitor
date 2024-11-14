@@ -84,7 +84,7 @@ class TestActionFakeESProcessor(TestCase):
             {
                 "duty_rule_id": 1,
                 "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
-                "finished_time": "",
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
                 "is_effective": 1,
                 "order": 2,
                 "work_times": [{'start_time': today_begin, 'end_time': today_end}],

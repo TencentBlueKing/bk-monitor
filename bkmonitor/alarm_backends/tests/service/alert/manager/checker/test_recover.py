@@ -500,6 +500,7 @@ class TestRecoverStatusChecker(TestCase):
     def test_event_type_big_window_unit_false(self):
         strategy = copy.deepcopy(STRATEGY)
         strategy["items"][0]["query_configs"][0]["data_type_label"] = "event"
+        strategy["items"][0]["query_configs"][0]["data_source_label"] = "custom"
         strategy["items"][0]["query_configs"][0]["agg_interval"] = 300
         strategy["detects"][1] = {
             "expression": "",
