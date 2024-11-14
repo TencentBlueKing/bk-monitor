@@ -102,9 +102,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   drillWhere: IFilterCondition[] = [];
   pointTime: IPointTime = {};
   dimensionList: DimensionItem[] = [];
-  diffTableList = {};
-  tableTotal = 0;
-  totalList = {};
   totalListData = [];
   tableTabList: string[] = ['request_total'];
   resizeStatus = false;
@@ -165,6 +162,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       }
       this.getPageList();
     }
+    this.dimensionParam = { ...this.dimensionParam, pointTime: this.pointTime };
   }
 
   @Watch('activeKey')
@@ -213,6 +211,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   getPageList() {
     this.tableLoading = true;
+    this.handleClearData();
     this.tableTabList.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
@@ -230,6 +229,17 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       text: item.alias,
     }));
     this.getPageList();
+  }
+  transformDimensionToKey(dimensions: Record<string, any>) {
+    const keys = Object.keys(dimensions || []).sort();
+    if (keys.length === 0) {
+      return '';
+    }
+    let str = '';
+    for (const key of keys) {
+      str += `${key}:${dimensions[key]}|`;
+    }
+    return str;
   }
   /** 获取表格数据 */
   getTableDataList(isTotal = false, metric_cal_type = 'request_total') {
@@ -268,13 +278,19 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
-        const newData = (res?.data || []).map(item => {
-          const { dimensions, proportions, growth_rates } = item;
-          const col = {};
+        let list = (isTotal ? this.totalListData?.slice() : this.tableListData?.slice()) || [];
+        if (!list.length) {
+          list = res?.data || [];
+        }
+        const tableData = [];
+        const resetColItem = (item, rawItem, key = '', dimensions = {}) => {
+          const { proportions, growth_rates } = rawItem || {};
+          const col = {
+            key,
+          };
           [...timeShift, ...['0s']].map(key => {
             const baseKey = `${metric_cal_type}_${key}`;
-            col[baseKey] = item[key];
-
+            col[baseKey] = rawItem[key];
             const addToListIfNotEmpty = (source, prefix) => {
               if (Object.keys(source || {}).length > 0) {
                 col[`${prefix}_${baseKey}`] = source[key];
@@ -283,23 +299,30 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             addToListIfNotEmpty(proportions, 'proportions');
             addToListIfNotEmpty(growth_rates, 'growth_rates');
           });
-          return Object.assign(item, dimensions, col);
-        });
-        if (!isTotal) {
-          this.tableListData = newData;
-          if (metric_cal_type !== 'request_total') {
-            this.$set(this.diffTableList, metric_cal_type, newData);
+          return {
+            ...item,
+            ...dimensions,
+            ...col,
+          };
+        };
+        for (const item of list) {
+          if (!isTotal) {
+            const { dimensions } = item;
+            const key = item.key || this.transformDimensionToKey(dimensions);
+            const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
+            if (metric_cal_type === 'timeout_rate') {
+              console.info(item['0s'], rawItem['0s']);
+            }
+            tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
-            this.tableTabData = newData;
+            tableData.push(resetColItem(item, res?.data[0]));
           }
-          this.tableTotal = res?.total || 0;
+        }
+        if (!isTotal) {
+          this.tableListData = tableData;
           return;
         }
-        if (metric_cal_type !== 'request_total') {
-          this.$set(this.totalList, metric_cal_type, newData);
-        } else {
-          this.totalListData = newData;
-        }
+        this.totalListData = tableData;
       })
       .catch(() => {
         this.tableLoading = false;
@@ -358,23 +381,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
 
     return result;
-  }
-  @Watch('diffTableList', { deep: true })
-  handleDiffTableListData(val) {
-    if (this.tableTabList.length > 1) {
-      const data = {};
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      this.tableTabList.forEach(key => {
-        data[key] = val[key] || [];
-      });
-      const mergedData = this.mergeArrays(data);
-      this.tableListData = mergedData;
-    }
-  }
-  @Watch('totalList', { deep: true })
-  handleTotalListData(val) {
-    const mergedData = this.mergeArrays(val);
-    this.totalListData = mergedData;
   }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
@@ -567,7 +573,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
-                tableTotal={this.tableTotal}
                 totalList={this.totalListData}
                 onDimensionKeyChange={this.dimensionKeyChange}
                 onDrill={this.handleDrill}
