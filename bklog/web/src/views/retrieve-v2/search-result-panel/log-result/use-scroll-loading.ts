@@ -1,5 +1,6 @@
 import { debounce } from 'lodash';
 import { onMounted, onUnmounted, ref } from 'vue';
+import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default (onLoadingCallbak, onScrollFn) => {
   const isRunning = ref(false);
@@ -29,21 +30,21 @@ export default (onLoadingCallbak, onScrollFn) => {
   };
 
   const scrollToTop = () => {
-    const target = document.body.querySelector('.search-result-content.scroll-y');
+    const target = document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
     if (target) {
       target.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     }
   }
 
   onMounted(() => {
-    const target = document.body.querySelector('.search-result-content.scroll-y');
+    const target = document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
     if (target) {
       target.addEventListener('scroll', handleScroll);
     }
   });
 
   onUnmounted(() => {
-    const target = document.body.querySelector('.search-result-content.scroll-y');
+    const target = document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
     if (target) {
       target.removeEventListener('scroll', handleScroll);
     }

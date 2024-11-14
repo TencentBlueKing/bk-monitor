@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set, nextTick, Ref } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -42,7 +42,13 @@ import './log-rows.scss';
 import useLazyRender from './use-lazy-render';
 import { LazyTaskScheduler, RowData } from './lazy-task';
 import { uniqueId } from 'lodash';
-import { ROW_CONFIG, ROW_INDEX, ROW_KEY } from './log-row-attributes';
+import { GLOBAL_SCROLL_SELECTOR, ROW_CONFIG, ROW_EXPAND, ROW_F_ORIGIN_CTX, ROW_F_ORIGIN_OPT, ROW_F_ORIGIN_TIME, ROW_INDEX, ROW_KEY } from './log-row-attributes';
+
+type RowConfig = {
+  expand?: boolean;
+  isInSection?: boolean;
+  minHeight?: string;
+};
 
 export default defineComponent({
   props: {
@@ -80,15 +86,15 @@ export default defineComponent({
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     LazyTaskScheduler.setParentSelector(`#${resultContainerId.value}`);
-    LazyTaskScheduler.setScrollSelector('.search-result-content.scroll-y');
+    LazyTaskScheduler.setScrollSelector(GLOBAL_SCROLL_SELECTOR);
 
-    const tableRowStore = new Map();
+    const tableRowStore = new Map<string, RowConfig>();
 
     const renderColumns = computed(() => {
       return [
         {
           field: '',
-          key: '__component_row_expand',
+          key: ROW_EXPAND,
           // 设置需要显示展开图标的列
           type: 'expand',
           title: '',
@@ -96,7 +102,7 @@ export default defineComponent({
           align: 'center',
           resize: false,
           renderBodyCell: ({ row }) => {
-            const config = row[ROW_CONFIG];
+            const config: Ref<RowConfig> = row[ROW_CONFIG];
 
             const hanldeExpandClick = () => {
               config.value.expand = !config.value.expand;
@@ -128,8 +134,8 @@ export default defineComponent({
         },
         ...columns.value,
         {
-          field: '__component_table_operator',
-          key: '__component_table_operator',
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
           title: $t('操作'),
           width: 80,
           fixed: 'right',
@@ -264,9 +270,9 @@ export default defineComponent({
 
       return [
         {
-          field: '__component_origin_time',
-          key: '__component_origin_time',
-          title: '__component_origin_time',
+          field: ROW_F_ORIGIN_TIME,
+          key: ROW_F_ORIGIN_TIME,
+          title: ROW_F_ORIGIN_TIME,
           align: 'top',
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
@@ -275,9 +281,9 @@ export default defineComponent({
           },
         },
         {
-          field: '__component_origin_content',
-          key: '__component_origin_content',
-          title: '__component_origin_content',
+          field: ROW_F_ORIGIN_CTX,
+          key: ROW_F_ORIGIN_CTX,
+          title: ROW_F_ORIGIN_CTX,
           align: 'top',
           minWidth: '100%',
           width: 'auto',
@@ -297,7 +303,7 @@ export default defineComponent({
       ];
     };
 
-    const getStoreRowAttr = (rowKey, attrName, value) => {
+    const getStoreRowAttr = <K extends keyof RowConfig>(rowKey: string, attrName: K, value: RowConfig[K]) => {
       if (!tableRowStore.has(rowKey)) {
         tableRowStore.set(rowKey, { [attrName]: value });
         return value;
@@ -318,7 +324,8 @@ export default defineComponent({
         ['isInSection', true],
         ['minHeight', '42px'],
       ].reduce(
-        (cfg, item: [string, any]) => Object.assign(cfg, { [item[0]]: getStoreRowAttr(rowKey, item[0], item[1]) }),
+        (cfg, item: [keyof RowConfig, any]) =>
+          Object.assign(cfg, { [item[0]]: getStoreRowAttr(rowKey, item[0], item[1]) }),
         {},
       );
     };

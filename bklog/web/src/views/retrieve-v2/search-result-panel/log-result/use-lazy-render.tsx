@@ -1,11 +1,12 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { debounce } from 'lodash';
+import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default ({ loadMoreFn, scrollCallbackFn }) => {
   const isRunning = ref(false);
 
   const getScrollElement = () => {
-    return document.body.querySelector('.search-result-content.scroll-y');
+    return document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
   };
 
   const debounceCallback = debounce(() => {
