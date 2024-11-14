@@ -102,9 +102,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   drillWhere: IFilterCondition[] = [];
   pointTime: IPointTime = {};
   dimensionList: DimensionItem[] = [];
-  diffTableList = {};
-  tableTotal = 0;
-  totalList = {};
   totalListData = [];
   tableTabList: string[] = ['request_total'];
   resizeStatus = false;
@@ -240,7 +237,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
     let str = '';
     for (const key of keys) {
-      str = `${key}:${dimensions[key]}|`;
+      str += `${key}:${dimensions[key]}|`;
     }
     return str;
   }
@@ -313,6 +310,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             const { dimensions } = item;
             const key = item.key || this.transformDimensionToKey(dimensions);
             const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
+            if (metric_cal_type === 'timeout_rate') {
+              console.info(item['0s'], rawItem['0s']);
+            }
             tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
             tableData.push(resetColItem(item, res?.data[0]));
@@ -320,18 +320,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         }
         if (!isTotal) {
           this.tableListData = tableData;
-          // if (metric_cal_type !== 'request_total') {
-          //   this.$set(this.diffTableList, metric_cal_type, tableData);
-          // } else {
-          //   this.tableTabData = tableData;
-          // }
-          this.tableTotal = res?.total || 0;
           return;
         }
-        // if (metric_cal_type !== 'request_total') {
-        //   this.$set(this.totalList, metric_cal_type, tableData);
-        // } else {
-        // }
         this.totalListData = tableData;
       })
       .catch(() => {
@@ -392,28 +382,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
 
     return result;
   }
-  @Watch('diffTableList', { deep: true })
-  handleDiffTableListData(val) {
-    if (this.tableTabList.length > 1) {
-      const data = {};
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      this.tableTabList.forEach(key => {
-        data[key] = val[key] || [];
-      });
-      const mergedData = this.mergeArrays(data);
-      this.tableListData = mergedData;
-    }
-  }
-  @Watch('totalList', { deep: true })
-  handleTotalListData(val) {
-    const mergedData = this.mergeArrays(val);
-    this.totalListData = mergedData;
-  }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
     this.tableTabList = list;
-    this.tableLoading = true;
-    this.handleClearData();
     list.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
@@ -602,7 +573,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
-                tableTotal={this.tableTotal}
                 totalList={this.totalListData}
                 onDimensionKeyChange={this.dimensionKeyChange}
                 onDrill={this.handleDrill}

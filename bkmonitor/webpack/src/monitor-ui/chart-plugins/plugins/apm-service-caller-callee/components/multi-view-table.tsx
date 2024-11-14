@@ -52,7 +52,6 @@ interface IMultiViewTableProps {
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
   supportedCalculationTypes?: IListItem[];
-  tableTotal?: number;
   totalList?: IDataItem[];
   activeTabKey?: string;
   resizeStatus?: boolean;
@@ -76,7 +75,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
-  @Prop({ required: true, type: Number }) tableTotal: number;
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
@@ -104,7 +102,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   filterDimensionValue = '';
   pagination = {
     current: 1,
-    count: 0,
     limit: 10,
     limitList: [10, 20, 50],
   };
@@ -146,11 +143,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       ...this.sidePanelCommonOptions,
       call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
     };
-  }
-  @Watch('tableTotal')
-  handleTableTotal(val) {
-    this.pagination.count = val;
-    this.pagination.current = 1;
   }
   @Watch('activeTabKey')
   handleTableData() {
@@ -273,7 +265,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData')
+  @Watch('tableColData', { immediate: true })
   handleChangeCol(val: IListItem[]) {
     const key = {
       '1d': '昨天',
@@ -789,7 +781,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
@@ -968,11 +959,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             )
           )}
         </div>
-        {this.tableTotal > this.pagination.limit && (
+        {this.tableListData?.length > this.pagination.limit && (
           <bk-pagination
             class='mt-8'
             align='right'
-            count={this.pagination.count}
+            count={this.tableListData.length}
             current={this.pagination.current}
             limit={this.pagination.limit}
             limit-list={this.pagination.limitList}
