@@ -1125,6 +1125,7 @@ BK_NODEMAN_INNER_HOST = os.getenv("BKAPP_NODEMAN_HOST") or os.getenv(
 )
 
 BKLOGSEARCH_HOST = os.getenv("BK_LOG_SEARCH_SITE_URL") or get_service_url("bk_log_search", bk_paas_host=BK_PAAS_HOST)
+BKLOGSEARCH_INNER_HOST = os.getenv("BK_LOG_SEARCH_INNER_HOST") or BKLOGSEARCH_HOST
 
 # 作业平台url
 JOB_URL = BK_PAAS_HOST.replace("paas", "job")

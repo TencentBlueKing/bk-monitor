@@ -80,6 +80,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-caller_callee",
         "service-default-custom_metric",
     ]
+
+    # 只需要列表信息时，需要进一步进行渲染的 Tab
+    # 列表只关注需要展示哪些 Tab，可以跳过具体的 view_config 生成逻辑，以加快页面渲染
+    NEED_RENDER_IF_ONLY_SIMPLE_INFO: List[str] = [
+        # 调用分析页面需要另外判断是否展示，不直接跳过
+        "apm_service-service-default-caller_callee",
+    ]
+
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -121,6 +129,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 替换table_id
         table_id = Application.get_metric_table_id(bk_biz_id, app_name)
         view_config = cls._replace_variable(view_config, "${table_id}", table_id)
+
+        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
+            return view_config
 
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             # APM Trace检索处
