@@ -206,7 +206,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         code_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("a")
-            .filter(code_type__eq=code_type)
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
         code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
