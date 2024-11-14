@@ -625,14 +625,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         trigger='click'
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
-                        <span
-                          class='operation-item'
-                          v-bk-tooltips={{
-                            content: tips,
-                          }}
-                        >
-                          {opt.text}
-                        </span>
+                        <span class='operation-item'>{opt.text}</span>
                         <div
                           class='simple-list'
                           slot='content'
