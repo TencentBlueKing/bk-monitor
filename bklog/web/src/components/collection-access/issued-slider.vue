@@ -18,6 +18,7 @@
       :quick-close="true"
       :width="800"
       transfer
+      @shown = "showSlider"
       @animation-end="closeSlider"
     >
       <div slot="header">
@@ -408,7 +409,7 @@
       },
       hostIdentifierPriority() {
         return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-      },
+      }
     },
     watch: {
       hasRunning(newVal, val) {
@@ -424,7 +425,7 @@
           const len = this.tableList.length;
           this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
         }
-      },
+      }
     },
     created() {
       if (this.isContainer) return; // 容器日志展示容器日志的内容
@@ -435,6 +436,7 @@
       if (this.isContainer) return; // 容器日志展示容器日志的内容
       this.isLeavePage = false;
       this.isShowStepInfo = false;
+
       if (!this.isStopCollection) this.requestIssuedClusterList();
     },
     beforeDestroy() {
@@ -537,6 +539,9 @@
       },
       handleRefreshDetail() {
         this.requestDetail(this.currentRow);
+      },
+      showSlider(){
+        if (!this.isStopCollection) this.requestIssuedClusterList();
       },
       closeSlider() {
         this.detail.content = '';
@@ -648,8 +653,8 @@
                   host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                 });
               });
-              this.tableListAll = data;
-              this.tableList = data;
+              this.tableListAll = [...data];
+              this.tableList = [...data];
               this.calcTabNum();
             }
           })
