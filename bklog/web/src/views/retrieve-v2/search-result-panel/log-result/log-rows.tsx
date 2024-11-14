@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set, nextTick } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -42,6 +42,7 @@ import './log-rows.scss';
 import useLazyRender from './use-lazy-render';
 import { LazyTaskScheduler, RowData } from './lazy-task';
 import { uniqueId } from 'lodash';
+import { ROW_CONFIG, ROW_INDEX, ROW_KEY } from './log-row-attributes';
 
 export default defineComponent({
   props: {
@@ -75,13 +76,13 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const totalCount = computed(() => store.state.retrieve.trendDataCount);
-    const forceCounter = ref(0);
+    const hasOverflowX = ref(false);
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     LazyTaskScheduler.setParentSelector(`#${resultContainerId.value}`);
     LazyTaskScheduler.setScrollSelector('.search-result-content.scroll-y');
 
-    const tableRowStore = new WeakMap();
+    const tableRowStore = new Map();
 
     const renderColumns = computed(() => {
       return [
@@ -95,11 +96,11 @@ export default defineComponent({
           align: 'center',
           resize: false,
           renderBodyCell: ({ row }) => {
-            const config = row.__component_row_config;
+            const config = row[ROW_CONFIG];
 
             const hanldeExpandClick = () => {
               config.value.expand = !config.value.expand;
-              tableRowStore.get(row).expand = config.value.expand;
+              tableRowStore.get(row[ROW_KEY]).expand = config.value.expand;
             };
 
             return (
@@ -114,7 +115,7 @@ export default defineComponent({
         },
         {
           field: '',
-          key: '__component_row_index',
+          key: ROW_INDEX,
           title: tableShowRowIndex.value ? '#' : '',
           width: tableShowRowIndex.value ? 50 : 0,
           fixed: 'left',
@@ -122,7 +123,7 @@ export default defineComponent({
           resize: false,
           class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
           renderBodyCell: ({ row }) => {
-            return row.__component_row_index + 1;
+            return row[ROW_INDEX] + 1;
           },
         },
         ...columns.value,
@@ -138,7 +139,7 @@ export default defineComponent({
               // @ts-ignore
               <OperatorTools
                 handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-                index={row.__component_row_index}
+                index={row[ROW_INDEX]}
                 operator-config={indexSetOperatorConfig.value}
                 row-data={row}
               />
@@ -296,45 +297,52 @@ export default defineComponent({
       ];
     };
 
-    const getStoreRowAttr = (row, attrName, value) => {
-      if (!tableRowStore.has(row)) {
-        tableRowStore.set(row, { [attrName]: value });
+    const getStoreRowAttr = (rowKey, attrName, value) => {
+      if (!tableRowStore.has(rowKey)) {
+        tableRowStore.set(rowKey, { [attrName]: value });
         return value;
       }
 
-      if (!tableRowStore.get(row)[attrName]) {
-        Object.assign(tableRowStore.get(row), { [attrName]: value });
+      if (tableRowStore.get(rowKey)[attrName] === undefined) {
+        Object.assign(tableRowStore.get(rowKey), { [attrName]: value });
         return value;
       }
 
-      return tableRowStore.get(row)[attrName];
+      return tableRowStore.get(rowKey)[attrName];
+    };
+
+    const getRowConfigWithCache = index => {
+      const rowKey = `${ROW_KEY}_${index}`;
+      return [
+        ['expand', false],
+        ['isInSection', true],
+        ['minHeight', '42px'],
+      ].reduce(
+        (cfg, item: [string, any]) => Object.assign(cfg, { [item[0]]: getStoreRowAttr(rowKey, item[0], item[1]) }),
+        {},
+      );
     };
 
     const handleScrollInView = (rowData: RowData) => {
-      rowData.getDomElement().classList.remove('is-not-intersecting');
-      rowData.getDomElement().classList.add('is-intersecting');
-      rowData.getDomElement().style?.setProperty('min-height', `${rowData.height()}px`);
-      Object.assign(tableRowStore.get(rowData.row), { isInSection: true });
-      rowData.row.__component_row_config.value.isInSection = true;
+      const minHeight = `${rowData.height()}px`;
+      Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { isInSection: true, minHeight });
+      rowData.row[ROW_CONFIG].value.isInSection = true;
+      rowData.row[ROW_CONFIG].value.minHeight = minHeight;
     };
 
     const handleScrollOutView = (rowData: RowData) => {
-      rowData.getDomElement().classList.remove('is-intersecting');
-      rowData.getDomElement().classList.add('is-not-intersecting');
-      Object.assign(tableRowStore.get(rowData.row), { isInSection: false });
-      rowData.row.__component_row_config.value.isInSection = false;
+      Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { isInSection: false });
+      rowData.row[ROW_CONFIG].value.isInSection = false;
     };
 
     const loadTableData = () => {
-      console.log('--loadTableData')
       return (indexSetQueryResult.value.list || []).map((row, index) => {
-        const isExpand = getStoreRowAttr(row, 'expand', false);
-        const isInSection = getStoreRowAttr(row, 'isInSection', true);
+        const rowKey = `${ROW_KEY}_${index}`;
 
         Object.assign(row, {
-          __component_row_key: `__component_row_key_${index}`,
-          __component_row_index: index,
-          __component_row_config: ref({ expand: isExpand, isInSection }),
+          [ROW_KEY]: rowKey,
+          [ROW_INDEX]: index,
+          [ROW_CONFIG]: ref(getRowConfigWithCache(index)),
         });
         LazyTaskScheduler.injectTasks(
           index,
@@ -360,10 +368,27 @@ export default defineComponent({
       },
     };
 
+    const updateRowMinHeight = () => {
+      LazyTaskScheduler.calcRowHeight(rowData => {
+        const target = rowData.getDomElement()?.querySelector('.bklog-list-row') as HTMLElement;
+        let minHeight = 'auto';
+        if (target) {
+          minHeight = `${target.offsetHeight}px`;
+        }
+
+        Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { minHeight });
+        rowData.row[ROW_CONFIG].value.minHeight = minHeight;
+      });
+    };
+
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
         columns.value = loadTableColumns();
+        setTimeout(() => {
+          hasOverflowX.value = hasScrollX();
+          updateRowMinHeight();
+        });
       },
     );
 
@@ -372,7 +397,7 @@ export default defineComponent({
       () => {
         tableData.value = loadTableData();
         setTimeout(() => {
-          LazyTaskScheduler.updateRowStates();
+          updateRowMinHeight();
         });
       },
     );
@@ -380,7 +405,9 @@ export default defineComponent({
     watch(
       () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
       () => {
-        forceCounter.value++;
+        setTimeout(() => {
+          updateRowMinHeight();
+        });
       },
     );
 
@@ -400,10 +427,7 @@ export default defineComponent({
     const renderHeadVNode = () => {
       if (props.contentType === 'table' && tableData.value.length > 0) {
         return (
-          <LazyRender
-            class='bklog-row-container'
-            delay={0}
-          >
+          <div class='bklog-row-container'>
             <div class='bklog-list-row '>
               {renderColumns.value.map(column => (
                 <LogCell
@@ -418,7 +442,7 @@ export default defineComponent({
                 </LogCell>
               ))}
             </div>
-          </LazyRender>
+          </div>
         );
       }
       return null;
@@ -441,11 +465,12 @@ export default defineComponent({
 
     onUnmounted(() => {
       LazyTaskScheduler.destroy();
+      tableRowStore.clear();
     });
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop } = useLazyRender({
+    const { scrollToTop, hasScrollX } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       scrollCallbackFn: handleScrollEvent,
     });
@@ -466,12 +491,10 @@ export default defineComponent({
     };
 
     const renderRowCells = (row, rowIndex) => {
-      if (tableRowStore.get(row)?.isInSection ?? true) {
+      const { isInSection, expand } = row[ROW_CONFIG].value;
+      if (isInSection) {
         return [
-          <div
-            key={row.__component_row_key}
-            class='bklog-list-row'
-          >
+          <div class='bklog-list-row'>
             {renderColumns.value.map(column => (
               <LogCell
                 key={column.key}
@@ -483,7 +506,7 @@ export default defineComponent({
               </LogCell>
             ))}
           </div>,
-          row.__component_row_config.value.expand ? expandOption.render({ row }) : '',
+          expand ? expandOption.render({ row }) : '',
         ];
       }
 
@@ -492,11 +515,20 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return tableData.value.map((row, rowIndex) => {
+        const { minHeight, isInSection } = row[ROW_CONFIG].value;
         return (
           <div
-            key={row.__component_row_key}
-            class='bklog-row-container'
+            key={row[ROW_KEY]}
+            class={[
+              'bklog-row-container',
+              {
+                'is-not-intersecting': !isInSection,
+                'is-intersecting': isInSection,
+                'has-overflow-x': hasOverflowX.value,
+              },
+            ]}
             data-row-index={rowIndex}
+            style={{ minHeight }}
           >
             {renderRowCells(row, rowIndex)}
           </div>
@@ -512,7 +544,6 @@ export default defineComponent({
       renderHeadVNode,
       renderScrollTop,
       renderRowVNode,
-      forceCounter,
       resultContainerId,
     };
   },

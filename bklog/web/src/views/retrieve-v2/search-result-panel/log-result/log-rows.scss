@@ -46,8 +46,6 @@
           }
         }
 
-
-
         &.right {
           position: absolute;
           right: 0;
@@ -190,12 +188,13 @@
       will-change: scroll-position;
     }
 
-    &.is-not-intersecting {
-      .bklog-list-row {
-        display: none;
-      }
+    &.is-intersecting {
+      will-change: auto;
     }
 
+    &.is-not-intersecting {
+      visibility: hidden;
+    }
 
     &.has-overflow-x {
       .bklog-list-row {
@@ -204,7 +203,6 @@
             position: sticky;
             right: 0;
           }
-
         }
       }
     }

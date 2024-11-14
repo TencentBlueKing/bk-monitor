@@ -37,6 +37,11 @@ export default ({ loadMoreFn, scrollCallbackFn }) => {
     getScrollElement().scrollTo({ left: 0, top: 0, behavior: 'smooth' });
   };
 
+  const hasScrollX = () => {
+    const target = getScrollElement() as HTMLDivElement;
+    return target.scrollWidth > target.offsetWidth;
+  }
+
   onMounted(() => {
     getScrollElement()?.addEventListener('scroll', handleScrollEvent);
   });
@@ -47,5 +52,6 @@ export default ({ loadMoreFn, scrollCallbackFn }) => {
 
   return {
     scrollToTop,
+    hasScrollX
   };
 };

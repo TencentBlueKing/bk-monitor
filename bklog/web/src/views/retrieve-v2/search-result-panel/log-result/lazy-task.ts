@@ -22,7 +22,7 @@ class TaskScheduler {
   private taskMap: Map<number, RowData>; // Use rowIndex as the key
   private parentSelector: string | null = null;
   private scrollSelector: string | null = null;
-  private buffer: number = 300; // 控制可视范围的缓冲区
+  private buffer: number = 600; // 控制可视范围的缓冲区
   private lastVisibleStartIndex: number = 0; // 上次可视区域的起始索引
   private lastVisibleEndIndex: number = 0; // 上次可视区域的结束索引
 
@@ -188,7 +188,7 @@ class TaskScheduler {
       try {
         requestAnimationFrame(() => {
           task.execute(rowData);
-        })
+        });
       } catch (error) {
         console.error(`Error executing task ${task.key}:`, error);
       }
@@ -218,6 +218,10 @@ class TaskScheduler {
 
   public destroy() {
     this.taskMap.clear();
+  }
+
+  public calcRowHeight(onRowTaskCallback: (rowData: RowData) => void) {
+    this.taskMap.forEach(onRowTaskCallback);
   }
 }
 
