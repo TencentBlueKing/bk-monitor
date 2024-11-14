@@ -162,8 +162,10 @@ class RecoverStatusChecker(BaseChecker):
         now_ts = int(time.time())
 
         if is_event_type:
-            # 如果是事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
-            last_check_timestamp = now_ts - window_unit
+            last_check_timestamp = now_ts
+            # 如果是自定义事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
+            if query_config["data_source_label"] != DataSourceLabel.BK_MONITOR_COLLECTOR:
+                last_check_timestamp -= window_unit
         else:
             # 如果是时序或日志类型告警，则使用最后一次上报时间判断
             last_check_timestamp = LAST_CHECKPOINTS_CACHE_KEY.client.hget(

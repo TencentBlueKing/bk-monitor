@@ -25,6 +25,7 @@ import { xssFilter } from 'monitor-common/utils/xss';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
 import { intervalModeNames } from './strategy-config-set-new/notice-config/notice-config';
 
 const dataTypeLabelNames = {
@@ -187,6 +188,7 @@ export default class TableStore {
         trigger,
         triggerConfig,
         recovery: item.detects[0]?.recovery_config?.check_window || '--',
+        recoveryStatusSetter: item.detects[0]?.recovery_config?.status_setter || RecoveryConfigStatusSetter.RECOVERY,
         needPoll: item.notice.options.converge_config.need_biz_converge,
         noDataEnabled: item.items[0]?.no_data_config?.is_enabled || false,
         signals,

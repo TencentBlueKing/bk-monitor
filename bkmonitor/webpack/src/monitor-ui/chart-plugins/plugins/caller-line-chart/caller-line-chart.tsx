@@ -250,6 +250,7 @@ class CallerLineChart extends CommonSimpleChart {
       if (this.enablePanelsSelector) {
         selectPanelParams = this.curSelectPanel.variables;
       }
+
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...callOptions,
@@ -824,7 +825,6 @@ class CallerLineChart extends CommonSimpleChart {
       case 'explore': {
         // 跳转数据检索
         const copyPanel = this.getCopyPanel();
-        console.log('copyPanel', copyPanel);
         this.handleExplore(copyPanel as any, {});
         break;
       }
@@ -921,12 +921,10 @@ class CallerLineChart extends CommonSimpleChart {
   handleAllMetricClick() {
     const configs = this.panel.toStrategy(null);
     if (configs) {
-      console.log('this.panel', this.panel);
       this.handleAddStrategy(this.panel, null, {});
       return;
     }
     const copyPanel = this.getCopyPanel();
-    console.log('copyPanel-all', copyPanel);
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
@@ -970,6 +968,12 @@ class CallerLineChart extends CommonSimpleChart {
         copyPanel.title = this.curTitle;
         copyPanel.targets.map(item => (item.alias = this.curTitle));
       }
+      (copyPanel.targets || []).map(item => {
+        (item.data.query_configs || []).map(ele => {
+          const where = replaceRegexWhere(ele.where);
+          ele.where = where;
+        });
+      });
       return copyPanel;
     } catch (error) {
       console.log(error);

@@ -1449,6 +1449,9 @@ CHECK_RESULT_TTL_HOURS = 1
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
+# 用户信息
+BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
+
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 
