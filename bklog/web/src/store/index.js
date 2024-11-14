@@ -236,11 +236,19 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => ({
-          field,
-          operator,
-          value,
-        }));
+        .map(({ field, operator, value }) => {
+          const addition = {
+            field,
+            operator,
+            value,
+          };
+
+          if (['is true', 'is false'].includes(addition.operator)) {
+            addition.value = [''];
+          }
+
+          return addition;
+        });
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -1073,7 +1081,13 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = state.indexItem.addition.filter(item => !item.disabled && item.field !== '_ip-select_');
+      // const addition = otherPrams.addition.map(a => {
+      //   if (['is true', 'is false'].includes(a.operator)) {
+      //     a.value = [''];
+      //   }
+
+      //   return a;
+      // });
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1306,7 +1320,7 @@ const store = new Vuex.Store({
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
       };
-      const getAdditionMappingOperator = ({ operator, field }) => {
+      const getAdditionMappingOperator = ({ operator, field, value }) => {
         let mappingKey = {
           // is is not 值映射
           is: '=',
@@ -1325,9 +1339,21 @@ const store = new Vuex.Store({
           'is not': 'not contains',
         };
 
+        const boolMapping = {
+          is: `is ${value[0]}`,
+          'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
+        };
+
         const textType = getFieldType(field);
         if (textType === 'text') {
           mappingKey = textMappingKey;
+        }
+
+        if (textType === 'boolean') {
+          mappingKey = boolMapping;
+          if (value.length) {
+            value.splice(0, value.length);
+          }
         }
 
         if (depth > 1 && textType === 'keyword') {
@@ -1394,7 +1420,7 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
-            const mapOperator = getAdditionMappingOperator({ field, operator });
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {

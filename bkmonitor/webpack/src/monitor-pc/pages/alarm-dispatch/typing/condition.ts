@@ -210,7 +210,7 @@ export async function allKVOptions(
           name: item.name,
         }))
       );
-      awaitAll();
+      // awaitAll();
     })
     .catch(() => {
       awaitAll();

@@ -1458,6 +1458,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
     def get_uptime_check_metric(self, table):
         protocol = table["table_id"].split(".")[1].upper()
         base_metric = self.get_base_dict(table)
+        base_metric["data_label"] = f"uptimecheck_{protocol.lower()}"
 
         if protocol == "ICMP":
             field_metric_list = self.get_field_metric_msg(table, base_metric)

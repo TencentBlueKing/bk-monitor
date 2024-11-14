@@ -194,11 +194,12 @@ class UptimeCheckTaskListResource(Resource):
         """获取任务分组信息"""
         return [model_to_dict(node) for node in obj.nodes.all()]
 
-    def query_available_or_duration(self, metric, bk_biz_id, table_name, where, period, end_time, ret=None):
+    def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
         ret = ret or {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
-            table=table_name,
+            data_label=data_label,
+            table="",
             metrics=[
                 {"field": "available", "method": "AVG", "alias": "a"}
                 if metric == "available"
@@ -248,7 +249,7 @@ class UptimeCheckTaskListResource(Resource):
         th_list = []
         end = arrow.utcnow().timestamp
         for protocol, data in query_group.items():
-            table_name = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
+            data_label = "{}_{}".format(UPTIME_CHECK_DB, protocol.lower())
             for period, task_id_list in data.items():
                 where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
 
@@ -256,7 +257,7 @@ class UptimeCheckTaskListResource(Resource):
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("available", bk_biz_id, table_name, where, period, end, task_data_mapping),
+                            args=("available", bk_biz_id, data_label, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -264,7 +265,7 @@ class UptimeCheckTaskListResource(Resource):
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("task_duration", bk_biz_id, table_name, where, period, end, task_data_mapping),
+                            args=("task_duration", bk_biz_id, data_label, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -747,6 +748,13 @@ class GenerateSubConfigResource(Resource):
             target_url_list = [{"target": url, "target_type": "domain"} for url in url_list]
             target_ip_list = [{"target": ip, "target_type": "ip"} for ip in config.get("ip_list", [])]
             target_host_list = target_url_list + target_ip_list
+
+            # 注入目标主机标签
+            target_labels = config.get("target_labels", {})
+            for target in target_host_list:
+                if target["target"] in target_labels:
+                    target["labels"] = target_labels[target["target"]]
+
             task = {
                 "task_id": 0 if data["test"] else task_id,
                 "labels": labels,

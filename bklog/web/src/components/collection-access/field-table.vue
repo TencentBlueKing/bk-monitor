@@ -1077,7 +1077,7 @@
   };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
   @import '@/scss/mixins/clearfix';
   @import '@/scss/mixins/overflow-tips.scss';
 
