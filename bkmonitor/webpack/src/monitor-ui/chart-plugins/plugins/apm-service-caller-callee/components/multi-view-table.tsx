@@ -47,7 +47,7 @@ interface IMultiViewTableProps {
   dimensionList: DimensionItem[];
   tableColData: IListItem[];
   tableListData: IDataItem[];
-  tableTabData: IDataItem[];
+  tableFilterData: IDataItem;
   panel: PanelModel;
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
@@ -71,7 +71,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) dimensionList: DimensionItem[];
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
-  @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+  @Prop({ required: true, type: Object }) tableFilterData: IDataItem;
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
@@ -111,6 +111,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
   simpleLoading = false;
+  filterOpt = {};
 
   created() {
     this.curDimensionKey = 'request_total';
@@ -214,6 +215,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const { kind } = this.dimensionParam;
     const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
     return after;
+  }
+
+  @Watch('tableListData', { immediate: true })
+  handleListData(val: IListItem[]) {
+    this.filterOpt = {};
+    console.log(val, 'tableListData');
   }
 
   get showTableList() {
@@ -565,6 +572,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       ...item,
     }));
   }
+  @Watch('filterOpt', { deep: true })
+  handleFilterOpt(val) {
+    console.log(val, 'val');
+  }
+  fieldFilterMethod(value, row, column) {
+    const { property } = column;
+    this.filterOpt[property] = Array.from(new Set([...this.filterOpt[property], value]));
+    // console.log(this.filterOpt, 'this.filterOpt-val');
+    return row[property] === value;
+  }
 
   // 渲染左侧表格的列
   handleMultiColumn() {
@@ -699,43 +716,48 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     );
     const baseCol = this.dimensionList
       .filter(item => item.active)
-      .map(item => (
-        <bk-table-column
-          key={item.value}
-          scopedSlots={{
-            default: a => {
-              const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
-              const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
-              return (
-                <span
-                  class={[
-                    'multi-view-table-link',
-                    { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
-                  ]}
-                >
+      .map(item => {
+        const key = (this.tableFilterData[item.value] || []).length;
+        this.filterOpt[item.value] = [];
+        return (
+          <bk-table-column
+            key={`${item.value}_${key}`}
+            scopedSlots={{
+              default: a => {
+                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
+                const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
+                return (
                   <span
-                    class='item-txt'
-                    v-bk-overflow-tips
-                    onClick={() => this.handleShowDetail(a.row, item.value)}
+                    class={[
+                      'multi-view-table-link',
+                      { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
+                    ]}
                   >
-                    {txt || '--'}
+                    <span
+                      class='item-txt'
+                      v-bk-overflow-tips
+                      onClick={() => this.handleShowDetail(a.row, item.value)}
+                    >
+                      {txt || '--'}
+                    </span>
+                    {!a.row?.isTotal && a.row[item.value] && (
+                      <i
+                        class='icon-monitor icon-mc-copy tab-row-icon'
+                        onClick={() => this.copyValue(a.row[item.value])}
+                      />
+                    )}
                   </span>
-                  {!a.row?.isTotal && a.row[item.value] && (
-                    <i
-                      class='icon-monitor icon-mc-copy tab-row-icon'
-                      onClick={() => this.copyValue(a.row[item.value])}
-                    />
-                  )}
-                </span>
-              );
-            },
-          }}
-          // filters={[]}
-          label={item.text}
-          min-width={120}
-          prop={item.value}
-        />
-      ));
+                );
+              },
+            }}
+            // filter-method={this.fieldFilterMethod}
+            // filters={this.tableFilterData[item.value]}
+            label={item.text}
+            min-width={120}
+            prop={item.value}
+          />
+        );
+      });
     return [baseCol, operationCol];
   }
   /** 检查是否需要保留2位小数 */
@@ -858,7 +880,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   get appendTabWidth() {
     const current = this.panels.find(item => item.id === this.active);
-    console.log(this.tableAppendWidth / current.columns.length, 'width');
     return this.tableAppendWidth / current.columns.length;
   }
   /** 渲染表格的汇总 */
