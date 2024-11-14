@@ -1312,7 +1312,6 @@ const store = new Vuex.Store({
       const searchMode = state.indexItem.search_mode;
       const depth = Number(payload.depth ?? '0');
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
-      debugger;
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
