@@ -824,7 +824,7 @@ class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
     is_built_in = serializers.BooleanField(label=_("是否内置字段"), required=False, default=False)
     option = serializers.DictField(label=_("字段配置"), required=False)
     is_case_sensitive = serializers.BooleanField(label=_("是否大小写敏感"), required=False, default=False)
-    value = serializers.CharField(label=_("字段的值"), required=False, allow_null=True, allow_blank=True)
+    value = serializers.JSONField(label=_("字段的值"), required=False, allow_null=True)
 
     def validate(self, field):
         field = super().validate(field)

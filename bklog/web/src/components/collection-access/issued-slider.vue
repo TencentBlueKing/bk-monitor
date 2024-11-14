@@ -1,7 +1,6 @@
 <template>
   <div>
     <div
-      v-if="!isStopCollection"
       class="issued-btn-wrap"
       :style="hasFailed ? 'border: 1px solid #ea3939' : ''"
       @click.stop="viewDetail()"
@@ -12,6 +11,7 @@
       ></div>
       <i class="issued-icon bklog-icon bklog-jincheng"> </i>
     </div>
+
     <bk-sideslider
       :ext-cls="'issued-detail'"
       :is-show.sync="detail.isShow"
@@ -19,27 +19,11 @@
       :width="800"
       transfer
       @shown = "showSlider"
+      :title="$t('采集下发')"
       @animation-end="closeSlider"
     >
-      <div slot="header">
-        <div
-          v-if="isStopCollection"
-          class="collect-link"
-        >
-          {{ $t('编辑采集项') }}
-          <span style="padding: 3px 9px; background-color: #f0f1f5">
-            <span class="bk-icon bklog-icon bklog-position"></span>
-            {{ collectionName }}
-          </span>
-        </div>
-        <div v-else>
-          {{ $t('采集下发') }}
-        </div>
-      </div>
       <template #content>
-        <!-- 当采集下发 -->
         <div
-          v-if="!isFinishStep"
           class="step-issued-wrapper"
           v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
           data-test-id="addNewCollectionItem_div_collectionDistribution"
@@ -109,7 +93,7 @@
                     ></div>
                     <i
                       v-else-if="tabItem.type === 'running'"
-                      style="margin: 4px 4px 0 0; color: #3a84ff"
+                      style=" margin: 4px 4px 0 0;color: #3a84ff"
                       class="bk-icon icon-refresh"
                     >
                     </i>
@@ -255,37 +239,6 @@
               </div>
             </template>
           </template>
-
-          <!-- 当停用按钮打开的抽屉并且非完成步骤时再显示 -->
-          <div
-            class="step-issued-footer"
-            v-if="isStopCollection && !isFinishStep"
-          >
-            <bk-button
-              v-if="isSwitch"
-              :disabled="hasRunning"
-              :loading="isHandle"
-              theme="primary"
-              @click="nextHandler"
-            >
-              {{ getNextPageStr }}
-            </bk-button>
-            <bk-button
-              data-test-id="collectionDistribution_button_cancel"
-              @click="cancel"
-            >
-              {{ $t('返回列表') }}
-            </bk-button>
-          </div>
-        </div>
-        <div v-else>
-          <step-result
-            :operate-type="operateType"
-            :is-switch="isSwitch"
-            :apply-data="applyData"
-            :index-set-id="indexSetId"
-            @step-result-back="cancel"
-          ></step-result>
         </div>
       </template>
     </bk-sideslider>
@@ -295,14 +248,12 @@
   import rightPanel from '@/components/ip-select/right-panel';
   import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
   import { mapGetters } from 'vuex';
-  import stepResult from './step-result';
 
   export default {
     name: 'issuedSlider',
     components: {
       rightPanel,
       containerStatus,
-      stepResult,
     },
     props: {
       operateType: String,
@@ -310,23 +261,6 @@
       isFinishCreateStep: {
         type: Boolean,
         default: false,
-      },
-      // 此抽屉有两种情况使用，一种是编辑、新建采集项时步骤右下方悬浮按钮打开采集下发抽屉，一种是停用时打开采集下发抽屉并显示停用逻辑
-      isStopCollection: {
-        type: Boolean,
-        default: false,
-      },
-      currentRowCollectorConfigId: {
-        type: String,
-        default: '',
-      },
-      indexSetId: {
-        type: [String, Number],
-        default: '',
-      },
-      applyData: {
-        type: Object,
-        default: () => {},
       },
     },
     data() {
@@ -382,9 +316,6 @@
         currentActiveRow: '',
         elapsedSeconds: 0,
         displaySeconds: 0,
-        collectionName: '',
-        isFinishStep: false,
-
         // operateInfo: {}
       };
     },
@@ -429,19 +360,16 @@
     },
     created() {
       if (this.isContainer) return; // 容器日志展示容器日志的内容
-      this.curCollect?.task_id_list?.forEach(id => this.curTaskIdList.add(id));
-      this.collectionName = this.curCollect?.collector_config_name ?? '';
+      this.curCollect.task_id_list.forEach(id => this.curTaskIdList.add(id));
     },
     mounted() {
       if (this.isContainer) return; // 容器日志展示容器日志的内容
       this.isLeavePage = false;
       this.isShowStepInfo = false;
-
-      if (!this.isStopCollection) this.requestIssuedClusterList();
+      this.requestIssuedClusterList();
     },
     beforeDestroy() {
       this.isLeavePage = true;
-      this.isFinishStep = false;
       this.stopStatusPolling();
     },
     methods: {
@@ -507,7 +435,6 @@
             })
             .then(res => {
               if (res.result) {
-                this.isFinishStep = true;
                 this.$emit('step-change');
               }
             })
@@ -522,15 +449,17 @@
         this.$emit('step-change');
       },
       cancel() {
-        this.detail.isShow = false;
-        // 如果已经点击停止操作，那么回到列表页需要重新刷新页面
-        if (this.isFinishStep) {
-          location.reload();
+        if (this.isFinishCreateStep) {
+          this.$emit('change-submit', true);
         }
+        this.$router.push({
+          name: 'collection-item',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
       },
       viewDetail() {
-        this.isFinishStep = false;
-        this.collectionName = this.curCollect?.collector_config_name ?? '';
         this.detail.isShow = true;
         if (this.tableList?.length && this.tableList[0].child?.length) {
           this.currentRow = this.tableList[0].child[0];
@@ -546,9 +475,6 @@
       closeSlider() {
         this.detail.content = '';
         this.detail.loading = false;
-        this.tableList?.splice(0, this.tableList?.length);
-        this.tableAllList?.splice(0, this.tableAllList?.length);
-        this.stopStatusPolling();
       },
       calcTabNum() {
         const num = {
@@ -606,7 +532,7 @@
       /**
        *  集群list，与轮询共用
        */
-      async requestIssuedClusterList(isPolling = '') {
+      requestIssuedClusterList(isPolling = '') {
         if (!isPolling) {
           this.loading = true;
         }
@@ -614,7 +540,7 @@
           collector_config_id: this.curCollect.collector_config_id,
         };
         const { timerNum } = this;
-        await this.$http
+        this.$http
           .request('collect/getIssuedClusterList', {
             params,
             query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
@@ -634,8 +560,8 @@
                       host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                     });
                   });
-                  this.tableListAll = data;
-                  this.tableList = data;
+                  this.tableListAll.splice(0, 0, ...data);
+                  this.tableList.splice(0, 0, ...data);
                 }
                 this.syncHostStatus(data);
                 this.tabHandler({ type: this.curTab }, true);
@@ -653,8 +579,9 @@
                   host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                 });
               });
-              this.tableListAll = [...data];
-              this.tableList = [...data];
+
+              this.tableListAll.splice(0, 0, ...data);
+              this.tableList.splice(0, 0, ...data);
               this.calcTabNum();
             }
           })
@@ -746,9 +673,8 @@
         });
       },
       requestDetail(row) {
-        if (!row || this.isContainer) return;
         this.detail.loading = true;
-        this.currentActiveRow = row?.ip || '';
+        this.currentActiveRow = row.ip;
         this.currentRow = row;
         this.$http
           .request('collect/executDetails', {
@@ -1098,16 +1024,6 @@
     &:hover {
       color: #699df4;
       box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
-    }
-  }
-
-  .collect-link {
-    color: #63656e;
-    border-radius: 2px;
-
-    .icon-position {
-      font-size: 14px;
-      color: #c4c6cc;
     }
   }
 
