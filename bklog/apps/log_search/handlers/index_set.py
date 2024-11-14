@@ -56,6 +56,7 @@ from apps.log_search.constants import (
     GlobalCategoriesEnum,
     IndexSetType,
     InnerTag,
+    SearchMode,
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -1178,23 +1179,26 @@ class IndexSetHandler(APIModel):
         """
         获取图表信息
         """
-        sql = params["sql"]
-        self.check_sql_syntax(sql)
-        self.check_sql_table(sql)
-        result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
-        result = result_data.get("result")
-        if not result:
-            errors_message = result_data.get("message", {})
-            errors = result_data.get("errors", {}).get("error")
-            if errors:
-                errors_message = errors_message + ":" + errors
-            raise SqlSyntaxException(errors_message)
-        data = {
-            "total_records": result_data["data"]["totalRecords"],
-            "time_taken": result_data["data"]["timetaken"],
-            "list": result_data["data"]["list"],
-        }
-        return data
+        if params["search_mode"] == SearchMode.SQL.value:
+            sql = params["sql"]
+            self.check_sql_syntax(sql)
+            self.check_sql_table(sql)
+            result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
+            result = result_data.get("result")
+            if not result:
+                errors_message = result_data.get("message", {})
+                errors = result_data.get("errors", {}).get("error")
+                if errors:
+                    errors_message = errors_message + ":" + errors
+                raise SqlSyntaxException(errors_message)
+            data = {
+                "total_records": result_data["data"]["totalRecords"],
+                "time_taken": result_data["data"]["timetaken"],
+                "list": result_data["data"]["list"],
+            }
+            return data
+        else:
+            return {}
 
     def check_sql_table(self, sql):
         """

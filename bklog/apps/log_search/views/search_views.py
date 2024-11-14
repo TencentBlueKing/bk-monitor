@@ -1640,18 +1640,26 @@ class SearchViewSet(APIViewSet):
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
-            "data": [
-                {
-                    "aaa": 20241111,
-                    "bk_host_id": 4090832,
-                    "cloudId": 0,
-                },
-                {
-                    "aaa": 20241111,
-                    "bk_host_id": 4090832,
-                    "cloudId": 0,
-                }
-            ],
+            "data": {
+                "total_records": 2,
+                "time_taken": 0.092,
+                "list": [
+                    {
+                        "thedate": 20241111,
+                        "dtEventTimeStamp": 1731260184000,
+                        "iterationIndex": 3,
+                        "log": "[2024.11.11-01.36.23:324][440]LogAbilitySystem: Creating new entry in AttributeAggregatorMap for Pure_block. CurrentValue: 0.00",
+                        "time": 1731260184
+                    },
+                    {
+                        "thedate": 20241111,
+                        "dtEventTimeStamp": 1731260184000,
+                        "iterationIndex": 117,
+                        "log": "[2024.11.11-01.36.23:243][440]LogAbilitySystem: Creating new entry in AttributeAggregatorMap for Combat_energy_recover. CurrentValue: 0.00",
+                        "time": 1731260184
+                    }
+                ]
+            },
             "code": 0,
             "message": ""
         }

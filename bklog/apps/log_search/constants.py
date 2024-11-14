@@ -1422,6 +1422,17 @@ class SearchMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class QueryMode(ChoicesEnum):
+    """
+    查询模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
