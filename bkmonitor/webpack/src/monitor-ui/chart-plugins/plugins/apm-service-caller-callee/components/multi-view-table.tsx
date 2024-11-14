@@ -614,7 +614,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         ext-cls='caller-field-popover'
                         placement='top'
                         theme='light'
-                        trigger='click'
+                        // trigger='click'
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
                         <span class='operation-item'>{opt.text}</span>
