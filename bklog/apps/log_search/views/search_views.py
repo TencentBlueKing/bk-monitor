@@ -73,6 +73,7 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
@@ -1628,3 +1629,34 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "aaa": 20241111,
+                    "bk_host_id": 4090832,
+                    "cloudId": 0,
+                },
+                {
+                    "aaa": 20241111,
+                    "bk_host_id": 4090832,
+                    "cloudId": 0,
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        result = IndexSetHandler(index_set_id=index_set_id).get_chart_data(params=params)
+        return Response(result)
+

@@ -286,6 +286,7 @@ class FavoriteViewSet(APIViewSet):
             group_id=data["group_id"],
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
+            favorite_type=data["favorite_type"],
         )
         return Response(favorite_search)
 
