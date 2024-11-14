@@ -28,6 +28,7 @@ import { ref, onMounted, defineExpose, nextTick } from "vue";
 import * as monaco from "monaco-editor";
 import useLocale from "@/hooks/use-locale";
 import PreviewSql from "./common/PreviewSql.vue"
+import $http from '../../../../api';
 const { $t } = useLocale();
 const editorContainer = ref(null);
 const showDialog = ref(false);
@@ -62,6 +63,10 @@ async function resize() {
 }
 function emitQuery() {}
 function emitStop() {}
+async function sqlSearch() {
+  let payload ="sELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM 100968_proz_rd_ds2_test.doris WHERE thedate>='20241111' AND thedate<='20241111' limit 2"
+  const res = await $http.request('graphAnalysis/searchSQL', payload);
+}
 onMounted(() => {
   // 在组件挂载后初始化 Monaco Editor
   if (editorContainer.value) {
@@ -96,7 +101,7 @@ defineExpose({
         <template v-else> -->
         <i class="bklog-icon bklog-bofang"></i>
         <!-- </template> -->
-        <span class="ml-min">{{ $t("查询") }}</span>
+        <span class="ml-min" @click="sqlSearch">{{ $t("查询") }}</span>
       </bk-button>
       <bk-button
         @click="emitStop"
