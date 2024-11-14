@@ -629,18 +629,6 @@
             "enable_panels_selector": true,
             "child_panels_selector_variables": [
               {
-                "id": "timeout_rate",
-                "title": "超时率",
-                "variables": {
-                  "code_field": "code_type",
-                  "code_method": "eq",
-                  "code_values": [
-                    "timeout"
-                  ],
-                  "code_extra_where": {}
-                }
-              },
-              {
                 "id": "exception_rate",
                 "title": "异常率",
                 "variables": {
@@ -648,6 +636,18 @@
                   "code_method": "eq",
                   "code_values": [
                     "exception"
+                  ],
+                  "code_extra_where": {}
+                }
+              },
+              {
+                "id": "timeout_rate",
+                "title": "超时率",
+                "variables": {
+                  "code_field": "code_type",
+                  "code_method": "eq",
+                  "code_values": [
+                    "timeout"
                   ],
                   "code_extra_where": {}
                 }
