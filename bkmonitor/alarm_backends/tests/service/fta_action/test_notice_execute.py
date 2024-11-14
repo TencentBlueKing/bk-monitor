@@ -500,7 +500,6 @@ def get_strategy_dict(group_id):
         "notice": {  # 通知设置
             "id": 1,
             "config_id": 55555,  # 套餐ID，如果不选套餐请置为0
-            # 'relation_id': 12345,
             "user_groups": [group_id],  # 告警组ID
             "signal": ["abnormal", "recovered", "ack"],
             # 触发信号，abnormal-异常，recovered-恢复，closed-关闭，execute-执行动作时, execute_success-执行成功, execute_failed-执行失败

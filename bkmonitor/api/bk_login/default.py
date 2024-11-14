@@ -85,3 +85,21 @@ class ListProfileDepartmentsResource(UserManageAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.CharField(label="用户 ID")
         with_family = serializers.BooleanField(label="是否返回部门树", default=True)
+
+
+class UnityUserBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
+    base_url = "%s/api/unity-user/stage/api/v1/open/odc-users/" % settings.BK_USERINFO_API_BASE_URL
+    module_name = "unity-user"
+
+
+class GetUserSensitiveInfo(UnityUserBaseResource):
+    """
+    获取用户敏感信息
+    """
+
+    action = "/sensitive-info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        usernames = serializers.CharField(required=True)
+        fields = serializers.CharField(required=True)
