@@ -383,7 +383,7 @@ class UnifyQueryHandler(object):
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].append("and")
             query["conditions"]["field_list"].append(
-                {"field_name": self.search_params["agg_field"], "value": [""], "op": "ncontains"}
+                {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
             )
             query["function"] = [{"method": "count"}]
             reference_list.append(query["reference_name"])

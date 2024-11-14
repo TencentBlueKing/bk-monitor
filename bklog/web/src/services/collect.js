@@ -51,12 +51,6 @@ const onlyUpdateCollection = {
   method: 'post',
 };
 
-// 索引集信息-快速更新
-const fastUpdateCollection = {
-  url: '/databus/collectors/:collector_config_id/fast_update/',
-  method: 'post',
-};
-
 // 采集项-只创建配置
 const onlyCreateCollection = {
   url: '/databus/collectors/only_create/',
@@ -231,7 +225,6 @@ export {
   updateCollection,
   onlyUpdateCollection,
   onlyCreateCollection,
-  fastUpdateCollection,
   applyItsmTicket,
   queryItsmTicket,
   fieldCollection,
