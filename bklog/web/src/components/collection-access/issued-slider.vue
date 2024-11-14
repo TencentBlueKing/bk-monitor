@@ -303,7 +303,7 @@
             num: 0,
           },
         ],
-        
+
         count: 0,
         size: 'small',
         pagination: {
@@ -506,7 +506,7 @@
           if (row.status === 'failed') {
             failed = failed + 1;
           }
-          // if (row.status === 'running') {
+          // if (row.status === 'running')  {
           //     running++
           // }
         });
