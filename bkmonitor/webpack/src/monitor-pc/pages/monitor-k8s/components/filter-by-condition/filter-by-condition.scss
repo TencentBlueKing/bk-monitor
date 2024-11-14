@@ -1,0 +1,25 @@
+.filter-by-condition-component {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+
+  .filter-by-condition-tag {
+    height: 22px;
+
+    &.type-add {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      font-size: 16px;
+      color: #3A84FF;
+      cursor: pointer;
+      background: #E1ECFF;
+      border-radius: 2px;
+
+      &:hover {
+        background: #CDDFFE;
+      }
+    }
+  }
+}

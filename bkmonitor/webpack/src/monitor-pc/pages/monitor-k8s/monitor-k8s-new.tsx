@@ -23,58 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { applyGuidePage } from '../../common';
-import { VIEW_AUTH } from '../../pages/monitor-k8s/authority-map';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { RouteConfig } from 'vue-router';
+import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 
-const MonitorK8s = () => import(/* webpackChunkName: 'monitorK8s' */ '../../pages/monitor-k8s/monitor-k8s-new');
-const monitorK8sDetail = () =>
-  import(/* webpackChunkName: 'monitorK8sDetail' */ '../../pages/monitor-k8s/monitor-k8s-detail');
-export default applyGuidePage([
-  {
-    path: '/k8s',
-    name: 'k8s',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: MonitorK8s,
-    },
-    meta: {
-      title: '容器监控',
-      navId: 'k8s',
-      customTitle: true,
-      noNavBar: true,
-      needClearQuery: true,
-      route: {
-        parent: 'scenes',
-      },
-      authority: {
-        page: VIEW_AUTH,
-      },
-    },
-  },
-  {
-    path: '/k8s/detail',
-    name: 'k8s-detail',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: monitorK8sDetail,
-    },
-    meta: {
-      title: '容器监控详情',
-      navId: 'k8s',
-      customTitle: true,
-      noNavBar: true,
-      route: {
-        parent: 'k8s',
-      },
-      authority: {
-        page: VIEW_AUTH,
-      },
-    },
-  },
-] as RouteConfig[]);
+import './monitor-k8s-new.scss';
+@Component
+export default class MonitorK8sNew extends tsc<object> {
+  render() {
+    return (
+      <div class='monitor-k8s-new'>
+        <div class='monitor-k8s-new-header' />
+        <div class='monitor-k8s-new-content'>
+          <div class='content-left' />
+          <div class='content-right'>
+            <div class='filter-header-wrap'>
+              <div class='filter-by-wrap'>
+                <div class='filter-by-title'>Filter by</div>
+                <div class='filter-by-content'>
+                  <FilterByCondition />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}

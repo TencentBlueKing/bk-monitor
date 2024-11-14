@@ -1,0 +1,53 @@
+.monitor-k8s-new {
+  width: 100%;
+  height: 100%;
+
+  .monitor-k8s-new-header {
+    width: 100%;
+    height: 52px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 0 0 #DCDEE5, 0 3px 4px 0 #4070cb0f;
+  }
+
+  .monitor-k8s-new-content {
+    display: flex;
+    height: 100%;
+
+    .content-left {
+      width: 320px;
+      background: #FFFFFF;
+      box-shadow: 1px 0 0 0 #DCDEE5;
+    }
+
+    .content-right {
+      width: 100%;
+
+      .filter-header-wrap {
+        width: 100%;
+        min-height: 48px;
+        background: #FFFFFF;
+
+        .filter-by-wrap {
+          display: flex;
+          align-items: center;
+          min-height: 48px;
+
+          .filter-by-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0 24px;
+            background: #FAFBFD;
+          }
+
+          .filter-by-content {
+            min-width: 400px;
+            min-height: 48px;
+            background: #fff;
+          }
+        }
+      }
+    }
+  }
+}
