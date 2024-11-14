@@ -23,58 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { applyGuidePage } from '../../common';
-import { VIEW_AUTH } from '../../pages/monitor-k8s/authority-map';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { RouteConfig } from 'vue-router';
+import './text-list-overview.scss';
 
-const MonitorK8s = () => import(/* webpackChunkName: 'monitorK8s' */ '../../pages/monitor-k8s/monitor-k8s-new');
-const monitorK8sDetail = () =>
-  import(/* webpackChunkName: 'monitorK8sDetail' */ '../../pages/monitor-k8s/monitor-k8s-detail');
-export default applyGuidePage([
-  {
-    path: '/k8s',
-    name: 'k8s',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: MonitorK8s,
-    },
-    meta: {
-      title: '容器监控',
-      navId: 'k8s',
-      customTitle: true,
-      noNavBar: true,
-      needClearQuery: true,
-      route: {
-        parent: 'scenes',
-      },
-      authority: {
-        page: VIEW_AUTH,
-      },
-    },
-  },
-  {
-    path: '/k8s/detail',
-    name: 'k8s-detail',
-    props: {
-      noCache: true,
-    },
-    components: {
-      noCache: monitorK8sDetail,
-    },
-    meta: {
-      title: '容器监控详情',
-      navId: 'k8s',
-      customTitle: true,
-      noNavBar: true,
-      route: {
-        parent: 'k8s',
-      },
-      authority: {
-        page: VIEW_AUTH,
-      },
-    },
-  },
-] as RouteConfig[]);
+interface ITextsItem {
+  id: string;
+  name: string;
+}
+
+interface IProps {
+  textList: ITextsItem[];
+}
+
+@Component
+export default class TextListOverview extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) textList: ITextsItem;
+
+  texts: ITextsItem[] = [];
+
+  render() {
+    return (
+      <span class='text-list-overview'>
+        {this.texts.map(item => {
+          return <span key={item.id}>{item.name}</span>;
+        })}
+      </span>
+    );
+  }
+}
