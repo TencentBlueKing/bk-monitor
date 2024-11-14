@@ -30,7 +30,6 @@ class BkLogForwardingView(APIView):
     ignore_headers = ["host", "content-length"]
 
     def dispatch(self, request, *args, **kwargs):
-
         target_url = urljoin(settings.BKLOGSEARCH_HOST, request.path.split('bklog')[-1])
 
         try:
@@ -59,6 +58,7 @@ class BkLogForwardingView(APIView):
                     params=params,
                     data=body,
                     allow_redirects=False,
+                    verify=False,
                 )
             return JsonResponse(response.json(), status=response.status_code)
         except Exception as e:  # noqa
