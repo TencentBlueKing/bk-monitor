@@ -52,7 +52,6 @@ interface IMultiViewTableProps {
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
   supportedCalculationTypes?: IListItem[];
-  tableTotal?: number;
   totalList?: IDataItem[];
   activeTabKey?: string;
   resizeStatus?: boolean;
@@ -76,7 +75,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
-  @Prop({ required: true, type: Number }) tableTotal: number;
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
@@ -104,7 +102,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   filterDimensionValue = '';
   pagination = {
     current: 1,
-    count: 0,
     limit: 10,
     limitList: [10, 20, 50],
   };
@@ -146,11 +143,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       ...this.sidePanelCommonOptions,
       call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
     };
-  }
-  @Watch('tableTotal')
-  handleTableTotal(val) {
-    this.pagination.count = val;
-    this.pagination.current = 1;
   }
   @Watch('activeTabKey')
   handleTableData() {
@@ -273,7 +265,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData')
+  @Watch('tableColData', { immediate: true })
   handleChangeCol(val: IListItem[]) {
     const key = {
       '1d': '昨天',
@@ -448,7 +440,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     if (!canClick) {
       return;
     }
-    const { kind } = this.dimensionParam;
+    const { kind, timeParams, pointTime } = this.dimensionParam;
+    const interval = pointTime?.startTime ? 60 : 0;
+    const from = (timeParams.start_time - interval) * 1000;
+    const to = timeParams.end_time * 1000;
+
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
     if (type === 'callee') {
@@ -467,7 +463,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}&from=${from}&to=${to}`
         )
       );
       return;
@@ -503,7 +499,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}`
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${from}&end_time=${to}&listType=span`
         )
       );
       return;
@@ -513,7 +509,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee&from=${from}&to=${to}`
         )
       );
       return;
@@ -524,7 +520,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       window.open(
         location.href.replace(
           location.hash,
-          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo`
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo&from=${from}&to=${to}`
         )
       );
       return;
@@ -609,12 +605,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   const pre = this.dimensionList.find(item => item.value === intersection[0]);
                   const isHas = intersection.length > 0;
                   if (isHas && opt.value === 'callee') {
+                    const tips =
+                      this.simpleList.length === 0
+                        ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
+                        : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`);
                     return (
                       <bk-popover
                         ext-cls='caller-field-popover'
                         placement='top'
                         theme='light'
-                        trigger='click'
+                        // trigger='click'
                         onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
                       >
                         <span class='operation-item'>{opt.text}</span>
@@ -622,11 +622,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                           class='simple-list'
                           slot='content'
                         >
-                          <span>
-                            {this.simpleList.length === 0
-                              ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
-                              : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`)}
-                          </span>
+                          <span>{tips}</span>
                           <div
                             class='simple-list-item'
                             v-bkloading={{ isLoading: this.simpleLoading, theme: 'primary', size: 'mini' }}
@@ -653,6 +649,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   }
                   if (isHas && ['service', 'topo', 'trace'].includes(opt.value)) {
                     const isClick = this.serviceList.includes(row[opt.tags[0]]);
+                    const tipsData = {
+                      trace: this.$t('查看关联调用链'),
+                      topo: this.$t(`跳转到「${row[intersection[0]]}」拓扑页面`),
+                      service: this.$t(`跳转到「${row[intersection[0]]}」调用分析页面`),
+                    };
                     return (
                       <span
                         key={opt.value}
@@ -660,10 +661,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                         v-bk-tooltips={
                           ['service', 'topo'].includes(opt.value)
                             ? {
-                                content: this.$t('服务未接入'),
-                                disabled: isClick,
+                                content: !isClick ? this.$t('服务未接入') : tipsData[opt.value],
                               }
-                            : { disabled: true }
+                            : { content: tipsData[opt.value] }
                         }
                         onClick={() =>
                           this.handleFieldOperations(
@@ -678,17 +678,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                       </span>
                     );
                   }
-                  // if (isHas && opt.value === 'trace') {
-                  //   return (
-                  //     <span
-                  //       key={opt.value}
-                  //       class={['operation-item']}
-                  //       onClick={() => this.handleFieldOperations(opt, row, true, intersection[0])}
-                  //     >
-                  //       {opt.text}
-                  //     </span>
-                  //   );
-                  // }
                 })}
               </div>
             );
@@ -785,7 +774,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
@@ -820,7 +808,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         min-width={160}
         prop={item.prop}
         renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
-        sortable
+        sortable='custom'
       />
     ));
   }
@@ -964,11 +952,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             )
           )}
         </div>
-        {this.tableTotal > this.pagination.limit && (
+        {this.tableListData?.length > this.pagination.limit && (
           <bk-pagination
             class='mt-8'
             align='right'
-            count={this.pagination.count}
+            count={this.tableListData.length}
             current={this.pagination.current}
             limit={this.pagination.limit}
             limit-list={this.pagination.limitList}
