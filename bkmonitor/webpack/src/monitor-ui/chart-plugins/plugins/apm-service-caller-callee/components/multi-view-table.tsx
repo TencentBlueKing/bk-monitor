@@ -166,6 +166,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.cachePanels = JSON.parse(JSON.stringify(this.panels));
   }
 
+  get dialogTop() {
+    return window.innerHeight;
+  }
+
   get appName() {
     return this.viewOptions?.app_name;
   }
@@ -238,6 +242,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
     setTimeout(() => this.getServiceList());
+    window.addEventListener('resize', this.handleResize);
+  }
+  beforeDestroy() {
+    window.removeEventListener('resize', this.handleResize);
+  }
+  handleResize() {
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
   }
   async getServiceList() {
     if (!this.appName) return;
@@ -719,6 +730,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               );
             },
           }}
+          // filters={[]}
           label={item.text}
           min-width={120}
           prop={item.value}
@@ -804,7 +816,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             );
           },
         }}
-        // label={item.label}
         min-width={160}
         prop={item.prop}
         renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
@@ -847,6 +858,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   get appendTabWidth() {
     const current = this.panels.find(item => item.id === this.active);
+    console.log(this.tableAppendWidth / current.columns.length, 'width');
     return this.tableAppendWidth / current.columns.length;
   }
   /** 渲染表格的汇总 */
@@ -1015,11 +1027,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           )}
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
-
         <bk-dialog
           width={640}
           ext-cls='multi-detail-dialog'
           v-model={this.isShowDimension}
+          position={{
+            top: this.dialogTop / 3,
+          }}
           header-position={'left'}
           show-footer={false}
           theme='primary'
