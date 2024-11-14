@@ -510,7 +510,7 @@
           //     running++
           // }
         });
-        return `<span style="color: #34d97b"  class="success-status">${success}</span> ${this.$t('个成功')}，<span style="color: #ff5656">${failed}</span> ${this.$t('个失败')}`;
+        return `<span style="color: #34d97b"   class="success-status">${success}</span> ${this.$t('个成功')}，<span style="color: #ff5656">${failed}</span> ${this.$t('个失败')}`;
       },
       startStatusPolling() {
         this.timerNum += 1;
