@@ -284,6 +284,7 @@
         width: 100%;
         height: calc(100% - 148px);
         padding: 8px 14px;
+        overflow-y: scroll;
         background: #ffffff;
 
         .vertical-drag-tool {

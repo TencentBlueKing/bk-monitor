@@ -27,8 +27,8 @@
 import { ref, onMounted, defineExpose, nextTick } from "vue";
 import * as monaco from "monaco-editor";
 import useLocale from "@/hooks/use-locale";
-import PreviewSql from "./common/PreviewSql.vue"
-import $http from '../../../../api';
+import PreviewSql from "./common/PreviewSql.vue";
+import $http from "../../../../api";
 const { $t } = useLocale();
 const editorContainer = ref(null);
 const showDialog = ref(false);
@@ -64,8 +64,27 @@ async function resize() {
 function emitQuery() {}
 function emitStop() {}
 async function sqlSearch() {
-  let payload ="sELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM 100968_proz_rd_ds2_test.doris WHERE thedate>='20241111' AND thedate<='20241111' limit 2"
-  const res = await $http.request('graphAnalysis/searchSQL', payload);
+  if (!editorInstance) {
+    console.error("Editor instance is not available.");
+    return;
+  }
+
+  // 获取编辑器内容
+  const sqlQuery = editorInstance.getValue();
+  console.log("SQL Query:", sqlQuery);
+
+  // 这里将编辑器内容作为 SQL 查询的一部分发送
+  const res = await $http.request("graphAnalysis/searchSQL", {
+    params: {
+      index_set_id: 627298,
+    },
+    data: {
+      sql: sqlQuery, // 使用获取到的内容
+    },
+  });
+
+  // 处理响应
+  console.log(res);
 }
 onMounted(() => {
   // 在组件挂载后初始化 Monaco Editor
@@ -119,8 +138,8 @@ defineExpose({
         {{ $t("预览查询 SQL") }}
       </bk-button>
       <PreviewSql
-         :isShow="showDialog"
-        @update:isShow="newValue => showDialog = newValue"
+        :isShow="showDialog"
+        @update:isShow="(newValue) => (showDialog = newValue)"
       />
     </div>
   </div>

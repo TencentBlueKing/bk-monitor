@@ -23,10 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// 使用次数趋势
+// SQL查询
 const searchSQL = {
-  url: '/search/index_set/$index_set_id/chart/',
+  url: '/search/index_set/:index_set_id/chart/',
   method: 'post',
 };
-
-export { searchSQL };
+// 收藏
+const favoritehSQL = {
+  url: '/search/favorite',
+  method: 'post',
+};
+export { searchSQL, favoritehSQL };

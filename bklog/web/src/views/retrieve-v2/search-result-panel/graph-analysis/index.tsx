@@ -28,6 +28,8 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SqlPanel from './SqlPanel.vue';
+import GraphChart from './chart/graph-chart.vue';
+import GraphTable from './chart/graph-table.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
@@ -53,7 +55,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel },
+  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -88,7 +90,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  fieldList = [1, 2, 3, 4];
+  fieldList = [1, 2, 3, 4, 5, 6, 7];
   advanceSetting = false;
   activeCanvasType = 'bar';
 
@@ -165,6 +167,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   handleGraphCategoryClick(category: GraphCategory) {
+    console.log(category);
+
     this.activeGraphCategory = category;
   }
 
@@ -344,15 +348,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const tableStyle = { display: showTable ? 'block' : 'none' };
     const chartStyle = { display: !showTable ? 'block' : 'none' };
     return [
-      <div
-        style={tableStyle}
-        class='graph-context graph-table'
-      ></div>,
-      <div
+      <GraphTable style={tableStyle}></GraphTable>,
+      <GraphChart
         ref='refGraphChart'
         style={chartStyle}
-        class='graph-context graph-chart'
-      ></div>,
+        activeGraphCategory={this.activeGraphCategory}
+      ></GraphChart>,
     ];
   }
 
