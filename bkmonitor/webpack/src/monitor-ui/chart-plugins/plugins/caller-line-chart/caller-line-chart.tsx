@@ -48,6 +48,7 @@ import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -137,7 +138,7 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
-  panelsSelector = 'timeout_rate';
+  panelsSelector = 'exception_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -192,9 +193,16 @@ class CallerLineChart extends CommonSimpleChart {
   onCallOptionsChange() {
     this.getPanelData();
   }
+  @Watch('panel', { immediate: true })
+  handlePanel() {
+    if (this.enablePanelsSelector) {
+      this.panelsSelector = getRecordCallOptionChart(this.viewOptions.filters);
+    }
+  }
 
-  handlePanelsSelector() {
+  handlePanelsSelector(val) {
     this.getPanelData();
+    setRecordCallOptionChart(this.viewOptions.filters, val);
   }
   /**
    * @description: 获取图表数据
