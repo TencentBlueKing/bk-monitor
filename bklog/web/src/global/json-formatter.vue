@@ -72,12 +72,12 @@
     onSegmentClick,
   });
 
-  const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
-    if (entry.isIntersecting && !isEditorInit.value) {
-      isEditorInit.value = true;
-      setEditor(depth.value);
-    }
-  });
+  // const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
+  //   if (entry.isIntersecting && !isEditorInit.value) {
+  //     isEditorInit.value = true;
+  //     setEditor(depth.value);
+  //   }
+  // });
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
@@ -132,10 +132,7 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
-      if (isIntersecting.value) {
-        isEditorInit.value = true;
-        setEditor(depth.value);
-      }
+      setEditor(depth.value);
     },
     {
       immediate: true,
@@ -145,11 +142,7 @@
   watch(
     () => [depth.value],
     () => {
-      if (isIntersecting.value) {
-        setExpand(depth.value);
-      } else {
-        isEditorInit.value = false;
-      }
+      setExpand(depth.value);
     },
   );
 
