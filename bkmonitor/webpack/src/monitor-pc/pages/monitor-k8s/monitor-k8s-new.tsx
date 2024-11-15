@@ -27,6 +27,7 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
+import GroupByCondition from './components/group-by-condition/group-by-condition';
 
 import './monitor-k8s-new.scss';
 @Component
@@ -44,6 +45,9 @@ export default class MonitorK8sNew extends tsc<object> {
                 <div class='filter-by-content'>
                   <FilterByCondition />
                 </div>
+              </div>
+              <div class='filter-by-wrap'>
+                <GroupByCondition />
               </div>
             </div>
           </div>

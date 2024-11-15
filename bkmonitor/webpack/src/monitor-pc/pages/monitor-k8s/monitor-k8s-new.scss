@@ -5,8 +5,10 @@
   .monitor-k8s-new-header {
     width: 100%;
     height: 52px;
-    background: #FFFFFF;
-    box-shadow: 0 1px 0 0 #DCDEE5, 0 3px 4px 0 #4070cb0f;
+    background: #ffffff;
+    box-shadow:
+      0 1px 0 0 #dcdee5,
+      0 3px 4px 0 #4070cb0f;
   }
 
   .monitor-k8s-new-content {
@@ -15,17 +17,19 @@
 
     .content-left {
       width: 320px;
-      background: #FFFFFF;
-      box-shadow: 1px 0 0 0 #DCDEE5;
+      background: #ffffff;
+      box-shadow: 1px 0 0 0 #dcdee5;
     }
 
     .content-right {
       width: 100%;
 
       .filter-header-wrap {
+        display: flex;
         width: 100%;
         min-height: 48px;
-        background: #FFFFFF;
+        background: #ffffff;
+        border: 1px solid #dcdee5;
 
         .filter-by-wrap {
           display: flex;
@@ -38,7 +42,7 @@
             justify-content: center;
             min-height: 48px;
             padding: 0 24px;
-            background: #FAFBFD;
+            background: #fafbfd;
           }
 
           .filter-by-content {
