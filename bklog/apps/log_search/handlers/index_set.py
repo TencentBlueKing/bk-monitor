@@ -29,7 +29,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
 
-from apps.api import BkLogApi, TransferApi
+from apps.api import BkDataQueryApi, BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import feature_switch
@@ -56,16 +56,20 @@ from apps.log_search.constants import (
     GlobalCategoriesEnum,
     IndexSetType,
     InnerTag,
+    SearchMode,
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import (
+    BaseSearchIndexSetException,
     DesensitizeConfigCreateOrUpdateException,
     DesensitizeConfigDoseNotExistException,
     DesensitizeRuleException,
     IndexCrossClusterException,
     IndexListDataException,
+    IndexSetResultTableException,
+    IndexSetDorisQueryException,
     IndexSetDoseNotExistException,
     IndexSetFieldsConfigAlreadyExistException,
     IndexSetFieldsConfigNotExistException,
@@ -77,6 +81,7 @@ from apps.log_search.exceptions import (
     ResultTableIdDuplicateException,
     ScenarioNotSupportedException,
     SearchUnKnowTimeField,
+    SqlSyntaxException,
     UnauthorizedResultTableException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -1169,6 +1174,58 @@ class IndexSetHandler(APIModel):
         user_operation_record.delay(operation_record)
 
         return index_set
+
+    def get_chart_data(self, params):
+        """
+        获取图表信息
+        """
+        if params["query_mode"] == SearchMode.SQL.value:
+            sql = params["sql"]
+            self.check_sql_syntax(sql)
+            result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
+            result = result_data.get("result")
+            if not result:
+                errors_message = result_data.get("message", {})
+                errors = result_data.get("errors", {}).get("error")
+                if errors:
+                    errors_message = errors_message + ":" + errors
+                logger.info("SQL语法异常 [{}]".format(errors_message))
+                raise SqlSyntaxException(errors_message)
+            data = {
+                "total_records": result_data["data"]["totalRecords"],
+                "time_taken": result_data["data"]["timetaken"],
+                "list": result_data["data"]["list"],
+                "select_fields_order": result_data["data"]["select_fields_order"],
+            }
+            return data
+        else:
+            return {}
+
+    def check_sql_table(self, sql):
+        """
+        检查sql查询的结果表是否正确
+        """
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+        if not log_index_set_obj:
+            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id))
+        support_doris = log_index_set_obj.support_doris
+        if not support_doris:
+            raise IndexSetDorisQueryException()
+        doris_table_id = log_index_set_obj.doris_table_id
+        match = re.search(r"\bFROM\b\s+?(\S+) ", sql, re.IGNORECASE)
+
+        if match and match.group(1) == doris_table_id:
+            return True
+        raise IndexSetResultTableException(IndexSetResultTableException.MESSAGE.format(table_name=match.group(1)))
+
+    @staticmethod
+    def check_sql_syntax(sql: str):
+        """
+        检查sql语法
+        """
+        matches = re.findall(r"\bSELECT\b", sql.upper())
+        if not matches:
+            raise SqlSyntaxException("SQL语法错误-缺少SELECT关键字")
 
 
 class BaseIndexSetHandler(object):

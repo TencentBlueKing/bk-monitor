@@ -73,6 +73,7 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
@@ -1628,3 +1629,44 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+          "result": true,
+          "data": {
+            "total_records": 2,
+            "time_taken": 0.092,
+            "list": [
+              {
+                "dtEventTimeStamp": 1731260184000,
+                "iterationIndex": 3,
+                "time": 1731260184
+              },
+              {
+                "dtEventTimeStamp": 1731260184000,
+                "iterationIndex": 117,
+                "time": 1731260184
+              }
+            ],
+            "select_fields_order": [
+              "dtEventTimeStamp",
+              "iterationIndex",
+              "log",
+              "time"
+            ]
+          },
+          "code": 0,
+          "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        result = IndexSetHandler(index_set_id=index_set_id).get_chart_data(params=params)
+        return Response(result)
+
