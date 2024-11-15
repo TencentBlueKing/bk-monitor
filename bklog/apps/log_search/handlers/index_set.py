@@ -1179,10 +1179,9 @@ class IndexSetHandler(APIModel):
         """
         获取图表信息
         """
-        if params["search_mode"] == SearchMode.SQL.value:
+        if params["query_mode"] == SearchMode.SQL.value:
             sql = params["sql"]
             self.check_sql_syntax(sql)
-            self.check_sql_table(sql)
             result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
             result = result_data.get("result")
             if not result:
@@ -1190,11 +1189,13 @@ class IndexSetHandler(APIModel):
                 errors = result_data.get("errors", {}).get("error")
                 if errors:
                     errors_message = errors_message + ":" + errors
+                logger.info("SQL语法异常 [{}]".format(errors_message))
                 raise SqlSyntaxException(errors_message)
             data = {
                 "total_records": result_data["data"]["totalRecords"],
                 "time_taken": result_data["data"]["timetaken"],
                 "list": result_data["data"]["list"],
+                "select_fields_order": result_data["data"]["select_fields_order"],
             }
             return data
         else:
@@ -1204,16 +1205,16 @@ class IndexSetHandler(APIModel):
         """
         检查sql查询的结果表是否正确
         """
-        log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         if not log_index_set_obj:
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id))
         support_doris = log_index_set_obj.support_doris
         if not support_doris:
             raise IndexSetDorisQueryException()
-        doris_table_name = log_index_set_obj.doris_table_name
+        doris_table_id = log_index_set_obj.doris_table_id
         match = re.search(r"\bFROM\b\s+?(\S+) ", sql, re.IGNORECASE)
 
-        if match and match.group(1) == doris_table_name:
+        if match and match.group(1) == doris_table_id:
             return True
         raise IndexSetResultTableException(IndexSetResultTableException.MESSAGE.format(table_name=match.group(1)))
 
@@ -1222,15 +1223,9 @@ class IndexSetHandler(APIModel):
         """
         检查sql语法
         """
-        matches = re.findall(r"\bSELECT\b|\bFROM\b", sql.upper())
+        matches = re.findall(r"\bSELECT\b", sql.upper())
         if not matches:
-            raise SqlSyntaxException("SQL语法错误")
-        # 检查是否存在SELECT和FROM关键字
-        for index, match in enumerate(matches):
-            if index == 0 and match != "SELECT":
-                raise SqlSyntaxException("缺少SELECT关键字")
-            elif index == 1 and match != "FROM":
-                raise SqlSyntaxException("缺少FROM关键字")
+            raise SqlSyntaxException("SQL语法错误-缺少SELECT关键字")
 
 
 class BaseIndexSetHandler(object):

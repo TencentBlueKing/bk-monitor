@@ -383,7 +383,7 @@ class LogIndexSet(SoftDeleteModel):
 
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
-    doris_table_name = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
+    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
 
     def get_name(self):
         return self.index_set_name

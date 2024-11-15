@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='logindexset',
-            name='doris_table_name',
+            name='doris_table_id',
             field=models.CharField(default=None, max_length=128, null=True, verbose_name='doris表名'),
         ),
         migrations.AddField(
