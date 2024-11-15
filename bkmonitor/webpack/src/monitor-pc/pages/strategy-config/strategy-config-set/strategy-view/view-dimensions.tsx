@@ -63,7 +63,7 @@ export default class ViewDimensions extends tsc<IProps> {
   handleWatchDimensionData(value: IDimensionOption[]) {
     value.forEach(item => {
       if (!!item.name && !this.localValues?.[item.id]) {
-        this.localValues[item.id] = '';
+        this.$set(this.localValues, item.id, '');
       }
     });
   }

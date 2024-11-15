@@ -335,9 +335,15 @@
         return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
       },
       menuList() {
-        return this.topMenu.filter(menu => {
+        const list = this.topMenu.filter(menu => {
           return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
         });
+        // #if APP === 'apm'
+        if (process.env.NODE_ENV === 'development' && process.env.APP === 'apm' && list?.length) {
+          return [...list, { id: 'monitor-retrieve', name: '监控检索' }];
+        }
+        // #endif
+        return list;
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;

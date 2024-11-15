@@ -63,6 +63,7 @@ interface IConditionInputProps {
   defaultValue?: {
     [propName: string]: string[];
   };
+  title?: string;
 }
 export interface IVarOption {
   id: string;
@@ -72,12 +73,19 @@ export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
 @Component({
   name: 'ConditionInput',
 })
-export default class ConditionInput extends tsc<IConditionInputProps> {
+export default class ConditionInput extends tsc<
+  IConditionInputProps,
+  {
+    onChange: (value: IConditionItem[]) => void;
+  }
+> {
   @Prop({ required: true, type: Array }) readonly dimensionsList: any[];
   @Prop({ required: false, type: Object }) readonly metricMeta: IMetricMeta;
+  @Prop({ type: String, default: window.i18n.tc('条件') }) readonly title: string;
   /** 自定义的请求接口，传入时候不传指标数据metricMeta */
   @Prop({ type: Function }) readonly getDataApi: GetVarApiType;
   @Prop({ default: () => ({}), type: Object }) defaultValue: IConditionInputProps['defaultValue'];
+
   @Model('change', { default: () => [], type: Array }) conditionList!: any[];
 
   conditions = [];
@@ -149,6 +157,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
       this.conditions.push(this.handleGetDefaultCondition(false));
     } else {
       if (this.conditions[index] && index === 0) {
+        // biome-ignore lint/performance/noDelete: <explanation>
         delete this.conditions[index].condition;
       }
     }
@@ -267,7 +276,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   // 获取维度值列表数据
   async getVariableValueList(keyId: string) {
     /** 自定义请求维度列表数据的api */
-    if (!!this.getDataApi) {
+    if (this.getDataApi) {
       return this.getDataApi(keyId).then(data => {
         this.dimensionsValueMap[keyId] = data || [];
       });
@@ -337,7 +346,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   render() {
     return (
       <span class='condition'>
-        <span class='condition-item condition-item-label'>{this.$t('条件')}</span>
+        {this.title && <span class='condition-item condition-item-label'>{this.title}</span>}
         {this.conditions.map((item, index) => [
           item.condition && item.key && index > 0 ? (
             <input

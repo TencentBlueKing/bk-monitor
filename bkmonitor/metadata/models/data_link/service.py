@@ -13,12 +13,13 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.transaction import atomic
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import config
 from metadata.models import DataSource
 from metadata.models.bcs import BcsFederalClusterInfo
-from metadata.models.data_link import utils
+from metadata.models.data_link import DataIdConfig, utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.resource import DataLinkResource, DataLinkResourceConfig
 
@@ -30,7 +31,7 @@ def apply_data_id(data_name: str) -> bool:
     """下发 data_id 资源，并记录对应的资源及配置"""
     logger.info("apply data_id for data_name: %s", data_name)
 
-    data_id_name = utils.get_bkdata_data_id_name(data_name)
+    data_id_name = utils.compose_bkdata_data_id_name(data_name)
     data_id_config = DataLinkResourceConfig.compose_data_id_config(data_id_name)
     if not data_id_config:
         return False
@@ -50,9 +51,37 @@ def apply_data_id(data_name: str) -> bool:
     return True
 
 
+@atomic(config.DATABASE_CONNECTION_NAME)
+def apply_data_id_v2(
+    data_name: str,
+    namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
+) -> bool:
+    """
+    下发 data_id 资源，并记录对应的资源及配置
+    @param data_name: 数据源名称
+    @param namespace: 资源命名空间
+    @param bk_biz_id: 业务ID
+    """
+    logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
+    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
+    data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
+        name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
+    )
+    data_id_config = data_id_config_ins.compose_config()
+
+    api.bkdata.apply_data_link({"config": [data_id_config]})
+    logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
+    return True
+
+
 def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> Dict:
-    """获取数据源对应的 data_id"""
-    data_id_name = utils.get_bkdata_data_id_name(data_name)
+    """
+    获取数据源对应的 data_id
+    TODO: 待改造为通用查询状态方法
+    """
+    data_id_name = utils.compose_bkdata_data_id_name(data_name)
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
     )
@@ -70,6 +99,135 @@ def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_D
         kind=DataLinkKind.DATAID.value, name=data_id_name, namespace=namespace
     ).update(status=phase or DataLinkResourceStatus.PENDING.value)
     return {"status": phase, "data_id": None}
+
+
+def get_data_id_v2(
+    data_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
+) -> Dict:
+    """
+    获取数据源对应的 data_id
+    TODO: 待改造为通用查询状态方法
+    """
+    logger.info("get_data_id: data_name->[%s]", data_name)
+    data_id_name = utils.compose_bkdata_data_id_name(data_name)
+    data_id_config = api.bkdata.get_data_link(
+        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
+    )
+    data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace, bk_biz_id=bk_biz_id)
+    logger.info("get_data_id: request bkbase data_id_config->[%s]", data_id_config)
+    # 解析数据获取到数据源ID
+    phase = data_id_config.get("status", {}).get("phase")
+    # 如果状态不是处于正常的终态，则返回 None
+    if phase == DataLinkResourceStatus.OK.value:
+        data_id = int(data_id_config.get("metadata", {}).get("annotations", {}).get("dataId", 0))
+        data_id_config_ins.status = phase
+        data_id_config_ins.save()
+        logger.info("get_data_id: request data_name -> [%s] now is ok", data_name)
+        return {"status": phase, "data_id": data_id}
+
+    data_id_config_ins.status = phase
+    data_id_config_ins.save()
+    logger.info("get_data_id: request data_name -> [%s] ,phase->[%s]", data_name, phase)
+    return {"status": phase, "data_id": None}
+
+
+def get_data_link_component_config(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_config: try to get component config,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_config: kind is not valid,kind->[%s]", kind)
+        component_config = api.bkdata.get_data_link(kind=bkbase_kind, namespace=namespace, name=component_name)
+        return component_config
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_config: get component config failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return None
+
+
+def get_data_link_component_status(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_status: try to get component status,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_status: kind is not valid,kind->[%s]", kind)
+        component_config = get_bkbase_component_status_with_retry(
+            kind=bkbase_kind, namespace=namespace, name=component_name
+        )
+        phase = component_config.get("status", {}).get("phase")
+        return phase
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_status: get component status failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return DataLinkResourceStatus.FAILED.value
+
+
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+def get_bkbase_component_status_with_retry(
+    kind: str,
+    namespace: str,
+    name: str,
+):
+    """
+    获取bkbase组件状态，具备重试机制
+    """
+    try:
+        bkbase_status = api.bkdata.get_data_link(kind=kind, namespace=namespace, name=name)
+        return bkbase_status
+    except Exception as e:
+        logger.error(
+            "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s]," "error->[%s]",
+            kind,
+            name,
+            e,
+        )
+        raise e
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)

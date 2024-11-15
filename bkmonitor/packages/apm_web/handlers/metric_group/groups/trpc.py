@@ -20,6 +20,8 @@ from constants.apm import MetricTemporality, TRPCMetricTag
 
 from .. import base, define
 
+SUCCESS_CODES: List[str] = ["0", "ret_0"]
+
 
 class TRPCMetricField:
     # 主调
@@ -79,7 +81,10 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
+        self.ret_code_as_exception: bool = kwargs.get("ret_code_as_exception") or False
         self.time_shift: Optional[str] = kwargs.get("time_shift")
+        # 预留 interval 可配置入口
+        self.interval = self.DEFAULT_INTERVAL
 
         self.instant: bool = True
         if self.metric_helper.TIME_FIELD in self.group_by:
@@ -111,23 +116,37 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         # 如果是求瞬时量，那么整个时间范围是作为一个区间
-        interval: int = (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
         q: QueryConfigBuilder = (
-            self.metric_helper.q.group_by(*self.group_by).interval(interval).filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by)
+            .interval(self.interval)
+            .filter(dict_to_q(self.filter_dict) or Q())
         )
 
         if self.time_shift:
             q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
 
         if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+
+        if self.instant:
+            interval: int = self.metric_helper.get_interval(start_time, end_time)
+            # 背景：统计一段时间内的黄金指标（瞬时量）
+            # sum_over_time(sum(increase(xxx[1m]))[window:step]) 可以解决数据刚上报、重启场景的差值计算不准确问题。
+            q = q.func(
+                _id="sum_over_time",
+                # window: sum_over_time 区间左闭右闭，左侧减去 1s 变成左闭右开，确保一个 interval 只有一个点。
+                # step：精度，由于是求 window 内所有点之和，step 须和内层 interval 对齐。
+                # 必须显式传入 step：不指定 step 会参考 interval 自动取值，这意味着不同查询引擎可能默认行为不一致。
+                # refer：https://prometheus.io/blog/2019/01/28/subquery-support/
+                params=[{"id": "window", "value": f"{interval - 1}s"}, {"id": "step", "value": f"{self.interval}s"}],
+            )
 
         return q
 
     def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
-            return qs.instant(align_interval=self.DEFAULT_INTERVAL * self.metric_helper.TIME_FIELD_ACCURACY)
+            return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
@@ -170,15 +189,27 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         )
         return list(self.qs(start_time, end_time).add_query(q).expression("a * 1000"))
 
+    def _code_redefined(self, code_type: str, q: QueryConfigBuilder) -> QueryConfigBuilder:
+        if not self.ret_code_as_exception:
+            return q.filter(code_type__eq=code_type)
+
+        if code_type == CodeType.EXCEPTION:
+            return q.filter(code__neq=SUCCESS_CODES, code_type__neq=CodeType.TIMEOUT)
+        elif code_type == CodeType.SUCCESS:
+            return q.filter(code__eq=SUCCESS_CODES)
+
+        return q.filter(code_type__eq=code_type)
+
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
         code_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("a")
-            .filter(code_type__eq=code_type)
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
+        code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
+
         total_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("b")
@@ -212,7 +243,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _top_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        return list(self._get_qs(qs_type, start_time, end_time).func(_id="topk", params=[{"value": limit}]))
+        qs: UnifyQuerySet = self._get_qs(qs_type, start_time, end_time)
+        if self.instant:
+            return list(qs.func(_id="topk", params=[{"value": limit}]))
+
+        # 时间聚合场景，需要排序找 TopN
+        records: List[Dict[str, Any]] = []
+        for record in qs:
+            if record.get("_result_") is None:
+                continue
+            records.append(record)
+
+        return sorted(records, key=lambda r: -r["_result_"])[:limit]
 
     def _bottom_n(
         self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -232,22 +274,33 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def get_server_config(
         self, server: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> Dict[str, Any]:
-        sdk_names: List[str] = self.metric_helper.get_field_option_values_by_groups(
+        # 根据特殊维度探测上报方式，不同上报方式需要采用不同的指标计算/筛选方式
+        apps: List[str] = self.metric_helper.get_field_option_values_by_groups(
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
+                    "field": TRPCMetricTag.APP,
                     "filter_dict": {f"{TRPCMetricTag.CALLER_SERVER}__eq": server},
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
+                    "field": TRPCMetricTag.APP,
                     "filter_dict": {f"{TRPCMetricTag.CALLEE_SERVER}__eq": server},
                 },
             ],
             start_time=start_time,
             end_time=end_time,
         )
-        if sdk_names:
-            return {"temporality": MetricTemporality.DELTA}
-        return {"temporality": MetricTemporality.CUMULATIVE}
+        if apps:
+            return {
+                "temporality": MetricTemporality.CUMULATIVE,
+                "server_filter_method": "eq",
+                "server_field": "${server}",
+                "service_field": "${service_name}",
+            }
+        return {
+            "temporality": MetricTemporality.DELTA,
+            "server_filter_method": "reg",
+            "server_field": TRPCMetricTag.TARGET,
+            "service_field": ".*${service_name}$",
+        }

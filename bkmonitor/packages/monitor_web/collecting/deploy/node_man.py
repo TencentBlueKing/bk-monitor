@@ -13,11 +13,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 from django.conf import settings
+from django.db import transaction
 from django.utils.translation import ugettext as _
 
 from api.cmdb.define import TopoNode, TopoTree
 from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import api
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from core.errors.collecting import (
     CollectConfigNeedUpgrade,
@@ -285,6 +286,28 @@ class NodeManInstaller(BaseInstaller):
 
         return diff_result["nodes"]
 
+    def _release_package(self, release_version):
+        """
+        发布插件包
+        """
+        if release_version.is_packaged:
+            return
+
+        plugin_manager = PluginManagerFactory.get_manager(plugin=self.plugin)
+        with transaction.atomic():
+            register_info = {
+                "plugin_id": self.plugin.plugin_id,
+                "config_version": release_version.config_version,
+                "info_version": release_version.info_version,
+            }
+            ret = resource.plugin.plugin_register(**register_info)
+            plugin_manager.release(
+                config_version=release_version.config_version,
+                info_version=release_version.info_version,
+                token=ret["token"],
+                debug=False,
+            )
+
     def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
         """
         首次安装插件采集
@@ -306,9 +329,12 @@ class NodeManInstaller(BaseInstaller):
         if self.collect_config.pk and self.collect_config.need_upgrade:
             raise CollectConfigNeedUpgrade({"msg": self.collect_config.name})
 
+        release_version = self.plugin.packaged_release_version
+        self._release_package(release_version)
+
         # 创建新的部署记录
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": release_version,
             "target_node_type": install_config["target_node_type"],
             "target_nodes": install_config["target_nodes"],
             "params": install_config["params"],
@@ -362,8 +388,11 @@ class NodeManInstaller(BaseInstaller):
         # 创建新的部署记录
         params["collector"]["period"] = current_version.params["collector"]["period"]
 
+        release_version = self.plugin.packaged_release_version
+        self._release_package(release_version)
+
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": release_version,
             "target_node_type": current_version.target_node_type,
             "target_nodes": current_version.target_nodes,
             "params": params,
@@ -507,6 +536,37 @@ class NodeManInstaller(BaseInstaller):
 
         self.collect_config.deployment_config.task_ids = [result["task_id"]]
         self.collect_config.deployment_config.save()
+
+    def run(self, action: str = None, scope: Dict[str, Any] = None):
+        """
+        执行插件采集
+        :param ACTION: 操作类型 INSTALL/UNINSTALL/START/STOP
+        """
+        subscription_id = self.collect_config.deployment_config.subscription_id
+
+        # 如果没有订阅任务ID，则直接返回
+        if not subscription_id:
+            return
+
+        # 如果没有指定操作类型，则默认为安装
+        if not action:
+            action = "INSTALL"
+        else:
+            action = action.upper()
+
+        # 执行采集配置
+        subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
+        params = {
+            "subscription_id": subscription_id,
+            "actions": {step["id"]: action for step in subscription_params["steps"]},
+        }
+
+        # 如果有指定范围，则只执行指定范围
+        if scope:
+            params["scope"] = scope.copy()
+            params["scope"]["bk_biz_id"] = self.collect_config.bk_biz_id
+
+        api.node_man.run_subscription(**params)
 
     def retry(self, instance_ids: List[int] = None):
         """

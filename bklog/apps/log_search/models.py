@@ -378,6 +378,7 @@ class LogIndexSet(SoftDeleteModel):
     result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
 
     max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
+    max_async_count = models.IntegerField(default=0, verbose_name=_("日志异步下载最大条数限制"))
 
     def get_name(self):
         return self.index_set_name

@@ -147,6 +147,7 @@ class GrafanaProxyView(ProxyView):
         re.compile(r".*/api/ds/query"),
         re.compile(r".*/api/datasource/proxy"),
         re.compile(r".*/api/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
+        re.compile(r".*/api/datasources/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
     ]
 
     @method_decorator(csrf_exempt)

@@ -29,7 +29,7 @@
  * @file main store
  * @author  <>
  */
-import Vue from 'vue';
+import Vue, { set } from 'vue';
 
 import {
   unifyObjectStyle,
@@ -44,6 +44,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
 
+import { deepClone } from '../components/monitor-echarts/utils';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
@@ -61,6 +62,111 @@ import RouteUrlResolver from './url-resolver';
 import http from '@/api';
 
 Vue.use(Vuex);
+const stateTpl = {
+  userMeta: {}, // /meta/mine
+  pageLoading: true,
+  authDialogData: null,
+  // 是否将unix时间戳格式化
+  isFormatDate: true,
+  // 当前运行环境
+  runVersion: '',
+  // 系统当前登录用户
+  user: {},
+  // 是否作为iframe被嵌套
+  asIframe: false,
+  iframeQuery: {},
+  // 当前项目及Id
+  space: {},
+  spaceUid: '',
+  indexId: '',
+  indexItem: { ...IndexItem },
+  operatorDictionary: {},
+  /** 联合查询ID列表 */
+  unionIndexList: [],
+  /** 联合查询元素列表 */
+  unionIndexItemList: [],
+
+  // 收藏列表
+  favoriteList: [],
+
+  /** 索引集对应的字段列表信息 */
+  // @ts-ignore
+  indexFieldInfo: { ...IndexFieldInfo },
+  indexSetQueryResult: { ...IndexSetQueryResult },
+  indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
+  indexSetFieldConfigList: {
+    is_loading: false,
+    data: [],
+  },
+  indexSetOperatorConfig: {
+    /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+    isShowSourceField: false,
+  },
+  traceIndexId: '',
+  // 业务Id
+  bkBizId: '',
+  // 我的项目列表
+  mySpaceList: [],
+  currentMenu: {},
+  currentMenuItem: {},
+  topMenu: [],
+  menuList: [],
+  visibleFields: [],
+  // 数据接入权限
+  menuProject: [],
+  errorPage: ['notTraceIndex'],
+  // 全局配置
+  globalsData: {},
+  activeTopMenu: {},
+  activeManageNav: {},
+  activeManageSubNav: {},
+  // -- id, id对应数据
+  collectDetail: [0, {}],
+  showFieldsConfigPopoverNum: 0,
+  showRouterLeaveTip: false,
+  // 新人指引
+  userGuideData: {},
+  curCustomReport: null,
+  // demo 业务链接
+  demoUid: '',
+  spaceBgColor: '', // 空间颜色
+  isEnLanguage: false,
+  chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
+  isExternal: false, // 外部版
+  /** 是否展示全局脱敏弹窗 */
+  isShowGlobalDialog: false,
+  /** 当前全局设置弹窗的活跃id */
+  globalActiveLabel: 'masking-setting', // masking-setting
+  /** 全局设置列表 */
+  globalSettingList: [],
+  /** 日志灰度 */
+  maskingToggle: {
+    toggleString: 'off',
+    toggleList: [],
+  },
+  /** 外部版路由菜单 */
+  externalMenu: [],
+  isAppFirstLoad: true,
+  /** 是否清空了显示字段，展示全量字段 */
+  isNotVisibleFieldsShow: false,
+  showAlert: false, // 是否展示跑马灯
+  isLimitExpandView: false,
+  storeIsShowClusterStep: false,
+  retrieveDropdownData: {},
+  notTextTypeFields: [],
+  tableLineIsWrap: false,
+  tableJsonFormat: false,
+  tableJsonFormatDepth: 1,
+  tableShowRowIndex: false,
+  isSetDefaultTableColumn: false,
+  tookTime: 0,
+  searchTotal: 0,
+  showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+  clearSearchValueNum: 0,
+  // 存放接口报错信息的对象
+  apiErrorInfo: {},
+  clusterParams: null,
+};
 
 const store = new Vuex.Store({
   // 模块
@@ -70,108 +176,7 @@ const store = new Vuex.Store({
     globals,
   },
   // 公共 store
-  state: {
-    userMeta: {}, // /meta/mine
-    pageLoading: true,
-    authDialogData: null,
-    // 是否将unix时间戳格式化
-    isFormatDate: true,
-    // 当前运行环境
-    runVersion: '',
-    // 系统当前登录用户
-    user: {},
-    // 是否作为iframe被嵌套
-    asIframe: false,
-    iframeQuery: {},
-    // 当前项目及Id
-    space: {},
-    spaceUid: '',
-    indexId: '',
-    indexItem: { ...IndexItem },
-    operatorDictionary: {},
-    /** 联合查询ID列表 */
-    unionIndexList: [],
-    /** 联合查询元素列表 */
-    unionIndexItemList: [],
-
-    // 收藏列表
-    favoriteList: [],
-
-    /** 索引集对应的字段列表信息 */
-    // @ts-ignore
-    indexFieldInfo: { ...IndexFieldInfo },
-    indexSetQueryResult: { ...IndexSetQueryResult },
-    indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
-    indexSetFieldConfigList: {
-      is_loading: false,
-      data: [],
-    },
-    indexSetOperatorConfig: {
-      /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
-      isShowSourceField: false,
-    },
-    traceIndexId: '',
-    // 业务Id
-    bkBizId: '',
-    // 我的项目列表
-    mySpaceList: [],
-    currentMenu: {},
-    currentMenuItem: {},
-    topMenu: [],
-    menuList: [],
-    visibleFields: [],
-    // 数据接入权限
-    menuProject: [],
-    errorPage: ['notTraceIndex'],
-    // 全局配置
-    globalsData: {},
-    activeTopMenu: {},
-    activeManageNav: {},
-    activeManageSubNav: {},
-    // -- id, id对应数据
-    collectDetail: [0, {}],
-    showFieldsConfigPopoverNum: 0,
-    showRouterLeaveTip: false,
-    // 新人指引
-    userGuideData: {},
-    curCustomReport: null,
-    // demo 业务链接
-    demoUid: '',
-    spaceBgColor: '', // 空间颜色
-    isEnLanguage: false,
-    chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
-    isExternal: false, // 外部版
-    /** 是否展示全局脱敏弹窗 */
-    isShowGlobalDialog: false,
-    /** 当前全局设置弹窗的活跃id */
-    globalActiveLabel: 'masking-setting', // masking-setting
-    /** 全局设置列表 */
-    globalSettingList: [],
-    /** 日志灰度 */
-    maskingToggle: {
-      toggleString: 'off',
-      toggleList: [],
-    },
-    /** 外部版路由菜单 */
-    externalMenu: [],
-    isAppFirstLoad: true,
-    /** 是否清空了显示字段，展示全量字段 */
-    isNotVisibleFieldsShow: false,
-    showAlert: false, // 是否展示跑马灯
-    isLimitExpandView: false,
-    storeIsShowClusterStep: false,
-    retrieveDropdownData: {},
-    notTextTypeFields: [],
-    tableLineIsWarp: true,
-    isSetDefaultTableColumn: false,
-    tookTime: 0,
-    searchTotal: 0,
-    showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
-    clearSearchValueNum: 0,
-    // 存放接口报错信息的对象
-    apiErrorInfo: {},
-    clusterParams: null,
-  },
+  state: deepClone(stateTpl),
   // 公共 getters
   getters: {
     runVersion: state => state.runVersion,
@@ -231,11 +236,19 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => ({
-          field,
-          operator,
-          value,
-        }));
+        .map(({ field, operator, value }) => {
+          const addition = {
+            field,
+            operator,
+            value,
+          };
+
+          if (['is true', 'is false'].includes(addition.operator)) {
+            addition.value = [''];
+          }
+
+          return addition;
+        });
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -270,6 +283,15 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updatetableJsonFormatDepth(state, val) {
+      state.tableJsonFormatDepth = val;
+    },
+    updateTableJsonFormat(state, val) {
+      state.tableJsonFormat = val;
+    },
+    updateTableShowRowIndex(state, val) {
+      state.tableShowRowIndex = val;
+    },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },
@@ -337,7 +359,6 @@ const store = new Vuex.Store({
 
         return result;
       }, {});
-
       Object.assign(state.indexItem, defaultValue, copyValue);
     },
 
@@ -457,6 +478,7 @@ const store = new Vuex.Store({
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
       state.bkBizId = state.space.bk_biz_id;
       state.spaceUid = spaceUid;
+      state.isSetDefaultTableColumn = false;
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {
@@ -568,6 +590,9 @@ const store = new Vuex.Store({
     updateVisibleFields(state, val) {
       state.visibleFields = val;
     },
+    updateVisibleFieldMinWidth(state, fields) {
+      setDefaultTableWidth(state.visibleFields, fields);
+    },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
     },
@@ -580,6 +605,14 @@ const store = new Vuex.Store({
     },
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
+    },
+    updateIndexFieldEggsItems(state, payload) {
+      const { start_time, end_time } = state.indexItem;
+      const lastQueryTimerange = `${start_time}_${end_time}`;
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexFieldInfo.aggs_items, key, payload[key]);
+      });
+      state.indexFieldInfo.last_eggs_request_token = lastQueryTimerange;
     },
     resetIndexFieldInfo(state, payload) {
       const defValue = { ...IndexFieldInfo };
@@ -661,8 +694,8 @@ const store = new Vuex.Store({
         ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
-    updateTableLineIsWarp(state, payload) {
-      state.tableLineIsWarp = payload;
+    updateTableLineIsWrap(state, payload) {
+      state.tableLineIsWrap = payload;
     },
     updateShowFieldAlias(state, payload) {
       window.localStorage.setItem('showFieldAlias', payload);
@@ -736,6 +769,13 @@ const store = new Vuex.Store({
     },
     updateClearSearchValueNum(state, payload) {
       state.clearSearchValueNum = payload;
+    },
+    // 初始化监控默认数据
+    initMonitorState(state, payload) {
+      Object.assign(state, payload);
+    },
+    resetState(state) {
+      Object.assign(state, deepClone(stateTpl));
     },
   },
   actions: {
@@ -871,8 +911,9 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        if (route.params.indexId) {
-          ids.push(route.params.indexId);
+        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        if (indexId) {
+          ids.push(indexId);
         }
       }
 
@@ -1037,7 +1078,13 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = state.indexItem.addition.filter(item => !item.disabled && item.field !== '_ip-select_');
+      // const addition = otherPrams.addition.map(a => {
+      //   if (['is true', 'is false'].includes(a.operator)) {
+      //     a.value = [''];
+      //   }
+
+      //   return a;
+      // });
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1106,8 +1153,8 @@ const store = new Vuex.Store({
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
-              if (!payload?.isPagination) dispatch('requestSearchTotal');
 
+              if (!payload?.isPagination) dispatch('requestSearchTotal');
               return {
                 data,
                 message,
@@ -1184,9 +1231,21 @@ const store = new Vuex.Store({
     },
 
     requestIndexSetValueList({ commit, state }, payload) {
+      const { start_time, end_time } = state.indexItem;
+      const lastQueryTimerange = `${start_time}_${end_time}`;
+
+      // 本次请求与上次请求时间范围不一致，重置缓存数据
+      if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
+        set(state.indexFieldInfo, 'aggs_items', {});
+      }
+
+      const isDefaultQuery = !(payload?.fields?.length ?? false);
+      const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
+
       const filterFn = field =>
+        !state.indexFieldInfo.aggs_items[field.field_name] &&
         field.es_doc_values &&
-        !field.is_built_in &&
+        filterBuildIn(field) &&
         ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
         !/^__dist_/.test(field.field_name);
 
@@ -1195,10 +1254,8 @@ const store = new Vuex.Store({
         .filter(filterFn)
         .map(mapFn);
 
-      commit('updateIndexFieldInfo', { aggs_items: [] });
-      if (!fields.length) return;
+      if (!fields.length) return Promise.resolve(true);
 
-      const { start_time, end_time } = state.indexItem;
       const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
         keyword: '*',
@@ -1222,8 +1279,9 @@ const store = new Vuex.Store({
         data: queryData,
       };
 
-      http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldInfo', { aggs_items: resp.data.aggs_items });
+      return http.request(urlStr, body).then(resp => {
+        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+        return resp;
       });
     },
 
@@ -1252,12 +1310,13 @@ const store = new Vuex.Store({
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
       const searchMode = state.indexItem.search_mode;
+      const depth = Number(payload.depth ?? '0');
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
       };
-      const getAdditionMappingOperator = ({ operator, field }) => {
+      const getAdditionMappingOperator = ({ operator, field, value }) => {
         let mappingKey = {
           // is is not 值映射
           is: '=',
@@ -1270,21 +1329,63 @@ const store = new Vuex.Store({
           'is not': 'not contains match phrase',
         };
 
+        /** keyword 类型字段类型的下钻映射 */
+        const keywordMappingKey = {
+          is: 'contains',
+          'is not': 'not contains',
+        };
+
+        const boolMapping = {
+          is: `is ${value[0]}`,
+          'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
+        };
+
         const textType = getFieldType(field);
-        switch (textType) {
-          case 'text':
-            mappingKey = textMappingKey;
-            break;
-          default:
-            break;
+        if (textType === 'text') {
+          mappingKey = textMappingKey;
+        }
+
+        if (textType === 'boolean') {
+          mappingKey = boolMapping;
+          if (value.length) {
+            value.splice(0, value.length);
+          }
+        }
+
+        if (depth > 1 && textType === 'keyword') {
+          mappingKey = keywordMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
+
+      const formatJsonString = formatResult => {
+        if (typeof formatResult === 'string') {
+          return formatResult.replace(/"/g, '\\"');
+        }
+
+        return formatResult;
+      };
+
       const getSqlAdditionMappingOperator = ({ operator, field }) => {
+        const textType = getFieldType(field);
+
+        const formatValue = value => {
+          let formatResult = value;
+          if (['text', 'string', 'keyword'].includes(textType)) {
+            if (Array.isArray(formatResult)) {
+              formatResult = formatResult.map(formatJsonString);
+            } else {
+              formatResult = formatJsonString(formatResult);
+            }
+          }
+
+          return formatResult;
+        };
+
         let mappingKey = {
           // is is not 值映射
-          is: val => `${field}: "${val}"`,
-          'is not': val => `NOT ${field}: "${val}"`,
+          is: val => `${field}: "${formatValue(val)}"`,
+          'is not': val => `NOT ${field}: "${formatValue(val)}"`,
         };
 
         return mappingKey[operator] ?? operator; // is is not 值映射
@@ -1312,9 +1413,10 @@ const store = new Vuex.Store({
           const isNewSearchPage = item.operator === 'new-search-page-is';
           item.operator = isNewSearchPage ? 'is' : item.operator;
           const { field, operator, value } = item;
+
           let newSearchValue = null;
           if (searchMode === 'ui') {
-            const mapOperator = getAdditionMappingOperator({ field, operator });
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {
@@ -1338,7 +1440,12 @@ const store = new Vuex.Store({
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
           const keywords = keyword.length > 0 ? [keyword] : [];
           const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
-          const newSearchKeyword = keywords.concat(newSearchKeywords).join(' AND ');
+          if (newSearchKeywords.length) {
+            const lastIndex = newSearchKeywords.length - 1;
+            newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
+          }
+
+          const newSearchKeyword = keywords.concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');
         }

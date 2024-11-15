@@ -352,7 +352,7 @@
 
         .show-whole-btn {
           position: absolute;
-          top: 84px;
+          top: 82px;
           width: 100%;
           height: 24px;
           font-size: 12px;
@@ -427,7 +427,7 @@
         }
 
         .show-whole-btn {
-          top: 84px;
+          top: 82px;
         }
       }
 

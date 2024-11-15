@@ -93,10 +93,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   render() {
     return (
-      <span
-        class='origin-content'
-        title={this.isWrap ? '' : this.strOriginJson}
-      >
+      <span class='origin-content'>
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>

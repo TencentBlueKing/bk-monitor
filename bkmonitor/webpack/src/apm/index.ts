@@ -53,6 +53,7 @@ Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+
 setVue(Vue);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
@@ -67,7 +68,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bkUrl: window.bk_url,
   });
 
-  new Vue({
+  window.mainComponent = new Vue({
     el: '#app',
     router,
     store,
@@ -104,7 +105,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bkUrl: window.bk_url,
       });
 
-      new Vue({
+      window.mainComponent = new Vue({
         el: '#app',
         router,
         store,

@@ -106,6 +106,9 @@ from fta_web.alert.utils import (
     add_overview,
     get_previous_month_range_unix,
     slice_time_interval,
+    get_previous_week_range_unix,
+    generate_date_ranges,
+    get_day_range_unix,
 )
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
@@ -123,6 +126,86 @@ from monitor_web.models import CustomEventGroup
 
 logger = logging.getLogger("root")
 
+
+class GetFtaData(Resource):
+
+    def perform_request(self, validated_request_data):
+        results_format = validated_request_data.get("results", "json")
+        thedate = validated_request_data.get("thedate", None)
+        # 获取日期
+        biz_list = api.cmdb.get_business()
+        target_biz_ids = []
+        # 如果有预期的业务 id 则取预期的业务内容
+        if target_biz_ids:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
+        else:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
+    
+        if not thedate:
+            # 如果没有传入指定日期 则获取上一周的日期
+            start_time, end_time = get_previous_week_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix()
+        
+        ret = []
+        scenario = constants.QuickSolutionsConfig.SCENARIO
+        # 日期为第一层 再分业务获取对应的告警数量
+        for day_start, day_end in generate_date_ranges(start_time, end_time):
+                # 初始化存储映射 告警名称/业务
+                scenario_totals = {scenario_name: {biz: 0 for biz in biz_info} for scenario_name in scenario.keys()}
+                for scenario_name, scenario_list in scenario.items():
+                    page, page_size, fetched, total = 1, 1000, 0, 1
+                    # 分页处理
+                    conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
+                    # 将生成的条件括在括号内
+                    query_string = f'({conditions})'
+                    # 查询条件
+                    while fetched < total:
+                        request_body = {
+                            "bk_biz_ids": list(biz_info.keys()),
+                            "status": [],
+                            "conditions": [],
+                            "query_string": query_string,
+                            "start_time": int(day_start.timestamp()),
+                            "end_time": int(day_end.timestamp()),
+                            "page": page,
+                            "page_size": page_size,
+                        }
+                        handler = AlertQueryHandler(**request_body)
+                        result = handler.search()
+                        total = result['total']
+                        fetched += len(result['alerts'])
+                        page += 1
+                        # 更新结果总数 供后面判断
+                        for alert in result['alerts']:
+                            scenario_totals[scenario_name][alert['bk_biz_id']] += 1
+                            # 日期 业务 告警指标
+                for biz_id, biz in biz_info.items():
+                    # 最后按业务插入当天的告警数据统计
+                    ret.append({
+                        "日期": day_start.date(),
+                        "业务": biz.display_name,
+                        **{scenario_name: scenario_totals[scenario_name].get(biz_id, 0) for scenario_name in scenario.keys()}
+                    })
+        if results_format == "file":
+            
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["日期", "业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in ret:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return ret
 
 class GetTmpData(Resource):
     def perform_request(self, validated_request_data):
@@ -147,8 +230,8 @@ class GetTmpData(Resource):
             params = {
                 'bk_biz_ids': [biz],
                 'status': [],
-                'conditions': [],
-                'query_string': '告警来源 : "tnm" AND -告警名称 : "Ping告警" AND -告警名称 : "上报超时告警" AND -告警名称 : "服务器系统时间偏移告警"',
+                'conditions': constants.QuickSolutionsConfig.CONDITIONS_REQ,
+                'query_string': "",
                 'start_time': start_time,
                 'end_time': end_time,
                 'fields': ['plugin_id'],
@@ -159,14 +242,14 @@ class GetTmpData(Resource):
         for biz, alert in ret.items():
             if biz not in biz_info or not alert:
                 continue
-            tmp = alert['"tnm"']
+            tmp = alert.get('"tnm"', 0)
             bkmonitor = alert.get('"bkmonitor"', 0)
             row = {
                 "biz": biz,
                 "biz_name": biz_info[biz].display_name,
                 "tmp": tmp,
                 "tmp_bk": bkmonitor + tmp,
-                "tmp_bk_ratio": tmp / (tmp + bkmonitor),
+                "tmp_bk_ratio": tmp / (tmp + bkmonitor) if tmp != 0 else 0,
             }
             results.append(row)
         if results_format == "file":
@@ -897,7 +980,7 @@ class AlertRelatedInfoResource(Resource):
 
         # 多线程处理每个业务的主机和服务实例信息
         with ThreadPoolExecutor(max_workers=8) as executor:
-            list(executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values()))
+            executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values())
 
         return related_infos
 
@@ -1366,7 +1449,7 @@ class SearchEventResource(ApiAuthResource):
         for query_config in alert.strategy["items"][0]["query_configs"]:
             query_config["agg_dimension"] = ["dedupe_md5"]
             ds_cls = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            ds = ds_cls.init_by_query_config(query_config)
+            ds = ds_cls.init_by_query_config(query_config, bk_biz_id=alert.event.bk_biz_id)
             ds.interval = interval
             records = ds.query_data(start_time=start_time * 1000, end_time=end_time * 1000, limit=10000)
             for record in records:
@@ -1416,7 +1499,7 @@ class SearchEventResource(ApiAuthResource):
 
     @classmethod
     def search_fta_alerts(cls, alert, validated_request_data, show_dsl=False):
-        # 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
+        # todo 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
         start_time = alert.begin_time
         end_time = alert.end_time if alert.end_time else int(time.time())
         interval = EventQueryHandler.calculate_agg_interval(start_time, end_time)
@@ -1491,69 +1574,14 @@ class SearchActionResource(ApiAuthResource):
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
 
     def perform_request(self, validated_request_data):
-        show_overview = validated_request_data.get("show_overview")
-        show_aggs = validated_request_data.get("show_aggs")
-        show_dsl = validated_request_data.get("show_dsl")
-        start_time = validated_request_data.pop("start_time", None)
-        end_time = validated_request_data.pop("end_time", None)
-        if validated_request_data["bk_biz_ids"] is not None:
-            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
-            validated_request_data["authorized_bizs"] = authorized_bizs
-            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
-
-        if start_time and end_time:
-            results = resource.alert.search_action_result.bulk_request(
-                [
-                    {
-                        "start_time": sliced_start_time,
-                        "end_time": sliced_end_time,
-                        **validated_request_data,
-                    }
-                    for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
-                ]
-            )
-        else:
-            results = [resource.alert.search_action_result.perform_request(validated_request_data)]
-
-        result = {
-            "actions": [],
-            "total": 0,
-        }
-        if show_aggs:
-            result["aggs"] = []
-            agg_id_map = {}
-        if show_dsl:
-            is_change = True
-        for sliced_result in results:
-            result["actions"].extend(sliced_result["actions"])
-            result["total"] += sliced_result["total"]
-            if show_overview:
-                add_overview(result, sliced_result)
-            if show_aggs:
-                add_aggs(agg_id_map, result, sliced_result)
-            if show_dsl:
-                if is_change:
-                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["should"][1]["range"]["end_time"][
-                        "gte"
-                    ] = start_time
-                    sliced_result["dsl"]["query"]["bool"]["filter"][2]["bool"]["must"][0]["range"]["create_time"][
-                        "lte"
-                    ] = end_time
-                    result["dsl"] = sliced_result["dsl"]
-                    is_change = False
-
-        if show_overview:
-            result["overview"]["children"] = list(result["overview"]["children"].values())
-
-        return result
-
-
-class SearchActionResultResource(Resource):
-    def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
 
         handler = ActionQueryHandler(**validated_request_data)
 

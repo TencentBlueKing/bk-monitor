@@ -25,30 +25,45 @@
 -->
 
 <template>
-  <div class="result-table-container-main">
+  <div class="bklog-result-list">
     <div
       ref="scrollContainer"
       class="result-table-container"
       data-test-id="retrieve_from_fieldForm"
       @scroll.passive="handleOriginScroll"
     >
-      <keep-alive>
-        <component
-          v-on="$listeners"
-          :handle-click-tools="handleClickTools"
-          :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
-          :is-page-over="isPageOver"
-          :operator-config="indexSetOperatorConfig"
-          :origin-table-list="originLogList"
-          :retrieve-params="retrieveParams"
-          :show-field-alias="showFieldAlias"
-          :table-list="tableList"
-          :table-loading="isContentLoading"
-          :time-field="timeField"
-          :total-fields="totalFields"
-          :visible-fields="visibleFields"
-        ></component>
-      </keep-alive>
+      <KeepAlive>
+        <template v-if="showOriginal">
+          <OriginalList
+            :handle-click-tools="handleClickTools"
+            :is-page-over="isPageOver"
+            :operator-config="indexSetOperatorConfig"
+            :origin-table-list="originLogList"
+            :retrieve-params="retrieveParams"
+            :show-field-alias="showFieldAlias"
+            :table-list="tableList"
+            :table-loading="isContentLoading"
+            :time-field="timeField"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+          ></OriginalList>
+        </template>
+        <template v-else>
+          <TableList
+            :handle-click-tools="handleClickTools"
+            :is-page-over="isPageOver"
+            :operator-config="indexSetOperatorConfig"
+            :origin-table-list="originLogList"
+            :retrieve-params="retrieveParams"
+            :show-field-alias="showFieldAlias"
+            :table-list="tableList"
+            :table-loading="isContentLoading"
+            :time-field="timeField"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+          ></TableList>
+        </template>
+      </KeepAlive>
 
       <!-- 表格底部内容 -->
       <p
@@ -95,13 +110,24 @@
         @toggle-screen-full="toggleScreenFull"
       />
     </bk-dialog>
+
+    <retrieve-loader
+      v-if="isPageOver || isContentLoading"
+      class="bklog-skeleton-loading"
+      :is-page-over="isPageOver || isContentLoading"
+      :visible-fields="[]"
+      :maxLength="36"
+      :static="true"
+      :isLoading="false"
+    >
+    </retrieve-loader>
   </div>
 </template>
 
 <script>
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { mapState } from 'vuex';
-
+  import RetrieveLoader from '@/skeleton/retrieve-loader';
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import OriginalList from './original-list';
@@ -114,6 +140,7 @@
       ContextLog,
       OriginalList,
       TableList,
+      RetrieveLoader,
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
@@ -202,9 +229,9 @@
             this.isPageOver = true;
             this.newScrollHeight = el.scrollTop;
             this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
-              this.isPageOver = false;
               this.finishPolling = res.data.total < this.indexItem.begin;
-              this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                this.isPageOver = false;
                 this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
               });
             });
@@ -249,7 +276,7 @@
         this.$http
           .request('retrieve/getWebConsoleUrl', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: queryData,
           })
@@ -314,247 +341,220 @@
     padding: 0;
   }
 
-  .result-table-container-main {
-    height: calc(100% - 42px);
-  }
-
-  .result-table-container {
+  .bklog-result-list {
     position: relative;
-    height: 100%;
-    background: #fff;
+    height: calc(100% - 42px);
 
-    .is-hidden-table-header {
-      & .bk-table-header-wrapper,
-      .is-right {
-        display: none;
-      }
+    .bklog-skeleton-loading {
+      position: absolute;
+      top: 0;
+      z-index: 10;
     }
 
-    .king-table {
-      td {
-        vertical-align: top;
+    .result-table-container {
+      position: relative;
+      height: 100%;
+      background: #fff;
+
+      .is-hidden-table-header {
+        & .bk-table-header-wrapper,
+        .is-right {
+          display: none;
+        }
       }
 
-      .bk-table-body-wrapper {
-        min-height: calc(100vh - 550px);
-        color: #313238;
+      .bklog-origin-list,
+      .bklog-table-list {
+        td {
+          font-family: var(--table-fount-family);
+          font-size: var(--table-fount-size);
+          color: var(--table-fount-color);
+          vertical-align: top;
 
-        .bk-table-empty-block {
-          display: flex;
+          &.bk-table-column-expand {
+            .bk-table-expand-icon {
+              .bk-icon {
+                top: 18px;
+              }
+            }
+          }
+
+          &.bklog-result-list-col-index {
+            .cell {
+              padding: 0;
+
+              div {
+                padding: 8px 0;
+                line-height: 20px;
+              }
+            }
+          }
+        }
+
+        .bk-table-body-wrapper {
+          min-height: calc(100vh - 550px);
+          color: #313238;
+
+          .bk-table-empty-block {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 600px);
+          }
+        }
+
+        .cell {
+          .operation-button:not(:last-child) {
+            padding-right: 8px;
+          }
+        }
+
+        td mark {
+          color: #313238;
+          background: #f3e186;
+        }
+
+        :deep(.result-table-loading) {
+          width: calc(100% - 2px);
+          height: calc(100% - 2px);
+        }
+
+        .handle-card {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          margin-left: 10px;
+
+          &:first-child {
+            margin-left: 0;
+          }
+        }
+
+        .time-field {
+          padding: 8px 0;
+          line-height: 20px;
+          white-space: nowrap;
+        }
+
+        .hover-row {
+          .show-whole-btn {
+            background-color: #f5f7fa;
+          }
+        }
+
+        td.bk-table-expanded-cell {
+          padding: 0;
+        }
+
+        .bk-table-column-expand .bk-icon {
+          top: 21px;
+        }
+
+        .bk-table-empty-text {
+          width: 100%;
+          padding: 0;
+        }
+
+        .visiable-field {
+          .str-content {
+            &.is-limit {
+              max-height: 106px;
+            }
+          }
+
+          .show-whole-btn {
+            top: 84px;
+          }
+        }
+
+        .row-hover {
+          background: #fff;
+        }
+
+        th .cell {
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 0 15px !important;
+        }
+
+        &.original-table .bk-table-column-expand .bk-icon {
+          top: 21px;
+        }
+
+        &.is-hidden-index-column {
+          .bklog-result-list-col-index {
+            .cell {
+              opacity: 0;
+            }
+          }
+        }
+
+        &.is-show-index-column {
+          .bklog-result-list-col-index {
+            .cell {
+              opacity: 1;
+              transition: opacity 1s;
+            }
+          }
+        }
+      }
+
+      .render-header {
+        display: inline;
+
+        .field-type-icon {
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: calc(100vh - 600px);
-        }
-      }
-
-      .cell {
-        .operation-button:not(:last-child) {
-          padding-right: 8px;
-        }
-      }
-
-      td mark {
-        color: #313238;
-        background: #f3e186;
-      }
-
-      :deep(.result-table-loading) {
-        width: calc(100% - 2px);
-        height: calc(100% - 2px);
-      }
-
-      .handle-card {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        margin-left: 10px;
-
-        &:first-child {
-          margin-left: 0;
-        }
-      }
-
-      .time-field {
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
-        font-weight: 700;
-        color: var(--table-fount-color);
-        white-space: nowrap;
-      }
-
-      .original-str,
-      .visiable-field {
-        .str-content {
-          position: relative;
-          line-height: 20px;
-
-          &.is-limit {
-            max-height: 106px;
-          }
-        }
-
-        &.is-wrap {
-          .str-content {
-            display: block;
-            overflow: hidden;
-          }
-        }
-
-        .origin-str {
-          line-height: 20px;
-          color: #313238;
-        }
-
-        .show-whole-btn {
-          position: absolute;
-          top: 84px;
-          width: 100%;
-          height: 24px;
+          min-width: 16px;
+          height: 16px;
+          margin: 0 5px 0 0;
           font-size: 12px;
-          color: #3a84ff;
+          color: #63656e;
+          background: #dcdee5;
+          border-radius: 2px;
+        }
+
+        .bklog-ext {
+          min-width: 22px;
+          height: 22px;
+          transform: translateX(-3px) scale(0.7);
+        }
+
+        .toggle-display {
+          position: absolute;
+          top: 16px;
+          right: 12px;
+          display: none;
+          color: #c4c6cc;
           cursor: pointer;
-          background: #fff;
-          transition: background-color 0.25s ease;
-        }
 
-        .hide-whole-btn {
-          margin-top: -2px;
-          line-height: 14px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
+          &:hover {
+            color: #ea3636;
+          }
 
-      .original-time {
-        padding-top: 12px;
-
-        .cell {
-          padding-left: 2px;
-        }
-      }
-
-      .hover-row {
-        .show-whole-btn {
-          background-color: #f5f7fa;
-        }
-      }
-
-      .original-str {
-        .hide-whole-btn {
-          margin-top: 4px;
-        }
-
-        .cell {
-          padding: 10px 14px 0 2px;
-        }
-
-        &.is-wrap .cell {
-          padding: 10px 14px 8px 2px;
-        }
-      }
-
-      td.bk-table-expanded-cell {
-        padding: 0;
-      }
-
-      .bk-table-column-expand .bk-icon {
-        top: 21px;
-      }
-
-      .bk-table-empty-text {
-        width: 100%;
-        padding: 0;
-      }
-
-      .visiable-field {
-        .str-content {
-          &.is-limit {
-            max-height: 106px;
+          &.is-hidden {
+            visibility: hidden;
           }
         }
 
-        .cell {
-          padding: 12px 14px 0 14px;
+        .timer-formatter {
+          transform: translateY(-1px);
         }
 
-        &.is-wrap .cell {
-          padding: 12px 14px 8px;
-        }
-
-        .show-whole-btn {
-          top: 84px;
+        .lack-index-filed {
+          padding-bottom: 2px;
+          border-bottom: 1px dashed #63656e;
         }
       }
 
-      .row-hover {
-        background: #fff;
-      }
-
-      th .cell {
-        /* stylelint-disable-next-line declaration-no-important */
-        padding: 0 15px !important;
-      }
-
-      &.original-table .bk-table-column-expand .bk-icon {
-        top: 19px;
-      }
-    }
-
-    .render-header {
-      display: inline;
-
-      .field-type-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 16px;
-        height: 16px;
-        margin: 0 5px 0 0;
-        font-size: 12px;
-        color: #63656e;
-        background: #dcdee5;
-        border-radius: 2px;
-      }
-
-      .bklog-ext {
-        min-width: 22px;
-        height: 22px;
-        transform: translateX(-3px) scale(0.7);
-      }
-
-      .toggle-display {
-        position: absolute;
-        top: 16px;
-        right: 12px;
-        display: none;
-        color: #c4c6cc;
-        cursor: pointer;
-
-        &:hover {
-          color: #ea3636;
+      th .cell:hover {
+        .toggle-display {
+          display: inline-block;
         }
-
-        &.is-hidden {
-          visibility: hidden;
-        }
-      }
-
-      .timer-formatter {
-        transform: translateY(-1px);
-      }
-
-      .lack-index-filed {
-        padding-bottom: 2px;
-        border-bottom: 1px dashed #63656e;
-      }
-    }
-
-    th .cell:hover {
-      .toggle-display {
-        display: inline-block;
       }
     }
   }
+
   // 日志全屏状态下的样式
   .log-full-dialog {
     :deep(.bk-dialog-content) {

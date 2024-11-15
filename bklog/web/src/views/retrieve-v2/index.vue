@@ -258,3 +258,6 @@
 <style scoped>
   @import './index.scss';
 </style>
+<style lang="scss">
+  @import './segment-pop.scss';
+</style>

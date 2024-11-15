@@ -1,3 +1,5 @@
+import { xssFilter } from 'monitor-common/utils/xss';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,6 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
 import { intervalModeNames } from './strategy-config-set-new/notice-config/notice-config';
 
 const dataTypeLabelNames = {
@@ -185,6 +188,7 @@ export default class TableStore {
         trigger,
         triggerConfig,
         recovery: item.detects[0]?.recovery_config?.check_window || '--',
+        recoveryStatusSetter: item.detects[0]?.recovery_config?.status_setter || RecoveryConfigStatusSetter.RECOVERY,
         needPoll: item.notice.options.converge_config.need_biz_converge,
         noDataEnabled: item.items[0]?.no_data_config?.is_enabled || false,
         signals,
@@ -202,8 +206,8 @@ export default class TableStore {
     // this.data = originData
   }
 
-  getItemDescription(itemlist) {
-    if (!itemlist) {
+  getItemDescription(items) {
+    if (!items) {
       return {
         tip: {
           content: '--',
@@ -213,20 +217,16 @@ export default class TableStore {
       };
     }
     const res = [];
-    itemlist.forEach(item => {
-      const metricField = item.metric_field || '';
-      const metricFieldName = item.metric_field_name || '';
+    for (const item of items) {
+      const metricField = xssFilter(item.metric_field || '');
+      const metricFieldName = xssFilter(item.metric_field_name || '');
       const resultTableId = item.result_table_id || '';
-      const itemName = item.name || '';
+      const itemName = xssFilter(item.name || '');
       const queryString = item.query_string || ''; // 日志关键字才有这字段
       const metricMetaId = `${item.data_source_label}|${item.data_type_label}`;
       let tmp = '';
       let tips = '';
       switch (metricMetaId) {
-        case 'bk_monitor|time_series':
-        default:
-          tmp = `${itemName}(${item.data_label || resultTableId}.${metricField})`;
-          break;
         case 'bk_monitor|event':
         case 'bk_monitor|log':
           tmp = itemName;
@@ -245,7 +245,7 @@ export default class TableStore {
           break;
         case 'bk_log_search|log':
           tmp = `${queryString}(${window.i18n.t('索引集')}:${itemName})`;
-          tips = `<div>${queryString}
+          tips = `<div>${xssFilter(queryString)}
             <span style="color:#c4c6cc;margin-left:12px">(${window.i18n.t('索引集')}:${itemName})</span></div>`;
           break;
         case 'custom|event':
@@ -261,12 +261,15 @@ export default class TableStore {
         case 'prometheus|time_series':
           tmp = item.promql || '';
           break;
+        default:
+          tmp = `${itemName}(${item.data_label || resultTableId}.${metricField})`;
+          break;
       }
       res.push({
         tip: tips || tmp,
         val: tmp,
       });
-    });
+    }
     return res;
   }
 

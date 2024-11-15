@@ -90,7 +90,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
     const titleSlot = (item: FieldValue, index: number) => (
       <div class={['collapse-item-title', { 'is-expanded': this.expandedData.includes(item.key) }]}>
         <span class='title-left'>
-          <i class={['icon-monitor', 'icon-mc-triangle-down', { acitve: this.expandedData.includes(item.key) }]} />
+          <i class={['icon-monitor', 'icon-mc-triangle-down', { active: this.expandedData.includes(item.key) }]} />
           {/* <span class="type-icon">#</span> */}
           <span class='field-name'>{this.handleAlias(item.field)}</span>
           <span class='field-value-count'>({item.total})</span>
@@ -122,7 +122,10 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
           {item.dimensions.map((val, i) => {
             if (!item.showMore && i + 1 > TOP_NUM) return undefined;
             return (
-              <div class='val-percent-item'>
+              <div
+                key={val.id || i}
+                class='val-percent-item'
+              >
                 <div class='val-percent-progress'>
                   <div class='val-percent-text'>
                     <span class='field'>{val.id || '--'}</span>

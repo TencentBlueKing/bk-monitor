@@ -32,6 +32,7 @@ from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
     Functions,
+    SubQueryFunctions,
 )
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -774,6 +775,18 @@ class TimeSeriesDataSource(DataSource):
         for function_params in self.functions:
             name = function_params["id"]
             params = {param["id"]: param["value"] for param in function_params["params"]}
+
+            # 单独处理子查询函数，减少代码改动影响面
+            if name in SubQueryFunctions:
+                function = SubQueryFunctions[name]
+                config = {"method": function.id, "is_sub_query": True}
+                for param in function.params:
+                    if param.id not in params:
+                        raise ParamRequiredError(func_name=name, param_name=param.id)
+                    config[param.id] = params[param.id]
+
+                functions.append(config)
+                continue
 
             # 函数不支持在多指标计算中使用
             if name in ["top", "bottom"]:
@@ -2038,10 +2051,10 @@ class BkFtaEventDataSource(DataSource):
 
         if alert_name:
             # 如果传了告警名称，就直接用
-            self.alert_name = alert_name
+            self.alert_name = str(alert_name)
         elif self.metrics:
             # 如果没有传告警名称，那必定传了 metrics，从 metrics 提取
-            self.alert_name = self.metrics[0]["field"]
+            self.alert_name = str(self.metrics[0]["field"])
             self.metrics[0].update(
                 {
                     "field": "_index",
