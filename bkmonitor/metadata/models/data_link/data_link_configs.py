@@ -312,7 +312,6 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         verbose_name = "条件处理配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
     def compose_conditional_sink_config(self, conditions: List) -> Dict:
         """
         组装条件处理配置

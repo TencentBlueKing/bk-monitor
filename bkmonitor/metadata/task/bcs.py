@@ -463,9 +463,11 @@ def sync_federation_clusters(fed_clusters):
                     fed_cluster_id=fed_cluster_id,
                     host_cluster_id=host_cluster_id,
                     sub_cluster_id=sub_cluster_id,
-                    fed_namespaces=namespaces,  # 直接存储完整的命名空间列表
                     fed_builtin_metric_table_id=fed_builtin_metric_table_id,
                     fed_builtin_event_table_id=fed_builtin_event_table_id,
+                    defaults={
+                        'fed_namespaces': namespaces,  # 直接存储完整的命名空间列表'
+                    },
                 )
         logger.info("sync_federation_clusters run successfully.")
     except Exception as e:  # pylint: disable=broad-except
