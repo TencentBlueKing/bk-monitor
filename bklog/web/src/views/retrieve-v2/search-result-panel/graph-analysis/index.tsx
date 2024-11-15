@@ -88,7 +88,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  fieldList = [1, 2, 3, 4];
+  fieldList = [];
   advanceSetting = false;
   activeCanvasType = 'bar';
 
@@ -163,9 +163,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   get advanceSettingClass() {
     return this.advanceSetting ? 'icon-collapse-small' : 'icon-expand-small';
   }
-
+  // 如果是table类型，切换为table，反之，切换为图表
   handleGraphCategoryClick(category: GraphCategory) {
     this.activeGraphCategory = category;
+    this.activeCanvasType = category;
   }
 
   handleAdvanceSettingClick() {
@@ -257,7 +258,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           key={field}
           class='field-setting-row'
         >
-          <div class='field'>字段{field}</div>
+          <div class='field'>{field}</div>
           <div class='type'>指标</div>
         </div>
       );
@@ -290,7 +291,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ];
     };
     if (this.isChartMode) {
-      return [<SqlPanel ref='sqlPanelRef'></SqlPanel>];
+      return [
+        <SqlPanel
+          ref='sqlPanelRef'
+          onSearch-completed={this.echartData}
+        ></SqlPanel>,
+      ];
     }
     return [
       <div class='dimensions-index-row'>
@@ -378,6 +384,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     //   switchSqlMode();
     // });
   }
+  /** echart和字段配置展示 */
+  echartData(data) {
+    this.$refs.refGraphChart.setOption(data);
+    // console.log(data);
+    this.fieldList = data.data.select_fields_order;
+  }
+
   render() {
     return (
       <div class='graph-analysis-index'>
@@ -444,7 +457,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
                 <span class='icons'>
                   <span
-                    class={{ active: this.activeCanvasType === 'bar' }}
+                    class={{ active: this.activeCanvasType !== 'table' }}
                     onClick={() => this.handleCanvasTypeChange('bar')}
                   >
                     <i class='bklog-icon bklog-bar'></i>
