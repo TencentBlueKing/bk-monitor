@@ -65,6 +65,7 @@ from apps.log_search.handlers.index_set import (
     UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
@@ -1645,21 +1646,40 @@ class SearchViewSet(APIViewSet):
             "time_taken": 0.092,
             "list": [
               {
-                "dtEventTimeStamp": 1731260184000,
-                "iterationIndex": 3,
+                "aa": "aa",
+                "number": 16.3
                 "time": 1731260184
               },
               {
-                "dtEventTimeStamp": 1731260184000,
-                "iterationIndex": 117,
+                "aa": "bb",
+                "number": 20.56
                 "time": 1731260184
               }
             ],
             "select_fields_order": [
-              "dtEventTimeStamp",
-              "iterationIndex",
-              "log",
+              "aa",
+              "number",
               "time"
+            ],
+            "result_schema": [
+            {
+                "field_type": "string",
+                "field_name": "aa",
+                "field_alias": "aa",
+                "field_index": 0
+            },
+            {
+                "field_type": "double",
+                "field_name": "number",
+                "field_alias": "number",
+                "field_index": 1
+            },
+            {
+                "field_type": "long",
+                "field_name": "time",
+                "field_alias": "time",
+                "field_index": 2
+            }
             ]
           },
           "code": 0,
@@ -1667,6 +1687,5 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ChartSerializer)
-        result = IndexSetHandler(index_set_id=index_set_id).get_chart_data(params=params)
+        result = ChartHandler(index_set_id=index_set_id).get_chart_data(params=params)
         return Response(result)
-

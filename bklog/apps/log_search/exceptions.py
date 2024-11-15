@@ -541,9 +541,6 @@ class FunctionGuideException(BaseException):
 # =================================================
 # 图表分析
 # =================================================
-class IndexSetResultTableException(BaseException):
-    ERROR_CODE = "1003"
-    MESSAGE = _("结果表: [{table_name}] 配置异常")
 
 
 class IndexSetDorisQueryException(BaseException):
