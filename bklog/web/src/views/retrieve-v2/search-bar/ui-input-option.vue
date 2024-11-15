@@ -1157,6 +1157,7 @@
         border-radius: 2px;
 
         &.tag-item {
+          color: #63656e;
           background: #f0f1f5;
           border-color: #f0f1f5;
 

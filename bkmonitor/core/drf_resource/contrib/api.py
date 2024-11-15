@@ -180,7 +180,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         logger.debug("request: {}".format(request_url))
 
         # 是否是流式响应
-        is_stream = validated_request_data.pop("stream", False)
+        is_stream = getattr(self, "IS_STREAM", False)
 
         try:
             headers = self.get_headers()

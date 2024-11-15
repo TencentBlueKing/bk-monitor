@@ -793,7 +793,7 @@ class TrpcTagDrillOperation:
         tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
         return [
             {
-                "text": _("被调分析"),
+                "text": _("主调"),
                 "value": cls.CALLEE,
                 "tags": [
                     TRPCMetricTag.CALLER_SERVICE,
@@ -819,7 +819,7 @@ class TrpcTagDrillOperation:
         tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
         return [
             {
-                "text": _("主调分析"),
+                "text": _("被调"),
                 "value": cls.CALLEE,
                 "tags": [
                     TRPCMetricTag.CALLER_SERVICE,

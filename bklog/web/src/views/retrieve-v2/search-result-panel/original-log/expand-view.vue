@@ -126,6 +126,7 @@
 
 <style lang="scss" scoped>
   .expand-view-wrapper {
+    width: 100%;
     color: #313238;
 
     .view-tab {
@@ -167,6 +168,14 @@
 
         .vjs-tree__node {
           line-height: 22px;
+        }
+      }
+
+      :deep(.kv-content) {
+        .bklog-text-segment {
+          &.bklog-root-field {
+            max-height: fit-content;
+          }
         }
       }
     }
