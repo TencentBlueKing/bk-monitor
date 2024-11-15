@@ -515,6 +515,12 @@ APM_APP_QPS = 500
 
 APM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
+# 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
+APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+
+# 新建应用的创建时间到当前时间的时长范围，单位：分钟
+APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"
@@ -558,6 +564,8 @@ APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = []
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
+# APM 自定义指标 SDK 映射配置
+APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -1440,6 +1448,9 @@ CHECK_RESULT_TTL_HOURS = 1
 
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
+
+# 用户信息
+BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")

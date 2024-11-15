@@ -80,6 +80,13 @@
         type: Boolean,
         default: false,
       },
+      static: {
+        type: Boolean,
+        default: false,
+      },
+      maxLength: {
+        type: Number
+      }
     },
     data() {
       return {
@@ -89,7 +96,7 @@
     },
     computed: {
       renderList() {
-        return new Array(this.loaderLen).fill('');
+        return new Array(this.maxLength ?? this.loaderLen).fill('');
       },
       columnField() {
         const visibleTable = !this.visibleFields.length
@@ -107,13 +114,17 @@
       },
     },
     mounted() {
-      if (this.isLoading) this.loaderLen = 12;
-      const ele = document.querySelector(this.loaderClassName);
-      if (ele) ele.addEventListener('scroll', this.handleScroll);
+      if (!this.static) {
+        if (this.isLoading) this.loaderLen = 12;
+        const ele = document.querySelector(this.loaderClassName);
+        if (ele) ele.addEventListener('scroll', this.handleScroll);
+      }
     },
     beforeDestroy() {
-      const ele = document.querySelector(this.loaderClassName);
-      if (ele) ele.removeEventListener('scroll', this.handleScroll);
+      if (!this.static) {
+        const ele = document.querySelector(this.loaderClassName);
+        if (ele) ele.removeEventListener('scroll', this.handleScroll);
+      }
     },
     methods: {
       getRandom() {

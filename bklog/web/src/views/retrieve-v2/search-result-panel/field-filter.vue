@@ -112,6 +112,6 @@
   </div>
 </template>
 
-<style scoped>
+<style lang="scss">
   @import './field-filter.scss';
 </style>

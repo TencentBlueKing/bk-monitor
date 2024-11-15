@@ -68,7 +68,11 @@ import AlarmHandlingList from './alarm-handling/alarm-handling-list';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
 import DetectionRules from './detection-rules/detection-rules';
-import JudgingCondition, { DEFAULT_TIME_RANGES, type IJudgingData } from './judging-condition/judging-condition';
+import JudgingCondition, {
+  DEFAULT_TIME_RANGES,
+  RecoveryConfigStatusSetter,
+  type IJudgingData,
+} from './judging-condition/judging-condition';
 import AiopsMonitorData from './monitor-data/aiops-monitor-data';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
@@ -229,6 +233,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     recoveryConfig: {
       // 恢复条件
       checkWindow: 5,
+      statusSetter: RecoveryConfigStatusSetter.RECOVERY,
     },
     noDataConfig: {
       // 无数据告警
@@ -872,6 +877,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       recoveryConfig: {
         // 恢复条件
         checkWindow: 5,
+        statusSetter: RecoveryConfigStatusSetter.RECOVERY,
       },
       noDataConfig: {
         // 无数据告警
@@ -1284,6 +1290,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       triggerConfigData.uptime?.time_ranges?.map?.(timeRange => [`${timeRange.start}:00`, `${timeRange.end}:59`]) ||
       DEFAULT_TIME_RANGE;
     recoveryConfig.checkWindow = recoveryConfigData.check_window || 0;
+    recoveryConfig.statusSetter = recoveryConfigData.status_setter || RecoveryConfigStatusSetter.RECOVERY;
     noDataConfig.continuous = noDataConfigData.continuous || 0;
     noDataConfig.isEnabled = noDataConfigData.is_enabled || false;
     if (this.monitorDataEditMode === 'Edit') {
@@ -1564,6 +1571,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.handleResetMetricAlias();
     }
     if (!this.metricData.length) {
+      this.analyzingConditions.recoveryConfig.statusSetter = RecoveryConfigStatusSetter.RECOVERY;
       this.target = [];
       this.defaultCheckedTarget.target_detail = [];
       this.detectionConfig.data = [];
@@ -1819,7 +1827,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       await saveStrategyV2(
         transformDataKey(Object.assign(params, this.id && !this.isClone ? { id: this.id } : {}), true)
       )
-        .then(() => {
+        .then(strategy => {
+          // 保存策略成功后 主动刷新target列表
+          if (strategy.id) {
+            getTargetDetail(
+              {
+                refresh: 1,
+                strategy_ids: [strategy.id],
+              },
+              { needMessage: false }
+            ).catch(() => {});
+          }
           this.$bkMessage({
             theme: 'success',
             message: this.id && !this.isClone ? this.$t('编辑策略成功') : this.$t('创建策略成功'),
@@ -1996,6 +2014,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       recovery_config: {
         // 恢复周期
         check_window: recoveryConfig.checkWindow,
+        status_setter: recoveryConfig.statusSetter,
       },
       // 算法连接符
       connector,
@@ -2096,6 +2115,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     this.monitorDataEditMode = 'Edit';
     this.isMultivariateAnomalyDetection = false;
+    this.analyzingConditions.recoveryConfig.statusSetter = RecoveryConfigStatusSetter.RECOVERY;
   }
   // 切换监控数据模式
   handleModeChange(v: dataModeType) {

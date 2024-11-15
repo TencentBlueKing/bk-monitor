@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from apm_web.metric_handler import ServiceFlowCount
 from apm_web.models import Application
 from bkmonitor.utils.cache import CacheType, using_cache
-from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import api
 
 
@@ -31,13 +30,13 @@ class EndpointHandler:
             return endpoint_info[0]
 
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
+        start_time, end_time = application.list_retention_time_range()
 
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int(start_time.timestamp()),
-                "end_time": int(end_time.timestamp()),
+                "start_time": start_time,
+                "end_time": end_time,
                 "where": [
                     {"condition": "and", "key": "from_apm_service_name", "method": "eq", "value": [service_name]},
                     {"condition": "and", "key": "from_span_name", "method": "eq", "value": [endpoint_name]},

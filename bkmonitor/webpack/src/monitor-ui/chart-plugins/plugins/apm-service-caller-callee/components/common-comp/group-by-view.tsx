@@ -27,8 +27,6 @@
 import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import { LIMIT_TYPE_LIST } from '../../utils';
-
 import { Debounce } from 'monitor-common/utils';
 
 import type { IListItem, IServiceConfig } from '../../type';

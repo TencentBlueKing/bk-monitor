@@ -61,6 +61,7 @@ from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
+    MAX_ASYNC_COUNT,
     MAX_EXPORT_REQUEST_RETRY,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
@@ -1055,7 +1056,9 @@ class SearchHandler(object):
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        while search_after_size == max_result_window and result_size < self.size:
+        while search_after_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
+        ):
             search_after = []
             for sorted_field in sorted_fields:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
@@ -1104,7 +1107,9 @@ class SearchHandler(object):
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
-        while scroll_size == max_result_window and result_size < self.size:
+        while scroll_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
+        ):
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = scroll_func(
                 {

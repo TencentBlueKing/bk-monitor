@@ -25,7 +25,7 @@
  */
 export const xssFilter = (str: any) => {
   return (
-    str?.replace?.(/[&<>"]/gi, function (match) {
+    str?.replace?.(/[&<>"]/gi, match => {
       switch (match) {
         case '&':
           return '&amp;';

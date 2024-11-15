@@ -1,9 +1,10 @@
 <script setup>
   import { computed } from 'vue';
-  import useStore from '@/hooks/use-store';
+
   import TimeRange from '@/components/time-range/time-range';
-  import { updateTimezone } from '@/language/dayjs';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
+  import useStore from '@/hooks/use-store';
+  import { updateTimezone } from '@/language/dayjs';
 
   const store = useStore();
 
