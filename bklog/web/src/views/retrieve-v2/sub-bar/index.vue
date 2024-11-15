@@ -4,7 +4,6 @@
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import VersionSwitch from '@/global/version-switch.vue';
   import FieldSetting from '@/global/field-setting.vue';
   import { isEqual } from 'lodash';
 
