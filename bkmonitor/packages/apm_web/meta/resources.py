@@ -28,7 +28,6 @@ from elasticsearch_dsl import Search
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Business
 from apm_web.constants import (
@@ -452,13 +451,6 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
 class OperateDataSourceSerializer(serializers.Serializer):
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
-
-    def validate(self, attrs):
-        application_id = attrs.get("application_id", None)
-        telemetry_data_type = attrs.get("type", None)
-        if not application_id or not telemetry_data_type:
-            raise ValidationError("miss required fields: application_id or type")
-        return attrs
 
 
 class StartResource(Resource):

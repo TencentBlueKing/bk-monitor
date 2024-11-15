@@ -153,13 +153,6 @@ class OperateApplicationSerializer(serializers.Serializer):
     application_id = serializers.IntegerField(label="应用id")
     type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
 
-    def validate(self, attrs):
-        application_id = attrs.get("application_id", None)
-        telemetry_data_type = attrs.get("type", None)
-        if not application_id or not telemetry_data_type:
-            raise ValidationError("miss required fields: application_id or type")
-        return attrs
-
 
 class StartApplicationResource(Resource):
     RequestSerializer = OperateApplicationSerializer
@@ -1754,22 +1747,20 @@ class DeleteApplicationSimpleResource(Resource):
 
 
 class StartApplicationSimpleResource(Resource):
-    RequestSerializer = OperateApplicationSerializer
+    class RequestSerializer(ApplicationRequestSerializer):
+        type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
 
     def perform_request(self, validated_request_data):
-        application_id = validated_request_data["application_id"]
-        telemetry_data_type = validated_request_data["type"]
         from apm_web.meta.resources import StartResource
 
-        return StartResource()(application_id=application_id, type=telemetry_data_type)
+        return StartResource().request(validated_request_data)
 
 
 class StopApplicationSimpleResource(Resource):
-    RequestSerializer = OperateApplicationSerializer
+    class RequestSerializer(ApplicationRequestSerializer):
+        type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
 
     def perform_request(self, validated_request_data):
-        application_id = validated_request_data["application_id"]
-        telemetry_data_type = validated_request_data["type"]
         from apm_web.meta.resources import StopResource
 
-        return StopResource()(application_id=application_id, type=telemetry_data_type)
+        return StopResource().request(validated_request_data)
