@@ -15,6 +15,8 @@ export interface RowData {
   offsetTop: () => number;
   height: () => number;
   getDomElement: () => HTMLElement | null;
+  calcHeight: number;
+  calcOffsetTop: number;
 }
 
 // 任务调度器类
@@ -22,9 +24,12 @@ class TaskScheduler {
   private taskMap: Map<number, RowData>; // Use rowIndex as the key
   private parentSelector: string | null = null;
   private scrollSelector: string | null = null;
-  private buffer: number = 600; // 控制可视范围的缓冲区
+  private buffer: number = 0; // 控制可视范围的缓冲区
   private lastVisibleStartIndex: number = 0; // 上次可视区域的起始索引
   private lastVisibleEndIndex: number = 0; // 上次可视区域的结束索引
+  private scrollElement;
+  private calcTop;
+  private lazyElementOffsetTop;
 
   constructor() {
     this.taskMap = new Map();
@@ -45,30 +50,41 @@ class TaskScheduler {
     this.buffer = buffer;
   }
 
+  private getDomElement(rowIndex): HTMLElement | null {
+    if (!this.parentSelector) {
+      return null;
+    }
+    const parentElement = document.querySelector(this.parentSelector);
+    if (parentElement) {
+      return parentElement.querySelector(`[data-row-index="${rowIndex}"]`);
+    }
+    return null;
+  }
+
   // 向某行注入任务
   public injectTasks(rowIndex: number, tasks: LazyTask[] = [], row: any): void {
-    const getDomElement = (): HTMLElement | null => {
-      if (!this.parentSelector) {
-        return null;
-      }
-      const parentElement = document.querySelector(this.parentSelector);
-      if (parentElement) {
-        return parentElement.querySelector(`[data-row-index="${rowIndex}"]`);
-      }
-      return null;
-    };
+    if (!this.taskMap.has(rowIndex)) {
+      const rowData: RowData = {
+        row,
+        rowIndex,
+        tasks,
+        isPreprocessed: false,
+        isOutOfView: false,
+        offsetTop: () => this.getDomElement(rowIndex)?.offsetTop ?? 0,
+        height: () => this.getDomElement(rowIndex)?.offsetHeight ?? 0,
+        getDomElement: () => this.getDomElement(rowIndex),
+        calcOffsetTop: 0,
+        calcHeight: 42,
+      };
+      this.taskMap.set(rowIndex, rowData);
+    }
+  }
 
-    const rowData: RowData = {
-      row,
-      rowIndex,
-      tasks,
-      isPreprocessed: false,
-      isOutOfView: false,
-      offsetTop: () => getDomElement()?.offsetTop ?? 0,
-      height: () => getDomElement()?.offsetHeight ?? 0,
-      getDomElement,
-    };
-    this.taskMap.set(rowIndex, rowData);
+  public computedCalcHeight() {
+    this.taskMap.forEach(value => {
+      value.calcHeight = value.height();
+      value.calcOffsetTop = value.offsetTop();
+    });
   }
 
   public setTasks(rowIndex: number, tasks: LazyTask[] = []) {
@@ -85,6 +101,11 @@ class TaskScheduler {
     }
   }
 
+  public setMounted() {
+    this.scrollElement = document.querySelector(this.scrollSelector) as HTMLElement;
+    this.calcTop = this.calculateOffsetTop();
+  }
+
   // 计算元素相对偏移量
   private calculateOffsetTop(): number {
     let currentElement = document.querySelector(this.parentSelector) as HTMLElement;
@@ -98,22 +119,23 @@ class TaskScheduler {
   }
 
   // 更新行状态，仅更新可视区域内的行
-  public updateRowStates(): void {
+  public updateRowStates(): number[] {
     if (!this.scrollSelector) {
       console.error('Scroll selector not set.');
       return;
     }
 
-    const scrollElement = document.querySelector(this.scrollSelector) as HTMLElement;
+    const scrollElement = this.scrollElement;
     if (!scrollElement) {
       console.error('Scroll element not found.');
       return;
     }
 
-    const calcTop = this.calculateOffsetTop();
+    const calcTop = this.calcTop + 42;
     const scrollTop = scrollElement.scrollTop > calcTop ? scrollElement.scrollTop - calcTop : 0;
     const viewportHeight =
       scrollElement.clientHeight - (calcTop > scrollElement.scrollTop ? calcTop - scrollElement.scrollTop : 0);
+    this.lazyElementOffsetTop = scrollTop;
 
     // 计算新的可视区域
     const newVisibleStartIndex = this.findFirstVisibleIndex(scrollTop);
@@ -137,6 +159,7 @@ class TaskScheduler {
         rowData.isOutOfView = true;
       }
     }
+
     for (let i = newVisibleEndIndex + 1; i <= this.lastVisibleEndIndex; i++) {
       const rowData = this.taskMap.get(i);
       if (rowData && !rowData.isOutOfView) {
@@ -148,6 +171,8 @@ class TaskScheduler {
     // 更新上次可视区域的索引
     this.lastVisibleStartIndex = newVisibleStartIndex;
     this.lastVisibleEndIndex = newVisibleEndIndex;
+
+    return [this.lastVisibleStartIndex, this.lastVisibleEndIndex];
   }
 
   // 使用二分查找找到第一个可视行的索引
@@ -157,7 +182,7 @@ class TaskScheduler {
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       const rowData = this.taskMap.get(mid);
-      if (rowData && rowData.offsetTop() + rowData.height() >= scrollTop - this.buffer) {
+      if (rowData && rowData.calcOffsetTop + rowData.calcHeight >= scrollTop - this.buffer) {
         high = mid - 1;
       } else {
         low = mid + 1;
@@ -173,7 +198,7 @@ class TaskScheduler {
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       const rowData = this.taskMap.get(mid);
-      if (rowData && rowData.offsetTop() <= scrollBottom + this.buffer) {
+      if (rowData && rowData.calcOffsetTop <= scrollBottom + this.buffer) {
         low = mid + 1;
       } else {
         high = mid - 1;
@@ -186,9 +211,7 @@ class TaskScheduler {
   private executeTasks(rowData: RowData): void {
     rowData.tasks.forEach(task => {
       try {
-        requestAnimationFrame(() => {
-          task.execute(rowData);
-        });
+        task.execute(rowData);
       } catch (error) {
         console.error(`Error executing task ${task.key}:`, error);
       }
@@ -221,7 +244,15 @@ class TaskScheduler {
   }
 
   public calcRowHeight(onRowTaskCallback: (rowData: RowData) => void) {
-    this.taskMap.forEach(onRowTaskCallback);
+    this.taskMap.forEach(value => {
+      value.calcHeight = value.getDomElement()?.offsetHeight || 0;
+      value.calcOffsetTop = value.offsetTop();
+      onRowTaskCallback?.(value);
+    });
+  }
+
+  public getOffsetScrollTop() {
+    return this.lazyElementOffsetTop;
   }
 }
 

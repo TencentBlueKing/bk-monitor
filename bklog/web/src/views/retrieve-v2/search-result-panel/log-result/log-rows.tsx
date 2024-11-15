@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, set, nextTick, Ref } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, Ref } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
-import LazyRender from '@/global/lazy-render.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -42,12 +41,21 @@ import './log-rows.scss';
 import useLazyRender from './use-lazy-render';
 import { LazyTaskScheduler, RowData } from './lazy-task';
 import { uniqueId } from 'lodash';
-import { GLOBAL_SCROLL_SELECTOR, ROW_CONFIG, ROW_EXPAND, ROW_F_ORIGIN_CTX, ROW_F_ORIGIN_OPT, ROW_F_ORIGIN_TIME, ROW_INDEX, ROW_KEY } from './log-row-attributes';
+import {
+  GLOBAL_SCROLL_SELECTOR,
+  ROW_CONFIG,
+  ROW_EXPAND,
+  ROW_F_ORIGIN_CTX,
+  ROW_F_ORIGIN_OPT,
+  ROW_F_ORIGIN_TIME,
+  ROW_INDEX,
+  ROW_KEY,
+} from './log-row-attributes';
 
 type RowConfig = {
   expand?: boolean;
   isInSection?: boolean;
-  minHeight?: string;
+  minHeight?: number;
 };
 
 export default defineComponent({
@@ -82,7 +90,19 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const totalCount = computed(() => store.state.retrieve.trendDataCount);
+    const visibleIndexs = ref({ startIndex: 0, endIndex: 0 });
     const hasOverflowX = ref(false);
+
+    const visibleTableList = computed(() =>
+      tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
+    );
+
+    const tableMinHeight = computed(() => {
+      return tableData.value.reduce((height, row) => {
+        const config = row[ROW_CONFIG].value;
+        return height + config.minHeight;
+      }, 0);
+    });
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     LazyTaskScheduler.setParentSelector(`#${resultContainerId.value}`);
@@ -322,7 +342,7 @@ export default defineComponent({
       return [
         ['expand', false],
         ['isInSection', true],
-        ['minHeight', '42px'],
+        ['minHeight', 42],
       ].reduce(
         (cfg, item: [keyof RowConfig, any]) =>
           Object.assign(cfg, { [item[0]]: getStoreRowAttr(rowKey, item[0], item[1]) }),
@@ -330,16 +350,17 @@ export default defineComponent({
       );
     };
 
-    const handleScrollInView = (rowData: RowData) => {
-      const minHeight = `${rowData.height()}px`;
-      Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { isInSection: true, minHeight });
-      rowData.row[ROW_CONFIG].value.isInSection = true;
-      rowData.row[ROW_CONFIG].value.minHeight = minHeight;
-    };
+    const updateRowMinHeight = () => {
+      LazyTaskScheduler.calcRowHeight(rowData => {
+        const target = rowData.getDomElement() as HTMLElement;
+        let minHeight = 42;
+        if (target) {
+          minHeight = target.offsetHeight;
+        }
 
-    const handleScrollOutView = (rowData: RowData) => {
-      Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { isInSection: false });
-      rowData.row[ROW_CONFIG].value.isInSection = false;
+        Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { minHeight });
+        rowData.row[ROW_CONFIG].value.minHeight = minHeight;
+      });
     };
 
     const loadTableData = () => {
@@ -351,11 +372,7 @@ export default defineComponent({
           [ROW_INDEX]: index,
           [ROW_CONFIG]: ref(getRowConfigWithCache(index)),
         });
-        LazyTaskScheduler.injectTasks(
-          index,
-          [{ key: 'handleScrollInOutView', execute: handleScrollInView, cleanup: handleScrollOutView }],
-          row,
-        );
+        LazyTaskScheduler.injectTasks(index, [], row);
         return row;
       });
     };
@@ -375,19 +392,6 @@ export default defineComponent({
       },
     };
 
-    const updateRowMinHeight = () => {
-      LazyTaskScheduler.calcRowHeight(rowData => {
-        const target = rowData.getDomElement()?.querySelector('.bklog-list-row') as HTMLElement;
-        let minHeight = 'auto';
-        if (target) {
-          minHeight = `${target.offsetHeight}px`;
-        }
-
-        Object.assign(tableRowStore.get(rowData.row[ROW_KEY]), { minHeight });
-        rowData.row[ROW_CONFIG].value.minHeight = minHeight;
-      });
-    };
-
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
@@ -405,6 +409,7 @@ export default defineComponent({
         tableData.value = loadTableData();
         setTimeout(() => {
           updateRowMinHeight();
+          visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + 50;
         });
       },
     );
@@ -461,13 +466,21 @@ export default defineComponent({
       }
     };
 
-    const handleScrollEvent = top => {
-      offsetTop.value = top;
-      LazyTaskScheduler.updateRowStates();
+    const handleScrollEvent = () => {
+      const [startIndex, endIndex] = LazyTaskScheduler.updateRowStates();
+      if (startIndex <= endIndex && endIndex < tableData.value.length) {
+        visibleIndexs.value.startIndex = startIndex;
+        visibleIndexs.value.endIndex = endIndex;
+        offsetTop.value = LazyTaskScheduler.getOffsetScrollTop();
+        console.log('endIndex', endIndex, 'startIndex', startIndex, offsetTop.value);
+      }
     };
 
     onMounted(() => {
-      LazyTaskScheduler.updateRowStates();
+      LazyTaskScheduler.setMounted();
+      const [startIndex] = LazyTaskScheduler.updateRowStates();
+      visibleIndexs.value.startIndex = startIndex;
+      visibleIndexs.value.endIndex = startIndex + 50;
     });
 
     onUnmounted(() => {
@@ -521,27 +534,36 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return tableData.value.map((row, rowIndex) => {
-        const { minHeight, isInSection } = row[ROW_CONFIG].value;
+      return visibleTableList.value.map(row => {
+        const rowIndex = row[ROW_INDEX];
         return (
           <div
             key={row[ROW_KEY]}
             class={[
               'bklog-row-container',
               {
-                'is-not-intersecting': !isInSection,
-                'is-intersecting': isInSection,
                 'has-overflow-x': hasOverflowX.value,
               },
             ]}
             data-row-index={rowIndex}
-            style={{ minHeight }}
           >
             {renderRowCells(row, rowIndex)}
           </div>
         );
       });
     };
+
+    const tableStyle = computed(() => {
+      return {
+        minHeight: `${tableMinHeight.value + 45}px`,
+      };
+    });
+
+    const rowBoxStyle = computed(() => {
+      return {
+        '--box-top': `${offsetTop.value}px`,
+      };
+    });
 
     return {
       renderColumns,
@@ -552,6 +574,9 @@ export default defineComponent({
       renderScrollTop,
       renderRowVNode,
       resultContainerId,
+      visibleTableList,
+      tableStyle,
+      rowBoxStyle,
     };
   },
   render(h) {
@@ -559,22 +584,28 @@ export default defineComponent({
       <div
         class='bklog-result-container'
         id={this.resultContainerId}
+        style={this.tableStyle}
         v-bkloading={{ isLoading: this.isLoading }}
       >
-        {this.renderHeadVNode()}
-        {this.tableData.length === 0 ? (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          ></bk-exception>
-        ) : (
-          ''
-        )}
-        {this.renderRowVNode()}
-        {this.renderScrollTop()}
-        <div class='resize-guide-line'></div>
+        <div
+          class='bklog-row-box'
+          style={this.rowBoxStyle}
+        >
+          {this.renderHeadVNode()}
+          {this.tableData.length === 0 ? (
+            <bk-exception
+              style='margin-top: 100px;'
+              class='exception-wrap-item exception-part'
+              scene='part'
+              type='search-empty'
+            ></bk-exception>
+          ) : (
+            ''
+          )}
+          {this.renderRowVNode()}
+          {this.renderScrollTop()}
+          <div class='resize-guide-line'></div>
+        </div>
       </div>
     );
   },

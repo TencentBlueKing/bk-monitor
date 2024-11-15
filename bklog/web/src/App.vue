@@ -41,7 +41,7 @@
       @reload-router="routerKey += 1"
       @welcome="welcomePageData = $event"
     />
-    <div :class="['log-search-container', isAsIframe && 'as-iframe', { 'is-show-notice': showAlert }]">
+    <div :class="['log-search-container', 'scroll-y', isAsIframe && 'as-iframe', { 'is-show-notice': showAlert }]">
       <welcome-page
         v-if="welcomePageData"
         :data="welcomePageData"
@@ -392,6 +392,10 @@
     width: 100%;
     height: calc(100% - 50px);
     overflow-y: hidden;
+
+    &.scroll-y {
+      overflow-y: auto;
+    }
 
     &.as-iframe {
       height: 100%;

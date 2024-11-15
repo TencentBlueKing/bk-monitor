@@ -1,6 +1,4 @@
 .retrieve-v2-index {
-  height: calc(100vh - 52px);
-
   &.show-favorites {
     .sub-head {
       .box-favorites {
@@ -88,7 +86,7 @@
 
   .retrieve-body {
     width: 100%;
-    height: calc(100vh - 104px);
+    height: 100%;
     padding: 8px;
     background: #f5f7fa;
 
@@ -116,10 +114,6 @@
               height: calc(100vh - 310px);
               margin-top: 12px;
               overflow: auto;
-            }
-
-            &.scroll-y {
-              overflow-y: auto;
             }
 
             &.is-trend-chart-show {
