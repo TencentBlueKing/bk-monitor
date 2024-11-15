@@ -2,8 +2,8 @@ import { onMounted, Ref, onUnmounted } from 'vue';
 import { debounce } from 'lodash';
 
 export default (target: Ref<HTMLElement>, callbackFn) => {
-  const debounceCallback = debounce(() => {
-    callbackFn?.();
+  const debounceCallback = debounce(entry => {
+    callbackFn?.(entry);
   }, 120);
 
   let resizeObserver = null;
@@ -15,7 +15,7 @@ export default (target: Ref<HTMLElement>, callbackFn) => {
       resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
           // 获取元素的新高度
-          debounceCallback();
+          debounceCallback(entry);
         }
       });
 

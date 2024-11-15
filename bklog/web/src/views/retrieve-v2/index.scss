@@ -1,4 +1,9 @@
 .retrieve-v2-index {
+  &.scroll-y {
+    overflow-y: auto;
+    height: calc(100vh - 52px);
+  }
+
   &.show-favorites {
     .sub-head {
       .box-favorites {
@@ -91,11 +96,11 @@
     background: #f5f7fa;
 
     .retrieve-context {
-      height: 100%;
+      height: fit-content;
 
       .result-row {
         width: 100%;
-        height: 100%;
+        height: fit-content;
         min-height: 120px;
         margin-top: 8px;
         background: #ffffff;
@@ -104,6 +109,7 @@
 
         .search-result-panel {
           .search-result-content {
+            height: fit-content;
             .result-table-container {
               height: 100%;
               margin-top: 12px;

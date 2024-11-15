@@ -151,16 +151,16 @@
   });
 
   onMounted(() => {
-    // createResizeObserve();
+    createResizeObserve();
   });
 
   onBeforeUnmount(() => {
-    // const target = getCellElement();
-    // if (target) {
-    //   resizeObserver?.unobserve(target);
-    // }
-    // resizeObserver?.disconnect();
-    // resizeObserver = null;
+    const target = getCellElement();
+    if (target) {
+      resizeObserver?.unobserve(target);
+    }
+    resizeObserver?.disconnect();
+    resizeObserver = null;
   });
 </script>
 <template>

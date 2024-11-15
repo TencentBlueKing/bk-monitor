@@ -1,12 +1,18 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { throttle, debounce } from 'lodash';
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import { random } from '../common/util';
+// 滚动条查询条件
+const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
+const SEARCH_BAR_SELECTOR = '.search-bar-container';
 
-export default ({ loadMoreFn, scrollCallbackFn, container }) => {
+export default ({ loadMoreFn, scrollCallbackFn }) => {
   const isRunning = ref(false);
   const searchBarHeight = ref(0);
   let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
+
+  const containerId = ref(`container_${random(8)}`);
+  const container = `#${containerId.value}`;
 
   const getScrollElement = () => {
     return document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
@@ -27,7 +33,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
         currentElement = currentElement.offsetParent as HTMLElement;
       }
       scrollElementOffset = offsetTop;
-      searchBarHeight.value = (document.querySelector('.search-bar-container') as HTMLElement)?.offsetHeight ?? 0;
+      searchBarHeight.value = (document.querySelector(SEARCH_BAR_SELECTOR) as HTMLElement)?.offsetHeight ?? 0;
       debounceStopComputing();
     }
   };
@@ -76,5 +82,6 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
     scrollToTop,
     hasScrollX,
     searchBarHeight,
+    containerId,
   };
 };

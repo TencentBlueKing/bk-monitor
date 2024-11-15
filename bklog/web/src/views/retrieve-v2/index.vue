@@ -186,7 +186,7 @@
   );
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
+  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true }]">
     <div class="sub-head">
       <div
         :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"

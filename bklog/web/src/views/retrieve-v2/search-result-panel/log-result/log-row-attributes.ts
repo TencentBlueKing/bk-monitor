@@ -7,4 +7,4 @@ export const ROW_F_ORIGIN_CTX = '__component_origin_content';
 export const ROW_F_ORIGIN_OPT = '__component_table_operator';
 
 // 滚动条查询条件
-export const GLOBAL_SCROLL_SELECTOR = '.log-search-container.scroll-y';
+export const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
