@@ -8,7 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+
 from django.conf import settings
+from django.http import StreamingHttpResponse
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
@@ -35,3 +38,56 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
     action = "/aidev/resource/knowledgebase/query/"
     method = "POST"
     IS_STREAM = True
+
+    def handle_stream_response(self, response):
+        import pydevd_pycharm
+
+        pydevd_pycharm.settrace('localhost', port=8999, stdoutToServer=True, stderrToServer=True)
+
+        # 处理流式响应
+        def event_stream():
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                result = line.decode('utf-8') + '\n\n'
+                res_data = json.loads(result)
+                if res_data.get("event") == "reference_doc":
+                    yield parse_doc_link(res_data)
+                yield result
+
+        def parse_doc_link(res_data):
+            section_tmp = """
+            <section class="knowledge-tips">
+          <i class="ai-blueking-icon ai-blueking-angle-up"></i>
+          <span class="knowledge-summary">
+            <i class="ai-blueking-icon ai-blueking-help-document"></i>
+            引用 {doc_count} 篇资料作为参考
+          </span>
+          {doc_link_html}
+        </section>
+            """
+            link_tmp = """
+            <a href="{doc_link}}" target="_blank" class="knowledge-link">
+            {doc_name}
+            <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
+          </a>
+            """
+            # 最多5个文档引用
+            docs = res_data.pop("documents", [])[:5]
+            doc_link_html = "\n".join(
+                [
+                    link_tmp.format(
+                        doc_name=doc["metadata"]["file_name"].rsplit("/")[-1], doc_link=doc["metadata"]["doc_name"]
+                    )
+                    for doc in docs
+                ]
+            )
+            section_html = section_tmp.format(doc_count=len(docs), doc_link_html=doc_link_html)
+            res_data["content"] += section_html
+            return json.dumps(res_data)
+
+        # 返回 StreamingHttpResponse
+        sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream; charset=utf-8")
+        sr.headers["Cache-Control"] = "no-cache"
+        sr.headers["X-Accel-Buffering"] = "no"
+        return sr
