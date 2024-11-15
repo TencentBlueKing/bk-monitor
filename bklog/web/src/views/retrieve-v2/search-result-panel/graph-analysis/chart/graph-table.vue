@@ -39,7 +39,8 @@ const pagination = ref({
   count: 500,
   limit: 20,
 });
-
+function handleRowMouseEnter() {}
+function handleRowMouseLeave() {}
 function handlePageChange(page) {
   this.pagination.current = page;
 }

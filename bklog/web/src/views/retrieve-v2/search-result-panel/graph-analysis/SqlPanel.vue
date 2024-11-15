@@ -32,6 +32,7 @@ import $http from "../../../../api";
 const { $t } = useLocale();
 const editorContainer = ref(null);
 const showDialog = ref(false);
+const emit = defineEmits(['search-completed']);
 let editorInstance = null;
 window.MonacoEnvironment = {
   // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
@@ -79,10 +80,11 @@ async function sqlSearch() {
       index_set_id: 627298,
     },
     data: {
+      query_mode: "sql",
       sql: sqlQuery, // 使用获取到的内容
     },
   });
-
+  emit('search-completed', res);
   // 处理响应
   console.log(res);
 }

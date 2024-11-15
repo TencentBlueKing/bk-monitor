@@ -24,19 +24,85 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineProps, nextTick } from "vue";
+import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose } from "vue";
 import useLocale from "@/hooks/use-locale";
 const { $t } = useLocale();
+import * as echarts from "echarts";
+
 const props = defineProps({
   activeGraphCategory: {
     type: String,
     default: "horizional",
   },
 });
+const chartRef = ref(null);
+const tableData = ref([]);
+
+let myChart = null;
+watch(() => props.activeGraphCategory, updateChart);
+onMounted(() => {
+  myChart = echarts.init(chartRef.value);
+  updateChart();
+});
+onUnmounted(() => {
+  if (myChart) {
+    myChart.dispose();
+  }
+});
+function updateChart() {
+  console.log(props.activeGraphCategory);
+
+  if (props.activeGraphCategory === "table") return;
+
+  const option = getChartOption(props.activeGraphCategory);
+  myChart.setOption(option);
+}
+function setOption(data) {
+//   tableData.value = data.data.list;
+}
+function getChartOption(type) {
+  switch (type) {
+    case "line":
+      return {
+        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
+        yAxis: { type: "value" },
+        series: [{ data: tableData.value.map((item) => item.value), type: "line" }],
+      };
+    case "bar":
+      return {
+        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
+        yAxis: { type: "value" },
+        series: [{ data: tableData.value.map((item) => item.value), type: "bar" }],
+      };
+    case "line-bar":
+      return {
+        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
+        yAxis: { type: "value" },
+        series: [
+          { data: tableData.value.map((item) => item.value), type: "bar" },
+          { data: tableData.value.map((item) => item.value), type: "line" },
+        ],
+      };
+    case "pie":
+      return {
+        series: [
+          {
+            type: "pie",
+            data: tableData.value.map((item) => ({ name: item.name, value: item.value })),
+          },
+        ],
+      };
+    default:
+      return {};
+  }
+}
+defineExpose({
+  setOption,
+});
 </script>
 <template>
   <div class="graph-context graph-chart">
-    {{ activeGraphCategory }}
+    <div ref="chartRef" style="width: 600px; height: 400px"></div>
   </div>
 </template>
 
