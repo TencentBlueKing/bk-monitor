@@ -589,7 +589,7 @@ class SearchViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="quick_export")
     def quick_export(self, request, index_set_id=None):
         """
-        @api /search/index_set/$index_set_id/async_export/ 15-搜索-快速导出日志
+        @api /search/index_set/$index_set_id/quick_export/ 15-搜索-快速导出日志
         @apiDescription 快速下载检索日志
         @apiName quick_export
         @apiGroup 11_Search

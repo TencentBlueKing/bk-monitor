@@ -32,14 +32,12 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
     MAX_GET_ATTENTION_SIZE,
-    MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
 )
 from apps.log_search.exceptions import (
     MissAsyncExportException,
-    OverAsyncExportMaxCount,
     PreCheckAsyncExportException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -96,9 +94,6 @@ class AsyncExportHandlers(object):
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
-
-        if self.search_handler.size > MAX_QUICK_EXPORT_ASYNC_COUNT and is_quick_export:
-            raise OverAsyncExportMaxCount(OverAsyncExportMaxCount.MESSAGE.format(max_async_export_count=MAX_QUICK_EXPORT_ASYNC_COUNT))
 
         async_task = AsyncTask.objects.create(
             **{

@@ -63,6 +63,8 @@ from apps.log_search.constants import (
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_ASYNC_COUNT,
     MAX_EXPORT_REQUEST_RETRY,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
     SCROLL,
@@ -1125,38 +1127,35 @@ class SearchHandler(object):
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
 
-    def multi_get_slice_data(self, pre_file_name, export_file_type, sort_list):
+    def multi_get_slice_data(self, pre_file_name, export_file_type):
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if collector_config:
-            slice_max = collector_config.storage_shards_nums
-        else:
-            slice_max = 3
-        multi_execute_func = MultiExecuteFunc(max_workers=3)
+        slice_max = (
+            collector_config.storage_shards_nums
+            if collector_config and collector_config.storage_shards_nums < MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+            else MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+        )
+        multi_execute_func = MultiExecuteFunc(max_workers=slice_max)
         for idx in range(slice_max):
             body = {
                 "slice_id": idx,
                 "slice_max": slice_max,
                 "file_name": f"{pre_file_name}_slice_{idx}",
                 "export_file_type": export_file_type,
-                "sort_list": sort_list,
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
         return list(result.values())
 
-    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str, sort_list: list):
+    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
         """
         get_slice_data
         @param slice_id:
         @param slice_max:
         @param file_name:
         @param export_file_type:
-        @param sort_list:
         @return:
         """
-        result = self.slice_pre_get_result(
-            sorted_fields=sort_list, size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max
-        )
+        result = self.slice_pre_get_result(size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max)
         generate_result = self.sliced_scroll_result(result)
 
         # 文件路径
@@ -1173,18 +1172,19 @@ class SearchHandler(object):
         with open(file_path, "a+", encoding="utf-8") as f:
             for content in content_generator():
                 f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
-        return (file_path,)
+        return file_path
 
-    def slice_pre_get_result(self, sorted_fields: list, size: int, slice_id: int, slice_max: int):
+    def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
         """
         slice_pre_get_result
-        @param sorted_fields:
         @param size:
         @param slice_id:
         @param slice_max:
         @return:
         """
-        result = self.direct_esquery_search(
+        # 获取search对应的esquery方法
+        search_func = self.fetch_esquery_method(method_name="search")
+        result = search_func(
             {
                 "indices": self.indices,
                 "scenario_id": self.scenario_id,
@@ -1193,7 +1193,6 @@ class SearchHandler(object):
                 "end_time": self.end_time,
                 "query_string": self.query_string,
                 "filter": self.filter,
-                "sort_list": sorted_fields,
                 "start": self.start,
                 "size": size,
                 "aggs": self.aggs,
@@ -1222,12 +1221,13 @@ class SearchHandler(object):
         @param scroll_result:
         @return:
         """
-        # 记录第一次取出来的数据长度
+        # 获取scroll对应的esquery方法
+        scroll_func = self.fetch_esquery_method(method_name="scroll")
         scroll_size = len(scroll_result["hits"]["hits"])
-        # 判断是否还有数据未取出
-        while scroll_size == MAX_RESULT_WINDOW:
+        result_size = scroll_size
+        while scroll_size == MAX_RESULT_WINDOW and result_size < MAX_QUICK_EXPORT_ASYNC_COUNT:
             _scroll_id = scroll_result["_scroll_id"]
-            scroll_result = self.direct_esquery_scroll(
+            scroll_result = scroll_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -1240,6 +1240,7 @@ class SearchHandler(object):
                 ),
             )
             scroll_size = len(scroll_result["hits"]["hits"])
+            result_size += scroll_size
             yield scroll_result
 
     @staticmethod

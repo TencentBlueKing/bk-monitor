@@ -121,8 +121,10 @@ ASYNC_SORTED = "desc"
 ASYNC_COUNT_SIZE = 1
 # 异步导出最大条数
 MAX_ASYNC_COUNT = 2000000
-# 快速下载异步导出最大条数
+# 快速下载单分片异步导出最大条数
 MAX_QUICK_EXPORT_ASYNC_COUNT = 5000000
+# 快速下载异步导出最大分片数
+MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT = 3
 # 异步导出时间
 ASYNC_EXPORT_TIME_RANGE = "customized"
 # 异步导出目录

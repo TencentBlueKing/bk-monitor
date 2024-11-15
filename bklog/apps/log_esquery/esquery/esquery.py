@@ -186,19 +186,11 @@ class EsQuery(object):
             search_after=search_after,
             use_time_range=use_time_range,
             mappings=mappings,
+            time_field=time_field,
+            slice_search=self.search_dict.get("slice_search"),
+            slice_id=self.search_dict.get("slice_id"),
+            slice_max=self.search_dict.get("slice_max"),
         ).body
-
-        # 使用了分片
-        if self.search_dict.get("slice_search"):
-            body.update(
-                {
-                    "slice": {
-                        "field": time_field,
-                        "id": self.search_dict["slice_id"],
-                        "max": self.search_dict["slice_max"],
-                    }
-                }
-            )
 
         if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"].strip(
             "*"
