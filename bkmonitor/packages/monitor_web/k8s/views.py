@@ -8,15 +8,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
+from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
-from django.conf.urls import include, url
 
-from core.drf_resource.routers import ResourceRouter
-from monitor_web.ai_assistant import views
+class K8SViewSet(ResourceViewSet):
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
-router = ResourceRouter()
-router.register_module(views)
-
-urlpatterns = [
-    url("", include(router.urls)),
-]
+    resource_routes = [
+        # 获取集群列表
+        ResourceRoute("GET", resource.k8s.list_bcs_cluster, endpoint="list_bcs_cluster"),
+        # 获取指定集群下资源列表
+        ResourceRoute("GET", resource.k8s.list_resources, endpoint="list_resources"),
+    ]
