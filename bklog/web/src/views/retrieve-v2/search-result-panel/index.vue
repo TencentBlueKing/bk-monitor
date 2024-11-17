@@ -104,13 +104,13 @@
           v-show="isOriginShow"
         ></div>
 
-        <LogResult
-          v-if="isOriginShow"
-          :queue-status="queueStatus"
-          :retrieve-params="retrieveParams"
-          :total-count="totalCount"
-        />
         <keep-alive>
+          <LogResult
+            v-if="isOriginShow"
+            :queue-status="queueStatus"
+            :retrieve-params="retrieveParams"
+            :total-count="totalCount"
+          />
           <LogClustering
             v-if="activeTab === 'clustering'"
             :active-tab="activeTab"

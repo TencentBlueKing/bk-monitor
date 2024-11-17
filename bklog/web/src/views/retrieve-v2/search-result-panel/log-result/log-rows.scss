@@ -1,66 +1,70 @@
 .bklog-result-container {
   position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  width: fit-content;
+  width: 100%;
+  min-width: 100%;
+  min-height: 400px;
   margin-top: 12px;
   border: 1px solid #dfe0e5;
-  display: inline-flex;
-  min-height: 400px;
-  width: fit-content;
-  min-width: 100%;
-  width: 100%;
-  flex-direction: column;
+
+  .bklog-scroll-x {
+    position: fixed;
+    right: 16px;
+    bottom: 0;
+    height: 10px;
+    overflow-x: auto;
+    background-color: transparent;
+
+    > div {
+      height: 1px;
+      background-color: transparent;
+    }
+  }
 
   .bklog-row-box {
     position: absolute;
-    left: 0;
     top: 0;
-    width: 100%;
-    transform: translate3d(0, var(--prefix-height), 0);
+    left: 0;
+    width: fit-content;
     min-height: 400px;
+    transform: translate3d(0, var(--prefix-height), 0);
 
     &.show-head {
       top: 42px;
     }
   }
+
   .bklog-row-container {
     display: flex;
     flex-direction: column;
-
-    &.row-header {
-      &.fixed-top {
-        position: absolute;
-        top: 0;
-        z-index: 1;
-        left: 0;
-        width: 100%;
-        transform: translate3d(0, var(--head-offset-top), 0);
-        border-top: solid 1px #dfe0e5;
-      }
-    }
+    width: fit-content;
 
     .bklog-list-row {
-      width: 100%;
-      color: var(--table-fount-color);
+      position: relative;
+      display: inline-flex;
+      align-items: flex-start;
+      width: fit-content;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
-      display: inline-flex;
       line-height: 20px;
-      position: relative;
-      content-visibility: auto;
-      align-items: flex-start;
+      color: var(--table-fount-color);
       border-bottom: 1px solid #dfe0e5;
+      content-visibility: auto;
 
       .bklog-row-cell {
         padding: 8px 12px;
 
         .bklog-expand-icon {
-          color: #c4c6cc;
-          cursor: pointer;
-          font-size: 12px;
           position: relative;
           display: flex;
           align-items: center;
           justify-content: center;
           height: 20px;
+          font-size: 12px;
+          color: #c4c6cc;
+          cursor: pointer;
 
           > i {
             position: absolute;
@@ -77,11 +81,11 @@
         &.right {
           position: absolute;
           right: 0;
-          background-color: #fff;
-          height: 100%;
-          padding-top: 10px;
           display: flex;
           align-items: flex-start;
+          height: 100%;
+          padding-top: 10px;
+          background-color: #fff;
 
           .handle-content {
             position: relative;
@@ -91,19 +95,19 @@
         }
 
         &.header-cell {
-          padding: 12px;
+          position: relative;
           display: inline;
-          color: var(--table-fount-color);
+          height: 42px;
+          padding: 12px;
           font-family: var(--table-fount-family);
           font-size: var(--table-fount-size);
+          line-height: 20px;
+          color: var(--table-fount-color);
           text-align: left;
           text-overflow: ellipsis;
           vertical-align: middle;
-          background-color: #fafbfd;
-          position: relative;
-          height: 42px;
           cursor: pointer;
-          line-height: 20px;
+          background-color: #fafbfd;
 
           &.right {
             position: absolute;
@@ -115,22 +119,22 @@
             line-height: 20px;
 
             .bk-table-caret-wrapper {
-              align-items: center;
+              position: relative;
               display: inline-flex;
               flex: 20px 0 0;
               flex-direction: column;
+              align-items: center;
               height: 20px;
-              position: relative;
 
               .bk-table-sort-caret {
-                border: 5px solid transparent;
-                height: 0;
                 position: absolute;
                 width: 0;
+                height: 0;
+                border: 5px solid transparent;
 
                 &.ascending {
-                  border-bottom-color: #c0c4cc;
                   top: -1px;
+                  border-bottom-color: #c0c4cc;
 
                   &.active {
                     border-bottom-color: #3a84ff;
@@ -138,8 +142,8 @@
                 }
 
                 &.descending {
-                  border-top-color: #c0c4cc;
                   bottom: -1px;
+                  border-top-color: #c0c4cc;
 
                   &.active {
                     border-top-color: #3a84ff;
@@ -200,6 +204,7 @@
 
           &:hover {
             background-color: #f0f1f5;
+
             .toggle-display {
               display: inline-block;
             }
@@ -209,6 +214,23 @@
         &.is-hidden {
           display: none;
         }
+      }
+    }
+
+    .expand-view-wrapper {
+      width: 100%;
+      border-bottom: 1px solid #dfe0e5;
+    }
+
+    &.row-header {
+      &.fixed-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        width: 100%;
+        border-top: solid 1px #dfe0e5;
+        transform: translate3d(0, var(--head-offset-top), 0);
       }
     }
 
@@ -222,11 +244,6 @@
         }
       }
     }
-
-    .expand-view-wrapper {
-      width: 100%;
-      border-bottom: 1px solid #dfe0e5;
-    }
   }
 
   .bklog-skeleton-loading {
@@ -239,31 +256,31 @@
     position: fixed;
     right: 30px;
     bottom: 50px;
-    background-color: #f9fafc;
-    width: 50px;
-    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    background-color: #f9fafc;
+    border: 1px solid #e9ecf1;
     border-radius: 50%;
     box-shadow: 0 0 0 1px rgba(58, 132, 255, 0.4);
-    border: 1px solid #e9ecf1;
-    cursor: pointer;
 
     i {
-      transform: rotate(180deg);
-      color: rgba(58, 132, 255, 0.8);
       font-size: 24px;
+      color: rgba(58, 132, 255, 0.8);
+      transform: rotate(180deg);
     }
   }
 
   .resize-guide-line {
-    width: 1px;
-    height: 100%;
-    background-color: #3a84ff;
     position: absolute;
     top: 0;
     bottom: 0;
     display: none; /* Initially hidden */
+    width: 1px;
+    height: 100%;
+    background-color: #3a84ff;
   }
 }

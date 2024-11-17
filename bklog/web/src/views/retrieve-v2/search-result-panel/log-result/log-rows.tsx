@@ -29,18 +29,12 @@ import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/c
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { uniqueId } from 'lodash';
 
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
-import TableColumn from './table-column.vue';
-import useHeaderRender from './use-render-header';
-import RowRender from './row-render';
-
-import './log-rows.scss';
-import useLazyRender from './use-lazy-render';
-import { uniqueId } from 'lodash';
 import {
   ROW_CONFIG,
   ROW_EXPAND,
@@ -50,6 +44,13 @@ import {
   ROW_INDEX,
   ROW_KEY,
 } from './log-row-attributes';
+import RowRender from './row-render';
+import ScrollXBar from './scroll-x-bar';
+import TableColumn from './table-column.vue';
+import useLazyRender from './use-lazy-render';
+import useHeaderRender from './use-render-header';
+
+import './log-rows.scss';
 
 type RowConfig = {
   expand?: boolean;
@@ -70,6 +71,7 @@ export default defineComponent({
     const { $t } = useLocale();
     const columns = ref([]);
     const tableData = ref([]);
+    const refRootElement = ref();
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -424,21 +426,28 @@ export default defineComponent({
 
     const handleScrollEvent = (scrollTop, offsetTop) => {
       const useScrollHeight = scrollTop > offsetTop ? scrollTop - offsetTop : 0;
-      bodyScrollTop.value = scrollTop;
+
       diffOffsetTop.value = offsetTop;
 
       let startPosition = 0;
       let startIndex = 0;
+
       while (startPosition < useScrollHeight) {
         const nextItem = tableData.value[startIndex];
         if (nextItem) {
           startPosition = startPosition + nextItem[ROW_CONFIG].value.minHeight;
-          startIndex = startIndex + 1;
+          if (startPosition < useScrollHeight) {
+            startIndex = startIndex + 1;
+          }
         }
 
         if (!nextItem) {
           break;
         }
+      }
+
+      if (startIndex !== visibleIndexs.value.startIndex || !useScrollHeight) {
+        bodyScrollTop.value = useScrollHeight;
       }
 
       visibleIndexs.value.startIndex = startIndex;
@@ -457,7 +466,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop, hasScrollX, searchBarHeight } = useLazyRender({
+    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, searchBarHeight } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       scrollCallbackFn: handleScrollEvent,
       container: resultContainerIdSelector,
@@ -481,8 +490,11 @@ export default defineComponent({
       if (showHeader.value) {
         return (
           <div
-            class={['bklog-row-container row-header', { 'fixed-top': rowsOffsetTop.value > 0 }]}
             style={headStyle.value}
+            class={[
+              'bklog-row-container row-header',
+              { 'fixed-top': rowsOffsetTop.value > 0, 'has-overflow-x': hasOverflowX.value },
+            ]}
           >
             <div class='bklog-list-row '>
               {renderColumns.value.map(column => (
@@ -566,6 +578,19 @@ export default defineComponent({
       });
     };
 
+    const handleScrollXChanged = (event: MouseEvent) => {
+      refRootElement.value.parentElement.scrollLeft = (event.target as HTMLElement).scrollLeft;
+    };
+
+    const renderScrollXBar = () => {
+      return (
+        <ScrollXBar
+          innerWidth={scrollWidth.value}
+          outerWidth={offsetWidth.value}
+          onScroll-change={handleScrollXChanged}
+        ></ScrollXBar>
+      );
+    };
     const tableStyle = computed(() => {
       return {
         minHeight: `${tableMinHeight.value + 45}px`,
@@ -573,9 +598,9 @@ export default defineComponent({
     });
 
     const rowBoxStyle = computed(() => {
-      if (rowsOffsetTop.value > 0) {
+      if (bodyScrollTop.value > 0) {
         return {
-          '--prefix-height': `${rowsOffsetTop.value + 52}px`,
+          '--prefix-height': `${bodyScrollTop.value + 52}px`,
         };
       }
 
@@ -588,24 +613,27 @@ export default defineComponent({
       renderHeadVNode,
       renderScrollTop,
       renderRowVNode,
+      renderScrollXBar,
       resultContainerId,
       tableStyle,
       rowBoxStyle,
       showHeader,
+      refRootElement,
     };
   },
-  render(h) {
+  render() {
     return (
       <div
-        class='bklog-result-container'
         id={this.resultContainerId}
+        ref='refRootElement'
         style={this.tableStyle}
+        class='bklog-result-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
         {this.renderHeadVNode()}
         <div
-          class={['bklog-row-box', { 'show-head': this.showHeader }]}
           style={this.rowBoxStyle}
+          class={['bklog-row-box', { 'show-head': this.showHeader }]}
         >
           {this.tableData.length === 0 ? (
             <bk-exception
@@ -620,6 +648,7 @@ export default defineComponent({
           {this.renderRowVNode()}
         </div>
         {this.renderScrollTop()}
+        {this.renderScrollXBar()}
         <div class='resize-guide-line'></div>
       </div>
     );
