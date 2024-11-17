@@ -593,7 +593,7 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        minHeight: `${tableMinHeight.value + 45}px`,
+        height: `${tableMinHeight.value + 45}px`,
       };
     });
 

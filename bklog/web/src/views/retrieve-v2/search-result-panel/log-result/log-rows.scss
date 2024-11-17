@@ -28,6 +28,7 @@
     top: 0;
     left: 0;
     width: fit-content;
+    min-width: 100%;
     min-height: 400px;
     transform: translate3d(0, var(--prefix-height), 0);
 
