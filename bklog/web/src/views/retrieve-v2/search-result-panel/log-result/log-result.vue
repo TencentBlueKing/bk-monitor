@@ -187,7 +187,6 @@
 <style lang="scss">
   .bklog-result-box {
     position: relative;
-    margin-top: 12px;
     overflow-x: hidden;
     overflow-y: hidden;
 
