@@ -185,7 +185,7 @@
     </div>
   </div>
 </template>
-<style>
+<style lang="scss">
   .search-sql-query {
     display: inline-flex;
     align-items: center;
@@ -238,7 +238,7 @@
   }
 </style>
 
-<style scoped>
+<style lang="scss">
   @import 'tippy.js/dist/tippy.css';
 </style>
 <style lang="scss">
