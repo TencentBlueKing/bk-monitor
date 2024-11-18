@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -54,6 +54,7 @@ export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 当前使用的业务id
   @InjectReactive('bkBizId') readonly bkBizId: number | string;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
 
   isInit = false;
   empty = true;
@@ -94,6 +95,7 @@ export default class MonitorRetrieve extends tsc<void> {
               timeRange: this.timeRange,
               timezone: this.timezone,
               refleshImmediate: this.refleshImmediate,
+              handleChartDataZoom: this.handleChartDataZoom,
             },
           }),
       });
