@@ -56,12 +56,19 @@ export default class StatusTab extends tsc<IProps> {
   throttleSetList = () => {};
 
   created() {
-    this.throttleSetList = throttle(200, this.setList);
+    this.tabList = [...this.statusList];
+    this.moreList = [];
+    this.moreText = '';
+    this.throttleSetList = throttle(200, this.setList, {
+      debounceMode: true,
+    });
   }
 
   @Watch('maxWidth', { immediate: true })
   handleWatchMaxWidth() {
-    this.throttleSetList();
+    this.$nextTick(() => {
+      this.throttleSetList();
+    });
   }
 
   @Watch('value', { immediate: true })
@@ -87,7 +94,7 @@ export default class StatusTab extends tsc<IProps> {
     try {
       const moreWidth = 56; // 更多按钮宽度
       const visibleWraps = this.$el.querySelector('.more-status-tab-wrap-visible');
-      if (!visibleWraps) {
+      if (!visibleWraps || !this.maxWidth) {
         this.tabList = [...this.statusList];
         return;
       }
@@ -143,7 +150,7 @@ export default class StatusTab extends tsc<IProps> {
             on-show={this.handleMoreShow}
           >
             <div
-              class={['status-more-trigger', { active: this.moreText }, { 'more-show': this.moreShow }]}
+              class={['status-more-trigger', { active: !!this.moreText }, { 'more-show': this.moreShow }]}
               slot='dropdown-trigger'
             >
               <span class='more-text'>{this.moreText || this.$t('更多')}</span>
