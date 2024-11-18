@@ -31,6 +31,7 @@ from bkmonitor.utils.time_tools import (
     strftime_local,
     utc2biz_str,
 )
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.shield import ScopeType, ShieldCategory, ShieldStatus
 from core.drf_resource import resource
@@ -510,18 +511,34 @@ class DisableShieldResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="屏蔽id")
+        id = serializers.ListField(required=True, child=serializers.IntegerField(), min_length=1, label="屏蔽id列表")
+
+        def to_internal_value(self, data):
+            data["id"] = data.get("id", [])
+            # 确保"id"字段始终是一个列表
+            if not isinstance(data["id"], list):
+                data["id"] = [data["id"]]
+
+            return super().to_internal_value(data)
 
     def perform_request(self, data):
-        try:
-            shield = Shield.objects.get(id=data["id"])
-        except Shield.DoesNotExist:
-            raise ShieldNotExist({"msg": data["id"]})
+        username = get_global_user() or "unknown"
+        shields = Shield.objects.filter(pk__in=data["id"])
+        update_shields = []
+        for shield in shields:
+            if shield.is_enabled:
+                shield.is_enabled = False
+                shield.failure_time = now()
+                shield.update_user = username  # 记录最后的操作人
+                update_shields.append(shield)
+        Shield.objects.bulk_update(update_shields, ["is_enabled", "failure_time", "update_user"])
 
-        if shield.is_enabled:
-            shield.is_enabled = False
-            shield.failure_time = now()
-            shield.save()
+        # 检查是否有不存在的屏蔽对象ID
+        existing_ids = {shield.id for shield in shields}
+        missing_ids = set(data["id"]) - existing_ids
+
+        if missing_ids:
+            raise ShieldNotExist({"msg": list(missing_ids)})
         return "success"
 
 
