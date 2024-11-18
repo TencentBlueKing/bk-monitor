@@ -19,7 +19,7 @@
 ```json
 {
   "type": "profiling",
-  "bk_biz_id": 2，
+  "bk_biz_id": 2,
   "app_name":"test"
 }
 ```
