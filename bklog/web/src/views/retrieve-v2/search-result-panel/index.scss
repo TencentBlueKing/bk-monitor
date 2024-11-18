@@ -1,7 +1,13 @@
 .search-result-panel {
   display: flex;
   height: fit-content;
-  overflow: hidden;
+  overflow: visible;
+
+  .field-list-sticky {
+    position: sticky;
+    align-self: flex-start;
+    top: 52px;
+  }
 
   .filet-hidden {
     /* stylelint-disable-next-line declaration-no-important */
@@ -37,16 +43,6 @@
       width: 100%;
       margin: 3px 0 6px;
       border-bottom: solid 1px #dcdee5;
-    }
-  }
-
-  .search-field-filter-new {
-    transform: translate3d(0, var(--fields-offset-top), 0);
-
-    &.is-close {
-      &.is-fixed-top {
-        display: none;
-      }
     }
   }
 }

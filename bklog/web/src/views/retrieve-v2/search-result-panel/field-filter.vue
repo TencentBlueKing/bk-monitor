@@ -72,29 +72,25 @@
     emit('input', !props.value);
   };
 
-  const scrollTop = ref(0);
-  const handleScroll = (top, scrollElementOffset) => {
-    scrollTop.value = top > scrollElementOffset ? top - scrollElementOffset : 0;
-  };
+  // const scrollTop = ref(0);
+  // const handleScroll = (top, scrollElementOffset) => {
+  //   scrollTop.value = top > scrollElementOffset ? top - scrollElementOffset : 0;
+  // };
 
-  const { searchBarHeight, containerId } = useScroll({ scrollCallbackFn: handleScroll });
-  const bodyStyle = computed(() => {
-    if (scrollTop.value > 0) {
-      return {
-        '--fields-offset-top': `${scrollTop.value + searchBarHeight.value + 52}px`,
-      };
-    }
+  // const { searchBarHeight, containerId } = useScroll({ scrollCallbackFn: handleScroll });
+  // const bodyStyle = computed(() => {
+  //   if (scrollTop.value > 0) {
+  //     return {
+  //       '--fields-offset-top': `${scrollTop.value + searchBarHeight.value + 52}px`,
+  //     };
+  //   }
 
-    return {};
-  });
+  //   return {};
+  // });
 </script>
 
 <template>
-  <div
-    :id="containerId"
-    :class="['search-field-filter-new', { 'is-close': !value, 'is-fixed-top': scrollTop > 0 }]"
-    :style="bodyStyle"
-  >
+  <div :class="['search-field-filter-new', { 'is-close': !value }]">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       <div

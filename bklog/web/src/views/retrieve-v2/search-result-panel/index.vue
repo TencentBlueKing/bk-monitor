@@ -63,29 +63,30 @@
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
-      <FieldFilter
-        v-model="isShowFieldStatistics"
-        v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
-        v-log-drag="{
-          minWidth: 160,
-          maxWidth: 500,
-          defaultWidth: DEFAULT_FIELDS_WIDTH,
-          autoHidden: false,
-          theme: 'dotted',
-          placement: 'left',
-          isShow: isShowFieldStatistics,
-          onHidden: () => (isShowFieldStatistics = false),
-          onWidthChange: handleFilterWidthChange,
-        }"
-        v-show="isOriginShow"
-        :class="{ 'filet-hidden': !isShowFieldStatistics }"
-        @field-status-change="handleFieldsShowChange"
-      ></FieldFilter>
+      <div class="field-list-sticky">
+        <FieldFilter
+          v-model="isShowFieldStatistics"
+          v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
+          v-log-drag="{
+            minWidth: 160,
+            maxWidth: 500,
+            defaultWidth: DEFAULT_FIELDS_WIDTH,
+            autoHidden: false,
+            theme: 'dotted',
+            placement: 'left',
+            isShow: isShowFieldStatistics,
+            onHidden: () => (isShowFieldStatistics = false),
+            onWidthChange: handleFilterWidthChange,
+          }"
+          v-show="isOriginShow"
+          :class="{ 'filet-hidden': !isShowFieldStatistics }"
+          @field-status-change="handleFieldsShowChange"
+        ></FieldFilter>
+      </div>
       <div
-        :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
+        :style="{ width: `calc(100% - ${fieldFilterWidth}px)` }"
         :class="[
           'search-result-content',
-          'scroll-y',
           {
             'is-trend-chart-show': isTrendChartShow,
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
