@@ -433,9 +433,8 @@ def create_fed_vm_data_link(
     config_list, data_links, conditions = [], [], []
     for obj in objs:
         builtin_name = utils.get_bkdata_table_id(obj.fed_builtin_metric_table_id)  # 该联邦拓扑的代理集群的内置（K8S指标）指标RT
-        fed_namespaces = ['ns1', 'ns2', 'ns3']
-        match_labels = [{"name": "namespace", "value": ns} for ns in fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
-        relabels = [{"name": "bcs_cluster_id", "value": 'BCS-K8S-10001'}]
+        match_labels = [{"name": "namespace", "value": ns} for ns in obj.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
+        relabels = [{"name": "bcs_cluster_id", "value": obj.fed_cluster_id}]
         sinks = [
             {"kind": "VmStorageBinding", "name": builtin_name, "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE}
         ]

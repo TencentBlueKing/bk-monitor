@@ -93,6 +93,7 @@ class DataLink(models.Model):
         """
         生成联邦代理集群（父集群）时序数据链路配置
         """
+
         logger.info(
             "compose_federal_proxy_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s]"
             "start to compose configs",
@@ -143,10 +144,26 @@ class DataLink(models.Model):
         ]
         return configs
 
-    def compose_bcs_federal_subset_time_series_configs(self, data_source, table_id, bcs_cluster_id):
+    def compose_bcs_federal_subset_time_series_configs(
+        self, data_source, table_id, bcs_cluster_id, storage_cluster_name
+    ):
         """
         生成联邦子集群时序数据链路配置
+        @param data_source: 数据源
+        @param table_id: 监控平台结果表ID
+        @param bcs_cluster_id: 联邦子集群ID
+        @param storage_cluster_name: 存储集群名称
+        @return: config_list 配置列表
         """
+        logger.info(
+            "compose_federal_sub_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s]"
+            "start to compose configs",
+            self.data_link_name,
+            data_source.bk_data_id,
+            table_id,
+            storage_cluster_name,
+        )
+
         from metadata.models.bcs import BcsFederalClusterInfo
 
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
@@ -154,8 +171,24 @@ class DataLink(models.Model):
         bkbase_fed_vmrt_name = bkbase_vmrt_name + '_fed'
         bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
 
+        logger.info(
+            "compose_federal_sub_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] "
+            "bkbase_vmrt_name->[%s]to"
+            "compose configs",
+            self.data_link_name,
+            bkbase_data_name,
+            bkbase_vmrt_name,
+        )
+
         federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
         if not federal_records:
+            logger.warning(
+                "compose_federal_sub_configs: bcs_cluster_id->[%s],data_link_name->[%s],data_id->[%s] does "
+                "not belong to any federal topo.return",
+                bcs_cluster_id,
+                self.data_link_name,
+                data_source.bk_data_id,
+            )
             return
 
         config_list, conditions = [], []
@@ -164,6 +197,13 @@ class DataLink(models.Model):
             sub_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
             match_labels = [{"name": "namespace", "value": ns} for ns in record.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
+            logger.info(
+                "compose_federal_sub_configs: data_link_name->[%s] start to compose for fed_cluster_id->[%s],"
+                "match_labels ->[%s]",
+                self.data_link_name,
+                record.fed_cluster_id,
+                match_labels,
+            )
             sinks = [
                 {
                     "kind": "VmStorageBinding",
@@ -172,36 +212,46 @@ class DataLink(models.Model):
                 }
             ]
             conditions.append({"match_labels": match_labels, "relabels": relabels, "sinks": sinks})
-            try:
-                with transaction.atomic():
-                    vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
-                        name=bkbase_fed_vmrt_name,
-                        data_link_name=self.data_link_name,
-                        namespace=self.namespace,
-                        bk_biz_id=bk_biz_id,
-                    )
-                    data_bus_ins, _ = DataBusConfig.objects.get_or_create(
-                        name=bkbase_fed_vmrt_name,
-                        data_id_name=bkbase_data_name,
-                        data_link_name=self.data_link_name,
-                        namespace=self.namespace,
-                        bk_biz_id=bk_biz_id,
-                    )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
-                raise e
 
-            vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
-            conditional_sink = [
-                {
-                    "kind": DataLinkKind.CONDITIONALSINK.value,
-                    "name": bkbase_fed_vmrt_name,
-                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                },
-            ]
-            data_bus_config = data_bus_ins.compose_config(sinks=conditional_sink)
-            config_list.extend([vm_conditional_sink_config, data_bus_config])
-            return config_list
+        logger.info(
+            "compose_federal_sub_configs: data_link_name->[%s],bcs_cluster_id->[%s] will use conditions->[%s]to "
+            "compose configs",
+            self.data_link_name,
+            bcs_cluster_id,
+            conditions,
+        )
+        try:
+            with transaction.atomic():
+                vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
+                    name=bkbase_fed_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                )
+                data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+                    name=bkbase_fed_vmrt_name,
+                    data_id_name=bkbase_data_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "compose_federal_sub_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e
+            )
+            raise e
+
+        vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
+        conditional_sink = [
+            {
+                "kind": DataLinkKind.CONDITIONALSINK.value,
+                "name": bkbase_fed_vmrt_name,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            },
+        ]
+        data_bus_config = data_bus_ins.compose_config(sinks=conditional_sink)
+        config_list.extend([vm_conditional_sink_config, data_bus_config])
+        return config_list
 
     def compose_standard_time_series_configs(self, data_source, table_id, storage_cluster_name):
         """
@@ -342,6 +392,9 @@ class DataLink(models.Model):
 
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+
+        if self.data_link_strategy == DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
+            bkbase_data_name = 'fed_' + bkbase_data_name
 
         storage_type = ClusterInfo.TYPE_VM
         if self.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES:

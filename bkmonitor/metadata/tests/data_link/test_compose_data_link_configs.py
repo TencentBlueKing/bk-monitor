@@ -238,7 +238,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_compose_single_conditional_sink_config(create_or_delete_records):
+def test_compose_multi_conditional_sink_config(create_or_delete_records):
     """
     测试多集群ConditionalSinkConfig能否正确生成
     """
