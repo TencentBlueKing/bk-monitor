@@ -493,6 +493,7 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
+CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
