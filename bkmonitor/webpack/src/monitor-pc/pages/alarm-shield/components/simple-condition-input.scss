@@ -87,6 +87,22 @@
         }
       }
 
+      &-value-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 170px;
+        height: 32px;
+        margin-left: -1px;
+        border: 1px solid #dcdee5;
+
+        .spinner {
+          width: 16px;
+          height: 16px;
+          background: url(../../../static/images/svg/spinner.svg);
+        }
+      }
+
       &-condition {
         min-width: 46px;
         max-width: 46px;
