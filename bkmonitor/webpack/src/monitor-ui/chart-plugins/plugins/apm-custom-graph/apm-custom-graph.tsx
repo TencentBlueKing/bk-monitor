@@ -85,7 +85,7 @@ export default class CustomChart extends TimeSeries {
               onClick={e => e.stopPropagation()}
             >
               <StatusTab
-                maxWidth={this.width - 250}
+                maxWidth={this.width - 300}
                 statusList={this.methodList}
                 value={this.method}
                 onChange={this.handleMethodChange}
