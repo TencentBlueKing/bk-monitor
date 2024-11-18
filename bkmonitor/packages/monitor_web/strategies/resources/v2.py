@@ -2285,12 +2285,12 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
-        extral_create_or_update_datas = strategy.bulk_save_notice(relations, action_configs)
+        extra_create_or_update_datas = strategy.bulk_save_notice(relations, action_configs)
         return (
             StrategyActionConfigRelation,
             ["user_groups", "options"],
             [action.instance for action in strategy.actions],
-            extral_create_or_update_datas,
+            extra_create_or_update_datas,
         )
 
     @staticmethod
@@ -2336,31 +2336,31 @@ class UpdatePartialStrategyV2Resource(Resource):
         return action_configs
 
     @staticmethod
-    def process_extral_data(
-        extral_create_or_update_datas: Dict[str, List[Dict[str, any]]],
+    def process_extra_data(
+        extra_create_or_update_datas: Dict[str, List[Dict[str, any]]],
         key: str,
         updates_data: DefaultDict[str, Dict[str, any]],
         create_datas: DefaultDict[str, Dict[str, any]],
     ):
-        extral_update_datas = extral_create_or_update_datas.get("update_data", [])
-        extral_create_datas = extral_create_or_update_datas.get("create_data", [])
-        for update_data in extral_update_datas:
+        extra_update_datas = extra_create_or_update_datas.get("update_data", [])
+        extra_create_datas = extra_create_or_update_datas.get("create_data", [])
+        for update_data in extra_update_datas:
             if update_data["cls"] is ActionConfig:
-                updates_data[f"extral_{key}_config"]["cls"] = update_data["cls"]
-                updates_data[f"extral_{key}_config"]["keys"] = update_data["keys"]
-                updates_data[f"extral_{key}_config"]["objs"].extend(update_data["objs"])
+                updates_data[f"extra_{key}_config"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_config"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_config"]["objs"].extend(update_data["objs"])
             elif update_data["cls"] is StrategyActionConfigRelation:
-                updates_data[f"extral_{key}_relation"]["cls"] = update_data["cls"]
-                updates_data[f"extral_{key}_relation"]["keys"] = update_data["keys"]
-                updates_data[f"extral_{key}_relation"]["objs"].extend(update_data["objs"])
+                updates_data[f"extra_{key}_relation"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_relation"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_relation"]["objs"].extend(update_data["objs"])
 
-        for data in extral_create_datas:
+        for data in extra_create_datas:
             if data["cls"] is ActionConfig:
-                create_datas[f"extral_{key}_config"]["cls"] = data["cls"]
-                create_datas[f"extral_{key}_config"]["objs"].extend(data["objs"])
+                create_datas[f"extra_{key}_config"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_config"]["objs"].extend(data["objs"])
             elif data["cls"] is StrategyActionConfigRelation:
-                create_datas[f"extral_{key}_relation"]["cls"] = data["cls"]
-                create_datas[f"extral_{key}_relation"]["objs"].extend(data["objs"])
+                create_datas[f"extra_{key}_relation"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -2384,10 +2384,10 @@ class UpdatePartialStrategyV2Resource(Resource):
                 if not update_method:
                     continue
                 if update_method == getattr(self, "update_notice", None):
-                    (update_cls, update_keys, update_objs, extral_create_or_update_datas) = update_method(
+                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = update_method(
                         strategy, value, relations, action_configs
                     )
-                    self.process_extral_data(extral_create_or_update_datas, key, updates_data, create_datas)
+                    self.process_extra_data(extra_create_or_update_datas, key, updates_data, create_datas)
                 else:
                     update_cls, update_keys, update_objs = update_method(strategy, value)
                 if update_cls:

@@ -24,6 +24,7 @@ import xxhash
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Model, QuerySet
+from django.utils import timezone
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -627,7 +628,8 @@ class BaseActionRelation(AbstractConfig):
         """
         根据配置新建或更新关联记录,循环结束后批量创建或更新
         """
-        action_relations = relations.get(self.strategy_id)
+        action_relations = relations.get(self.strategy_id, [])
+        username = get_global_user() or "unknown"
         for action_relation in action_relations:
             if self.id == action_relation.id:
                 action_relation.config_id = self.config_id
@@ -636,12 +638,23 @@ class BaseActionRelation(AbstractConfig):
                 action_relation.signal = self.signal
                 action_relation.options = self.options
                 action_relation.relate_type = self.RELATE_TYPE
+                action_relation.update_user = username
+                action_relation.update_time = timezone.now()
 
                 return {
                     "update_data": [
                         {
                             "cls": RelationModel,
-                            "keys": ["config_id", "user_groups", "user_type", "signal", "options", "relate_type"],
+                            "keys": [
+                                "config_id",
+                                "user_groups",
+                                "user_type",
+                                "signal",
+                                "options",
+                                "relate_type",
+                                "update_user",
+                                "update_time",
+                            ],
                             "objs": [action_relation],
                         }
                     ]
@@ -654,6 +667,8 @@ class BaseActionRelation(AbstractConfig):
                 signal=self.signal,
                 user_groups=self.user_groups,
                 options=self.options,
+                create_user=username,
+                create_time=timezone.now(),
             )
 
             return {"create_data": [{"cls": RelationModel, "objs": [new_relation]}]}
@@ -804,6 +819,7 @@ class NoticeRelation(BaseActionRelation):
         """
         action_relations = relations.get(self.strategy_id, [])
         create_or_update_datas = {"create_data": [], "update_data": []}
+        username = get_global_user() or "unknown"
         for action_relation in action_relations:
             if self.id == action_relation.id:
                 config_id = action_relation.config_id
@@ -814,10 +830,20 @@ class NoticeRelation(BaseActionRelation):
                     action_config.bk_biz_id = 0
                     action_config.plugin_id = ActionConfig.NOTICE_PLUGIN_ID
                     action_config.execute_config = {"template_detail": self.config}
+                    action_config.update_user = username
+                    action_config.update_time = timezone.now()
                     create_or_update_datas["update_data"].append(
                         {
                             "cls": ActionConfig,
-                            "keys": ["name", "desc", "bk_biz_id", "plugin_id", "execute_config"],
+                            "keys": [
+                                "name",
+                                "desc",
+                                "bk_biz_id",
+                                "plugin_id",
+                                "execute_config",
+                                "update_user",
+                                "update_time",
+                            ],
                             "objs": [action_config],
                         }
                     )
@@ -829,6 +855,8 @@ class NoticeRelation(BaseActionRelation):
                 bk_biz_id=0,
                 plugin_id=ActionConfig.NOTICE_PLUGIN_ID,
                 execute_config={"template_detail": self.config},
+                create_user=username,
+                create_time=timezone.now(),
             )
             create_or_update_datas["create_data"].append({"cls": ActionConfig, "objs": [action_config]})
 
