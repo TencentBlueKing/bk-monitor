@@ -66,14 +66,11 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
             引用 {doc_count} 篇资料作为参考
           </span>
           {doc_link_html}
-        </section>
-            """
-            link_tmp = """
-            <a href="{doc_link}" target="_blank" class="knowledge-link">
+        </section>"""
+            link_tmp = """<a href="{doc_link}" target="_blank" class="knowledge-link">
             {doc_name}
             <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
-          </a>
-            """
+          </a>"""
             # 最多5个文档引用
             docs = res_data.pop("documents", [])[:5]
             doc_link_html = "\n".join(
