@@ -84,10 +84,9 @@
         ></FieldFilter>
       </div>
       <div
-        :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
+        :style="{ width: `calc(100% - ${fieldFilterWidth}px)` }"
         :class="[
           'search-result-content',
-          'scroll-y',
           {
             'is-trend-chart-show': isTrendChartShow,
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,

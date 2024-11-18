@@ -98,35 +98,25 @@
     .retrieve-context {
       height: fit-content;
 
-      .result-row {
-        width: 100%;
-        height: fit-content;
-        min-height: 120px;
-        margin-top: 8px;
-        background: #ffffff;
-        border-radius: 2px;
-        box-shadow: 0 2px 4px 0 #1919290d;
+      .search-result-panel {
+        .search-result-content {
+          height: fit-content;
+          .result-table-container {
+            height: 100%;
+            margin-top: 12px;
+            overflow: auto;
+          }
 
-        .search-result-panel {
-          .search-result-content {
-            height: fit-content;
+          .finger-container {
+            height: calc(100vh - 310px);
+            margin-top: 12px;
+            overflow: auto;
+          }
+
+          &.is-trend-chart-show {
             .result-table-container {
               height: 100%;
-              margin-top: 12px;
               overflow: auto;
-            }
-
-            .finger-container {
-              height: calc(100vh - 310px);
-              margin-top: 12px;
-              overflow: auto;
-            }
-
-            &.is-trend-chart-show {
-              .result-table-container {
-                height: 100%;
-                overflow: auto;
-              }
             }
           }
         }

@@ -235,13 +235,14 @@
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         ></SearchBar>
-        <div
+        <SearchResultTab v-model="activeTab"></SearchResultTab>
+        <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+
+        <!-- <div
           ref="resultRow"
           class="result-row"
         >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>

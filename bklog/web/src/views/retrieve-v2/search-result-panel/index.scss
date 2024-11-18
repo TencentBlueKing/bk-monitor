@@ -3,6 +3,12 @@
   height: fit-content;
   overflow: visible;
 
+  .field-list-sticky {
+    position: sticky;
+    align-self: flex-start;
+    top: 52px;
+  }
+
   .filet-hidden {
     /* stylelint-disable-next-line declaration-no-important */
     width: 100px !important;
@@ -38,10 +44,5 @@
       margin: 3px 0 6px;
       border-bottom: solid 1px #dcdee5;
     }
-  }
-
-  .field-list-sticky {
-    position: sticky;
-    top: 52px;
   }
 }
