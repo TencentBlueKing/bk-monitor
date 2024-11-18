@@ -7,7 +7,6 @@
   min-width: 100%;
   min-height: 400px;
   margin-top: 12px;
-  border: 1px solid #dfe0e5;
 
   .bklog-scroll-x {
     position: fixed;
@@ -41,12 +40,14 @@
     display: flex;
     flex-direction: column;
     width: fit-content;
+    min-width: 100%;
 
     .bklog-list-row {
       position: relative;
       display: inline-flex;
       align-items: flex-start;
       width: fit-content;
+      min-width: 100%;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 20px;
@@ -224,13 +225,19 @@
     }
 
     &.row-header {
+      border-top: solid 1px #dfe0e5;
+
+      .bklog-list-row {
+        z-index: 1;
+      }
+
       &.fixed-top {
         position: absolute;
         top: 0;
         left: 0;
         z-index: 1;
         width: 100%;
-        border-top: solid 1px #dfe0e5;
+        // border-top: solid 1px #dfe0e5;
         transform: translate3d(0, var(--head-offset-top), 0);
       }
     }

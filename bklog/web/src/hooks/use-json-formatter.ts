@@ -181,7 +181,7 @@ export default class UseJsonFormatter {
     if (!item.isNotParticiple) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.innerHTML = item.text;
+      validTextNode.innerText = item.text;
       return validTextNode;
     }
 
