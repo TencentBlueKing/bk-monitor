@@ -144,26 +144,29 @@ class ReportContentResource(Resource):
 
         # 补充图表名称
         bk_biz_id_uids = {
-            "-".join(graph.split("-")[:-1]) for content in ret_data["contents"] for graph in content["graphs"]
+            "-".join(graph.rsplit("-", 1)[0]) for content in ret_data["contents"] for graph in content["graphs"]
         }
         bk_biz_id_uids.add(f"{settings.MAIL_REPORT_BIZ}-{settings.REPORT_DASHBOARD_UID}")
         panel_tag_name = {}
         for item in bk_biz_id_uids:
-            item_id = item.split("-", 1)
-            if len(item_id[0].split(",")) > 1:
+            biz_ids, dashboard_uid = item.rsplit("-", 1)
+            biz_ids = biz_ids.split(",")
+            if len(biz_ids) > 1:
                 # 说明是内置指标，只取订阅报表默认业务
                 bk_biz_id = int(settings.MAIL_REPORT_BIZ)
             else:
-                bk_biz_id = item_id[0]
-            panels = fetch_panel_title_ids(bk_biz_id=bk_biz_id, dashboard_uid=item_id[1])
+                bk_biz_id = int(biz_ids[0])
+            panels = fetch_panel_title_ids(bk_biz_id=bk_biz_id, dashboard_uid=dashboard_uid)
             for panel in panels:
                 panel_tag_name[f"{item}-{panel['id']}"] = panel["title"]
+
         for content in ret_data["contents"]:
             content["graph_name"] = []
             for graph in content["graphs"]:
+                biz_ids, dashboard_uid, panel_id = graph.rsplit("-", 2)
                 panel_tag = (
-                    graph.replace(graph.split("-")[0], str(settings.MAIL_REPORT_BIZ))
-                    if len(graph.split("-")[0].split(",")) > 1
+                    f"{settings.MAIL_REPORT_BIZ}-{dashboard_uid}-{panel_id}"
+                    if len(biz_ids.split(",")) > 1
                     else replce_special_val(graph, return_replace_val_dict(settings.MAIL_REPORT_BIZ))
                 )
                 content["graph_name"].append({"graph_id": graph, "graph_name": panel_tag_name.get(panel_tag)})

@@ -59,12 +59,7 @@ def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
     """
     分割图表ID
     """
-    bk_biz_id, *dashboard_uid, panel_id = graph_id.split("-")
-    if not dashboard_uid:
-        raise CustomException("dashboard_uid is empty")
-
-    dashboard_uid = "-".join(dashboard_uid)
-    return bk_biz_id, dashboard_uid, panel_id
+    return graph_id.rsplit("-", 2)
 
 
 def chunk_list(list_need_to_chunk: list, per_list_max_length: int):
