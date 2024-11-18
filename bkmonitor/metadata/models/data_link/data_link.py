@@ -81,7 +81,7 @@ class DataLink(models.Model):
         # 类似switch的形式，选择对应的组装方式
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
-            DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_standard_time_series_configs,
+            DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
         }
         compose_method = switcher.get(
