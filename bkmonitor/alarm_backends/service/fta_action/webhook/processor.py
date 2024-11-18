@@ -27,6 +27,7 @@ class ActionProcessor(BaseActionProcessor):
 
     def __init__(self, action_id, alerts=None):
         super(ActionProcessor, self).__init__(action_id, alerts)
+        logger.info("---begin to webhook(%s) ---", self.action.id)
         template_detail = copy.deepcopy(self.execute_config["template_detail"])
         try:
             body = template_detail.get("body")
@@ -64,7 +65,6 @@ class ActionProcessor(BaseActionProcessor):
         发送回调请求
         """
         result = True
-        logger.info("---begin to webhook(%s) ---", self.action.id)
         try:
             r = requests.request(
                 self.method,
