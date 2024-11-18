@@ -21,6 +21,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import Event, Shield
+from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
@@ -538,7 +539,7 @@ class DisableShieldResource(Resource):
         missing_ids = set(data["id"]) - existing_ids
 
         if missing_ids:
-            raise ShieldNotExist({"msg": list(missing_ids)})
+            logger.warning("Alarm shield ids does not exist: {}".format(list(missing_ids)))
         return "success"
 
 
