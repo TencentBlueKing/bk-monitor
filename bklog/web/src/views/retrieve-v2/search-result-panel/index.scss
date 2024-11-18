@@ -1,7 +1,7 @@
 .search-result-panel {
   display: flex;
   height: fit-content;
-  overflow: hidden;
+  overflow: visible;
 
   .filet-hidden {
     /* stylelint-disable-next-line declaration-no-important */
@@ -40,13 +40,8 @@
     }
   }
 
-  .search-field-filter-new {
-    transform: translate3d(0, var(--fields-offset-top), 0);
-
-    &.is-close {
-      &.is-fixed-top {
-        display: none;
-      }
-    }
+  .field-list-sticky {
+    position: sticky;
+    top: 52px;
   }
 }
