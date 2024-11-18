@@ -29,6 +29,7 @@ class CalculationType:
     P50_DURATION = "p50_duration"
     P95_DURATION = "p95_duration"
     P99_DURATION = "p99_duration"
+    PANIC = "panic"
     TOP_N = "top_n"
     BOTTOM_N = "bottom_n"
 
