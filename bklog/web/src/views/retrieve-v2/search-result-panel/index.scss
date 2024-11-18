@@ -1,48 +1,19 @@
 .search-result-panel {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   height: fit-content;
   overflow: visible;
+  position: relative;
 
   .field-list-sticky {
     position: sticky;
-    align-self: flex-start;
+    align-self: start;
     top: 52px;
   }
 
-  .filet-hidden {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: 100px !important;
-  }
-
-  .search-result-content {
-    z-index: 8;
+  .split-line {
     width: 100%;
-    height: fit-content;
-    min-height: 400px;
-    padding: 8px 0 16px 16px;
-
-    .main-title {
-      margin-left: 110px;
-    }
-
-    &.is-show-field-statistics {
-      height: 100%;
-
-      .main-title {
-        margin-left: 0;
-      }
-    }
-
-    &.is-not-show-field-statistics {
-      & > :deep(.monitor-echarts-container .title-wrapper-new .chart-title .title-click) {
-        padding-left: 110px;
-      }
-    }
-
-    .split-line {
-      width: 100%;
-      margin: 3px 0 6px;
-      border-bottom: solid 1px #dcdee5;
-    }
+    margin: 3px 0 6px;
+    border-bottom: solid 1px #dcdee5;
   }
 }

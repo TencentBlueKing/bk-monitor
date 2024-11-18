@@ -291,6 +291,9 @@
   @import '@/scss/mixins/flex.scss';
 
   .original-log-panel {
+    position: sticky;
+    top: 52px;
+
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;

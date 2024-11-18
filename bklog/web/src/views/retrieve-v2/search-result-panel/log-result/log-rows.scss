@@ -23,13 +23,9 @@
   }
 
   .bklog-row-box {
-    // position: absolute;
-    // top: 0;
-    // left: 0;
     width: fit-content;
     min-width: 100%;
     min-height: 400px;
-    // transform: translate3d(0, var(--prefix-height), 0);
 
     &.show-head {
       top: 42px;
@@ -232,9 +228,9 @@
       }
 
       &.fixed-top {
-        position: absolute;
-        top: 0;
-        left: 0;
+        // position: absolute;
+        // top: var(--head-offset-top);
+        // left: 0;
         z-index: 1;
         width: 100%;
         border-top: solid 1px #dfe0e5;

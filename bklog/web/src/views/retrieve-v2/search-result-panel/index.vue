@@ -83,17 +83,7 @@
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
-      <div
-        :style="{ width: `calc(100% - ${fieldFilterWidth}px)` }"
-        :class="[
-          'search-result-content',
-          {
-            'is-trend-chart-show': isTrendChartShow,
-            'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
-            'is-not-show-field-statistics': !isShowFieldStatistics,
-          },
-        ]"
-      >
+      <div class="">
         <SearchResultChart
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"

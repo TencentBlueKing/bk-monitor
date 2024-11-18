@@ -187,8 +187,6 @@
 <style lang="scss">
   .bklog-result-box {
     position: relative;
-    overflow-x: hidden;
-    overflow-y: hidden;
 
     .bklog-skeleton-loading {
       position: absolute;

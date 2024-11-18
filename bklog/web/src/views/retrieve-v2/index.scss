@@ -89,36 +89,25 @@
     }
   }
 
-  .retrieve-body {
-    width: 100%;
-    height: 100%;
-    padding: 8px;
-    background: #f5f7fa;
-
-    .retrieve-context {
+  .search-result-panel {
+    .search-result-content {
       height: fit-content;
+      .result-table-container {
+        height: 100%;
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-      .search-result-panel {
-        .search-result-content {
-          height: fit-content;
-          .result-table-container {
-            height: 100%;
-            margin-top: 12px;
-            overflow: auto;
-          }
+      .finger-container {
+        height: calc(100vh - 310px);
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-          .finger-container {
-            height: calc(100vh - 310px);
-            margin-top: 12px;
-            overflow: auto;
-          }
-
-          &.is-trend-chart-show {
-            .result-table-container {
-              height: 100%;
-              overflow: auto;
-            }
-          }
+      &.is-trend-chart-show {
+        .result-table-container {
+          height: 100%;
+          overflow: auto;
         }
       }
     }
