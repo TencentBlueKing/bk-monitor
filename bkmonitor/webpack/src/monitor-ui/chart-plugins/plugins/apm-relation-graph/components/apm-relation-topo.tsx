@@ -486,7 +486,22 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               {
                 type: 'tooltip',
                 formatText: model => {
-                  return `请求量: ${String(model.request_count || 0)}`; // 节点hover展示
+                  const nodeTips = (model?.node_tips || []) as Array<{ name: string; value: string; group?: string }>;
+
+                  // 节点只展示 请求数 相关信息
+                  return (
+                    nodeTips
+                      .filter(tip => tip.group === 'request_count')
+                      .map(
+                        tip => `
+                        <div class="statistics-item" key="${tip.name}">
+                          <span class="item-title">${tip.name}：</span>
+                          <span class="item-value">${tip.value}</span>
+                        </div>
+                      `
+                      )
+                      .join('') || `请求数: ${String(model.request_count) || '--'}`
+                  );
                 },
               },
               {
