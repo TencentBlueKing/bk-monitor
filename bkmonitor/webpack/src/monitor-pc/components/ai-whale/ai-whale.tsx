@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AiBlueking, { RoleType, type IMessage, ChatHelper, MessageStatus } from '@blueking/ai-blueking/vue2';
@@ -108,9 +108,11 @@ const questions = [
 ];
 
 @Component
-export default class AiWhale extends tsc<object> {
+export default class AiWhale extends tsc<{
+  enableAiAssistant: boolean;
+}> {
   @Ref('robot') robotRef: HTMLDivElement;
-
+  @Prop({ default: false }) enableAiAssistant: boolean;
   type: ThemeType = 'blue';
   /* 机器人位置 */
   whalePosition = {
@@ -170,7 +172,6 @@ export default class AiWhale extends tsc<object> {
   };
   showAIBlueking = false;
   chatHelper: ChatHelper = null;
-  enableAiAssistant = true || !!window.enable_ai_assistant;
   chartId = random(10);
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
