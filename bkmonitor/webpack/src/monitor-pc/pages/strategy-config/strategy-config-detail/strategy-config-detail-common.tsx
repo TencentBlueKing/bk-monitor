@@ -1211,7 +1211,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     this.$t('恢复条件'),
                     <i18n
                       class='i18n-path'
-                      path='连续{0}个周期内不满足条件表示恢复{1}'
+                      path='连续{0}个周期内不满足触发条件{1}'
                     >
                       <span class='bold-span'>{recoveryConfig.checkWindow}</span>
                       {!isRecoveryDisable(this.metricData) &&

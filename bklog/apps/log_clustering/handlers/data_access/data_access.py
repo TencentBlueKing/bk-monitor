@@ -194,7 +194,7 @@ class DataAccessHandler(BaseAiopsHandler):
 
         params = {
             "raw_data_id": clustering_config.bkdata_data_id,
-            "result_table_name": result_table_name,
+            "result_table_name": result_table_name[-50:],
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
             "description": collector_config.description or collector_config.collector_config_name,

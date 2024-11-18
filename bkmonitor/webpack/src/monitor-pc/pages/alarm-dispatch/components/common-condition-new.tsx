@@ -1349,7 +1349,7 @@ export default class CommonCondition extends tsc<IProps> {
                         key={`${index}_${tagIndex}`}
                         class='common-tag tag-value'
                         v-bk-tooltips={{
-                          content: tag.id,
+                          content: item.condition.field === 'dynamic_group' ? tag.name : tag.id,
                           placements: ['top'],
                           delay: [500, 0],
                           allowHTML: false,
