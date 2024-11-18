@@ -589,11 +589,11 @@ export function formatBigNumListValue(value) {
       obj[opt] =
         Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
           ? formatBigNumListValue(obj[opt])
-          : bigNumberToString(value[opt] || '');
+          : bigNumberToString(value[opt] ?? '');
     });
     return obj;
   }
-  return bigNumberToString(value || '');
+  return bigNumberToString(value ?? '');
 }
 
 export function parseBigNumberList(lsit) {

@@ -515,6 +515,12 @@ APM_APP_QPS = 500
 
 APM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
+# 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
+APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+
+# 新建应用的创建时间到当前时间的时长范围，单位：分钟
+APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"
@@ -1119,6 +1125,7 @@ BK_NODEMAN_INNER_HOST = os.getenv("BKAPP_NODEMAN_HOST") or os.getenv(
 )
 
 BKLOGSEARCH_HOST = os.getenv("BK_LOG_SEARCH_SITE_URL") or get_service_url("bk_log_search", bk_paas_host=BK_PAAS_HOST)
+BKLOGSEARCH_INNER_HOST = os.getenv("BK_LOG_SEARCH_INNER_HOST") or BKLOGSEARCH_HOST
 
 # 作业平台url
 JOB_URL = BK_PAAS_HOST.replace("paas", "job")
@@ -1442,6 +1449,9 @@ CHECK_RESULT_TTL_HOURS = 1
 
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
+
+# 用户信息
+BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")

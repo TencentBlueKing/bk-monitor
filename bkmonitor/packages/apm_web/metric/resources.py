@@ -2968,9 +2968,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                     required=True,
                 )
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
-            ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -3022,8 +3022,13 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
         merged_records: List[Dict[str, Any]] = []
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         for group_key, record in group_key_record_map.items():
+            # 确保 dimensions 以 group_fields 为序
+            dimensions: Dict[str, Any] = dict(group_key)
+            processed_record: Dict[str, Any] = {"dimensions": {}}
+            for field in group_fields:
+                processed_record["dimensions"][field] = dimensions.get(field) or ""
+
             # 对合并后不存在的数值补 None
-            processed_record: Dict[str, Any] = {"dimensions": dict(group_key)}
             for alias in aliases:
                 processed_record[alias] = record.get(alias)
             merged_records.append(processed_record)

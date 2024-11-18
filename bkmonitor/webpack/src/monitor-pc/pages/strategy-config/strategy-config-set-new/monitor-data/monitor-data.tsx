@@ -721,7 +721,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             </div>
           )}
           {this.supportSource && !!this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
-          {this.metricData.some(item => item.canSetTarget) && (
+          {((this.targetList.length && this.targetDesc.message.length && this.editMode === 'Edit') ||
+            this.metricData.some(item => item.canSetTarget)) && (
             <div class='ip-wrapper'>
               {!this.targetList.length && !this.targetDesc.message.length
                 ? [
@@ -755,21 +756,22 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       {this.targetDesc.message}
                       {this.targetDesc.subMessage}
                     </span>,
-                    this.readonly ? (
-                      <span
-                        key={6}
-                        class='ip-wrapper-title'
-                        onClick={this.handleAddTarget}
-                      >
-                        {this.$t('查看监控目标')}
-                      </span>
-                    ) : (
-                      <span
-                        key={7}
-                        class='icon-monitor icon-bianji'
-                        onClick={this.handleAddTarget}
-                      />
-                    ),
+                    this.metricData.some(item => item.canSetTarget) &&
+                      (this.readonly ? (
+                        <span
+                          key={6}
+                          class='ip-wrapper-title'
+                          onClick={this.handleAddTarget}
+                        >
+                          {this.$t('查看监控目标')}
+                        </span>
+                      ) : (
+                        <span
+                          key={7}
+                          class='icon-monitor icon-bianji'
+                          onClick={this.handleAddTarget}
+                        />
+                      )),
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
                         <span class='icon-monitor icon-remind' />

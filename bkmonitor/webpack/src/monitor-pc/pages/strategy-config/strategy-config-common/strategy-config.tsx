@@ -2325,7 +2325,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             placements: ['top-start'],
             boundary: 'boundary',
             content: () =>
-              this.$t('连续{0}个周期内不满足条件表示恢复{1}', [
+              this.$t('连续{0}个周期内不满足触发条件{1}', [
                 props.row.recovery,
                 !isRecoveryDisable(props.row.queryConfigs) && isStatusSetterNoData(props.row.recoveryStatusSetter)
                   ? this.$t('或无数据')

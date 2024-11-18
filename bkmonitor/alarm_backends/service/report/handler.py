@@ -189,7 +189,7 @@ async def fetch_images_by_puppeteer(element, browser):
             # 放大页面可视区域
             await page.setViewport({"width": 1600, "height": heights["scroll"], "deviceScaleFactor": 2})
         else:
-            pannel_type = "div.panel-solo" if element.get("need_title") else "div.panel-content"
+            pannel_type = "div.panel-solo" if element.get("need_title") else "div.css-kuoxoh-panel-content"
             content_selector = pannel_type
             await page.setViewport(element["image_size"])
             await wait_for_panel_render(page)
