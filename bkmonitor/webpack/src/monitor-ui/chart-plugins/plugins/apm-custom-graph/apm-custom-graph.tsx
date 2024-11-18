@@ -85,7 +85,7 @@ export default class CustomChart extends TimeSeries {
               onClick={e => e.stopPropagation()}
             >
               <StatusTab
-                maxWidth={this.width - 250}
+                maxWidth={this.width - 300}
                 statusList={this.methodList}
                 value={this.method}
                 onChange={this.handleMethodChange}
@@ -131,6 +131,12 @@ export default class CustomChart extends TimeSeries {
                 )}
               </div>
             )}
+          </div>
+        ) : this.isSingleChart ? (
+          <div class='empty-chart'>
+            <bk-exception type='building'>
+              <span>{this.$t('暂无自定义指标数据')}</span>
+            </bk-exception>
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>

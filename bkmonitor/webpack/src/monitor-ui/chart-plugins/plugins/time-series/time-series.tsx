@@ -88,6 +88,7 @@ interface ITimeSeriesProps {
   customTimeRange?: [string, string];
   customMenuList?: ChartTitleMenuType[];
   needSetEvent?: boolean;
+  isSingleChart?: boolean;
 }
 interface ITimeSeriesEvent {
   onFullScreen: PanelModel;
@@ -120,6 +121,7 @@ export class LineChart
   // 自定义更多菜单
   @Prop({ type: Array }) customMenuList: ChartTitleMenuType[];
   @Prop({ type: Boolean, default: true }) needSetEvent: boolean;
+  @Prop({ type: Boolean, default: false }) isSingleChart: boolean;
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   // 图表刷新间隔
