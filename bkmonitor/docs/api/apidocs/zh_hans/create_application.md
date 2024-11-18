@@ -25,9 +25,9 @@
 
 ```json
 {
-  "app_name": "xxx",
-  "app_alias": "xxx",
-  "description": "xxx",
+  "app_name": "test",
+  "app_alias": "test",
+  "description": "test",
   "enabled_profiling": false,
   "enabled_trace": true,
   "enabled_metric": true,

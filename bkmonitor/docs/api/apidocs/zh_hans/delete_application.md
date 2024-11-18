@@ -17,8 +17,8 @@
 
  ```json
   {
-      "bk_biz_id ": "xxx",
-      "app_name": "xxx"
+      "bk_biz_id ": "test",
+      "app_name": "test"
   }
  ```
 
