@@ -41,15 +41,16 @@ def fetch_panel_title_ids(bk_biz_id, dashboard_uid, org=None):
             if panel.get("panels", []):
                 # 处理子panel
                 for extend_panel in panel["panels"]:
-                    if not extend_panel.get("title"):
+                    if not extend_panel.get("id"):
                         continue
-                    panel_id_title.append({"title": extend_panel["title"], "id": extend_panel["id"]})
-            elif panel.get("type") == "row" or not panel.get("title") or not panel.get("id"):
+                    title = f"{panel.get('title', '')} #{extend_panel['id']}"
+                    panel_id_title.append({"title": title, "id": extend_panel["id"]})
+            elif panel.get("type") == "row" or not panel.get("id"):
                 # 忽略行及没有基本信息的图表
                 continue
             else:
-                # 单一个panel
-                panel_id_title.append({"title": panel["title"], "id": panel["id"]})
+                title = f"{panel.get('title', '')} #{panel['id']}"
+                panel_id_title.append({"title": title, "id": panel["id"]})
         return panel_id_title
     return []
 
