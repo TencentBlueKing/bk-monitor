@@ -1687,5 +1687,6 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ChartSerializer)
-        result = ChartHandler(index_set_id=index_set_id).get_chart_data(params=params)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+        result = instance.get_chart_data(params)
         return Response(result)

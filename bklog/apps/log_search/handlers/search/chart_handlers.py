@@ -35,32 +35,66 @@ from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
 
 
-class ChartBase(object):
+class ChartHandler(object):
+    def __init__(self, index_set_id):
+        self.index_set_id = index_set_id
+        try:
+            self.data = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        except LogIndexSet.DoesNotExist:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id)
+            )
+
     @classmethod
-    def get_instance(cls, mode=None):
+    def get_instance(cls, index_set_id, mode):
         mapping = {
-            SearchMode.UI.value: "ChartUiMode",
-            SearchMode.SQL.value: "ChartSqlMode",
+            SearchMode.UI.value: "UIChartMode",
+            SearchMode.SQL.value: "SqlChartMode",
         }
         try:
             chart_instance = import_string(
                 "apps.log_search.handlers.search.chart_handlers.{}".format(mapping.get(mode))
             )
-            return chart_instance()
+            return chart_instance(index_set_id=index_set_id)
         except ImportError as error:
             raise NotImplementedError(f"{mode} class not implement, error: {error}")
 
-    @staticmethod
-    def fetch_query_data(sql: str) -> dict:
+    def get_chart_data(self, params: dict) -> dict:
         """
-        获取查询结果
-        :param sql: 查询sql
-        :return: 查询结果 dict
+        获取图表相关信息
+        :param params: 图表参数
+        :return: 图表数据 dict
         """
         raise NotImplementedError(_("功能暂未实现"))
 
+
+class UIChartMode(ChartHandler):
+    def get_chart_data(self, params: dict) -> dict:
+        """
+        UI模式获取图表相关信息
+        :param params: 图表参数
+        :return: 图表数据 dict
+        """
+        # TODO 待实现
+        return {}
+
+
+class SqlChartMode(ChartHandler):
+    def get_chart_data(self, params) -> dict:
+        """
+        Sql模式获取图表相关信息
+        :param params: 图表参数
+        :return: 图表数据 dict
+        """
+        if not self.data.support_doris:
+            raise IndexSetDorisQueryException()
+        instance = ChartHandler.get_instance(self.index_set_id, params["query_mode"])
+        parsed_sql = instance.parse_sql_syntax(self.data.doris_table_id, params["sql"])
+        data = self.fetch_query_data(parsed_sql)
+        return data
+
     @staticmethod
-    def parser_sql_syntax(doris_table_id: str, raw_sql: str):
+    def parse_sql_syntax(doris_table_id: str, raw_sql: str):
         """
         解析sql语法
         """
@@ -78,8 +112,6 @@ class ChartBase(object):
             parsed_sql += matches.group(2)
         return parsed_sql
 
-
-class ChartUiMode(ChartBase):
     @staticmethod
     def fetch_query_data(sql: str) -> dict:
         """
@@ -87,42 +119,8 @@ class ChartUiMode(ChartBase):
         :param sql: 查询sql
         :return: 查询结果 dict
         """
-        # TODO 待实现
-        return {}
-
-
-class ChartSqlMode(ChartBase):
-    @staticmethod
-    def fetch_query_data(sql: str) -> dict:
-        """
-        获取查询结果
-        :param sql: 查询sql
-        :return: 查询结果 dict
-        """
-        result = BkDataQueryApi.query({"sql": sql}, raw=True)
-        return result
-
-
-class ChartHandler(object):
-    def __init__(self, index_set_id=None):
-        self.index_set_id = index_set_id
-        if self.index_set_id:
-            try:
-                self.data = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-            except LogIndexSet.DoesNotExist:
-                raise BaseSearchIndexSetException(
-                    BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id)
-                )
-
-    def get_chart_data(self, params):
-        """
-        获取图表信息
-        """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
-        instance = ChartBase.get_instance(params["query_mode"])
-        parsed_sql = instance.parser_sql_syntax(self.data.doris_table_id, params["sql"])
-        result_data = instance.fetch_query_data(parsed_sql)
+        result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
+        # TODO UI的情况,待实现
         if not result_data:
             return result_data
 
