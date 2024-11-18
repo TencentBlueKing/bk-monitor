@@ -31,9 +31,10 @@ import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const isRunning = ref(false);
-  const searchBarHeight = ref(0);
+  // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
+  const scrollDirection = ref('down');
   let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
 
@@ -60,7 +61,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
         currentElement = currentElement.offsetParent as HTMLElement;
       }
       scrollElementOffset = offsetTop;
-      searchBarHeight.value = (document.querySelector('.search-bar-container') as HTMLElement)?.offsetHeight ?? 0;
+      // searchBarHeight.value = (document.querySelector('.search-bar-container') as HTMLElement)?.offsetHeight ?? 0;
       debounceStopComputing();
     }
   };
@@ -83,7 +84,9 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
       debounceCallback();
     }
 
-    scrollCallbackFn?.(target.scrollTop, scrollElementOffset);
+    scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
+
+    scrollCallbackFn?.(target.scrollTop, scrollElementOffset, scrollDirection.value);
     lastPosition = target.scrollTop;
   });
 
@@ -110,7 +113,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   return {
     scrollToTop,
     hasScrollX,
-    searchBarHeight,
+    scrollDirection,
     offsetWidth,
     scrollWidth,
   };

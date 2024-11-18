@@ -56,10 +56,16 @@
   const handleUpdateActiveTab = active => {
     emit('update:active-tab', active);
   };
+
+  const rightContentStyle = computed(() => {
+    return {
+      width: `calc(100% - ${fieldFilterWidth.value}px)`,
+    };
+  });
 </script>
 
 <template>
-  <div class="search-result-panel">
+  <div class="search-result-panel flex">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
@@ -83,7 +89,10 @@
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
-      <div class="">
+      <div
+        class="search-result-content"
+        :style="rightContentStyle"
+      >
         <SearchResultChart
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"

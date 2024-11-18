@@ -1,7 +1,7 @@
 .retrieve-v2-index {
   &.scroll-y {
-    overflow-y: auto;
     height: calc(100vh - 52px);
+    overflow-y: auto;
   }
 
   &.show-favorites {
@@ -67,6 +67,7 @@
   .sub-head {
     display: flex;
     height: 48px;
+    margin: 8px;
 
     .box-favorites {
       display: flex;
@@ -92,6 +93,7 @@
   .search-result-panel {
     .search-result-content {
       height: fit-content;
+
       .result-table-container {
         height: 100%;
         margin-top: 12px;

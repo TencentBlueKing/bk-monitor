@@ -31,6 +31,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { uniqueId } from 'lodash';
 
+import useResizeObserve from '../../../../hooks/use-resize-observe';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -43,6 +44,7 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
+  SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
@@ -56,6 +58,7 @@ type RowConfig = {
   expand?: boolean;
   isIntersect?: boolean;
   minHeight?: number;
+  stickyTop?: number;
 };
 
 export default defineComponent({
@@ -93,9 +96,19 @@ export default defineComponent({
     const visibleIndexs = ref({ startIndex: 0, endIndex: 50 });
     const hasOverflowX = ref(false);
 
-    const visibleTableList = computed(() =>
-      tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
-    );
+    const visibleTableList = computed(() => {
+      const rows = tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex);
+      return rows.map(row => {
+        const rowIndex = row[ROW_INDEX];
+        const config = row[ROW_CONFIG].value;
+        const preConfig = rows[rowIndex - 1]?.[ROW_CONFIG]?.value ?? {
+          stickyTop: 52,
+          minHeight: 0,
+        };
+        config.stickyTop = preConfig.minHeight + preConfig.stickyTop;
+        return row;
+      });
+    });
 
     const tableMinHeight = computed(() => {
       return tableData.value.reduce((height, row) => {
@@ -342,6 +355,7 @@ export default defineComponent({
         ['expand', false],
         ['isIntersect', true],
         ['minHeight', 42],
+        ['stickyTop', 0],
       ].reduce(
         (cfg, item: [keyof RowConfig, any]) =>
           Object.assign(cfg, { [item[0]]: getStoreRowAttr(rowKey, item[0], item[1]) }),
@@ -416,13 +430,16 @@ export default defineComponent({
 
     const loadMoreTableData = () => {
       if (totalCount.value > tableData.value.length) {
-        return store.dispatch('requestIndexSetQuery', { isPagination: true });
+        return store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
+          visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + res.data.list.length;
+        });
       }
     };
 
     const rowsOffsetTop = ref(0);
     const bodyScrollTop = ref(0);
     const diffOffsetTop = ref(0);
+    const stickyTop = ref(52);
 
     const handleScrollEvent = (scrollTop, offsetTop) => {
       const useScrollHeight = scrollTop > offsetTop ? scrollTop - offsetTop : 0;
@@ -455,6 +472,10 @@ export default defineComponent({
       rowsOffsetTop.value = useScrollHeight;
     };
 
+    useResizeObserve(SECTION_SEARCH_INPUT, entry => {
+      stickyTop.value = entry.contentRect.height;
+    });
+
     onMounted(() => {
       visibleIndexs.value.startIndex = 0;
       visibleIndexs.value.endIndex = 50;
@@ -466,20 +487,22 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, searchBarHeight } = useLazyRender({
+    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, scrollDirection } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       scrollCallbackFn: handleScrollEvent,
       container: resultContainerIdSelector,
     });
 
     const headStyle = computed(() => {
-      if (rowsOffsetTop.value > 0) {
-        return {
-          '--head-offset-top': `${rowsOffsetTop.value + searchBarHeight.value + 52}px`,
-        };
-      }
+      return {
+        top: `${stickyTop.value}px`,
+      };
+    });
 
-      return {};
+    const bodyStyle = computed(() => {
+      return {
+        top: `${stickyTop.value + 44}px`,
+      };
     });
 
     const showHeader = computed(() => {
@@ -491,12 +514,12 @@ export default defineComponent({
         return (
           <div
             style={headStyle.value}
-            class={[
-              'bklog-row-container row-header',
-              { 'fixed-top': rowsOffsetTop.value > 0, 'has-overflow-x': hasOverflowX.value },
-            ]}
+            class={['bklog-row-container row-header', { 'has-overflow-x': hasOverflowX.value }]}
           >
-            <div class='bklog-list-row '>
+            <div
+              style={bodyStyle.value}
+              class='bklog-list-row'
+            >
               {renderColumns.value.map(column => (
                 <LogCell
                   key={column.key}
@@ -558,11 +581,19 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return visibleTableList.value.map(row => {
+      let rowStickyTop = 0;
+      return visibleTableList.value.map((row, index) => {
         const rowIndex = row[ROW_INDEX];
+        const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
+        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 52);
+        const rowStyle = {
+          top: `${rowStickyTop}px`,
+          position: 'sticky',
+        };
         return (
           <RowRender
             key={row[ROW_KEY]}
+            style={rowStyle}
             class={[
               'bklog-row-container',
               {
@@ -593,18 +624,8 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        height: `${tableMinHeight.value + 45}px`,
+        height: `${tableMinHeight.value}px`,
       };
-    });
-
-    const rowBoxStyle = computed(() => {
-      if (bodyScrollTop.value > 0) {
-        return {
-          '--prefix-height': `${bodyScrollTop.value + 52}px`,
-        };
-      }
-
-      return {};
     });
 
     return {
@@ -616,37 +637,36 @@ export default defineComponent({
       renderScrollXBar,
       resultContainerId,
       tableStyle,
-      rowBoxStyle,
       showHeader,
       refRootElement,
+      scrollDirection,
     };
   },
   render() {
     return (
       <div
-        id={this.resultContainerId}
         ref='refRootElement'
-        style={this.tableStyle}
         class='bklog-result-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
         {this.renderHeadVNode()}
         <div
-          style={this.rowBoxStyle}
+          id={this.resultContainerId}
+          style={this.tableStyle}
           class={['bklog-row-box', { 'show-head': this.showHeader }]}
         >
-          {this.tableData.length === 0 ? (
-            <bk-exception
-              style='margin-top: 100px;'
-              class='exception-wrap-item exception-part'
-              scene='part'
-              type='search-empty'
-            ></bk-exception>
-          ) : (
-            ''
-          )}
           {this.renderRowVNode()}
         </div>
+        {this.tableData.length === 0 ? (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          ></bk-exception>
+        ) : (
+          ''
+        )}
         {this.renderScrollTop()}
         {this.renderScrollXBar()}
         <div class='resize-guide-line'></div>

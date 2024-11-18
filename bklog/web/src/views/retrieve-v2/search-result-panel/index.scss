@@ -1,19 +1,27 @@
 .search-result-panel {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  height: fit-content;
-  overflow: visible;
-  position: relative;
+  background-color: #fff;
 
-  .field-list-sticky {
-    position: sticky;
-    align-self: start;
-    top: 52px;
-  }
+  &.flex {
+    position: relative;
+    display: flex;
+    height: fit-content;
+    margin: 0 8px;
+    overflow: visible;
 
-  .split-line {
-    width: 100%;
-    margin: 3px 0 6px;
-    border-bottom: solid 1px #dcdee5;
+    .field-list-sticky {
+      position: sticky;
+      top: 52px;
+      align-self: start;
+      margin-right: 16px;
+    }
+
+    .search-result-content {
+    }
+
+    .split-line {
+      width: 100%;
+      margin: 3px 0 6px;
+      border-bottom: solid 1px #dcdee5;
+    }
   }
 }

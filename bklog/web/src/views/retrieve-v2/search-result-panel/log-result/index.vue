@@ -147,8 +147,6 @@
   import FieldsSetting from '../../result-comp/fields-setting';
   import TableLog from './log-result.vue';
 
-  import { parseTableRowData } from '@/common/util';
-
   export default {
     components: {
       TableLog,
@@ -291,9 +289,6 @@
   @import '@/scss/mixins/flex.scss';
 
   .original-log-panel {
-    position: sticky;
-    top: 52px;
-
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;
