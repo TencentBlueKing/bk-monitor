@@ -59,6 +59,9 @@ export default class IndexList extends tsc<IProps, IEvents> {
   /** 溢出提示的位置 */
   @Prop({ type: String, default: 'right' }) tipsPlacement: string;
   @Prop({ type: String, default: 'empty' }) emptyStatusType: EmptyStatusType;
+
+  selectNodeId = '';
+
   /**
    * 选中节点
    * @param item
@@ -67,9 +70,23 @@ export default class IndexList extends tsc<IProps, IEvents> {
   handleSelectItem(item): IIndexListItem {
     return item;
   }
+
   /** 搜索过滤节点 */
   handleFilterItem(str) {
     this.indexTree?.filter(str);
+    this.selectNodeId = '';
+    // 搜索默认选中第一个过滤节点
+    if (this.indexTree?.visibleNodes?.length > 1 && str) {
+      this.selectNodeId = this.indexTree.visibleNodes[1].id;
+    }
+    this.indexTree.setSelected(this.selectNodeId, {
+      emitEvent: !this.selectNodeId,
+    });
+  }
+
+  handleSelectNode() {
+    const node = this.indexTree?.getNodeById(this.selectNodeId);
+    this.handleSelectItem(node);
   }
 
   @Emit('emptyStatusOperation')
