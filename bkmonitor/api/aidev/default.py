@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+from json import JSONDecodeError
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
@@ -40,24 +41,25 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
     IS_STREAM = True
 
     def handle_stream_response(self, response):
-        import pydevd_pycharm
-
-        pydevd_pycharm.settrace('localhost', port=8999, stdoutToServer=True, stderrToServer=True)
-
         # 处理流式响应
         def event_stream():
             for line in response.iter_lines():
                 if not line:
                     continue
                 result = line.decode('utf-8') + '\n\n'
-                res_data = json.loads(result)
-                if res_data.get("event") == "reference_doc":
-                    yield parse_doc_link(res_data)
+                try:
+                    res_data = json.loads(result.split("data: ", 1)[-1])
+                    if res_data.get("event") == "reference_doc":
+                        doc_link_html = parse_doc_link(res_data)
+                        yield doc_link_html
+                except JSONDecodeError:
+                    # 非json格式原样返回
+                    # data: [DONE]
+                    pass
                 yield result
 
         def parse_doc_link(res_data):
-            section_tmp = """
-            <section class="knowledge-tips">
+            section_tmp = """<section class="knowledge-tips">
           <i class="ai-blueking-icon ai-blueking-angle-up"></i>
           <span class="knowledge-summary">
             <i class="ai-blueking-icon ai-blueking-help-document"></i>
@@ -67,7 +69,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
         </section>
             """
             link_tmp = """
-            <a href="{doc_link}}" target="_blank" class="knowledge-link">
+            <a href="{doc_link}" target="_blank" class="knowledge-link">
             {doc_name}
             <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
           </a>
@@ -77,14 +79,15 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
             doc_link_html = "\n".join(
                 [
                     link_tmp.format(
-                        doc_name=doc["metadata"]["file_name"].rsplit("/")[-1], doc_link=doc["metadata"]["doc_name"]
+                        doc_name=doc["metadata"]["file_name"].rsplit("/")[-1], doc_link=doc["metadata"]["path"]
                     )
                     for doc in docs
                 ]
             )
             section_html = section_tmp.format(doc_count=len(docs), doc_link_html=doc_link_html)
-            res_data["content"] += section_html
-            return json.dumps(res_data)
+            data = {"event": "text", "content": ""}
+            data["content"] += section_html
+            return "data: " + json.dumps(data) + "\n\n"
 
         # 返回 StreamingHttpResponse
         sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream; charset=utf-8")
