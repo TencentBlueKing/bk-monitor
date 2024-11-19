@@ -683,10 +683,10 @@ export default class App extends tsc<object> {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
   async getAiUserConfig() {
-    // if (!window.enable_ai_assistant) {
-    //   this.enableAiAssistant = false;
-    //   return;
-    // }
+    if (!window.enable_ai_assistant) {
+      this.enableAiAssistant = false;
+      return;
+    }
     const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
     this.enableAiAssistant = list.includes(window.username);
   }
