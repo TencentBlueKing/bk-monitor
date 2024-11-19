@@ -871,11 +871,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   formatTableValShow(val: number, key: string) {
     const txt = this.hasPrefix(key)
       ? val
-        ? `${this.formatToTwoDecimalPlaces(val)}%`
-        : val === 0
+        ? `${val}%`
+        : // ? `${this.formatToTwoDecimalPlaces(val)}%`
+          val === 0
           ? `${val}%`
           : '--'
-      : this.formatToTwoDecimalPlaces(val) || '--';
+      : // : this.formatToTwoDecimalPlaces(val) || '--';
+        val || '--';
     return txt;
   }
   get appendTabWidth() {
