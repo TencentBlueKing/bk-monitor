@@ -29,10 +29,6 @@
     min-width: 100%;
     min-width: 100%;
     min-height: 400px;
-
-    // &.down {
-    //   justify-content: flex-end;
-    // }
   }
 
   .bklog-row-container {
@@ -42,6 +38,7 @@
       align-items: flex-start;
       width: fit-content;
       min-width: 100%;
+      min-height: 40px;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 20px;

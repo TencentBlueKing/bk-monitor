@@ -35,6 +35,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
   const scrollDirection = ref('down');
+
   let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
 
@@ -53,15 +54,9 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const calculateOffsetTop = () => {
     if (!isComputingCalcOffset) {
       isComputingCalcOffset = true;
-      let currentElement = getCurrentElement();
+      const currentElement = getCurrentElement();
       const relativeTo = getScrollElement();
-      let offsetTop = 0;
-      while (currentElement && currentElement !== relativeTo) {
-        offsetTop += currentElement.offsetTop;
-        currentElement = currentElement.offsetParent as HTMLElement;
-      }
-      scrollElementOffset = offsetTop;
-      // searchBarHeight.value = (document.querySelector('.search-bar-container') as HTMLElement)?.offsetHeight ?? 0;
+      scrollElementOffset = relativeTo.scrollHeight - currentElement.scrollHeight;
       debounceStopComputing();
     }
   };

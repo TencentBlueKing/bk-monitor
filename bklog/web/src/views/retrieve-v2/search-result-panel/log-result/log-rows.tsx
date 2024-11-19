@@ -94,21 +94,15 @@ export default defineComponent({
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const totalCount = computed(() => store.state.retrieve.trendDataCount);
     const visibleIndexs = ref({ startIndex: 0, endIndex: 50 });
-    const hasOverflowX = ref(false);
 
-    const visibleTableList = computed(() => {
-      const rows = tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex);
-      return rows.map(row => {
-        const rowIndex = row[ROW_INDEX];
-        const config = row[ROW_CONFIG].value;
-        const preConfig = rows[rowIndex - 1]?.[ROW_CONFIG]?.value ?? {
-          stickyTop: 52,
-          minHeight: 0,
-        };
-        config.stickyTop = preConfig.minHeight + preConfig.stickyTop;
-        return row;
-      });
-    });
+    const rowsOffsetTop = ref(0);
+    const searchContainerHeight = ref(52);
+    const hasOverflowX = ref(false);
+    // const headHeight = ref(48);
+
+    const visibleTableList = computed(() =>
+      tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
+    );
 
     const tableMinHeight = computed(() => {
       return tableData.value.reduce((height, row) => {
@@ -436,15 +430,10 @@ export default defineComponent({
       }
     };
 
-    const rowsOffsetTop = ref(0);
-    const bodyScrollTop = ref(0);
-    const diffOffsetTop = ref(0);
-    const stickyTop = ref(52);
-
+    const scrollRowOffsetHeight = ref(0);
     const handleScrollEvent = (scrollTop, offsetTop) => {
-      const useScrollHeight = scrollTop > offsetTop ? scrollTop - offsetTop : 0;
-
-      diffOffsetTop.value = offsetTop;
+      const visibleTop = offsetTop - searchContainerHeight.value;
+      const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
       let startPosition = 0;
       let startIndex = 0;
@@ -453,7 +442,7 @@ export default defineComponent({
         const nextItem = tableData.value[startIndex];
         if (nextItem) {
           startPosition = startPosition + nextItem[ROW_CONFIG].value.minHeight;
-          if (startPosition < useScrollHeight) {
+          if (startPosition <= useScrollHeight) {
             startIndex = startIndex + 1;
           }
         }
@@ -463,17 +452,14 @@ export default defineComponent({
         }
       }
 
-      if (startIndex !== visibleIndexs.value.startIndex || !useScrollHeight) {
-        bodyScrollTop.value = useScrollHeight;
-      }
-
+      scrollRowOffsetHeight.value = useScrollHeight - startPosition;
       visibleIndexs.value.startIndex = startIndex;
       visibleIndexs.value.endIndex = startIndex + 50;
       rowsOffsetTop.value = useScrollHeight;
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
-      stickyTop.value = entry.contentRect.height;
+      searchContainerHeight.value = entry.contentRect.height;
     });
 
     onMounted(() => {
@@ -495,13 +481,7 @@ export default defineComponent({
 
     const headStyle = computed(() => {
       return {
-        top: `${stickyTop.value}px`,
-      };
-    });
-
-    const bodyStyle = computed(() => {
-      return {
-        top: `${stickyTop.value + 44}px`,
+        top: `${searchContainerHeight.value}px`,
       };
     });
 
@@ -516,10 +496,7 @@ export default defineComponent({
             style={headStyle.value}
             class={['bklog-row-container row-header', { 'has-overflow-x': hasOverflowX.value }]}
           >
-            <div
-              style={bodyStyle.value}
-              class='bklog-list-row'
-            >
+            <div class='bklog-list-row'>
               {renderColumns.value.map(column => (
                 <LogCell
                   key={column.key}
@@ -581,11 +558,11 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      let rowStickyTop = 0;
+      let rowStickyTop = 0 - scrollRowOffsetHeight.value;
       return visibleTableList.value.map((row, index) => {
         const rowIndex = row[ROW_INDEX];
         const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
-        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 52);
+        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
         const rowStyle = {
           top: `${rowStickyTop}px`,
           position: 'sticky',
@@ -624,7 +601,7 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        height: `${tableMinHeight.value}px`,
+        minHeight: `${tableMinHeight.value}px`,
       };
     });
 
