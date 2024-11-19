@@ -456,7 +456,7 @@ def push_space_to_redis(space_type: str, space_id: str):
     logger.info("async task push space_type: %s, space_id: %s to redis successfully", space_type, space_id)
 
 
-@app.task(ignore_result=True, queue="celery_long_task_cron")
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_check_and_delete_ds_consul_config(data_sources):
     """
     并发检查V4数据源对应的Consul配置是否存在，若存在则进行删除
@@ -534,7 +534,7 @@ def _check_and_delete_ds_consul_config(data_source: DataSource):
     logger.info("_check_and_delete_ds_consul_config:data_source->[%s],consul_config deleted", data_source.bk_data_id)
 
 
-@app.task(ignore_result=True, queue="celery_long_task_cron")
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_refresh_data_link_status(bkbase_rt_records):
     """
     并发刷新链路状态
