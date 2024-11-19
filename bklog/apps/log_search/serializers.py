@@ -883,6 +883,14 @@ class FetchTopkListSerializer(QueryFieldBaseSerializer):
     limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
 
 
+class FetchValueListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段值列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("字段值限制个数"), required=False, default=10)
+
+
 class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
     """
     获取字段统计信息
@@ -918,11 +926,7 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         index_set_type = attrs.get('index_set_type')
 
         if index_set_type == IndexSetType.SINGLE.value and not index_set_id:
-            raise serializers.ValidationError(
-                _("参数校验失败: index_set_id 必须被提供")
-            )
+            raise serializers.ValidationError(_("参数校验失败: index_set_id 必须被提供"))
         elif index_set_type == IndexSetType.UNION.value and not index_set_ids:
-            raise serializers.ValidationError(
-                _("参数校验失败: index_set_ids 必须被提供")
-            )
+            raise serializers.ValidationError(_("参数校验失败: index_set_ids 必须被提供"))
         return attrs
