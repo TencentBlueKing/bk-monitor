@@ -26,11 +26,7 @@
 
 <script setup>
   window.__IS_MONITOR_APM__ = true;
-  <<<<<<< HEAD
-  import { computed, ref, watch, defineProps, onMounted } from 'vue';
-  =======
   import { computed, ref, watch, defineProps, onMounted, provide } from 'vue';
-  >>>>>>> 06e81e642901ffe9fbe1d3a924bc8e890995fa7f
 
   import * as authorityMap from '@/common/authority-map';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -61,15 +57,15 @@
     },
     refleshImmediate: {
       type: String,
-      default: ''
+      default: '',
     },
     handleChartDataZoom: {
       type: Function,
-      default: null
-    }
+      default: null,
+    },
   });
 
-  provide('handleChartDataZoom', props.handleChartDataZoom)
+  provide('handleChartDataZoom', props.handleChartDataZoom);
 
   const store = useStore();
   const router = useRouter();
@@ -78,7 +74,7 @@
   const indexSetParams = computed(() => store.state.indexItem);
   const routeQueryParams = computed(() => {
     const { ids, isUnionIndex, search_mode } = store.state.indexItem;
-    const {start_time, end_time, ...retrieveParams} = store.getters.retrieveParams ?? {};
+    const { start_time, end_time, ...retrieveParams } = store.getters.retrieveParams ?? {};
     const unionList = store.state.unionIndexList;
     const clusterParams = store.state.clusterParams;
     return {
@@ -94,54 +90,57 @@
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);
     store.commit('retrieve/updateIndexSetList', []);
-    return props.indexSetApi().then(res => {
-      let indexSetList = [];
-      if (res.length) {
-        // 有索引集
-        // 根据权限排序
-        const s1 = [];
-        const s2 = [];
-        for (const item of res) {
-          if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-            s1.push(item);
-          } else {
-            s2.push(item);
+    return props
+      .indexSetApi()
+      .then(res => {
+        let indexSetList = [];
+        if (res.length) {
+          // 有索引集
+          // 根据权限排序
+          const s1 = [];
+          const s2 = [];
+          for (const item of res) {
+            if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+              s1.push(item);
+            } else {
+              s2.push(item);
+            }
           }
+          indexSetList = s1.concat(s2);
+          // 索引集数据加工
+          indexSetList.forEach(item => {
+            item.index_set_id = `${item.index_set_id}`;
+            item.indexName = item.index_set_name;
+            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+          });
+          store.commit('retrieve/updateIndexSetList', indexSetList);
+          return indexSetList;
         }
-        indexSetList = s1.concat(s2);
-        // 索引集数据加工
-        indexSetList.forEach(item => {
-          item.index_set_id = `${item.index_set_id}`;
-          item.indexName = item.index_set_name;
-          item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-        });
-        store.commit('retrieve/updateIndexSetList', indexSetList);
-        return indexSetList;
-      }
-    }).finally(() => {
-      store.commit('retrieve/updateIndexSetLoading', false);
-    });
-  }
+      })
+      .finally(() => {
+        store.commit('retrieve/updateIndexSetLoading', false);
+      });
+  };
 
   /**
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    if(!props.indexSetApi) return
+    if (!props.indexSetApi) return;
     getApmIndexSetList().then(res => {
-      if(!res.length) return
+      if (!res.length) return;
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
         store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
         });
       });
-    })
+    });
   };
 
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
@@ -175,9 +174,7 @@
 
   const setRouteParams = () => {
     const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex
-    ? { indexId: undefined }
-    : { indexId: ids?.[0] ?? route.query?.indexId };
+    const params = isUnionIndex ? { indexId: undefined } : { indexId: ids?.[0] ?? route.query?.indexId };
     const query = { ...route.query, ...params };
     const resolver = new RetrieveUrlResolver({
       ...routeQueryParams.value,
@@ -197,12 +194,16 @@
   const init = () => {
     const result = handleTransformToTimestamp(props.timeRange);
     const resolver = new RouteUrlResolver({ route });
-    store.commit('updateIndexItem', { ...resolver.convertQueryToStore(), start_time: result[0], end_time: result[1], datePickerValue: props.timeRange, });
+    store.commit('updateIndexItem', {
+      ...resolver.convertQueryToStore(),
+      start_time: result[0],
+      end_time: result[1],
+      datePickerValue: props.timeRange,
+    });
     store.commit('updateIndexId', '');
     store.commit('updateUnionIndexList', []);
     getIndexSetList();
   };
-
 
   watch(
     routeQueryParams,
@@ -211,7 +212,6 @@
     },
     { deep: true },
   );
-
 
   watch(
     () => props.timeRange,
@@ -222,7 +222,7 @@
       store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
       await store.dispatch('requestIndexSetFieldInfo');
       store.dispatch('requestIndexSetQuery');
-    }
+    },
   );
 
   watch(
@@ -232,12 +232,15 @@
       store.commit('updateIndexItemParams', { timezone });
       updateTimezone(timezone);
       store.dispatch('requestIndexSetQuery');
-    }
+    },
   );
 
-  watch(() => props.refleshImmediate, () => {
-    store.dispatch('requestIndexSetQuery');
-  })
+  watch(
+    () => props.refleshImmediate,
+    () => {
+      store.dispatch('requestIndexSetQuery');
+    },
+  );
 
   const activeTab = ref('origin');
   const searchBarHeight = ref(0);
@@ -268,7 +271,7 @@
 
   onMounted(() => {
     init();
-  })
+  });
 </script>
 <template>
   <div class="retrieve-v2-index">
