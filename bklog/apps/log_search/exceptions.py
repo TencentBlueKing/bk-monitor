@@ -536,3 +536,18 @@ class SettingMenuException(BasePermException):
 class FunctionGuideException(BaseException):
     ERROR_CODE = "1002"
     MESSAGE = _("不存在该功能引导")
+
+
+# =================================================
+# 图表分析
+# =================================================
+
+
+class IndexSetDorisQueryException(BaseException):
+    ERROR_CODE = "1004"
+    MESSAGE = _("该索引集不支持doris查询")
+
+
+class SQLQueryException(BaseException):
+    ERROR_CODE = "1005"
+    MESSAGE = _("SQL查询异常: {name}")

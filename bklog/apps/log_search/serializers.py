@@ -34,9 +34,11 @@ from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
     FavoriteListOrderType,
+    FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
+    QueryMode,
     SearchMode,
     SearchScopeEnum,
     TagColor,
@@ -612,6 +614,10 @@ class CreateFavoriteSerializer(serializers.Serializer):
     index_set_type = serializers.ChoiceField(
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    favorite_type = serializers.ChoiceField(
+        label=_("收藏类型"), required=False, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
+    )
+    chart_params = serializers.JSONField(label=_("图表相关参数"), default=dict, required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -926,3 +932,10 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
                 _("参数校验失败: index_set_ids 必须被提供")
             )
         return attrs
+
+
+class ChartSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql语句"), max_length=512)
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
