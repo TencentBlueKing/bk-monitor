@@ -37,6 +37,10 @@ class TRPCApplyType(Enum):
 TRPC_LABEL: str = "BKAPM-tRPC"
 
 
+def _name_tmpl(child_name: str):
+    return _("[tRPC] {child_name} {tmpl}").format(child_name=child_name, tmpl="[{app_name}/{scope}]")
+
+
 CALLER_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
     "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
     "items": [
@@ -47,7 +51,7 @@ CALLER_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 主调平均耗时告警"),
+    "name": _name_tmpl(_("主调平均耗时告警")),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -61,7 +65,7 @@ CALLER_P99_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 主调 P99 耗时告警"),
+    "name": _name_tmpl(_("主调 P99 耗时告警")),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -75,7 +79,7 @@ CALLER_SUCCESS_RATE_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 主调成功率告警"),
+    "name": _name_tmpl("主调成功率告警"),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -89,7 +93,7 @@ CALLEE_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 被调平均耗时告警"),
+    "name": _name_tmpl("被调平均耗时告警"),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -103,7 +107,7 @@ CALLEE_P99_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 被调 P99 耗时告警"),
+    "name": _name_tmpl("被调 P99 耗时告警"),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -117,7 +121,7 @@ CALLEE_SUCCESS_RATE_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] 被调成功率告警"),
+    "name": _name_tmpl("被调成功率告警"),
     "notice": DEFAULT_NOTICE,
 }
 
@@ -132,6 +136,6 @@ PANIC_STRATEGY_CONFIG: Dict[str, Any] = {
             "target": [[]],
         }
     ],
-    "name": _("[{app_name}/{scope}] Panic（进程异常退出）告警"),
+    "name": _name_tmpl("Panic（进程异常退出）告警"),
     "notice": DEFAULT_NOTICE,
 }
