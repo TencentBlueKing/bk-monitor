@@ -136,6 +136,7 @@ class SourceType(ChoicesEnum):
     NODE = "node"
     SERVICE = "service"
     SYSTEM = "system"
+    DATA_SOURCE = "datasource"
 
     _choices_labels = (
         (APM_SERVICE, _("APM 应用服务")),
@@ -144,6 +145,7 @@ class SourceType(ChoicesEnum):
         (NODE, _("node")),
         (SERVICE, _("[K8S] Service")),
         (SYSTEM, _("Host")),
+        (DATA_SOURCE, _("datasource")),
     )
 
 
