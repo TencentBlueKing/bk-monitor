@@ -77,32 +77,23 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 yield index_info
 
     # Resource: 从关联指标中找
-    relation_index_sets = ServiceLogHandler.list_indexes_by_relation(
+    relation_index_set_ids = ServiceLogHandler.list_indexes_by_relation(
         bk_biz_id,
         app_name,
         service_name,
         start_time,
         end_time,
     )
-    if relation_index_sets:
-        for i in relation_index_sets:
-            relation_bk_biz_id = i["bk_biz_id"]
-            relation_index_set_id = i["index_set_id"]
-
-            if relation_index_set_id not in index_set_ids:
-                if relation_bk_biz_id not in indexes_mapping:
-                    indexes_mapping[relation_bk_biz_id] = api.log_search.search_index_set(bk_biz_id=relation_bk_biz_id)
+    if relation_index_set_ids:
+        for i in relation_index_set_ids:
+            if i not in index_set_ids:
 
                 index_info = next(
-                    (
-                        j
-                        for j in indexes_mapping.get(relation_bk_biz_id, [])
-                        if str(j["index_set_id"]) == str(relation_index_set_id)
-                    ),
+                    (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(i)),
                     None,
                 )
                 if index_info:
-                    index_set_ids.append(relation_index_set_id)
+                    index_set_ids.append(i)
                     yield index_info
 
 
