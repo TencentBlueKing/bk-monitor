@@ -393,9 +393,6 @@ class DataLink(models.Model):
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
 
-        if self.data_link_strategy == DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            bkbase_data_name = 'fed_' + bkbase_data_name
-
         storage_type = ClusterInfo.TYPE_VM
         if self.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES:
             storage_type = ClusterInfo.TYPE_VM
@@ -410,11 +407,11 @@ class DataLink(models.Model):
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
                     data_link_name=self.data_link_name,
-                    bkbase_data_name=bkbase_data_name,
                     monitor_table_id=table_id,
                     storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                     defaults={
                         "bkbase_rt_name": bkbase_vmrt_name,
+                        "bkbase_data_name": bkbase_data_name,
                         "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
                         "storage_type": storage_type,
                         "storage_cluster_id": storage_cluster_id,
