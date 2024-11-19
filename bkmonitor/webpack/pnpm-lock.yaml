@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.2.13
-        version: 0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: ^0.2.14
+        version: 0.2.14(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.6
         version: 0.0.26-beta.6
@@ -2413,8 +2413,8 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/ai-blueking@0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
-    resolution: {integrity: sha512-9gBQ/YTtFT+qtLI9U/lw3ALaPq4O3OBBDOTH5HqhE322q2/orws6B7F1FlNK1seZ7tiJeY8FTHQyZK7AOEIX1Q==}
+  /@blueking/ai-blueking@0.2.14(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
+    resolution: {integrity: sha512-g5mykUtOzOAq/b5EpOj15OPJEzZ8cq3AyEaCwIDD6oefH53OOejxLxVXNZE4j0nOBY/A1/Nsj6+Pb4QBrCBifA==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
