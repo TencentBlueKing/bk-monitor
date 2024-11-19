@@ -267,7 +267,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
-      this.checked = this.$route.params?.url || '';
+      const list = (this.$route.params?.url || '').split('/') || [];
+      this.checked = list[0] || '';
     } else {
       this.checked = random(10);
     }
@@ -299,12 +300,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleGrafanaTreeData(list: Array<any>): ITreeMenuItem[] {
     return list.map(item => {
-      const { id, title, dashboards = [], uid = '', isStarred = false } = item;
+      const { id, title, dashboards = [], uid = '', isStarred = false, url } = item;
       return {
         id,
         title,
         uid,
         isStarred,
+        url,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
         editable: item.editable ?? true,
         children: this.handleGrafanaTreeData(dashboards),
@@ -330,6 +332,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           id: item.id,
           name: item.name,
           uid: item.uid,
+          url: item.url,
         });
       return total;
     }, []);

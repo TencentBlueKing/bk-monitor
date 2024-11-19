@@ -167,7 +167,7 @@
           "step":""
         }
       ],
-      "title":"正在执行的execute数量",
+      "title":"正在执行的 execute 数量",
       "type":"stat"
     },
     {
@@ -290,7 +290,7 @@
           "step":""
         }
       ],
-      "title":"正在执行的schdule数量",
+      "title":"正在执行的 schdule 数量",
       "type":"stat"
     },
     {
@@ -588,7 +588,7 @@
           "type":"range"
         }
       ],
-      "title":"插件schdule执行成功率",
+      "title":"插件 schdule 执行成功率",
       "type":"gauge"
     },
     {
@@ -2289,7 +2289,7 @@
           "type":"range"
         }
       ],
-      "title":"HTTP请求数",
+      "title":"HTTP 请求数",
       "type":"stat"
     },
     {
@@ -2871,7 +2871,7 @@
           "type":"range"
         }
       ],
-      "title":"插件每次执行execute的耗时分布",
+      "title":"插件每次执行 execute 的耗时分布",
       "type":"timeseries"
     },
     {
@@ -3343,7 +3343,7 @@
       },
       "gridPos":{
         "h":12,
-        "w":7,
+        "w":8,
         "x":0,
         "y":39
       },
@@ -3424,7 +3424,7 @@
           "type":"range"
         }
       ],
-      "title":"容量/内存使用率",
+      "title":"内存使用率",
       "type":"timeseries"
     },
     {
@@ -3490,8 +3490,8 @@
       },
       "gridPos":{
         "h":12,
-        "w":6,
-        "x":7,
+        "w":9,
+        "x":8,
         "y":39
       },
       "id":40,
@@ -3638,124 +3638,8 @@
       },
       "gridPos":{
         "h":12,
-        "w":6,
-        "x":13,
-        "y":39
-      },
-      "id":42,
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"single",
-          "sort":"none"
-        }
-      },
-      "targets":[
-        {
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "expressionList":[
-
-          ],
-          "format":"time_series",
-          "host":[
-
-          ],
-          "mode":"code",
-          "module":[
-
-          ],
-          "promqlAlias":"",
-          "query_configs":[
-
-          ],
-          "refId":"A",
-          "source":"(sum by(pod_name) (rate(container_cpu_usage_seconds_total{namespace=~\"bkapp-$bk_app_code-$bk_env\"}[2m])) / on(pod_name) group_right() sum by(pod_name) (kube_pod_container_resource_requests_cpu_cores{namespace=~\"bkapp-$bk_app_code-$bk_env\"})) * 100",
-          "step":"",
-          "type":"range"
-        }
-      ],
-      "title":"容量/CPU request使用率",
-      "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":25,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"auto",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"normal"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          },
-          "unit":"percent"
-        },
-        "overrides":[
-
-        ]
-      },
-      "gridPos":{
-        "h":12,
-        "w":5,
-        "x":19,
+        "w":7,
+        "x":17,
         "y":39
       },
       "id":44,
@@ -3803,7 +3687,7 @@
           "type":"range"
         }
       ],
-      "title":"容量/CPU limit使用率",
+      "title":"CPU 使用率",
       "type":"timeseries"
     }
   ],
@@ -3900,7 +3784,7 @@
   },
   "timezone":"default",
   "title":"bksaas/sops-plugin-python",
-  "version":98,
+  "version":99,
   "weekStart":"",
   "__inputs":[
     {

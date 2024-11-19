@@ -56,20 +56,22 @@ class CheckCMSIResource(CMSIBaseResource):
         """
         # 待返回数据格式， 假定默认都是成功发送
         response_data = {
+            # invalid: 通知失败的用户名列表
             "username_check": {"invalid": []},
             "message": "发送成功",
         }
 
         self.message_detail = {}
 
-        # 获取 receiver__username:str, receiver: str --> revie
-
         if validated_request_data.get("receiver__username"):
-            self.get_receivers_from_receiver_username(validated_request_data)
+            # validated_request_data["receiver"] 转换为邮箱地址, 逗号连接
+            # receivers 变量表示接收用户列表
+            receivers: List = self.get_receivers_from_receiver_username(validated_request_data)
         elif isinstance(validated_request_data["receiver"], list):
-            receivers = validated_request_data["receiver"]
+            receivers: List = validated_request_data["receiver"]
+            validated_request_data["receiver"] = ",".join(receivers)
         else:
-            receivers = validated_request_data["receiver"].split(",")
+            receivers: List = validated_request_data["receiver"].split(",")
 
         try:
             super(CMSIBaseResource, self).perform_request(validated_request_data)
@@ -81,6 +83,7 @@ class CheckCMSIResource(CMSIBaseResource):
             invalid = receivers
             if isinstance(e.data, dict):
                 try:
+                    # api 返回告诉哪些人失败， 但不一定有， 没有的时候， 默认所有通知人都失败
                     invalid = e.data["data"]["username_check"]["invalid"]
                 except (KeyError, TypeError):
                     pass
@@ -88,8 +91,11 @@ class CheckCMSIResource(CMSIBaseResource):
                     # 如果在错误结果情况下，返回的invalid用户为空的时候，判断所有的用户为失败
                     invalid = receivers
 
+            # 通知失败的人员列表
             response_data["username_check"]["invalid"] = invalid
+            # 失败原因
             response_data["message"] = str(e)
+            # 记录失败的具体原因 {username: reason}， 仅失败才有
             response_data["message_detail"] = self.message_detail
 
             return response_data
@@ -103,37 +109,36 @@ class CheckCMSIResource(CMSIBaseResource):
             return response_data
 
     def get_receivers_from_receiver_username(self, validated_request_data):
+        if not settings.BK_USERINFO_API_BASE_URL or not isinstance(self, (SendMail, SendSms)):
+            return
+
         receivers: List[str] = validated_request_data["receiver__username"].split(",")
+        # 获取用户信息
+        param = {"usernames": validated_request_data["receiver__username"], "fields": "email,phone"}
+        receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
 
-        if settings.BK_USERINFO_API_BASE_URL and isinstance(self, (SendMail, SendSms)):
-            receivers_info = {}
-
-            # 获取用户信息
-            param = {"usernames": validated_request_data["receiver__username"], "fields": "email,phone"}
-            receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
-
-            # 转化格式  -> {username: { "email": email, "phone": phone }}
-            # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
-            receivers_info = {
-                receiver["username"]: {
-                    "email": receiver["email"],
-                    "phone": f"+{receiver['phone_country_code']}{receiver['phone']}",
-                }
-                for receiver in receivers_info
+        # 转化格式  -> {username: { "email": email, "phone": phone }}
+        # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
+        receivers_info = {
+            receiver["username"]: {
+                "email": receiver["email"],
+                "phone": f"+{receiver['phone_country_code']}{receiver['phone']}",
             }
+            for receiver in receivers_info
+        }
 
-            # 提前获取失败原因为 "用户不存在" 的用户, 并且不会他们进行发送
-            not_exist_usernames = [username for username in receivers if username not in receivers_info.keys()]
-            self.message_detail.update({username: "用户不存在" for username in not_exist_usernames})
+        # 提前获取失败原因为 "用户不存在" 的用户, 并且不会他们进行发送
+        not_exist_usernames = [username for username in receivers if username not in receivers_info.keys()]
+        self.message_detail.update({username: "user not exists" for username in not_exist_usernames})
 
-            # 删除不存在的用户无需给发送内容
-            receivers = list(set(receivers) - set(not_exist_usernames))
+        # 对应不同的子类，转化对应的receivers返回出去
+        if isinstance(self, SendMail):
+            validated_request_data["receiver"] = ",".join([info["email"] for info in receivers_info.values()])
+        # sms 暂不处理
+        # if isinstance(self, SendSms):
+        #     validated_request_data["receiver"] = ",".join([info["phone"] for info in receivers_info.values()])
 
-            # 对应不同的子类，转化对应的receivers返回出去
-            if isinstance(self, SendMail):
-                validated_request_data["receiver"] = ",".join([info["email"] for info in receivers_info.values()])
-            if isinstance(self, SendSms):
-                validated_request_data["receiver"] = ",".join([info["phone"] for info in receivers_info.values()])
+        return list(set(receivers) - set(not_exist_usernames))
 
 
 class GetMsgType(CMSIBaseResource):

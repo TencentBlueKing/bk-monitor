@@ -126,6 +126,10 @@ logger = logging.getLogger("root")
 
 
 class GetFtaData(Resource):
+    """
+    4线策略告警统计
+    """
+
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
         thedate = validated_request_data.get("thedate", None)
@@ -142,7 +146,7 @@ class GetFtaData(Resource):
             # 如果没有传入指定日期 则获取上一周的日期
             start_time, end_time = get_previous_week_range_unix()
         else:
-            start_time, end_time = get_day_range_unix()
+            start_time, end_time = get_day_range_unix(thedate)
 
         ret = []
         scenario = constants.QuickSolutionsConfig.SCENARIO
@@ -210,6 +214,10 @@ class GetFtaData(Resource):
 
 
 class GetTmpData(Resource):
+    """
+    tmp来源告警占比统计
+    """
+
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
         start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
