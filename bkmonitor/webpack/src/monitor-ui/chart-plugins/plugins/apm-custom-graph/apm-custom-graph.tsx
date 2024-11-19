@@ -189,7 +189,7 @@ export default class CustomChart extends TimeSeries {
             v-bkloading={{ isLoading: this.noDataLoading }}
           >
             <bk-exception type='building'>
-              <span>{!this.isEnabledMetric ? this.$t('暂未开启 指标 功能') : this.$t('暂无 Profiling 数据')}</span>
+              <span>{!this.isEnabledMetric ? this.$t('暂未开启 指标 功能') : this.$t('暂无 指标 数据')}</span>
               <div class='text-wrap'>
                 <span class='text-row'>
                   {!this.isEnabledMetric
