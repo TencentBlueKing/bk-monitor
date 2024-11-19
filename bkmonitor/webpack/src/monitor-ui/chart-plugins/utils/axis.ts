@@ -49,11 +49,12 @@ export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, numb
  * @returns 适配于 echarts 中X轴关于限制ticks的设置
  */
 export function getTimeSeriesXInterval(maxXInterval: number, width: number, maxSeriesCount: number) {
+  const splitNumber = width < 180 ? 2 : 4;
   if (!maxXInterval || !width || maxSeriesCount < 3)
     return {
       max: 'dataMax',
       min: 'dataMin',
-      splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, 4),
+      splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, splitNumber),
     };
   const hasDayAndHour = maxXInterval > 60 * 60 * 24 * 1000 && maxXInterval < 60 * 60 * 24 * 6000;
   const labelWidth = hasDayAndHour ? 180 : 80;
@@ -64,7 +65,7 @@ export function getTimeSeriesXInterval(maxXInterval: number, width: number, maxS
   return {
     interval,
     minInterval: interval,
-    splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, 4),
+    splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, splitNumber),
     max: 'dataMax',
     min: 'dataMin',
   };

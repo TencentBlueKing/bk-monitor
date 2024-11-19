@@ -192,7 +192,9 @@ export default class MyComponent extends tsc<object> {
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
-      const dashboardId = pathname.replace('grafana/', '') || '';
+      const dashboardId = pathname.includes('grafana/d/')
+        ? pathname.replace(/\/?grafana\/d\//, '').replace(/\/$/, '')
+        : '';
       if (dashboardId && this.url !== dashboardId) {
         this.$router.push({
           name: 'favorite-dashboard',
@@ -277,7 +279,6 @@ export default class MyComponent extends tsc<object> {
             'min-height': this.showAlert ? 'calc(100% - 32px)' : '100%',
           }}
           class='grafana-wrap-frame'
-          allow='fullscreen'
           src={this.grafanaUrl}
           title='grafana'
           onLoad={this.handleLoad}
