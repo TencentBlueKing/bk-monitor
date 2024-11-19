@@ -36,9 +36,6 @@ export default class GlobalConfigMixin extends Vue {
   public async handleGetGlobalConfig<T>(key: string): Promise<[] | T> {
     try {
       const globalConfig = await listGlobalConfig({ key }, { reject403: true });
-      if (!globalConfig?.[0]?.id) {
-        return [];
-      }
       return JSON.parse(globalConfig[0].value) as T;
     } catch {
       return [];
