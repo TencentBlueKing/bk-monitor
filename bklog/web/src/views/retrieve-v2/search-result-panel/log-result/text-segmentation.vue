@@ -6,6 +6,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { debounce } from 'lodash';
+  import { TABLE_FOUNT_FAMILY } from '@/common/util';
 
   const emit = defineEmits(['menu-click']);
 
@@ -41,7 +42,7 @@
     fontSize: 12,
     text: props.content,
     maxWidth: maxWidth.value,
-    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
+    font: `12px ${TABLE_FOUNT_FAMILY}`,
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
@@ -192,13 +193,9 @@
 </template>
 <style lang="scss">
   .bklog-text-segment {
+    position: relative;
     max-height: 60px;
     overflow: hidden;
-    font-size: 12px;
-    white-space: pre-line;
-    text-align: left;
-    position: relative;
-    word-break: break-all;
     font:
       12px Menlo,
       Monaco,
@@ -207,6 +204,10 @@
       'PingFang SC',
       'Microsoft Yahei',
       monospace;
+    font-size: 12px;
+    text-align: left;
+    word-break: break-all;
+    white-space: pre-line;
 
     &.is-expand-all {
       max-height: max-content;

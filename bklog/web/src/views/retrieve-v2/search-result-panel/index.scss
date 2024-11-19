@@ -11,17 +11,33 @@
     .field-list-sticky {
       position: sticky;
       top: 52px;
+      z-index: 2;
       align-self: start;
-      margin-right: 16px;
-    }
-
-    .search-result-content {
     }
 
     .split-line {
       width: 100%;
       margin: 3px 0 6px;
       border-bottom: solid 1px #dcdee5;
+    }
+
+    .search-result-content {
+      position: relative;
+      padding-left: 16px;
+      border-left: solid 1px #dcdee5;
+
+      &::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        width: 500px;
+        content: '';
+        background-color: #fff;
+        box-shadow: 1px 0 0 0 #eaebf0;
+        transform: translateX(-100%);
+      }
     }
   }
 }

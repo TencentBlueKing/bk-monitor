@@ -92,13 +92,19 @@ export default defineComponent({
     const isLoading = computed(() => indexSetQueryResult.value.is_loading);
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
-    const totalCount = computed(() => store.state.retrieve.trendDataCount);
+    const totalCount = computed(() => {
+      const count = store.state.indexSetQueryResult.total;
+      if (count._isBigNumber) {
+        return count.toNumber();
+      }
+
+      return count;
+    });
     const visibleIndexs = ref({ startIndex: 0, endIndex: 50 });
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
     const hasOverflowX = ref(false);
-    // const headHeight = ref(48);
 
     const visibleTableList = computed(() =>
       tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
@@ -262,6 +268,7 @@ export default defineComponent({
               key: field.field_name,
               title: field.field_name,
               width: field.width,
+              minWidth: field.width,
               align: 'top',
               resize: true,
               renderBodyCell: ({ row }) => {
@@ -422,16 +429,33 @@ export default defineComponent({
       });
     };
 
+    const isRequesting = ref(false);
     const loadMoreTableData = () => {
       if (totalCount.value > tableData.value.length) {
-        return store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
-          visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + res.data.list.length;
-        });
+        isRequesting.value = true;
+        return store
+          .dispatch('requestIndexSetQuery', { isPagination: true })
+          .then(res => {
+            isRequesting.value = false;
+            visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + res.data.list.length;
+            return true;
+          })
+          .finally(() => {
+            isRequesting.value = false;
+            return true;
+          });
       }
     };
 
+    // 滚动不满一行数据时，第一行数据的偏移量
     const scrollRowOffsetHeight = ref(0);
-    const handleScrollEvent = (scrollTop, offsetTop) => {
+    const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
+      if (isRequesting.value) {
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+      }
+
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
@@ -441,9 +465,12 @@ export default defineComponent({
       while (startPosition < useScrollHeight) {
         const nextItem = tableData.value[startIndex];
         if (nextItem) {
-          startPosition = startPosition + nextItem[ROW_CONFIG].value.minHeight;
-          if (startPosition <= useScrollHeight) {
+          const lastHeight = startPosition + nextItem[ROW_CONFIG].value.minHeight;
+          if (lastHeight <= useScrollHeight) {
+            startPosition = lastHeight;
             startIndex = startIndex + 1;
+          } else {
+            break;
           }
         }
 
@@ -479,9 +506,19 @@ export default defineComponent({
       container: resultContainerIdSelector,
     });
 
+    const scrollXOffsetLeft = ref(0);
+
+    const scrollXTransformStyle = computed(() => {
+      return {
+        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
+        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
+      };
+    });
+
     const headStyle = computed(() => {
       return {
         top: `${searchContainerHeight.value}px`,
+        ...scrollXTransformStyle.value,
       };
     });
 
@@ -587,7 +624,7 @@ export default defineComponent({
     };
 
     const handleScrollXChanged = (event: MouseEvent) => {
-      refRootElement.value.parentElement.scrollLeft = (event.target as HTMLElement).scrollLeft;
+      scrollXOffsetLeft.value = (event.target as HTMLElement).scrollLeft;
     };
 
     const renderScrollXBar = () => {
@@ -602,8 +639,18 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         minHeight: `${tableMinHeight.value}px`,
+        ...scrollXTransformStyle.value,
       };
     });
+
+    const renderLoader = () => {
+      return (
+        <div
+          class='bklog-requsting-loading'
+          v-bkloading={{ isLoading: isRequesting.value }}
+        />
+      );
+    };
 
     return {
       tableData,
@@ -612,8 +659,10 @@ export default defineComponent({
       renderScrollTop,
       renderRowVNode,
       renderScrollXBar,
+      renderLoader,
       resultContainerId,
       tableStyle,
+      scrollXTransformStyle,
       showHeader,
       refRootElement,
       scrollDirection,
@@ -624,7 +673,6 @@ export default defineComponent({
       <div
         ref='refRootElement'
         class='bklog-result-container'
-        v-bkloading={{ isLoading: this.isLoading }}
       >
         {this.renderHeadVNode()}
         <div
@@ -646,6 +694,7 @@ export default defineComponent({
         )}
         {this.renderScrollTop()}
         {this.renderScrollXBar()}
+        {this.renderLoader()}
         <div class='resize-guide-line'></div>
       </div>
     );

@@ -81,7 +81,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
 
     scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
 
-    scrollCallbackFn?.(target.scrollTop, scrollElementOffset, scrollDirection.value);
+    scrollCallbackFn?.(event, target.scrollTop, scrollElementOffset, scrollDirection.value);
     lastPosition = target.scrollTop;
   });
 
@@ -91,9 +91,10 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
 
   const hasScrollX = () => {
     const target = getCurrentElement() as HTMLDivElement;
-    offsetWidth.value = target.offsetWidth;
-    scrollWidth.value = target.scrollWidth;
-    return target.scrollWidth > target.offsetWidth;
+    const wrapper = target.closest('.bklog-result-container') as HTMLElement;
+    offsetWidth.value = wrapper.offsetWidth;
+    scrollWidth.value = wrapper.scrollWidth;
+    return wrapper.scrollWidth > wrapper.offsetWidth;
   };
 
   onMounted(() => {
