@@ -950,6 +950,19 @@ export default {
     'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
   '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
     'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
+  下载模式: 'Download Mode',
+  当前数据量级: 'Current Data Scale',
+  '{n}条': '{n} entries',
+  预计下载时长: 'Estimated Download Duration',
+  请选择文件类型: 'Please Select File Type',
+  文件类型: 'File Type',
+  '快速下载(提速100%+)': 'Fast Download (Speed Up 100%+)',
+  '取样下载(前1万条)': 'Sample Download (First 10,000 Entries)',
+  '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条':
+    'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
     'The maximum number of days can be preserved by the cluster, and the current maximum can be saved {n}',

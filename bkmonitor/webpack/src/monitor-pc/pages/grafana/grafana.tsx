@@ -192,8 +192,7 @@ export default class MyComponent extends tsc<object> {
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
-      const matches = pathname.match(/\/d\/([^/]+)\//);
-      const dashboardId = matches?.[1] || '';
+      const dashboardId = pathname.replace('grafana/', '') || '';
       if (dashboardId && this.url !== dashboardId) {
         this.$router.push({
           name: 'favorite-dashboard',

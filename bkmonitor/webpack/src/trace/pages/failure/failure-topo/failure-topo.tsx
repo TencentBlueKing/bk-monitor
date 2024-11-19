@@ -50,6 +50,7 @@ import {
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message, Popover, Slider } from 'bkui-vue';
+import { cloneDeep } from 'lodash';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
@@ -1877,7 +1878,7 @@ export default defineComponent({
     );
     const handleToDetailSlider = node => {
       detailInfo.value = node;
-      const data = JSON.parse(JSON.stringify({ ...node }));
+      const data = cloneDeep(node);
       data.nodeId = node.id;
       data.id = node.alert_ids[0];
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);

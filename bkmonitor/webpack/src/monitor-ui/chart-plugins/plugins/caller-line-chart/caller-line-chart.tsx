@@ -604,12 +604,11 @@ class CallerLineChart extends CommonSimpleChart {
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
       // 获取y轴上可设置的最小的精确度
-      let precision = this.handleGetMinPrecision(
+      const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
-      precision = precision > 2 ? 2 : precision;
       if (item.name) {
         for (const key in legendItem) {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -631,7 +630,7 @@ class CallerLineChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || 2,
         lineStyle: {
           width: 2,
         },

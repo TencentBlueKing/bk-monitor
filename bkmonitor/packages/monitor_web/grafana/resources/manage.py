@@ -129,7 +129,7 @@ class CreateDashboardOrFolder(Resource):
             result = api.grafana.create_folder(org_id=org_id, title=params["title"])
         else:
             result = api.grafana.import_dashboard(
-                dashboard={"title": params["title"], "tags": [], "timezone": "default", "schemaVersion": 0},
+                dashboard={"title": params["title"], "tags": [], "timezone": "", "schemaVersion": 0},
                 folderId=params["folderId"],
                 org_id=org_id,
             )

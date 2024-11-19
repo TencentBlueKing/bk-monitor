@@ -187,7 +187,7 @@ class ServiceLogHandler:
 
         res = []
         full_collectors = api.log_search.list_collectors()
-        for i in data_ids[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
+        for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
             info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
             if info:
                 res.append(info["index_set_id"])

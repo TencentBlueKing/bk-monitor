@@ -64,9 +64,8 @@
       v-model="isShowExportDialog"
       :mask-close="false"
       :ok-text="$t('下载')"
-      :show-footer="isShowFooter"
-      :title="getDialogTitle"
-      :width="getDialogWidth"
+      :title="$t('日志下载')"
+      :width="640"
       header-position="left"
       theme="primary"
       @after-leave="closeExportDialog"
@@ -76,11 +75,44 @@
         class="export-container"
         v-bkloading="{ isLoading: exportLoading }"
       >
-        <template v-if="isShowAsyncDownload">
-          <span class="bk-icon bk-dialog-warning icon-exclamation"></span>
-          <div class="header">{{ getExportTitle }}</div>
-        </template>
+        <div class="log-num-container">
+          <div class="num-box">
+            <span class="log-num">{{ $t('{n}条', { n: totalCount }) }}</span>
+            <span class="log-unit">{{ $t('当前数据量级') }}</span>
+          </div>
+          <div class="num-box">
+            <span class="log-num">{{ sizDownload }}min</span>
+            <span class="log-unit">{{ $t('预计下载时长') }}</span>
+          </div>
+        </div>
         <div class="filed-select-box">
+          <span class="middle-title">{{ $t('下载模式') }}</span>
+          <bk-radio-group
+            class="filed-radio-box"
+            v-model="downloadType"
+          >
+            <bk-radio
+              v-for="[key, val] in Object.entries(downloadTypeRadioMap)"
+              :key="key"
+              :value="key"
+            >
+              {{ val }}
+            </bk-radio>
+          </bk-radio-group>
+          <span
+            v-if="!!typeTipsMap[downloadType]"
+            class="mode-hint"
+          >
+            <bk-alert
+              type="info"
+              :title="typeTipsMap[downloadType]"
+            ></bk-alert>
+          </span>
+        </div>
+        <div
+          class="filed-select-box"
+          v-if="downloadType !== 'quick'"
+        >
           <span class="middle-title">{{ $t('下载范围') }}</span>
           <bk-radio-group
             class="filed-radio-box"
@@ -90,8 +122,9 @@
               v-for="[key, val] in Object.entries(radioMap)"
               :key="key"
               :value="key"
-              >{{ val }}</bk-radio
             >
+              {{ val }}
+            </bk-radio>
           </bk-radio-group>
           <bk-select
             v-if="selectFiledType === 'specify'"
@@ -109,8 +142,24 @@
             >
             </bk-option>
           </bk-select>
-          <!-- <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div> -->
         </div>
+        <!-- <div class="filed-select-box">
+          <span class="middle-title">{{ $t('文件类型') }}</span>
+          <bk-select
+            style="margin-top: 10px"
+            v-model="documentType"
+            :clearable="false"
+            :placeholder="$t('请选择文件类型')"
+          >
+            <bk-option
+              v-for="option in documentTypeList"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+        </div> -->
         <!-- v-if="isShowMaskingTemplate" -->
         <div
           v-if="false"
@@ -125,48 +174,11 @@
               v-for="[key, val] in Object.entries(logTypeMap)"
               :key="key"
               :value="key"
-              >{{ val }}</bk-radio
             >
+              {{ val }}
+            </bk-radio>
           </bk-radio-group>
         </div>
-        <div
-          v-if="asyncExportUsable && isShowAsyncDownload"
-          class="style-line"
-        ></div>
-        <span v-if="isUnionSearch && isShowAsyncDownload">{{
-          $t('联合查询无法进行异步下载，可直接下载前1万条数据')
-        }}</span>
-        <template v-if="!asyncExportUsable && !isUnionSearch">
-          <span>{{ $t('当前因{n}导致无法进行异步下载， 可直接下载前1万条数据', { n: asyncExportUsableReason }) }}</span>
-          <div class="cannot-async-btn">
-            <bk-button
-              theme="primary"
-              @click="openDownloadUrl"
-              >{{ $t('直接下载') }}</bk-button
-            >
-            <bk-button
-              style="margin-left: 10px"
-              @click="() => (isShowExportDialog = false)"
-              >{{ $t('取消') }}</bk-button
-            >
-          </div>
-        </template>
-        <template v-if="asyncExportUsable && isShowAsyncDownload">
-          <div class="export-type immediate-export">
-            <span class="bk-icon icon-info-circle"></span>
-            <span class="export-text">{{ $t('直接下载仅下载前1万条数据') }}</span>
-            <bk-button
-              theme="primary"
-              @click="openDownloadUrl"
-              >{{ $t('直接下载') }}</bk-button
-            >
-          </div>
-          <div class="export-type async-export">
-            <span class="bk-icon icon-info-circle"></span>
-            <span class="export-text">{{ getAsyncText }}</span>
-            <bk-button @click="downloadAsync">{{ $t('异步下载') }}</bk-button>
-          </div>
-        </template>
       </div>
     </bk-dialog>
   </div>
@@ -201,14 +213,6 @@
       //   type: Boolean,
       //   default: true,
       // },
-      asyncExportUsable: {
-        type: Boolean,
-        default: true,
-      },
-      asyncExportUsableReason: {
-        type: String,
-        default: '',
-      },
       // totalFields: {
       //   type: Array,
       //   require: true,
@@ -238,10 +242,40 @@
           show: this.$t('当前显示字段'),
           specify: this.$t('指定字段'),
         },
+        downloadType: 'all',
+        downloadTypeRadioMap: {
+          all: this.$t('全文下载'),
+          quick: this.$t('快速下载(提速100%+)'),
+          sampling: this.$t('取样下载(前1万条)'),
+        },
+        typeTipsMap: {
+          quick: this.$t(
+            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条',
+          ),
+          all: this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
+          sampling: '',
+        },
+        timeCalculateMap: {
+          all: 200000,
+          quick: 400000,
+          sampling: 0,
+        },
         logTypeMap: {
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
+        documentType: 'txt',
+        documentTypeList: [
+          // {
+          //   id: 'csv',
+          //   name: 'csv',
+          // },
+          {
+            id: 'txt',
+            name: 'txt',
+          },
+        ],
+        modeHintMap: {},
         // queueStatus: true
       };
     },
@@ -264,36 +298,16 @@
         isShowMaskingTemplate: 'isShowMaskingTemplate',
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
-      }), // store.state.searchTotal
-      getAsyncText() {
-        // 异步下载按钮前的文案
-        return this.totalCount > this.exportSecondComparedSize
-          ? this.$t('建议缩小查询范围，异步下载只能下载前200w条，注意查看邮件')
-          : this.$t('异步下载可打包下载所有数据，请注意查收下载通知邮件');
-      },
-      getExportTitle() {
-        // 超过下载临界值，当前数据超过多少条文案
-        return this.$t('当前数据超过{n}万条', { n: this.totalCount > this.exportSecondComparedSize ? 200 : 1 });
-      },
-      getDialogTitle() {
-        // 异步下载临界值，dialog标题
-        return this.totalCount < this.exportFirstComparedSize ? this.$t('日志下载') : '';
-      },
-      isShowAsyncDownload() {
-        // 是否展示异步下载
-        return this.totalCount > this.exportFirstComparedSize;
-      },
-      isShowFooter() {
-        return !this.isShowAsyncDownload || this.isUnionSearch;
+      }),
+      sizDownload() {
+        if (this.downloadType === 'sampling') return '< 1';
+        return Math.ceil(this.totalCount / this.timeCalculateMap[this.downloadType]);
       },
       submitSelectFiledList() {
         // 下载时提交的字段
         if (this.selectFiledType === 'specify') return this.selectFiledList;
         if (this.selectFiledType === 'show') return this.visibleFields.map(item => item.field_name);
         return [];
-      },
-      getDialogWidth() {
-        return this.$store.getters.isEnLanguage ? '470' : '440';
       },
       routerIndexSet() {
         return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
@@ -339,8 +353,41 @@
         this.isShowExportDialog = true;
       },
       handleClickSubmit() {
-        this.openDownloadUrl();
+        if (this.downloadType === 'quick') {
+          this.quickDownload();
+        } else if (this.downloadType === 'all') {
+          this.downloadAsync();
+        } else {
+          this.openDownloadUrl();
+        }
         this.isShowExportDialog = false;
+      },
+      quickDownload() {
+        const { timezone, ...rest } = this.retrieveParams;
+        const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+        const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
+        const data = {
+          ...params,
+          size: this.totalCount,
+          time_range: 'customized',
+          export_fields: this.submitSelectFiledList,
+          is_desensitize: this.desensitizeRadioType === 'desensitize',
+          file_type: this.documentType,
+        };
+        axiosInstance
+          .post(downRequestUrl, data)
+          .then(res => {
+            if (res.result) {
+              this.$bkMessage({
+                theme: 'success',
+                message: res.data.prompt,
+              });
+            }
+          })
+          .finally(() => {
+            this.isShowExportDialog = false;
+            this.selectFiledList = [];
+          });
       },
       openDownloadUrl() {
         const { timezone, ...rest } = this.retrieveParams;
@@ -357,11 +404,12 @@
           time_range: 'customized',
           export_fields: this.submitSelectFiledList,
           is_desensitize: this.desensitizeRadioType === 'desensitize',
+          file_type: this.documentType,
         };
         axiosInstance
           .post(downRequestUrl, data)
           .then(res => {
-            if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            if (typeof res !== 'string') {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
@@ -370,11 +418,10 @@
             }
             const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
             const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
-              : 'bk_log_search.txt';
+              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
+              : `bk_log_search.${this.documentType}`;
             blobDownload(res, downloadName);
           })
-          .catch(() => {})
           .finally(() => {
             this.isShowExportDialog = false;
             this.selectFiledList = [];
@@ -426,6 +473,8 @@
 </script>
 
 <style lang="scss" scoped>
+  @import '@/scss/mixins/flex.scss';
+
   .operation-icon {
     display: flex;
     align-items: center;
@@ -485,20 +534,17 @@
     font-size: 12px;
     text-align: left;
 
+    .bk-select {
+      width: 284px;
+    }
+
     .filed-radio-box {
       margin: 8px 0 10px 0;
 
       .bk-form-radio {
-        margin-right: 24px;
+        margin-right: 20px;
       }
     }
-  }
-
-  .style-line {
-    width: 100%;
-    height: 1px;
-    margin: 25px 0 35px 0;
-    border-top: 1px solid #c4c6cc;
   }
 
   .desensitize-select-box {
@@ -516,11 +562,67 @@
   }
 
   .middle-title {
+    font-size: 14px;
+    font-weight: 700;
+
     &::after {
       display: inline-block;
       color: #ea3636;
       content: '*';
       transform: translateX(2px) translateY(2px);
+    }
+  }
+
+  %num-box-extend {
+    width: 48%;
+    background: #f5f7fa;
+    border-radius: 2px;
+
+    @include flex-center();
+  }
+
+  .log-num-container {
+    margin: 8px 0;
+    font-size: 12px;
+
+    @include flex-justify(space-between);
+
+    .num-box {
+      flex-direction: column;
+      height: 80px;
+
+      @extend %num-box-extend;
+
+      .log-num,
+      log-unit {
+        color: #313238;
+      }
+
+      .log-num {
+        margin-right: 2px;
+        font-size: 24px;
+        font-weight: 700;
+      }
+    }
+
+    .log-str {
+      margin-top: 4px;
+    }
+  }
+
+  .mode-hint {
+    margin-top: 20px;
+
+    :deep(.icon-info) {
+      color: #63656e;
+    }
+
+    :deep(.bk-alert-info) {
+      border: none;
+    }
+
+    :deep(.bk-alert-wraper) {
+      background: #f0f1f5;
     }
   }
 
