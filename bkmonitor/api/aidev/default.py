@@ -83,7 +83,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
                         break
 
             doc_link_html = "\n".join(
-                [link_tmp.format(doc_name=file_name, doc_link=path) for file_name, path in link_map.items()]
+                [link_tmp.format(doc_name=file_name, doc_link=link) for link, file_name in link_map.items()]
             )
             section_html = section_tmp.format(doc_count=len(docs), doc_link_html=doc_link_html)
             data = {"event": "text", "content": ""}
