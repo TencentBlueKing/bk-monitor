@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import re
 
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext as _
 
 from apps.api import BkDataQueryApi
 from apps.log_search.constants import SearchMode
@@ -105,7 +105,7 @@ class SQLChartHandler(ChartHandler):
         )
         matches = re.match(pattern, raw_sql, re.DOTALL | re.IGNORECASE)
         if not matches:
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name="缺少SQL查询的关键字"))
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
         parsed_sql = matches.group(1) + f" FROM {doris_table_id} "
         if matches.group(2):
             parsed_sql += matches.group(2)

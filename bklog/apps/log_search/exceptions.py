@@ -550,4 +550,4 @@ class IndexSetDorisQueryException(BaseException):
 
 class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
-    MESSAGE = _("SQL查询异常, {name}")
+    MESSAGE = _("SQL查询异常: {name}")
