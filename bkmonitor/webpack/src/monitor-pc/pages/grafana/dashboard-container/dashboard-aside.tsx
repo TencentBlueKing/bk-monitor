@@ -77,6 +77,7 @@ interface IFormData {
 }
 
 export enum MoreType {
+  copy = 9 /** 复制到 */,
   dashboard = 0 /** 仪表盘 */,
   delete = 4 /** 删除 */,
   dir = 1 /** 目录 */,
@@ -87,7 +88,7 @@ export enum MoreType {
   rename = 8 /** 重命名 */,
   unfav = 6 /** 取消收藏 */,
 }
-type FormType = MoreType.dashboard | MoreType.dir;
+type FormType = MoreType.copy | MoreType.dashboard | MoreType.dir;
 @Component
 export default class DashboardAside extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) bizIdList: ISpaceItem[];
@@ -101,6 +102,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   keywork = '';
   showAddForm = false;
   curFormType: FormType = MoreType.dir;
+  curDirId: number;
   /** 选中的仪表盘 */
   checked: string = null;
   /** 外链数据 */
@@ -201,6 +203,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
 
   get isDashboard() {
     return this.curFormType === MoreType.dashboard;
+  }
+
+  get isCopyDashboard() {
+    return this.curFormType === MoreType.copy;
   }
 
   /** 目录列表 */
@@ -379,6 +385,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     switch (data.option.id) {
       case MoreType.dashboard:
       case MoreType.dir:
+      case MoreType.copy:
         this.handleShowAddFrom(data);
         break;
       case MoreType.delete:
@@ -511,6 +518,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
+    this.formData.name = (this.isCopyDashboard && item?.title) || '';
+    this.curDirId = (this.isCopyDashboard && item?.dirId) || null;
   }
 
   /** 表单校验 */
@@ -528,7 +537,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.loading = true;
     const isPass = await this.handleValidate();
     if (isPass) {
-      const api = this.isDashboard ? this.handleAddDashboard : this.handleAddFolder;
+      const api = this.isDashboard || this.isCopyDashboard ? this.handleAddDashboard : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
       if (isSuccess) {
         this.showAddForm = false;
@@ -763,7 +772,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           ext-cls='dashboard-add-dialog'
           v-model={this.showAddForm}
           header-position='left'
-          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
+          title={this.$t(this.isDashboard ? '新建仪表盘' : this.isCopyDashboard ? '复制仪表盘' : '新增目录')}
           show-footer
           onCancel={this.handleCancel}
         >
@@ -777,27 +786,31 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             ref='dashboardForm'
             formType='vertical'
           >
-            <bk-form-item
-              label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
-              property='name'
-              required
-            >
-              <bk-input v-model={this.formData.name} />
-            </bk-form-item>
-            {this.isDashboard && (
+            {!this.isCopyDashboard && (
+              <bk-form-item
+                label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
+                property='name'
+                required
+              >
+                <bk-input v-model={this.formData.name} />
+              </bk-form-item>
+            )}
+            {(this.isDashboard || this.isCopyDashboard) && (
               <bk-form-item
                 label={this.$t('所属目录')}
                 property='dir'
                 required
               >
                 <bk-select v-model={this.formData.dir}>
-                  {this.dirList.map(item => (
-                    <bk-option
-                      id={item.id}
-                      key={item.id}
-                      name={item.name}
-                    />
-                  ))}
+                  {(this.isCopyDashboard ? this.dirList.filter(({ id }) => id !== this.curDirId) : this.dirList).map(
+                    item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    )
+                  )}
                 </bk-select>
               </bk-form-item>
             )}

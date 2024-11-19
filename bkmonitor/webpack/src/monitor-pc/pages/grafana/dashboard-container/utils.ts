@@ -36,6 +36,7 @@ export interface ITreeMenuItem {
   editable?: boolean;
   url?: string;
   children?: ITreeMenuItem[];
+  dirId?: number;
 }
 export interface ITreeOptions {
   level?: number;
@@ -48,6 +49,7 @@ export interface ITreeOptions {
 export class TreeMenuItem {
   addActive = false; /** id */
   children: TreeMenuItem[] = []; /** 名称 */
+  dirId = null;
   edit = false; /** 子项列表 */
   editable = true; /** 传入的icon */
   editValue = ''; /** 是否展开 */
@@ -73,7 +75,9 @@ export class TreeMenuItem {
     this.options = options;
     const { level = 0 } = options || {};
     this.level = level;
-    this.children = children.map(child => new TreeMenuItem(child, { ...options, level: this.level + 1 }));
+    this.children = children.map(
+      child => new TreeMenuItem({ ...child, dirId: data.id }, { ...options, level: this.level + 1 })
+    );
   }
   /** 当前展示的icon */
   get curIcon() {
