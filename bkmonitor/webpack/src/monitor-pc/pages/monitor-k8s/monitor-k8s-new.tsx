@@ -27,11 +27,69 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import GroupByCondition from './components/group-by-condition/group-by-condition';
+import { GROUP_OPTIONS } from './components/filter-by-condition/utils';
+import GroupByCondition, { type IGroupOptions } from './components/group-by-condition/group-by-condition';
+import K8sTableNew from './components/k8s-table-new/k8s-table-new';
+import { K8sNewTabEnum } from './typings/k8s-new';
 
 import './monitor-k8s-new.scss';
+
+const tabList = [
+  {
+    label: '列表',
+    id: K8sNewTabEnum.LIST,
+    icon: 'icon-mc-list',
+  },
+  {
+    label: '图表',
+    id: K8sNewTabEnum.CHART,
+    icon: 'icon-mc-two-column',
+  },
+  {
+    label: '数据明细',
+    id: K8sNewTabEnum.DETAIL,
+    icon: 'icon-mc-detail',
+  },
+];
 @Component
 export default class MonitorK8sNew extends tsc<object> {
+  activeTab = K8sNewTabEnum.LIST;
+  groupOptions = [...GROUP_OPTIONS];
+  loading = false;
+
+  get isChart() {
+    return this.activeTab === K8sNewTabEnum.CHART;
+  }
+
+  /**
+   * @description 获取k8s列表
+   */
+  getK8sList(param = {}) {}
+
+  async handleTabChange(v: K8sNewTabEnum) {
+    this.loading = true;
+    this.activeTab = v;
+    setTimeout(() => {
+      this.loading = false;
+    }, 200);
+  }
+  handleGroupChecked(item: { option: IGroupOptions; checked: boolean }) {
+    this.$set(item.option, 'checked', item.checked);
+  }
+  tabContentRender() {
+    switch (this.activeTab) {
+      case K8sNewTabEnum.CHART:
+        return <div>chart</div>;
+      default:
+        return (
+          <K8sTableNew
+            activeTab={this.activeTab}
+            loading={this.loading}
+            onGetList={this.getK8sList}
+          />
+        );
+    }
+  }
   render() {
     return (
       <div class='monitor-k8s-new'>
@@ -47,9 +105,44 @@ export default class MonitorK8sNew extends tsc<object> {
                 </div>
               </div>
               <div class='filter-by-wrap'>
-                <GroupByCondition />
+                <GroupByCondition
+                  dimensionOptions={this.groupOptions}
+                  onChange={this.handleGroupChecked}
+                />
               </div>
             </div>
+            <div class='content-tab-wrap'>
+              <bk-tab
+                class='k8s-new-tab'
+                active={this.activeTab}
+                type='unborder-card'
+                {...{ on: { 'update:active': this.handleTabChange } }}
+              >
+                {tabList.map(panel => (
+                  <bk-tab-panel
+                    key={panel.id}
+                    label={panel.label}
+                    name={panel.id}
+                  >
+                    <div
+                      class='k8s-tab-panel'
+                      slot='label'
+                    >
+                      <i class={['icon-monitor', panel.icon]} />
+                      <span class='panel-name'>{panel.label}</span>
+                    </div>
+                  </bk-tab-panel>
+                ))}
+              </bk-tab>
+            </div>
+            {this.isChart && (
+              <div class='content-converge-wrap'>
+                <div class='content-converge'>
+                  <span>汇聚周期</span>
+                </div>
+              </div>
+            )}
+            <div class='content-main-wrap'>{this.tabContentRender()}</div>
           </div>
         </div>
       </div>

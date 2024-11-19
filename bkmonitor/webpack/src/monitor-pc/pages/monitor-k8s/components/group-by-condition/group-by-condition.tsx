@@ -32,45 +32,78 @@ import type { IOption } from '../../typings';
 
 import './group-by-condition.scss';
 
+export interface IGroupOptions extends IOption {
+  checked: boolean;
+  count: number;
+  list?: {
+    id: string;
+    name: string;
+    checked: boolean;
+  }[];
+}
+
 export interface IProps {
   value?: string[];
-  dimensionOptions: string;
+  dimensionOptions?: IGroupOptions[];
 }
 
 export interface IEvents {
-  onChange: string[];
+  onChange: (item: { option: IGroupOptions; checked: boolean }) => void;
 }
 @Component
 export default class GroupSelect extends tsc<IProps, IEvents> {
-  /** 外部传入回来显值 */
-  @Prop({ default: () => [], type: Array }) value: string[];
   /** 外部传入选项options数组 */
-  @Prop({ type: Array }) dimensionOptions: IOption[];
+  @Prop({ type: Array }) dimensionOptions: IGroupOptions[];
 
+  localValue: string[] = [];
+
+  dimensionOptionsMap: Record<string, IGroupOptions> = {};
+
+  @Watch('dimensionOptions', { immediate: true })
+  convertDimensionOptions(newOptions: IGroupOptions[]) {
+    this.$set(this, 'dimensionOptionsMap', {});
+    for (const item of newOptions) {
+      this.$set(this.dimensionOptionsMap, item.id, item);
+    }
+  }
   /** 可选项数据 */
-  options: Array<IOption & { [key: string]: any }> = [];
+  get options() {
+    return this.dimensionOptions.reduce(
+      (prev, curr) => {
+        if (curr.checked) {
+          prev.checkedArr.push(curr);
+        } else {
+          prev.unCheckedArr.push(curr);
+        }
+        return prev;
+      },
+      { checkedArr: [], unCheckedArr: [] }
+    );
+  }
 
   /** 添加、删除 */
   @Emit('change')
-  handleValueChange(data) {
-    return [...data];
+  handleValueChange(option, checked: boolean) {
+    return { option, checked };
   }
 
-  @Watch('dimensionOptions')
-  convertDimensionOptions() {
-    // TODO: 处理转换options数据结构
-  }
-
-  /** 处理选中的名称展示 */
-  handleDisplayName(id) {
-    return this.options.find(item => item.id === id)?.name;
+  handleSelect(arr) {
+    let changeId = null;
+    this.localValue = arr;
+    if (arr?.length > this.options.checkedArr?.length) {
+      changeId = arr[arr.length - 1];
+    } else {
+      changeId = this.options.checkedArr.filter(v => !arr.includes(v.id))?.[0]?.id;
+    }
+    const changeItem = this.dimensionOptionsMap[changeId];
+    this.handleValueChange(changeItem, !changeItem?.checked);
   }
 
   /** 删除操作 */
-  handleDeleteItem(item) {
+  handleDeleteItem(item: IGroupOptions) {
     // TODO: 删除逻辑
-    const arr = this.value.filter(v => v !== item);
-    this.handleValueChange(arr);
+    this.localValue = this.localValue.filter(v => v !== item.id);
+    this.handleValueChange(item, false);
   }
 
   render() {
@@ -78,15 +111,15 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
       <div class='group-by-wrap'>
         <span class='group-by-label'>Groups by</span>
         <span class='group-by-main'>
-          {this.value.map((item, index) => (
+          {this.localValue.map((id, index) => (
             <span
               key={index}
               class='group-by-item'
             >
-              {this.handleDisplayName(item)}
+              {this.dimensionOptionsMap[id].name}
               <i
                 class='icon-monitor icon-mc-close'
-                onClick={() => this.handleDeleteItem(item)}
+                onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
               />
             </span>
           ))}
@@ -94,12 +127,12 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             class='group-by-select'
             // @ts-ignore
             extPopoverCls='group-by-select-popover'
-            options={this.options}
+            options={this.options.unCheckedArr}
             popoverMinWidth={140}
             searchable={false}
-            value={this.value}
+            value={this.localValue}
             multiple
-            onSelected={this.handleValueChange}
+            onSelected={this.handleSelect}
           >
             <span
               class='group-by-add'
@@ -107,7 +140,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             >
               <i class='icon-monitor icon-plus-line' />
             </span>
-            {this.options.map(opt => (
+            {this.options.unCheckedArr.map(opt => (
               <bk-option
                 id={opt.id}
                 key={opt.id}
@@ -115,7 +148,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
               >
                 <div class='group-by-option-item'>
                   <span class='item-label'>{opt.name}</span>
-                  <span class='item-count'>{opt.children?.length || 0}</span>
+                  <span class='item-count'>{opt.list?.length || 0}</span>
                 </div>
               </bk-option>
             ))}
