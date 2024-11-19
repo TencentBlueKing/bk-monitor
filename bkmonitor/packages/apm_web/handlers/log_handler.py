@@ -18,6 +18,7 @@ from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import Application, LogServiceRelation
 from apm_web.topo.handle.relation.define import SourceDatasource, SourceService
 from apm_web.topo.handle.relation.query import RelationQ
+from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -186,10 +187,16 @@ class ServiceLogHandler:
             return []
 
         res = []
-        full_collectors = api.log_search.list_collectors()
+
+        @using_cache(CacheType.APM(600))
+        def log_list_collectors():
+            return api.log_search.list_collectors()
+
+        full_collectors = log_list_collectors()
         for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
             info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
             if info:
-                res.append(info["index_set_id"])
+                # 关联的索引集有可能不是属于当前业务的
+                res.append({"index_set_id": info["index_set_id"], "bk_biz_id": info["bk_biz_id"]})
 
         return res
