@@ -958,10 +958,10 @@ export default {
   文件类型: 'File Type',
   '快速下载(提速100%+)': 'Fast Download (Speed Up 100%+)',
   '取样下载(前1万条)': 'Sample Download (First 10,000 Entries)',
-  '该模式下，下载的日志有序，可包含平台补充、清洗字段;但下载时间较长;':
-    'In this mode, the downloaded logs are ordered and may include additional and cleaned fields from the platform; however, the download time is longer.',
-  '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序;日志无法包含平台补充字段:如namespace、podname等信息，请合理选择方式;':
-    'In this mode, only the raw unordered logs you reported are downloaded. You can sort them locally by log time; the logs cannot include additional fields from the platform such as namespace and podname. Please choose the method accordingly.',
+  '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条':
+    'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
   全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
