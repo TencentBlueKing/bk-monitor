@@ -36,7 +36,14 @@ const props = defineProps({
   },
 });
 const chartRef = ref(null);
-const tableData = ref([]);
+const tableData = ref([
+  // { name: '衬衫', value: 5 },
+  // { name: '羊毛衫', value: 20 },
+  // { name: '雪纺衫', value: 36 },
+  // { name: '裤子', value: 10 },
+  // { name: '高跟鞋', value: 10 },
+  // { name: '袜子', value: 20 }
+]);
 
 let myChart = null;
 watch(() => props.activeGraphCategory, updateChart);
@@ -53,12 +60,20 @@ function updateChart() {
   console.log(props.activeGraphCategory);
 
   if (props.activeGraphCategory === "table") return;
-
+  myChart.clear();
   const option = getChartOption(props.activeGraphCategory);
+  console.log("option", option);
   myChart.setOption(option);
 }
-function setOption(data) {
-//   tableData.value = data.data.list;
+function setOption(data,xAxis,yAxis ) {
+
+  tableData.value = data.data.list.map(item => {
+    return {
+      name: item[xAxis],
+      value: item[yAxis]
+    }
+  })
+  updateChart();
 }
 function getChartOption(type) {
   switch (type) {

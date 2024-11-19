@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/graph-chart.vue';
 import GraphTable from './chart/graph-table.vue';
+import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
@@ -55,7 +56,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart },
+  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart, FieldSettings },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -64,6 +65,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   rightOptionWidth = 360;
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.BAR;
+  xAxis = '';
+  yAxis = '';
+  chartData = {};
+  select_fields_order = [];
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isChartMode = false;
@@ -90,7 +95,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  fieldList = [];
+  fieldList = [1];
   advanceSetting = false;
   activeCanvasType = 'bar';
 
@@ -116,7 +121,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       },
       [GraphCategory.LINE_BAR]: {
         icon: '',
-        text: this.$t('柱线图'),
+        text: this.$t('数字'),
         click: () => this.handleGraphCategoryClick(GraphCategory.LINE_BAR),
         images: {
           def: StyleImages.chartLineBarDef,
@@ -385,11 +390,23 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
   /** echart和字段配置展示 */
   echartData(data) {
-    this.$refs.refGraphChart.setOption(data);
-    // console.log(data);
+    let arr = data.data.result_schema.filter(item => item.field_type !== 'string');
+    this.xAxis = arr[0].field_name;
+    this.yAxis = arr[1].field_name;
+    this.select_fields_order = data.data.select_fields_order;
+    this.chartData = data;
+    this.$refs.refGraphChart.setOption(data, this.xAxis, this.yAxis);
     this.fieldList = data.data.select_fields_order;
   }
+  updateXAxis(newValue) {
+    this.xAxis = newValue;
+    this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
+  }
 
+  updateYAxis(newValue) {
+    this.yAxis = newValue;
+    this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
+  }
   render() {
     return (
       <div class='graph-analysis-index'>
@@ -497,7 +514,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 </bk-collapse-item>
                 <bk-collapse-item name='field_setting'>
                   <span class='graph-info-collapse-title'>{this.$t('字段设置')}</span>
-                  <div slot='content'>{this.renderFieldsSetting()}</div>
+                  {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
+                  <FieldSettings
+                    slot='content'
+                    select_fields_order={this.select_fields_order}
+                    xAxis={this.xAxis}
+                    yAxis={this.yAxis}
+                    onUpdate-xAxis={this.updateXAxis}
+                    onUpdate-yAxis={this.updateYAxis}
+                  ></FieldSettings>
                 </bk-collapse-item>
               </bk-collapse>
             </div>
