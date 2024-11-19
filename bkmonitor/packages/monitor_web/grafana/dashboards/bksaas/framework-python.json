@@ -98,9 +98,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -178,7 +180,7 @@
           "type":"range"
         }
       ],
-      "title":"HTTP请求数",
+      "title":"HTTP 请求数",
       "type":"stat"
     },
     {
@@ -206,7 +208,8 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green"
+                "color":"green",
+                "value":null
               },
               {
                 "color":"red",
@@ -240,9 +243,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -315,7 +320,8 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"orange"
+                "color":"orange",
+                "value":null
               },
               {
                 "color":"orange",
@@ -348,9 +354,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -465,7 +473,8 @@
           "value":"Responses"
         },
         "tooltip":{
-          "show":true,
+          "mode":"single",
+          "showColorScale":false,
           "yHistogram":true
         },
         "yAxis":{
@@ -478,7 +487,7 @@
           "unit":"s"
         }
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -530,7 +539,7 @@
           "type":"range"
         }
       ],
-      "title":"请求数量[按处理时间统计]",
+      "title":"请求数量（按处理时间统计）",
       "type":"heatmap"
     },
     {
@@ -544,6 +553,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -557,6 +567,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -649,7 +660,7 @@
           "type":"range"
         }
       ],
-      "title":"HTTP请求耗时(以URL聚合)",
+      "title":"HTTP 请求耗时（以 URL 聚合）",
       "type":"timeseries"
     },
     {
@@ -663,6 +674,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -676,6 +688,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -842,7 +855,7 @@
           "type":"range"
         }
       ],
-      "title":"2xx请求数",
+      "title":"2xx 请求数",
       "type":"timeseries"
     },
     {
@@ -856,6 +869,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -869,6 +883,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -983,65 +998,96 @@
           "type":"range"
         }
       ],
-      "title":"非2xx请求数",
+      "title":"非 2xx 请求数",
       "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
       "fieldConfig":{
         "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
           "unit":"s"
         },
         "overrides":[
 
         ]
       },
-      "fill":1,
-      "fillGradient":0,
       "gridPos":{
         "h":8,
         "w":12,
         "x":0,
         "y":24
       },
-      "hiddenSeries":false,
       "id":4,
       "interval":"60s",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null as zero",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -1330,43 +1376,8 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"HTTP请求耗时",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:70",
-          "format":"s",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:71",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"HTTP 请求耗时",
+      "type":"timeseries"
     },
     {
       "datasource":{
@@ -1379,6 +1390,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1392,6 +1404,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":2,
@@ -1486,67 +1499,97 @@
           "type":"range"
         }
       ],
-      "title":"超过1秒的请求排行",
+      "title":"超过 1 秒的请求排行",
       "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
       "fieldConfig":{
         "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
           "unit":"none"
         },
         "overrides":[
 
         ]
       },
-      "fill":1,
-      "fillGradient":0,
       "gridPos":{
         "h":9,
         "w":12,
         "x":0,
         "y":32
       },
-      "hiddenSeries":false,
       "id":21,
       "interval":"60s",
-      "legend":{
-        "alignAsTable":true,
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "rightSide":true,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"table",
+          "placement":"right",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -1608,44 +1651,8 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"HTTP请求数(以view聚合)",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:70",
-          "format":"none",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:71",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"HTTP 请求数（以 view 聚合）",
+      "type":"timeseries"
     },
     {
       "datasource":{
@@ -1658,6 +1665,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1671,6 +1679,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":1,
@@ -1694,7 +1703,8 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green"
+                "color":"green",
+                "value":null
               },
               {
                 "color":"red",
@@ -1791,57 +1801,97 @@
           "type":"range"
         }
       ],
-      "title":"HTTP请求数(以pod聚合)",
+      "title":"HTTP 请求数（以 pod 聚合）",
       "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"short"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":9,
         "w":12,
         "x":0,
         "y":41
       },
-      "hiddenSeries":false,
       "id":18,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -1898,93 +1948,97 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"HTTP 请求抛出异常数(以异常类型聚合)",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:117",
-          "format":"short",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:118",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"HTTP 请求抛出异常数（以异常类型聚合）",
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"short"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":9,
         "w":12,
         "x":12,
         "y":41
       },
-      "hiddenSeries":false,
       "id":19,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -2040,44 +2094,8 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"HTTP 请求抛出异常数(以view聚合)",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:117",
-          "format":"short",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:118",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"HTTP 请求抛出异常数（以 view 聚合）",
+      "type":"timeseries"
     },
     {
       "collapsed":false,
@@ -2095,53 +2113,93 @@
       "type":"row"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"percent"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":13,
         "w":8,
         "x":0,
         "y":51
       },
-      "hiddenSeries":false,
       "id":7,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "alias":"",
@@ -2194,231 +2252,98 @@
           "source":"(sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\"}[2m])) by (pod_name) / sum(kube_pod_container_resource_limits_cpu_cores{namespace=\"$namespace\"}) by (pod_name)) * 100"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"CPU limit 使用率",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"percent",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"CPU 使用率",
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"line+area"
+            }
+          },
+          "mappings":[
+
+          ],
+          "max":100,
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"transparent",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":25
+              }
+            ]
+          },
+          "unit":"percent"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":13,
         "w":8,
         "x":8,
         "y":51
       },
-      "hiddenSeries":false,
-      "id":9,
-      "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
-      "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
-
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
-      "targets":[
-        {
-          "alias":"",
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "display":false,
-          "expression":"",
-          "hide":false,
-          "host":[
-
-          ],
-          "module":[
-
-          ],
-          "only_promql":true,
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"container_cpu_usage_seconds_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"(sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\"}[2m])) by (pod_name) / sum(kube_pod_container_resource_requests_cpu_cores{namespace=\"$namespace\"}) by (pod_name)) * 100"
-        }
-      ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"CPU request 使用率",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"percent",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
-    },
-    {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fill":1,
-      "fillGradient":0,
-      "gridPos":{
-        "h":13,
-        "w":8,
-        "x":16,
-        "y":51
-      },
-      "hiddenSeries":false,
       "id":12,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "alias":"",
@@ -2471,388 +2396,97 @@
           "source":"(sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"$namespace\"}[2m])) by (pod_name) / sum(rate(container_cpu_cfs_periods_total{namespace=\"$namespace\"}[2m])) by (pod_name)) * 100\n"
         }
       ],
-      "thresholds":[
-        {
-          "$$hashKey":"object:1908",
-          "colorMode":"critical",
-          "fill":true,
-          "line":true,
-          "op":"gt",
-          "value":25,
-          "yaxis":"left"
-        }
-      ],
-      "timeRegions":[
-
-      ],
       "title":"CPU 限流周期",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"percent",
-          "logBase":1,
-          "max":"100",
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
-      "gridPos":{
-        "h":11,
-        "w":8,
-        "x":0,
-        "y":64
-      },
-      "hiddenSeries":false,
-      "id":11,
-      "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
-      "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
-
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
-      "targets":[
-        {
-          "alias":"$tag_pod_name",
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
           },
-          "display":false,
-          "expression":"",
-          "hide":false,
-          "host":[
-
-          ],
-          "module":[
-
-          ],
-          "only_promql":true,
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"container_cpu_usage_seconds_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-
-              ]
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
             }
-          ],
-          "refId":"A",
-          "source":"(sum(container_memory_rss{namespace=\"$namespace\"}) by (pod_name) / sum(kube_pod_container_resource_limits_memory_bytes{namespace=\"$namespace\"}) by (pod_name)) * 100"
-        }
-      ],
-      "thresholds":[
-        {
-          "$$hashKey":"object:1210",
-          "colorMode":"critical",
-          "fill":true,
-          "line":true,
-          "op":"gt",
-          "value":90,
-          "yaxis":"left"
-        }
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"内存使用率",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"percent",
-          "logBase":1,
-          "max":"100",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
-    },
-    {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fill":1,
-      "fillGradient":0,
-      "gridPos":{
-        "h":11,
-        "w":8,
-        "x":8,
-        "y":64
-      },
-      "hiddenSeries":false,
-      "id":10,
-      "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
-      "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
-
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
-      "targets":[
-        {
-          "alias":"$tag_pod_name",
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
           },
-          "display":false,
-          "expression":"",
-          "hide":false,
-          "host":[
+          "mappings":[
 
           ],
-          "module":[
-
-          ],
-          "only_promql":true,
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
               },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"container_cpu_usage_seconds_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"container_memory_rss{namespace=\"$namespace\"}"
-        }
-      ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"内存使用量",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
 
         ]
       },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"decbytes",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
-    },
-    {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fill":1,
-      "fillGradient":0,
       "gridPos":{
-        "h":11,
+        "h":13,
         "w":8,
         "x":16,
-        "y":64
+        "y":51
       },
-      "hiddenSeries":false,
       "id":14,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "alias":"",
@@ -2905,96 +2539,100 @@
           "source":"sum(rate(container_network_transmit_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"网络发送",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"decbytes",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"line+area"
+            }
+          },
+          "mappings":[
+
+          ],
+          "max":100,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"transparent",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":90
+              }
+            ]
+          },
+          "unit":"percent"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
-        "h":9,
+        "h":11,
         "w":8,
         "x":0,
-        "y":75
+        "y":64
       },
-      "hiddenSeries":false,
-      "id":13,
+      "id":11,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
-          "alias":"",
+          "alias":"$tag_pod_name",
           "cluster":[
 
           ],
@@ -3041,99 +2679,102 @@
             }
           ],
           "refId":"A",
-          "source":"sum(rate(container_fs_reads_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
+          "source":"(sum(container_memory_rss{namespace=\"$namespace\"}) by (pod_name) / sum(kube_pod_container_resource_limits_memory_bytes{namespace=\"$namespace\"}) by (pod_name)) * 100"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"磁盘读",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"decbytes",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"内存使用率",
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
-        "h":9,
+        "h":11,
         "w":8,
         "x":8,
-        "y":75
+        "y":64
       },
-      "hiddenSeries":false,
-      "id":16,
+      "id":10,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
-          "alias":"",
+          "alias":"$tag_pod_name",
           "cluster":[
 
           ],
@@ -3180,96 +2821,100 @@
             }
           ],
           "refId":"A",
-          "source":"sum(rate(container_fs_writes_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
+          "source":"container_memory_rss{namespace=\"$namespace\"}"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
-      "title":"磁盘写",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"decbytes",
-          "logBase":1,
-          "min":"0",
-          "show":true
-        },
-        {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"内存使用量",
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":9,
         "w":8,
         "x":16,
-        "y":75
+        "y":64
       },
-      "hiddenSeries":false,
       "id":15,
       "interval":"1m",
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "alias":"",
@@ -3322,49 +2967,298 @@
           "source":"sum(rate(container_network_receive_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"网络接收",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
 
         ]
       },
-      "yaxes":[
-        {
-          "$$hashKey":"object:81",
-          "format":"decbytes",
-          "logBase":1,
-          "min":"0",
-          "show":true
+      "gridPos":{
+        "h":9,
+        "w":8,
+        "x":0,
+        "y":75
+      },
+      "id":13,
+      "interval":"1m",
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
         },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
+      "targets":[
         {
-          "$$hashKey":"object:82",
-          "format":"short",
-          "logBase":1,
-          "show":true
+          "alias":"",
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "display":false,
+          "expression":"",
+          "hide":false,
+          "host":[
+
+          ],
+          "module":[
+
+          ],
+          "only_promql":true,
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":true,
+              "filter_dict":{
+
+              },
+              "functions":[
+
+              ],
+              "group_by":[
+
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"AVG",
+              "metric_field":"container_cpu_usage_seconds_total",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum(rate(container_fs_reads_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
         }
       ],
-      "yaxis":{
-        "align":false
-      }
+      "title":"磁盘读",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
+
+        ]
+      },
+      "gridPos":{
+        "h":9,
+        "w":8,
+        "x":8,
+        "y":75
+      },
+      "id":16,
+      "interval":"1m",
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
+      "targets":[
+        {
+          "alias":"",
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "display":false,
+          "expression":"",
+          "hide":false,
+          "host":[
+
+          ],
+          "module":[
+
+          ],
+          "only_promql":true,
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":true,
+              "filter_dict":{
+
+              },
+              "functions":[
+
+              ],
+              "group_by":[
+
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"AVG",
+              "metric_field":"container_cpu_usage_seconds_total",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum(rate(container_fs_writes_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
+        }
+      ],
+      "title":"磁盘写",
+      "type":"timeseries"
     }
   ],
   "refresh":false,
-  "schemaVersion":37,
-  "style":"dark",
+  "schemaVersion":39,
   "tags":[
 
   ],
@@ -3462,7 +3356,7 @@
   },
   "timezone":"",
   "title":"bksaas/framework-python",
-  "version":35,
+  "version":37,
   "weekStart":"",
   "__inputs":[
     {
