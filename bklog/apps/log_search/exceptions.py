@@ -548,6 +548,6 @@ class IndexSetDorisQueryException(BaseException):
     MESSAGE = _("该索引集不支持doris查询")
 
 
-class SqlSyntaxException(BaseException):
+class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
-    MESSAGE = _("SQL语法异常")
+    MESSAGE = _("SQL查询异常, {name}")

@@ -29,7 +29,7 @@ from apps.log_search.constants import SearchMode
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
-    SqlSyntaxException,
+    SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
@@ -48,8 +48,8 @@ class ChartHandler(object):
     @classmethod
     def get_instance(cls, index_set_id, mode):
         mapping = {
-            SearchMode.UI.value: "UIChartMode",
-            SearchMode.SQL.value: "SQLChartMode",
+            SearchMode.UI.value: "UIChartHandler",
+            SearchMode.SQL.value: "SQLChartHandler",
         }
         try:
             chart_instance = import_string(
@@ -68,7 +68,7 @@ class ChartHandler(object):
         raise NotImplementedError(_("功能暂未实现"))
 
 
-class UIChartMode(ChartHandler):
+class UIChartHandler(ChartHandler):
     def get_chart_data(self, params: dict) -> dict:
         """
         UI模式获取图表相关信息
@@ -79,7 +79,7 @@ class UIChartMode(ChartHandler):
         return {}
 
 
-class SQLChartMode(ChartHandler):
+class SQLChartHandler(ChartHandler):
     def get_chart_data(self, params) -> dict:
         """
         Sql模式获取图表相关信息
@@ -105,7 +105,7 @@ class SQLChartMode(ChartHandler):
         )
         matches = re.match(pattern, raw_sql, re.DOTALL | re.IGNORECASE)
         if not matches:
-            raise SqlSyntaxException("缺少SQL查询的关键字")
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name="缺少SQL查询的关键字"))
         parsed_sql = matches.group(1) + f" FROM {doris_table_id} "
         if matches.group(2):
             parsed_sql += matches.group(2)
@@ -126,8 +126,8 @@ class SQLChartMode(ChartHandler):
             errors = result_data.get("errors", {}).get("error")
             if errors:
                 errors_message = errors_message + ":" + errors
-            logger.info("SQL语法异常 [{}]".format(errors_message))
-            raise SqlSyntaxException(errors_message)
+            logger.info("SQL query exception [%s]", errors_message)
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=errors_message))
 
         data_list = result_data["data"]["list"]
         result_schema = result_data["data"].get("result_schema", [])
