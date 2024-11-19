@@ -557,7 +557,8 @@ export class LineChart
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const { width } = this.$el.getBoundingClientRect();
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
