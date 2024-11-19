@@ -194,7 +194,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             return q.filter(code_type__eq=code_type)
 
         if code_type == CodeType.EXCEPTION:
-            return q.filter(code__neq=SUCCESS_CODES)
+            return q.filter(code__neq=SUCCESS_CODES, code_type__neq=CodeType.TIMEOUT)
         elif code_type == CodeType.SUCCESS:
             return q.filter(code__eq=SUCCESS_CODES)
 
@@ -206,7 +206,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         code_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("a")
-            .filter(code_type__eq=code_type)
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
         code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)

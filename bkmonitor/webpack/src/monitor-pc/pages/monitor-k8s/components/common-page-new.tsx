@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { deepClone, isObject, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
@@ -1225,9 +1225,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
     this.filterCount = list.reduce((accumulator, cur) => {
-      const allPropertiesValid = Object.entries(cur).every(([, value]) =>
-        Array.isArray(value) ? value.length > 0 : value !== ''
-      );
+      const keysToValueMap = Object.entries(cur);
+      const allPropertiesValid =
+        keysToValueMap.length &&
+        keysToValueMap.every(([, value]) => {
+          return Array.isArray(value) ? value.length > 0 && !value.some(isObject) : value !== '';
+        });
       return allPropertiesValid ? accumulator + 1 : accumulator;
     }, 0);
     this.variables = this.handleGetVariables(list);

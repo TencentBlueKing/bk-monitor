@@ -250,6 +250,7 @@ class CallerLineChart extends CommonSimpleChart {
       if (this.enablePanelsSelector) {
         selectPanelParams = this.curSelectPanel.variables;
       }
+
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...callOptions,
@@ -318,11 +319,14 @@ class CallerLineChart extends CommonSimpleChart {
               res.series &&
                 series.push(
                   ...res.series.map(set => {
+                    if (this.enablePanelsSelector) {
+                      item.alias = this.curTitle;
+                    }
                     const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
-                      name: this.enablePanelsSelector ? this.curTitle : name,
+                      name: name,
                       timeShift: time_shift,
                     });
                     return {
@@ -354,7 +358,7 @@ class CallerLineChart extends CommonSimpleChart {
           .filter(item => ['extra_info', '_result_'].includes(item.alias))
           .map(item => ({
             ...item,
-            name: this.enablePanelsSelector ? this.curTitle : item.name,
+            name: item.name,
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
@@ -821,7 +825,6 @@ class CallerLineChart extends CommonSimpleChart {
       case 'explore': {
         // 跳转数据检索
         const copyPanel = this.getCopyPanel();
-        console.log('copyPanel', copyPanel);
         this.handleExplore(copyPanel as any, {});
         break;
       }
@@ -918,12 +921,10 @@ class CallerLineChart extends CommonSimpleChart {
   handleAllMetricClick() {
     const configs = this.panel.toStrategy(null);
     if (configs) {
-      console.log('this.panel', this.panel);
       this.handleAddStrategy(this.panel, null, {});
       return;
     }
     const copyPanel = this.getCopyPanel();
-    console.log('copyPanel-all', copyPanel);
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
@@ -938,6 +939,10 @@ class CallerLineChart extends CommonSimpleChart {
       let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
       copyPanel.dashboardId = random(8);
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
       const variablesService = new VariablesService({
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -950,6 +955,7 @@ class CallerLineChart extends CommonSimpleChart {
           dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
           this.panel.collect_interval
         ),
+        ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
       for (const t of copyPanel.targets) {
@@ -958,6 +964,16 @@ class CallerLineChart extends CommonSimpleChart {
         }
         this.queryConfigsSetCallOptions(t?.data);
       }
+      if (this.enablePanelsSelector) {
+        copyPanel.title = this.curTitle;
+        copyPanel.targets.map(item => (item.alias = this.curTitle));
+      }
+      (copyPanel.targets || []).map(item => {
+        (item.data.query_configs || []).map(ele => {
+          const where = replaceRegexWhere(ele.where);
+          ele.where = where;
+        });
+      });
       return copyPanel;
     } catch (error) {
       console.log(error);

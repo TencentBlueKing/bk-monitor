@@ -45,7 +45,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-overview",
         "apm_application-service",
         "apm_application-topo",
-        "apm_application-custom_metric",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
@@ -81,6 +80,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-caller_callee",
         "service-default-custom_metric",
     ]
+
+    # 只需要列表信息时，需要进一步进行渲染的 Tab
+    # 列表只关注需要展示哪些 Tab，可以跳过具体的 view_config 生成逻辑，以加快页面渲染
+    NEED_RENDER_IF_ONLY_SIMPLE_INFO: List[str] = [
+        # 调用分析页面需要另外判断是否展示，不直接跳过
+        "apm_service-service-default-caller_callee",
+    ]
+
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -122,6 +129,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 替换table_id
         table_id = Application.get_metric_table_id(bk_biz_id, app_name)
         view_config = cls._replace_variable(view_config, "${table_id}", table_id)
+
+        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
+            return view_config
 
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             # APM Trace检索处
@@ -227,7 +237,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                     view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
                         1
-                    ]["variables"] = {"code_field": "code", "code_values": ["0", "ret_0"], "code_method": "neq"}
+                    ]["variables"] = {
+                        "code_field": "code",
+                        "code_values": ["0", "ret_0"],
+                        "code_method": "neq",
+                        # 排除非 0 返回码可能是 timeout 的情况
+                        "code_extra_where": {
+                            "key": "code_type",
+                            "method": "neq",
+                            "value": ["timeout"],
+                            "condition": "and",
+                        },
+                    }
             except CodeRedefinedConfigRelation.DoesNotExist:
                 pass
 
@@ -253,22 +274,21 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 data_type_label=DataTypeLabel.TIME_SERIES,
             )
             metric_count = metric_queryset.count()
-
             if metric_count > 0:
-                monitor_info_mapping = None
+                # 使用非内部指标设置monitor_info_mapping
+                monitor_info_mapping = cls.get_monitor_info(
+                    bk_biz_id,
+                    result_table_id,
+                    service_name=service_name,
+                    count=metric_count,
+                    start_time=params.get("start_time"),
+                    end_time=params.get("end_time"),
+                )
+
                 for idx, i in enumerate(metric_queryset):
                     # 过滤内置指标
                     if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                         continue
-                    # 使用非内部指标设置monitor_info_mapping
-                    if monitor_info_mapping is None:
-                        monitor_info_mapping = cls.get_monitor_info(
-                            bk_biz_id,
-                            result_table_id,
-                            service_name=service_name,
-                            metric_field=i.metric_field,
-                            count=metric_count,
-                        )
                     # 根据dimension获取monitor_name监控项, 获取不到的则跳过
                     metric_info = monitor_info_mapping.get(f"{i.metric_field}_value")
                     if not metric_info:
@@ -288,7 +308,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     for var_name, var_value in variables.items():
                         metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
 
-                    monitor_name = metric_info["monitor_name"]
+                    monitor_name = metric_info["monitor_name"] or "default"
                     if monitor_name not in metric_group_mapping:
                         group_id = len(metric_group_mapping)
                         group_panel = copy.deepcopy(group_panel_template)
@@ -304,56 +324,62 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_monitor_info(cls, bk_biz_id, result_table_id, service_name, metric_field, count: int = 1000) -> dict:
-        end_time = int(arrow.now().timestamp)
-        start_time = int(end_time - 3600)
-        label_values_query = f"label_values(custom:{result_table_id.replace('.', ':')}:{metric_field}, sdk_name)"
+    def get_monitor_info(
+        cls, bk_biz_id, result_table_id, service_name, count: int = 1000, start_time=None, end_time=None
+    ) -> dict:
+        if not start_time or not end_time:
+            end_time = int(arrow.now().timestamp)
+            start_time = int(end_time - 3600)
+        request_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": "",
+                    "interval": "auto",
+                    "alias": "a",
+                    "filter_dict": {},
+                }
+            ],
+            "slimit": count,
+            "expression": "",
+            "alias": "a",
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        metric_table_id = result_table_id.replace('.', ':')
         monitor_info_mapping = {}
         try:
-            label_values = resource.grafana.dimension_promql_query(
-                bk_biz_id=bk_biz_id,
-                promql=label_values_query,
-                start_time=start_time,
-                end_time=end_time,
-            )
-            sdk_name = "default"
-            if label_values and isinstance(label_values, list):
-                sdk_name = label_values[0]
-            metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(
-                str(sdk_name).lower(), settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+            # 确定metric_config
+            metric_type_promql = f"count by (monitor_name, scope_name) ({{__name__=~\"custom:{metric_table_id}:.*\"}})"
+            request_params["query_configs"][0]["promql"] = metric_type_promql
+            metric_type_values = resource.grafana.graph_unify_query(request_params)["series"]
+            candidate_queue = []
+            for curve in metric_type_values:
+                if not curve.get("dimensions"):
+                    continue
+                if "scope_name" in curve["dimensions"]:
+                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
+                if "monitor_name" in curve["dimensions"]:
+                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
+            metric_config = (
+                candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
             )
             monitor_name_key = metric_config["monitor_name_key"]
             service_name_key = metric_config["service_name_key"]
+
+            # 查询具体的监控项名称和service_name
             promql = (
                 f"count by ({monitor_name_key}, {service_name_key}, __name__) "
-                f"({{__name__=~\"custom:{result_table_id}:.*\",{service_name_key}=~\".*{service_name}\"}})"
+                f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=~\"{service_name}$\"}})"
             )
-
-            request_params = {
-                "bk_biz_id": bk_biz_id,
-                "query_configs": [
-                    {
-                        "data_source_label": DataSourceLabel.PROMETHEUS,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "promql": promql,
-                        "interval": "auto",
-                        "alias": "a",
-                        "filter_dict": {},
-                    }
-                ],
-                "slimit": count,
-                "expression": "",
-                "alias": "a",
-                "start_time": start_time,
-                "end_time": end_time,
-            }
-
+            request_params["query_configs"][0]["promql"] = promql
             series = resource.grafana.graph_unify_query(request_params)["series"]
             for metric in series:
                 metric_field = metric.get("dimensions", {}).get("__name__")
                 if metric_field:
                     monitor_info_mapping[metric_field] = {
-                        "metric_type": metric_config["metric_type"],
                         "monitor_name": metric["dimensions"].get(monitor_name_key),
                         "filter_service_name": service_name_key,
                         "filter_service_value": metric["dimensions"].get(service_name_key),

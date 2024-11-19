@@ -2,14 +2,14 @@
 .caller-callee-chart-view {
   width: 100%;
   margin-top: 10px;
+  .dashboard-panel {
+    overflow: visible;
+    overflow-x: visible;
+  }
 
   .draggable-handle {
     display: block !important;
   }
-
-  // .icon-mc-more {
-  //   display: none !important;
-  // }
 
   .chart-wrapper .check-mark {
     display: none !important;
