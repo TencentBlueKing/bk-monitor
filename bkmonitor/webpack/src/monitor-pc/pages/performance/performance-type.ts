@@ -67,7 +67,7 @@ export type Dictionary = {
   [prop: string]: any;
 };
 
-export interface ITableRow extends Object {
+export interface ITableRow {
   rowId: string; // 当前行ID
   mark: boolean; // 是否有置顶标记
   selection: boolean; // 当前行是否check
@@ -108,6 +108,7 @@ export interface IFieldConfig {
   multiple?: boolean; // 多选（select类型有效，如 集群和模块 字段）
   show?: boolean; // 筛选面板是否展示条件
   dynamic?: boolean; // 是否是动态字段
+  allowEmpt?: boolean; // 是否允许为空
 }
 
 export type CheckValue = 0 | 1 | 2; // 0: 无选择 1: 半选 2: 全选

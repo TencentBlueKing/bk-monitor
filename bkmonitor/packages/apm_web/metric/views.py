@@ -103,6 +103,24 @@ class MetricViewSet(ResourceViewSet):
                 user_visit_record,
             ],
         ),
+        # 调用分析功能埋点
+        ResourceRoute(
+            "POST",
+            CalculateByRangeResource,
+            endpoint="calculate_by_range",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        # GroupBy 功能埋点
+        ResourceRoute(
+            "POST",
+            QueryDimensionsByLimitResource,
+            endpoint="query_dimensions_by_limit",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
         ResourceRoute("GET", ApdexQueryResource, "apdex_query"),
         ResourceRoute("GET", AlertQueryResource, "alert_query"),
         ResourceRoute("POST", UnifyQueryResource, "unify_query"),

@@ -124,6 +124,7 @@
 
 <style lang="scss" scoped>
   .expand-view-wrapper {
+    width: 100%;
     color: #313238;
 
     .view-tab {

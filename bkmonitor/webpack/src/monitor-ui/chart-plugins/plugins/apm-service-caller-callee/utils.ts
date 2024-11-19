@@ -56,7 +56,7 @@ export const CHART_TYPE = [
   },
   {
     label: '柱状图',
-    id: 'apm-timeseries-chart',
+    id: 'caller-bar-chart',
   },
 ];
 
@@ -70,66 +70,23 @@ export const TAB_TABLE_REQUEST_COLUMN = [
     prop: 'proportions_request_total_0s',
   },
 ];
-export const TAB_TABLE_TIMEOUT_COLUMN = [
-  {
-    label: '成功率',
-    prop: 'successRate',
-  },
-  {
-    label: '超时率',
-    prop: 'timeoutRate',
-  },
-  {
-    label: '异常率',
-    prop: 'errorRate',
-  },
-];
-export const TAB_TABLE_CONSUMING_COLUMN = [
-  {
-    label: 'AVG',
-    prop: 'avg',
-  },
-  {
-    label: 'P50',
-    prop: 'p50',
-  },
-  {
-    label: 'P95',
-    prop: 'P95',
-  },
-  {
-    label: 'P99',
-    prop: 'P99',
-  },
-];
 
 export const TAB_TABLE_TYPE = [
   {
     label: '请求量',
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
-    // icon: 'icon-bingtu',
   },
   {
     label: '成功/异常/超时率',
     id: 'timeout',
     columns: [],
-    // columns: TAB_TABLE_TIMEOUT_COLUMN,
   },
   {
-    label: '耗时(ms)',
+    label: '耗时（ms）',
     id: 'consuming',
     columns: [],
-    // columns: TAB_TABLE_CONSUMING_COLUMN,
   },
-];
-
-export const LIMIT_TYPE_LIST = [
-  { id: 1, name: '请求量' },
-  { id: 2, name: '成功率（%）' },
-  { id: 3, name: '异常率（%）' },
-  { id: 4, name: '超时率（%）' },
-  { id: 5, name: '平均耗时(ms)' },
 ];
 
 export const SYMBOL_LIST = [
@@ -173,3 +130,70 @@ export const intervalLowBound = (rawInterval: number) => {
   const index = list.findIndex(v => v > 0);
   return CALL_INTERVAL_LIST.at(index) || CALL_INTERVAL_LIST.at(-1);
 };
+
+const recordCallOptionKindKey = '____apm-service-caller-callee-kind____';
+/**
+ * @description 记录调用者调用被调用者的图表类型
+ * @param keyObject
+ * @param kind
+ * @returns
+ */
+export function setRecordCallOptionKind(keyObject, kind: EKind) {
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return;
+  }
+  try {
+    const listStr = localStorage.getItem(recordCallOptionKindKey);
+    const obj = {
+      key: `__${keyObject.app_name}__${keyObject.service_name}__`,
+      value: kind,
+    };
+    if (listStr) {
+      const list = JSON.parse(listStr);
+      const resultList = [];
+      if (list.length > 50) {
+        list.splice(list.length - 1, list.length - 50);
+      }
+      for (const item of list) {
+        if (item.key !== obj.key) {
+          resultList.push(item);
+        }
+      }
+      resultList.unshift(obj);
+      localStorage.setItem(recordCallOptionKindKey, JSON.stringify(resultList));
+    } else {
+      localStorage.setItem(recordCallOptionKindKey, JSON.stringify([obj]));
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+/**
+ * @description 获取调用者调用被调用者的图表类型
+ * @param keyObject
+ * @returns
+ */
+export function getRecordCallOptionKind(keyObject) {
+  console.log(keyObject);
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return EKind.callee;
+  }
+  try {
+    let kind = EKind.callee;
+    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
+    const listStr = localStorage.getItem(recordCallOptionKindKey);
+    if (listStr) {
+      const list = JSON.parse(listStr) as any[];
+      for (const item of list) {
+        if (item.key === key) {
+          kind = item.value || EKind.callee;
+          break;
+        }
+      }
+    }
+    return kind;
+  } catch (err) {
+    console.log(err);
+    return EKind.callee;
+  }
+}

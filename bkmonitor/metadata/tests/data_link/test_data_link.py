@@ -81,14 +81,16 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     # 预期的配置
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -185,14 +187,16 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
     # 模拟 compose_configs 方法，确保它返回预期的配置
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -281,14 +285,16 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
 
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"spec":{"data":{'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
+        '"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
         '"maintainers":["admin"],"storage":{"kind":"VmStorage","name":"vm-plat",'
         '"namespace":"bkmonitor"}}},{"kind":"Databus","metadata":{'
-        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},'
+        '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
         '"spec":{"maintainers":["admin"],"sinks":[{"kind":"VmStorageBinding",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"}],"sources":[{'
         '"kind":"DataId","name":"bkm_data_link_test","namespace":"bkmonitor"}],"transforms":[{'
@@ -327,3 +333,34 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.bk_base_data_name == bkbase_data_name
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_component_id(create_or_delete_records, mocker):
+    """
+    测试component_id是否正确组装
+    """
+    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+
+    # 测试参数是否正确组装
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    assert bkbase_data_name == "bkm_data_link_test"
+
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+
+    BkBaseResultTable.objects.create(
+        data_link_name=bkbase_data_name,
+        monitor_table_id=rt.table_id,
+        bkbase_rt_name=bkbase_vmrt_name,
+    )
+
+    DataBusConfig.objects.create(data_link_name=bkbase_data_name, namespace="bkmonitor", name=bkbase_vmrt_name)
+
+    # 测试component_id
+    assert (
+        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).component_id
+        == "bkmonitor-bkm_1001_bkmonitor_time_series_50010"
+    )

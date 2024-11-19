@@ -36,6 +36,9 @@ import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import type { ISpaceItem } from '../../typings';
 
+// 设置 biz bg color
+export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
+
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 export interface IAppState {
   navId: string;
@@ -46,6 +49,7 @@ export interface IAppState {
   siteUrl: string;
   bkUrl: string;
   navRouteList: any[];
+  bizBgColor: string;
   lang: string;
   spaceUidMap: Map<string, ISpaceItem>;
   bizIdMap: Map<string, ISpaceItem>;
@@ -53,6 +57,7 @@ export interface IAppState {
 
 @Module({ name: 'app', namespaced: true })
 export default class App extends VuexModule implements IAppState {
+  public bizBgColor = ''; // 业务颜色
   public bizId = '';
   public bizIdMap;
   public bizList = [];
@@ -90,6 +95,11 @@ export default class App extends VuexModule implements IAppState {
       this[key] = value;
     }
   }
+  @Mutation
+  [SET_BIZ_BGCOLOR](val: string) {
+    this.bizBgColor = val;
+  }
+
   @Mutation
   SET_NAV_ID(navId: string) {
     this.navId = navId;

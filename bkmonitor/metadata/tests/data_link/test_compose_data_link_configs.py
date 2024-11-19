@@ -55,12 +55,14 @@ def test_compose_data_id_config(create_or_delete_records):
     assert bkbase_data_name == "bkm_data_link_test"
 
     expected_config = (
-        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor"},'
-        '"spec":{"alias":"bkm_data_link_test","bizId":0,"description":"bkm_data_link_test",'
-        '"maintainers":["admin"]}}'
+        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
+        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":0,'
+        '"description":"bkm_data_link_test","maintainers":["admin"]}}'
     )
 
-    data_id_config_ins, _ = DataIdConfig.objects.get_or_create(name=bkbase_data_name, namespace="bkmonitor")
+    data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
+        name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
+    )
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
 
@@ -81,13 +83,14 @@ def test_compose_vm_result_table_config(create_or_delete_records):
 
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}}'
     )
 
     vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
-        name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor"
+        name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
     content = vm_table_id_ins.compose_config()
     assert json.dumps(content) == expect_config
@@ -108,12 +111,16 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
 
     vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
-        name=bkbase_vmrt_name, vm_cluster_name="vm-plat", data_link_name=bkbase_data_name, namespace="bkmonitor"
+        name=bkbase_vmrt_name,
+        vm_cluster_name="vm-plat",
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        bk_biz_id=111,
     )
 
     expect_config = (
         '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"data":{"kind":"ResultTable",'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"data":{"kind":"ResultTable",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"maintainers":['
         '"admin"],"storage":{"kind":"VmStorage","name":"vm-plat","namespace":"bkmonitor"}}}'
     )
@@ -146,7 +153,7 @@ def test_compose_data_bus_config(create_or_delete_records):
 
     expect_config = (
         '{"kind":"Databus","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
-        '"namespace":"bkmonitor"},"spec":{"maintainers":["admin"],"sinks":[{'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"maintainers":["admin"],"sinks":[{'
         '"kind":"VmStorageBinding","name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor"}],"sources":[{"kind":"DataId","name":"bkm_data_link_test",'
         '"namespace":"bkmonitor"}],"transforms":[{"kind":"PreDefinedLogic","name":"log_to_metric",'
@@ -158,6 +165,7 @@ def test_compose_data_bus_config(create_or_delete_records):
         data_id_name=bkbase_data_name,
         data_link_name=bkbase_data_name,
         namespace="bkmonitor",
+        bk_biz_id=111,
     )
 
     content = data_bus_ins.compose_config(sinks)

@@ -45,13 +45,13 @@
       v-show="activeExpandView === 'kv'"
     >
       <kv-list
-        v-bind="$attrs"
         :data="data"
         :field-list="totalFields"
         :kv-show-fields-list="kvShowFieldsList"
         :list-data="listData"
         :total-fields="totalFields"
-        @menu-click="(val, isLink) => $emit('menu-click', val, isLink)"
+        :visible-fields="visibleFields"
+        @value-click="(type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)"
       />
     </div>
     <div
@@ -83,10 +83,6 @@
         type: Object,
         default: () => {},
       },
-      totalFields: {
-        type: Array,
-        required: true,
-      },
       listData: {
         type: Object,
         default: () => {},
@@ -102,6 +98,12 @@
       };
     },
     computed: {
+      visibleFields() {
+        return this.$store.state.visibleFields ?? [];
+      },
+      totalFields() {
+        return this.$store.state.indexFieldInfo.fields ?? [];
+      },
       kvListData() {
         return this.totalFields
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
@@ -124,6 +126,7 @@
 
 <style lang="scss" scoped>
   .expand-view-wrapper {
+    width: 100%;
     color: #313238;
 
     .view-tab {
@@ -134,8 +137,7 @@
         display: inline-block;
         width: 68px;
         height: 26px;
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
+        font-size: 12px;
         line-height: 26px;
         color: var(--table-fount-color);
         text-align: center;
@@ -161,13 +163,19 @@
       background-color: #fafbfd;
 
       :deep(.vjs-tree) {
-        font-family: var(--table-fount-family);
-
         /* stylelint-disable-next-line declaration-no-important */
         font-size: var(--table-fount-size) !important;
 
         .vjs-tree__node {
           line-height: 22px;
+        }
+      }
+
+      :deep(.kv-content) {
+        .bklog-text-segment {
+          &.bklog-root-field {
+            max-height: fit-content;
+          }
         }
       }
     }

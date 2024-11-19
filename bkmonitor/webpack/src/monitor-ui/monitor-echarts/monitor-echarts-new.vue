@@ -568,6 +568,11 @@ export default class MonitorEcharts extends Vue {
     });
   }
 
+  @Watch('noData')
+  onNoDataChange(v) {
+    this.$emit('no-data-change', v);
+  }
+
   @Watch('height', { immediate: true })
   onHeightChange(val) {
     this.localChartHeight = val ?? 0;

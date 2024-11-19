@@ -45,12 +45,21 @@
           <span class="field-text">{{ field }}</span>
         </div>
         <div class="field-value">
-          <text-segmentation
-            :content="formatterStr(data, field)"
-            :data="data"
-            :field="getFieldItem(field)"
-            :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
-          />
+          <template v-if="isJsonFormat(formatterStr(data, field))">
+            <JsonFormatter
+              :jsonValue="formatterStr(data, field)"
+              :fields="getFieldItem(field)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            ></JsonFormatter>
+          </template>
+          <template v-else>
+            <text-segmentation
+              :content="formatterStr(data, field)"
+              :field="getFieldItem(field)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            />
+          </template>
+
           <span
             v-if="getRelationMonitorField(field)"
             class="relation-monitor-btn"
@@ -69,13 +78,14 @@
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
-  import { mapState } from 'vuex';
-
-  import TextSegmentation from './text-segmentation.tsx';
+  import { mapGetters, mapState } from 'vuex';
+  import JsonFormatter from '@/global/json-formatter.vue';
+  import TextSegmentation from './text-segmentation';
 
   export default {
     components: {
       TextSegmentation,
+      JsonFormatter,
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
@@ -108,10 +118,10 @@
         type: Array,
         require: true,
       },
-      retrieveParams: {
-        type: Object,
-        require: true,
-      },
+      // retrieveParams: {
+      //   type: Object,
+      //   require: true,
+      // },
       listData: {
         type: Object,
         default: () => {},
@@ -144,8 +154,14 @@
     },
     computed: {
       ...mapState('globals', ['fieldTypeMap']),
+      ...mapGetters({
+        retrieveParams: 'retrieveParams',
+      }),
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
+      }),
       apmRelation() {
-        return this.$store.state.indexSetFieldConfig?.apm_relation ?? {};
+        return this.$store.state.indexSetFieldConfig.apm_relation;
       },
       bkBizId() {
         return this.$store.state.bkBizId;
@@ -174,6 +190,9 @@
       },
     },
     methods: {
+      isJsonFormat(content) {
+        return this.formatJson && /^\[|\{/.test(content);
+      },
       formatterStr(row, field) {
         // 判断当前类型是否为虚拟字段 若是虚拟字段则不使用origin_list而使用list里的数据
         const fieldType = this.getFieldType(field);
@@ -209,48 +228,15 @@
           ? 'is-disabled'
           : '';
       },
-      handleMenuClick(operator, item, field, isLink = false) {
-        let params = {};
-        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(item), false);
-        if (!field) {
-          // disable时操作禁用
-          const disableStr = this.checkDisable(operator, item);
-          if (disableStr === 'is-disabled') return;
-        }
-        if (['is', 'not', 'new-search-page-is'].includes(operator)) {
-          if (!field && !this.getFieldType(item)) return;
-
-          if (this.getFieldType(item) === 'text') return;
-
-          if (!field && curValue === undefined) return;
-
-          params = {
-            fieldName: field ? field : item,
-            operation: operator,
-            value: item ? item : curValue,
-          };
-        }
-
-        if (operator === 'copy') {
-          if (!field && curValue === undefined) return;
-          params.operation = 'copy';
-          params.value = item ? item : curValue;
-        }
-
-        if (operator === 'display') {
-          const displayFieldNames = this.visibleFields.map(field => field.field_name);
-          const isDisplay = displayFieldNames.includes(item);
-          if (isDisplay) {
-            displayFieldNames.splice(displayFieldNames.indexOf(item), 1);
-          } else {
-            displayFieldNames.push(item);
-          }
-          params.operation = 'display';
-          params.displayFieldNames = displayFieldNames;
-        }
-
-        if (Object.keys(params).length) this.$emit('menu-click', params, isLink);
+      handleJsonSegmentClick({ isLink, option }, fieldName) {
+        // 为了兼容旧的逻辑，先这么写吧
+        // 找时间梳理下这块，写的太随意了
+        const { operation, value, depth } = option;
+        const operator = operation === 'not' ? 'is not' : operation;
+        const field = this.totalFields.find(f => f.field_name === fieldName);
+        this.$emit('value-click', operator, value, isLink, field, depth);
       },
+
       /**
        * @desc 关联跳转
        * @param { string } field
@@ -291,7 +277,7 @@
         }
 
         if (path) {
-          const url = `${window.MONITOR_URL}${path}`;
+          const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
           window.open(url, '_blank');
         }
       },
@@ -383,9 +369,6 @@
           display: block;
           width: auto;
           overflow: hidden;
-          font-family: var(--table-fount-family);
-          font-size: var(--table-fount-size);
-          color: var(--table-fount-color);
           word-break: normal;
           word-wrap: break-word;
         }
@@ -398,9 +381,7 @@
       }
 
       .field-value {
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
-        color: var(--table-fount-color);
+        display: flex;
         word-break: break-all;
       }
     }

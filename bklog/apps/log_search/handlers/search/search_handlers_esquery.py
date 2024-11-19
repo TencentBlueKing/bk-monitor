@@ -59,6 +59,7 @@ from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
+    MAX_ASYNC_COUNT,
     MAX_EXPORT_REQUEST_RETRY,
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
@@ -1051,7 +1052,9 @@ class SearchHandler(object):
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        while search_after_size == max_result_window and result_size < self.size:
+        while search_after_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
+        ):
             search_after = []
             for sorted_field in sorted_fields:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
@@ -1100,7 +1103,9 @@ class SearchHandler(object):
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
-        while scroll_size == max_result_window and result_size < self.size:
+        while scroll_size == max_result_window and result_size < max(
+            self.index_set_obj.max_async_count, MAX_ASYNC_COUNT
+        ):
             _scroll_id = scroll_result["_scroll_id"]
             scroll_result = scroll_func(
                 {
@@ -1782,11 +1787,19 @@ class SearchHandler(object):
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
                 value = item.get("value", [])
-                value = ",".join(value) if isinstance(value, list) else value
-                if value:
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
                     if field == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
-                    self.query_string = value
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    new_query_string = " OR ".join(new_value_list)
+                    if field == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
                 continue
 
             _type = "field"

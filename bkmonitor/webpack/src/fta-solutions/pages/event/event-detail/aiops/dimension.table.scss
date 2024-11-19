@@ -1,13 +1,13 @@
 /* stylelint-disable declaration-no-important */
 .dimension-table {
+  z-index: 9;
   margin-top: 16px;
   margin-bottom: 24px;
-  z-index: 9;
   
   &.min-260 {
-    min-height: 260px;
-    align-items: center;
     flex-direction: row !important;
+    align-items: center;
+    min-height: 260px;
     margin-top: 0px;
   }
 
@@ -24,8 +24,8 @@
         cursor: not-allowed;
 
         .bk-checkbox {
-          border-color: #dcdee5;
           background-color: #dcdee5;
+          border-color: #dcdee5;
         }
       }
     }
@@ -68,8 +68,8 @@
       cursor: not-allowed;
 
       .bk-checkbox {
-        border-color: #dcdee5;
         background-color: #dcdee5;
+        border-color: #dcdee5;
       }
     }
   }
@@ -104,45 +104,40 @@
     }
 
     p {
-      font-weight: 700;
-      font-size: 12px;
-      color: #fff;
-      margin: 0px 0px 6px 0px;
       padding: 0;
+      margin: 0px 0px 6px 0px;
       margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
     }
 
     li {
-      display: flex;
-      align-items: center;
-      flex-direction: row;
-      height: 20px;
       position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      height: 20px;
 
       div {
         display: flex;
         align-items: center;
       }
 
-      &:hover {
-        .num {
-          visibility: visible;
-        }
-      }
 
       .label {
-        color: #f0f1f5;
         display: inline-block;
-        line-height: 20px;
         max-width: 160px;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
-        font-weight: 700;
         font-size: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #f0f1f5;
         color: #699df4;
-        cursor: pointer;
         text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
 
       }
 
@@ -155,22 +150,22 @@
       }
 
       i {
-        width: 8px;
         display: inline-block;
-        visibility: hidden;
+        width: 8px;
         color: #3a84ff;
+        visibility: hidden;
       }
 
       .progress {
-        // flex: 1;
-        height: 12px;
-        max-width: 225px;
         display: flex;
         align-items: center;
+        max-width: 225px;
+        // flex: 1;
+        height: 12px;
 
         .progress-bar {
-          height: 10px;
           display: inline-block;
+          height: 10px;
           background: rgba(220,222,229,.40);;
         }
 
@@ -180,9 +175,9 @@
         position: relative;
 
         .num {
-          min-width: 24px;
           position: absolute;
           right: 5px;
+          min-width: 24px;
           transform: scale(.83);
         }
       }
@@ -194,12 +189,11 @@
       }
 
       .num {
-        min-width: 24px;;
-        visibility: hidden;
-        font-size: 12px;
-        white-space: nowrap;
-        color: #fff;
+        min-width: 24px;
         margin-left: 3px;
+        font-size: 12px;
+        color: #fff;
+        white-space: nowrap;;
       }
 
       .num-position {

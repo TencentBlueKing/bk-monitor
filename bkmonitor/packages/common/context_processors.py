@@ -172,6 +172,8 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
             # 是否开启AI助手
             "ENABLE_AI_ASSISTANT": "true" if settings.BK_MONITOR_AI_API_URL else "false",
+            # APM 日志转发接口 Url
+            "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
         }
     )
 
