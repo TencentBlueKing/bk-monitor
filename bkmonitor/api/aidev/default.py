@@ -87,7 +87,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
             )
             section_html = section_tmp.format(doc_count=len(link_map), doc_link_html=doc_link_html)
             data = {"event": "text", "content": ""}
-            data["content"] += section_html
+            data["content"] += section_html if len(link_map) else ""
             return "data: " + json.dumps(data) + "\n\n"
 
         # 返回 StreamingHttpResponse
