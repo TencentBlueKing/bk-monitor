@@ -27,6 +27,8 @@
 import { LANGUAGE_COOKIE_KEY } from './constant';
 import { docCookies, rstrip } from './utils';
 
+import type { IDocLinkData } from '@/typings';
+
 export enum DocLinkType {
   Link = 'link',
   MonitorSplice = 'Monitor',
@@ -132,20 +134,21 @@ export function linkJump(type: DocLinkType, path: string) {
  * @param { Record<string, string> } localMap
  * @param { Record<string, IDocLinkData> } remoteMap
  */
-export function skipToDocsLink(
-  id: keyof (typeof DOCS_LINK_MAP)['BKOther'] | keyof (typeof DOCS_LINK_MAP)['Monitor'],
-  remoteMap = {}
+export function skipToDocsLink<T extends Record<string, IDocLinkData>>(
+  id: keyof (typeof DOCS_LINK_MAP)['BKOther'] | keyof (typeof DOCS_LINK_MAP)['Monitor'] | keyof T,
+  remoteMap: T
 ) {
   let path = '';
   let type = DocLinkType.Link;
   // 先匹配接口返回文档链接
-  if (remoteMap[id]) {
-    const v = remoteMap[id];
+  if (remoteMap?.[id]) {
+    const v = remoteMap?.[id];
     type = v.type;
     path = v.value;
   } else {
-    path = DOCS_LINK_MAP.Monitor[id] || DOCS_LINK_MAP.BKOther[id] || id;
-    type = DOCS_LINK_MAP.Monitor[id] ? DocLinkType.MonitorSplice : DocLinkType.Splice;
+    const key = id as keyof (typeof DOCS_LINK_MAP)['BKOther'] | keyof (typeof DOCS_LINK_MAP)['Monitor'];
+    path = DOCS_LINK_MAP.Monitor[key] || DOCS_LINK_MAP.BKOther[key] || key;
+    type = DOCS_LINK_MAP.Monitor[key] ? DocLinkType.MonitorSplice : DocLinkType.Splice;
   }
   if (path) {
     linkJump(type, path);

@@ -80,6 +80,7 @@ const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
+const AI_USER_LIST = 'AI_USER_LIST';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
@@ -113,6 +114,7 @@ export default class App extends tsc<object> {
   headerNav = 'home';
   headerNavChange = true;
   overseaGlobalList: IOverseasConfig[] = [];
+  enableAiAssistant = false; // 是否显示AI智能助手
   menuStore = '';
   hideNavCount = 0;
   spacestickyList: string[] = []; /** 置顶的空间列表 */
@@ -259,6 +261,7 @@ export default class App extends tsc<object> {
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     this.getGlobalConfig();
+    this.getAiUserConfig();
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -679,6 +682,14 @@ export default class App extends tsc<object> {
   async getGlobalConfig() {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
+  async getAiUserConfig() {
+    if (!window.enable_ai_assistant) {
+      this.enableAiAssistant = false;
+      return;
+    }
+    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+    this.enableAiAssistant = list.includes(window.username);
+  }
 
   render() {
     /** 页面内容部分 */
@@ -959,7 +970,12 @@ export default class App extends tsc<object> {
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
             !AI_WHALE_EXCLUDE_ROUTES.includes(this.$route.name) &&
-            this.hasBusinessAuth && <AiWhale key={this.bizId} />
+            this.hasBusinessAuth && (
+              <AiWhale
+                key={this.bizId}
+                enableAiAssistant={this.enableAiAssistant}
+              />
+            )
           // #endif
         }
       </div>
