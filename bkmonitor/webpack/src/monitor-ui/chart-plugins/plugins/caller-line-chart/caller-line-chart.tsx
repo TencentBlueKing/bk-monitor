@@ -630,7 +630,7 @@ class CallerLineChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || 2,
         lineStyle: {
           width: 2,
         },
