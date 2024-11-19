@@ -225,7 +225,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 搜索的值
   searchValue: ISearchItem[] | string[] = [];
   // 图表布局
-  columns = 0;
+  columns = 2;
   // 选中添加目标对比的主机
   compareHostList: IOption[] = [];
   /** 变量伸缩层 */
@@ -605,7 +605,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
-    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 0;
+    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 2;
     this.filtersReady = false;
     this.selectorReady = false;
     await this.$nextTick();

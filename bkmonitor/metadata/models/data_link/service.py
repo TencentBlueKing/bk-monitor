@@ -398,8 +398,8 @@ def create_fed_vm_data_link(
     vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
     # 2.1.1 如果存在对应的VM接入记录，说明属于 原先接入过监控的独立集群改造为联邦集群子集群（V3），直接使用其原先的链路信息(计算平台数据名称&ID）
     if vm_record.exists():
-        data_id_name = vm_record.first().bkbase_data_name
-        bkbase_data_id = vm_record.first().bkbase_data_id
+        data_id_name = vm_record.first().bk_base_data_name
+        bkbase_data_id = vm_record.first().bk_base_data_id
         logger.info(
             "create_fed_vm_data_link: vm_record exists,will use data_id_name->[%s],bkbase_data_id->["
             "%s].bk_data_id->[%s]",

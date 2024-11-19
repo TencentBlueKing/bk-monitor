@@ -458,6 +458,7 @@ class CallerLineChart extends CommonSimpleChart {
                 formatter: formatterFunc || '{value}',
               },
               ...xInterval,
+              splitNumber: 4,
             },
             series: seriesList,
             tooltip: {
