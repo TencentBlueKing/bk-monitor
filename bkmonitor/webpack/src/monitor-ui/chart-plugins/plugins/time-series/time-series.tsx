@@ -955,7 +955,7 @@ export class LineChart
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || precision,
         lineStyle: {
           width: 1,
         },
