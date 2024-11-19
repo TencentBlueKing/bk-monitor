@@ -979,12 +979,13 @@ class DataSource(models.Model):
             logger.info("data_id->[{}] update config to consul skip.".format(self.bk_data_id))
             return
 
-        # 1. 获取consul的句柄
         hash_consul = consul_tools.HashConsul()
 
         # 2. 刷新当前data_id的配置
         hash_consul.put(
-            key=self.consul_config_path, value=self.to_json(is_consul_config=True), bk_data_id=self.bk_data_id
+            key=self.consul_config_path,
+            value=self.to_json(is_consul_config=True),
+            bk_data_id=self.bk_data_id,
         )
         logger.info(
             "data_id->[{}] has update config to ->[{}] success".format(self.bk_data_id, self.consul_config_path)

@@ -367,6 +367,7 @@ class CollectorHandler(object):
                     etl_storage.parse_result_table_config(
                         result_table_config=result["result_table_config"],
                         result_table_storage=result["result_table_storage"][self.data.table_id],
+                        fields_dict=self.get_fields_dict(self.data.collector_config_id),
                     )
                 )
                 # 补充es集群端口号 、es集群域名
@@ -445,6 +446,34 @@ class CollectorHandler(object):
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
 
         return collector_config
+
+    @staticmethod
+    def get_fields_dict(collector_config_id: int):
+        """
+        获取字段的自定义分词和是否大小写信息
+        """
+        fields_dict = {}
+        clean_stash = CleanStash.objects.filter(collector_config_id=collector_config_id).first()
+        if not clean_stash:
+            return fields_dict
+        etl_params = clean_stash.etl_params or {}
+        fields_dict = {
+            "log": {
+                "is_case_sensitive": etl_params.get("original_text_is_case_sensitive", False),
+                "tokenize_on_chars": etl_params.get("original_text_tokenize_on_chars", ""),
+            }
+        }
+        etl_fields = clean_stash.etl_fields or []
+        for etl_field in etl_fields:
+            fields_dict.update(
+                {
+                    etl_field["field_name"]: {
+                        "is_case_sensitive": etl_field.get("is_case_sensitive", False),
+                        "tokenize_on_chars": etl_field.get("tokenize_on_chars", ""),
+                    }
+                }
+            )
+        return fields_dict
 
     def get_report_token(self):
         """

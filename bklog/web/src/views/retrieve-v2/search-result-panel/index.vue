@@ -8,6 +8,7 @@
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
+  import GraphAnalysis from './graph-analysis';
 
   const DEFAULT_FIELDS_WIDTH = 220;
 
@@ -22,7 +23,7 @@
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
-  const isOriginShow = computed(() => props.activeTab === 'origin');
+  const isOriginShow = computed(() => ['graphAnalysis', 'origin'].includes(props.activeTab));
   const pageLoading = computed(
     () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
   );
@@ -104,7 +105,7 @@
 
         <keep-alive>
           <OriginalLog
-            v-if="isOriginShow"
+            v-if="activeTab === 'origin'"
             :height="heightNum"
             :queue-status="queueStatus"
             :retrieve-params="retrieveParams"
@@ -117,6 +118,9 @@
             :retrieve-params="retrieveParams"
             @show-change="handleUpdateActiveTab"
           />
+          <template v-if="activeTab === 'graphAnalysis'">
+            <GraphAnalysis></GraphAnalysis>
+          </template>
         </keep-alive>
       </div>
     </template>

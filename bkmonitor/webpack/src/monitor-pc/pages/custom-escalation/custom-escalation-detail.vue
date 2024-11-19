@@ -883,7 +883,7 @@
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('golangCopy')"
                 >
-                  {{ $t('复制') }}
+                  <i class="icon-monitor icon-mc-copy"></i>
                 </div>
                 <textarea
                   ref="golangCopy"
@@ -911,7 +911,7 @@
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('pythonCopy')"
                 >
-                  {{ $t('复制') }}
+                  <i class="icon-monitor icon-mc-copy"></i>
                 </div>
                 <textarea
                   ref="pythonCopy"
@@ -932,7 +932,7 @@
               class="content-copy"
               @click="handleCopyData"
             >
-              {{ $t('复制') }}
+              <i class="icon-monitor icon-mc-copy"></i>
             </div>
             <textarea
               ref="textCopy"
@@ -3015,15 +3015,39 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           position: absolute;
           top: 30px;
           right: 10px;
+          width: 20px;
+          height: 20px;
+          text-align: center;
+          line-height: 20px;
+          background: #ffffff;
+          box-shadow: 0 2px 4px 0 #1919290d;
+          border-radius: 2px;
           @include hover($cursor: pointer);
+
+          .icon-mc-copy {
+            font-size: 12px;
+            color: #3a84ff;
+          }
         }
         .content-prometheus {
           position: relative;
           .content-copy-prometheus {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            background: #ffffff;
+            box-shadow: 0 2px 4px 0 #1919290d;
+            border-radius: 2px;
             @include hover($cursor: pointer);
+
+            .icon-mc-copy {
+              font-size: 12px;
+              color: #3a84ff;
+            }
           }
         }
 
