@@ -344,6 +344,9 @@ importers:
 
   src/monitor-pc:
     dependencies:
+      '@blueking/ai-blueking':
+        specifier: ^0.2.13
+        version: 0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.6
         version: 0.0.26-beta.6
@@ -2409,6 +2412,20 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@blueking/ai-blueking@0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
+    resolution: {integrity: sha512-9gBQ/YTtFT+qtLI9U/lw3ALaPq4O3OBBDOTH5HqhE322q2/orws6B7F1FlNK1seZ7tiJeY8FTHQyZK7AOEIX1Q==}
+    peerDependencies:
+      dayjs: ^1.10.7
+      highlight.js: ^11.5.1
+      markdown-it: ^13.0.1
+      markdown-it-code-copy: ^0.2.1
+    dependencies:
+      dayjs: 1.11.11
+      highlight.js: 11.5.1
+      markdown-it: 13.0.2
+      markdown-it-code-copy: 0.2.1
+    dev: false
 
   /@blueking/bk-weweb@0.0.26-beta.6:
     resolution: {integrity: sha512-hU4pbmQedYWaHKUSUJUmDJI/MJO59cGypkOemjsSHCSJ0fxjtNb5+CmBJJlRRwpTbIo5s8Y6TilvUuwYnd+HHg==}
@@ -5107,7 +5124,6 @@ packages:
 
   /argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
-    dev: true
 
   /arr-diff@4.0.0:
     resolution: {integrity: sha512-YVIQ82gZPGBebQV/a8dar4AitzCQs0jjXwMPZllpXMaGjXPYVUawSxQrRsjhjupyVxEvbHgUmIhKVlND+j02kA==}
@@ -7270,6 +7286,11 @@ packages:
   /entities@2.2.0:
     resolution: {integrity: sha512-p92if5Nz619I0w+akJrLZH0MX0Pb5DX39XOwQTtXSdQQOaYH03S1uIQp4mhOZtAXrxq4ViO67YTiLBo2638o9A==}
     dev: true
+
+  /entities@3.0.1:
+    resolution: {integrity: sha512-WiyBqoomrwMdFG1e0kqvASYfnlb0lp8M5o5Fw2OFq1hNZxxcNk8Ik0Xm7LxzBhuidnZB/UtBqVCgUz3kBOP51Q==}
+    engines: {node: '>=0.12'}
+    dev: false
 
   /entities@4.5.0:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
@@ -9497,6 +9518,12 @@ packages:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
     dev: true
 
+  /linkify-it@4.0.1:
+    resolution: {integrity: sha512-C7bfi1UZmoj8+PQx22XyeXCuBlokoyWQL5pWSP+EI6nzRylyThouddufc2c1NDIcP9k5agmN9fLpA7VNJfIiqw==}
+    dependencies:
+      uc.micro: 1.0.6
+    dev: false
+
   /lint-staged@15.2.10:
     resolution: {integrity: sha512-5dY5t743e1byO19P9I4b3x8HJwalIznL5E1FWYnU6OWw33KxNBSLAc6Cy7F2PsFEO8FKnLwjwm5hx7aMF0jzZg==}
     engines: {node: '>=18.12.0'}
@@ -9741,6 +9768,24 @@ packages:
       object-visit: 1.0.1
     dev: true
 
+  /markdown-it-code-copy@0.2.1:
+    resolution: {integrity: sha512-WuMKSdhYDwTXM78LYHDj4ZFd2RFmodzyfDoJGEW7YLVwVPpaSAm2Jhcxgr3LWFygfvjTUeQu+TH+JZ/IF0u7yg==}
+    dependencies:
+      clipboard: 2.0.11
+      lodash: 4.17.21
+    dev: false
+
+  /markdown-it@13.0.2:
+    resolution: {integrity: sha512-FtwnEuuK+2yVU7goGn/MJ0WBZMM9ZPgU9spqlFs7/A/pDIUNSOQZhUgOqYCficIuR2QaFnrt8LHqBWsbTAoI5w==}
+    hasBin: true
+    dependencies:
+      argparse: 2.0.1
+      entities: 3.0.1
+      linkify-it: 4.0.1
+      mdurl: 1.0.1
+      uc.micro: 1.0.6
+    dev: false
+
   /markdown-table@2.0.0:
     resolution: {integrity: sha512-Ezda85ToJUBhM6WGaG6veasyym+Tbs3cMAw/ZhOPqXiYsr0jgocBV3j3nx+4lk47plLlIqjwuTm/ywVI+zjJ/A==}
     dependencies:
@@ -9791,6 +9836,10 @@ packages:
   /mdn-data@2.0.30:
     resolution: {integrity: sha512-GaqWWShW4kv/G9IEucWScBx9G1/vsFZZJUO+tD26M8J8z3Kw5RDQjaoZe03YAClgeS/SWPOcb4nkFBTEi5DUEA==}
     dev: true
+
+  /mdurl@1.0.1:
+    resolution: {integrity: sha512-/sKlQJCBYVY9Ers9hqzKou4H6V5UWc/M59TH2dvkt+84itfnq7uFOMLpOiOS4ujvHP4etln18fmIxA5R5fll0g==}
+    dev: false
 
   /media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
@@ -13919,6 +13968,10 @@ packages:
     resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  /uc.micro@1.0.6:
+    resolution: {integrity: sha512-8Y75pvTYkLJW2hWQHXxoqRgV7qb9B+9vFEtidML+7koHUFapnVJAZ6cKs+Qjz5Aw3aZWHMC6u0wJE3At+nSGwA==}
+    dev: false
 
   /unbox-primitive@1.0.2:
     resolution: {integrity: sha512-61pPlCD9h51VoreyJ0BReideM3MDKMKnh6+V9L08331ipq6Q8OFXZYiqP6n/tbHx4s5I9uRhcye6BrbkizkBDw==}
