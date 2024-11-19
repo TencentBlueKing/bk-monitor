@@ -390,8 +390,11 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
+        # bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+
+        if self.data_link_strategy == DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
+            bkbase_vmrt_name = bkbase_vmrt_name + '_fed'
 
         storage_type = ClusterInfo.TYPE_VM
         if self.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES:
@@ -411,7 +414,7 @@ class DataLink(models.Model):
                     storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                     defaults={
                         "bkbase_rt_name": bkbase_vmrt_name,
-                        "bkbase_data_name": bkbase_data_name,
+                        "bkbase_data_name": self.data_link_name,
                         "bkbase_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
                         "storage_type": storage_type,
                         "storage_cluster_id": storage_cluster_id,
