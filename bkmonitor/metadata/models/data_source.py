@@ -979,7 +979,6 @@ class DataSource(models.Model):
             logger.info("data_id->[{}] update config to consul skip.".format(self.bk_data_id))
             return
 
-        # 1. 获取consul的句柄，获取最新的ModifyIndex
         hash_consul = consul_tools.HashConsul()
 
         # 2. 刷新当前data_id的配置
