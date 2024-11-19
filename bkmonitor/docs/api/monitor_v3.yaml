@@ -1870,6 +1870,39 @@
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/start_application_simple/
+  is_hidden: false
+  label: 开启APM应用数据上报
+  label_en: null
+  name: apm_start_application
+  path: /v2/monitor_v3/apm/start_application/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/stop_application_simple/
+  is_hidden: false
+  label: 关闭APM应用数据上报
+  label_en: null
+  name: apm_stop_application
+  path: /v2/monitor_v3/apm/stop_application/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/delete_application_simple/
+  is_hidden: false
+  label: 删除应用
+  label_en: null
+  name: apm_delete_application
+  path: /v2/monitor_v3/apm/delete_application/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
   dest_path: /apm_api/v1/application/apply_datasource/
   is_hidden: true
@@ -1900,17 +1933,6 @@
   name: detail_apm_application
   path: /v2/monitor_v3/detail_apm_application/
   method: GET
-
-- api_type: operate
-  comp_codename: generic.v2.monitor_v3.monitor_v3_component
-  dest_http_method: POST
-  dest_path: /apm_api/v1/application/delete_application_simple/
-  is_hidden: false
-  label: 删除应用
-  label_en: delete apm application simple
-  name: delete_apm_application_simple
-  path: /v2/monitor_v3/apm/delete_application_simple/
-  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component

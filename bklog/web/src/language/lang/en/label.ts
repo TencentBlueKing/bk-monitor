@@ -720,6 +720,6 @@ export default {
   执行成功: 'Execution success',
   行号: 'Index',
   '请输入字段名/别名': 'Please enter a field name/alias',
-  批量添加字段: 'Add fields in batches',
-  索引日志配置: 'Index log configuration',
+  前往清洗: 'Go to wash',
+  索引字段配置: 'Index field configuration',
 };

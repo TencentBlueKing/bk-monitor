@@ -2,8 +2,8 @@
   <div>
     <div
       v-if="!isStopCollection"
-      class="issued-btn-wrap"
       :style="hasFailed ? 'border: 1px solid #ea3939' : ''"
+      class="issued-btn-wrap"
       @click.stop="viewDetail()"
     >
       <div
@@ -19,22 +19,25 @@
       :width="800"
       transfer
       @animation-end="closeSlider"
+      @shown="showSlider"
     >
-      <div slot="header">
-        <div
-          v-if="isStopCollection"
-          class="collect-link"
-        >
-          {{ $t('编辑采集项') }}
-          <span style="padding: 3px 9px; background-color: #f0f1f5">
-            <span class="bk-icon bklog-icon bklog-position"></span>
-            {{ collectionName }}
-          </span>
+      <template #header>
+        <div>
+          <div
+            v-if="isStopCollection"
+            class="collect-link"
+          >
+            {{ $t('编辑采集项') }}
+            <span style="padding: 3px 9px; background-color: #f0f1f5">
+              <span class="bk-icon bklog-icon bklog-position"></span>
+              {{ collectionName }}
+            </span>
+          </div>
+          <div v-else>
+            {{ $t('采集下发') }}
+          </div>
         </div>
-        <div v-else>
-          {{ $t('采集下发') }}
-        </div>
-      </div>
+      </template>
       <template #content>
         <!-- 当采集下发 -->
         <div
@@ -79,8 +82,8 @@
                 <span class="notice-text"
                   ><span style="color: #34d97b">{{ $t('执行成功') }}{{ tabList[1].num }}/{{ tabList[0].num }};</span>
                   <span
-                    style="color: #ff5656"
                     v-if="tabList[2].num"
+                    style="color: #ff5656"
                     >{{ $t('执行失败') }}{{ tabList[2].num }}/{{ tabList[0].num }}</span
                   ></span
                 >
@@ -93,18 +96,18 @@
                     v-for="tabItem in tabList"
                     :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
                     :key="tabItem.type"
-                    @click="tabHandler(tabItem)"
                     href="javascript:void(0);"
+                    @click="tabHandler(tabItem)"
                   >
                     <div
                       v-if="tabItem.type === 'failed'"
-                      class="ip-status-cicle"
                       style="margin-top: 6px"
+                      class="ip-status-cicle"
                     ></div>
                     <div
                       v-else-if="tabItem.type === 'success'"
-                      class="ip-status-cicle"
                       style="margin-top: 6px; border: 1px solid #34d97b"
+                      class="ip-status-cicle"
                     ></div>
                     <i
                       v-else-if="tabItem.type === 'running'"
@@ -172,13 +175,13 @@
                           <bk-table
                             class="cluster-table"
                             v-bkloading="{ isLoading: loading }"
+                            :cell-class-name="tableRowClassName"
                             :data="cluster.child"
                             :empty-text="$t('暂无内容')"
                             :pagination="pagination"
                             :resizable="true"
-                            :size="size"
                             :show-header="false"
-                            :cell-class-name="tableRowClassName"
+                            :size="size"
                           >
                             <bk-table-column>
                               <template #default="props">
@@ -187,13 +190,13 @@
                                   @click="requestDetail(props.row)"
                                 >
                                   <div
-                                    class="ip-status-cicle"
                                     v-if="props.row.status === 'failed'"
+                                    class="ip-status-cicle"
                                   ></div>
                                   <div
-                                    class="ip-status-cicle"
-                                    style="border: 1px solid #34d97b"
                                     v-if="props.row.status === 'success'"
+                                    style="border: 1px solid #34d97b"
+                                    class="ip-status-cicle"
                                   ></div>
                                   <i
                                     v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
@@ -234,8 +237,8 @@
                     <bk-button
                       class="header-refresh"
                       :loading="detail.loading"
-                      @click="handleRefreshDetail"
                       size="small"
+                      @click="handleRefreshDetail"
                     >
                       {{ $t('刷新') }}
                     </bk-button>
@@ -257,8 +260,8 @@
 
           <!-- 当停用按钮打开的抽屉并且非完成步骤时再显示 -->
           <div
-            class="step-issued-footer"
             v-if="isStopCollection && !isFinishStep"
+            class="step-issued-footer"
           >
             <bk-button
               v-if="isSwitch"
@@ -279,10 +282,10 @@
         </div>
         <div v-else>
           <step-result
-            :operate-type="operateType"
-            :is-switch="isSwitch"
             :apply-data="applyData"
             :index-set-id="indexSetId"
+            :is-switch="isSwitch"
+            :operate-type="operateType"
             @step-result-back="cancel"
           ></step-result>
         </div>
@@ -294,10 +297,11 @@
   import rightPanel from '@/components/ip-select/right-panel';
   import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
   import { mapGetters } from 'vuex';
+
   import stepResult from './step-result';
 
   export default {
-    name: 'issuedSlider',
+    name: 'IssuedSlider',
     components: {
       rightPanel,
       containerStatus,
@@ -437,7 +441,7 @@
       this.isShowStepInfo = false;
       if (!this.isStopCollection) this.requestIssuedClusterList();
     },
-    beforeDestroy() {
+    beforeUnmount() {
       this.isLeavePage = true;
       this.isFinishStep = false;
       this.stopStatusPolling();
@@ -538,6 +542,9 @@
       handleRefreshDetail() {
         this.requestDetail(this.currentRow);
       },
+      showSlider() {
+        if (!this.isStopCollection) this.requestIssuedClusterList();
+      },
       closeSlider() {
         this.detail.content = '';
         this.detail.loading = false;
@@ -629,8 +636,8 @@
                       host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                     });
                   });
-                  this.tableListAll = data;
-                  this.tableList = data;
+                  this.tableListAll = [...data];
+                  this.tableList = [...data];
                 }
                 this.syncHostStatus(data);
                 this.tabHandler({ type: this.curTab }, true);
@@ -648,8 +655,8 @@
                   host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                 });
               });
-              this.tableListAll = data;
-              this.tableList = data;
+              this.tableListAll = [...data];
+              this.tableList = [...data];
               this.calcTabNum();
             }
           })

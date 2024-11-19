@@ -4,30 +4,30 @@
     v-bkloading="{ isLoading: isExtracting }"
   >
     <div
-      class="field-header"
       v-if="tableType === 'indexLog'"
+      class="field-header"
     >
       <div
         class="field-add-btn"
         @click="batchAddField"
       >
-        {{ $t('批量添加字段') }}<span class="bklog-icon bklog-jump"></span>
+        {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
       </div>
       <div style="display: flex; align-items: center">
         <bk-checkbox
-          size="small"
-          theme="primary"
           class="visible-built-btn"
           v-model="builtFieldVisible"
+          size="small"
+          theme="primary"
         >
           {{ $t('显示内置字段') }}
         </bk-checkbox>
 
         <bk-input
-          class="field-header-search"
           style="width: 220px"
-          :placeholder="$t('请输入字段名/别名')"
+          class="field-header-search"
           v-model="keyword"
+          :placeholder="$t('请输入字段名/别名')"
           right-icon="bk-icon icon-search"
         >
         </bk-input>
@@ -43,10 +43,10 @@
           class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
-          row-key="field_index"
-          col-border
-          size="small"
           :max-height="isPreviewMode ? 300 : 320"
+          row-key="field_index"
+          size="small"
+          col-border
         >
           <template>
             <!-- <bk-table-column
@@ -62,8 +62,7 @@
             </bk-table-column> -->
             <!-- 字段名 -->
             <bk-table-column
-              :label="$t('字段名')"
-              :render-header="$renderHeader"
+              :render-header="renderHeaderFieldName"
               :resizable="false"
               min-width="100"
             >
@@ -80,8 +79,8 @@
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
-                    v-model.trim="props.row.field_name"
                     class="participle-disabled-input"
+                    v-model.trim="props.row.field_name"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
@@ -104,7 +103,7 @@
             >
               <template #default="props">
                 <div
-                  v-if="!props.row.is_edit"
+                  v-if="!props.row.is_edit && isPreviewMode"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -132,11 +131,10 @@
             </bk-table-column>
             <!-- 类型 -->
             <bk-table-column
-              :label="$t('数据类型')"
-              :render-header="$renderHeader"
+              :render-header="renderHeaderDataType"
               :resizable="false"
-              min-width="100"
               align="center"
+              min-width="100"
             >
               <template #default="props">
                 <div
@@ -183,8 +181,8 @@
             <bk-table-column
               :render-header="renderHeaderParticipleName"
               :resizable="false"
-              min-width="200"
               align="left"
+              min-width="200"
             >
               <template #default="props">
                 <!-- 预览模式-->
@@ -192,8 +190,8 @@
                   v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
                 >
                   <div
-                    style="width: 85%; margin-left: 10px"
                     v-if="props.row.is_analyzed"
+                    style="width: 85%; margin-left: 10px"
                   >
                     <div>
                       {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -201,8 +199,8 @@
                     <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                   </div>
                   <div
-                    style="width: 85%; margin-left: 10px"
                     v-else
+                    style="width: 85%; margin-left: 10px"
                   >
                     {{ $t('不分词') }}
                   </div>
@@ -210,74 +208,76 @@
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
                     <bk-popconfirm
-                      trigger="click"
-                      :is-show="isShowParticiple"
                       class="participle-popconfirm"
+                      :is-show="isShowParticiple"
+                      trigger="click"
                       @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
-                      <div slot="content">
+                      <template #content>
                         <div>
-                          <bk-form
-                            class="participle-form"
-                            :label-width="95"
-                            :model="formData"
-                          >
-                            <bk-form-item
-                              :label="$t('分词')"
-                              :property="'source_name'"
+                          <div>
+                            <bk-form
+                              class="participle-form"
+                              :label-width="95"
+                              :model="formData"
                             >
-                              <bk-switcher
-                                v-model="currentIsAnalyzed"
-                                theme="primary"
-                                :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                @change="() => handelChangeAnalyzed()"
-                              ></bk-switcher>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('分词符')"
-                              :property="'participle'"
-                            >
-                              <div class="bk-button-group">
-                                <bk-button
-                                  v-for="option in participleList"
-                                  class="participle-btn"
-                                  :class="currentParticipleState === option.id ? 'is-selected' : ''"
-                                  :key="option.id"
-                                  :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
-                                  :disabled="getCustomizeDisabled(props.row)"
-                                  @click="handleChangeParticipleState(option.id, props.$index)"
-                                >
-                                  {{ option.name }}
-                                </bk-button>
-                              </div>
-                              <bk-input
-                                style="margin-top: 10px"
-                                v-if="currentParticipleState === 'custom'"
-                                v-model="currentTokenizeOnChars"
-                                :disabled="getCustomizeDisabled(props.row)"
+                              <bk-form-item
+                                :label="$t('分词')"
+                                :property="'source_name'"
                               >
-                              </bk-input>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('大小写敏感')"
-                              :property="'is_case_sensitive'"
-                            >
-                              <bk-switcher
-                                v-model="currentIsCaseSensitive"
-                                theme="primary"
-                                :disabled="getCustomizeDisabled(props.row)"
-                              ></bk-switcher>
-                            </bk-form-item>
-                          </bk-form>
+                                <bk-switcher
+                                  v-model="currentIsAnalyzed"
+                                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                                  theme="primary"
+                                  @change="() => handelChangeAnalyzed()"
+                                ></bk-switcher>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('分词符')"
+                                :property="'participle'"
+                              >
+                                <div class="bk-button-group">
+                                  <bk-button
+                                    v-for="option in participleList"
+                                    class="participle-btn"
+                                    :class="currentParticipleState === option.id ? 'is-selected' : ''"
+                                    :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
+                                    :disabled="getCustomizeDisabled(props.row)"
+                                    :key="option.id"
+                                    @click="handleChangeParticipleState(option.id, props.$index)"
+                                  >
+                                    {{ option.name }}
+                                  </bk-button>
+                                </div>
+                                <bk-input
+                                  v-if="currentParticipleState === 'custom'"
+                                  style="margin-top: 10px"
+                                  v-model="currentTokenizeOnChars"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                >
+                                </bk-input>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('大小写敏感')"
+                                :property="'is_case_sensitive'"
+                              >
+                                <bk-switcher
+                                  v-model="currentIsCaseSensitive"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                  theme="primary"
+                                ></bk-switcher>
+                              </bk-form-item>
+                            </bk-form>
+                          </div>
                         </div>
-                      </div>
+                      </template>
                       <div
                         class="participle-cell-wrap"
                         @click="handlePopover(props.row, props.$index)"
                       >
                         <div
-                          style="width: 85%"
                           v-if="props.row.is_analyzed"
+                          style="width: 85%"
                         >
                           <div>
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -285,8 +285,8 @@
                           <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                         </div>
                         <div
-                          style="width: 85%"
                           v-else
+                          style="width: 85%"
                         >
                           {{ $t('不分词') }}
                         </div>
@@ -297,8 +297,8 @@
                   <div v-else>
                     <bk-input
                       class="participle-disabled-input"
-                      disabled
                       :placeholder="$t('无需设置')"
+                      disabled
                     >
                     </bk-input>
                   </div>
@@ -321,7 +321,7 @@
   import { mapGetters } from 'vuex';
 
   export default {
-    name: 'settingTable',
+    name: 'SettingTable',
     props: {
       isEditJson: {
         type: Boolean,
@@ -629,7 +629,7 @@
         this.currentTokenizeOnChars = row.tokenize_on_chars;
         this.currentIsAnalyzed = row.is_analyzed;
       },
-      handleConfirmParticiple(row, $index) {
+      handleConfirmParticiple(row) {
         this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
         this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
@@ -642,7 +642,7 @@
           this.currentParticipleState = 'default';
         }
       },
-      handleChangeParticipleState(state, $index) {
+      handleChangeParticipleState(state) {
         this.currentParticipleState = state;
         this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
@@ -817,6 +817,27 @@
       handleKeepField(value) {
         this.$emit('handle-keep-field', value);
       },
+      renderHeaderFieldName(h) {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')]),
+            h('span', {
+              class: 'icon bklog-icon bklog-info-fill',
+              style: 'color:#313238;font-size:14px;',
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: this.$t('字段名不支持快速修改'),
+                },
+              ],
+            }),
+          ],
+        );
+      },
       renderHeaderAliasName(h) {
         return h(
           'div',
@@ -832,6 +853,27 @@
                 {
                   name: 'bk-tooltips',
                   value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+                },
+              ],
+            }),
+          ],
+        );
+      },
+      renderHeaderDataType(h) {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')]),
+            h('span', {
+              class: 'icon bklog-icon bklog-info-fill',
+              style: 'color:#313238;font-size:14px;',
+              directives: [
+                {
+                  name: 'bk-tooltips',
+                  value: this.$t('新建类型不支持快速修改'),
                 },
               ],
             }),
@@ -928,7 +970,7 @@
       }
     }
 
-    .add-field-table {
+    .field-table.add-field-table {
       .bk-table-body {
         .cell {
           display: contents;
@@ -942,7 +984,7 @@
           }
 
           .overflow-tips {
-            padding: 5px;
+            padding: 8px;
           }
         }
       }

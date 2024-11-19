@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, Ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, type Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -36,6 +36,7 @@ import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
+  handleChartDataZoom?: (val) => void;
 };
 
 export type EchartData = {
@@ -43,7 +44,7 @@ export type EchartData = {
   target: string;
   isFinish: boolean;
 };
-export default ({ target }: TrandChartOption) => {
+export default ({ target, handleChartDataZoom }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
@@ -234,9 +235,13 @@ export default ({ target }: TrandChartOption) => {
         type: 'restore',
       });
 
-      // 更新Store中的时间范围
-      // 同时会自动更新chartKey，触发接口更新当前最新数据
-      store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+      if (window.__IS_MONITOR_APM__) {
+        handleChartDataZoom([timeFrom, timeTo]);
+      } else {
+        // 更新Store中的时间范围
+        // 同时会自动更新chartKey，触发接口更新当前最新数据
+        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+      }
     }
   });
 

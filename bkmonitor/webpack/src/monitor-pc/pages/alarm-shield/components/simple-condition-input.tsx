@@ -92,6 +92,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
   }[] = [];
 
   dimensionsValueMap: Record<string, { id: string; name: string }[]> = {};
+  dimensionsValueMapLoading: Record<string, boolean> = {};
 
   curSelectTarget = null;
   showSelectMenu = false;
@@ -279,6 +280,8 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           : {}
       ),
     };
+    const { field } = params.params;
+    this.$set(this.dimensionsValueMapLoading, field, true);
     await getVariableValue(params, { needRes: true })
       .then(({ data, tips }) => {
         if (tips?.length) {
@@ -288,10 +291,10 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
-        const { field } = params.params;
         this.$set(this.dimensionsValueMap, field, result || []);
       })
       .catch(() => []);
+    this.$set(this.dimensionsValueMapLoading, field, false);
   }
 
   /**
@@ -326,7 +329,15 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
 
   /* 获取当前条件的可选值 */
   getValueOptions(item) {
-    return this.dimensionsValueMap[item.key] ? [nullOptions].concat(this.dimensionsValueMap[item.key]) : [nullOptions];
+    return this.dimensionsValueMap[item.key]
+      ? (this.isHasNullOption ? [nullOptions] : []).concat(this.dimensionsValueMap[item.key])
+      : this.isHasNullOption
+        ? [nullOptions]
+        : [];
+  }
+
+  getValueOptionsLoading(item) {
+    return !!this.dimensionsValueMapLoading?.[item.key];
   }
 
   render() {
@@ -382,24 +393,27 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                 >
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
-                <bk-tag-input
-                  key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
-                  class='condition-item condition-item-value'
-                  list={
-                    this.dimensionsValueMap[item.key]
-                      ? (this.isHasNullOption ? [nullOptions] : []).concat(this.dimensionsValueMap[item.key])
-                      : this.isHasNullOption
-                        ? [nullOptions]
-                        : []
-                  }
-                  paste-fn={v => this.handlePaste(v, item)}
-                  trigger='focus'
-                  value={item.value}
-                  allow-auto-match
-                  allow-create
-                  has-delete-icon
-                  on-change={(v: string[]) => this.handleValueChange(item, v)}
-                />,
+                this.getValueOptionsLoading(item) ? (
+                  <span
+                    key={`value-${index}-${item.key}`}
+                    class='condition-item condition-item-value-loading'
+                  >
+                    <div class='spinner' />
+                  </span>
+                ) : (
+                  <bk-tag-input
+                    key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
+                    class='condition-item condition-item-value'
+                    list={this.getValueOptions(item)}
+                    paste-fn={v => this.handlePaste(v, item)}
+                    trigger='focus'
+                    value={item.value}
+                    allow-auto-match
+                    allow-create
+                    has-delete-icon
+                    on-change={(v: string[]) => this.handleValueChange(item, v)}
+                  />
+                ),
               ]
             : undefined,
         ])}

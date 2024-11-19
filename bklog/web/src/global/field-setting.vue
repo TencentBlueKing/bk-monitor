@@ -1,8 +1,8 @@
 <template>
-  <div>
+  <div @click="hideSingleConfigInput">
     <div
-      @click="handleOpenSidebar"
       class="field-setting-wrap"
+      @click="handleOpenSidebar"
     >
       <span class="bklog-icon bklog-setting"></span>{{ t('字段配置') }}
     </div>
@@ -11,19 +11,22 @@
       :quick-close="true"
       :title="$t('字段配置')"
       :width="640"
+      @animation-end="closeSlider"
     >
-      <div slot="header">
-        {{ t('字段配置') }}
-        <bk-button
-          v-if="!isEdit"
-          class="mt10 fr"
-          data-test-id="fieldSettingSlider_button_edit"
-          theme="default"
-          @click="handleEdit"
-        >
-          {{ $t('编辑') }}
-        </bk-button>
-      </div>
+      <template #header>
+        <div>
+          {{ t('字段配置') }}
+          <bk-button
+            v-if="!isEdit"
+            class="mt10 fr"
+            data-test-id="fieldSettingSlider_button_edit"
+            theme="default"
+            @click="handleEdit"
+          >
+            {{ $t('编辑') }}
+          </bk-button>
+        </div>
+      </template>
       <template #content>
         <div
           class="field-slider-content"
@@ -47,20 +50,22 @@
               :required="isEdit || isEditConfigName"
               :rules="basicRules.collector_config_name"
             >
-              <bk-input
-                v-if="isEdit || isEditConfigName"
-                class="w520"
-                v-model="formData.collector_config_name"
-                maxlength="50"
-                show-word-limit
-              >
-              </bk-input>
-              <div v-else>
-                {{ formData.collector_config_name }}
-                <i
-                  :class="['bk-icon icon-edit-line icons']"
-                  @click="isEditConfigName = true"
-                ></i>
+              <div @click.stop="() => ({})">
+                <bk-input
+                  v-if="isEdit || isEditConfigName"
+                  class="w520"
+                  v-model="formData.collector_config_name"
+                  maxlength="50"
+                  show-word-limit
+                >
+                </bk-input>
+                <div v-else>
+                  {{ formData.collector_config_name }}
+                  <!-- <i
+                    :class="['bk-icon icon-edit-line icons']"
+                    @click="isEditConfigName = true"
+                  ></i> -->
+                </div>
               </div>
             </bk-form-item>
             <bk-form-item
@@ -129,20 +134,34 @@
               :required="isEdit || isEditRetention"
               :rules="basicRules.retention"
             >
-              <bk-input
-                v-if="isEdit || isEditRetention"
-                v-model="formData.retention"
-              >
-                <template slot="append">
-                  <div>{{ $t('天') }}</div>
-                </template>
-              </bk-input>
-              <div v-else>
-                {{ formData.retention }}
-                <i
-                  :class="['bk-icon icon-edit-line icons']"
-                  @click="isEditRetention = true"
-                ></i>
+              <div @click.stop="() => ({})">
+                <bk-input
+                  v-if="isEdit || isEditRetention"
+                  v-model="formData.retention"
+                >
+                  <template #append>
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 40px;
+                        height: 100%;
+                        font-size: 12px;
+                        background-color: #f2f4f8;
+                      "
+                    >
+                      {{ $t('天') }}
+                    </div>
+                  </template>
+                </bk-input>
+                <div v-else>
+                  {{ formData.retention }}
+                  <!-- <i
+                    :class="['bk-icon icon-edit-line icons']"
+                    @click="isEditRetention = true"
+                  ></i> -->
+                </div>
               </div>
             </bk-form-item>
             <div class="add-collection-title">{{ $t('索引配置') }}</div>
@@ -150,32 +169,37 @@
             <setting-table
               v-if="formData.etl_params.retain_original_text"
               ref="originfieldTable"
-              :table-type="'originLog'"
-              :is-preview-mode="!isEdit"
               :extract-method="cleanType"
               :fields="originBuiltFields"
+              :is-preview-mode="!isEdit"
+              :table-type="'originLog'"
             >
             </setting-table>
             <div
               v-else
               class="setting-desc"
+              @click="batchAddField"
             >
-              {{ $t('暂未保留原始日志') }}
+              {{ $t('暂未保留原始日志') }}<span style=" margin-left: 8px;color: #3a84ff">{{ $t('前往配置') }}</span
+              ><span
+                style="color: #3a84ff"
+                class="bklog-icon bklog-jump"
+              ></span>
             </div>
 
-            <div class="setting-title">{{ $t('索引日志配置') }}</div>
+            <div class="setting-title">{{ $t('索引字段配置') }}</div>
             <setting-table
               ref="indexfieldTable"
-              :table-type="'indexLog'"
-              :is-preview-mode="!isEdit"
+              :built-fields="indexBuiltField"
+              :collector-config-id="collectorConfigId"
               :extract-method="cleanType"
               :fields="tableField"
-              :collector-config-id="collectorConfigId"
-              :built-fields="indexBuiltField"
+              :is-preview-mode="!isEdit"
+              :table-type="'indexLog'"
             >
             </setting-table>
             <div
-              v-if="isShowAddFields"
+              v-if="isShowAddFields && isEdit"
               class="add-field-container"
             >
               <div
@@ -189,6 +213,7 @@
           </bk-form>
           <div class="submit-container">
             <bk-button
+              v-if="isEdit"
               class="king-button mr10"
               :loading="confirmLoading"
               data-test-id="fieldSettingSlider_button_confirm"
@@ -212,24 +237,23 @@
 
 <script setup lang="ts">
   import { computed, ref, nextTick } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import useLocale from '@/hooks/use-locale';
-  import { useRoute } from 'vue-router/composables';
-  import http from '@/api';
-  import { deepClone } from '@/common/util';
 
-  import settingTable from './setting-table.vue';
+  import { deepClone } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import { useRoute, useRouter } from 'vue-router/composables';
+
   import * as authorityMap from '../common/authority-map';
+  import settingTable from './setting-table.vue';
+  import http from '@/api';
 
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
-
+  const router = useRouter();
   const showSlider = ref(false);
   const sliderLoading = ref(false);
-  const isEdit = ref(false);
-  const isEditConfigName = ref(false);
-  const isEditRetention = ref(false);
+
   const tableField = ref([]);
   const cleanType = ref('');
   const collectorConfigId = ref('');
@@ -250,7 +274,14 @@
     },
     etl_config: '',
   });
+  const isEdit = ref(false);
+  const isEditConfigName = ref(false);
+  const isEditRetention = ref(false);
 
+  const hideSingleConfigInput = () => {
+    isEditConfigName.value = false;
+    isEditRetention.value = false;
+  };
   /** 添加字段的基础数据 */
   const baseFieldObj = ref({
     value: '',
@@ -274,7 +305,19 @@
     participleState: 'default',
     is_edit: true,
   });
-
+  const batchAddField = () => {
+    console.log(collectorConfigId.value, 'collectorConfigId');
+    if (!collectorConfigId.value) return;
+    router.replace({
+      name: 'clean-edit',
+      params: {
+        collectorId: collectorConfigId.value,
+      },
+      query: {
+        spaceUid: store.state.spaceUid,
+      },
+    });
+  };
   const maxRetention = ref(0);
 
   const basicRules = ref({
@@ -481,6 +524,7 @@
                   window.mainComponent.messageSuccess(t('保存成功'));
                   nextTick(() => {
                     showSlider.value = false;
+                    isEdit.value = false;
                   });
                 }
               })
@@ -494,6 +538,9 @@
         );
       }
     });
+  };
+  const closeSlider = () => {
+    isEdit.value = false;
   };
 </script>
 
@@ -535,6 +582,8 @@
 
     .setting-desc {
       padding: 10px 0;
+      color: #f00;
+      cursor: pointer;
     }
 
     .field-setting-form {

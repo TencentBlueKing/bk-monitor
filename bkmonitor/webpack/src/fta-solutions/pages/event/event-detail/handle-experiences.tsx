@@ -195,14 +195,37 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     }).catch(() => []);
     this.isLoading = false;
   }
+
+  /* 初始化维度信息 */
+  initDimensionData(needCondition = true) {
+    const valueable = new Set(this.dimensionList.map(item => item.id));
+    const additionalCondition = needCondition ? { condition: 'and' } : {};
+
+    this.conditionList = Object.keys(this.defalutDimensionValue).reduce((list, key) => {
+      if (valueable.has(key)) {
+        list.push({
+          key,
+          value: this.defalutDimensionValue[key],
+          method: 'eq',
+          ...additionalCondition,
+        });
+      }
+      return list;
+    }, []);
+  }
+
   /* 点击添加按钮 */
   handleAdd() {
-    const hasMetric = this.experienceList.some(item => item.type === EType.METRIC);
-    this.curBind = hasMetric ? EType.DIMENSION : EType.METRIC;
+    // 检查是否有维度信息
+    const showDimension = this.dimensionList.some(item =>
+      Object.prototype.hasOwnProperty.call(this.defalutDimensionValue, item.id)
+    );
+    this.curBind = showDimension ? EType.DIMENSION : EType.METRIC;
     this.curDescription = '';
-    if (hasMetric) {
+    if (showDimension) {
       this.errConditions = '';
       this.conditionList = [];
+      this.initDimensionData();
       this.curUpdateInfo = '';
       this.dimensionDataChange();
     } else {
@@ -222,6 +245,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         this.metricDataChange();
       } else if (v === EType.DIMENSION) {
         this.conditionList = [];
+        this.initDimensionData();
         this.curDescription = '';
         this.curUpdateInfo = '';
         this.dimensionDataChange();
@@ -415,7 +439,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
   /* 输入md文档 */
   handleInputContent(v: string) {
-    this.errMsg = !!v ? '' : this.$tc('注意: 必填字段不能为空');
+    this.errMsg = v ? '' : this.$tc('注意: 必填字段不能为空');
     this.curDescription = v;
   }
 

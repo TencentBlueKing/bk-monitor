@@ -29,8 +29,8 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import BaseEchart from '../monitor-base-echart';
-import StatusTab from '../table-chart/status-tab';
 import TimeSeries from '../time-series/time-series';
+import StatusTab from './status-tab';
 
 import './apm-custom-graph.scss';
 const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'] as const;
@@ -85,7 +85,7 @@ export default class CustomChart extends TimeSeries {
               onClick={e => e.stopPropagation()}
             >
               <StatusTab
-                needAll={false}
+                maxWidth={this.width - 250}
                 statusList={this.methodList}
                 value={this.method}
                 onChange={this.handleMethodChange}
