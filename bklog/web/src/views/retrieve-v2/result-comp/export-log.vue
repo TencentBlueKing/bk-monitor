@@ -249,11 +249,16 @@
           sampling: this.$t('取样下载(前1万条)'),
         },
         typeTipsMap: {
-          all: this.$t('该模式下，下载的日志有序，可包含平台补充、清洗字段;但下载时间较长;'),
-          quick: this.$t(
-            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序;日志无法包含平台补充字段:如namespace、podname等信息，请合理选择方式;',
+          all: this.$t(
+            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条',
           ),
+          quick: this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
           sampling: '',
+        },
+        timeCalculateMap: {
+          all: 200000,
+          quick: 400000,
+          sampling: 0,
         },
         logTypeMap: {
           desensitize: this.$t('脱敏'),
@@ -295,7 +300,8 @@
         isUnionSearch: 'isUnionSearch',
       }),
       sizDownload() {
-        return Math.ceil(this.totalCount / 10000 / 3);
+        if (this.downloadType === 'sampling') return '< 1';
+        return Math.ceil(this.totalCount / this.timeCalculateMap[this.downloadType]);
       },
       submitSelectFiledList() {
         // 下载时提交的字段
@@ -576,7 +582,7 @@
   }
 
   .log-num-container {
-    margin-top: 8px;
+    margin: 8px 0;
     font-size: 12px;
 
     @include flex-justify(space-between);
