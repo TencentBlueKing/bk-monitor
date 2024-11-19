@@ -113,13 +113,11 @@ export default class StrategyViewLog extends Vue {
   }
   handleShowDetai(row) {
     const content = row.content || row['event.content']
-    this.logDetail = (() => {
-      try {
-        return JSON.parse(content);
-      } catch {
-        return content;
-      }
-    })();
+    try {
+      this.logDetail = JSON.parse(content);
+    } catch {
+      this.logDetail = content;
+    }
     this.showLogDetail = true;
   }
 
@@ -150,7 +148,7 @@ export default class StrategyViewLog extends Vue {
 
   &-content {
     height: 380px;
-    padding: 15px 20px;  
+    padding: 15px 20px;
     overflow: auto;
     word-break: break-all;
     background: #f5f6fa;
