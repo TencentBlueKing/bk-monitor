@@ -526,6 +526,7 @@ class UptimeCheckTask(OperateRecordModel):
                         "data_id": data_id,
                         "max_timeout": "{}ms".format(timeout),
                         "custom_report": "true" if use_custom_report else "false",
+                        "send_interval": self.config.get("send_interval"),
                         "tasks": tasks,
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
