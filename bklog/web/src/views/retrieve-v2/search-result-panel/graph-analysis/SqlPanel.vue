@@ -93,7 +93,7 @@ onMounted(() => {
   if (editorContainer.value) {
     // editorContainer.value.style.height = "100%"; // 设置高度
     editorInstance = monaco.editor.create(editorContainer.value, {
-      value: "123",
+      value: "sELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM 100968_proz_rd_ds2_test.doris WHERE thedate>='20241111' AND thedate<='20241111' limit 2",
       language: "javascript", // 设置语言类型
       theme: "vs-dark", // 设置编辑器主题
     });
