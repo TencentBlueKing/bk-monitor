@@ -28,8 +28,12 @@ from metadata.config import (
     KAFKA_SASL_PROTOCOL,
     PERIODIC_TASK_DEFAULT_TTL,
 )
-from metadata.models.constants import EsSourceType
-from metadata.task.tasks import manage_es_storage
+from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
+from metadata.task.tasks import (
+    bulk_check_and_delete_ds_consul_config,
+    bulk_refresh_data_link_status,
+    manage_es_storage,
+)
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
@@ -390,6 +394,16 @@ def refresh_bcs_info():
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_info", process_target=None).observe(cost_time)
     metrics.report_all()
     logger.info("refresh bcs info into consul success,use ->[%s] seconds", cost_time)
+
+
+@share_lock(identify="metadata_check_and_delete_ds_consul_config")
+def check_and_delete_ds_consul_config():
+    """
+    针对V4数据源，检查Consul是否存在，若存在则进行删除操作
+    """
+    logger.info("check_and_delete_ds_consul_config: start to check and delete ds consul config")
+    data_sources = models.DataSource.objects.filter(created_from=DataIdCreatedFromSystem.BKDATA.value)
+    bulk_check_and_delete_ds_consul_config.delay(data_sources)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")

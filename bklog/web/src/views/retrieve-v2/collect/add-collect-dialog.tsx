@@ -563,7 +563,6 @@ export default class CollectDialog extends tsc<IProps> {
               <bk-input
                 type='textarea'
                 value={this.sqlString}
-                readonly
                 show-overflow-tooltips
               ></bk-input>
             </FormItem>

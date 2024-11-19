@@ -161,7 +161,7 @@
       }),
       ...mapState({
         indexSetItem: 'indexFieldInfo',
-        indexSetQueryResult: 'indexSetQueryResult'
+        indexSetQueryResult: 'indexSetQueryResult',
       }),
       indexParams() {
         const { scenario_id, collector_scenario_id, index_set_id } = this.indexSetItem;
@@ -315,7 +315,7 @@
   }
 </style>
 
-<style>
+<style lang="scss">
   .empty-clear-width {
     /* stylelint-disable-next-line declaration-no-important */
     width: auto !important;

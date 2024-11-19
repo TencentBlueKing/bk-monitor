@@ -170,3 +170,159 @@ def test_compose_data_bus_config(create_or_delete_records):
 
     content = data_bus_ins.compose_config(sinks)
     assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_compose_single_conditional_sink_config(create_or_delete_records):
+    """
+    测试单集群ConditionalSinkConfig能否正确生成
+    """
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    assert bkbase_data_name == "bkm_data_link_test"
+
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+
+    conditions = [
+        {
+            'match_labels': [
+                {'name': 'namespace', 'value': 'testns1'},
+                {'name': 'namespace', 'value': 'testns2'},
+                {'name': 'namespace', 'value': 'testns3'},
+            ],
+            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
+            'sinks': [
+                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            ],
+        }
+    ]
+
+    expected = json.dumps(
+        {
+            "kind": "ConditionalSink",
+            "metadata": {
+                "namespace": "bkmonitor",
+                "name": "bkm_1001_bkmonitor_time_series_50010_fed",
+                "labels": {"bk_biz_id": "111"},
+            },
+            "spec": {
+                "conditions": [
+                    {
+                        "match_labels": [
+                            {"name": "namespace", "value": "testns1"},
+                            {"name": "namespace", "value": "testns2"},
+                            {"name": "namespace", "value": "testns3"},
+                        ],
+                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "bkm_1001_bkmonitor_time_series_50001",
+                                "namespace": "bkmonitor",
+                            }
+                        ],
+                    }
+                ]
+            },
+        }
+    )
+
+    vm_conditional_ins, _ = models.ConditionalSinkConfig.objects.get_or_create(
+        name=bkbase_vmrt_name + '_fed', data_link_name=bkbase_data_name + '_fed', namespace="bkmonitor", bk_biz_id=111
+    )
+    content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
+    assert json.dumps(content) == expected
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_compose_multi_conditional_sink_config(create_or_delete_records):
+    """
+    测试多集群ConditionalSinkConfig能否正确生成
+    """
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    assert bkbase_data_name == "bkm_data_link_test"
+
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+
+    conditions = [
+        {
+            'match_labels': [
+                {'name': 'namespace', 'value': 'testns1'},
+                {'name': 'namespace', 'value': 'testns2'},
+                {'name': 'namespace', 'value': 'testns3'},
+            ],
+            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
+            'sinks': [
+                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            ],
+        },
+        {
+            'match_labels': [
+                {'name': 'namespace', 'value': 'testns4'},
+                {'name': 'namespace', 'value': 'testns5'},
+                {'name': 'namespace', 'value': 'testns6'},
+            ],
+            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
+            'sinks': [
+                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
+            ],
+        },
+    ]
+
+    expected = json.dumps(
+        {
+            "kind": "ConditionalSink",
+            "metadata": {
+                "namespace": "bkmonitor",
+                "name": "bkm_1001_bkmonitor_time_series_50010_fed",
+                "labels": {"bk_biz_id": "111"},
+            },
+            "spec": {
+                "conditions": [
+                    {
+                        "match_labels": [
+                            {"name": "namespace", "value": "testns1"},
+                            {"name": "namespace", "value": "testns2"},
+                            {"name": "namespace", "value": "testns3"},
+                        ],
+                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "bkm_1001_bkmonitor_time_series_50001",
+                                "namespace": "bkmonitor",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [
+                            {"name": "namespace", "value": "testns4"},
+                            {"name": "namespace", "value": "testns5"},
+                            {"name": "namespace", "value": "testns6"},
+                        ],
+                        "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "bkm_1001_bkmonitor_time_series_50002",
+                                "namespace": "bkmonitor",
+                            }
+                        ],
+                    },
+                ]
+            },
+        }
+    )
+
+    vm_conditional_ins, _ = models.ConditionalSinkConfig.objects.get_or_create(
+        name=bkbase_vmrt_name + '_fed', data_link_name=bkbase_data_name + '_fed', namespace="bkmonitor", bk_biz_id=111
+    )
+    content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
+    assert json.dumps(content) == expected

@@ -966,4 +966,5 @@ export default {
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
     'The maximum number of days can be preserved by the cluster, and the current maximum can be saved {n}',
+  前往配置: 'Go to Configuration',
 };

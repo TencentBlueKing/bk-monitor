@@ -311,7 +311,7 @@
   }
 </style>
 
-<style>
+<style lang="scss">
   .empty-clear-width {
     /* stylelint-disable-next-line declaration-no-important */
     width: auto !important;
