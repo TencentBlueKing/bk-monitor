@@ -72,14 +72,18 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
             <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
           </a>"""
             # 最多5个文档引用
-            docs = res_data.pop("documents", [])[:5]
+            docs = res_data.pop("documents", [])
+            link_map = {}
+            for doc in docs:
+                doc_name = doc["metadata"]["file_name"].rsplit("/")[-1]
+                doc_link = doc["metadata"]["path"]
+                if doc_link not in link_map:
+                    link_map[doc_link] = doc_name
+                    if len(link_map) >= 5:
+                        break
+
             doc_link_html = "\n".join(
-                [
-                    link_tmp.format(
-                        doc_name=doc["metadata"]["file_name"].rsplit("/")[-1], doc_link=doc["metadata"]["path"]
-                    )
-                    for doc in docs
-                ]
+                [link_tmp.format(doc_name=file_name, doc_link=path) for file_name, path in link_map.items()]
             )
             section_html = section_tmp.format(doc_count=len(docs), doc_link_html=doc_link_html)
             data = {"event": "text", "content": ""}
