@@ -53,7 +53,7 @@ export function getTimeSeriesXInterval(maxXInterval: number, width: number, maxS
     return {
       max: 'dataMax',
       min: 'dataMin',
-      splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 5, 5),
+      splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, 4),
     };
   const hasDayAndHour = maxXInterval > 60 * 60 * 24 * 1000 && maxXInterval < 60 * 60 * 24 * 6000;
   const labelWidth = hasDayAndHour ? 180 : 80;
@@ -64,6 +64,7 @@ export function getTimeSeriesXInterval(maxXInterval: number, width: number, maxS
   return {
     interval,
     minInterval: interval,
+    splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 4, 4),
     max: 'dataMax',
     min: 'dataMin',
   };
