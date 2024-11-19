@@ -49,7 +49,7 @@ class ChartHandler(object):
     def get_instance(cls, index_set_id, mode):
         mapping = {
             SearchMode.UI.value: "UIChartMode",
-            SearchMode.SQL.value: "SqlChartMode",
+            SearchMode.SQL.value: "SQLChartMode",
         }
         try:
             chart_instance = import_string(
@@ -79,7 +79,7 @@ class UIChartMode(ChartHandler):
         return {}
 
 
-class SqlChartMode(ChartHandler):
+class SQLChartMode(ChartHandler):
     def get_chart_data(self, params) -> dict:
         """
         Sql模式获取图表相关信息
@@ -88,8 +88,7 @@ class SqlChartMode(ChartHandler):
         """
         if not self.data.support_doris:
             raise IndexSetDorisQueryException()
-        instance = ChartHandler.get_instance(self.index_set_id, params["query_mode"])
-        parsed_sql = instance.parse_sql_syntax(self.data.doris_table_id, params["sql"])
+        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params["sql"])
         data = self.fetch_query_data(parsed_sql)
         return data
 
@@ -120,12 +119,9 @@ class SqlChartMode(ChartHandler):
         :return: 查询结果 dict
         """
         result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
-        # TODO UI的情况,待实现
-        if not result_data:
-            return result_data
-
         result = result_data.get("result")
         if not result:
+            # SQL查询失败, 抛出异常
             errors_message = result_data.get("message", {})
             errors = result_data.get("errors", {}).get("error")
             if errors:
