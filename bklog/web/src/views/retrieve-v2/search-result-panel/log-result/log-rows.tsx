@@ -100,11 +100,12 @@ export default defineComponent({
 
       return count;
     });
-    const visibleIndexs = ref({ startIndex: 0, endIndex: 50 });
+    const visibleIndexs = ref({ startIndex: 0, endIndex: 30 });
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
     const hasOverflowX = ref(false);
+    const bufferCount = 30;
 
     const visibleTableList = computed(() =>
       tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
@@ -355,7 +356,7 @@ export default defineComponent({
       return [
         ['expand', false],
         ['isIntersect', true],
-        ['minHeight', 42],
+        ['minHeight', 40],
         ['stickyTop', 0],
       ].reduce(
         (cfg, item: [keyof RowConfig, any]) =>
@@ -435,9 +436,9 @@ export default defineComponent({
         isRequesting.value = true;
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
-          .then(res => {
+          .then(() => {
             isRequesting.value = false;
-            visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + res.data.list.length;
+            visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + bufferCount;
             return true;
           })
           .finally(() => {
@@ -450,12 +451,6 @@ export default defineComponent({
     // 滚动不满一行数据时，第一行数据的偏移量
     const scrollRowOffsetHeight = ref(0);
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
-      if (isRequesting.value) {
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        return;
-      }
-
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
@@ -481,7 +476,7 @@ export default defineComponent({
 
       scrollRowOffsetHeight.value = useScrollHeight - startPosition;
       visibleIndexs.value.startIndex = startIndex;
-      visibleIndexs.value.endIndex = startIndex + 50;
+      visibleIndexs.value.endIndex = startIndex + bufferCount;
       rowsOffsetTop.value = useScrollHeight;
     };
 
@@ -491,7 +486,7 @@ export default defineComponent({
 
     onMounted(() => {
       visibleIndexs.value.startIndex = 0;
-      visibleIndexs.value.endIndex = 50;
+      visibleIndexs.value.endIndex = bufferCount;
     });
 
     onUnmounted(() => {
@@ -510,7 +505,6 @@ export default defineComponent({
 
     const scrollXTransformStyle = computed(() => {
       return {
-        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
         '--scroll-left': `-${scrollXOffsetLeft.value}px`,
       };
     });
@@ -518,6 +512,7 @@ export default defineComponent({
     const headStyle = computed(() => {
       return {
         top: `${searchContainerHeight.value}px`,
+        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
         ...scrollXTransformStyle.value,
       };
     });
@@ -595,7 +590,7 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      let rowStickyTop = 0 - scrollRowOffsetHeight.value;
+      let rowStickyTop = 0;
       return visibleTableList.value.map((row, index) => {
         const rowIndex = row[ROW_INDEX];
         const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
@@ -639,16 +634,19 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         minHeight: `${tableMinHeight.value}px`,
+        transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
         ...scrollXTransformStyle.value,
       };
     });
 
     const renderLoader = () => {
       return (
-        <div
-          class='bklog-requsting-loading'
-          v-bkloading={{ isLoading: isRequesting.value }}
-        />
+        <div class='bklog-requsting-loading'>
+          <div
+            style={{ width: `${offsetWidth.value}px` }}
+            v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
+          ></div>
+        </div>
       );
     };
 

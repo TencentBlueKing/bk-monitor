@@ -9,9 +9,17 @@
   margin-top: 12px;
 
   .bklog-requsting-loading {
-    position: absolute;
-    top: 0;
-    z-index: 10;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    height: 40px;
+    pointer-events: none;
+
+    > div {
+      height: 40px;
+      line-height: 40px;
+    }
   }
 
   .bklog-scroll-x {
@@ -39,6 +47,7 @@
 
   .bklog-row-container {
     box-sizing: border-box;
+    min-height: 40px;
     transform: translateZ(0);
 
     .bklog-list-row {
@@ -251,10 +260,6 @@
         }
       }
     }
-  }
-
-  .bklog-skeleton-loading {
-    height: 50px;
   }
 
   .btn-scroll-top {
