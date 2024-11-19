@@ -355,7 +355,14 @@ export default class QueryStatement extends tsc<object> {
     this.indexSearchType = !!val.length ? 'union' : 'single';
     this.selectTagCatchIDList = !!val.length ? val : this.routeParamIndexId ? [this.routeParamIndexId] : [];
   }
-
+  @Watch('indexSearchType')
+  onIndexSearchTypeChange(newVal: IndexSetType) {
+    this.emitChange(newVal);
+  }
+  @Emit('change')
+  emitChange(type) {
+    return type;
+  }
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;

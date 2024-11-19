@@ -124,11 +124,11 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         }
 
     @classmethod
-    def parse_result_table_config(cls, result_table_config, result_table_storage=None):
+    def parse_result_table_config(cls, result_table_config, result_table_storage=None, fields_dict=None):
         if not result_table_config["option"].get("separator_field_list"):
             raise EtlDelimiterParseException()
 
-        collector_config = super().parse_result_table_config(result_table_config, result_table_storage)
+        collector_config = super().parse_result_table_config(result_table_config, result_table_storage, fields_dict)
         collector_fields = array_group(
             [field for field in collector_config["fields"] if not field["is_built_in"]], "field_name", 1
         )
