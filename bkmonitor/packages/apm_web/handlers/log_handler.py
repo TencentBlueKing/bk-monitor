@@ -16,6 +16,8 @@ from django.utils import timezone
 from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import Application, LogServiceRelation
+from apm_web.topo.handle.relation.define import SourceDatasource, SourceService
+from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -31,6 +33,8 @@ class ServiceLogHandler:
 
     # ES 查询最大的服务数量
     SERVICE_MAX_SIZE = 1000
+    # 通过 unifyquery 接口关联日志索引集的最大数量
+    LOG_RELATION_BY_UNIFY_QUERY = 10
 
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
@@ -142,3 +146,50 @@ class ServiceLogHandler:
             service_name=service_name,
             log_type=ServiceRelationLogTypeChoices.BK_LOG,
         ).first()
+
+    @classmethod
+    def list_indexes_by_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
+        """
+        通过关联查询获取服务的 dataId 关联
+        """
+        data_ids = set()
+        if not start_time or not end_time:
+            start_time, end_time = Application.objects.get(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+            ).list_retention_time_range()
+
+        for path_item in ["pod", "system"]:
+            relations = RelationQ.query(
+                RelationQ.generate_q(
+                    bk_biz_id=bk_biz_id,
+                    source_info=SourceService(
+                        apm_application_name=app_name,
+                        apm_service_name=service_name,
+                    ),
+                    target_type=SourceDatasource,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path_item],
+                )
+            )
+            for r in relations:
+                for n in r.nodes:
+                    source_info = n.source_info.to_source_info()
+                    bk_data_id = source_info.get("bk_data_id")
+                    if bk_data_id:
+                        data_ids.add(bk_data_id)
+            if len(data_ids) >= cls.LOG_RELATION_BY_UNIFY_QUERY:
+                break
+
+        if not data_ids:
+            return []
+
+        res = []
+        full_collectors = api.log_search.list_collectors()
+        for i in data_ids[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
+            info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
+            if info:
+                res.append(info["index_set_id"])
+
+        return res

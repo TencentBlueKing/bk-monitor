@@ -167,6 +167,17 @@ class SourceK8sService(Source):
         return self.service
 
 
+@SourceProvider.registry_source
+@dataclass
+class SourceDatasource(Source):
+    bk_data_id: str
+    name: str = SourceType.DATA_SOURCE.value
+
+    @property
+    def display_name(self):
+        return self.bk_data_id
+
+
 @dataclass
 class Node:
     source_type: str

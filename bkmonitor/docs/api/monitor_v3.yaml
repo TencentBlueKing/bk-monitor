@@ -1253,6 +1253,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/mail_report/send_report_mail/
+  is_hidden: true
+  label: 发送订阅报表
+  label_en: send report mail
+  name: send_report_mail
+  path: /v2/monitor_v3/send_report_mail/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/new_report/send_report/
   is_hidden: true
   label: 发送订阅报表
