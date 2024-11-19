@@ -172,6 +172,7 @@ class QueryHelper:
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
+            space_uid=None,
         )
 
         values_list: List[List[str]] = []

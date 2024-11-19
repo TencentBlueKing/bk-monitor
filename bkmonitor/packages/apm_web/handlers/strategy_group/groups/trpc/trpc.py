@@ -19,7 +19,7 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.metric_group import CalculationType, MetricHelper, TrpcMetricGroup
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
-from apm_web.models import Application, CodeRedefinedConfigRelation
+from apm_web.models import CodeRedefinedConfigRelation
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.apm import MetricTemporality, TRPCMetricTag
@@ -139,18 +139,21 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
                 metric_field, TRPCMetricTag.APP, {f"{server_field}__eq": _server}
             )
             if _apps:
+                _entity_field: str = server_field
                 _temporality: str = MetricTemporality.CUMULATIVE
-                _filter_dict: Dict[str, str] = {f"{server_field}__eq": _server}
+                _filter_dict: Dict[str, str] = {f"{_entity_field}__eq": _server}
             else:
+                _entity_field: str = TRPCMetricTag.TARGET
                 _temporality: str = MetricTemporality.DELTA
-                _filter_dict: Dict[str, str] = {f"{TRPCMetricTag.TARGET}__reg": f".*{_server}$"}
+                _filter_dict: Dict[str, str] = {f"{_entity_field}__reg": f".*{_server}$"}
 
             _ret_code_as_exception: bool = False
             if _server in ret_code_as_exception_servers:
                 _ret_code_as_exception = True
 
             _group: metric_group.BaseMetricGroup = self.metric_group_constructor(
-                group_by=["time"],
+                # 增加服务实体作为维度，虽然策略已经按实体维度划分，但补充维度能在事件中心进行更好的下钻。
+                group_by=["time", _entity_field],
                 filter_dict=_filter_dict,
                 kind=kind,
                 temporality=_temporality,
@@ -180,14 +183,9 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
         return self._list_caller_callee(SeriesAliasType.CALLER.value, cal_type_config_mapping)
 
     def _list_panic(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
-        try:
-            app = Application.objects.get(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        except Application.DoesNotExist:
-            raise ValueError("Application not exist: bk_biz_id -> %s, app_name -> %s", self.bk_biz_id, self.app_name)
-
         # APM 的 service 在 tRPC 概念中实际上是 sever，这里的命名也沿用 tRPC 领域的设定。
         go_servers: Set[str] = set()
-        for service in ServiceHandler.list_services(app):
+        for service in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
             server: str = service["topo_key"]
             language: str = service.get("extra_data", {}).get("service_language", "")
             # 找出所有的 Go 服务
