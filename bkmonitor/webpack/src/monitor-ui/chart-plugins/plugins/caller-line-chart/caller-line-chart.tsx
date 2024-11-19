@@ -1050,7 +1050,6 @@ class CallerLineChart extends CommonSimpleChart {
             >
               {this.inited && (
                 <BaseEchart
-                  key={JSON.stringify(this.options)}
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
