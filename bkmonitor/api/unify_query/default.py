@@ -215,6 +215,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     path = "/query/ts/info/{info_type}"
 
     class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
