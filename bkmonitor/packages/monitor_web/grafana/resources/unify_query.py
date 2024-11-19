@@ -1261,7 +1261,7 @@ class GraphPromqlQueryResource(Resource):
 
 
 class DimensionPromqlQueryResource(Resource):
-    re_label_value = re.compile(r"label_values\(\s*(([a-zA-Z0-9_:]+(\{.*\})?)\s*,)?\s*([a-zA-Z0-9_]+)\)\s*")
+    re_label_value = re.compile(r"label_values\(\s*(([a-zA-Z0-9_:]*(\{.*\})?)\s*,)?\s*([a-zA-Z0-9_]+)\)\s*")
     re_query_result = re.compile(r"query_result\((.*)\)")
 
     class RequestSerializer(serializers.Serializer):
