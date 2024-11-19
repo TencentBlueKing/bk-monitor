@@ -63,6 +63,7 @@ interface IConditionInputProps {
   defaultValue?: {
     [propName: string]: string[];
   };
+  title?: string;
 }
 export interface IVarOption {
   id: string;
@@ -72,12 +73,19 @@ export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
 @Component({
   name: 'ConditionInput',
 })
-export default class ConditionInput extends tsc<IConditionInputProps> {
+export default class ConditionInput extends tsc<
+  IConditionInputProps,
+  {
+    onChange: (value: IConditionItem[]) => void;
+  }
+> {
   @Prop({ required: true, type: Array }) readonly dimensionsList: any[];
   @Prop({ required: false, type: Object }) readonly metricMeta: IMetricMeta;
+  @Prop({ type: String, default: window.i18n.tc('条件') }) readonly title: string;
   /** 自定义的请求接口，传入时候不传指标数据metricMeta */
   @Prop({ type: Function }) readonly getDataApi: GetVarApiType;
   @Prop({ default: () => ({}), type: Object }) defaultValue: IConditionInputProps['defaultValue'];
+
   @Model('change', { default: () => [], type: Array }) conditionList!: any[];
 
   conditions = [];
@@ -88,6 +96,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   curConditionIndex = -1;
   curConditionProp = '';
   dimensionsValueMap: Record<string, { id: string; name: string }[]> = {};
+  dimensionsValueMapLoading: Record<string, boolean> = {};
   get showAdd() {
     if (!this.conditions.length) return false;
     const { key, value } = this.conditions[this.conditions.length - 1];
@@ -149,6 +158,7 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
       this.conditions.push(this.handleGetDefaultCondition(false));
     } else {
       if (this.conditions[index] && index === 0) {
+        // biome-ignore lint/performance/noDelete: <explanation>
         delete this.conditions[index].condition;
       }
     }
@@ -267,10 +277,15 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   // 获取维度值列表数据
   async getVariableValueList(keyId: string) {
     /** 自定义请求维度列表数据的api */
-    if (!!this.getDataApi) {
-      return this.getDataApi(keyId).then(data => {
-        this.dimensionsValueMap[keyId] = data || [];
-      });
+    if (this.getDataApi) {
+      this.$set(this.dimensionsValueMapLoading, keyId, true);
+      return this.getDataApi(keyId)
+        .then(data => {
+          this.dimensionsValueMap[keyId] = data || [];
+        })
+        .finally(() => {
+          this.$set(this.dimensionsValueMapLoading, keyId, false);
+        });
     }
     const { dataSourceLabel, metricField, dataTypeLabel, resultTableId } = this.metricMeta;
     if (!dataSourceLabel || !metricField || !dataTypeLabel || !resultTableId) return;
@@ -293,6 +308,8 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           : {}
       ),
     };
+    const { field } = params.params;
+    this.$set(this.dimensionsValueMapLoading, field, true);
     await getVariableValue(params, { needRes: true })
       .then(({ data, tips }) => {
         if (tips?.length) {
@@ -302,10 +319,10 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
           });
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label.toString(), id: item.value })) : [];
-        const { field } = params.params;
         this.dimensionsValueMap[field] = result || [];
       })
       .catch(() => []);
+    this.$set(this.dimensionsValueMapLoading, field, false);
   }
   // 粘贴条件时触发(tag-input)
   handlePaste(v, item) {
@@ -334,10 +351,13 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
   getValueOptions(item) {
     return this.dimensionsValueMap[item.key] ? [nullOptions].concat(this.dimensionsValueMap[item.key]) : [nullOptions];
   }
+  getValueOptionsLoading(item) {
+    return !!this.dimensionsValueMapLoading?.[item.key];
+  }
   render() {
     return (
       <span class='condition'>
-        <span class='condition-item condition-item-label'>{this.$t('条件')}</span>
+        {this.title && <span class='condition-item condition-item-label'>{this.title}</span>}
         {this.conditions.map((item, index) => [
           item.condition && item.key && index > 0 ? (
             <input
@@ -388,19 +408,28 @@ export default class ConditionInput extends tsc<IConditionInputProps> {
             >
               {this.handleGetMethodNameById(item.method)}
             </span>,
-            <bk-tag-input
-              key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
-              class='condition-item condition-item-value'
-              content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
-              list={this.getValueOptions(item)}
-              paste-fn={v => this.handlePaste(v, item)}
-              trigger='focus'
-              value={item.value}
-              allow-auto-match
-              allow-create
-              has-delete-icon
-              on-change={(v: string[]) => this.handleValueChange(item, v)}
-            />,
+            this.getValueOptionsLoading(item) ? (
+              <span
+                key={`value-${index}-${item.key}`}
+                class='condition-item condition-item-value-loading'
+              >
+                <div class='spinner' />
+              </span>
+            ) : (
+              <bk-tag-input
+                key={`value-${index}-${item.key}-${JSON.stringify(this.dimensionsValueMap[item.key] || [])}`}
+                class='condition-item condition-item-value'
+                content-width={getPopoverWidth(this.getValueOptions(item), 20, 190)}
+                list={this.getValueOptions(item)}
+                paste-fn={v => this.handlePaste(v, item)}
+                trigger='focus'
+                value={item.value}
+                allow-auto-match
+                allow-create
+                has-delete-icon
+                on-change={(v: string[]) => this.handleValueChange(item, v)}
+              />
+            ),
           ],
         ])}
         <span

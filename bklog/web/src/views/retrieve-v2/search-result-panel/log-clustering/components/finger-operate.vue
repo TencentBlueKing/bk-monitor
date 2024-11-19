@@ -105,7 +105,7 @@
 
     <quick-create-subscription
       v-model="isShowQuickCreateSubscriptionDrawer"
-      :index-set-id="$route.params.indexId"
+      :index-set-id="indexSetId"
       scenario="clustering"
     />
 
@@ -333,6 +333,9 @@
       groupList() {
         return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
       },
+      indexSetId() {
+        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+      }
     },
     watch: {
       group: {
@@ -453,7 +456,7 @@
       async updateInitGroup() {
         await this.$http.request('/logClustering/updateInitGroup', {
           params: {
-            index_set_id: this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
           },
           data: {
             group_fields: this.dimension,
@@ -486,7 +489,7 @@
             query: {
               scenario: 'clustering',
               bk_biz_id: this.$route.query.bizId,
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           })
           .then(response => {

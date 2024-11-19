@@ -133,6 +133,42 @@ def get_data_id_v2(
     return {"status": phase, "data_id": None}
 
 
+def get_data_link_component_config(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_config: try to get component config,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_config: kind is not valid,kind->[%s]", kind)
+        component_config = api.bkdata.get_data_link(kind=bkbase_kind, namespace=namespace, name=component_name)
+        return component_config
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_config: get component config failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return None
+
+
 def get_data_link_component_status(
     kind: str,
     component_name: str,
@@ -362,8 +398,8 @@ def create_fed_vm_data_link(
     vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
     # 2.1.1 如果存在对应的VM接入记录，说明属于 原先接入过监控的独立集群改造为联邦集群子集群（V3），直接使用其原先的链路信息(计算平台数据名称&ID）
     if vm_record.exists():
-        data_id_name = vm_record.first().bkbase_data_name
-        bkbase_data_id = vm_record.first().bkbase_data_id
+        data_id_name = vm_record.first().bk_base_data_name
+        bkbase_data_id = vm_record.first().bk_base_data_id
         logger.info(
             "create_fed_vm_data_link: vm_record exists,will use data_id_name->[%s],bkbase_data_id->["
             "%s].bk_data_id->[%s]",

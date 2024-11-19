@@ -22,11 +22,16 @@ from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
+from core.prometheus import metrics
 from metadata import models
-from metadata.models import BkBaseResultTable
+from metadata.models import BkBaseResultTable, DataSource
+from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.task.utils import bulk_handle
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.utils import consul_tools
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -166,28 +171,57 @@ def update_time_series_metrics(time_series_metrics):
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
 def manage_es_storage(es_storages, cluster_id: int = None):
-    """并发管理 ES 存储。"""
+    """
+    ES索引轮转异步任务
+    @param es_storages: 待轮转采集项
+    @param cluster_id: 集群ID
+    @return:
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="manage_es_storage", status=TASK_STARTED, process_target=None
+    ).inc()
 
-    # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
-    if cluster_id in getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", []):
-        for es_storage in es_storages:
-            logger.info(
-                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],start to rotate index",
-                cluster_id,
-                es_storage.table_id,
-            )
+    logger.info("manage_es_storage: start to manage_es_storage")
+    start_time = time.time()
+
+    # 不再使用白名单，默认全量使用新方式轮转
+    for es_storage in es_storages:
+        logger.info(
+            "manage_es_storage:cluster_id->[%s],table_id->[%s],start to rotate index",
+            cluster_id,
+            es_storage.table_id,
+        )
+        try:
             _manage_es_storage(es_storage)
             time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
             logger.info(
-                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],rotate index finished",
+                "manage_es_storage:cluster_id->[%s],table_id->[%s],rotate index finished",
                 cluster_id,
                 es_storage.table_id,
             )
-    # 否则，创建线程池，并发实施索引管理
-    else:
-        logger.info("manage_es_storage:cluster_id->[%s] not in v2_white_list,start to rotate index", cluster_id)
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(_manage_es_storage, es_storages)
+        except Exception as e:
+            logger.error(
+                "manage_es_storage:cluster_id->[%s],table_id->[%s],rotate index failed, error->[%s]",
+                cluster_id,
+                es_storage.table_id,
+                e,
+            )
+            continue
+
+    cost_time = time.time() - start_time
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="manage_es_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="manage_es_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("manage_es_storage:manage_es_storage cost time: %s", cost_time)
 
 
 def _manage_es_storage(es_storage):
@@ -205,6 +239,12 @@ def _manage_es_storage(es_storage):
     #         )
     #         return
 
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_manage_es_storage", status=TASK_STARTED, process_target=es_storage.table_id
+    ).inc()
+
+    start_time = time.time()
     try:
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
@@ -247,13 +287,22 @@ def _manage_es_storage(es_storage):
         # 重新分配索引数据
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
-
-        logger.info("manage_es_storage:table_id->[%s] create index successfully", es_storage.table_id)
-        logger.info("manage_es_storage:es_storage->[{}] cron task success.".format(es_storage.table_id))
+        logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
         logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
         logger.exception(e)
+
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_manage_es_storage", status=TASK_FINISHED_SUCCESS, process_target=es_storage.table_id
+    ).inc()
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_manage_es_storage", process_target=es_storage.table_id
+    ).observe(cost_time)
+    metrics.report_all()
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -407,22 +456,123 @@ def push_space_to_redis(space_type: str, space_id: str):
     logger.info("async task push space_type: %s, space_id: %s to redis successfully", space_type, space_id)
 
 
-@app.task(ignore_result=True, queue="celery_long_task_cron")
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def bulk_check_and_delete_ds_consul_config(data_sources):
+    """
+    并发检查V4数据源对应的Consul配置是否存在，若存在则进行删除
+    @param data_sources: 待检查的数据源列表
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    start_time = time.time()  # 记录开始时间
+
+    logger.info("bulk_check_and_delete_ds_consul_config:async task start to check,len->[%s]", len(data_sources))
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(_check_and_delete_ds_consul_config, data_sources)
+
+    cost_time = time.time() - start_time  # 总耗时
+    logger.info(
+        "bulk_check_and_delete_ds_consul_config:async task check and delete ds consul config success, cost_time->[%s]",
+        cost_time,
+    )
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+
+
+def _check_and_delete_ds_consul_config(data_source: DataSource):
+    """
+    检查V4数据源对应的Consul配置是否存在，若存在则进行删除
+    @param data_source: 待检查的数据源
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_check_and_delete_ds_consul_config", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
+    logger.info("_check_and_delete_ds_consul_config:async task start to check,data_id->[%s]", data_source.bk_data_id)
+
+    # 非V4数据源，跳过
+    if data_source.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.warning(
+            "_check_and_delete_ds_consul_config:data_source->[%s],not from bkdata,skip", data_source.bk_data_id
+        )
+        return
+
+    # 获取Consul句柄及对应的返回值
+    hash_consul = consul_tools.HashConsul()
+    index, consul_value = hash_consul.get(data_source.consul_config_path)
+
+    # 若Consul配置不存在，跳过
+    if consul_value is None:
+        logger.info(
+            "_check_and_delete_ds_consul_config:data_source->[%s],consul_config not exist,skip", data_source.bk_data_id
+        )
+        return
+
+    # 删除Consul配置
+    data_source.delete_consul_config()
+
+    cost_time = time.time() - start_time  # 总耗时
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_check_and_delete_ds_consul_config", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_check_and_delete_ds_consul_config", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+
+    logger.info("_check_and_delete_ds_consul_config:data_source->[%s],consul_config deleted", data_source.bk_data_id)
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_refresh_data_link_status(bkbase_rt_records):
     """
     并发刷新链路状态
     """
-    logger.info("manage_refresh_data_link_status:start to refresh data_link status")
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_refresh_data_link_status", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    start_time = time.time()  # 记录开始时间
+    logger.info(
+        "bulk_refresh_data_link_status: start to refresh data_link status, bkbase_rt_records: %s", bkbase_rt_records
+    )
     with ThreadPoolExecutor(max_workers=10) as executor:
         executor.map(_refresh_data_link_status, bkbase_rt_records)
+    cost_time = time.time() - start_time  # 总耗时
+    logger.info("bulk_refresh_data_link_status: end to refresh data_link status, cost_time: %s", cost_time)
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_refresh_data_link_status", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="bulk_refresh_data_link_status", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
 
 
 def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     """
     刷新链路状态（各组件状态+整体状态）
+    @param bkbase_rt_record: BkBaseResultTable 计算平台结果表
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_refresh_data_link_status", status=TASK_STARTED, process_target=bkbase_rt_record.data_link_name
+    ).inc()
 
-    # 0. 获取基本信息
+    # 1. 获取基本信息
     start_time = time.time()  # 记录开始时间
     bkbase_data_id_name = bkbase_rt_record.bkbase_data_name
     data_link_name = bkbase_rt_record.data_link_name
@@ -436,10 +586,12 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     data_link_ins = models.DataLink.objects.get(data_link_name=data_link_name)
     data_link_strategy = data_link_ins.data_link_strategy
     logger.info(
-        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s]", data_link_name, data_link_strategy
+        "_refresh_data_link_status: data_link_name->[%s] data_link_strategy->[%s]",
+        data_link_name,
+        data_link_strategy,
     )
 
-    # 1. 刷新数据源状态
+    # 2. 刷新数据源状态
     try:
         with transaction.atomic():
             data_id_config = models.DataIdConfig.objects.get(name=bkbase_data_id_name)
@@ -458,6 +610,12 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                 data_id_config.status = data_id_status
                 data_id_config.data_link_name = data_link_name
                 data_id_config.save()
+            report_metadata_data_link_status_info(
+                data_link_name=data_link_name,
+                biz_id=data_id_config.bk_biz_id,
+                kind=data_id_config.kind,
+                status=data_id_config.status,
+            )
     except models.DataIdConfig.DoesNotExist:
         logger.error(
             "_refresh_data_link_status: data_link_name->[%s],data_id_config->[%s] does not exist",
@@ -465,11 +623,11 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             bkbase_data_id_name,
         )
 
-    # 2. 根据链路套餐（类型）获取该链路需要的组件资源种类
+    # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
     components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy)
     all_components_ok = True
 
-    # 3. 遍历链路关联的所有类型资源，查询并刷新其状态
+    # 4. 遍历链路关联的所有类型资源，查询并刷新其状态
     for component in components:
         try:
             with transaction.atomic():
@@ -499,22 +657,39 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                         component_status,
                     )
 
+            report_metadata_data_link_status_info(
+                data_link_name=data_link_name,
+                biz_id=component_ins.bk_biz_id,
+                kind=component_ins.kind,
+                status=component_ins.status,
+            )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,error->[%s]",
+                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] refresh failed,"
+                "error->[%s]",
                 data_link_name,
                 component.name,
                 component.kind,
                 e,
             )
 
-    # 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
+    # 5. 如果所有的component_ins状态都为OK，那么BkBaseResultTable也应设置为OK，否则为PENDING
     if all_components_ok:
         bkbase_rt_record.status = DataLinkResourceStatus.OK.value
     else:
         bkbase_rt_record.status = DataLinkResourceStatus.PENDING.value
     with transaction.atomic():
         bkbase_rt_record.save()
+
+    report_metadata_data_link_status_info(
+        data_link_name=data_link_name,
+        biz_id=data_id_config.bk_biz_id,
+        kind=data_id_config.kind,
+        status=bkbase_rt_record.status,
+    )
+
+    cost_time = time.time() - start_time
+
     logger.info(
         "_refresh_data_link_status: data_link_name->[%s],all_components_ok->[%s],status updated to->[%s]",
         data_link_name,
@@ -522,8 +697,20 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         bkbase_rt_record.status,
     )
 
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_refresh_data_link_status",
+        status=TASK_FINISHED_SUCCESS,
+        process_target=bkbase_rt_record.data_link_name,
+    ).inc()
+
+    # 6. 上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_refresh_data_link_status", process_target=bkbase_rt_record.data_link_name
+    ).observe(cost_time)
+    metrics.report_all()
+
     logger.info(
         "_refresh_data_link_status: data_link_name->[%s] refresh status finished,cost time->[%s]",
         data_link_name,
-        time.time() - start_time,
+        cost_time,
     )

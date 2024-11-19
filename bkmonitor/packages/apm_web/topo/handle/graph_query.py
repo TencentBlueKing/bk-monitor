@@ -25,7 +25,6 @@ from apm_web.topo.handle import NodeDisplayType as Display
 from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.time_tools import get_datetime_range
 
 logger = logging.getLogger("apm")
 
@@ -432,15 +431,14 @@ class GraphQuery(BaseQuery):
         从 flow 指标中获取节点和边
         数据需要为完整数据 查询周期为应用存储周期
         """
-        retention = self.application.es_retention
-        start_time, end_time = get_datetime_range(period="day", distance=retention, rounding=False)
+        start_time, end_time = self.application.list_retention_time_range()
         nodes = NodeContainer()
         edges = EdgeContainer()
         dimension_mapping = self.get_metric(
             ServiceFlowCount,
             params=self.common_params(
-                start_time=int(start_time.timestamp()),
-                end_time=int(end_time.timestamp()),
+                start_time=start_time,
+                end_time=end_time,
             ),
             group_by=[
                 "from_apm_service_name",

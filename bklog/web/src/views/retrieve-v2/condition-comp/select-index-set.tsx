@@ -28,21 +28,6 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  Select,
-  Option,
-  OptionGroup,
-  Tag,
-  Tab,
-  TabPanel,
-  Popover,
-  Form,
-  FormItem,
-  Input,
-  Button,
-  Checkbox,
-} from 'bk-magic-vue';
-
 import $http from '../../../api';
 import * as authorityMap from '../../../common/authority-map';
 import EmptyStatus from '../../../components/empty-status/index.vue';
@@ -166,9 +151,9 @@ export default class QueryStatement extends tsc<object> {
 
   @Ref('selectIndexBox') private readonly selectIndexBoxRef: HTMLElement;
   @Ref('tagBox') private readonly tagBoxRef: HTMLElement;
-  @Ref('selectInput') private readonly selectInputRef: Select;
-  @Ref('favoritePopover') private readonly favoritePopoverRef: Popover;
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form;
+  @Ref('selectInput') private readonly selectInputRef: any;
+  @Ref('favoritePopover') private readonly favoritePopoverRef: any;
+  @Ref('checkInputForm') private readonly checkInputFormRef: any;
 
   get indexSetList() {
     return this.$store.state.retrieve.indexSetList;
@@ -179,11 +164,19 @@ export default class QueryStatement extends tsc<object> {
   }
 
   get indexId() {
-    return String(this.$route.params.indexId);
+    if (window.__IS_MONITOR_APM__) {
+      return String(this.$route.query.indexId);
+    } else {
+      return String(this.$route.params.indexId);
+    }
   }
 
   get routeParamIndexId() {
-    return this.$route.params.indexId;
+    if (window.__IS_MONITOR_APM__) {
+      return this.$route.query.indexId;
+    } else {
+      return this.$route.params.indexId;
+    }
   }
 
   /** 索引集权限 */
@@ -273,7 +266,7 @@ export default class QueryStatement extends tsc<object> {
   }
 
   get placeholderText() {
-    const childList = this.renderOptionList.map(item => item.children).flat();
+    const childList = this.renderOptionList.flatMap(item => item.children);
     if (this.selectedItemList.length || this.selectedItem?.index_set_name) {
       return '';
     }
@@ -362,7 +355,14 @@ export default class QueryStatement extends tsc<object> {
     this.indexSearchType = !!val.length ? 'union' : 'single';
     this.selectTagCatchIDList = !!val.length ? val : this.routeParamIndexId ? [this.routeParamIndexId] : [];
   }
-
+  @Watch('indexSearchType')
+  onIndexSearchTypeChange(newVal: IndexSetType) {
+    this.emitChange(newVal);
+  }
+  @Emit('change')
+  emitChange(type) {
+    return type;
+  }
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
@@ -431,10 +431,12 @@ export default class QueryStatement extends tsc<object> {
         this.indexSearchType = 'single';
         this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
       }
+      // #if APP !== 'apm'
       // 获取多选收藏
       this.getMultipleFavoriteList();
       // 获取单选或多选历史记录列表
       this.getIndexSetHistoryList(this.indexSearchType);
+      // #endif
       // 获取到缓存的常用标签
       const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
       const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
@@ -541,7 +543,11 @@ export default class QueryStatement extends tsc<object> {
           },
         })
         .then(() => {
-          this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
+          if (window.__IS_MONITOR_APM__) {
+            this.$emit('collection');
+          } else {
+            this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
+          }
         });
     } finally {
       this.isCollectionLoading = false;
@@ -778,9 +784,9 @@ export default class QueryStatement extends tsc<object> {
       })
       .then(res => {
         if (queryType === 'single') {
-          this.aloneHistory = res.data;
+          this.aloneHistory = (res.data ?? []).slice(10);
         } else {
-          this.multipleHistory = res.data;
+          this.multipleHistory = (res.data ?? []).slice(10);
         }
       })
       .finally(() => {
@@ -865,13 +871,13 @@ export default class QueryStatement extends tsc<object> {
                 class='move-icon left-icon'
                 onClick={() => this.scrollMove('left')}
               >
-                <i class='bk-icon icon-angle-left-line'></i>
+                <i class='bk-icon icon-angle-left-line' />
               </div>
               <div
                 class='move-icon right-icon'
                 onClick={() => this.scrollMove('right')}
               >
-                <i class='bk-icon icon-angle-right-line'></i>
+                <i class='bk-icon icon-angle-right-line' />
               </div>
             </div>
           )}
@@ -893,7 +899,7 @@ export default class QueryStatement extends tsc<object> {
                 onClick={() => this.handleClickFavorite(item)}
               >
                 <span class='name title-overflow'>
-                  {item.isNotVal && <i class='not-val'></i>}
+                  {item.isNotVal && <i class='not-val' />}
                   <span>{item.name}</span>
                 </span>
                 <span
@@ -920,7 +926,7 @@ export default class QueryStatement extends tsc<object> {
                 class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class='bklog-icon bklog-brush'></i>
+                <i class='bklog-icon bklog-brush' />
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
@@ -945,7 +951,7 @@ export default class QueryStatement extends tsc<object> {
                     <i
                       class='bk-icon icon-close-circle-shape'
                       onClick={e => this.handleDeleteHistory(item, e)}
-                    ></i>
+                    />
                   </li>
                 ))
               ) : (
@@ -970,19 +976,19 @@ export default class QueryStatement extends tsc<object> {
                   >
                     <div class='tag-box'>
                       {item.index_set_names?.map(setName => (
-                        <Tag
+                        <bk-tag
                           class='title-overflow'
                           ext-cls='tag-item'
                           v-bk-overflow-tips
                         >
                           {setName}
-                        </Tag>
+                        </bk-tag>
                       ))}
                     </div>
                     <i
                       class='bk-icon icon-close-circle-shape'
                       onClick={e => this.handleDeleteHistory(item, e)}
-                    ></i>
+                    />
                   </li>
                 ))
               ) : (
@@ -994,15 +1000,16 @@ export default class QueryStatement extends tsc<object> {
       );
     };
     const favoriteAndHistory = () => {
+      if (window.__IS_MONITOR_APM__) return null;
       return (
         <div class='favorite-and-history'>
-          <Tab
+          <bk-tab
             active={this.activeTab}
             type='unborder-card'
             on-tab-change={this.handleTabChange}
           >
             {this.tabPanels.map((panel, index) => (
-              <TabPanel
+              <bk-tab-panel
                 {...{ props: panel }}
                 key={index}
               >
@@ -1010,13 +1017,13 @@ export default class QueryStatement extends tsc<object> {
                   class='top-label'
                   slot='label'
                 >
-                  <i class={panel.icon}></i>
+                  <i class={panel.icon} />
                   <span class='panel-name'>{panel.label}</span>
                 </div>
-              </TabPanel>
+              </bk-tab-panel>
             ))}
             {this.activeTab === 'favorite' ? favoriteListDom() : historyListDom()}
-          </Tab>
+          </bk-tab>
         </div>
       );
     };
@@ -1036,7 +1043,7 @@ export default class QueryStatement extends tsc<object> {
             </i18n>
             {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择20项')}</span>}
           </div>
-          <Popover
+          <bk-popover
             ref='favoritePopover'
             ext-cls='new-favorite-popover'
             tippy-options={{
@@ -1051,11 +1058,11 @@ export default class QueryStatement extends tsc<object> {
                 class={[
                   !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
                 ]}
-              ></i>
+              />
               <span>{this.$t('收藏该组合')}</span>
             </span>
             <div slot='content'>
-              <Form
+              <bk-form
                 ref='checkInputForm'
                 style={{ width: '100%' }}
                 labelWidth={0}
@@ -1066,45 +1073,45 @@ export default class QueryStatement extends tsc<object> {
                   },
                 }}
               >
-                <FormItem property='favoriteName'>
+                <bk-form-item property='favoriteName'>
                   <span style='color: #63656E;'>{this.$t('收藏名称')}</span>
-                  <Input
+                  <bk-input
                     vModel={this.verifyData.favoriteName}
                     clearable
                     onEnter={() => this.handleClickFavoritePopoverBtn('add')}
-                  ></Input>
-                </FormItem>
-              </Form>
+                  />
+                </bk-form-item>
+              </bk-form>
               <div class='operate-button'>
-                <Button
+                <bk-button
                   text
                   onClick={() => this.handleClickFavoritePopoverBtn('add')}
                 >
                   {this.$t('确认收藏')}
-                </Button>
-                <Button
+                </bk-button>
+                <bk-button
                   text
                   onClick={() => this.handleClickFavoritePopoverBtn('cancel')}
                 >
                   {this.$t('取消')}
-                </Button>
+                </bk-button>
               </div>
             </div>
-          </Popover>
+          </bk-popover>
         </div>
         <div
           id='union-tag-box'
           class='index-tag-box'
         >
           {this.selectedItemList.map(item => (
-            <Tag
+            <bk-tag
               style='background: #FAFBFD;'
               type='stroke'
               closable
               onClose={() => this.handleCloseSelectTag(item)}
             >
               <span class='tag-name'>
-                {item.isNotVal && <i class='not-val'></i>}
+                {item.isNotVal && <i class='not-val' />}
                 <span
                   class='title-overflow'
                   v-bk-overflow-tips
@@ -1112,7 +1119,7 @@ export default class QueryStatement extends tsc<object> {
                   {item.indexName}
                 </span>
               </span>
-            </Tag>
+            </bk-tag>
           ))}
         </div>
       </div>
@@ -1122,12 +1129,12 @@ export default class QueryStatement extends tsc<object> {
         <span
           class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
-        ></span>
+        />
       ) : (
-        <Checkbox
+        <bk-checkbox
           checked={this.getCheckedVal(item.index_set_id)}
           disabled={this.getDisabled(item.index_set_id)}
-        ></Checkbox>
+        />
       );
     };
     const selectGroupDom = () => {
@@ -1137,7 +1144,7 @@ export default class QueryStatement extends tsc<object> {
           class='group-list'
         >
           {this.renderOptionList.map(group => (
-            <OptionGroup
+            <bk-option-group
               id={(group as any).id}
               class={{ 'not-child': !group.children.length }}
               scopedSlots={{
@@ -1154,7 +1161,7 @@ export default class QueryStatement extends tsc<object> {
               show-count={false}
             >
               {group.children.map(item => (
-                <Option
+                <bk-option
                   id={String(item.index_set_id)}
                   class={['custom-no-padding-option', { 'union-select-item': !this.isAloneType }]}
                   disabled={this.getDisabled(item.index_set_id)}
@@ -1166,8 +1173,8 @@ export default class QueryStatement extends tsc<object> {
                       onClick={() => this.handelClickIndexSet(item)}
                     >
                       <span class='index-info'>
-                        {indexHandDom(item)}
-                        {item.isNotVal && <i class='not-val'></i>}
+                        {!window.__IS_MONITOR_APM__ && indexHandDom(item)}
+                        {item.isNotVal && <i class='not-val' />}
                         <span
                           class='index-name'
                           onMouseenter={e => this.handleHoverIndexName(e, item)}
@@ -1191,9 +1198,9 @@ export default class QueryStatement extends tsc<object> {
                       </span>
                     </div>
                   )}
-                </Option>
+                </bk-option>
               ))}
-            </OptionGroup>
+            </bk-option-group>
           ))}
         </div>
       );
@@ -1222,7 +1229,7 @@ export default class QueryStatement extends tsc<object> {
     );
 
     return (
-      <Select
+      <bk-select
         ref='selectInput'
         style='max-width: 600px;'
         class={[
@@ -1251,7 +1258,7 @@ export default class QueryStatement extends tsc<object> {
         {favoriteAndHistory()}
         {selectIndexContainer()}
         {selectGroupDom()}
-      </Select>
+      </bk-select>
     );
   }
 }

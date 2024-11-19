@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import base64
 import json
 import re
 
@@ -284,31 +283,42 @@ class ClusteringConfigHandler(object):
         }
 
         # 1. 先校验数据写入是否正常
+        access_finished = False
         if clustering_config.clustered_rt:
             # 此处简化流程，只检查模型预测 flow 的输出
+            query_params = {
+                "begin": 0,
+                "size": 1,
+                "original_search": True,
+                "is_desensitize": False,
+            }
             try:
-                query_params = {
-                    "begin": 0,
-                    "size": 1,
-                    "original_search": True,
-                    "is_desensitize": False,
-                    "addition": [{"field": "__dist_05", "operator": "exists"}],
-                }
-                search_handler = SearchHandler(self.index_set_id, query_params, only_for_agg=True)
-                search_result = search_handler.search()
-                if search_result["total"] > 0:
-                    # 只要有一次有数据，就认为是接入完成
-                    clustering_config.access_finished = True
-                    clustering_config.save(update_fields=["access_finished"])
-                    result["access_finished"] = True
-                    if not include_update and not task_id:
-                        return result
+                origin_log_count = SearchHandler(self.index_set_id, query_params, only_for_agg=True).search()["total"]
+                if origin_log_count > 0:
+                    # 如果原始数据有上报，需要判定聚类数据有没有上报，有上报才算接入完成
+                    query_params["addition"] = [{"field": "__dist_05", "operator": "exists"}]
+                    clustering_log_count = SearchHandler(self.index_set_id, query_params, only_for_agg=True).search()[
+                        "total"
+                    ]
+                    if clustering_log_count > 0:
+                        access_finished = True
+                    else:
+                        result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
                 else:
-                    result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
+                    # 如果原始数据也没有上报，那么就直接判定为接入完成
+                    access_finished = True
             except Exception as e:
                 result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e))
         else:
             result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+
+        if access_finished:
+            clustering_config.access_finished = True
+            clustering_config.save(update_fields=["access_finished"])
+            result["access_finished"] = True
+
+            if not include_update and not task_id:
+                return result
 
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:

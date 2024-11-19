@@ -137,6 +137,7 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
+  panelsSelector = 'timeout_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -162,6 +163,22 @@ class CallerLineChart extends CommonSimpleChart {
     return !!this.panel.options?.is_support_group_by;
   }
 
+  // title是否需要展示下拉框
+  get enablePanelsSelector() {
+    return !!this.panel.options?.enable_panels_selector;
+  }
+
+  get curSelectPanel() {
+    return (this.childPanelsSelectorVariables || []).find(item => this.panelsSelector === item.id);
+  }
+
+  get curTitle() {
+    return this.enablePanelsSelector ? this.curSelectPanel?.title : this.panel.title;
+  }
+
+  get childPanelsSelectorVariables() {
+    return this.panel.options?.child_panels_selector_variables || [];
+  }
   get menuList() {
     return ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
@@ -176,6 +193,9 @@ class CallerLineChart extends CommonSimpleChart {
     this.getPanelData();
   }
 
+  handlePanelsSelector() {
+    this.getPanelData();
+  }
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -226,9 +246,15 @@ class CallerLineChart extends CommonSimpleChart {
           callOptions[key] = this.callOptions[key];
         }
       }
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
+
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...callOptions,
+        ...selectPanelParams,
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
@@ -282,7 +308,6 @@ class CallerLineChart extends CommonSimpleChart {
               down_sample_range,
             },
           });
-          // console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -294,11 +319,14 @@ class CallerLineChart extends CommonSimpleChart {
               res.series &&
                 series.push(
                   ...res.series.map(set => {
+                    if (this.enablePanelsSelector) {
+                      item.alias = this.curTitle;
+                    }
                     const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
-                      name,
+                      name: name,
                       timeShift: time_shift,
                     });
                     return {
@@ -330,6 +358,7 @@ class CallerLineChart extends CommonSimpleChart {
           .filter(item => ['extra_info', '_result_'].includes(item.alias))
           .map(item => ({
             ...item,
+            name: item.name,
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
@@ -421,6 +450,7 @@ class CallerLineChart extends CommonSimpleChart {
                 formatter: formatterFunc || '{value}',
               },
               ...xInterval,
+              splitNumber: 4,
             },
             series: seriesList,
             tooltip: {
@@ -452,7 +482,6 @@ class CallerLineChart extends CommonSimpleChart {
       console.error(e);
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
-      console.error(e);
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
@@ -778,7 +807,7 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
-          this.handleStoreImage(this.panel.title || '测试');
+          this.handleStoreImage(this.curTitle || '测试');
         }, 300);
         break;
       case 'fullscreen': {
@@ -827,7 +856,7 @@ class CallerLineChart extends CommonSimpleChart {
         if (data.child.id === 'screenshot') {
           /** 截图 */
           setTimeout(() => {
-            this.handleStoreImage(this.panel.title);
+            this.handleStoreImage(this.curTitle);
           }, 300);
         } else if (data.child.id === 'export-csv') {
           /** 导出csv */
@@ -881,7 +910,7 @@ class CallerLineChart extends CommonSimpleChart {
     if (this.series?.length) {
       const { tableThArr, tableTdArr } = transformSrcData(this.series);
       const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-      downCsvFile(csvString, this.panel.title);
+      downCsvFile(csvString, this.curTitle);
     }
   }
 
@@ -911,6 +940,10 @@ class CallerLineChart extends CommonSimpleChart {
       let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
       copyPanel.dashboardId = random(8);
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
       const variablesService = new VariablesService({
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -923,6 +956,7 @@ class CallerLineChart extends CommonSimpleChart {
           dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
           this.panel.collect_interval
         ),
+        ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
       for (const t of copyPanel.targets) {
@@ -931,6 +965,16 @@ class CallerLineChart extends CommonSimpleChart {
         }
         this.queryConfigsSetCallOptions(t?.data);
       }
+      if (this.enablePanelsSelector) {
+        copyPanel.title = this.curTitle;
+        copyPanel.targets.map(item => (item.alias = this.curTitle));
+      }
+      (copyPanel.targets || []).map(item => {
+        (item.data.query_configs || []).map(ele => {
+          const where = replaceRegexWhere(ele.where);
+          ele.where = where;
+        });
+      });
       return copyPanel;
     } catch (error) {
       console.log(error);
@@ -958,6 +1002,7 @@ class CallerLineChart extends CommonSimpleChart {
       <div class='apm-caller-line-chart'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
+          customArea={true}
           descrition={this.panel.descrition}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
@@ -966,12 +1011,37 @@ class CallerLineChart extends CommonSimpleChart {
           needMoreMenu={true}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
-          title={this.panel.title}
+          title={this.curTitle}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
           onMetricClick={this.handleMetricClick}
           onSelectChild={this.handleSelectChildMenu}
-        />
+        >
+          <div slot='title'>
+            {this.enablePanelsSelector ? (
+              <div>
+                <bk-select
+                  class='enable-select'
+                  v-model={this.panelsSelector}
+                  behavior='simplicity'
+                  clearable={false}
+                  size='small'
+                  onChange={this.handlePanelsSelector}
+                >
+                  {(this.childPanelsSelectorVariables || []).map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.title}
+                    />
+                  ))}
+                </bk-select>
+              </div>
+            ) : (
+              <span>{this.panel.title}</span>
+            )}
+          </div>
+        </ChartHeader>
         {!this.empty ? (
           <div class={'time-series-content'}>
             <div

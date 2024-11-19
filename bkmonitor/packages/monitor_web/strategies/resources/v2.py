@@ -1423,28 +1423,42 @@ class GetMetricListV2Resource(Resource):
             # 尝试解析指标ID格式的query字符串
             exact_query = []
             for query in filter_dict["query"]:
-                query_params_list = []
+                query = query.strip()
+
+                # promql格式的查询
+                if ":" in query:
+                    fields = query.split(":")
+                    if fields[0] in ["custom", "bkmonitor"]:
+                        fields = fields[1:]
+                    fields = [field.strip() for field in fields if field.strip()]
+
+                    if len(fields) == 3:
+                        exact_query.append(
+                            Q(result_table_id=f"{fields[0]}.{fields[1]}", metric_field__icontains=fields[2])
+                        )
+                    elif len(fields) == 2:
+                        exact_query.append(Q(data_label=fields[0], metric_field__icontains=fields[1]))
+
+                    continue
+
+                # metric_id格式的查询
                 fields = query.split(".")
                 if len(fields) == 2:
-                    query_params_list.extend(
+                    exact_query.extend(
                         [
-                            {"result_table_id": fields[0], "metric_field": fields[1]},
-                            {"data_label": fields[0], "metric_field": fields[1]},
+                            Q(data_label=fields[0], metric_field__icontains=fields[1]),
+                            Q(result_table_id=fields[0], metric_field__icontains=fields[1]),
                         ]
                     )
                 elif len(fields) >= 3:
-                    query_params_list.append(
-                        {"result_table_id": ".".join(fields[:2]), "metric_field": ".".join(fields[2:])}
+                    exact_query.append(
+                        Q(result_table_id=".".join(fields[:2]), metric_field__icontains=".".join(fields[2:]))
                     )
 
-                for query_params in query_params_list:
-                    filter_params = {
-                        f"{query_key}__icontains": query_value for query_key, query_value in query_params.items()
-                    }
-                    exact_query.append(Q(**filter_params))
-
             queries = []
-            for query, field in product(filter_dict["query"], ["result_table_id", "metric_field", "metric_field_name"]):
+            for query, field in product(
+                filter_dict["query"], ["data_label", "result_table_id", "metric_field", "metric_field_name"]
+            ):
                 queries.append(Q(**{f"{field}__icontains": query}))
 
             queries.extend(exact_query)
@@ -2441,8 +2455,7 @@ class GetTargetDetailWithCache(CacheResource):
             target = ItemModel.objects.get(strategy_id=strategy_id).target
             logger.warning("Please call set_mapping() before calling perform_request().")
         else:
-            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
-            target = self.strategy_target_mapping[strategy_id][1]
+            bk_biz_id, target = self.strategy_target_mapping[strategy_id]
 
         return self.get_target_detail(bk_biz_id, target)
 
@@ -2583,6 +2596,7 @@ class GetTargetDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        refresh = serializers.BooleanField(required=False, default=False, label="是否刷新缓存")
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -2601,7 +2615,10 @@ class GetTargetDetail(Resource):
         for item in items:
             # 使用instance.request()方式调用，而非instance()方式。
             # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
-            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
+            if params["refresh"]:
+                info = get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            else:
+                info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info

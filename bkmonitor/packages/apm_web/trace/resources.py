@@ -43,6 +43,7 @@ from constants.apm import (
     TraceWaterFallDisplayKey,
 )
 from core.drf_resource import Resource, api
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
@@ -788,7 +789,7 @@ class TraceDetailResource(Resource):
             }
         )
         if not data.get("trace_data"):
-            raise ValueError(_lazy("trace_id: {} 不存在").format(validated_request_data['trace_id']))
+            raise CustomException(_lazy(f"trace_id: {validated_request_data['trace_id']} 不存在"))
         handled_data = TraceHandler.handle_trace(
             validated_request_data["app_name"],
             data["trace_data"],
@@ -798,7 +799,7 @@ class TraceDetailResource(Resource):
             validated_request_data.get("enabled_time_alignment"),
         )
         if not handled_data.get("original_data", []):
-            raise ValueError(_lazy("trace_id: {} 没有有效的 trace 数据").format(validated_request_data['trace_id']))
+            raise CustomException(_lazy("trace_id: {} 没有有效的 trace 数据").format(validated_request_data['trace_id']))
 
         topo_data = trace_data_to_topo_data(handled_data["original_data"])
         handled_data["topo_relation"] = topo_data["relations"]

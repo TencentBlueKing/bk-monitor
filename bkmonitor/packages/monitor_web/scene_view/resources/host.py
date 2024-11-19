@@ -45,6 +45,9 @@ class GetHostProcessPortStatusResource(Resource):
             return validate_bk_biz_id(value)
 
     def perform_request(self, params):
+        if not params.get("bk_host_id") and not params.get("bk_target_ip"):
+            return []
+
         if params.get("bk_host_id"):
             hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
             if not hosts:
@@ -103,11 +106,6 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         bk_inst_id = serializers.IntegerField(required=False)
         bk_obj_id = serializers.CharField(required=False)
         bk_host_id = serializers.IntegerField(required=False)
-
-        def validate(self, attrs):
-            if not attrs.get("bk_host_id") and not attrs.get("bk_inst_id") and not attrs.get("bk_obj_id"):
-                raise serializers.ValidationError(_("bk_host_id和(bk_obj_id/bk_inst_id)不能同时为空"))
-            return attrs
 
     @classmethod
     def get_process_info(cls, bk_biz_id: int, bk_process_name: str, bk_host_id: int = None) -> List:
@@ -334,6 +332,9 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         return result
 
     def perform_request(self, params):
+        if not params.get("bk_host_id") and not params.get("bk_inst_id") and not params.get("bk_obj_id"):
+            return {}
+
         if "bk_obj_id" in params and "bk_inst_id" in params:
             info = self.get_node_info(params["bk_biz_id"], params["bk_obj_id"], params["bk_inst_id"])
         else:
@@ -407,14 +408,12 @@ class GetHostProcessListResource(Resource):
         bk_target_ip = serializers.CharField(required=False)
         bk_target_cloud_id = serializers.IntegerField(required=False)
 
-        def validate(self, attrs):
-            if not attrs.get("bk_host_id") and (
-                not attrs.get("bk_target_ip") or attrs.get("bk_target_cloud_id") is None
-            ):
-                raise ValidationError("bk_host_id or bk_target_ip and bk_target_cloud_id must be provided")
-            return attrs
-
     def perform_request(self, params):
+        if not params.get("bk_host_id") and (
+            not params.get("bk_target_ip") or params.get("bk_target_cloud_id") is None
+        ):
+            return []
+
         bk_biz_id = params["bk_biz_id"]
 
         if params.get("bk_host_id"):
