@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AiBlueking, { RoleType, type IMessage, ChatHelper, MessageStatus } from '@blueking/ai-blueking/vue2';
@@ -180,7 +180,10 @@ export default class AiWhale extends tsc<{
     const { bizId } = this.$store.getters;
     return this.$store.getters.bizList.find(item => item.id === bizId) || { name: '', type_name: '' };
   }
-
+  @Watch('enableAiAssistant')
+  enableAiAssistantChange() {
+    this.enableAiAssistant && this.initStreamChatHelper();
+  }
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
     this.resizeFn = throttle(50, this.handleWindowResize);
@@ -194,7 +197,6 @@ export default class AiWhale extends tsc<{
     this.whalePosition.top = this.height - robotWidth - 20;
     this.whalePosition.left = this.width - robotWidth / 2;
     this.init();
-    this.enableAiAssistant && this.initStreamChatHelper();
   }
 
   destroyed() {

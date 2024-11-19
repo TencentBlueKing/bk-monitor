@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: ^0.2.12
-        version: 0.2.12(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: ^0.2.13
+        version: 0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.26-beta.6
         version: 0.0.26-beta.6
@@ -2413,8 +2413,8 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/ai-blueking@0.2.12(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
-    resolution: {integrity: sha512-nEzPth52WJrOa3YuvBiAagbwLFC50Nq3Y0aaQwrsHwGaxrON9ZKzM6U+jsZ9jVMdpJ5jT+FUqc4SF7SS7Ouy7w==}
+  /@blueking/ai-blueking@0.2.13(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
+    resolution: {integrity: sha512-9gBQ/YTtFT+qtLI9U/lw3ALaPq4O3OBBDOTH5HqhE322q2/orws6B7F1FlNK1seZ7tiJeY8FTHQyZK7AOEIX1Q==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -2581,7 +2581,7 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.4:
     resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
     dependencies:
-      '@vue/runtime-dom': 3.5.12
+      '@vue/runtime-dom': 3.5.13
     dev: false
 
   /@blueking/bkui-library@0.0.0-beta.6:
@@ -4676,10 +4676,10 @@ packages:
       '@vue/shared': 3.4.31
     dev: false
 
-  /@vue/reactivity@3.5.12:
-    resolution: {integrity: sha512-UzaN3Da7xnJXdz4Okb/BGbAaomRHc3RdoWqTzlvd9+WBR5m3J39J1fGcHes7U3za0ruYn/iYy/a1euhMEHvTAg==}
+  /@vue/reactivity@3.5.13:
+    resolution: {integrity: sha512-NaCwtw8o48B9I6L1zl2p41OHo/2Z4wqYGGIK1Khu5T7yxrn+ATOixn/Udn2m+6kZKB/J7cuT9DbWWhRxqixACg==}
     dependencies:
-      '@vue/shared': 3.5.12
+      '@vue/shared': 3.5.13
     dev: false
 
   /@vue/reactivity@3.5.7:
@@ -4695,11 +4695,11 @@ packages:
       '@vue/shared': 3.4.31
     dev: false
 
-  /@vue/runtime-core@3.5.12:
-    resolution: {integrity: sha512-hrMUYV6tpocr3TL3Ad8DqxOdpDe4zuQY4HPY3X/VRh+L2myQO8MFXPAMarIOSGNu0bFAjh1yBkMPXZBqCk62Uw==}
+  /@vue/runtime-core@3.5.13:
+    resolution: {integrity: sha512-Fj4YRQ3Az0WTZw1sFe+QDb0aXCerigEpw418pw1HBUKFtnQHWzwojaukAs2X/c9DQz4MQ4bsXTGlcpGxU/RCIw==}
     dependencies:
-      '@vue/reactivity': 3.5.12
-      '@vue/shared': 3.5.12
+      '@vue/reactivity': 3.5.13
+      '@vue/shared': 3.5.13
     dev: false
 
   /@vue/runtime-core@3.5.7:
@@ -4718,12 +4718,12 @@ packages:
       csstype: 3.1.3
     dev: false
 
-  /@vue/runtime-dom@3.5.12:
-    resolution: {integrity: sha512-q8VFxR9A2MRfBr6/55Q3umyoN7ya836FzRXajPB6/Vvuv0zOPL+qltd9rIMzG/DbRLAIlREmnLsplEF/kotXKA==}
+  /@vue/runtime-dom@3.5.13:
+    resolution: {integrity: sha512-dLaj94s93NYLqjLiyFzVs9X6dWhTdAlEAciC3Moq7gzAc13VJUdCnjjRurNM6uTLFATRHexHCTu/Xp3eW6yoog==}
     dependencies:
-      '@vue/reactivity': 3.5.12
-      '@vue/runtime-core': 3.5.12
-      '@vue/shared': 3.5.12
+      '@vue/reactivity': 3.5.13
+      '@vue/runtime-core': 3.5.13
+      '@vue/shared': 3.5.13
       csstype: 3.1.3
     dev: false
 
@@ -4762,8 +4762,8 @@ packages:
     resolution: {integrity: sha512-Yp3wtJk//8cO4NItOPpi3QkLExAr/aLBGZMmTtW9WpdwBCJpRM6zj9WgWktXAl8IDIozwNMByT45JP3tO3ACWA==}
     dev: false
 
-  /@vue/shared@3.5.12:
-    resolution: {integrity: sha512-L2RPSAwUFbgZH20etwrXyVyCBu9OxRSi8T/38QsvnkJyvq2LufW2lDCOzm7t/U9C1mkhJGWYfCuFBCmIuNivrg==}
+  /@vue/shared@3.5.13:
+    resolution: {integrity: sha512-/hnE/qP5ZoGpol0a5mDi45bOd7t3tjYJBjsgCsivow7D48cJeV5l05RD82lPqi7gRiphZM37rnhW1l6ZoCNNnQ==}
     dev: false
 
   /@vue/shared@3.5.7:
