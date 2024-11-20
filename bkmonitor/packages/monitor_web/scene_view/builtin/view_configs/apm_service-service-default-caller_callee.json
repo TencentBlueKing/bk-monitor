@@ -37,7 +37,11 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "fill_empty_dimensions": true,
+                "processors": [
+                  {
+                    "name": "fill_empty_dimensions"
+                  }
+                ],
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",
@@ -179,7 +183,18 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
-                "fill_empty_dimensions": true,
+                "processors": [
+                  {
+                    "name": "fill_empty_dimensions"
+                  },
+                  {
+                    "name": "format_percent",
+                    "options": {
+                      "precision": 3,
+                      "sig_fig_cnt": 2
+                    }
+                  }
+                ],
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",
@@ -392,6 +407,7 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
+            "precision": 6,
             "is_support_group_by": true,
             "is_support_compare": true
           }
@@ -415,7 +431,19 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
-                "fill_empty_dimensions": true,
+                "processors": [
+                  {
+                    "name": "fill_empty_dimensions"
+                  },
+                  {
+                    "name": "format_percent",
+                    "options": {
+                      "precision": 3,
+                      "sig_fig_cnt": 2
+                    }
+                  }
+                ],
+                "format_percent_precision": true,
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",
@@ -483,7 +511,7 @@
                         "value": "${code_values}",
                         "condition": "and"
                       },
-                       "${code_extra_where}"
+                      "${code_extra_where}"
                     ]
                   },
                   {
@@ -626,20 +654,9 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
+            "precision": 6,
             "enable_panels_selector": true,
             "child_panels_selector_variables": [
-              {
-                "id": "timeout_rate",
-                "title": "超时率",
-                "variables": {
-                  "code_field": "code_type",
-                  "code_method": "eq",
-                  "code_values": [
-                    "timeout"
-                  ],
-                  "code_extra_where": {}
-                }
-              },
               {
                 "id": "exception_rate",
                 "title": "异常率",
@@ -648,6 +665,18 @@
                   "code_method": "eq",
                   "code_values": [
                     "exception"
+                  ],
+                  "code_extra_where": {}
+                }
+              },
+              {
+                "id": "timeout_rate",
+                "title": "超时率",
+                "variables": {
+                  "code_field": "code_type",
+                  "code_method": "eq",
+                  "code_values": [
+                    "timeout"
                   ],
                   "code_extra_where": {}
                 }
@@ -673,11 +702,14 @@
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
               "alias": "平均耗时",
-              "fill_empty_dimensions": true,
               "data": {
                 "app_name": "${app_name}",
                 "expression": "a / b",
-                "fill_empty_dimensions": true,
+                "processors": [
+                  {
+                    "name": "fill_empty_dimensions"
+                  }
+                ],
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",

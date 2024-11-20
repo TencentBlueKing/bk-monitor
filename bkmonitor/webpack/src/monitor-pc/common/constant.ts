@@ -23,53 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { jumpToDocsLink } from 'monitor-common/utils';
-
-/**
- * @deprecated 已弃用，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此变量，出于兼容性考虑保留此变量 --- 新方案详情路径：monitor-common/utils/docs.ts
- */
-export const linkMap = {
-  processMonitoring: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  主机监控-主机详情 左下角 进程监控配置指引
-  /** @deprecated 20230811 该链接已不存在，先暂时保留 */
-  strategyTemplate: '监控平台/产品白皮书/alarm-configurations/notify_case.md', //  新建策略 高级设置-通知模版-模板使用说明
-  globalConfiguration: '监控平台/产品白皮书/alarm-configurations/notify_setting.md', //  全局配置
-  Script: '监控平台/产品白皮书/integrations-metric-plugins/script_collect.md', //  插件管理 script 链接
-  JMX: '监控平台/产品白皮书/integrations-metric-plugins/plugin_jmx.md', //  插件管理 JMX 链接
-  Exporter: '监控平台/产品白皮书/integrations-metric-plugins/import_exporter.md', //  插件管理 exporter 链接
-  DataDog: '监控平台/产品白皮书/integrations-metric-plugins/import_datadog_online.md', //  插件管理 datadog 链接
-  Pushgateway: '监控平台/产品白皮书/integrations-metric-plugins/howto_bk-pull.md', //  插件管理 bk-pull 链接
-  api: '监控平台/产品白皮书/integrations-metrics/custom_metrics_http.md', //  自定义上报 API
-  python: '',
-  quickStartDial: '监控平台/产品白皮书/scene-synthetic/synthetic_monitor.md', //  5分钟快速上手"服务拨测" 功能 前往查看
-  bestPractices: '监控平台/产品白皮书/quickstart/best_practices.md', //  了解"快速接入"方法
-  processMonitor: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  了解进程的配置方法
-  processPortMonitor: '监控平台/产品白皮书/scene-process/process_cmdb_monitor.md', //  了解进程和端口监控配置
-  scriptCollect: '监控平台/产品白皮书/integrations-metric-plugins/script_collect.md', //  如何使用脚本进行服务监控？
-  multiInstanceMonitor: '监控平台/产品白皮书/integrations-metrics/multi_instance_monitor.md', //  如何实现多实例采集？
-  componentMonitor: '监控平台/产品白皮书/integrations-metrics/component_monitor.md', //  如何对开源组件进行监控？
-  /** @deprecated 20230811 该链接已不存在，先暂时保留 */
-  monitorUpdate: '监控平台/应用运维文档/安装指南/monitor_update.md', //  迁移页面内容
-  homeLink: '监控平台/产品白皮书/intro/README.md', //  首页链接
-  callbackLink: '监控平台/产品白皮书/alarm-handling/solutions_http_callback.md', // 告警组-回调地址链接
-  fromDataSource: '监控平台/产品白皮书/alarm-configurations/bigdata_monitor.md', // 指标选择器-数据源平台的来源
-  formLogPlatform: '监控平台/产品白皮书/alarm-configurations/log_monitor.md', // 指标选择器-日志平台的来源
-  fromCustomRreporting: '监控平台/产品白皮书/integrations-metrics/custom_metrics_http.md', // 指标选择器-自定义上报的来源
-  fromMonitor: '监控平台/产品白皮书/integrations-metrics/collect_tasks.md', // 指标选择器-监控采集的来源
-  collectorConfigMd: '监控平台/产品白皮书/integrations-metrics/collect_tasks.md', // 采集产品不白皮书
-  addClusterMd: '监控平台/产品白皮书/scene-k8s/k8s_monitor_overview.md', // 新增集群产品不白皮书
-  apmAccess: '监控平台/产品白皮书/scene-apm/apm_monitor_overview.md', // APM 快速接入
-  apmMetrics: '监控平台/产品白皮书/scene-apm/apm_metrics.md', // APM 指标说明
-  alarmConfig: '监控平台/产品白皮书/scene-apm/apm_default_rules.md', // APM 告警配置
-  bkLogQueryString: '日志平台/产品白皮书/data-visualization/query_string.md', // 日志平台 查询语句语法
-  accessRequest: '监控平台/产品白皮书/quickstart/perm.md', // 权限申请文档
-};
-
-/**
- * @deprecated 已弃用(20240925)，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此方法，出于兼容性考虑保留此方法 --- 新方案详情路径：monitor-common/utils/docs.ts
- */
-export const handleGotoLink = id => {
-  jumpToDocsLink(id, linkMap, window.docUrlMap || {});
-};
 
 // 是否中文
 export const isZh = () => ['zh', 'zhCN', 'zh-cn'].includes(window.i18n.locale);
