@@ -831,20 +831,23 @@
         return h(
           'div',
           {
-            class: 'render-header',
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+              },
+            ],
+            class: 'render-header decoration-header-cell',
           },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
+            h(
+              'span',
+              {
+                class: 'title-overflow',
+              },
+              [this.$t('别名')],
+            ),
             h('span', this.$t('(选填)')),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
-                },
-              ],
-            }),
           ],
         );
       },
@@ -861,6 +864,7 @@
         return h(
           'span',
           {
+            class: 'render-header decoration-header-cell',
             directives: [
               {
                 name: 'bk-tooltips',
@@ -1044,6 +1048,13 @@
           margin-top: 2px;
           font-size: 14px;
           outline: none;
+        }
+
+        &.decoration-header-cell {
+          color: inherit;
+          text-decoration: underline;
+          text-decoration-style: dashed;
+          text-underline-position: under;
         }
       }
 
