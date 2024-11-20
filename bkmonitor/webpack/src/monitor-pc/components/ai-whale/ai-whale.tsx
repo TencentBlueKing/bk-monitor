@@ -161,14 +161,14 @@ export default class AiWhale extends tsc<{
     right: 0,
   };
   sizeLimit = {
-    height: 500,
-    width: 342,
+    height: 600,
+    width: 480,
   };
   startPosition = {
     right: 10,
-    left: window.innerWidth - 342 - 10,
+    left: window.innerWidth - 480 - 10,
     bottom: 20,
-    top: window.innerHeight - 500 - 20,
+    top: window.innerHeight - 600 - 20,
   };
   showAIBlueking = false;
   chatHelper: ChatHelper = null;

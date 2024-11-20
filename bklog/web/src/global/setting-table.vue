@@ -72,7 +72,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_name }} </span>
+                  <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
                   v-else
@@ -142,7 +142,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_type }}</span>
+                  <span v-bk-tooltips.top="$t('新建类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
                 <bk-form-item
                   v-else
@@ -191,7 +191,7 @@
                 >
                   <div
                     v-if="props.row.is_analyzed"
-                    style="width: 85%; margin-left: 10px"
+                    style="width: 85%; margin-left: 15px"
                   >
                     <div>
                       {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -200,7 +200,7 @@
                   </div>
                   <div
                     v-else
-                    style="width: 85%; margin-left: 10px"
+                    style="width: 85%; margin-left: 15px"
                   >
                     {{ $t('不分词') }}
                   </div>
@@ -546,8 +546,8 @@
       batchAddField() {
         console.log(this.collectorConfigId, 'collectorConfigId');
         if (!this.collectorConfigId) return;
-        this.$router.push({
-          name: 'collectField',
+        const newURL = this.$router.resolve({
+          name: 'clean-edit',
           params: {
             collectorId: this.collectorConfigId,
           },
@@ -555,6 +555,7 @@
             spaceUid: this.$store.state.spaceUid,
           },
         });
+        window.open(newURL.href, '_blank');
       },
       // 当前字段类型是否禁用
       isTypeDisabled(row, option) {
@@ -823,39 +824,30 @@
           {
             class: 'render-header',
           },
-          [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')]),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              style: 'color:#313238;font-size:14px;',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('字段名不支持快速修改'),
-                },
-              ],
-            }),
-          ],
+          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
         );
       },
       renderHeaderAliasName(h) {
         return h(
           'div',
           {
-            class: 'render-header',
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+              },
+            ],
+            class: 'render-header decoration-header-cell',
           },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
+            h(
+              'span',
+              {
+                class: 'title-overflow',
+              },
+              [this.$t('别名')],
+            ),
             h('span', this.$t('(选填)')),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
-                },
-              ],
-            }),
           ],
         );
       },
@@ -865,25 +857,14 @@
           {
             class: 'render-header',
           },
-          [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')]),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              style: 'color:#313238;font-size:14px;',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('新建类型不支持快速修改'),
-                },
-              ],
-            }),
-          ],
+          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])],
         );
       },
       renderHeaderParticipleName(h) {
         return h(
           'span',
           {
+            class: 'render-header decoration-header-cell',
             directives: [
               {
                 name: 'bk-tooltips',
@@ -984,7 +965,7 @@
           }
 
           .overflow-tips {
-            padding: 8px;
+            padding: 10px 15px;
           }
         }
       }
@@ -1019,6 +1000,15 @@
         }
       }
 
+      .is-center {
+        .bk-select {
+          .bk-select-name {
+            height: 50px;
+            padding: 7px 24px 0 24px;
+          }
+        }
+      }
+
       .participle-select-icon {
         font-size: 20px;
         font-weight: 500;
@@ -1029,8 +1019,8 @@
     .field-table {
       .bk-table-body {
         .cell {
-          padding-right: 5px;
-          padding-left: 5px;
+          padding-right: 15px;
+          padding-left: 15px;
         }
       }
 
@@ -1059,6 +1049,13 @@
           font-size: 14px;
           outline: none;
         }
+
+        &.decoration-header-cell {
+          color: inherit;
+          text-decoration: underline;
+          text-decoration-style: dashed;
+          text-underline-position: under;
+        }
       }
 
       .bk-table-empty-text {
@@ -1084,6 +1081,12 @@
           display: flex;
           align-items: center;
           margin-left: 10px;
+        }
+      }
+
+      &.bk-table-border th:first-child {
+        .cell {
+          padding: 0 15px;
         }
       }
     }

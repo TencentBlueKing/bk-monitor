@@ -4,12 +4,12 @@
       class="field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting"></span>{{ t('字段配置') }}
+      <span class="bklog-icon bklog-setting"></span>{{ t('索引集配置') }}
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
       :quick-close="true"
-      :title="$t('字段配置')"
+      :title="$t('索引集配置')"
       :width="640"
       @animation-end="closeSlider"
     >
@@ -180,7 +180,7 @@
               class="setting-desc"
               @click="batchAddField"
             >
-              {{ $t('暂未保留原始日志') }}<span style=" margin-left: 8px;color: #3a84ff">{{ $t('前往配置') }}</span
+              {{ $t('暂未保留原始日志') }}<span style="margin-left: 8px; color: #3a84ff">{{ $t('前往配置') }}</span
               ><span
                 style="color: #3a84ff"
                 class="bklog-icon bklog-jump"
@@ -308,7 +308,16 @@
   const batchAddField = () => {
     console.log(collectorConfigId.value, 'collectorConfigId');
     if (!collectorConfigId.value) return;
-    router.replace({
+    // router.replace({
+    //   name: 'clean-edit',
+    //   params: {
+    //     collectorId: collectorConfigId.value,
+    //   },
+    //   query: {
+    //     spaceUid: store.state.spaceUid,
+    //   },
+    // });
+    const newURL = router.resolve({
       name: 'clean-edit',
       params: {
         collectorId: collectorConfigId.value,
@@ -317,6 +326,7 @@
         spaceUid: store.state.spaceUid,
       },
     });
+    window.open(newURL.href, '_blank');
   };
   const maxRetention = ref(0);
 
@@ -419,8 +429,8 @@
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
-    if (!currentIndexSet.collector_config_id) return;
+    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+    if (!currentIndexSet?.collector_config_id) return;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await http
       .request('collect/details', {
@@ -576,7 +586,6 @@
     .setting-title {
       padding-top: 10px;
       font-size: 12px;
-      font-weight: 600;
       color: #63656e;
     }
 
