@@ -180,7 +180,7 @@
               class="setting-desc"
               @click="batchAddField"
             >
-              {{ $t('暂未保留原始日志') }}<span style=" margin-left: 8px;color: #3a84ff">{{ $t('前往配置') }}</span
+              {{ $t('暂未保留原始日志') }}<span style="margin-left: 8px; color: #3a84ff">{{ $t('前往配置') }}</span
               ><span
                 style="color: #3a84ff"
                 class="bklog-icon bklog-jump"
@@ -419,8 +419,8 @@
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
-    if (!currentIndexSet.collector_config_id) return;
+    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+    if (!currentIndexSet?.collector_config_id) return;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await http
       .request('collect/details', {
