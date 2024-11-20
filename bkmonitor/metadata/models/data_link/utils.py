@@ -135,6 +135,8 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
         hash_suffix = hashlib.md5(refine_data_name.encode()).hexdigest()[:5]
         data_id_name = f"bkm_{truncated_name}_{hash_suffix}"
     # 拼装前缀和哈希值
+    if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
+        data_id_name = 'fed_' + data_id_name
     return data_id_name
 
 

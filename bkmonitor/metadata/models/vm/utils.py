@@ -743,20 +743,20 @@ def create_fed_bkbase_data_link(
         )
         return
 
-    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name)
+    bkbase_data_name = compose_bkdata_data_id_name(
+        data_name=data_source.data_name, strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
+    )
     # bkbase_rt_name = compose_bkdata_table_id(table_id=monitor_table_id)
-
-    fed_datalink_name = 'fed_' + bkbase_data_name  # 为了与集群本身的独立链路区分开，添加fed_前缀
 
     logger.info(
         "create_fed_bkbase_data_link: bcs_cluster_id->[%s],data_id->[%s],data_link_name->[%s] try to create "
         "fed_bkbase_data_link",
         bcs_cluster_id,
         data_source.bk_data_id,
-        fed_datalink_name,
+        bkbase_data_name,
     )
     data_link_ins, _ = DataLink.objects.get_or_create(
-        data_link_name=fed_datalink_name,
+        data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
     )
@@ -768,7 +768,7 @@ def create_fed_bkbase_data_link(
             bcs_cluster_id,
             data_source.bk_data_id,
             monitor_table_id,
-            fed_datalink_name,
+            bkbase_data_name,
         )
         data_link_ins.apply_data_link(
             data_source=data_source,
@@ -781,7 +781,7 @@ def create_fed_bkbase_data_link(
             "create_bkbase_data_link: access bkbase error, data_id->[%s],data_link_name->[%s],bcs_cluster_id->[%s],"
             "storage_cluster_name->[%s],namespace->[%s],error->[%s]",
             data_source.bk_data_id,
-            fed_datalink_name,
+            bkbase_data_name,
             bcs_cluster_id,
             storage_cluster_name,
             namespace,
@@ -797,7 +797,7 @@ def create_fed_bkbase_data_link(
     logger.info(
         "create_fed_bkbase_data_link: data_link_name->[%s],data_id->[%s],bcs_cluster_id->[%s],storage_cluster_name->["
         "%s] create fed datalink successfully",
-        fed_datalink_name,
+        bkbase_data_name,
         data_source.bk_data_id,
         bcs_cluster_id,
         storage_cluster_name,
