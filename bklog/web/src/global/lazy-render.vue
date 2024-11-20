@@ -50,7 +50,7 @@
     };
   });
 
-  const resizeObserver = new ResizeObserver(() => {
+  let resizeObserver = new ResizeObserver(() => {
     localHeight.value = `${lazyRenderCell.value.firstElementChild.offsetHeight ?? props.minHeight}px}`;
   });
 

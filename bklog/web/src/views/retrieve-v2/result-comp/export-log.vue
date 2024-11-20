@@ -380,7 +380,8 @@
             if (res.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: this.$t('任务提交成功，系统处理后将通过邮件通知，请留意'),
+                ellipsisLine: 2,
+                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
             }
           })
@@ -447,7 +448,8 @@
             if (res.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: this.$t('任务提交成功，系统处理后将通过邮件通知，请留意'),
+                ellipsisLine: 2,
+                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
             }
           })
