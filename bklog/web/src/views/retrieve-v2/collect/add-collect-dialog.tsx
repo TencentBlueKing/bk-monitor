@@ -560,11 +560,19 @@ export default class CollectDialog extends tsc<IProps> {
           </div>
           <div class='form-item-container-new'>
             <FormItem label={this.$t('查询语句')}>
-              <bk-input
-                type='textarea'
-                value={this.sqlString}
-                show-overflow-tooltips
-              ></bk-input>
+              {this.currentParamsValue.search_mode === 'sql' ? (
+                <bk-input
+                  vModel={this.currentParamsValue.keyword}
+                  type='textarea'
+                  show-overflow-tooltips
+                ></bk-input>
+              ) : (
+                <bk-input
+                  type='textarea'
+                  value={this.additionString}
+                  show-overflow-tooltips
+                ></bk-input>
+              )}
             </FormItem>
           </div>
         </Form>
