@@ -236,7 +236,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
 
                     view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
-                        1
+                        0
                     ]["variables"] = {
                         "code_field": "code",
                         "code_values": ["0", "ret_0"],

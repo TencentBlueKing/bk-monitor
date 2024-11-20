@@ -164,7 +164,7 @@ class ConfigSlz(serializers.Serializer):
     max_rtt = serializers.IntegerField(required=False)
     total_num = serializers.IntegerField(required=False)
     size = serializers.IntegerField(required=False)
-    send_interval = serializers.IntegerField(required=False)
+    send_interval = serializers.CharField(required=False)
     target_labels = serializers.DictField(required=False)
 
     # COMMON
