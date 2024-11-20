@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, nextTick, onMounted } from 'vue';
+  import { ref, computed, onUnmounted } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const props = defineProps({
@@ -70,7 +70,10 @@
     }
   });
 
-  onMounted(() => {});
+  onUnmounted(() => {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  });
 </script>
 
 <style>
