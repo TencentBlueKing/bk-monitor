@@ -184,7 +184,7 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
         if not federal_records:
             logger.warning(
                 "compose_federal_sub_configs: bcs_cluster_id->[%s],data_link_name->[%s],data_id->[%s] does "

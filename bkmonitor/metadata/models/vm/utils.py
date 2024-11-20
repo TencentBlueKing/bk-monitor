@@ -629,7 +629,7 @@ def create_bkbase_data_link(
     )
 
     # 1. 判断是否是联邦代理集群链路
-    if BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id).exists():
+    if BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id, is_deleted=False).exists():
         logger.info("create_bkbase_data_link: bcs_cluster_id->[%s] is a federal proxy cluster!", bcs_cluster_id)
         data_link_strategy = DataLink.BCS_FEDERAL_PROXY_TIME_SERIES
 
@@ -731,7 +731,7 @@ def create_fed_bkbase_data_link(
         bcs_cluster_id,
         data_source.bk_data_id,
     )
-    federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+    federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
 
     # 若不存在对应联邦集群记录 / 非K8S内建指标数据，直接返回
     if not (federal_records.exists() and is_k8s_metric_data_id(data_name=data_source.data_name)):
@@ -811,7 +811,7 @@ def check_create_fed_vm_data_link(cluster):
     from metadata.models import DataLinkResource, DataSource, DataSourceResultTable
 
     # 检查是否存在对应的联邦集群记录
-    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster.cluster_id)
+    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster.cluster_id, is_deleted=False)
     # 若该集群为联邦集群的子集群且此前未创建联邦集群的汇聚链路，尝试创建
     if objs and not DataLinkResource.objects.filter(data_bus_name__contains=f"{cluster.K8sMetricDataID}_fed").exists():
         logger.info(

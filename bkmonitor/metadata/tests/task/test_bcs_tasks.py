@@ -191,7 +191,7 @@ def test_sync_federation_clusters(create_or_delete_records):
         sync_federation_clusters(fed_clusters=bcs_api_fed_returns)
 
         fed_record_10002_part1 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001'
+            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001', is_deleted=False
         )
         assert fed_record_10002_part1.fed_cluster_id == 'BCS-K8S-10001'
         assert fed_record_10002_part1.host_cluster_id == 'BCS-K8S-11111'
@@ -199,14 +199,14 @@ def test_sync_federation_clusters(create_or_delete_records):
         assert fed_record_10002_part1.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_60010.__default__'
 
         fed_record_10002_part2 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001'
+            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001', is_deleted=False
         )
         assert fed_record_10002_part2.fed_cluster_id == 'BCS-K8S-70001'
         assert fed_record_10002_part2.host_cluster_id == 'BCS-K8S-11111'
         assert set(fed_record_10002_part2.fed_namespaces) == {'ns4', 'ns5', 'ns6'}
         assert fed_record_10002_part2.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_70010.__default__'
 
-        fed_record_10003 = models.BcsFederalClusterInfo.objects.get(sub_cluster_id='BCS-K8S-10003')
+        fed_record_10003 = models.BcsFederalClusterInfo.objects.get(sub_cluster_id='BCS-K8S-10003', is_deleted=False)
         assert fed_record_10003.fed_cluster_id == 'BCS-K8S-70001'
         assert fed_record_10003.host_cluster_id == 'BCS-K8S-11111'
         assert set(fed_record_10003.fed_namespaces) == {'nss1', 'nss2'}
@@ -258,7 +258,7 @@ def test_sync_federation_clusters(create_or_delete_records):
         sync_federation_clusters(fed_clusters=bcs_api_fed_returns_2)
 
         fed_record_10002_after_part1 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001'
+            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001', is_deleted=False
         )
         assert fed_record_10002_after_part1.fed_cluster_id == 'BCS-K8S-10001'
         assert fed_record_10002_after_part1.host_cluster_id == 'BCS-K8S-11111'
@@ -269,11 +269,13 @@ def test_sync_federation_clusters(create_or_delete_records):
         )
 
         fed_record_10002_after_part2 = models.BcsFederalClusterInfo.objects.filter(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001'
+            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001', is_deleted=False
         )
         assert fed_record_10002_after_part2.first().is_deleted
 
-        fed_record_10003_after = models.BcsFederalClusterInfo.objects.get(sub_cluster_id='BCS-K8S-10003')
+        fed_record_10003_after = models.BcsFederalClusterInfo.objects.get(
+            sub_cluster_id='BCS-K8S-10003', is_deleted=False
+        )
         assert fed_record_10003_after.fed_cluster_id == 'BCS-K8S-70001'
         assert fed_record_10003_after.host_cluster_id == 'BCS-K8S-11111'
         assert set(fed_record_10003_after.fed_namespaces) == {'nss1', 'nss2'}
