@@ -26,7 +26,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     if span_id:
         host_indexes = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
         for item in host_indexes:
-            if item["index_set_id"] not in index_set_ids:
+            if str(item["index_set_id"]) not in index_set_ids:
                 index_info = next(
                     (
                         i
@@ -45,7 +45,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
         app_name,
         full_indexes=indexes_mapping.get(bk_biz_id, []),
     )
-    if datasource_index_set_id and datasource_index_set_id not in index_set_ids:
+    if datasource_index_set_id and str(datasource_index_set_id) not in index_set_ids:
         index_info = next(
             (i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) == str(datasource_index_set_id)),
             None,
@@ -86,14 +86,14 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     )
     if relation_index_set_ids:
         for i in relation_index_set_ids:
-            if i not in index_set_ids:
+            if str(i) not in index_set_ids:
 
                 index_info = next(
                     (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(i)),
                     None,
                 )
                 if index_info:
-                    index_set_ids.append(i)
+                    index_set_ids.append(str(i))
                     yield index_info
 
 
