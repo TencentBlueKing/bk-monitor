@@ -5,27 +5,35 @@
   .monitor-k8s-new-header {
     width: 100%;
     height: 52px;
-    background: #FFFFFF;
-    box-shadow: 0 1px 0 0 #DCDEE5, 0 3px 4px 0 #4070cb0f;
+    background: #ffffff;
+    box-shadow:
+      0 1px 0 0 #dcdee5,
+      0 3px 4px 0 #4070cb0f;
   }
 
   .monitor-k8s-new-content {
     display: flex;
-    height: 100%;
+    height: calc(100% - 52px);
 
     .content-left {
+      flex-shrink: 0;
       width: 320px;
-      background: #FFFFFF;
-      box-shadow: 1px 0 0 0 #DCDEE5;
+      background: #ffffff;
+      box-shadow: 1px 0 0 0 #dcdee5;
     }
 
     .content-right {
+      display: flex;
+      flex-direction: column;
       width: 100%;
+      min-width: 0;
 
       .filter-header-wrap {
+        display: flex;
         width: 100%;
         min-height: 48px;
-        background: #FFFFFF;
+        background: #ffffff;
+        border: 1px solid #dcdee5;
 
         .filter-by-wrap {
           display: flex;
@@ -38,7 +46,7 @@
             justify-content: center;
             min-height: 48px;
             padding: 0 24px;
-            background: #FAFBFD;
+            background: #fafbfd;
           }
 
           .filter-by-content {
@@ -47,6 +55,86 @@
             background: #fff;
           }
         }
+      }
+
+      .content-tab-wrap {
+        padding: 16px;
+        padding-bottom: 0;
+
+        .bk-tab.k8s-new-tab {
+          height: 100%;
+
+          .bk-tab-label-item {
+            width: 120px;
+            color: #63656e;
+            background-color: #eaebf0;
+            border-radius: 4px 4px 0 0;
+
+            & + .bk-tab-label-item {
+              margin-left: 8px;
+            }
+
+            &.active {
+              color: #3a84ff;
+              background-color: #fff;
+            }
+          }
+
+          .bk-tab-add-custom {
+            background-color: transparent;
+            border: none;
+          }
+
+          .bk-tab-section {
+            height: 0;
+            padding: 0;
+          }
+
+          .bk-tab-label-list-has-bar:after {
+            display: none;
+          }
+
+          .bk-tab-header,
+          .bk-tab-label-list,
+          .bk-tab-label-item,
+          .bk-tab-header-setting,
+          .bk-tab-add-custom {
+            height: 42px !important;
+            line-height: 42px !important;
+          }
+
+          .k8s-tab-panel {
+            .icon-monitor {
+              margin-right: 6px;
+            }
+          }
+        }
+      }
+
+      .content-converge-wrap {
+        z-index: 1;
+        width: 100%;
+        padding: 0 16px;
+        background: #ffffff;
+        background-clip: content-box;
+
+        .content-converge {
+          display: flex;
+          align-items: center;
+          height: 48px;
+          padding: 0 16px;
+          box-shadow: 0 2px 4px 0 #00000014;
+        }
+      }
+
+      .content-main-wrap {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        padding: 0 16px;
+        overflow-y: auto;
+        background: #ffffff;
+        background-clip: content-box;
       }
     }
   }
