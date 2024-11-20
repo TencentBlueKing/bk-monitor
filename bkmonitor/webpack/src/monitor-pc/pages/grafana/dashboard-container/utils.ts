@@ -34,6 +34,7 @@ export interface ITreeMenuItem {
   isFolder?: boolean;
   isStarred?: boolean;
   editable?: boolean;
+  url?: string;
   children?: ITreeMenuItem[];
 }
 export interface ITreeOptions {
@@ -48,8 +49,8 @@ export class TreeMenuItem {
   addActive = false; /** id */
   children: TreeMenuItem[] = []; /** 名称 */
   edit = false; /** 子项列表 */
-  editValue = ''; /** 是否展开 */
   editable = true; /** 传入的icon */
+  editValue = ''; /** 是否展开 */
   expend = false; /** 当前项的级别 */
   icon = ''; /** 配置 */
   id: number = null; /** 新增按钮处于激活状态 */
@@ -79,7 +80,7 @@ export class TreeMenuItem {
     if (this.icon) {
       return this.icon;
     }
-    if (!!this.isFolder) {
+    if (this.isFolder) {
       return this.expend ? this.options.expendIcon : this.options.closeIcon;
     }
     return null;

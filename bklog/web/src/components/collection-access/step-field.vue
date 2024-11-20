@@ -264,10 +264,10 @@
           </bk-form-item>
           <bk-form-item
             ext-cls="en-bk-form"
+            v-bkloading="{ isLoading: logOriginalLoding }"
+            :label="$t('日志样例')"
             :property="'log_original'"
             :rules="rules.log_original"
-            :label="$t('日志样例')"
-            v-bkloading="{ isLoading: logOriginalLoding }"
           >
             <div
               class="view-log-btn"
@@ -277,13 +277,13 @@
               {{ $t('查看上报日志') }}
             </div>
             <bk-input
-              class="log-textarea"
-              clearable
               style="margin-top: -20px"
-              :type="'textarea'"
-              :rows="3"
-              :right-icon="'bk-icon icon-refresh'"
+              class="log-textarea"
               v-model="logOriginal"
+              :right-icon="'bk-icon icon-refresh'"
+              :rows="3"
+              :type="'textarea'"
+              clearable
               @right-icon-click="refreshClick"
             >
             </bk-input>
@@ -291,9 +291,9 @@
           <bk-form-item
             v-if="params.etl_config === 'bk_log_regexp'"
             ext-cls="en-bk-form"
-            property="etl_params.separator_regexp"
-            :rules="rules.separator_regexp"
             :label="$t('正则表达式')"
+            :rules="rules.separator_regexp"
+            property="etl_params.separator_regexp"
           >
             <!-- 正则表达式输入框 -->
             <div class="field-method-regex">
@@ -323,15 +323,15 @@
             :label="$t('字段列表')"
           >
             <div
-              :class="{ 'view-log-btn': true, disabled: !hasFields }"
               v-if="!isTempField"
+              :class="{ 'view-log-btn': true, disabled: !hasFields }"
               @click.stop="viewStandard"
             >
               {{ $t('查看内置字段') }}
             </div>
             <div
-              class="field-method-result"
               :style="isClearTemplate ? { 'margin-top': '10px' } : ''"
+              class="field-method-result"
             >
               <field-table
                 ref="fieldTable"
@@ -348,9 +348,9 @@
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
                 @handle-keep-field="handleKeepField"
+                @handle-table-data="handleTableData"
                 @reset="getDetail"
                 @standard="dialogVisible = true"
-                @handle-table-data="handleTableData"
               >
               </field-table>
               <div
@@ -373,8 +373,8 @@
           <bk-form-item
             ext-cls="en-bk-form"
             :label="$t('指定日志时间')"
-            property="log_reporting_time"
             :rules="rules.log_reporting_time"
+            property="log_reporting_time"
           >
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.log_reporting_time">
@@ -391,24 +391,24 @@
           </bk-form-item>
           <div
             v-if="formData.log_reporting_time === false"
-            class="origin-log-config flex-box select-container"
             style="display: flex; margin: 10px 0"
+            class="origin-log-config flex-box select-container"
           >
             <bk-form-item
               ext-cls="en-bk-form"
               :icon-offset="120"
               :label="''"
-              property="field_name"
               :rules="rules.field_name"
+              property="field_name"
             >
               <div class="flex-box">
                 <div class="select-title">{{ $t('字段') }}</div>
                 <bk-select
                   ext-cls="log-time-select"
                   v-model="formData.field_name"
+                  :popover-min-width="160"
                   clearable
                   searchable
-                  :popover-min-width="160"
                 >
                   <bk-option
                     v-for="option in renderFieldNameList"
@@ -424,18 +424,18 @@
               ext-cls="log-time-field"
               :icon-offset="120"
               :label="''"
-              property="time_format"
-              :rules="rules.time_format"
               :required="true"
+              :rules="rules.time_format"
+              property="time_format"
             >
               <div class="flex-box">
                 <div class="select-title">{{ $t('时间格式') }}</div>
                 <bk-select
                   ext-cls="log-time-select"
                   v-model="formData.time_format"
+                  :popover-min-width="360"
                   clearable
                   searchable
-                  :popover-min-width="360"
                 >
                   <bk-option
                     v-for="item in globalsData.field_date_format"
@@ -451,9 +451,9 @@
               ext-cls="log-time-field"
               :icon-offset="120"
               :label="''"
-              property="time_zone"
-              :rules="rules.time_zone"
               :required="true"
+              :rules="rules.time_zone"
+              property="time_zone"
             >
               <div class="flex-box">
                 <div class="select-title">{{ $t('时区选择') }}</div>
@@ -477,8 +477,8 @@
           </div>
           <p
             v-if="timeCheckContent"
-            class="format-error"
             style="margin: 0 0 5px 125px"
+            class="format-error"
           >
             {{ timeCheckContent }}
           </p>
@@ -508,9 +508,9 @@
           </bk-form-item>
           <bk-form-item
             ext-cls="en-bk-form"
+            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
             :icon-offset="120"
             :label="$t('路径元数据')"
-            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
           >
             <div class="origin-log-config">
               <bk-switcher
@@ -522,8 +522,8 @@
           <bk-form-item
             v-if="enableMetaData"
             ext-cls="en-bk-form"
-            :label="$t('路径样例')"
             v-bkloading="{ isLoading: pathExampleLoading }"
+            :label="$t('路径样例')"
           >
             <div class="origin-log-config">
               <bk-input
@@ -541,9 +541,9 @@
             v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('采集路径分割正则')"
+            :rules="rules.path_regexp"
             property="etl_params.path_regexp"
             required
-            :rules="rules.path_regexp"
           >
             <div class="origin-log-config">
               <bk-input
@@ -563,29 +563,29 @@
               </bk-button>
             </div>
             <div
-              class="origin-log-config"
-              style="margin-top: 10px"
               v-if="metaDataList && metaDataList.length"
+              style="margin-top: 10px"
+              class="origin-log-config"
             >
               <div
-                style="margin-bottom: 10px"
                 v-for="item in metaDataList"
+                style="margin-bottom: 10px"
                 :key="`${item.field_index}${item.field_name}`"
               >
                 <bk-input
                   style="width: 110px"
-                  disabled
-                  :placeholder="' '"
                   v-model="item.field_name"
+                  :placeholder="' '"
                   :title="item.field_name"
+                  disabled
                 ></bk-input>
                 <span>: </span>
                 <bk-input
                   style="width: 400px"
-                  disabled
-                  :placeholder="' '"
                   v-model="item.value"
+                  :placeholder="' '"
                   :title="item.value"
+                  disabled
                 ></bk-input>
               </div>
             </div>
@@ -861,20 +861,20 @@
           </div>
           <div v-else>
             <bk-input
-              data-test-id="fieldExtractionBox_select_selectTemplate"
               style="margin-top: 8px"
-              :right-icon="'bk-icon icon-search'"
               v-model="templateKeyWord"
-              @right-icon-click="handlerSearchTemplate"
+              :right-icon="'bk-icon icon-search'"
+              data-test-id="fieldExtractionBox_select_selectTemplate"
               clearable
+              @right-icon-click="handlerSearchTemplate"
             ></bk-input>
             <div class="template-list-wrap">
               <div
                 v-for="option in currentTemplateList"
-                :key="option.clean_template_id"
                 :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
-                @click="handleSelectTemplate(option.clean_template_id, option.name)"
+                :key="option.clean_template_id"
                 :title="option.name"
+                @click="handleSelectTemplate(option.clean_template_id, option.name)"
               >
                 {{ option.name }}
               </div>
@@ -1472,8 +1472,7 @@
         urlParams.collector_config_id = this.curCollect.collector_config_id;
         const updateData = { params: urlParams, data };
         // 先置空防止接口失败显示旧数据
-        this.formData.etl_params.metadata_fields &&
-          this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
+        this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
         this.metaDataList?.splice?.(0, this.metaDataList.length);
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
           this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));

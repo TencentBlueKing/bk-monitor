@@ -436,6 +436,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    */
   handleScrollToIndex(item: IIndexListItem) {
     document.querySelector('.dashboard-panel .scroll-in')?.classList.remove('scroll-in');
+    if (!item) return;
     const dom = document.getElementById(`${item.id}__key__`);
     if (!dom) return;
     dom.scrollIntoView?.();
@@ -530,6 +531,9 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       this.showIndexSearchInput = false;
     }
   }
+  handleEnterSearch() {
+    this.indexListRef?.handleSelectNode();
+  }
   handleShowModeClick(btnType: ShowModeButtonType) {
     if (this.width <= 1 && btnType === 'right') {
       this.width = 400;
@@ -589,7 +593,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         {!this.isOnlyShowIndex && this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
         {this.isOnlyShowIndex ? (
           <div>
-            <div class='only-index-tree-header'>{this.$t('索引')}</div>
+            <div class='only-index-tree-header'>{this.$t('指标列表')}</div>
             <div
               class='only-index-search-input'
               onClick={e => e.stopPropagation()}
@@ -600,6 +604,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
                 right-icon='bk-icon icon-search'
                 clearable
                 onBlur={this.handleBlurSearch}
+                onEnter={this.handleEnterSearch}
                 onInput={this.handleInputSearch}
               />
               {/* <div

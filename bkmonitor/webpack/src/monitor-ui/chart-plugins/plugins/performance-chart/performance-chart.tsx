@@ -251,7 +251,8 @@ export default class PerformanceChart extends TimeSeries {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const { width } = this.$el.getBoundingClientRect();
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,

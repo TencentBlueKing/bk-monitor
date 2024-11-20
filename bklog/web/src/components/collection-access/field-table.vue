@@ -89,18 +89,18 @@
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
           row-key="field_index"
-          col-border
           size="small"
+          col-border
         >
           <template>
             <bk-table-column
-              label=""
-              align="center"
-              :resizable="false"
-              width="40"
               v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
+              width="40"
+              :resizable="false"
+              align="center"
+              label=""
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <span>{{ props.row.field_index }}</span>
               </template>
             </bk-table-column>
@@ -124,8 +124,8 @@
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
-                    v-model.trim="props.row.field_name"
                     class="participle-disabled-input"
+                    v-model.trim="props.row.field_name"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
@@ -302,8 +302,8 @@
             <bk-table-column
               :render-header="renderHeaderParticipleName"
               :resizable="false"
-              min-width="200"
               align="left"
+              min-width="200"
             >
               <template #default="props">
                 <!-- 预览模式-->
@@ -319,9 +319,9 @@
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
                     <bk-popconfirm
-                      trigger="click"
-                      :is-show="isShowParticiple"
                       class="participle-popconfirm"
+                      :is-show="isShowParticiple"
+                      trigger="click"
                       @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
                       <div slot="content">
@@ -337,8 +337,8 @@
                             >
                               <bk-switcher
                                 v-model="currentIsAnalyzed"
-                                theme="primary"
                                 :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                                theme="primary"
                                 @change="() => handelChangeAnalyzed()"
                               ></bk-switcher>
                             </bk-form-item>
@@ -351,17 +351,17 @@
                                   v-for="option in participleList"
                                   class="participle-btn"
                                   :class="currentParticipleState === option.id ? 'is-selected' : ''"
-                                  :key="option.id"
                                   :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                   :disabled="getCustomizeDisabled(props.row)"
+                                  :key="option.id"
                                   @click="handleChangeParticipleState(option.id, props.$index)"
                                 >
                                   {{ option.name }}
                                 </bk-button>
                               </div>
                               <bk-input
-                                style="margin-top: 10px"
                                 v-if="currentParticipleState === 'custom'"
+                                style="margin-top: 10px"
                                 v-model="currentTokenizeOnChars"
                                 :disabled="getCustomizeDisabled(props.row)"
                               >
@@ -373,8 +373,8 @@
                             >
                               <bk-switcher
                                 v-model="currentIsCaseSensitive"
-                                theme="primary"
                                 :disabled="getCustomizeDisabled(props.row)"
+                                theme="primary"
                               ></bk-switcher>
                             </bk-form-item>
                           </bk-form>
@@ -385,8 +385,8 @@
                         @click="handlePopover(props.row, props.$index)"
                       >
                         <div
-                          style="width: 85%"
                           v-if="props.row.is_analyzed"
+                          style="width: 85%"
                         >
                           <div>
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -396,8 +396,8 @@
                           </div>
                         </div>
                         <div
-                          style="width: 85%"
                           v-else
+                          style="width: 85%"
                         >
                           {{ $t('不分词') }}
                         </div>
@@ -408,8 +408,8 @@
                   <div v-else>
                     <bk-input
                       class="participle-disabled-input"
-                      disabled
                       :placeholder="$t('无需设置')"
+                      disabled
                     >
                     </bk-input>
                   </div>
@@ -454,8 +454,8 @@
       <template v-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
-          class="preview-item"
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
           :key="index"
           :title="row.value"
         >
@@ -465,8 +465,8 @@
       <template v-else>
         <div
           v-for="(row, index) in tableList"
-          class="preview-item"
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
+          class="preview-item"
           :key="index"
           :title="row.value"
         >
@@ -788,7 +788,7 @@
         this.currentTokenizeOnChars = row.tokenize_on_chars;
         this.currentIsAnalyzed = row.is_analyzed;
       },
-      handleConfirmParticiple(row, $index) {
+      handleConfirmParticiple(row) {
         this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
         this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
@@ -801,7 +801,7 @@
           this.currentParticipleState = 'default';
         }
       },
-      handleChangeParticipleState(state, $index) {
+      handleChangeParticipleState(state) {
         this.currentParticipleState = state;
         this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
@@ -1077,7 +1077,7 @@
   };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
   @import '@/scss/mixins/clearfix';
   @import '@/scss/mixins/overflow-tips.scss';
 
@@ -1092,7 +1092,7 @@
       right: 0;
     }
 
-    .add-field-table {
+    .field-table.add-field-table {
       .bk-table-body {
         .cell {
           display: contents;

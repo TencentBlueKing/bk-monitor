@@ -30,7 +30,7 @@ class BkLogForwardingView(APIView):
     ignore_headers = ["host", "content-length"]
 
     def dispatch(self, request, *args, **kwargs):
-        target_url = urljoin(settings.BKLOGSEARCH_HOST, request.path.split('bklog')[-1])
+        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split('bklog')[-1])
 
         try:
             params = {key: request.GET.get(key) for key in request.GET}
