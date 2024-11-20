@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils';
 
 import TextListOverview from './text-list-overview';
+import { EGroupBy, GROUP_OPTIONS } from './utils';
 
 import './filter-by-condition.scss';
 
@@ -51,12 +52,35 @@ interface ITagListItem {
   type: ETagType;
 }
 
+interface IGroupOptionsItem {
+  id: string;
+  name: string;
+  count: number;
+}
+interface IValueItem {
+  id: string;
+  name: string;
+  checked: boolean;
+  count?: number;
+  list?: {
+    id: string;
+    name: string;
+    checked: boolean;
+  }[];
+}
+
 @Component
 export default class FilterByCondition extends tsc<object> {
   @Ref('selector') selectorRef: HTMLDivElement;
   // tags
   tagList: ITagListItem[] = [];
   popoverInstance = null;
+
+  groupOptions: IGroupOptionsItem[] = [];
+  groupSelected: EGroupBy | string = '';
+  valueOptions: IValueItem[] = [];
+  valueCategoryOptions: IValueItem[] = [];
+  searchValue = '';
 
   created() {
     this.tagList = [
@@ -68,9 +92,15 @@ export default class FilterByCondition extends tsc<object> {
         values: [],
       },
     ];
+    this.groupSelected = GROUP_OPTIONS[0].id;
+    this.valueOptions = GROUP_OPTIONS[0].list.map(item => ({ ...item, checked: false }));
+    this.groupOptions = GROUP_OPTIONS.map(item => ({
+      ...item,
+      list: [],
+    }));
   }
 
-  handleAdd(event: MouseEvent) {
+  async handleAdd(event: MouseEvent) {
     this.popoverInstance = this.$bkPopover(event.target, {
       content: this.selectorRef,
       trigger: 'click',
@@ -84,9 +114,57 @@ export default class FilterByCondition extends tsc<object> {
       animation: 'slide-toggle',
       followCursor: false,
       onHidden: () => {
-        //
+        this.destroyPopoverInstance();
       },
     });
+    await this.$nextTick();
+    this.popoverInstance?.show();
+  }
+
+  destroyPopoverInstance() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+  }
+
+  handleSelectGroup(option: IGroupOptionsItem) {
+    if (this.groupSelected !== option.id) {
+      this.groupSelected = option.id;
+      if (this.groupSelected === EGroupBy.workload) {
+        const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
+        this.valueCategoryOptions = groupValues.map(item => ({ ...item, checked: false }));
+        this.valueOptions = this.valueCategoryOptions?.[0]?.list?.map(item => ({ ...item, checked: false })) || [];
+      } else {
+        this.valueCategoryOptions = [];
+        const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
+        this.valueOptions = groupValues.map(item => ({ ...item, checked: false }));
+      }
+    }
+  }
+
+  handleSearchChange(value: string) {
+    this.searchValue = value;
+  }
+
+  handleCheck(item: IValueItem) {
+    item.checked = !item.checked;
+  }
+
+  valuesWrap() {
+    return (
+      <div class='value-items'>
+        {this.valueOptions.map(item => (
+          <div
+            key={item.id}
+            class={['value-item', { checked: item.checked }]}
+            onClick={() => this.handleCheck(item)}
+          >
+            <span class='value-item-name'>{item.name}</span>
+            <span class='value-item-checked'>{item.checked && <span class='icon-monitor icon-mc-check-small' />}</span>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   render() {
@@ -136,7 +214,52 @@ export default class FilterByCondition extends tsc<object> {
             ref='selector'
             class='filter-by-condition-component-popover'
           >
-            popover
+            <div class='filter-by-condition-component-popover-header'>
+              {this.groupOptions.map(option => (
+                <div
+                  key={option.id}
+                  class={['group-item', { active: this.groupSelected === option.id }]}
+                  onClick={() => this.handleSelectGroup(option)}
+                >
+                  <span class='group-item-name'>{option.name}</span>
+                  <span class='group-item-count'>{option.count}</span>
+                </div>
+              ))}
+            </div>
+            <div class='filter-by-condition-component-popover-content'>
+              <div class='values-search'>
+                <bk-input
+                  behavior='simplicity'
+                  left-icon='bk-icon icon-search'
+                  placeholder={this.$t('请输入关键字')}
+                  value={this.searchValue}
+                  onChange={this.handleSearchChange}
+                />
+              </div>
+              {this.valueCategoryOptions.length ? (
+                <div class='value-items-wrap'>
+                  <div class='left-wrap'>
+                    {this.valueCategoryOptions.map(item => (
+                      <div
+                        key={item.id}
+                        class='cate-item'
+                      >
+                        <span class='cate-item-name'>
+                          <span class='name'>{item.name}</span>
+                          <span class='count'>{item.count}</span>
+                        </span>
+                        <span class='cate-item-right'>
+                          <span class='icon-monitor icon-arrow-right' />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {this.valuesWrap()}
+                </div>
+              ) : (
+                this.valuesWrap()
+              )}
+            </div>
           </div>
         </div>
       </div>
