@@ -107,7 +107,7 @@ const isActive = (row) => {
                 v-model.trim="keyword"
                 behavior="simplicity"
                 clearable
-                :placeholder="$t('dashboards.搜索')"
+                :placeholder="$t('搜索')"
               >
                 <template #prefix>
                   <Search class="input-icon" />
@@ -122,7 +122,7 @@ const isActive = (row) => {
                     :key="row.name"
                     @click="!isDisabled(row) && changeColumn(row)"
                     v-bk-tooltips="{
-                      content: $t('dashboards.已经存该字段，不可重复添加！'),
+                      content: $t('已经存该字段，不可重复添加！'),
                       disabled: !isDisabled(row) || isActive(row),
                       placement: 'right',
                     }"
@@ -140,14 +140,14 @@ const isActive = (row) => {
                   <div
                     class="full-height align-items-center justify-content-center flex-column text-gray"
                   >
-                    {{ keyword ? $t("dashboards.无匹配数据") : $t("common.暂无数据") }}
+                    {{ keyword ? $t("无匹配数据") : $t("暂无数据") }}
                   </div>
                 </template>
               </div>
             </div>
           </div>
           <div class="bv-metric-radio-box">
-            <div class="text-title mb-small">{{ $t("dashboards.聚合算法") }}</div>
+            <div class="text-title mb-small">{{ $t("聚合算法") }}</div>
             <!-- <Radio.Group v-model="formData.aggregate">
               <div class="flex-1 overflow-auto">
                 <div
@@ -171,10 +171,10 @@ const isActive = (row) => {
             theme="primary"
             class="mr-normal"
           >
-            {{ $t("common.确定") }}
+            {{ $t("确定") }}
           </Button>
           <Button @click="cancel" size="small">
-            {{ $t("common.取消") }}
+            {{ $t("取消") }}
           </Button>
         </div>
       </div>

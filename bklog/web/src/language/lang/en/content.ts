@@ -950,4 +950,18 @@ export default {
     'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
   '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
     'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
+  SQL模式: 'SQL mode',
+  添加至仪表盘: 'Add to dashboard',
+  指标: 'Metric',
+  图表样式: 'Chart style',
+  折线图: 'Line chart',
+  柱状图: 'Bar chart',
+  饼图: 'Pie chart',
+  标题: 'Title',
+  聚合算法: 'Aggregation algorithm',
+  请输入标题: 'Please enter title',
+  描述: 'Description',
+  副标题: 'Subhead',
+  收藏至仪表盘: 'Favorite to dashboard',
+  同名视图替换: 'Replace the same name view',
 };

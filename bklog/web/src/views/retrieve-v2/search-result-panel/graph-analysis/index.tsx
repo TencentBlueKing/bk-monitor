@@ -69,6 +69,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   yAxis = '';
   chartData = {};
   select_fields_order = [];
+  hidden = [];
+  segmented = [];
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isChartMode = false;
@@ -357,7 +359,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const tableStyle = { display: showTable ? 'block' : 'none' };
     const chartStyle = { display: !showTable ? 'block' : 'none' };
     return [
-      <GraphTable style={tableStyle}></GraphTable>,
+      <GraphTable
+        ref='refGraphTable'
+        style={tableStyle}
+        hidden={this.hidden}
+      ></GraphTable>,
       <GraphChart
         ref='refGraphChart'
         style={chartStyle}
@@ -365,7 +371,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ></GraphChart>,
     ];
   }
-
+  save() {}
   /** 打开添加到仪表盘dialog */
   handleAdd() {
     console.log(this.$refs.addDialog);
@@ -396,17 +402,30 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.select_fields_order = data.data.select_fields_order;
     this.chartData = data;
     this.$refs.refGraphChart.setOption(data, this.xAxis, this.yAxis);
+
+    this.$refs.refGraphTable.setOption(data);
     this.fieldList = data.data.select_fields_order;
   }
-  updateXAxis(newValue) {
-    this.xAxis = newValue;
-    this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
+  updateChartData(axis, newValue) {
+    console.log(axis, newValue);
+    if (axis === 'x') {
+      this.xAxis = newValue;
+      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
+    } else if (axis === 'y') {
+      this.yAxis = newValue;
+      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
+    } else if (axis === 'hidden') {
+      this.hidden = newValue;
+    } else if (axis === 'segmented') {
+      this.segmented = newValue;
+      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
+    }
   }
 
-  updateYAxis(newValue) {
-    this.yAxis = newValue;
-    this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
-  }
+  // updateYAxis(newValue) {
+  //   this.yAxis = newValue;
+  //   this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
+  // }
   render() {
     return (
       <div class='graph-analysis-index'>
@@ -435,6 +454,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               style='margin-right: 8px;'
               outline={true}
               theme='primary'
+              onClick={this.save}
             >
               {this.$t('保存')}
             </bk-button>
@@ -517,11 +537,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
                   <FieldSettings
                     slot='content'
+                    activeGraphCategory={this.activeGraphCategory}
                     select_fields_order={this.select_fields_order}
                     xAxis={this.xAxis}
                     yAxis={this.yAxis}
-                    onUpdate-xAxis={this.updateXAxis}
-                    onUpdate-yAxis={this.updateYAxis}
+                    onUpdate={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>
               </bk-collapse>
