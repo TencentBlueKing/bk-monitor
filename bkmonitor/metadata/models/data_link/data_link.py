@@ -391,7 +391,7 @@ class DataLink(models.Model):
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         # bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
         if self.data_link_strategy == DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
             bkbase_vmrt_name = bkbase_vmrt_name + '_fed'

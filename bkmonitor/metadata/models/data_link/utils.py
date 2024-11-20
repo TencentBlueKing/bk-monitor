@@ -48,10 +48,11 @@ def get_bkdata_table_id(table_id: str) -> str:
     return table_id[:40]
 
 
-def compose_bkdata_table_id(table_id: str) -> str:
+def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     """
     获取计算平台结果表ID
     @param table_id: 监控平台结果表ID
+    @param strategy: 链路策略
     """
     # 按照 '__default__' 截断，取前半部分
     table_id = table_id.split(".__default__")[0]
@@ -78,6 +79,8 @@ def compose_bkdata_table_id(table_id: str) -> str:
     if len(table_id) > 40:
         table_id = f'{table_id[:35]}_{hash_suffix}'
 
+    if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
+        table_id = table_id + '_fed'
     # 确保长度不超过40
     return table_id
 
@@ -113,10 +116,11 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     return f"bkm_{refine_data_name[-45:].lower()}"
 
 
-def compose_bkdata_data_id_name(data_name: str) -> str:
+def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
     """
     组装bkdata数据源名称
     @param data_name: 监控平台数据源名称
+    @param strategy: 链路策略
     """
     # 剔除不符合的字符
     refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
