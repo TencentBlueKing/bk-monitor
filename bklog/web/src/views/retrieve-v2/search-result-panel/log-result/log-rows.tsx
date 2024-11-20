@@ -656,7 +656,7 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        minHeight: `${tableMinHeight.value + 40}px`,
+        // minHeight: `${tableMinHeight.value + 40}px`,
         // transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
         ...scrollXTransformStyle.value,
       };
