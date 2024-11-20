@@ -105,7 +105,7 @@ export default defineComponent({
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
     const hasOverflowX = ref(false);
-    const bufferCount = 30;
+    const bufferCount = 25;
 
     const visibleTableList = computed(() =>
       tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
@@ -587,17 +587,18 @@ export default defineComponent({
       const config: RowConfig = row[ROW_CONFIG].value;
       config.minHeight = entry.contentRect.height;
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
+      console.log('handleRowResize', row, row[ROW_INDEX]);
     };
 
     const renderRowVNode = () => {
-      let rowStickyTop = 0;
-      return visibleTableList.value.map((row, index) => {
+      // let rowStickyTop = 0;
+      return visibleTableList.value.map(row => {
         const rowIndex = row[ROW_INDEX];
-        const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
-        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
+        // const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
+        // rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
         const rowStyle = {
-          top: `${rowStickyTop}px`,
-          position: 'sticky',
+          // top: `${rowStickyTop}px`,
+          // position: 'sticky',
         };
         return (
           <RowRender
@@ -633,9 +634,15 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        minHeight: `${tableMinHeight.value}px`,
-        transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
+        minHeight: `${tableMinHeight.value + 40}px`,
+        transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,
         ...scrollXTransformStyle.value,
+      };
+    });
+
+    const tableOffsetStyle = computed(() => {
+      return {
+        transform: `translate3d(0, ${rowsOffsetTop.value}px, 0)`,
       };
     });
 
@@ -664,6 +671,7 @@ export default defineComponent({
       showHeader,
       refRootElement,
       scrollDirection,
+      tableOffsetStyle,
     };
   },
   render() {
@@ -678,7 +686,12 @@ export default defineComponent({
           style={this.tableStyle}
           class={['bklog-row-box', { 'show-head': this.showHeader }]}
         >
-          {this.renderRowVNode()}
+          <div
+            style={this.tableOffsetStyle}
+            class='bklog-row-offset'
+          >
+            {this.renderRowVNode()}
+          </div>
         </div>
         {this.tableData.length === 0 ? (
           <bk-exception
