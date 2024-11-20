@@ -253,7 +253,7 @@ export default {
   无数据指引: 'No data guide',
   暂无拨测任务: 'No probe tasks',
   暂无拨测节点: 'No probe nodes',
-  暂无任何视图: 'No views',
+  将已有视图拖拽至此: 'Drag an existing view here',
   无法给予帮助: 'Cannot provide help',
   无匹配的数据: 'No matching data',
   '暂无指标/维度': 'No metrics/dimensions',

@@ -188,15 +188,6 @@ class CallerPieChart extends CommonSimpleChart {
         },
         series: [
           {
-            label: {
-              show: false,
-              position: 'center',
-            },
-            labelLine: {
-              normal: {
-                show: false,
-              },
-            },
             radius: '50%',
             data: dataList,
             emphasis: {

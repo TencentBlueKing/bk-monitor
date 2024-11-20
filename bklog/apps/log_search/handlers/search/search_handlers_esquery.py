@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
+import ujson
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
@@ -52,6 +53,7 @@ from apps.log_esquery.serializers import (
     EsQuerySearchAttrSerializer,
 )
 from apps.log_search.constants import (
+    ASYNC_DIR,
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
@@ -61,6 +63,8 @@ from apps.log_search.constants import (
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_ASYNC_COUNT,
     MAX_EXPORT_REQUEST_RETRY,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
     SCROLL,
@@ -1122,6 +1126,122 @@ class SearchHandler(object):
             scroll_size = len(scroll_result["hits"]["hits"])
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
+
+    def multi_get_slice_data(self, pre_file_name, export_file_type):
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        slice_max = (
+            collector_config.storage_shards_nums
+            if collector_config and collector_config.storage_shards_nums < MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+            else MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+        )
+        multi_execute_func = MultiExecuteFunc(max_workers=slice_max)
+        for idx in range(slice_max):
+            body = {
+                "slice_id": idx,
+                "slice_max": slice_max,
+                "file_name": f"{pre_file_name}_slice_{idx}",
+                "export_file_type": export_file_type,
+            }
+            multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
+        result = multi_execute_func.run(return_exception=True)
+        return list(result.values())
+
+    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
+        """
+        get_slice_data
+        @param slice_id:
+        @param slice_max:
+        @param file_name:
+        @param export_file_type:
+        @return:
+        """
+        result = self.slice_pre_get_result(size=MAX_RESULT_WINDOW, slice_id=slice_id, slice_max=slice_max)
+        generate_result = self.sliced_scroll_result(result)
+
+        # 文件路径
+        file_path = f"{ASYNC_DIR}/{file_name}.{export_file_type}"
+
+        def content_generator():
+            for item in result.get("hits", {}).get("hits", []):
+                yield item
+            for res in generate_result:
+                origin_result_list = res.get("hits", {}).get("hits", [])
+                for item in origin_result_list:
+                    yield item
+
+        with open(file_path, "a+", encoding="utf-8") as f:
+            for content in content_generator():
+                f.write("%s\n" % ujson.dumps(content, ensure_ascii=False))
+        return file_path
+
+    def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
+        """
+        slice_pre_get_result
+        @param size:
+        @param slice_id:
+        @param slice_max:
+        @return:
+        """
+        # 获取search对应的esquery方法
+        search_func = self.fetch_esquery_method(method_name="search")
+        result = search_func(
+            {
+                "indices": self.indices,
+                "scenario_id": self.scenario_id,
+                "storage_cluster_id": self.storage_cluster_id,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "query_string": self.query_string,
+                "filter": self.filter,
+                "start": self.start,
+                "size": size,
+                "aggs": self.aggs,
+                "highlight": self.highlight,
+                "time_zone": self.time_zone,
+                "time_range": self.time_range,
+                "time_field": self.time_field,
+                "use_time_range": self.use_time_range,
+                "time_field_type": self.time_field_type,
+                "time_field_unit": self.time_field_unit,
+                "scroll": SCROLL,
+                "collapse": self.collapse,
+                "slice_search": True,
+                "slice_id": slice_id,
+                "slice_max": slice_max,
+            },
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+            ),
+        )
+        return result
+
+    def sliced_scroll_result(self, scroll_result):
+        """
+        sliced_scroll_result
+        @param scroll_result:
+        @return:
+        """
+        # 获取scroll对应的esquery方法
+        scroll_func = self.fetch_esquery_method(method_name="scroll")
+        scroll_size = len(scroll_result["hits"]["hits"])
+        result_size = scroll_size
+        while scroll_size == MAX_RESULT_WINDOW and result_size < MAX_QUICK_EXPORT_ASYNC_COUNT:
+            _scroll_id = scroll_result["_scroll_id"]
+            scroll_result = scroll_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "scroll": SCROLL,
+                    "scroll_id": _scroll_id,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
+            scroll_size = len(scroll_result["hits"]["hits"])
+            result_size += scroll_size
+            yield scroll_result
 
     @staticmethod
     def get_bcs_manage_url(cluster_id, container_id):
