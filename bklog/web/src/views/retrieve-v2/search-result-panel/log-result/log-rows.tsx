@@ -595,14 +595,36 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       let rowStickyTop = 0;
-      return visibleTableList.value.map(row => {
+      const { startIndex, endIndex } = visibleIndexs.value;
+      return tableData.value.map((row, index) => {
         const rowIndex = row[ROW_INDEX];
         const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
         rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
         const rowStyle = {
-          top: `${rowStickyTop}px`,
-          position: 'sticky',
+          // top: `${rowStickyTop}px`,
+          // position: 'sticky',
+          minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
         };
+
+        if (index >= startIndex && index < endIndex) {
+          return (
+            <RowRender
+              key={row[ROW_KEY]}
+              style={rowStyle}
+              class={[
+                'bklog-row-container',
+                {
+                  'has-overflow-x': hasOverflowX.value,
+                },
+              ]}
+              row-index={rowIndex}
+              onRow-resize={entry => handleRowResize(entry, row)}
+            >
+              {renderRowCells(row, rowIndex)}
+            </RowRender>
+          );
+        }
+
         return (
           <RowRender
             key={row[ROW_KEY]}
@@ -614,10 +636,7 @@ export default defineComponent({
               },
             ]}
             row-index={rowIndex}
-            onRow-resize={entry => handleRowResize(entry, row)}
-          >
-            {renderRowCells(row, rowIndex)}
-          </RowRender>
+          ></RowRender>
         );
       });
     };
@@ -638,7 +657,7 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         minHeight: `${tableMinHeight.value + 40}px`,
-        transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
+        // transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
         ...scrollXTransformStyle.value,
       };
     });
