@@ -12,7 +12,6 @@ import copy
 import datetime
 import json
 import logging
-import traceback
 
 import pytz
 from django.conf import settings
@@ -57,7 +56,7 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
-from apm.task.tasks import create_or_update_tail_sampling
+from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -1449,24 +1448,7 @@ class DeleteApplicationResource(Resource):
         if not app:
             raise ValueError(_("应用不存在"))
 
-        QpsConfig.refresh_config(
-            app.bk_biz_id,
-            app.app_name,
-            AppConfigBase.APP_LEVEL,
-            app.app_name,
-            [{"qps": -1}],
-        )
-
-        from apm.task.tasks import refresh_apm_application_config
-
-        refresh_apm_application_config(app.bk_biz_id, app.app_name)
-        try:
-            app.stop()
-        except Exception as e:  # noqa
-            logger.exception(
-                f"[DeleteApplication] stop app: {app.bk_biz_id}-{app.app_name} failed {e} " f"{traceback.format_exc()}"
-            )
-        app.delete()
+        delete_application_async.delay(app.bk_biz_id, app.app_name)
 
 
 class QuerySpanStatisticsListResource(Resource):
