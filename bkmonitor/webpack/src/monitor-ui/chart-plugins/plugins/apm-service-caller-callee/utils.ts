@@ -130,70 +130,105 @@ export const intervalLowBound = (rawInterval: number) => {
   const index = list.findIndex(v => v > 0);
   return CALL_INTERVAL_LIST.at(index) || CALL_INTERVAL_LIST.at(-1);
 };
+/* 异常率/超时率 */
+export enum EChartType {
+  exceptionRate = 'exception_rate',
+  timeoutRate = 'timeout_rate',
+}
 
 const recordCallOptionKindKey = '____apm-service-caller-callee-kind____';
+const recordCallOptionChartKey = '____apm-service-caller-callee-chart____';
+
 /**
- * @description 记录调用者调用被调用者的图表类型
- * @param keyObject
- * @param kind
- * @returns
+ * @description 通用存储函数，用于存储服务调用信息
+ * @param storageKey 存储键
+ * @param keyObject 服务的键对象
+ * @param value 需要存储的值
  */
-export function setRecordCallOptionKind(keyObject, kind: EKind) {
+function setRecord(storageKey, keyObject, value) {
   if (!(keyObject?.app_name && keyObject?.service_name)) {
     return;
   }
   try {
-    const listStr = localStorage.getItem(recordCallOptionKindKey);
+    const listStr = localStorage.getItem(storageKey);
     const obj = {
       key: `__${keyObject.app_name}__${keyObject.service_name}__`,
-      value: kind,
+      value,
     };
-    if (listStr) {
-      const list = JSON.parse(listStr);
-      const resultList = [];
-      if (list.length > 50) {
-        list.splice(list.length - 1, list.length - 50);
-      }
-      for (const item of list) {
-        if (item.key !== obj.key) {
-          resultList.push(item);
-        }
-      }
-      resultList.unshift(obj);
-      localStorage.setItem(recordCallOptionKindKey, JSON.stringify(resultList));
-    } else {
-      localStorage.setItem(recordCallOptionKindKey, JSON.stringify([obj]));
+    const list = listStr ? JSON.parse(listStr) : [];
+    const resultList = list.filter(item => item.key !== obj.key);
+
+    if (resultList.length >= 50) {
+      resultList.splice(resultList.length - 1, resultList.length - 50);
     }
+
+    resultList.unshift(obj);
+    localStorage.setItem(storageKey, JSON.stringify(resultList));
   } catch (err) {
     console.log(err);
   }
 }
+
 /**
- * @description 获取调用者调用被调用者的图表类型
+ * @description 通用检索函数，用于获取服务调用信息
+ * @param storageKey 存储键
+ * @param keyObject 服务的键对象
+ * @param defaultValue 默认值
+ * @returns
+ */
+function getRecord(storageKey, keyObject, defaultValue) {
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return defaultValue;
+  }
+  try {
+    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
+    const listStr = localStorage.getItem(storageKey);
+    if (listStr) {
+      const list = JSON.parse(listStr);
+      for (const item of list) {
+        if (item.key === key) {
+          return item.value || defaultValue;
+        }
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return defaultValue;
+}
+
+/**
+ * @description 记录调用者调用被调用者的类型
+ * @param keyObject
+ * @param kind
+ */
+export function setRecordCallOptionKind(keyObject, kind) {
+  setRecord(recordCallOptionKindKey, keyObject, kind);
+}
+
+/**
+ * @description 获取调用者调用被调用者的类型
  * @param keyObject
  * @returns
  */
 export function getRecordCallOptionKind(keyObject) {
-  console.log(keyObject);
-  if (!(keyObject?.app_name && keyObject?.service_name)) {
-    return EKind.callee;
-  }
-  try {
-    let kind = EKind.callee;
-    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
-    const listStr = localStorage.getItem(recordCallOptionKindKey);
-    if (listStr) {
-      const list = JSON.parse(listStr) as any[];
-      for (const item of list) {
-        if (item.key === key) {
-          kind = item.value || EKind.callee;
-          break;
-        }
-      }
-    }
-    return kind;
-  } catch (err) {
-    console.log(err);
-    return EKind.callee;
-  }
+  return getRecord(recordCallOptionKindKey, keyObject, EKind.callee);
+}
+
+/**
+ * @description 记录调用者调用被调用者的图表
+ * @param keyObject
+ * @param chart
+ */
+export function setRecordCallOptionChart(keyObject, chart) {
+  setRecord(recordCallOptionChartKey, keyObject, chart);
+}
+
+/**
+ * @description 获取调用者调用被调用者的图表
+ * @param keyObject
+ * @returns
+ */
+export function getRecordCallOptionChart(keyObject) {
+  return getRecord(recordCallOptionChartKey, keyObject, EChartType.exceptionRate);
 }
