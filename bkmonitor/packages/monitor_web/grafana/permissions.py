@@ -169,7 +169,10 @@ class DashboardPermission(BasePermission):
                     ):
                         external_dashboard_permissions[record] = GrafanaPermission.Edit
 
-            role = GrafanaRole.Viewer
+            if not external_dashboard_permissions:
+                role = GrafanaRole.Anonymous
+            else:
+                role = GrafanaRole.Viewer
             dashboard_permissions = external_dashboard_permissions
 
         return True, role, dashboard_permissions
