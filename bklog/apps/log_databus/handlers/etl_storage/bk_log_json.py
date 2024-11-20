@@ -181,4 +181,4 @@ class BkLogJsonEtlStorage(EtlStorage):
                 "type": "fun",
             },
             "conf": self._to_bkdata_conf(time_field),
-        }
+        }  # test
