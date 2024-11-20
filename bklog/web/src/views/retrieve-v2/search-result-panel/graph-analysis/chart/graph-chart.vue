@@ -36,15 +36,8 @@ const props = defineProps({
   },
 });
 const chartRef = ref(null);
-const tableData = ref([
-  // { name: '衬衫', value: 5 },
-  // { name: '羊毛衫', value: 20 },
-  // { name: '雪纺衫', value: 36 },
-  // { name: '裤子', value: 10 },
-  // { name: '高跟鞋', value: 10 },
-  // { name: '袜子', value: 20 }
-]);
-
+const tableData = ref([]);
+const segment = ref([]);
 let myChart = null;
 watch(() => props.activeGraphCategory, updateChart);
 onMounted(() => {
@@ -59,57 +52,94 @@ onUnmounted(() => {
 function updateChart() {
   console.log(props.activeGraphCategory);
 
-  if (props.activeGraphCategory === "table") return;
+  if (props.activeGraphCategory === "table" || props.activeGraphCategory === "line_bar")
+    return;
   myChart.clear();
+  console.log("tableData", tableData.value);
+
+  if (!tableData.value.length) {
+    return;
+  }
   const option = getChartOption(props.activeGraphCategory);
   console.log("option", option);
   myChart.setOption(option);
 }
-function setOption(data,xAxis,yAxis ) {
-
-  tableData.value = data.data.list.map(item => {
+function setOption(data, xAxis, yAxis, segmented = []) {
+  segment.value = segmented;
+  tableData.value = data.data.list.map((item) => {
+    const segmentedValues = segmented.length > 0 ? segmented.map((seg) => item[seg]) : [];
     return {
       name: item[xAxis],
-      value: item[yAxis]
-    }
-  })
+      value: [item[yAxis], ...segmentedValues],
+    };
+  });
   updateChart();
 }
 function getChartOption(type) {
-  switch (type) {
-    case "line":
+  if (type === "pie") {
+    const pieData = tableData.value.map((item,index) => {
+      console.log();
+      const nmae = segment.value.forEach((seg) => {
+
+      });
+      const dimensionCombination = item.value.join("-");
+      const totalValue = item.value.reduce((acc, val) => acc + val, 0);
+      const combinedNameValue = `${item.name} (${dimensionCombination})`;
       return {
-        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
-        yAxis: { type: "value" },
-        series: [{ data: tableData.value.map((item) => item.value), type: "line" }],
+        name: combinedNameValue,
+        value: totalValue,
       };
-    case "bar":
-      return {
-        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
-        yAxis: { type: "value" },
-        series: [{ data: tableData.value.map((item) => item.value), type: "bar" }],
-      };
-    case "line-bar":
-      return {
-        xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
-        yAxis: { type: "value" },
-        series: [
-          { data: tableData.value.map((item) => item.value), type: "bar" },
-          { data: tableData.value.map((item) => item.value), type: "line" },
-        ],
-      };
-    case "pie":
-      return {
-        series: [
-          {
-            type: "pie",
-            data: tableData.value.map((item) => ({ name: item.name, value: item.value })),
-          },
-        ],
-      };
-    default:
-      return {};
+    });
+
+    return {
+      series: [
+        {
+          type: "pie",
+          data: pieData,
+        },
+      ],
+    };
   }
+  const series = [];
+
+  const valueLength = tableData.value.length > 0 ? tableData.value[0].value.length : 0;
+
+  for (let i = 0; i < valueLength; i++) {
+    const seriesData = tableData.value.map((item) => item.value[i]);
+
+    switch (type) {
+      case "line":
+        series.push({ data: seriesData, type: "line", name: `Series ${i + 1}` });
+        break;
+      case "bar":
+        series.push({ data: seriesData, type: "bar", name: `Series ${i + 1}` });
+        break;
+      // case "line_bar":
+      //   if (i < 1) {
+      //     series.push({ data: seriesData, type: "bar", name: `Series ${i + 1}` });
+      //   } else {
+      //     series.push({ data: seriesData, type: "line", name: `Series ${i + 1}` });
+      //   }
+      //   break;
+      // case "pie":
+      //   if (i > 1) {
+      //     series.push({
+      //       type: "pie",
+      //       data: tableData.value.map(item => ({ name: item.name, value: item.value[i] })),
+      //       name: `Series ${i + 1}`
+      //     });
+      //   }
+      //   break;
+      default:
+        break;
+    }
+  }
+
+  return {
+    xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
+    yAxis: { type: "value" },
+    series: series,
+  };
 }
 defineExpose({
   setOption,
@@ -117,7 +147,17 @@ defineExpose({
 </script>
 <template>
   <div class="graph-context graph-chart">
-    <div ref="chartRef" style="width: 600px; height: 400px"></div>
+    <bk-exception
+      v-if="!tableData.length"
+      class="exception-wrap-item exception-part"
+      type="empty"
+      scene="part"
+    >
+    </bk-exception>
+    <div ref="chartRef" style="width: 1000px; height: 400px"></div>
+    <div>
+      <div></div>
+    </div>
   </div>
 </template>
 
@@ -125,5 +165,6 @@ defineExpose({
 .graph-context {
   width: 100%;
   height: calc(100% - 22px);
+  margin-left: 30px;
 }
 </style>

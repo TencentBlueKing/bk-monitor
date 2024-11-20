@@ -25,7 +25,6 @@
 -->
 <script setup>
 import { ref, defineProps, watch, computed, defineEmits } from "vue";
-const segmentedField = ref(1);
 
 const props = defineProps({
   xAxis: {
@@ -34,13 +33,19 @@ const props = defineProps({
   yAxis: {
     type: String,
   },
+  activeGraphCategory: {
+    type: String,
+  },
   select_fields_order: {
     type: Array,
   },
 });
-const emit = defineEmits(["update-xAxis", "update-yAxis"]);
+const emit = defineEmits(["update"]);
 const selectedXAxis = ref(props.xAxis);
 const selectedYAxis = ref(props.yAxis);
+const segmentedField = ref([]);
+const hiddenField = ref([]);
+const displayField = ref('');
 const list = computed(() => props.select_fields_order);
 // 监听 props.xAxis 的变化并更新 selectedXAxis
 watch(
@@ -58,40 +63,92 @@ watch(
   }
 );
 function change(axis, newValue) {
-  if (axis === "x") {
-    emit("update-xAxis", newValue);
-  } else if (axis === "y") {
-    emit("update-yAxis", newValue);
-  }
+  // if (axis === "x") {
+  
+  emit("update", axis, newValue);
+  // } else if (axis === "y") {
+  // emit("update-yAxis", newValue);
+  // }
 }
 </script>
 <template>
   <div class="">
-    <div class="title">x轴字段</div>
-    <bk-select
-      v-model="selectedXAxis"
-      @change="change('x', $event)"
-      :clearable="false"
-      searchable
-    >
-      <bk-option v-for="(option, index) in list" :key="index" :id="option" :name="option">
-      </bk-option>
-    </bk-select>
-    <div class="title">y轴字段</div>
-    <bk-select
-      v-model="selectedYAxis"
-      @change="change('y', $event)"
-      :clearable="false"
-      searchable
-    >
-      <bk-option v-for="(option, index) in list" :key="index" :id="option" :name="option">
-      </bk-option>
-    </bk-select>
-    <div class="title">分段字段</div>
-    <bk-select v-model="segmentedField" :clearable="false" searchable>
-      <bk-option v-for="(option, index) in list" :key="index" :id="option" :name="option">
-      </bk-option>
-    </bk-select>
+    <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
+      <div class="title">x轴字段</div>
+      <bk-select
+        v-model="selectedXAxis"
+        @change="change('x', $event)"
+        :clearable="false"
+        searchable
+      >
+        <bk-option
+          v-for="(option, index) in list"
+          :key="index"
+          :id="option"
+          :name="option"
+        >
+        </bk-option>
+      </bk-select>
+    </div>
+    <div  v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
+      <div class="title">y轴字段</div>
+      <bk-select
+        v-model="selectedYAxis"
+        @change="change('y', $event)"
+        :clearable="false"
+        searchable
+      >
+        <bk-option
+          v-for="(option, index) in list"
+          :key="index"
+          :id="option"
+          :name="option"
+        >
+        </bk-option>
+      </bk-select>
+    </div>
+    <div  v-show="activeGraphCategory == 'line_bar' || activeGraphCategory == 'pie'">
+      <div class="title">显示字段</div>
+      <bk-select v-model="selectedYAxis"  @change="change('y', $event)"  :clearable="false"  searchable>
+        <bk-option
+          v-for="(option, index) in list"
+          :key="index"
+          :id="option"
+          :name="option"
+        >
+        </bk-option>
+      </bk-select>
+    </div>
+    <div v-show="activeGraphCategory !== 'table'">
+      <div class="title">分组字段</div>
+      <bk-select v-model="segmentedField" :clearable="false"  @change="change('segmented', $event)" multiple searchable>
+        <bk-option
+          v-for="(option, index) in list"
+          :key="index"
+          :id="option"
+          :name="option"
+        >
+        </bk-option>
+      </bk-select>
+    </div>
+    <div v-show="activeGraphCategory == 'table'">
+      <div class="title">隐藏字段</div>
+      <bk-select
+        v-model="hiddenField"
+        :clearable="false"
+        multiple
+        @change="change('hidden', $event)"
+        searchable
+      >
+        <bk-option
+          v-for="(option, index) in list"
+          :key="index"
+          :id="option"
+          :name="option"
+        >
+        </bk-option>
+      </bk-select>
+    </div>
   </div>
 </template>
 

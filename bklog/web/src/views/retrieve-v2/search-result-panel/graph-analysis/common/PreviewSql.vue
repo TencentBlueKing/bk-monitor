@@ -39,7 +39,7 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  sql: {
+  sqlContent: {
     type: String,
     default: "",
   },
@@ -52,7 +52,7 @@ const emit = defineEmits(["update:isShow"]);
 // Computed property for highlighted code
 const highlightedCode = computed(() => {
   // const highlighted = hljs.highlightAuto(props.sql).value;
-  const highlighted = "sdfasdfas\nsdafdsafdas\nsadfsadf";
+  const highlighted = props.sqlContent;
 
   return addLineNumbers(highlighted);
 });

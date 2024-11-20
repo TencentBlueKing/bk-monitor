@@ -24,79 +24,48 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineExpose, nextTick } from "vue";
+import { ref, defineProps, defineExpose, computed  } from "vue";
 import useLocale from "@/hooks/use-locale";
 const { $t } = useLocale();
+const props = defineProps({
+  hidden: {
+    type: Array,
+    default: [],
+  },
+});
 
-function handlePageLimitChange() {
-  console.log("handlePageLimitChange", arguments);
+
+const tableData= ref([]);
+const rawColumns = ref([]);
+
+function setOption(data) {
+  console.log(data);
+  tableData.value = data.data.list;
+  rawColumns.value = data.data.select_fields_order;
 }
-
-const data = ref([]);
-const size = ref("small");
-const pagination = ref({
-  current: 1,
-  count: 500,
-  limit: 20,
+const column = computed(() => {
+  return rawColumns.value.filter(item => !props.hidden.includes(item));
 });
 function handleRowMouseEnter() {}
 function handleRowMouseLeave() {}
-function handlePageChange(page) {
-  this.pagination.current = page;
-}
+defineExpose({
+  setOption,
+});
 </script>
 <template>
   <div class="graph-context graph-table">
     <bk-table
       style="margin-top: 15px"
-      :data="data"
-      :size="size"
-      :pagination="pagination"
+      :data="tableData"
       @row-mouse-enter="handleRowMouseEnter"
       @row-mouse-leave="handleRowMouseLeave"
-      @page-change="handlePageChange"
-      @page-limit-change="handlePageLimitChange"
     >
-      <bk-table-column type="selection" width="60"></bk-table-column>
-      <bk-table-column type="index" label="序列" width="60"></bk-table-column>
+    <bk-table-column v-for="item,index in column" :label="item" :prop="item" :key="index"></bk-table-column>
+      <!-- <bk-table-column type="index" label="序列" width="60"></bk-table-column>
       <bk-table-column label="名称/内网IP" prop="ip"></bk-table-column>
       <bk-table-column label="来源" prop="source"></bk-table-column>
       <bk-table-column label="状态" prop="status"></bk-table-column>
-      <bk-table-column label="创建时间" prop="create_time"></bk-table-column>
-      <bk-table-column label="操作" width="150">
-        <template slot-scope="props">
-          <bk-button
-            style="margin-right: 12px"
-            theme="primary"
-            text
-            :disabled="props.row.status === '创建中'"
-            @click="reset(props.row)"
-            >重置</bk-button
-          >
-          <bk-button
-            style="margin-right: 12px"
-            theme="primary"
-            text
-            @click="remove(props.row)"
-            >移除</bk-button
-          >
-          <bk-popover
-            class="dot-menu"
-            placement="bottom-start"
-            theme="dot-menu light"
-            :trigger="props.$index % 2 === 0 ? 'click' : 'mouseenter'"
-            :arrow="false"
-            offset="15"
-            :distance="0"
-          >
-            <span class="dot-menu-trigger"></span>
-            <ul class="dot-menu-list" slot="content">
-              <li class="dot-menu-item">导入</li>
-              <li class="dot-menu-item">导出</li>
-            </ul>
-          </bk-popover>
-        </template>
-      </bk-table-column>
+      <bk-table-column label="创建时间" prop="create_time"></bk-table-column> -->
     </bk-table>
   </div>
 </template>

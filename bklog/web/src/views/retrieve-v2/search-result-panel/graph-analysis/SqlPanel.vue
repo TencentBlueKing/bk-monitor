@@ -24,7 +24,8 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineExpose, nextTick } from "vue";
+import { ref, onMounted, defineExpose, nextTick, computed } from "vue";
+import { bkMessage } from 'bk-magic-vue'
 import * as monaco from "monaco-editor";
 import useLocale from "@/hooks/use-locale";
 import PreviewSql from "./common/PreviewSql.vue"
@@ -32,14 +33,13 @@ import $http from '../../../../api';
 const { $t } = useLocale();
 const editorContainer = ref(null);
 const showDialog = ref(false);
-const emit = defineEmits(['search-completed']);
+const sqlContent = ref("");
+const emit = defineEmits(["search-completed"]);
 let editorInstance = null;
 window.MonacoEnvironment = {
   // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
   // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
   getWorker: (workerId, label) => {
-    console.log(workerId, label);
-
     if (label === "yaml") {
       return process.env.NODE_ENV === "production"
         ? `${window.BK_STATIC_URL}/yaml.worker.js`
@@ -62,6 +62,11 @@ async function resize() {
     editorInstance.layout();
   }
 }
+function preview() {
+  showDialog.value = true;
+  sqlContent.value = editorInstance.getValue();
+}
+
 function emitQuery() {}
 function emitStop() {}
 async function sqlSearch() {
@@ -72,7 +77,6 @@ async function sqlSearch() {
 
   // 获取编辑器内容
   const sqlQuery = editorInstance.getValue();
-  console.log("SQL Query:", sqlQuery);
 
   // 这里将编辑器内容作为 SQL 查询的一部分发送
   const res = await $http.request("graphAnalysis/searchSQL", {
@@ -84,7 +88,14 @@ async function sqlSearch() {
       sql: sqlQuery, // 使用获取到的内容
     },
   });
-  emit('search-completed', res);
+  if (!res.data.list.length) {
+    bkMessage({
+      theme: 'primary',
+      message: '没有查询到数据',
+    });
+    return;
+  }
+  emit("search-completed", res);
   // 处理响应
   console.log(res);
 }
@@ -93,9 +104,20 @@ onMounted(() => {
   if (editorContainer.value) {
     // editorContainer.value.style.height = "100%"; // 设置高度
     editorInstance = monaco.editor.create(editorContainer.value, {
-      value: "sELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM 100968_proz_rd_ds2_test.doris WHERE thedate>='20241111' AND thedate<='20241111' limit 2",
-      language: "javascript", // 设置语言类型
-      theme: "vs-dark", // 设置编辑器主题
+      value: `SELECT
+    thedate,
+    dtEventTimeStamp,
+    iterationIndex,
+    log,
+    time
+FROM
+    100968_proz_rd_ds2_test.doris
+WHERE
+    thedate >= '20241120'
+    AND thedate <= '20241120'
+LIMIT 2;`,
+      language: "sql",
+      theme: "vs-dark",
     });
   }
 });
@@ -135,13 +157,14 @@ defineExpose({
       <bk-button
         class="sql-editor-view-button text-center pl-min pr-min cursor-pointer"
         size="small"
-        @click="showDialog = true"
+        @click="preview"
       >
         {{ $t("预览查询 SQL") }}
       </bk-button>
       <PreviewSql
-         :isShow="showDialog"
-        @update:isShow="newValue => showDialog = newValue"
+        :isShow="showDialog"
+        :sqlContent="sqlContent"
+        @update:isShow="(newValue) => (showDialog = newValue)"
       />
     </div>
   </div>
