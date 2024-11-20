@@ -101,11 +101,15 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).switch_result_table(True)
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if instance:
+            instance.switch_result_table(True)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).switch_result_table(False)
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if instance:
+            instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
         resource.metadata.modify_result_table(
@@ -361,7 +365,8 @@ class LogDataSource(ApmDataSourceConfigBase):
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.log_search.stop_collectors(collector_config_id=instance.collector_config_id)
+        if instance:
+            api.log_search.stop_collectors(collector_config_id=instance.collector_config_id)
 
 
 class TraceDataSource(ApmDataSourceConfigBase):
@@ -1127,11 +1132,12 @@ class TraceDataSource(ApmDataSourceConfigBase):
         super(TraceDataSource, cls).stop(bk_biz_id, app_name)
         # 删除关联的索引集
         ins = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        try:
-            api.log_search.delete_index_set(index_set_id=ins.index_set_id)
-            logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
-        except BKAPIError as e:
-            logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
+        if ins:
+            try:
+                api.log_search.delete_index_set(index_set_id=ins.index_set_id)
+                logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+            except BKAPIError as e:
+                logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
 
 
 class ProfileDataSource(ApmDataSourceConfigBase):
@@ -1220,7 +1226,8 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
+        if instance:
+            api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):
