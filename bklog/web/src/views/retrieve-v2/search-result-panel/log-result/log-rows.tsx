@@ -29,7 +29,7 @@ import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/c
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { uniqueId } from 'lodash';
+import { uniqueId, debounce } from 'lodash';
 
 import useResizeObserve from '../../../../hooks/use-resize-observe';
 import ExpandView from '../original-log/expand-view.vue';
@@ -105,7 +105,7 @@ export default defineComponent({
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
     const hasOverflowX = ref(false);
-    const bufferCount = 25;
+    const bufferCount = 30;
 
     const visibleTableList = computed(() =>
       tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
@@ -431,18 +431,22 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
+    const debounceSetLoading = debounce(() => {
+      isRequesting.value = false;
+    }, 300);
+
     const loadMoreTableData = () => {
       if (totalCount.value > tableData.value.length) {
         isRequesting.value = true;
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(() => {
-            isRequesting.value = false;
             visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + bufferCount;
+            debounceSetLoading();
             return true;
           })
           .finally(() => {
-            isRequesting.value = false;
+            debounceSetLoading();
             return true;
           });
       }
@@ -587,18 +591,17 @@ export default defineComponent({
       const config: RowConfig = row[ROW_CONFIG].value;
       config.minHeight = entry.contentRect.height;
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
-      console.log('handleRowResize', row, row[ROW_INDEX]);
     };
 
     const renderRowVNode = () => {
-      // let rowStickyTop = 0;
+      let rowStickyTop = 0;
       return visibleTableList.value.map(row => {
         const rowIndex = row[ROW_INDEX];
-        // const preConfig = visibleTableList.value[index - 1]?.[ROW_CONFIG]?.value;
-        // rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
+        const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
+        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
         const rowStyle = {
-          // top: `${rowStickyTop}px`,
-          // position: 'sticky',
+          top: `${rowStickyTop}px`,
+          position: 'sticky',
         };
         return (
           <RowRender
@@ -635,7 +638,7 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         minHeight: `${tableMinHeight.value + 40}px`,
-        transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,
+        transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
         ...scrollXTransformStyle.value,
       };
     });
@@ -648,7 +651,7 @@ export default defineComponent({
 
     const renderLoader = () => {
       return (
-        <div class='bklog-requsting-loading'>
+        <div class={['bklog-requsting-loading', { 'is-loading': isRequesting.value }]}>
           <div
             style={{ width: `${offsetWidth.value}px` }}
             v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
@@ -686,12 +689,7 @@ export default defineComponent({
           style={this.tableStyle}
           class={['bklog-row-box', { 'show-head': this.showHeader }]}
         >
-          <div
-            style={this.tableOffsetStyle}
-            class='bklog-row-offset'
-          >
-            {this.renderRowVNode()}
-          </div>
+          {this.renderRowVNode()}
         </div>
         {this.tableData.length === 0 ? (
           <bk-exception

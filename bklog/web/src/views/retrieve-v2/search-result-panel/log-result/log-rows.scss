@@ -13,12 +13,25 @@
     right: 0;
     bottom: 0;
     z-index: 2;
-    height: 40px;
     pointer-events: none;
 
     > div {
       height: 40px;
       line-height: 40px;
+    }
+
+    &.is-loading {
+      &::after {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 10;
+        pointer-events: all;
+        content: '';
+        background-color: transparent;
+      }
     }
   }
 
