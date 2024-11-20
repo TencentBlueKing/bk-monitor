@@ -25,9 +25,9 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 
+import useResizeObserve from '@/hooks/use-resize-observe';
 import { throttle, debounce } from 'lodash';
 
-import useResizeObserve from '../../../../hooks/use-resize-observe';
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default ({ loadMoreFn, scrollCallbackFn, container }) => {
