@@ -376,14 +376,14 @@
         };
         axiosInstance
           .post(downRequestUrl, data)
-          .then(res => {
-            if (res.result) {
-              this.$bkMessage({
-                theme: 'success',
-                message: res.data.prompt,
-              });
-            }
-          })
+          // .then(res => {
+          //   if (res.result) {
+          //     this.$bkMessage({
+          //       theme: 'success',
+          //       message: res.data.prompt,
+          //     });
+          //   }
+          // })
           .finally(() => {
             this.isShowExportDialog = false;
             this.selectFiledList = [];
@@ -443,14 +443,14 @@
             },
             data,
           })
-          .then(res => {
-            if (res.result) {
-              this.$bkMessage({
-                theme: 'success',
-                message: res.data.prompt,
-              });
-            }
-          })
+          // .then(res => {
+          //   if (res.result) {
+          //     this.$bkMessage({
+          //       theme: 'success',
+          //       message: res.data.prompt,
+          //     });
+          //   }
+          // })
           .finally(() => {
             this.exportLoading = false;
             this.isShowExportDialog = false;
