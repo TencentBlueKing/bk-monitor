@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+  import { ref, computed, onUnmounted } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const props = defineProps({
@@ -50,17 +50,29 @@
     };
   });
 
+  const resizeObserver = new ResizeObserver(() => {
+    localHeight.value = `${lazyRenderCell.value.firstElementChild.offsetHeight ?? props.minHeight}px}`;
+  });
+
   useIntersectionObserver(lazyRenderCell, entry => {
     if (entry.isIntersecting) {
       isVisible.value = true;
-      setTimeout(() => {
-        localHeight.value = `${lazyRenderCell.value.offsetHeight}px`;
-      });
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.observe(lazyRenderCell.value.firstElementChild);
+      }
     } else {
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
+      }
       if (props.visibleOnly) {
         isVisible.value = false;
       }
     }
+  });
+
+  onUnmounted(() => {
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 
