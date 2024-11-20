@@ -48,6 +48,7 @@ import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -58,6 +59,7 @@ import type {
   IMenuChildItem,
   IMenuItem,
   IPanelModel,
+  ITitleAlarm,
   ITimeSeriesItem,
   PanelModel,
   ZrClickEvent,
@@ -137,7 +139,7 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
-  panelsSelector = 'timeout_rate';
+  panelsSelector = 'exception_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -192,9 +194,16 @@ class CallerLineChart extends CommonSimpleChart {
   onCallOptionsChange() {
     this.getPanelData();
   }
+  @Watch('panel', { immediate: true })
+  handlePanel() {
+    if (this.enablePanelsSelector) {
+      this.panelsSelector = getRecordCallOptionChart(this.viewOptions.filters);
+    }
+  }
 
-  handlePanelsSelector() {
+  handlePanelsSelector(val) {
     this.getPanelData();
+    setRecordCallOptionChart(this.viewOptions.filters, val);
   }
   /**
    * @description: 获取图表数据
@@ -996,6 +1005,29 @@ class CallerLineChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+  /** 处理点击左侧响铃图标 跳转策略的逻辑 */ /** 处理点击左侧响铃图标 跳转策略的逻辑 */
+  handleAlarmClick(alarmStatus: ITitleAlarm) {
+    const metricIds = this.metrics.map(item => item.metric_id);
+    switch (alarmStatus.status) {
+      case 0:
+        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        break;
+      case 1:
+        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        break;
+      case 2:
+        const eventTargetStr = alarmStatus.targetStr;
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+              eventTargetStr ? ` AND ${eventTargetStr}` : ''
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          )
+        );
+        break;
+    }
+  }
 
   render() {
     return (
@@ -1012,6 +1044,7 @@ class CallerLineChart extends CommonSimpleChart {
           showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.curTitle}
+          onAlarmClick={this.handleAlarmClick}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
           onMetricClick={this.handleMetricClick}
