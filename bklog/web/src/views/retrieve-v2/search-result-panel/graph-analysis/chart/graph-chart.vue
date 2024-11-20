@@ -65,6 +65,7 @@ function updateChart() {
   myChart.setOption(option);
 }
 function setOption(data, xAxis, yAxis, segmented = []) {
+  console.log(data, xAxis, yAxis);
   segment.value = segmented;
   tableData.value = data.data.list.map((item) => {
     const segmentedValues = segmented.length > 0 ? segmented.map((seg) => item[seg]) : [];

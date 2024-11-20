@@ -25,12 +25,14 @@
 -->
 <script setup>
 import { ref, onMounted, defineExpose, nextTick, computed } from "vue";
+import { useRoute } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue'
 import * as monaco from "monaco-editor";
 import useLocale from "@/hooks/use-locale";
 import PreviewSql from "./common/PreviewSql.vue"
 import $http from '../../../../api';
 const { $t } = useLocale();
+const route = useRoute();
 const editorContainer = ref(null);
 const showDialog = ref(false);
 const sqlContent = ref("");
@@ -78,10 +80,9 @@ async function sqlSearch() {
   // 获取编辑器内容
   const sqlQuery = editorInstance.getValue();
 
-  // 这里将编辑器内容作为 SQL 查询的一部分发送
   const res = await $http.request("graphAnalysis/searchSQL", {
     params: {
-      index_set_id: 627298,
+      index_set_id: route.params.indexId,
     },
     data: {
       query_mode: "sql",
@@ -96,8 +97,6 @@ async function sqlSearch() {
     return;
   }
   emit("search-completed", res);
-  // 处理响应
-  console.log(res);
 }
 onMounted(() => {
   // 在组件挂载后初始化 Monaco Editor

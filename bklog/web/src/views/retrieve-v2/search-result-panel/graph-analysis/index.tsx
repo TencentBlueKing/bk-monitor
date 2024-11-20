@@ -367,8 +367,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <GraphChart
         ref='refGraphChart'
         style={chartStyle}
-        class='graph-context graph-chart'
-      ></div>,
+        activeGraphCategory={this.activeGraphCategory}
+      ></GraphChart>,
     ];
   }
   save() {}

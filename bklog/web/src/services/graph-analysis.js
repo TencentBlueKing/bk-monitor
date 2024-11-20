@@ -25,7 +25,7 @@
  */
 // 使用次数趋势
 const searchSQL = {
-  url: '/search/index_set/$index_set_id/chart/',
+  url: '/search/index_set/:index_set_id/chart/',
   method: 'post',
 };
 
