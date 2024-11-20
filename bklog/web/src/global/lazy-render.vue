@@ -41,18 +41,21 @@
 
   const lazyRenderCell = ref(null);
   const isVisible = ref(false);
-  let observer = null;
+  const localHeight = ref();
   const isIntersecting = ref(false);
 
   const cellStyle = computed(() => {
     return {
-      minHeight: props.minHeight,
+      minHeight: localHeight.value ?? props.minHeight,
     };
   });
 
   useIntersectionObserver(lazyRenderCell, entry => {
     if (entry.isIntersecting) {
       isVisible.value = true;
+      setTimeout(() => {
+        localHeight.value = `${lazyRenderCell.value.offsetHeight}px`;
+      });
     } else {
       if (props.visibleOnly) {
         isVisible.value = false;
@@ -85,7 +88,7 @@
     height: 12px;
 
     /* margin: 15px auto; */
-    color: #F0F1F5;
+    color: #f0f1f5;
     content: '';
     border-radius: 50%;
     transform: translateY(-50%);
