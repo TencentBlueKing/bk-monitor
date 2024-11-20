@@ -36,7 +36,7 @@
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
-
+  import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
 
   const store = useStore();
@@ -184,6 +184,9 @@
       }
     },
   );
+
+
+  const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -241,7 +244,12 @@
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          <template v-if="showAnalysisTab">
+            <GraphAnalysis></GraphAnalysis>
+          </template>
+          <template v-else>
+            <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          </template>
         </div>
       </div>
     </div>
