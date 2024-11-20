@@ -722,4 +722,5 @@ export default {
   '请输入字段名/别名': 'Please enter a field name/alias',
   前往清洗: 'Go to wash',
   索引字段配置: 'Index field configuration',
+  字段类型不支持快速修改: 'Field type does not support quick modification',
 };

@@ -142,7 +142,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-bk-tooltips.top="$t('新建类型不支持快速修改')">{{ props.row.field_type }}</span>
+                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
                 <bk-form-item
                   v-else
