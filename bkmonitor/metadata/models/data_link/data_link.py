@@ -24,6 +24,7 @@ from metadata.models.data_link.data_link_configs import (
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.data_link.utils import get_bkbase_raw_data_id_name
 from metadata.models.storage import ClusterInfo
 
 logger = logging.getLogger("metadata")
@@ -167,7 +168,8 @@ class DataLink(models.Model):
         from metadata.models.bcs import BcsFederalClusterInfo
 
         # 联邦子集群场景下，这里的bkbase_data_name会有一个fed_的前缀
-        bkbase_raw_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)  # 该集群作为独立集群的data_name
+        bkbase_raw_data_name = get_bkbase_raw_data_id_name(data_source=data_source, table_id=table_id)
+
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 

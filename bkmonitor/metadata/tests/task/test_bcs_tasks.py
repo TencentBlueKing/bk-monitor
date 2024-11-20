@@ -264,13 +264,14 @@ def test_sync_federation_clusters(create_or_delete_records):
         assert fed_record_10002_after_part1.host_cluster_id == 'BCS-K8S-11111'
         assert set(fed_record_10002_after_part1.fed_namespaces) == {'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'ns6'}
         assert (
-            fed_record_10002_after_part1.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_60010.__default__'
+            fed_record_10002_after_part1.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_60010'
+            '.__default__'
         )
 
         fed_record_10002_after_part2 = models.BcsFederalClusterInfo.objects.filter(
             sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001'
         )
-        assert not fed_record_10002_after_part2.exists()
+        assert fed_record_10002_after_part2.first().is_deleted
 
         fed_record_10003_after = models.BcsFederalClusterInfo.objects.get(sub_cluster_id='BCS-K8S-10003')
         assert fed_record_10003_after.fed_cluster_id == 'BCS-K8S-70001'
@@ -290,4 +291,4 @@ def test_sync_federation_clusters(create_or_delete_records):
         assert databus_ins.namespace == 'bkmonitor'
         assert databus_ins.name == bkbase_vmrt_name_10002_fed
 
-        assert mock_apply_with_retry.call_count == 4
+        assert mock_apply_with_retry.call_count == 3

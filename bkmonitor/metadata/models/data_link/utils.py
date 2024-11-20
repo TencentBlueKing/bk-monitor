@@ -16,7 +16,9 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from jinja2 import Template
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+from core.drf_resource import api
 from metadata import models
 from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
@@ -138,6 +140,49 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
     if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
         data_id_name = 'fed_' + data_id_name
     return data_id_name
+
+
+def get_bkbase_raw_data_id_name(data_source, table_id):
+    """
+    获取计算平台对应的data_id_name，适配V3迁移V4场景
+    @param data_source: 数据源
+    @param table_id: 监控平台结果表ID
+    """
+    try:
+        bkbase_data_id = models.AccessVMRecord.objects.get(result_table_id=table_id).bk_base_data_id
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get('raw_data_name')
+    except Exception as e:  # pylint: disable=broad-except
+        logger.info(
+            "get_bkbase_raw_data_id_name: data_source->[%s] table_id->[%s] error->[%s],use new rule to "
+            "generate data_id_name",
+            data_source,
+            table_id,
+            e,
+        )
+        raw_data_name = compose_bkdata_data_id_name(data_source.data_name)
+
+    logger.info(
+        "get_bkbase_raw_data_id_name: data_source->[%s] table_id->[%s] raw_data_name->[%s]",
+        data_source,
+        table_id,
+        raw_data_name,
+    )
+
+    return raw_data_name
+
+
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+def get_bkbase_raw_data_name_for_v3_datalink(bkbase_data_id):
+    """
+    获取计算平台对应的data_id_name，适配V3迁移V4场景，具备重试能力
+    @param bkbase_data_id: 计算平台数据源ID
+    """
+    try:
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get('raw_data_name')
+        return raw_data_name
+    except Exception as e:  # pylint: disable=broad-except
+        logger.info("get_bkbase_raw_data_name_for_v3_datalink: bkbase_data_id->[%s] error->[%s]", bkbase_data_id, e)
+        raise e
 
 
 def is_k8s_metric_data_id(data_name: str) -> bool:
