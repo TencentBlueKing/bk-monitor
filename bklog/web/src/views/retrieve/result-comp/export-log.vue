@@ -380,7 +380,7 @@
             if (res.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: res.data.prompt,
+                message: this.$t('任务提交成功，系统处理后将通过邮件通知，请留意'),
               });
             }
           })
@@ -447,7 +447,7 @@
             if (res.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: res.data.prompt,
+                message: this.$t('任务提交成功，系统处理后将通过邮件通知，请留意'),
               });
             }
           })
