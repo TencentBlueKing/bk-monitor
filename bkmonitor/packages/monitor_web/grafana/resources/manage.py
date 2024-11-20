@@ -62,6 +62,9 @@ class GetDashboardList(Resource):
                 "folder_title": dashboard.get("folderTitle", ""),
                 "name": dashboard["title"],
                 "is_starred": dashboard["isStarred"],
+                "url": dashboard["url"],
+                "uri": dashboard["uri"],
+                "tags": dashboard["tags"],
             }
             for dashboard in dashboards
         ]
@@ -112,7 +115,7 @@ class GetDirectoryTree(Resource):
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
 
-        return [folder for folder_id, folder in folders.items()]
+        return list(folders.values())
 
 
 class CreateDashboardOrFolder(Resource):
