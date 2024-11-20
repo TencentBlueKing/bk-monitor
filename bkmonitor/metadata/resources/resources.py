@@ -258,6 +258,16 @@ class ModifyResultTableResource(Resource):
         if query_set.exists() and request_data["field_list"] is not None:
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0)
+        try:
+            bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
+            result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+            logger.info(
+                "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                table_id,
+                bk_data_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
         return result_table.to_json()
 
