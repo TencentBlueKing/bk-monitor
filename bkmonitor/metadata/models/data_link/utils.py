@@ -82,7 +82,7 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
         table_id = f'{table_id[:34]}_{hash_suffix}'
 
     if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
-        if len(table_id) > 39:  # 若长度接近阈值，再次缩短
+        if len(table_id) > 36:  # 若长度接近阈值，再次缩短
             table_id = table_id[:35]
         table_id = table_id + '_fed'
     # 确保长度不超过40
