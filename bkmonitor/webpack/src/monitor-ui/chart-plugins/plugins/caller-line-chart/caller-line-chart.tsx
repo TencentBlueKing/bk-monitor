@@ -430,7 +430,8 @@ class CallerLineChart extends CommonSimpleChart {
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const { width } = this.$el?.getBoundingClientRect();
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -639,7 +640,7 @@ class CallerLineChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || 2,
         lineStyle: {
           width: 2,
         },
