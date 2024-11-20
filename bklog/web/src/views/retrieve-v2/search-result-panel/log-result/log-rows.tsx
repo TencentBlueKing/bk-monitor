@@ -107,21 +107,24 @@ export default defineComponent({
     const hasOverflowX = ref(false);
     const bufferCount = 30;
 
-    const visibleTableList = computed(() =>
-      tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
-    );
+    // const visibleTableList = computed(() =>
+    //   tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
+    // );
 
-    const tableMinHeight = computed(() => {
-      return tableData.value.reduce((height, row) => {
-        const config = row[ROW_CONFIG].value;
-        return height + config.minHeight;
-      }, 0);
-    });
+    // const tableMinHeight = computed(() => {
+    //   return tableData.value.reduce((height, row) => {
+    //     const config = row[ROW_CONFIG].value;
+    //     return height + config.minHeight;
+    //   }, 0);
+    // });
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const tableRowStore = new Map<string, RowConfig>();
+    const getOperatorToolsWidth = () => {
+      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+    };
 
     const renderColumns = computed(() => {
       return [
@@ -170,7 +173,7 @@ export default defineComponent({
           field: ROW_F_ORIGIN_OPT,
           key: ROW_F_ORIGIN_OPT,
           title: $t('操作'),
-          width: 80,
+          width: getOperatorToolsWidth(),
           fixed: 'right',
           resize: false,
           renderBodyCell: ({ row }) => {
@@ -393,12 +396,25 @@ export default defineComponent({
       },
     };
 
+    const resetRowHeight = () => {
+      scrollToTop();
+      const { startIndex, endIndex } = visibleIndexs.value;
+      tableData.value.forEach(row => {
+        const index = row[ROW_INDEX];
+
+        if (index < startIndex || index >= endIndex) {
+          row[ROW_CONFIG].value.minHeight = 40;
+        }
+      });
+    };
+
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
         columns.value = loadTableColumns();
         setTimeout(() => {
           hasOverflowX.value = hasScrollX();
+          resetRowHeight();
         });
       },
     );
@@ -506,10 +522,17 @@ export default defineComponent({
     });
 
     const scrollXOffsetLeft = ref(0);
+    const getFixRightWidth = computed(() => {
+      const operatorWidth = getOperatorToolsWidth();
+      const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
+      return diff > operatorWidth ? 0 : operatorWidth - diff;
+    });
 
     const scrollXTransformStyle = computed(() => {
       return {
         '--scroll-left': `-${scrollXOffsetLeft.value}px`,
+        '--padding-right': `${getOperatorToolsWidth()}px`,
+        '--fix-right-width': `${getFixRightWidth.value}px`,
       };
     });
 
@@ -601,8 +624,6 @@ export default defineComponent({
         const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
         rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
         const rowStyle = {
-          // top: `${rowStickyTop}px`,
-          // position: 'sticky',
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
         };
 
@@ -656,8 +677,7 @@ export default defineComponent({
     };
     const tableStyle = computed(() => {
       return {
-        // minHeight: `${tableMinHeight.value + 40}px`,
-        // transform: `translate3d(-${scrollXOffsetLeft.value}px, -${scrollRowOffsetHeight.value}px, 0)`,
+        transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,
         ...scrollXTransformStyle.value,
       };
     });

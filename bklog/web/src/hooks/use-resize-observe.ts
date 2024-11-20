@@ -25,9 +25,12 @@
  */
 import { onMounted, Ref, onUnmounted } from 'vue';
 
-import { debounce } from 'lodash';
+import { debounce, isElement } from 'lodash';
 
-export default (target: Ref<HTMLElement> | string, callbackFn: (entry: ResizeObserverEntry) => void) => {
+export default (
+  target: Ref<HTMLElement> | string | (() => string | HTMLElement),
+  callbackFn: (entry: ResizeObserverEntry) => void,
+) => {
   const debounceCallback = debounce(entry => {
     callbackFn?.(entry);
   }, 120);
@@ -37,6 +40,14 @@ export default (target: Ref<HTMLElement> | string, callbackFn: (entry: ResizeObs
       return document.querySelector(target);
     }
 
+    if (isElement(target)) {
+      return target;
+    }
+
+    if (typeof target === 'function') {
+      return target?.();
+    }
+
     return target?.value;
   };
 
@@ -44,7 +55,7 @@ export default (target: Ref<HTMLElement> | string, callbackFn: (entry: ResizeObs
   const createResizeObserve = () => {
     const cellElement = getTarget();
 
-    if (cellElement) {
+    if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
@@ -64,7 +75,7 @@ export default (target: Ref<HTMLElement> | string, callbackFn: (entry: ResizeObs
   onUnmounted(() => {
     const cellElement = getTarget();
 
-    if (cellElement) {
+    if (isElement(cellElement)) {
       resizeObserver?.unobserve(cellElement);
       resizeObserver?.disconnect();
       resizeObserver = null;

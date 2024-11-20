@@ -1,4 +1,4 @@
-import { defineComponent, ref } from 'vue';
+import { defineComponent, Ref, ref } from 'vue';
 import useResizeObserve from '@/hooks/use-resize-observe';
 
 export default defineComponent({
@@ -10,19 +10,23 @@ export default defineComponent({
   },
   emits: ['row-resize'],
   setup(props, { emit, slots }) {
-    const refRowNodeRoot = ref();
+    const refRowNodeRoot: Ref<HTMLElement> = ref();
     const renderRowVNode = () => {
       return (
         <div
           ref={refRowNodeRoot}
           data-row-index={props.rowIndex}
         >
-          {slots.default?.()}
+          <div>{slots.default?.()}</div>
         </div>
       );
     };
 
-    useResizeObserve(refRowNodeRoot, entry => {
+    const getTargetElement = () => {
+      return refRowNodeRoot.value?.firstElementChild ?? refRowNodeRoot;
+    };
+
+    useResizeObserve(getTargetElement, entry => {
       emit('row-resize', entry);
     });
 

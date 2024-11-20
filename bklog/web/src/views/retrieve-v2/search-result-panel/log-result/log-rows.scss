@@ -9,12 +9,7 @@
   margin-top: 12px;
 
   .bklog-requsting-loading {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
     pointer-events: none;
-
     > div {
       height: 40px;
       line-height: 40px;
@@ -39,7 +34,7 @@
     position: fixed;
     right: 16px;
     bottom: 0;
-    height: 10px;
+    height: 14px;
     overflow-x: auto;
     background-color: transparent;
 
@@ -265,10 +260,13 @@
 
     &.has-overflow-x {
       .bklog-list-row {
+        padding-right: var(--padding-right);
         .bklog-row-cell {
           &.right {
             position: sticky;
             right: var(--scroll-left);
+            transform: translateX(var(--fix-right-width));
+            padding: 8px 0;
           }
         }
       }

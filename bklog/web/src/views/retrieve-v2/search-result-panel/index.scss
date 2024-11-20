@@ -5,7 +5,6 @@
     position: relative;
     display: flex;
     height: fit-content;
-    margin: 0 8px;
     overflow: visible;
 
     .field-list-sticky {
@@ -23,8 +22,10 @@
 
     .search-result-content {
       position: relative;
-      padding-left: 16px;
       border-left: solid 1px #dcdee5;
+      .monitor-echarts-container {
+        padding-left: 16px;
+      }
 
       &::before {
         position: absolute;
@@ -37,6 +38,18 @@
         background-color: #fff;
         box-shadow: 1px 0 0 0 #eaebf0;
         transform: translateX(-100%);
+      }
+
+      &::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        z-index: 1;
+        width: 10px;
+        content: '';
+        background-color: #fff;
+        transform: translateX(100%);
       }
     }
   }

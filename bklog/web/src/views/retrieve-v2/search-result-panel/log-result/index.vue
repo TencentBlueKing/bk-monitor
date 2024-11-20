@@ -292,6 +292,7 @@
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;
+      padding-left: 16px;
     }
 
     .tools-more {

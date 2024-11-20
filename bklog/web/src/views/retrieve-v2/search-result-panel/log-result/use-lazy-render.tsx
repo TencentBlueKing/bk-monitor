@@ -28,6 +28,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { throttle, debounce } from 'lodash';
 
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import useResizeObserve from '../../../../hooks/use-resize-observe';
 
 export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const isRunning = ref(false);
@@ -96,6 +97,15 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
     scrollWidth.value = wrapper.scrollWidth;
     return wrapper.scrollWidth > wrapper.offsetWidth;
   };
+
+  useResizeObserve(getCurrentElement, entry => {
+    const target = getCurrentElement() as HTMLDivElement;
+    if (target) {
+      const wrapper = target.closest('.bklog-result-container') as HTMLElement;
+      offsetWidth.value = wrapper.offsetWidth;
+      scrollWidth.value = wrapper.scrollWidth;
+    }
+  });
 
   onMounted(() => {
     getScrollElement()?.addEventListener('scroll', handleScrollEvent);

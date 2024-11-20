@@ -31,22 +31,22 @@
     emit('menu-click', event);
   };
 
-  // const instance = new UseJsonFormatter({
-  //   target: refContent,
-  //   fields: [props.field],
-  //   jsonValue: props.content,
-  //   onSegmentClick: handleMenuClick,
-  // });
+  const instance = new UseJsonFormatter({
+    target: refContent,
+    fields: [props.field],
+    jsonValue: props.content,
+    onSegmentClick: handleMenuClick,
+  });
 
-  // const textTruncateOption = computed(() => ({
-  //   fontSize: 12,
-  //   text: props.content,
-  //   maxWidth: maxWidth.value,
-  //   font: `12px ${TABLE_FOUNT_FAMILY}`,
-  //   showAll: isLimitExpandView.value || showAll.value,
-  // }));
+  const textTruncateOption = computed(() => ({
+    fontSize: 12,
+    text: props.content,
+    maxWidth: maxWidth.value,
+    font: `12px ${TABLE_FOUNT_FAMILY}`,
+    showAll: isLimitExpandView.value || showAll.value,
+  }));
 
-  // const { truncatedText, showMore } = useTruncateText(textTruncateOption);
+  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const renderText = computed(() => {
     if (showAll.value || isLimitExpandView.value || true) {
       return props.content;
@@ -55,46 +55,46 @@
     return truncatedText.value;
   });
 
-  // const btnText = computed(() => {
-  //   if (showAll.value) {
-  //     return $t('收起');
-  //   }
+  const btnText = computed(() => {
+    if (showAll.value) {
+      return $t('收起');
+    }
 
-  //   return $t('更多');
-  // });
+    return $t('更多');
+  });
 
-  // let resizeObserver = null;
+  let resizeObserver = null;
 
-  // const debounceSetSegmentTag = debounce(() => {
-  //   if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
-  //     return;
-  //   }
+  const debounceSetSegmentTag = debounce(() => {
+    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
+      return;
+    }
 
-  //   instance.config.jsonValue = props.content;
-  //   instance.destroy?.();
+    instance.config.jsonValue = props.content;
+    instance.destroy?.();
 
-  //   const appendText =
-  //     showMore.value && !isLimitExpandView.value
-  //       ? {
-  //           text: btnText.value,
-  //           onClick: handleClickMore,
-  //           attributes: {
-  //             class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-  //           },
-  //         }
-  //       : undefined;
-  //   instance.initStringAsValue(props.content, appendText);
-  // });
+    const appendText =
+      showMore.value && !isLimitExpandView.value
+        ? {
+            text: btnText.value,
+            onClick: handleClickMore,
+            attributes: {
+              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+            },
+          }
+        : undefined;
+    instance.initStringAsValue(props.content, appendText);
+  });
 
-  // watch(
-  //   () => [renderText.value],
-  //   () => {
-  //     debounceSetSegmentTag();
-  //   },
-  //   {
-  //     immediate: true,
-  //   },
-  // );
+  watch(
+    () => [renderText.value],
+    () => {
+      debounceSetSegmentTag();
+    },
+    {
+      immediate: true,
+    },
+  );
 
   const handleClickMore = e => {
     e.stopPropagation();
@@ -117,46 +117,46 @@
     }
   });
 
-  // const createResizeObserve = () => {
-  //   const cellElement = getCellElement();
-  //   if (cellElement) {
-  //     const elementMaxWidth = cellElement.offsetWidth * 3;
-  //     maxWidth.value = elementMaxWidth;
+  const createResizeObserve = () => {
+    const cellElement = getCellElement();
+    if (cellElement) {
+      const elementMaxWidth = cellElement.offsetWidth * 3;
+      maxWidth.value = elementMaxWidth;
 
-  //     // 创建一个 ResizeObserver 实例
-  //     resizeObserver = new ResizeObserver(() => {
-  //       debounceUpdateSegmentTag();
-  //     });
+      // 创建一个 ResizeObserver 实例
+      resizeObserver = new ResizeObserver(() => {
+        debounceUpdateSegmentTag();
+      });
 
-  //     resizeObserver?.observe(getCellElement());
-  //   }
-  // };
+      resizeObserver?.observe(getCellElement());
+    }
+  };
 
-  // useIntersectionObserver(refContent, entry => {
-  //   isIntersecting.value = entry.isIntersecting;
-  //   if (entry.isIntersecting) {
-  //     // 进入可视区域重新计算宽度
-  //     debounceSetSegmentTag();
-  //   } else {
-  //     if (refFieldValue.value) {
-  //       debounceSetSegmentTag.cancel();
-  //       refFieldValue.value.innerText = props.content;
-  //     }
-  //   }
-  // });
+  useIntersectionObserver(refContent, entry => {
+    isIntersecting.value = entry.isIntersecting;
+    if (entry.isIntersecting) {
+      // 进入可视区域重新计算宽度
+      debounceSetSegmentTag();
+    } else {
+      if (refFieldValue.value) {
+        debounceSetSegmentTag.cancel();
+        refFieldValue.value.innerText = props.content;
+      }
+    }
+  });
 
   onMounted(() => {
-    // debounceUpdateSegmentTag();
-    // createResizeObserve();
+    debounceUpdateSegmentTag();
+    createResizeObserve();
   });
 
   onBeforeUnmount(() => {
-    // const target = getCellElement();
-    // if (target) {
-    //   resizeObserver?.unobserve(target);
-    // }
-    // resizeObserver?.disconnect();
-    // resizeObserver = null;
+    const target = getCellElement();
+    if (target) {
+      resizeObserver?.unobserve(target);
+    }
+    resizeObserver?.disconnect();
+    resizeObserver = null;
   });
 </script>
 <template>
