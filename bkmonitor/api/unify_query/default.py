@@ -247,7 +247,7 @@ class GetTagKeysResource(UnifyQueryAPIResource):
     获取tag keys
     """
 
-    method = "GET"
+    method = "POST"
     path = "/query/ts/info/tag_keys"
 
     class RequestSerializer(serializers.Serializer):
