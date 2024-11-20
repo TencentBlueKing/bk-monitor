@@ -27,8 +27,8 @@ import { onMounted, onUnmounted, ref } from 'vue';
 
 import { throttle, debounce } from 'lodash';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 import useResizeObserve from '../../../../hooks/use-resize-observe';
+import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const isRunning = ref(false);
@@ -86,8 +86,8 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
     lastPosition = target.scrollTop;
   });
 
-  const scrollToTop = () => {
-    getScrollElement().scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+  const scrollToTop = (smooth = true) => {
+    getScrollElement().scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = () => {
@@ -98,12 +98,21 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
     return wrapper.scrollWidth > wrapper.offsetWidth;
   };
 
+  const getParentContainer = () => {
+    return getCurrentElement()?.closest('.bklog-result-container') as HTMLElement;
+  };
+
   useResizeObserve(getCurrentElement, entry => {
-    const target = getCurrentElement() as HTMLDivElement;
+    const target = entry.target as HTMLDivElement;
     if (target) {
-      const wrapper = target.closest('.bklog-result-container') as HTMLElement;
-      offsetWidth.value = wrapper.offsetWidth;
-      scrollWidth.value = wrapper.scrollWidth;
+      scrollWidth.value = target.offsetWidth;
+    }
+  });
+
+  useResizeObserve(getParentContainer, entry => {
+    const target = entry.target as HTMLDivElement;
+    if (target) {
+      offsetWidth.value = target.offsetWidth;
     }
   });
 

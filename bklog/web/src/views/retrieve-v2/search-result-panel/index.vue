@@ -59,7 +59,7 @@
 
   const rightContentStyle = computed(() => {
     return {
-      width: `calc(100% - ${fieldFilterWidth.value}px)`,
+      width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
     };
   });
 </script>
@@ -69,7 +69,7 @@
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
-      <div class="field-list-sticky">
+      <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
           v-model="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
@@ -90,7 +90,7 @@
         ></FieldFilter>
       </div>
       <div
-        class="search-result-content"
+        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
         :style="rightContentStyle"
       >
         <SearchResultChart

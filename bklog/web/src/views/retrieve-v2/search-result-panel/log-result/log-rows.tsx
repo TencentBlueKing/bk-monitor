@@ -397,7 +397,11 @@ export default defineComponent({
     };
 
     const resetRowHeight = () => {
-      scrollToTop();
+      scrollToTop(visibleIndexs.value.endIndex < 100);
+
+      visibleIndexs.value.startIndex = 0;
+      visibleIndexs.value.endIndex = bufferCount;
+
       const { startIndex, endIndex } = visibleIndexs.value;
       tableData.value.forEach(row => {
         const index = row[ROW_INDEX];
@@ -538,7 +542,7 @@ export default defineComponent({
 
     const headStyle = computed(() => {
       return {
-        top: `${searchContainerHeight.value}px`,
+        top: `${searchContainerHeight.value + 8}px`,
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
         ...scrollXTransformStyle.value,
       };
@@ -575,13 +579,17 @@ export default defineComponent({
       return null;
     };
 
+    const scrollTop = () => {
+      scrollToTop(visibleIndexs.value.endIndex < 100);
+    };
+
     const renderScrollTop = () => {
       if (rowsOffsetTop.value > 300) {
         return (
           <span
             class='btn-scroll-top'
             v-bk-tooltips={$t('返回顶部')}
-            onClick={() => scrollToTop()}
+            onClick={() => scrollTop()}
           >
             <i class='bklog-icon bklog-zhankai'></i>
           </span>
@@ -616,10 +624,25 @@ export default defineComponent({
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
     };
 
+    // 未显示的行高度
+    const preHiddenHeight = computed(() => {
+      return tableData.value.slice(0, visibleIndexs.value.startIndex).reduce((pre, cur) => {
+        return pre + (cur[ROW_CONFIG].value.minHeight ?? 0);
+      }, 0);
+    });
+
+    const renderRows = computed(() => tableData.value.slice(visibleIndexs.value.startIndex));
+
     const renderRowVNode = () => {
       let rowStickyTop = 0;
       const { startIndex, endIndex } = visibleIndexs.value;
-      return tableData.value.map((row, index) => {
+      return [{}, ...renderRows.value].map((row, index) => {
+        if (index === 0) {
+          const emptyRowStyle = {
+            minHeight: `${preHiddenHeight.value}px`,
+          };
+          return <div style={emptyRowStyle}></div>;
+        }
         const rowIndex = row[ROW_INDEX];
         const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
         rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
@@ -627,7 +650,7 @@ export default defineComponent({
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
         };
 
-        if (index >= startIndex && index < endIndex) {
+        if (rowIndex >= startIndex && rowIndex < endIndex) {
           return (
             <RowRender
               key={row[ROW_KEY]}

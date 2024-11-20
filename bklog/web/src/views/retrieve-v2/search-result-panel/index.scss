@@ -8,10 +8,12 @@
     overflow: visible;
 
     .field-list-sticky {
-      position: sticky;
-      top: 52px;
-      z-index: 2;
-      align-self: start;
+      &.is-show {
+        position: sticky;
+        top: 52px;
+        z-index: 2;
+        align-self: start;
+      }
     }
 
     .split-line {
@@ -23,8 +25,22 @@
     .search-result-content {
       position: relative;
       border-left: solid 1px #dcdee5;
+
       .monitor-echarts-container {
         padding-left: 16px;
+
+        .title-wrapper-new {
+          z-index: 3;
+          margin-left: 110px;
+        }
+      }
+
+      &.field-list-show {
+        .monitor-echarts-container {
+          .title-wrapper-new {
+            margin-left: 0;
+          }
+        }
       }
 
       &::before {
@@ -43,8 +59,8 @@
       &::after {
         position: absolute;
         top: 0;
-        bottom: 0;
         right: 0;
+        bottom: 0;
         z-index: 1;
         width: 10px;
         content: '';
