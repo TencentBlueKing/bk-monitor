@@ -18,14 +18,22 @@ from monitor_web.scene_view.resources import HostIndexQueryMixin
 def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_time=None, end_time=None):
     index_set_ids = []
 
-    full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+    indexes_mapping = {
+        bk_biz_id: api.log_search.search_index_set(bk_biz_id=bk_biz_id),
+    }
+
     # Resource: 从 SpanId 关联主机中找
     if span_id:
         host_indexes = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
         for item in host_indexes:
             if item["index_set_id"] not in index_set_ids:
                 index_info = next(
-                    (i for i in full_indexes if str(i["index_set_id"]) == str(item["index_set_id"])), None
+                    (
+                        i
+                        for i in indexes_mapping.get(bk_biz_id, [])
+                        if str(i["index_set_id"]) == str(item["index_set_id"])
+                    ),
+                    None,
                 )
                 if index_info:
                     index_set_ids.append(str(item["index_set_id"]))
@@ -35,10 +43,13 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     datasource_index_set_id = ServiceLogHandler.get_and_check_datasource_index_set_id(
         bk_biz_id,
         app_name,
-        full_indexes=full_indexes,
+        full_indexes=indexes_mapping.get(bk_biz_id, []),
     )
     if datasource_index_set_id and datasource_index_set_id not in index_set_ids:
-        index_info = next((i for i in full_indexes if str(i["index_set_id"]) == str(datasource_index_set_id)), None)
+        index_info = next(
+            (i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) == str(datasource_index_set_id)),
+            None,
+        )
         if index_info:
             index_set_ids.append(str(datasource_index_set_id))
             yield index_info
@@ -48,6 +59,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     if relation and relation.value not in index_set_ids:
         if relation.related_bk_biz_id != bk_biz_id:
             relation_full_indexes = api.log_search.search_index_set(bk_biz_id=relation.related_bk_biz_id)
+            indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
                 (i for i in relation_full_indexes if str(i["index_set_id"]) == relation.value),
                 None,
@@ -56,7 +68,10 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 index_set_ids.append(relation.value)
                 yield index_info
         else:
-            index_info = next((i for i in full_indexes if str(i["index_set_id"]) == relation.value), None)
+            index_info = next(
+                (i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) == relation.value),
+                None,
+            )
             if index_info:
                 index_set_ids.append(relation.value)
                 yield index_info
@@ -72,7 +87,11 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     if relation_index_set_ids:
         for i in relation_index_set_ids:
             if i not in index_set_ids:
-                index_info = next((j for j in full_indexes if str(j["index_set_id"]) == str(i)), None)
+
+                index_info = next(
+                    (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(i)),
+                    None,
+                )
                 if index_info:
                     index_set_ids.append(i)
                     yield index_info
