@@ -270,17 +270,20 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
     联邦集群子集群应具有:ConditionalSink & DataBus等两类资源
     测试用例：
     BCS-K8S-10001为代理集群（ProxyCluster）,其K8S内建指标为60010-1001_bkmonitor_time_series_60010.__default__
+    BCS-K8S-70001为代理集群（ProxyCluster）,其K8S内建指标为70010-1001_bkmonitor_time_series_70010.__default__
     BCS-K8S-10002为联邦集群子集群（SubCluster）,其K8S内建指标为60011-1001_bkmonitor_time_series_60011.__default__
     """
     sub_ds = models.DataSource.objects.get(bk_data_id=60011)
     sub_rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_60011.__default__')
 
     # 测试参数是否正确组装
-    bkbase_data_name = 'fed_' + utils.compose_bkdata_data_id_name(sub_ds.data_name)
+    bkbase_data_name = utils.compose_bkdata_data_id_name(
+        sub_ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
+    )
     assert bkbase_data_name == "fed_bkm_bcs_BCS-K8S-10002_k8s_metric"
 
-    bkbase_vmrt_name = utils.compose_bkdata_table_id(sub_rt.table_id)
-    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_60011"
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(sub_rt.table_id, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_60011_fed"
 
     expected = json.dumps(
         [
@@ -365,11 +368,11 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
 
     conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name)
     assert conditional_sink_ins.namespace == 'bkmonitor'
-    assert conditional_sink_ins.name == bkbase_vmrt_name + '_fed'
+    assert conditional_sink_ins.name == bkbase_vmrt_name
 
     databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name)
     assert databus_ins.namespace == 'bkmonitor'
-    assert databus_ins.name == bkbase_vmrt_name + '_fed'
+    assert databus_ins.name == bkbase_vmrt_name
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -681,11 +684,11 @@ def test_create_sub_federal_data_link(create_or_delete_records, mocker):
     sub_rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_60011.__default__')
 
     # 测试参数是否正确组装
-    bkbase_data_name = 'fed_' + utils.compose_bkdata_data_id_name(sub_ds.data_name)
+    bkbase_data_name = utils.compose_bkdata_data_id_name(sub_ds.data_name, DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_data_name == "fed_bkm_bcs_BCS-K8S-10002_k8s_metric"
 
-    bkbase_vmrt_name = utils.compose_bkdata_table_id(sub_rt.table_id)
-    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_60011"
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(sub_rt.table_id, DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_60011_fed"
 
     expected = json.dumps(
         [
@@ -789,11 +792,11 @@ def test_create_sub_federal_data_link(create_or_delete_records, mocker):
 
     conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name)
     assert conditional_sink_ins.namespace == 'bkmonitor'
-    assert conditional_sink_ins.name == bkbase_vmrt_name + '_fed'
+    assert conditional_sink_ins.name == bkbase_vmrt_name
 
     databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name)
     assert databus_ins.namespace == 'bkmonitor'
-    assert databus_ins.name == bkbase_vmrt_name + '_fed'
+    assert databus_ins.name == bkbase_vmrt_name
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
