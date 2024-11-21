@@ -28,7 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import { GROUP_OPTIONS } from './components/filter-by-condition/utils';
-import GroupByCondition, { type IGroupOptions } from './components/group-by-condition/group-by-condition';
+import GroupByCondition, {
+  type IGroupOption,
+  type IGroupByChangeEvent,
+} from './components/group-by-condition/group-by-condition';
 import K8sTableNew from './components/k8s-table-new/k8s-table-new';
 import { K8sNewTabEnum } from './typings/k8s-new';
 
@@ -54,6 +57,7 @@ const tabList = [
 @Component
 export default class MonitorK8sNew extends tsc<object> {
   activeTab = K8sNewTabEnum.LIST;
+  groupFilters: Array<number | string> = [];
   groupOptions = [...GROUP_OPTIONS];
   loading = false;
 
@@ -66,6 +70,14 @@ export default class MonitorK8sNew extends tsc<object> {
    */
   getK8sList(param = {}) {}
 
+  setGroupFilters(filters: Array<number | string>) {
+    this.$set(this, 'groupFilters', filters);
+  }
+
+  setGroupOption<T extends keyof IGroupOption>(option: IGroupOption, key: T, value: IGroupOption[T]) {
+    this.$set(option, key, value);
+  }
+
   async handleTabChange(v: K8sNewTabEnum) {
     this.loading = true;
     this.activeTab = v;
@@ -73,9 +85,12 @@ export default class MonitorK8sNew extends tsc<object> {
       this.loading = false;
     }, 200);
   }
-  handleGroupChecked(item: { option: IGroupOptions; checked: boolean }) {
-    this.$set(item.option, 'checked', item.checked);
+
+  handleGroupChecked(item: IGroupByChangeEvent) {
+    this.setGroupFilters([...item.ids]);
+    this.setGroupOption(item.option, 'checked', item.checked);
   }
+
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
@@ -107,6 +122,8 @@ export default class MonitorK8sNew extends tsc<object> {
               <div class='filter-by-wrap'>
                 <GroupByCondition
                   dimensionOptions={this.groupOptions}
+                  groupFilters={this.groupFilters}
+                  title='Group by'
                   onChange={this.handleGroupChecked}
                 />
               </div>
