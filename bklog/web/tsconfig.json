@@ -1,5 +1,5 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js", "src/**/*"],
   "exclude": ["node_modules", "dist", "local.settings.js"],
   "vueCompilerOptions": {
     "target": 2.7

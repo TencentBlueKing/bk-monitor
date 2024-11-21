@@ -687,7 +687,7 @@ export default defineComponent({
     const renderScrollXBar = () => {
       return (
         <ScrollXBar
-          innerWidth={scrollWidth.value}
+          innerWidth={scrollWidth.value + getOperatorToolsWidth()}
           outerWidth={offsetWidth.value}
           onScroll-change={handleScrollXChanged}
         ></ScrollXBar>

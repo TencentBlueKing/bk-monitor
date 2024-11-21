@@ -26,14 +26,14 @@
 
 <template>
   <div
-    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
     class="bklog-column-wrapper"
+    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
     @click.stop="handleClickContent"
   >
     <template v-if="isJsonFormat">
       <JsonFormatter
-        :jsonValue="content"
         :fields="field"
+        :json-value="content"
         @menu-click="handleJsonSegmentClick"
       ></JsonFormatter>
     </template>
@@ -48,9 +48,10 @@
 </template>
 
 <script>
-  import { mapState } from 'vuex';
-  import TextSegmentation from './text-segmentation';
   import JsonFormatter from '@/global/json-formatter.vue';
+  import { mapState } from 'vuex';
+
+  import TextSegmentation from './text-segmentation';
   export default {
     components: {
       TextSegmentation,
