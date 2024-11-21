@@ -74,7 +74,8 @@ export default defineComponent({
     const { $t } = useLocale();
     const columns = ref([]);
     const tableData = ref([]);
-    const refRootElement = ref();
+    const refRootElement: Ref<HTMLElement> = ref();
+    const refBoxElement: Ref<HTMLElement> = ref();
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -723,6 +724,7 @@ export default defineComponent({
           renderHeadVNode(),
           <div
             id={resultContainerId.value}
+            ref={refBoxElement}
             style={tableStyle.value}
             class={['bklog-row-box', { 'show-head': showHeader.value }]}
           >

@@ -59,6 +59,7 @@
   const rightContentStyle = computed(() => {
     return {
       width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
+      // paddingLeft: `${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px`,
     };
   });
 </script>

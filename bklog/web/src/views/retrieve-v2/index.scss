@@ -1,4 +1,6 @@
 .retrieve-v2-index {
+  background-color: #f4f7fa;
+
   &.scroll-y {
     height: calc(100vh - 52px);
     overflow-x: hidden;
@@ -95,6 +97,7 @@
 
   .retrieve-v2-body {
     display: flex;
+    background-color: #fafbfd;
 
     .retrieve-collect-index {
       position: relative;
@@ -104,28 +107,29 @@
 
       align-self: start;
       overflow: visible;
-
-      &::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 100vh;
-        content: '';
-        background-color: #fafbfd;
-        transform: translateY(100%);
-      }
     }
   }
 
   .retrieve-v2-content {
+    position: relative;
     width: calc(100% - var(--left-width));
-    margin-left: 8px;
+    padding-left: 8px;
+    background-color: #f4f7fa;
+
+    &::after {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 8px;
+      content: '';
+      background-color: #f4f7fa;
+    }
   }
 
   .search-result-panel {
     .search-result-content {
-      height: fit-content;
+      min-height: 100%;
 
       .result-table-container {
         height: 100%;
