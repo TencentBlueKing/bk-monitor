@@ -15,7 +15,7 @@
     >
       <template #header>
         <div>
-          {{ t('字段配置') }}
+          {{ t('索引集配置') }}
           <bk-button
             v-if="!isEdit"
             class="mt10 fr"
