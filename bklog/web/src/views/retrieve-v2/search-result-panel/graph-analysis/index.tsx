@@ -27,6 +27,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import $http from '../../../../api';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/graph-chart.vue';
 import GraphTable from './chart/graph-table.vue';
@@ -371,7 +372,20 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ></GraphChart>,
     ];
   }
-  save() {}
+  async save() {
+    const res = await $http.request('graphAnalysis/favoriteSQL', {
+      data: {
+        favorite_type: 'chart',
+        space_uid: this.$store.state.spaceUid,
+        name: this.basicInfoTitle.title,
+        visible_type: 'public',
+        chart_params: {
+          aa: 'aa',
+        },
+      },
+    });
+    console.log(res);
+  }
   /** 打开添加到仪表盘dialog */
   handleAdd() {
     console.log(this.$refs.addDialog);
