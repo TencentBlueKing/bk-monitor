@@ -11,5 +11,6 @@ specific language governing permissions and limitations under the License.
 from .event import *  # noqa
 from .log import *  # noqa
 from .manage import *  # noqa
+from .profile import *  # noqa
 from .time_series import *  # noqa
 from .unify_query import *  # noqa

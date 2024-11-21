@@ -157,5 +157,4 @@ class GrafanaViewSet(ResourceViewSet):
         # 获得profile维度，可选值
         ResourceRoute("GET", resource.grafana.get_profile_label, endpoint="get_profile_label"),
         ResourceRoute("GET", resource.grafana.get_profile_label_values, endpoint="get_profile_label_values"),
-        ResourceRoute("GET", resource.grafana.request_demo, endpoint="request_demo"),
     ]
