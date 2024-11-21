@@ -33,13 +33,7 @@ import { EGroupBy, GROUP_OPTIONS } from './utils';
 
 import './filter-by-condition.scss';
 
-enum ETagType {
-  add = 'add',
-  condition = 'condition',
-  kv = 'kv',
-}
-
-interface IValueItem {
+interface IValue {
   id: string;
   name: string;
 }
@@ -48,8 +42,7 @@ interface ITagListItem {
   key: string;
   id: string;
   name: string;
-  values: IValueItem[];
-  type: ETagType;
+  values: IValue[];
 }
 
 interface IGroupOptionsItem {
@@ -75,23 +68,21 @@ export default class FilterByCondition extends tsc<object> {
   // tags
   tagList: ITagListItem[] = [];
   popoverInstance = null;
-
+  // 头部group选项
   groupOptions: IGroupOptionsItem[] = [];
+  // 当前选择的group
   groupSelected: EGroupBy | string = '';
+  // 当前选择的group下的value选项
   valueOptions: IValueItem[] = [];
+  // 当前选择的value下的value选项 (二级分类)
   valueCategoryOptions: IValueItem[] = [];
+  valueCategorySelected = '';
+  // 搜索框输入的值
   searchValue = '';
+  updateActive = '';
 
   created() {
-    this.tagList = [
-      {
-        type: ETagType.add,
-        key: random(8),
-        id: '',
-        name: '',
-        values: [],
-      },
-    ];
+    this.tagList = [];
     this.groupSelected = GROUP_OPTIONS[0].id;
     this.valueOptions = GROUP_OPTIONS[0].list.map(item => ({ ...item, checked: false }));
     this.groupOptions = GROUP_OPTIONS.map(item => ({
@@ -115,6 +106,8 @@ export default class FilterByCondition extends tsc<object> {
       followCursor: false,
       onHidden: () => {
         this.destroyPopoverInstance();
+        this.setTagList();
+        this.updateActive = '';
       },
     });
     await this.$nextTick();
@@ -127,9 +120,9 @@ export default class FilterByCondition extends tsc<object> {
     this.popoverInstance = null;
   }
 
-  handleSelectGroup(option: IGroupOptionsItem) {
-    if (this.groupSelected !== option.id) {
-      this.groupSelected = option.id;
+  handleSelectGroup(id: string) {
+    if (this.groupSelected !== id) {
+      this.groupSelected = id;
       if (this.groupSelected === EGroupBy.workload) {
         const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
         this.valueCategoryOptions = groupValues.map(item => ({ ...item, checked: false }));
@@ -150,6 +143,57 @@ export default class FilterByCondition extends tsc<object> {
     item.checked = !item.checked;
   }
 
+  setTagList() {
+    const curSelected = [];
+    for (const value of this.valueOptions) {
+      if (value.checked) {
+        curSelected.push(value);
+      }
+    }
+    let has = false;
+    if (!curSelected.length) {
+      const delIndex = this.tagList.findIndex(item => item.id === this.groupSelected);
+      if (delIndex > -1) {
+        this.tagList.splice(delIndex, 1);
+      }
+      return;
+    }
+    for (const tag of this.tagList) {
+      if (tag.id === this.groupSelected) {
+        tag.values = curSelected.map(item => ({
+          id: item.id,
+          name: item.name,
+        }));
+        has = true;
+        break;
+      }
+    }
+    if (!has) {
+      const groupItem = this.groupOptions.find(item => item.id === this.groupSelected);
+      const obj = {
+        key: random(8),
+        id: groupItem.id,
+        name: groupItem.name,
+        values: curSelected.map(item => ({
+          id: item.id,
+          name: item.name,
+        })),
+      };
+      this.tagList.push(obj);
+    }
+  }
+
+  handleUpdateTag(event: MouseEvent, item: ITagListItem) {
+    console.log(event);
+    this.updateActive = item.key;
+    this.handleSelectGroup(item.id as any);
+    this.handleAdd(event);
+  }
+
+  handleSelectCategory(item: IValueItem) {
+    this.valueCategorySelected = item.id;
+  }
+
   valuesWrap() {
     return (
       <div class='value-items'>
@@ -167,44 +211,47 @@ export default class FilterByCondition extends tsc<object> {
     );
   }
 
+  tagsWrap() {
+    return [
+      this.tagList.map((item, index) => {
+        return [
+          index >= 1 && (
+            <span
+              key={`and_${item.key}`}
+              class='filter-by-condition-tag type-condition'
+            >
+              AND
+            </span>
+          ),
+          <span
+            key={item.key}
+            class={['filter-by-condition-tag type-kv', { active: this.updateActive === item.key }]}
+            onClick={e => this.handleUpdateTag(e, item)}
+          >
+            <span>{item.name}</span>
+            <span class='method'>=</span>
+            <span>
+              <TextListOverview textList={item.values} />
+            </span>
+            <span class='icon-monitor icon-mc-close' />
+          </span>,
+        ];
+      }),
+      <span
+        key='__add__'
+        class='filter-by-condition-tag type-add'
+        onClick={this.handleAdd}
+      >
+        <span class='icon-monitor icon-plus-line' />
+      </span>,
+    ];
+  }
+
   render() {
     return (
       <div class='filter-by-condition-component'>
-        {this.tagList.map(item => {
-          if (item.type === ETagType.condition) {
-            return (
-              <span
-                key={item.key}
-                class='filter-by-condition-tag'
-              >
-                AND
-              </span>
-            );
-          }
-          if (item.type === ETagType.add) {
-            return (
-              <span
-                key={item.key}
-                class='filter-by-condition-tag type-add'
-                onClick={this.handleAdd}
-              >
-                <span class='icon-monitor icon-plus-line' />
-              </span>
-            );
-          }
-          return (
-            <span
-              key={item.key}
-              class='filter-by-condition-tag'
-            >
-              <span>{item.name}</span>
-              <span>=</span>
-              <span>
-                <TextListOverview textList={item.values} />
-              </span>
-            </span>
-          );
-        })}
+        <div class='tag-list-wrap'>{this.tagsWrap()}</div>
+        <div class='tag-list-wrap-visible'>{this.tagsWrap()}</div>
         <div
           style={{
             display: 'none',
@@ -219,7 +266,7 @@ export default class FilterByCondition extends tsc<object> {
                 <div
                   key={option.id}
                   class={['group-item', { active: this.groupSelected === option.id }]}
-                  onClick={() => this.handleSelectGroup(option)}
+                  onClick={() => this.handleSelectGroup(option.id)}
                 >
                   <span class='group-item-name'>{option.name}</span>
                   <span class='group-item-count'>{option.count}</span>
@@ -242,12 +289,11 @@ export default class FilterByCondition extends tsc<object> {
                     {this.valueCategoryOptions.map(item => (
                       <div
                         key={item.id}
-                        class='cate-item'
+                        class={['cate-item', { active: this.valueCategorySelected === item.id }]}
+                        onClick={() => this.handleSelectCategory(item)}
                       >
-                        <span class='cate-item-name'>
-                          <span class='name'>{item.name}</span>
-                          <span class='count'>{item.count}</span>
-                        </span>
+                        <span class='cate-item-name'>{item.name}</span>
+                        <span class='cate-item-count'>({item.count})</span>
                         <span class='cate-item-right'>
                           <span class='icon-monitor icon-arrow-right' />
                         </span>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './text-list-overview.scss';
@@ -39,15 +39,44 @@ interface IProps {
 
 @Component
 export default class TextListOverview extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) textList: ITextsItem;
+  @Prop({ type: Array, default: () => [] }) textList: ITextsItem[];
 
   texts: ITextsItem[] = [];
 
+  @Watch('textList', { immediate: true })
+  handleWatchTextList() {
+    this.texts = this.textList.map(item => {
+      let name = item.name;
+      if (item.name.length > 20) {
+        name = `${name.slice(0, 20)}...`;
+      }
+      return {
+        ...item,
+        name,
+      };
+    });
+  }
+
   render() {
     return (
-      <span class='text-list-overview'>
-        {this.texts.map(item => {
-          return <span key={item.id}>{item.name}</span>;
+      <span class='condition-text-list-overview'>
+        {this.texts.map((item, index) => {
+          return [
+            index > 0 && (
+              <span
+                key={`,_${item.id}`}
+                class='split'
+              >
+                ,{' '}
+              </span>
+            ),
+            <span
+              key={item.id}
+              class='text'
+            >
+              {item.name}
+            </span>,
+          ];
         })}
       </span>
     );
