@@ -2474,7 +2474,7 @@ class ESStorage(models.Model, StorageResultTable):
 
         return True
 
-    def create_or_update_aliases(self, ahead_time=1440):
+    def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False):
         """
         更新alias，如果有已存在的alias，则将其指向最新的index，并根据ahead_time前向预留一定的alias
         只有当即将切换的索引完全就绪时，才进行索引-别名的绑定关系切换，防止数据丢失
@@ -2547,8 +2547,8 @@ class ESStorage(models.Model, StorageResultTable):
                 except RetryError:  # 若重试后依然失败，则认为未就绪
                     is_ready = False
 
-                if not is_ready:
-                    # 2.4.1 如果索引未就绪，记录日志并跳过，将last_index_name变为上次的索引
+                if not is_ready and not force_rotate:
+                    # 2.4.1 如果索引未就绪且不属于强制轮转，记录日志并跳过，将last_index_name变为上次的索引
                     logger.warning(
                         "create_or_update_aliases: table_id->[%s] index->[%s] is not ready, will skip creation.",
                         self.table_id,
@@ -2603,7 +2603,9 @@ class ESStorage(models.Model, StorageResultTable):
                     actions,
                 )
                 try:
-                    self._update_aliases_with_retry(actions=actions, new_index_name=last_index_name)
+                    self._update_aliases_with_retry(
+                        actions=actions, new_index_name=last_index_name, force_rotate=force_rotate
+                    )
                     logger.info("create_or_update_aliases: table_id->[%s] add new index binding success", self.table_id)
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error(
@@ -2910,7 +2912,7 @@ class ESStorage(models.Model, StorageResultTable):
         return True
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
-    def _update_aliases_with_retry(self, actions, new_index_name):
+    def _update_aliases_with_retry(self, actions, new_index_name, force_rotate: bool = False):
         """
         针对 别名-索引 的更新操作，添加重试机制，等待时间间隔呈指数增长 1 -> 2 -> 4 -> 8
         若new_index_name未就绪，不进行任何操作！
@@ -2929,7 +2931,7 @@ class ESStorage(models.Model, StorageResultTable):
                 "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
             )
         except RetryError:  # 若重试后依然失败，则认为未就绪
-            is_ready = False
+            is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
 
         if not is_ready:
             logger.info(

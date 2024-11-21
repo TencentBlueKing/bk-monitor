@@ -202,7 +202,7 @@
 <style scoped lang="scss">
   @import './index.scss';
 </style>
-<style>
+<style lang="scss">
   .bklog-sql-input-loading {
     .bk-loading-wrapper {
       left: 30px;

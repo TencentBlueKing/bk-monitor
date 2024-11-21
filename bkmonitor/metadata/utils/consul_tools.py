@@ -89,6 +89,7 @@ class HashConsul(object):
         :param key: 键值
         :param value: 内容，期待传入的是字典或者数组
         :param is_force_update: 是否需要强行更新
+        :param bk_data_id: 数据源ID
         :return: True | False
         """
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)

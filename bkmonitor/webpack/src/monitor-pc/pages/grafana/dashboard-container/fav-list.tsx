@@ -36,6 +36,7 @@ export interface IFavListItem {
   expend?: boolean;
   uid?: string;
   children?: IFavListItem[];
+  url?: string;
 }
 interface IEvents {
   onSelected: IFavListItem;
@@ -85,8 +86,11 @@ export default class FavList extends tsc<IProps, IEvents> {
   render() {
     return (
       <div class='fav-list'>
-        {this.list.map(item => (
-          <div class='fav-list-group'>
+        {this.list.map((item, index) => (
+          <div
+            key={index}
+            class='fav-list-group'
+          >
             <div
               class='fav-list-header'
               onClick={() => this.handleExpend(item)}

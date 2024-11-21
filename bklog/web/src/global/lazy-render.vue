@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+  import { ref, computed, onUnmounted } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const props = defineProps({
@@ -41,23 +41,38 @@
 
   const lazyRenderCell = ref(null);
   const isVisible = ref(false);
-  let observer = null;
+  const localHeight = ref();
   const isIntersecting = ref(false);
 
   const cellStyle = computed(() => {
     return {
-      minHeight: props.minHeight,
+      minHeight: localHeight.value ?? props.minHeight,
     };
+  });
+
+  let resizeObserver = new ResizeObserver(() => {
+    localHeight.value = `${lazyRenderCell.value.firstElementChild.offsetHeight ?? props.minHeight}px}`;
   });
 
   useIntersectionObserver(lazyRenderCell, entry => {
     if (entry.isIntersecting) {
       isVisible.value = true;
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.observe(lazyRenderCell.value.firstElementChild);
+      }
     } else {
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
+      }
       if (props.visibleOnly) {
         isVisible.value = false;
       }
     }
+  });
+
+  onUnmounted(() => {
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 
@@ -85,7 +100,7 @@
     height: 12px;
 
     /* margin: 15px auto; */
-    color: #F0F1F5;
+    color: #f0f1f5;
     content: '';
     border-radius: 50%;
     transform: translateY(-50%);

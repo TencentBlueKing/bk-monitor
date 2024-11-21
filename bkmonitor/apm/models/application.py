@@ -16,7 +16,6 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
-from opentelemetry.trace import get_current_span
 
 from apm.constants import DATABASE_CONNECTION_NAME
 from apm.models.datasource import (
@@ -210,9 +209,8 @@ class ApmApplication(AbstractRecordModel):
             create_virtual_metric.delay(self.bk_biz_id, self.app_name)
 
     def send_datasource_apply_alert(self, data_type):
-        trace_id = format(get_current_span().get_span_context().trace_id, "032x")
         EventReportHelper.report(
-            f"[!!!] 应用: [{self.bk_biz_id}]{self.app_name} 创建/更新 {data_type} 数据源失败，traceId: {trace_id}", application=self
+            f"[!!!] 应用: [{self.bk_biz_id}]{self.app_name} 创建/更新 {data_type} 数据源失败", application=self
         )
 
     @classmethod
