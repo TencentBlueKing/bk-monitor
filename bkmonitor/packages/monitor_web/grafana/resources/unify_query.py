@@ -1261,8 +1261,9 @@ class GraphPromqlQueryResource(Resource):
 
 
 class DimensionPromqlQueryResource(Resource):
-    re_label_value = re.compile(r"label_values\(\s*(([a-zA-Z0-9_:]+(\{.*\})?)\s*,)?\s*([a-zA-Z0-9_]+)\)\s*")
+    re_label_value = re.compile(r"label_values\(\s*(([a-zA-Z0-9_:]*(\{.*\})?)\s*,)?\s*([a-zA-Z0-9_]+)\)\s*")
     re_query_result = re.compile(r"query_result\((.*)\)")
+    re_label_names = re.compile(r"label_names\(\s*([a-zA-Z0-9_:]+)\s*\)")
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -1314,6 +1315,34 @@ class DimensionPromqlQueryResource(Resource):
             logger.exception(e)
         return []
 
+    @classmethod
+    def get_label_names(cls, bk_biz_id: int, promql: str) -> List[str]:
+        """
+        查询label_names函数
+        """
+        match = cls.re_label_names.match(promql)
+        label = match.group(1)
+
+        split_items = label.split(":")
+        params = {
+            "bk_biz_ids": [bk_biz_id],
+            "metric_name": split_items[-1],
+        }
+
+        if len(split_items) == 2:
+            params["table_id"] = split_items[0]
+        elif len(split_items) == 3:
+            params["table_id"] = split_items[1]
+            params["data_source"] = split_items[0]
+        else:
+            return []
+
+        try:
+            return api.unify_query.get_tag_keys(**params)
+        except BKAPIError as e:
+            logger.exception(e)
+        return []
+
     def perform_request(self, params):
         promql = params["promql"].strip()
 
@@ -1321,6 +1350,8 @@ class DimensionPromqlQueryResource(Resource):
             return self.get_label_values(params["bk_biz_id"], promql)
         elif self.re_query_result.match(promql):
             return self.get_query_result(params["bk_biz_id"], promql)
+        elif self.re_label_names.match(promql):
+            return self.get_label_names(params["bk_biz_id"], promql)
         else:
             # 默认query_result模式
             return self.get_query_result(params["bk_biz_id"], promql)

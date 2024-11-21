@@ -28,7 +28,12 @@ from metadata.models import BkBaseResultTable, DataSource
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.vm.utils import report_metadata_data_link_status_info
+from metadata.models.space.constants import SpaceTypes
+from metadata.models.vm.utils import (
+    create_fed_bkbase_data_link,
+    get_vm_cluster_id_name,
+    report_metadata_data_link_status_info,
+)
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
@@ -714,3 +719,35 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         data_link_name,
         cost_time,
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def bulk_create_fed_data_link(sub_clusters):
+    from metadata.models import DataSource, DataSourceResultTable
+
+    logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
+    for sub_cluster_id in sub_clusters:
+        # 打印日志记录更新的子集群ID
+        logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
+        try:
+            sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
+            ds = DataSource.objects.get(bk_data_id=sub_cluster.K8sMetricDataID)
+            table_id = DataSourceResultTable.objects.get(bk_data_id=sub_cluster.K8sMetricDataID).table_id
+            vm_cluster = get_vm_cluster_id_name(space_type=SpaceTypes.BKCC.value, space_id=str(sub_cluster.bk_biz_id))
+
+            logger.info(
+                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
+                sub_cluster_id,
+                sub_cluster.K8sMetricDataID,
+                table_id,
+            )
+
+            create_fed_bkbase_data_link(
+                monitor_table_id=table_id,
+                data_source=ds,
+                storage_cluster_name=vm_cluster.get("cluster_name"),
+                bcs_cluster_id=sub_cluster.cluster_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            continue

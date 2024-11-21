@@ -180,11 +180,11 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
 
-    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
-    assert bkbase_data_name == "bkm_data_link_test"
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_data_name == "fed_bkm_data_link_test"
 
-    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
-    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010_fed"
 
     conditions = [
         {
@@ -231,7 +231,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     )
 
     vm_conditional_ins, _ = models.ConditionalSinkConfig.objects.get_or_create(
-        name=bkbase_vmrt_name + '_fed', data_link_name=bkbase_data_name + '_fed', namespace="bkmonitor", bk_biz_id=111
+        name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
     content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
     assert json.dumps(content) == expected
@@ -245,11 +245,11 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
 
-    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
-    assert bkbase_data_name == "bkm_data_link_test"
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_data_name == "fed_bkm_data_link_test"
 
-    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
-    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010"
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
+    assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010_fed"
 
     conditions = [
         {
@@ -322,7 +322,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     )
 
     vm_conditional_ins, _ = models.ConditionalSinkConfig.objects.get_or_create(
-        name=bkbase_vmrt_name + '_fed', data_link_name=bkbase_data_name + '_fed', namespace="bkmonitor", bk_biz_id=111
+        name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
     content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
     assert json.dumps(content) == expected
