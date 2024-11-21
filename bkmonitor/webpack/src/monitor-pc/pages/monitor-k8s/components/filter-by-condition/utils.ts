@@ -37,44 +37,44 @@ export const GROUP_OPTIONS = [
     count: 12,
     list: [
       {
-        id: '1',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234561)xxxxxxxxxxxxxxxx',
+        name: '监控测试集群(BCS-1234561)xxxxxxxxxxxxxxxx',
       },
       {
-        id: '2',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234562)',
+        name: '监控测试集群(BCS-1234562)',
       },
       {
-        id: '3',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234563)',
+        name: '监控测试集群(BCS-1234563)',
       },
       {
-        id: '4',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234564)',
+        name: '监控测试集群(BCS-1234564)',
       },
       {
-        id: '5',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234565)',
+        name: '监控测试集群(BCS-1234565)',
       },
       {
-        id: '6',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234566)',
+        name: '监控测试集群(BCS-1234566)',
       },
       {
-        id: '7',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234567)',
+        name: '监控测试集群(BCS-1234567)',
       },
       {
-        id: '8',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234568)',
+        name: '监控测试集群(BCS-1234568)',
       },
       {
-        id: '9',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-1234569)',
+        name: '监控测试集群(BCS-1234569)',
       },
       {
-        id: '10',
-        name: '监控测试集群(BCS-123456)',
+        id: '监控测试集群(BCS-12345610)',
+        name: '监控测试集群(BCS-12345610)',
       },
     ],
   },
@@ -85,12 +85,12 @@ export const GROUP_OPTIONS = [
     list: [
       {
         id: '1',
-        name: '监控测试集群(BCS-123456)',
+        name: '监控测试集群(BCS-123456)xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
         count: 12,
         list: [
           {
             id: '21',
-            name: '监控测试集群(BCS-123456)',
+            name: '监控测试集群(BCS-123456)xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
           },
           {
             id: '22',
@@ -120,11 +120,15 @@ export const GROUP_OPTIONS = [
             id: '28',
             name: '监控测试集群(BCS-123456)',
           },
+          {
+            id: '29',
+            name: '监控测试集群(BCS-123456)',
+          },
         ],
       },
       {
         id: '2',
-        name: '监控测试集群(BCS-123456)',
+        name: '监控测试集',
         count: 12,
         list: [
           {
