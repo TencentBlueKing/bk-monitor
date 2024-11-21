@@ -55,6 +55,15 @@ class QueryStringBuilder:
 
     WILDCARD_PATTERN: str = "*"
 
+    # Refer: https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
+    # TraceId must be a 32-hex-character lowercase string
+    TRACE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+
+    # SpanId must be a 16-hex-character lowercase string
+    SPAN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
+
+    NO_KEYWORD_QUERY_PATTERN = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
+
     def __init__(self, query_string: str):
         self._query_string: str = query_string
 
@@ -70,24 +79,18 @@ class QueryStringBuilder:
 
     @classmethod
     def _is_trace_id(cls, query_string: str) -> bool:
-        # TraceId must be a 32-hex-character lowercase string
-        # refer: https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
-        regx: Any = re.compile(r"^[0-9a-f]{32}$")
-        return regx.search(query_string) is not None
+        return cls.TRACE_ID_PATTERN.search(query_string) is not None
 
     @classmethod
     def _is_span_id(cls, query_string: str):
-        # SpanId must be a 16-hex-character lowercase string
-        regx: Any = re.compile(r"^[0-9a-f]{16}$")
-        return regx.search(query_string) is not None
+        return cls.SPAN_ID_PATTERN.search(query_string) is not None
 
     def special_check(self, query_string: str) -> str:
         """特殊字符检查"""
-        _query_string: str
-        regx: Any = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
         if query_string.strip() == "":
             return self.WILDCARD_PATTERN
-        if regx.search(query_string):
+
+        if self.NO_KEYWORD_QUERY_PATTERN.search(query_string):
             return query_string
 
         # TraceID & SpanID 直接走精确查询
