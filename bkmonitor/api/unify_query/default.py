@@ -242,6 +242,21 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
             return attrs
 
 
+class GetTagKeysResource(UnifyQueryAPIResource):
+    """
+    获取tag keys
+    """
+
+    method = "POST"
+    path = "/query/ts/info/tag_keys"
+
+    class RequestSerializer(serializers.Serializer):
+        data_source = serializers.CharField(default="bkmonitor")
+        table_id = serializers.CharField(allow_blank=True)
+        metric_name = serializers.CharField()
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
+
+
 class QueryDataByExemplarResource(QueryDataResource):
     method = "POST"
     path = "/query/ts/exemplar"

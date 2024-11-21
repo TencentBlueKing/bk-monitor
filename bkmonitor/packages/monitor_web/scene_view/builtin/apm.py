@@ -265,7 +265,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 raise ValueError("Application does not exist")
 
             metric_group_mapping = dict()
-            group_panel_template = view_config["overview_panels"][0]
+            group_panel_template = view_config["overview_panels"].pop(0)
             metric_panel_template = group_panel_template["panels"].pop(0)
 
             metric_queryset = MetricListCache.objects.filter(

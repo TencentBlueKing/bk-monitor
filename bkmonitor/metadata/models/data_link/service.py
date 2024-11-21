@@ -273,7 +273,10 @@ def create_vm_data_link(
     vm_data_bus_config = DataLinkResourceConfig.compose_vm_data_bus_config(name, name, data_id_name, sinks)
 
     # 1.3 是否是联邦集群的代理集群，若是，则无需创建DATABUS
-    is_fed_cluster = bcs_cluster_id and BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id).exists()
+    is_fed_cluster = (
+        bcs_cluster_id
+        and BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id, is_deleted=False).exists()
+    )
     configs = [vm_table_id_config, vm_storage_binding_config]
     if not is_fed_cluster:
         configs.append(vm_data_bus_config)
@@ -375,7 +378,7 @@ def create_fed_vm_data_link(
         return
 
     # 1. 判断是否为联邦集群的子集群，如果不是，则直接返回
-    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
     if not (objs.exists() and utils.is_k8s_metric_data_id(data_name)):
         logger.info(
             "create_fed_vm_data_link： data_id->[%s] ,cluster_id->[%s] is not federal sub cluster or not "
