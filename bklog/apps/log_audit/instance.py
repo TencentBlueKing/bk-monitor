@@ -95,6 +95,10 @@ def push_event(request):
         if not hasattr(request, key):
             return
 
+    # 排除未登录状态
+    if not request.user.username:
+        return
+
     instance = None
     for regex, instance_cls in InstanceFilter:
         ret = regex.match(request.get_full_path())

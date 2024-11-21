@@ -27,8 +27,6 @@
 import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import { LIMIT_TYPE_LIST } from '../../utils';
-
 import { Debounce } from 'monitor-common/utils';
 
 import type { IListItem, IServiceConfig } from '../../type';
@@ -161,7 +159,6 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   }
   @Debounce(300)
   handleChangeLimit(val) {
-    console.log(val);
     if (val && val >= 1 && val <= 30) {
       this.localLimit = val;
       this.$emit('limitChange', val);
@@ -216,6 +213,11 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   handleGroupBySearch(val: string) {
     this.groupBySearch = val;
   }
+  /** 删除标签 */
+  closeGroupBy(val) {
+    this.chooseSelect(val);
+    this.emitChange();
+  }
 
   renderTagView() {
     const len = this.groupBySelectedTags.length;
@@ -224,7 +226,13 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       return (
         <div>
           {list.map(item => (
-            <bk-tag key={item.value}>{item.text}</bk-tag>
+            <bk-tag
+              key={item.value}
+              closable
+              on-close={() => this.closeGroupBy(item)}
+            >
+              {item.text}
+            </bk-tag>
           ))}
           <bk-tag
             v-bk-tooltips={this.groupBySelectedTags
@@ -238,7 +246,15 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
         </div>
       );
     }
-    return this.groupBySelectedTags.map(item => <bk-tag key={item.value}>{item.text}</bk-tag>);
+    return this.groupBySelectedTags.map(item => (
+      <bk-tag
+        key={item.value}
+        closable
+        on-close={() => this.closeGroupBy(item)}
+      >
+        {item.text}
+      </bk-tag>
+    ));
   }
 
   render() {

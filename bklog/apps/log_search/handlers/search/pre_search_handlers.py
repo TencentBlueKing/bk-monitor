@@ -35,13 +35,11 @@ class PreSearchHandlers(object):
     def pre_check_fields(cls, indices: str, scenario_id: str, storage_cluster_id: int) -> dict:
         trace_type = None
         default_sort_tag: bool = False
-        result_table_id_list: list = indices.split(",")
-        if not result_table_id_list:
+        if not indices:
             return {"default_sort_tag": default_sort_tag, "trace_type": trace_type}
-        result_table_id, *_ = result_table_id_list
         # get fields from cache
         fields = cls._get_fields(
-            result_table_id=result_table_id, scenario_id=scenario_id, storage_cluster_id=storage_cluster_id
+            indices=indices, scenario_id=scenario_id, storage_cluster_id=storage_cluster_id
         )
         # 是否包含嵌套字段
         include_nested_fields: bool = [x["field_type"] for x in fields].count(FieldDataTypeEnum.NESTED.value) > 0
@@ -60,10 +58,10 @@ class PreSearchHandlers(object):
         }
 
     @staticmethod
-    @cache_one_day("fields_{result_table_id}")
-    def _get_fields(*, result_table_id, scenario_id, storage_cluster_id):
+    @cache_one_day("fields_{indices}")
+    def _get_fields(*, indices, scenario_id, storage_cluster_id):
         mapping_from_es = BkLogApi.mapping(
-            {"indices": result_table_id, "scenario_id": scenario_id, "storage_cluster_id": storage_cluster_id}
+            {"indices": indices, "scenario_id": scenario_id, "storage_cluster_id": storage_cluster_id}
         )
         property_dict: dict = MappingHandlers.find_property_dict(mapping_from_es)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)

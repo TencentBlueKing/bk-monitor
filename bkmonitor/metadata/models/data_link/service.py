@@ -13,12 +13,13 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.transaction import atomic
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import config
-from metadata.models import DataIdConfig, DataSource
+from metadata.models import DataSource
 from metadata.models.bcs import BcsFederalClusterInfo
-from metadata.models.data_link import utils
+from metadata.models.data_link import DataIdConfig, utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.resource import DataLinkResource, DataLinkResourceConfig
 
@@ -132,6 +133,103 @@ def get_data_id_v2(
     return {"status": phase, "data_id": None}
 
 
+def get_data_link_component_config(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_config: try to get component config,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_config: kind is not valid,kind->[%s]", kind)
+        component_config = api.bkdata.get_data_link(kind=bkbase_kind, namespace=namespace, name=component_name)
+        return component_config
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_config: get component config failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return None
+
+
+def get_data_link_component_status(
+    kind: str,
+    component_name: str,
+    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+):
+    """
+    获取数据链路组件状态
+    @param kind: 数据链路组件类型
+    @param component_name: 数据链路组件名称
+    @param namespace: 数据链路命名空间
+    @return: 状态
+    """
+    logger.info(
+        "get_data_link_component_status: try to get component status,kind->[%s],name->[%s],namespace->[%s]",
+        kind,
+        component_name,
+        namespace,
+    )
+    try:
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_data_link_component_status: kind is not valid,kind->[%s]", kind)
+        component_config = get_bkbase_component_status_with_retry(
+            kind=bkbase_kind, namespace=namespace, name=component_name
+        )
+        phase = component_config.get("status", {}).get("phase")
+        return phase
+    except Exception as e:
+        logger.error(
+            "get_data_link_component_status: get component status failed,kind->[%s],name->[%s],namespace->[%s],"
+            "error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e,
+        )
+        return DataLinkResourceStatus.FAILED.value
+
+
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+def get_bkbase_component_status_with_retry(
+    kind: str,
+    namespace: str,
+    name: str,
+):
+    """
+    获取bkbase组件状态，具备重试机制
+    """
+    try:
+        bkbase_status = api.bkdata.get_data_link(kind=kind, namespace=namespace, name=name)
+        return bkbase_status
+    except Exception as e:
+        logger.error(
+            "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s]," "error->[%s]",
+            kind,
+            name,
+            e,
+        )
+        raise e
+
+
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_vm_data_link(
     table_id: str,
@@ -175,7 +273,10 @@ def create_vm_data_link(
     vm_data_bus_config = DataLinkResourceConfig.compose_vm_data_bus_config(name, name, data_id_name, sinks)
 
     # 1.3 是否是联邦集群的代理集群，若是，则无需创建DATABUS
-    is_fed_cluster = bcs_cluster_id and BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id).exists()
+    is_fed_cluster = (
+        bcs_cluster_id
+        and BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id, is_deleted=False).exists()
+    )
     configs = [vm_table_id_config, vm_storage_binding_config]
     if not is_fed_cluster:
         configs.append(vm_data_bus_config)
@@ -277,7 +378,7 @@ def create_fed_vm_data_link(
         return
 
     # 1. 判断是否为联邦集群的子集群，如果不是，则直接返回
-    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
     if not (objs.exists() and utils.is_k8s_metric_data_id(data_name)):
         logger.info(
             "create_fed_vm_data_link： data_id->[%s] ,cluster_id->[%s] is not federal sub cluster or not "
@@ -300,8 +401,8 @@ def create_fed_vm_data_link(
     vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
     # 2.1.1 如果存在对应的VM接入记录，说明属于 原先接入过监控的独立集群改造为联邦集群子集群（V3），直接使用其原先的链路信息(计算平台数据名称&ID）
     if vm_record.exists():
-        data_id_name = vm_record.first().bkbase_data_name
-        bkbase_data_id = vm_record.first().bkbase_data_id
+        data_id_name = vm_record.first().bk_base_data_name
+        bkbase_data_id = vm_record.first().bk_base_data_id
         logger.info(
             "create_fed_vm_data_link: vm_record exists,will use data_id_name->[%s],bkbase_data_id->["
             "%s].bk_data_id->[%s]",

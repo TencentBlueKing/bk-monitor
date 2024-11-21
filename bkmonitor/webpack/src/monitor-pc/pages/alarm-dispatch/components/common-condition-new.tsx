@@ -1349,7 +1349,7 @@ export default class CommonCondition extends tsc<IProps> {
                         key={`${index}_${tagIndex}`}
                         class='common-tag tag-value'
                         v-bk-tooltips={{
-                          content: tag.id,
+                          content: item.condition.field === 'dynamic_group' ? tag.name : tag.id,
                           placements: ['top'],
                           delay: [500, 0],
                           allowHTML: false,
@@ -1504,7 +1504,12 @@ export default class CommonCondition extends tsc<IProps> {
                 }
                 /* 连接符可选项 */
                 if (this.selectType === TypeEnum.method || this.selectType === TypeEnum.condition) {
-                  return this.curList.map((item, index) => (
+                  let symbolList = this.curList;
+                  /* 动态分组的连接符仅支持 'eq' */
+                  if (this.tagList[this.curIndex[0]]?.condition?.field === 'dynamic_group') {
+                    symbolList = this.curList.filter(f => f.id === 'eq');
+                  }
+                  return symbolList.map((item, index) => (
                     <div
                       key={index}
                       class={['list-item']}

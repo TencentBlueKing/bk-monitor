@@ -258,6 +258,16 @@ class ModifyResultTableResource(Resource):
         if query_set.exists() and request_data["field_list"] is not None:
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0)
+        try:
+            bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
+            result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+            logger.info(
+                "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                table_id,
+                bk_data_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
         return result_table.to_json()
 
@@ -883,6 +893,7 @@ class GetEventGroupResource(Resource):
         event_group_id = serializers.IntegerField(required=True, label="事件分组ID")
         with_result_table_info = serializers.BooleanField(required=False, label="是否需要带结果表信息")
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
+        event_infos_limit = serializers.IntegerField(required=False, default=None, label="事件信息列表上限")
 
     def perform_request(self, validated_request_data):
         try:
@@ -899,9 +910,9 @@ class GetEventGroupResource(Resource):
             event_group.update_event_dimensions_from_es()
 
         if not validated_request_data["with_result_table_info"]:
-            return event_group.to_json()
+            return event_group.to_json(validated_request_data["event_infos_limit"])
 
-        result = event_group.to_json()
+        result = event_group.to_json(validated_request_data["event_infos_limit"])
 
         # 查询增加结果表信息
         result_table = models.ResultTable.objects.get(table_id=event_group.table_id)

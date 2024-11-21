@@ -342,7 +342,8 @@ class DataFlowHandler(BaseAiopsHandler):
     @classmethod
     def _generate_fields(cls, is_dimension_fields: list, clustering_field: str):
         if clustering_field == DEFAULT_CLUSTERING_FIELD:
-            return copy.copy(is_dimension_fields), copy.copy(is_dimension_fields)
+            fields = [f"`{field}`" for field in is_dimension_fields]
+            return fields, fields
         # 转换节点之后的fields数组
         dst_transform_fields = []
         # 转换节点的fields数组

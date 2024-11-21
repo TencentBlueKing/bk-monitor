@@ -26,7 +26,6 @@ from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api
-from core.drf_resource.exceptions import CustomException
 from metadata import config
 from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
@@ -461,48 +460,38 @@ class TimeSeriesGroup(CustomGroupBase):
 
         default_resp = []
         try:
-            vm_rt_list = AccessVMRecord.objects.filter(result_table_id=self.table_id)
+            vm_rt = AccessVMRecord.objects.get(result_table_id=self.table_id).vm_result_table_id
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
-
-        vm_metrics = []
-
-        for vm_rt in vm_rt_list:
-            try:
-                data = (
-                    api.bkdata.query_metric_and_dimension(
-                        storage=config.VM_STORAGE_TYPE,
-                        result_table_id=vm_rt.vm_result_table_id,
-                        values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
-                    )
-                    or []
-                )
-            except CustomException as e:
-                logger.error("time_series:get_metric_from_bkdata -> [%s] -> has no vm_result_table_id -> [%s]", vm_rt.result_table_id, str(e))
-                # 存在 vm_result_table_id 为空的情况 抛出异常为 CustomException
-                continue
-            if not data or not data.get("metrics", None):
-                continue
-            vm_metrics.append(data["metrics"])
+        data = (
+            api.bkdata.query_metric_and_dimension(
+                storage=config.VM_STORAGE_TYPE,
+                result_table_id=vm_rt,
+                values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+            )
+            or []
+        )
+        if not data:
+            return default_resp
         # 组装数据
+        metric_dimension = data["metrics"]
+        if not metric_dimension:
+            return default_resp
         ret_data = []
-        for metric in vm_metrics:
-            ret = []
-            for md in metric:  
-                tag_value_list = {}
-                for d in md["dimensions"]:
-                    tag_value_list[d["name"]] = {
-                        "last_update_time": d["update_time"],
-                        "values": [v["value"] for v in d["values"]],
-                    }
-                item = {
-                    "field_name": md["name"],
-                    "last_modify_time": md["update_time"] // 1000,
-                    "tag_value_list": tag_value_list,
+        for md in metric_dimension:
+            tag_value_list = {}
+            for d in md["dimensions"]:
+                tag_value_list[d["name"]] = {
+                    "last_update_time": d["update_time"],
+                    "values": [v["value"] for v in d["values"]],
                 }
-                ret.append(item)
-            ret_data.append(ret)
+            item = {
+                "field_name": md["name"],
+                "last_modify_time": md["update_time"] // 1000,
+                "tag_value_list": tag_value_list,
+            }
+            ret_data.append(item)
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):

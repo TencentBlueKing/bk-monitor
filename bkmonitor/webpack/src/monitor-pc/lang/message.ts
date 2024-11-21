@@ -163,7 +163,7 @@ export default {
   网络错误: 'Network Error',
   出错了: 'Error',
   出错信息: 'Error message',
-  '恭喜，创建告警屏蔽成功': 'Congratulations, alarm mute successfully',
+  创建告警屏蔽成功: 'Aalarm mute successfully',
   '经过努力，新的插件生成了，恭喜': 'Congratulations, a new plugin has been generated',
   模型输出异常: 'Abnormal model output',
   '成功导入 {num} 个拨测任务': 'Imported {num} checks successful',
@@ -253,7 +253,7 @@ export default {
   无数据指引: 'No data guide',
   暂无拨测任务: 'No probe tasks',
   暂无拨测节点: 'No probe nodes',
-  暂无任何视图: 'No views',
+  将已有视图拖拽至此: 'Drag an existing view here',
   无法给予帮助: 'Cannot provide help',
   无匹配的数据: 'No matching data',
   '暂无指标/维度': 'No metrics/dimensions',
@@ -296,6 +296,7 @@ export default {
   '{0}当数据连续丢失{1}个周期触发无数据告警':
     'No-Data alarm triggered when {0} data is lost continuously for {1} cycles',
   只有监控指标及日志关键字可配置无数据: 'Only monitoring metrics and log keywords can be configured without data',
+  只有监控指标关键字可配置无数据: 'Only monitoring metrics keywords can be configured without data',
   '由于插件定义时未定义参数，此处无需填写。':
     'Because there is no parameter defined when the plugin is defined, there is no need to fill in here. ',
   '可能出现下发失败或无数据上报，是否继续下发':

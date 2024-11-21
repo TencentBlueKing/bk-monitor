@@ -136,7 +136,9 @@ export default class AggChart extends tsc<object> {
   async queryFieldFetchTopList(limit = 5) {
     this.limitSize = limit;
     try {
-      const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
+      const indexSetIDs = this.isUnionSearch
+        ? this.unionIndexList
+        : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
       this.listLoading = true;
       const data = {
         ...this.retrieveParams,

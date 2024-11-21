@@ -12,7 +12,8 @@ on:
 jobs:
   check_project_label:
     name: 检查项目标签
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
@@ -27,7 +28,8 @@ jobs:
             请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`
   check_type_label:
     name: 检查类型标签
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Check type label
         uses: docker://agilepathway/pull-request-label-checker:latest

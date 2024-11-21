@@ -231,6 +231,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    # 检查V4数据源是否存在对应的Consul配置，若存在则删除
+    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
     # 刷新metadata降精度配置，10分钟一次
     ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
@@ -282,6 +284,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
+    # 新版链路状态自动兜底刷新,15min 一次
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds

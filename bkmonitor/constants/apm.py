@@ -713,7 +713,9 @@ class TRPCMetricTag:
     CALLEE_CONTAINER: str = "callee_container"
     CALLEE_CON_SETID: str = "callee_con_setid"
 
-    SDK_NAME: str = "sdk_name"
+    TARGET: str = "target"
+    # 特殊维度
+    APP: str = "server"
 
     @classmethod
     def tags(cls) -> List[Dict[str, str]]:
@@ -791,7 +793,7 @@ class TrpcTagDrillOperation:
         tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
         return [
             {
-                "text": _("被调分析"),
+                "text": _("主调"),
                 "value": cls.CALLEE,
                 "tags": [
                     TRPCMetricTag.CALLER_SERVICE,
@@ -817,7 +819,7 @@ class TrpcTagDrillOperation:
         tag_trace_mapping: Dict[str, Dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
         return [
             {
-                "text": _("主调分析"),
+                "text": _("被调"),
                 "value": cls.CALLEE,
                 "tags": [
                     TRPCMetricTag.CALLER_SERVICE,

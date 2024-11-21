@@ -1,9 +1,11 @@
 <script setup>
-  import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue';
+  import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useTruncateText from '@/hooks/use-truncate-text';
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { debounce } from 'lodash';
 
   const emit = defineEmits(['menu-click']);
 
@@ -14,14 +16,28 @@
   });
 
   const refContent = ref();
+  const refFieldValue = ref();
   const store = useStore();
   const { $t } = useLocale();
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
+  const isIntersecting = ref(false);
+  const isSegmentTagInit = ref(false);
+  const textTruncateOption = computed(() => ({
+    fontSize: 12,
+    text: props.content,
+    maxWidth: maxWidth.value,
+    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
+    showAll: isLimitExpandView.value || showAll.value,
+  }));
 
+  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const handleMenuClick = event => {
+    if (showMore.value && refFieldValue.value.querySelectorAll('.valid-text').length === 1) {
+      event.option.value = props.content;
+    }
     emit('menu-click', event);
   };
 
@@ -32,15 +48,7 @@
     onSegmentClick: handleMenuClick,
   });
 
-  const textTruncateOption = computed(() => ({
-    fontSize: 12,
-    text: props.content,
-    maxWidth: maxWidth.value,
-    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
-    showAll: isLimitExpandView.value || showAll.value,
-  }));
 
-  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const renderText = computed(() => {
     if (showAll.value || isLimitExpandView.value) {
       return props.content;
@@ -56,6 +64,8 @@
 
     return $t('更多');
   });
+
+  let resizeObserver = null;
 
   watch(
     () => [props.content],
@@ -74,43 +84,103 @@
 
     showAll.value = !showAll.value;
   };
+
+  const debounceSetSegmentTag = debounce(() => {
+    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
+      return;
+    }
+
+    instance.config.jsonValue = renderText.value;
+    instance.destroy?.();
+
+    const appendText =
+      showMore.value && !isLimitExpandView.value
+        ? {
+            text: btnText.value,
+            onClick: handleClickMore,
+            attributes: {
+              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+            },
+          }
+        : undefined;
+    instance.initStringAsValue(renderText.value, appendText);
+  });
+
   watch(
     () => [renderText.value],
     () => {
       nextTick(() => {
-        instance.config.jsonValue = renderText.value;
-        instance.destroy?.();
-
-        const appendText =
-          showMore.value && !isLimitExpandView.value
-            ? {
-                text: btnText.value,
-                onClick: handleClickMore,
-                attributes: {
-                  class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-                },
-              }
-            : undefined;
-        instance.initStringAsValue(appendText);
+        debounceSetSegmentTag();
       });
     },
-    { immediate: true },
   );
 
-  onMounted(() => {
-    const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
-    const elementMaxWidth = cellElement.offsetWidth * 3;
-    maxWidth.value = elementMaxWidth;
+  const getCellElement = () => {
+    return refContent.value?.parentElement?.closest?.('.bklog-lazy-render-cell');
+  };
+
+  const debounceUpdateSegmentTag = debounce(() => {
+    const cellElement = getCellElement();
+    if (cellElement) {
+      const offsetWidth = cellElement.offsetWidth;
+      const elementMaxWidth = cellElement.offsetWidth * 3;
+      maxWidth.value = elementMaxWidth;
+      nextTick(() => debounceSetSegmentTag());
+    }
   });
 
-  onUnmounted(() => {
+  const createResizeObserve = () => {
+    const cellElement = getCellElement();
+    const offsetWidth = cellElement.offsetWidth;
+    const elementMaxWidth = cellElement.offsetWidth * 3;
+    maxWidth.value = elementMaxWidth;
+
+    // 创建一个 ResizeObserver 实例
+    resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        // 获取元素的新高度
+        debounceUpdateSegmentTag();
+      }
+    });
+  };
+
+  let setObserveTimer = null;
+
+  useIntersectionObserver(refContent, entry => {
+    isIntersecting.value = entry.isIntersecting;
+    if (entry.isIntersecting) {
+      // 开始监听元素
+      resizeObserver.observe(getCellElement());
+      // 进入可视区域重新计算宽度
+      debounceUpdateSegmentTag();
+    } else {
+      if (refFieldValue.value) {
+        refFieldValue.value.innerText = renderText.value;
+      }
+
+      resizeObserver?.unobserve?.(getCellElement());
+    }
+  });
+
+  onMounted(() => {
+    createResizeObserve();
+    debounceUpdateSegmentTag();
+  });
+
+  onBeforeUnmount(() => {
     instance?.destroy?.();
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 <template>
   <div
     ref="refContent"
-    :class="['bklog-text-segment', 'bklog-root-field', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]"
+    :class="[
+      'bklog-text-segment',
+      'bklog-root-field',
+      { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-show-long': isLimitExpandView, 'is-expand-all': showAll },
+    ]"
   >
     <span
       class="field-name"
@@ -124,6 +194,7 @@
     >
     <span
       class="field-value"
+      ref="refFieldValue"
       :data-field-name="field.field_name"
       >{{ renderText }}</span
     >
@@ -131,28 +202,52 @@
 </template>
 <style lang="scss">
   .bklog-text-segment {
+    max-height: 60px;
+    overflow: hidden;
     font-size: 12px;
     white-space: pre-line;
 
+    &.is-expand-all {
+      max-height: max-content;
+    }
+
+    &.is-show-long {
+      max-height: max-content;
+
+      .btn-more-action {
+        display: none;
+      }
+    }
+
     span {
+      line-height: 20px;
+
       &.segment-content {
         span {
-          font-size: 12px;
+          font:
+            12px Menlo,
+            Monaco,
+            Consolas,
+            Courier,
+            'PingFang SC',
+            'Microsoft Yahei',
+            monospace;
         }
 
         .btn-more-action {
           position: absolute;
-          right: 15px;
-          bottom: 8px;
-          padding-left: 22px;
+          right: 16px;
+          bottom: 10px;
+          padding-left: 18px;
           color: #3a84ff;
           cursor: pointer;
+          background-color: #fff;
 
           &.show-all {
             &::before {
               position: absolute;
               top: 50%;
-              left: 0;
+              left: 4px;
               content: '...';
               transform: translateY(-50%);
             }
@@ -163,6 +258,16 @@
 
     &.is-inline {
       display: flex;
+    }
+  }
+
+  .bk-table-row {
+    &.hover-row {
+      .bklog-text-segment {
+        .btn-more-action {
+          background-color: #f5f7fa;
+        }
+      }
     }
   }
 </style>

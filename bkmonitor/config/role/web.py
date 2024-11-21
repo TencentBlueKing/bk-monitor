@@ -372,8 +372,8 @@ CELERYBEAT_SCHEDULE = {
         "enabled": True,
     },
     "monitor_web.tasks.clean_bkrepo_temp_file": {
-        "task": "monitor_web.tasks.update_statistics_data",
-        "schedule": crontab(hour="*/4"),
+        "task": "monitor_web.tasks.clean_bkrepo_temp_file",
+        "schedule": crontab(hour="*/1"),
         "enabled": True,
         "options": {"queue": "celery_resource"},
     },
@@ -546,7 +546,7 @@ var _wr = function(type) {
 }
 
 # 拨测任务最大超时限制(ms)
-MAX_AVAILABLE_DURATION_LIMIT = 60000
+MAX_AVAILABLE_DURATION_LIMIT = 180000
 
 # job平台在登录目标机器时，有时会遇到目标机器配置了登录时打印一些信息的情况
 # 该变量用于分割额外信息与真正的脚本执行结果

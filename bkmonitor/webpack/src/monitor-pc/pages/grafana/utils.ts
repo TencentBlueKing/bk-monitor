@@ -25,8 +25,8 @@
  */
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
 
-export const getDashboardCache = () => {
-  let dashboardCache;
+export const getDashboardCache = (): Record<string, string> | undefined => {
+  let dashboardCache: undefined;
   try {
     dashboardCache = JSON.parse(localStorage.getItem(DASHBOARD_ID_KEY));
   } catch {}

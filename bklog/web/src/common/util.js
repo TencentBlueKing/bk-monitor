@@ -589,11 +589,11 @@ export function formatBigNumListValue(value) {
       obj[opt] =
         Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
           ? formatBigNumListValue(obj[opt])
-          : bigNumberToString(value[opt] || '');
+          : bigNumberToString(value[opt] ?? '');
     });
     return obj;
   }
-  return bigNumberToString(value || '');
+  return bigNumberToString(value ?? '');
 }
 
 export function parseBigNumberList(lsit) {
@@ -919,7 +919,7 @@ export const parseTableRowData = (
     return JSON.stringify(data);
   }
 
-  return data || data === 0 ? data : emptyCharacter;
+  return data === null || data === undefined || data === '' ? emptyCharacter : data;
 };
 
 /** 表格内字体样式 */

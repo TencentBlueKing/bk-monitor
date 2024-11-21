@@ -12,10 +12,11 @@ import datetime
 import functools
 import json
 import logging
+import math
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.core.cache import cache
 from django.db.models import Q
@@ -80,7 +81,10 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
-from bkmonitor.utils.time_tools import get_datetime_range
+from bkmonitor.utils.time_tools import (
+    get_datetime_range,
+    parse_time_compare_abbreviation,
+)
 from constants.apm import (
     ApmMetrics,
     MetricTemporality,
@@ -111,6 +115,36 @@ from monitor_web.scene_view.table_format import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def format_percent(
+    percent: Union[int, float], precision: int = 2, sig_fig_cnt: int = 2, readable_precision=6
+) -> Union[int, float]:
+    if isinstance(percent, int):
+        return percent
+
+    sign: int = 0
+    sign = (-1, 1)[percent > 0]
+    percent = abs(percent)
+
+    def _with_sign(_f: float) -> float:
+        return sign * _f
+
+    # 如果数据小于可读精度，直接范围可读精度最小值，突出异常比
+    if 0.0 < percent < 10**-readable_precision:
+        return _with_sign(10**-readable_precision)
+
+    # 如果数据小于最小精度，保留两位有效数字
+    if percent < 10**-precision:
+        return _with_sign(float(format(percent, f".{sig_fig_cnt}g")))
+
+    rounded_percent: float = float(format(percent, f".{precision}f"))
+    # 如果超精度四舍五入进位，例如 99.9999 -> 100，则采用截断而不是保留位数的方式处理为 99.999，避免数据失真
+    if rounded_percent - percent < (10 ** -(precision + 1)) * 5:
+        factor = 10.0**precision
+        return _with_sign(math.trunc(percent * factor) / factor)
+
+    return _with_sign(rounded_percent)
 
 
 class UnifyQueryResource(Resource):
@@ -189,6 +223,10 @@ class DynamicUnifyQueryResource(Resource):
                 )
                 return attrs
 
+        class ProcessorSerializer(serializers.Serializer):
+            name = serializers.CharField(label="处理器名称", required=True)
+            options = serializers.DictField(label="处理器参数", required=False, default={})
+
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", default=False)
         unify_query_param = serializers.DictField(label="unify-query参数")
@@ -198,7 +236,7 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
         fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
-        fill_empty_dimensions = serializers.BooleanField(label="是否需要不存在的维度(用于需要展示/下钻空维度的场景)", required=False)
+        processors = serializers.ListField(label="处理器列表", child=ProcessorSerializer(), required=False, default=[])
         alias_prefix = serializers.ChoiceField(
             label="动态主被调当前值",
             choices=SeriesAliasType.get_choices(),
@@ -217,6 +255,13 @@ class DynamicUnifyQueryResource(Resource):
         }
 
         require_fill_series = False
+
+        # 替换自定义统计指标方法
+        custom_metric_methods = validate_data["unify_query_param"].pop("custom_metric_methods", None)
+        if custom_metric_methods:
+            for config in unify_query_params["query_configs"]:
+                self.fill_custom_metric_method(config, custom_metric_methods)
+
         if validate_data.get("fill_bar"):
             interval = get_bar_interval_number(
                 validate_data["start_time"],
@@ -241,6 +286,7 @@ class DynamicUnifyQueryResource(Resource):
                     "options": validate_data["group_by_limit"]["options"],
                     "start_time": validate_data["start_time"],
                     "end_time": validate_data["end_time"],
+                    "with_filter_dict": True,
                 }
             )["extra_filter_dict"]
             validate_data["extra_filter_dict"].update(group_limit_filter_dict)
@@ -338,6 +384,34 @@ class DynamicUnifyQueryResource(Resource):
         )
 
     @classmethod
+    def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):
+        try:
+            dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+        except (IndexError, KeyError):
+            # 找不到 group by，就不做填充了
+            return
+
+        for i in response.get("series", []):
+            if "dimensions" not in i:
+                continue
+            # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
+            i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
+
+    @classmethod
+    def format_percent(cls, query_params, response, validate_data, precision: int = 2, sig_fig_cnt: int = 2):
+        for i in response.get("series", []):
+            datapoints = []
+            for dp in i.get("datapoints") or []:
+                percent, timestamp = dp
+                if percent is None:
+                    datapoints.append(dp)
+                else:
+                    datapoints.append(
+                        (format_percent(percent, precision=precision, sig_fig_cnt=sig_fig_cnt), timestamp)
+                    )
+            i["datapoints"] = datapoints
+
+    @classmethod
     def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
         """补充单位、时间点、展示名称"""
         unit = validate_data.get("unit")
@@ -373,20 +447,27 @@ class DynamicUnifyQueryResource(Resource):
 
         # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
         response["query_config"] = query_params
-        if validate_data.get("fill_empty_dimensions"):
-            try:
-                dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
-            except (IndexError, KeyError):
-                # 找不到 group by，就不做填充了
-                return response
 
-            for i in response.get("series", []):
-                if "dimensions" not in i:
-                    continue
-                # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
-                i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
+        processor_map = {"fill_empty_dimensions": cls.fill_empty_dimensions, "format_percent": cls.format_percent}
+        for processor_info in validate_data.get("processors") or []:
+            processor = processor_map.get(processor_info["name"])
+            if processor is None:
+                continue
+            processor(query_params, response, validate_data, **processor_info.get("options", {}))
 
         return response
+
+    @classmethod
+    def fill_custom_metric_method(cls, config, custom_metric_methods):
+        if not custom_metric_methods:
+            return
+        metric_functions = {func["id"]: func for func in config.get("functions", []) if func.get("id")}
+        for metric in config.get("metrics", []):
+            if metric["method"] in custom_metric_methods:
+                custom_method_config = custom_metric_methods[metric["method"]]
+                metric["method"] = custom_method_config["method"]
+                metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
+        config["functions"] = list(metric_functions.values())
 
 
 class ServiceListResource(PageListResource):
@@ -1160,7 +1241,6 @@ class InstanceListResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, validated_data):
-
         instances = RelationMetricHandler.list_instances(
             validated_data["bk_biz_id"],
             validated_data["app_name"],
@@ -2833,6 +2913,8 @@ class HostInstanceDetailListResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
@@ -2908,7 +2990,6 @@ class GetFieldOptionValuesResource(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-
         metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
@@ -2923,9 +3004,39 @@ class GetFieldOptionValuesResource(Resource):
         return [{"value": value, "text": value} for value in sorted(option_values)]
 
 
-class CalculateByRangeResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+class RecordHelperMixin:
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions") or {}:
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
 
+    @classmethod
+    def format_value(cls, metric_cal_type: str, value: Any) -> float:
+        try:
+            value = float(value)
+        except Exception:  # pylint: disable=broad-except
+            value = 0
+
+        if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+            # 请求量必须是整型
+            value = int(value)
+        elif metric_cal_type in [
+            metric_group.CalculationType.TIMEOUT_RATE,
+            metric_group.CalculationType.SUCCESS_RATE,
+            metric_group.CalculationType.EXCEPTION_RATE,
+        ]:
+            value = format_percent(value, precision=3, sig_fig_cnt=2)
+        else:
+            value = round(value, 2)
+
+        return value
+
+
+class CalculateByRangeResource(Resource, RecordHelperMixin):
+    class RequestSerializer(serializers.Serializer):
         ZERO_TIME_SHIFT: str = "0s"
 
         class OptionsSerializer(serializers.Serializer):
@@ -2936,6 +3047,7 @@ class CalculateByRangeResource(Resource):
                     required=True,
                 )
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -2976,7 +3088,10 @@ class CalculateByRangeResource(Resource):
 
     @classmethod
     def _merge(
-        cls, group_fields: List[str], alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]]
+        cls,
+        metric_cal_type: str,
+        group_fields: List[str],
+        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]],
     ) -> List[Dict[str, Any]]:
         group_key_record_map: Dict[Tuple, Dict[str, Any]] = {}
         # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
@@ -2989,10 +3104,18 @@ class CalculateByRangeResource(Resource):
         merged_records: List[Dict[str, Any]] = []
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         for group_key, record in group_key_record_map.items():
+            # 确保 dimensions 以 group_fields 为序
+            dimensions: Dict[str, Any] = dict(group_key)
+            processed_record: Dict[str, Any] = {"dimensions": {}}
+            for field in group_fields:
+                processed_record["dimensions"][field] = dimensions.get(field) or ""
+
             # 对合并后不存在的数值补 None
-            processed_record: Dict[str, Any] = {"dimensions": dict(group_key)}
             for alias in aliases:
                 processed_record[alias] = record.get(alias)
+                if processed_record[alias] is None:
+                    continue
+                processed_record[alias] = cls.format_value(metric_cal_type, processed_record[alias])
             merged_records.append(processed_record)
         return merged_records
 
@@ -3000,16 +3123,27 @@ class CalculateByRangeResource(Resource):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
+                growth_rate: Optional[float] = None
+
                 if record[baseline] == 0 and record[alias] == 0:
                     # 两个数据都为 0 时，设定增长率为 0%
-                    record.setdefault("growth_rates", {})[alias] = 0
-                    continue
-                elif not record[alias] or record[baseline] is None:
-                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
-                    record.setdefault("growth_rates", {})[alias] = None
-                    continue
+                    growth_rate = 0
+                elif not record[alias] and record[baseline]:
+                    # 往期无数据，同比正增长 100%
+                    growth_rate = 100
+                elif record[alias] and not record[baseline]:
+                    # 当前无数据，同比负增长 100%
+                    growth_rate = -100
+                elif record[alias] and record[baseline]:
+                    # 设置 4 位可读精度，非 0 展示 0.0001
+                    growth_rate = format_percent(
+                        (record[baseline] - record[alias]) / record[alias] * 100,
+                        precision=2,
+                        sig_fig_cnt=1,
+                        readable_precision=4,
+                    )
 
-                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
+                record.setdefault("growth_rates", {})[alias] = growth_rate
 
     @classmethod
     def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
@@ -3024,15 +3158,9 @@ class CalculateByRangeResource(Resource):
                     # 总数为 0 或者 数据为空 的情况下，直接置空
                     record.setdefault("proportions", {})[alias] = None
                     continue
-                record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
-
-    @classmethod
-    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not records:
-            return []
-        if "time" in records[0].get("dimensions") or {}:
-            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
-        return records
+                record.setdefault("proportions", {})[alias] = format_percent(
+                    (record[alias] / alias_total_map[alias]) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+                )
 
     def perform_request(self, validated_request_data):
         def _collect(_alias: Optional[str], **_kwargs):
@@ -3045,9 +3173,10 @@ class CalculateByRangeResource(Resource):
                 time_shift=_alias,
                 **(validated_request_data["options"].get(group_name) or {}),
             )
-            alias_aggregated_records_map[_alias] = _group.handle(validated_request_data["metric_cal_type"], **_kwargs)
+            alias_aggregated_records_map[_alias] = _group.handle(metric_cal_type, **_kwargs)
 
         baseline: str = validated_request_data["baseline"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
         alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
         group_name: str = validated_request_data["metric_group_name"]
         group_fields: List[str] = validated_request_data.get("group_by") or []
@@ -3067,7 +3196,7 @@ class CalculateByRangeResource(Resource):
         )
 
         # 合并数据
-        merged_records: List[Dict[str, Any]] = self._merge(group_fields, alias_aggregated_records_map)
+        merged_records: List[Dict[str, Any]] = self._merge(metric_cal_type, group_fields, alias_aggregated_records_map)
 
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
@@ -3079,7 +3208,8 @@ class CalculateByRangeResource(Resource):
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
 
-class QueryDimensionsByLimitResource(Resource):
+class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
+    ZERO_TIME_SHIFT: str = "0s"
     CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
 
     class RequestSerializer(serializers.Serializer):
@@ -3091,6 +3221,7 @@ class QueryDimensionsByLimitResource(Resource):
                     required=True,
                 )
                 temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3112,9 +3243,11 @@ class QueryDimensionsByLimitResource(Resource):
         metric_cal_type = serializers.ChoiceField(
             label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
         )
+        time_shift = serializers.CharField(label="时间偏移", required=False)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
         options = OptionsSerializer(label="配置", required=False, default={})
+        with_filter_dict = serializers.BooleanField(label="是否提供过滤条件", required=False, default=False)
 
         def validate(self, attrs):
             # 合并查询条件
@@ -3124,15 +3257,48 @@ class QueryDimensionsByLimitResource(Resource):
             return attrs
 
     @classmethod
-    def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
+    def _format(cls, time_shift: str, group_fields: List[str], records: List[Dict[str, Any]]):
         group_key_result_map: Dict[Tuple, Any] = {}
+        time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
         for record in records:
+            # 时间偏移场景，需要转为字符串时间
+            record["time"] = datetime.datetime.fromtimestamp(record["_time_"] // 1000 + time_offset_sec).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
             group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
             group_key_result_map[group_key] = record["_result_"]
 
         processed_records: List[Dict[str, Any]] = []
         for group_key, result in group_key_result_map.items():
             processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _display_format(
+        cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        total: float = 0
+        processed_records: List[Dict[str, Any]] = []
+        for record in records:
+            value: float = cls.format_value(metric_cal_type, record["result"])
+            total += value
+
+            # tooltips 按 GroupBy 顺序拼接
+            name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
+
+            processed_records.append({"name": name, "value": value})
+
+        for record in processed_records:
+            # 分母为 0，占比也设置为 0
+            if total == 0:
+                record["proportion"] = 0
+                continue
+
+            record["proportion"] = format_percent(
+                (record["value"] / total) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+            )
+
         return processed_records
 
     @classmethod
@@ -3147,21 +3313,28 @@ class QueryDimensionsByLimitResource(Resource):
 
     def perform_request(self, validated_request_data):
         group_name: str = validated_request_data["metric_group_name"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
+        time_shift: str = validated_request_data.get("time_shift") or "0s"
         group_fields: List[str] = validated_request_data.get("group_by") or []
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
             group_name,
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
+            time_shift=time_shift,
             group_by=group_fields,
             filter_dict=validated_request_data.get("filter_dict"),
             **(validated_request_data["options"].get(group_name) or {}),
         )
         records: List[Dict[str, Any]] = group.handle(
             validated_request_data["method"],
-            qs_type=validated_request_data["metric_cal_type"],
+            qs_type=metric_cal_type,
             limit=validated_request_data["limit"],
             start_time=validated_request_data.get("start_time"),
             end_time=validated_request_data.get("end_time"),
         )
-        records = self._format(group_fields, records)
-        return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
+        records = self._format(time_shift, group_fields, records)
+
+        result: Dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
+        if validated_request_data.get("with_filter_dict"):
+            result["extra_filter_dict"] = self._get_extra_filter_dict(records)
+        return result

@@ -27,13 +27,15 @@ DEFAULT_NOTICE = {
 NO_DATA_CONFIG = {"agg_dimension": [], "continuous": 10, "is_enabled": False, "level": EventSeverity.WARNING}
 
 
-def detects_config(recovery_check_window: int, trigger_check_window: int, trigger_count: int, level: int) -> List:
+def detects_config(
+    recovery_check_window: int, trigger_check_window: int, trigger_count: int, level: int, status_setter="recovery"
+) -> List:
     return [
         {
             "connector": "and",
             "expression": "",
             "level": level,
-            "recovery_config": {"check_window": recovery_check_window, "status_setter": "recovery"},
+            "recovery_config": {"check_window": recovery_check_window, "status_setter": status_setter},
             "trigger_config": {
                 "check_window": trigger_check_window,
                 "count": trigger_count,
@@ -46,6 +48,7 @@ def detects_config(recovery_check_window: int, trigger_check_window: int, trigge
 fatal_detects_config = partial(detects_config, level=EventSeverity.FATAL)
 warning_detects_config = partial(detects_config, level=EventSeverity.WARNING)
 remind_detects_config = partial(detects_config, level=EventSeverity.REMIND)
+nodata_recover_detects_config = partial(detects_config, status_setter="recovery-nodata")
 
 
 def algorithms_config(method: str, threshold: int, level: int) -> List:

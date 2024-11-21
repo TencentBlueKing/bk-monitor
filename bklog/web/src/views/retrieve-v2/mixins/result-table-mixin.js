@@ -129,6 +129,7 @@ export default {
         tag: 'union-source',
         width: 230,
       },
+      lazyRoot: null,
     };
   },
   computed: {
@@ -141,6 +142,7 @@ export default {
       'indexFieldInfo',
       'indexItem',
       'tableShowRowIndex',
+      'tableJsonFormat',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -163,6 +165,7 @@ export default {
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
       return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
+      // return [...(this.tableShowRowIndex ? [{ field_name: '行号', __is_row_index: true }] : []), ...list]
     },
     /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
     fullQuantityFields() {
@@ -209,6 +212,9 @@ export default {
     userSettingConfig() {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
+    indexSetId() {
+      return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    },
   },
   watch: {
     retrieveParams: {
@@ -218,10 +224,15 @@ export default {
         this.cacheOverFlowCol = [];
       },
     },
-    '$route.params.indexId'() {
+    indexSetId() {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
+    },
+    tableShowRowIndex: {
+      handler() {
+        console.log('');
+      },
     },
   },
   methods: {
@@ -282,8 +293,9 @@ export default {
       return subsetObj;
     },
 
-    renderHeaderAliasName(h, { _column, $index }) {
-      const field = this.getShowTableVisibleFields[$index - 1];
+    renderHeaderAliasName(h, args) {
+      const fieldIndex = args.column.index;
+      const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
@@ -385,18 +397,17 @@ export default {
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            console.log(openUrl);
             window.open(openUrl, '_blank');
           }
         });
     },
     handleIconClick(type, content, field, row, isLink, depth) {
-      let value = ['date', 'date_nanos'].includes(field.field_type)
-        ? this.tableRowDeepView(row, field.field_name, field.field_type)
-        : content;
-
+      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
+
       if (type === 'search') {
         // 将表格单元添加到过滤条件
         this.handleAddCondition(field.field_name, 'eq', [value], isLink);
@@ -414,7 +425,6 @@ export default {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
-      debugger;
       switch (option.operation) {
         case 'is':
         case 'is not':
@@ -489,5 +499,8 @@ export default {
         }
       }, 200);
     },
+  },
+  mounted() {
+    this.lazyRoot = this.$el.parentNode;
   },
 };

@@ -500,6 +500,7 @@ class TestRecoverStatusChecker(TestCase):
     def test_event_type_big_window_unit_false(self):
         strategy = copy.deepcopy(STRATEGY)
         strategy["items"][0]["query_configs"][0]["data_type_label"] = "event"
+        strategy["items"][0]["query_configs"][0]["data_source_label"] = "custom"
         strategy["items"][0]["query_configs"][0]["agg_interval"] = 300
         strategy["detects"][1] = {
             "expression": "",
@@ -600,6 +601,21 @@ class TestRecoverStatusChecker(TestCase):
 
         alert = self.get_alert(event=new_event)
         self.assertTrue(alert.is_no_data())
+        checker = RecoverStatusChecker([alert])
+        checker.check_all()
+        self.assertEqual(alert.status, EventStatus.RECOVERED)
+
+    def test_strategy_recovered_by_status_setter(self):
+        new_strategy = copy.deepcopy(STRATEGY)
+        for detect in new_strategy["detects"]:
+            detect["recovery_config"]["status_setter"] = "recovery-nodata"
+        StrategyCacheManager.cache.set(
+            StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=STRATEGY["id"]), json.dumps(new_strategy)
+        )
+        new_event = copy.deepcopy(ANOMALY_EVENT)
+
+        alert = self.get_alert(event=new_event)
+        self.assertFalse(alert.is_no_data())
         checker = RecoverStatusChecker([alert])
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.RECOVERED)

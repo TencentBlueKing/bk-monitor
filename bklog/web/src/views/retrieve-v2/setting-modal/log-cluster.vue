@@ -130,9 +130,9 @@
           <FilterRule
             ref="filterRuleRef"
             v-model="formData.filter_rules"
-            :total-fields="totalFields"
             :date-picker-value="datePickerValue"
             :retrieve-params="retrieveParams"
+            :total-fields="totalFields"
           ></FilterRule>
         </div>
         <!-- 聚类规则 -->
@@ -141,8 +141,8 @@
           v-on="$listeners"
           :clean-config="cleanConfig"
           :global-editable="globalEditable"
-          :table-str="defaultData.predefined_varibles"
           :submit-lading="isHandle"
+          :table-str="defaultData.predefined_varibles"
           @submit-rule="handleSubmitClusterChange"
         />
       </div>
@@ -193,8 +193,8 @@
 </template>
 
 <script>
-  import RuleTable from './rule-table';
   import FilterRule from '../search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.tsx';
+  import RuleTable from './rule-table';
 
   export default {
     components: {
@@ -282,7 +282,9 @@
       async requestCluster(isDefault = false, isInit = false) {
         this.globalLoading = true;
         try {
-          const params = { index_set_id: this.$route.params.indexId };
+          const params = {
+            index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+          };
           const data = { collector_config_id: this.configID };
           const baseUrl = '/logClustering';
           const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';

@@ -91,6 +91,15 @@ class RecoverStatusChecker(BaseChecker):
         self.recover(alert, _("当前维度检测到新的上报数据，无数据告警已恢复"))
         return True
 
+    def recover_by_nodata(self, alert, status_setter):
+        self.recover(alert, _("在恢复检测周期内无数据上报，告警已{handle}"), status_setter=status_setter)
+        check_result = ("do_close" if status_setter == "close" else "do_recover",)
+        logger.info(
+            "[recover 处理结果] ({}) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
+                check_result, alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
+            )
+        )
+
     def check_trigger_result(self, alert, strategy):
         """
         检测触发结果是否满足条件
@@ -111,7 +120,7 @@ class RecoverStatusChecker(BaseChecker):
         is_time_series = query_config["data_type_label"] in (DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG)
 
         window_unit = Strategy.get_check_window_unit(item, self.DEFAULT_CHECK_WINDOW_UNIT)
-
+        recovery_with_nodata = False
         try:
             if self.check_is_multi_indicator_strategy(item):
                 recovery_configs = list(Strategy.get_recovery_configs(strategy).values())[0]
@@ -119,6 +128,10 @@ class RecoverStatusChecker(BaseChecker):
                 recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
+            # 新增无数据恢复配置: "recovery-nodata"
+            if "-" in status_setter:
+                status_setter, case = status_setter.split("-")
+                recovery_with_nodata = case == "nodata"
         except (ValueError, TypeError, IndexError, KeyError):
             logger.error(
                 f"event{alert.id} has no status_setter in recovery_configs.\n" f"origin strategy is {strategy}"
@@ -149,8 +162,10 @@ class RecoverStatusChecker(BaseChecker):
         now_ts = int(time.time())
 
         if is_event_type:
-            # 如果是事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
-            last_check_timestamp = now_ts - window_unit
+            last_check_timestamp = now_ts
+            # 如果是自定义事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
+            if query_config["data_source_label"] != DataSourceLabel.BK_MONITOR_COLLECTOR:
+                last_check_timestamp -= window_unit
         else:
             # 如果是时序或日志类型告警，则使用最后一次上报时间判断
             last_check_timestamp = LAST_CHECKPOINTS_CACHE_KEY.client.hget(
@@ -166,14 +181,17 @@ class RecoverStatusChecker(BaseChecker):
 
             if not last_check_timestamp:
                 # key 已经过期，超时恢复
-                self.recover(alert, _("在恢复检测周期内无数据上报，告警已{handle}"), status_setter=status_setter)
-                check_result = ("do_close" if status_setter == "close" else "do_recover",)
-                logger.info(
-                    "[recover 处理结果] ({}) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
-                        check_result, alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
-                    )
-                )
+                self.recover_by_nodata(alert, status_setter)
                 return True
+
+            last_check_timestamp = int(last_check_timestamp)
+            if recovery_with_nodata:
+                # 配置了无数据恢复， 则判断当前无数据时长是否符合恢复窗口
+                if now_ts > last_check_timestamp + recovery_window_offset + trigger_window_offset + window_unit:
+                    # 超过恢复+触发窗口，无数据，进行恢复/关闭
+                    # key 已经过期，超时恢复
+                    self.recover_by_nodata(alert, status_setter)
+                    return True
 
             # 无数据判定的最大周期通过对比告警触发周期和最大无数据容忍周期，默认取最大周期
             nodata_tolerance_size = max(trigger_window_size, settings.EVENT_NO_DATA_TOLERANCE_WINDOW_SIZE)
@@ -182,7 +200,7 @@ class RecoverStatusChecker(BaseChecker):
             nodata_tolerance_time = max(nodata_tolerance_size * window_unit, 30 * CONST_MINUTES)
 
             last_check_timestamp = max(
-                int(last_check_timestamp),
+                last_check_timestamp,
                 now_ts - nodata_tolerance_time,
             )
 

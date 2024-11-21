@@ -60,7 +60,7 @@
           v-model="expandTextView"
           theme="primary"
           @change="handleChangeExpandView"
-          style="margin: 0 12px"
+          style="margin: 0 12px 0 0"
           class="bklog-option-item"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
@@ -70,37 +70,32 @@
           theme="primary"
           class="bklog-option-item"
           @change="handleChangeIsWarp"
+          style="margin: 0 12px 0 0"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
-        <div
-          style="display: flex; align-items: center; margin-left: 12px"
-          class="bklog-option-item"
-        >
-          <bk-checkbox
-            :value="isJsonFormat"
-            theme="primary"
-            @change="handleJsonFormat"
-            ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
-          >
 
-          <span
-            style="padding: 0 15px"
-            v-if="isJsonFormat"
-          >
-            <bk-input
-              type="number"
-              class="json-depth-num"
-              :value="jsonFormatDeep"
-              :min="1"
-              :max="15"
-              @change="handleJsonFormatDeepChange"
-            ></bk-input>
-          </span>
-        </div>
+        <bk-checkbox
+          :value="isJsonFormat"
+          theme="primary"
+          @change="handleJsonFormat"
+          style="margin: 0 12px 0 0"
+          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
+        >
+
+        <bk-input
+          type="number"
+          class="json-depth-num"
+          :value="jsonFormatDeep"
+          :min="1"
+          :max="15"
+          @change="handleJsonFormatDeepChange"
+          v-if="isJsonFormat"
+        ></bk-input>
       </div>
       <div class="tools-more">
         <div class="operation-icons">
           <export-log
+            v-if="!isMonitorApm"
             :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -152,8 +147,9 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
-
+// #if APP === 'apm'
   import ExportLog from '../../result-comp/export-log.vue';
+// #endif
   import FieldsSetting from '../../result-comp/fields-setting';
   import TableLog from './table-log.vue';
 
@@ -161,7 +157,9 @@
     components: {
       TableLog,
       FieldsSetting,
+      // #if APP === 'apm'
       ExportLog,
+      // #endif
     },
     inheritAttrs: false,
     props: {
@@ -220,7 +218,7 @@
       }),
 
       routeIndexSet() {
-        return this.$route.params.indexId;
+        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
 
       tableList() {
@@ -236,6 +234,9 @@
       showFieldsConfigPopoverNum() {
         return this.$store.state.showFieldsConfigPopoverNum;
       },
+      isMonitorApm() {
+        return window.__IS_MONITOR_APM__;
+      }
     },
     watch: {
       showFieldsConfigPopoverNum() {
