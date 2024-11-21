@@ -284,9 +284,8 @@ export default defineComponent({
                 return renderHead(field, order => {
                   if (sortable) {
                     const sortList = order ? [[field.field_name, order]] : [];
-                    store.commit('updateIndexItemParams', {
-                      sort_list: sortList,
-                    });
+                    store.commit('updateIndexFieldInfo', { sort_list: sortList });
+                    store.commit('updateIndexItemParams', { sort_list: sortList });
                     store.dispatch('requestIndexSetQuery');
                   }
                 });
@@ -713,11 +712,7 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
-      if (hasScrollX.value && scrollXOffsetLeft.value > 0) {
-        return <div class='fixed-right-shadown'></div>;
-      }
-
-      return null;
+      return <div class='fixed-right-shadown'></div>;
     };
 
     const renderResultContainer = () => {
