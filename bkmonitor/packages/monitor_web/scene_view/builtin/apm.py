@@ -19,7 +19,6 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import HostAddressType
-from apm_web.container.helpers import ContainerHelper
 from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
@@ -194,18 +193,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if not start_time or not end_time:
                 raise ValueError("没有传递 start_time, end_time")
 
-            if (
-                app_name
-                and service_name
-                and ContainerHelper.list_pod_relations(
-                    bk_biz_id,
-                    app_name,
-                    service_name,
-                    start_time,
-                    end_time,
+            if app_name and service_name:
+                from apm_web.container.resources import ListServicePodsResource
+
+                response = ListServicePodsResource()(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    start_time=start_time,
+                    end_time=end_time,
                 )
-            ):
-                return cls._add_config_from_container(view, view_config)
+
+                if response.get("data"):
+                    # 实际有 Pod 数据才返回
+                    return cls._add_config_from_container(view, view_config)
 
             return cls._get_non_container_view_config(builtin_view, params)
 
@@ -604,7 +605,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                                     "2. 手动补充以下全部集群信息字段，也可以进行关联："
                                     "k8s.bcs.cluster.id(集群 Id), "
                                     "k8s.pod.name(Pod 名称), "
-                                    "k8s.namespace.name(Pod 所在命名空间)",
+                                    "k8s.namespace.name(Pod 所在命名空间)。\n"
+                                    "如果还是没有数据，可能是由于所选时间段的 Pod 已经销毁。\n",
                                 ),
                             }
                         }
