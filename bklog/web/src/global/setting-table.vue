@@ -759,7 +759,6 @@
         if (isDelete) {
           return true;
         }
-        console.log(this.globalsData);
         if (aliasName) {
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
