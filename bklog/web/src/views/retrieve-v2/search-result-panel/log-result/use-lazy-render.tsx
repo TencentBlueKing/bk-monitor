@@ -30,7 +30,7 @@ import { throttle, debounce } from 'lodash';
 
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
-export default ({ loadMoreFn, scrollCallbackFn, container }) => {
+export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   const isRunning = ref(false);
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
@@ -93,7 +93,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
   const getParentContainer = () => {
-    return getCurrentElement()?.closest('.bklog-result-container') as HTMLElement;
+    return rootElement.value as HTMLElement;
   };
 
   const computeRect = () => {

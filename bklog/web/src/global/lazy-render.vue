@@ -3,9 +3,9 @@
     ref="lazyRenderCell"
     class="bklog-lazy-render-cell"
     :class="{
-      'is-intersecting': isVisible,
-      'is-not-intersecting': !isVisible,
-      'has-overflow-x': hasOverflowX,
+      'bklog-lazy-loading': !isVisible && delay,
+      'is-intersecting': isIntersecting,
+      'is-not-intersecting': !isIntersecting,
     }"
     :style="cellStyle"
   >
@@ -19,30 +19,15 @@
 <script setup>
   import { ref, computed, onUnmounted } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  import useMutationObserver from '@/hooks/use-mutation-observer';
-  import lazyTaskManager from './utils/lazy-task-manager';
 
   const props = defineProps({
     delay: {
       type: Number,
-      default: 1,
+      default: 0,
     },
     visibleOnly: {
       type: Boolean,
-      default: true,
-    },
-    root: {
-      type: HTMLDivElement,
-      default: null,
-    },
-    index: {
-      type: Number,
-      default: 0,
-    },
-    // 用于监听触发强制计算高度
-    forceCounter: {
-      type: Number,
-      default: 0,
+      default: false,
     },
     minHeight: {
       type: String,
@@ -83,12 +68,6 @@
         isVisible.value = false;
       }
     }
-  };
-
-  useMutationObserver(lazyRenderCell, () => {
-    nextTick(() => {
-      updateCell();
-    });
   });
 
   onUnmounted(() => {

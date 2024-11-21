@@ -7,7 +7,6 @@
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
-  import OriginalLog from './original-log/index';
   import LogResult from './log-result/index';
 
   const DEFAULT_FIELDS_WIDTH = 220;

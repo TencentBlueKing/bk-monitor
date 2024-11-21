@@ -513,6 +513,7 @@ export default defineComponent({
       loadMoreFn: loadMoreTableData,
       scrollCallbackFn: handleScrollEvent,
       container: resultContainerIdSelector,
+      rootElement: refRootElement,
     });
 
     const scrollXOffsetLeft = ref(0);
@@ -692,6 +693,7 @@ export default defineComponent({
         ></ScrollXBar>
       );
     };
+
     const tableStyle = computed(() => {
       return {
         transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,

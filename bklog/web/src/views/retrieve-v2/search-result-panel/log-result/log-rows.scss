@@ -22,8 +22,8 @@
   }
 
   .bklog-requsting-loading {
-    pointer-events: none;
     text-align: center;
+    pointer-events: none;
 
     > div {
       height: 40px;
@@ -47,7 +47,7 @@
 
   .bklog-scroll-x {
     position: fixed;
-    right: 16px;
+    right: 0;
     bottom: 0;
     height: 14px;
     overflow-x: auto;

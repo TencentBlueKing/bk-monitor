@@ -10,7 +10,7 @@
     .field-list-sticky {
       &.is-show {
         position: sticky;
-        top: 62px;
+        top: calc(var(--offset-search-bar) + 18px);
         z-index: 2;
         align-self: start;
       }
@@ -51,7 +51,7 @@
         z-index: 1;
         width: 500px;
         content: '';
-        background-color: #fff;
+        background-color: #f4f7fa;
         box-shadow: 1px 0 0 0 #eaebf0;
         transform: translateX(-100%);
       }

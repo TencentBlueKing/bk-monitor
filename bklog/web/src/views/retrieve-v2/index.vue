@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -156,7 +156,6 @@
   const activeTab = ref('origin');
   const isRefreshList = ref(false);
   const searchBarHeight = ref(0);
-  const resultRow = ref();
   /** 刷新收藏夹列表 */
   const handleRefresh = v => {
     isRefreshList.value = v;
@@ -184,9 +183,24 @@
       }
     },
   );
+
+  const stickyStyle = computed(() => {
+    return {
+      '--offset-search-bar': `${searchBarHeight.value}px`,
+    };
+  });
+
+  const contentStyle = computed(() => {
+    return {
+      '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
+    };
+  });
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true }]">
+  <div
+    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true }]"
+    :style="stickyStyle"
+  >
     <div class="sub-head">
       <div
         :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
@@ -219,19 +233,26 @@
         showFavorites
       />
     </div>
-    <CollectFavorites
-      ref="favoriteRef"
-      class="collect-favorites"
-      :is-refresh.sync="isRefreshList"
-      :is-show.sync="showFavorites"
-      :width.sync="favoriteWidth"
-    ></CollectFavorites>
-    <SearchBar
-      @height-change="handleHeightChange"
-      @refresh="handleRefresh"
-    ></SearchBar>
-    <SearchResultTab v-model="activeTab"></SearchResultTab>
-    <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+    <div
+      :class="['retrieve-v2-body']"
+      :style="contentStyle"
+    >
+      <CollectFavorites
+        ref="favoriteRef"
+        class="collect-favorites"
+        :is-refresh.sync="isRefreshList"
+        :is-show.sync="showFavorites"
+        :width.sync="favoriteWidth"
+      ></CollectFavorites>
+      <div class="retrieve-v2-content">
+        <SearchBar
+          @height-change="handleHeightChange"
+          @refresh="handleRefresh"
+        ></SearchBar>
+        <SearchResultTab v-model="activeTab"></SearchResultTab>
+        <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+      </div>
+    </div>
   </div>
 </template>
 <style lang="scss">
