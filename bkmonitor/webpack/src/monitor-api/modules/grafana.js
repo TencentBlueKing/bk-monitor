@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { request } from '../base';
 
 export const test = request('GET', 'rest/v2/grafana/');
@@ -7,7 +32,10 @@ export const bkLogSearchDimension = request('GET', 'query-api/rest/v2/grafana/bk
 export const bkLogSearchTargetTree = request('GET', 'rest/v2/grafana/bk_log_search/grafana/target_tree/');
 export const bkLogSearchQueryLog = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/query_log/');
 export const bkLogSearchGetVariableField = request('GET', 'rest/v2/grafana/bk_log_search/grafana/get_variable_field/');
-export const bkLogSearchGetVariableValue = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/');
+export const bkLogSearchGetVariableValue = request(
+  'POST',
+  'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/'
+);
 export const getLabel = request('GET', 'rest/v2/grafana/get_label/');
 export const getTopoTree = request('GET', 'rest/v2/grafana/topo_tree/');
 export const getDimensionValues = request('GET', 'rest/v2/grafana/get_dimension_values/');
@@ -23,6 +51,7 @@ export const setDefaultDashboard = request('POST', 'rest/v2/grafana/set_default_
 export const getDefaultDashboard = request('GET', 'rest/v2/grafana/get_default_dashboard/');
 export const getDirectoryTree = request('GET', 'rest/v2/grafana/get_directory_tree/');
 export const createDashboardOrFolder = request('POST', 'rest/v2/grafana/create_dashboard_or_folder/');
+export const CopyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
 export const deleteDashboard = request('DELETE', 'rest/v2/grafana/delete_dashboard/');
 export const starDashboard = request('POST', 'rest/v2/grafana/star_dashboard/');
 export const unstarDashboard = request('DELETE', 'rest/v2/grafana/unstar_dashboard/');
@@ -72,6 +101,7 @@ export default {
   getDefaultDashboard,
   getDirectoryTree,
   createDashboardOrFolder,
+  CopyDashboardToFolder,
   deleteDashboard,
   starDashboard,
   unstarDashboard,
