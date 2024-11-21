@@ -281,12 +281,12 @@
             }
           });
         });
-        this.intersectionObserver.observe(this.$el);
+        this.intersectionObserver?.observe(this.$el);
       },
       unregisterObserver() {
         if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
+          this.intersectionObserver?.unobserve(this.$el);
+          this.intersectionObserver?.disconnect();
           this.intersectionObserver = null;
         }
       },

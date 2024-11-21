@@ -247,7 +247,7 @@
     </div>
   </div>
 </template>
-<style scoped>
+<style lang="scss">
   @import './index.scss';
 </style>
 <style lang="scss">

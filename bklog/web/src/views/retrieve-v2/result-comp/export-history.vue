@@ -390,7 +390,7 @@
         axiosInstance
           .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
           .then(res => {
-            if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
+            if (res?.result ?? true) {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
@@ -403,7 +403,6 @@
               : 'bk_log_search.txt';
             blobDownload(res, downloadName);
           })
-          .catch(() => {})
           .finally(() => {
             this.getTableList(true);
           });
@@ -417,7 +416,7 @@
         this.$http
           .request('retrieve/exportAsync', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data,
           })
@@ -536,7 +535,7 @@
         const { limit, current } = this.pagination;
         const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
         const params = {
-          index_set_id: this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
           bk_biz_id: this.bkBizId,
           page: current,
           pagesize: limit,

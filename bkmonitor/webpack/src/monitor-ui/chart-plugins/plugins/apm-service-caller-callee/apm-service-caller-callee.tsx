@@ -112,7 +112,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       }
     }
     console.info('routeCallOptions', routeCallOptions);
-    this.callType = getRecordCallOptionKind(this.viewOptions.filters) || routeCallOptions.kind || EKind.callee;
+    this.callType = routeCallOptions.kind || getRecordCallOptionKind(this.viewOptions.filters) || EKind.callee;
     const groupBy = this.groupByKindReset(this.callType, routeCallOptions.group_by || []);
     this.callOptions = {
       // panel 传递过来的一些变量

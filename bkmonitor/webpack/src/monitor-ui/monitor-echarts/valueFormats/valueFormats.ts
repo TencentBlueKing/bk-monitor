@@ -84,14 +84,13 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
 
   // If tickDecimals was specified, ensure that we have exactly that
   // much precision; otherwise default to the value's own precision.
-  if (decimals !== null) {
-    const decimalPos = formatted.indexOf('.');
-    const precision = decimalPos === -1 ? 0 : formatted.length - decimalPos - 1;
-    if (precision < decimals) {
-      return (precision ? formatted : `${formatted}.`) + String(factor).substr(1, decimals - precision);
-    }
-  }
-
+  // if (decimals !== null) {
+  //   const decimalPos = formatted.indexOf('.');
+  //   const precision = decimalPos === -1 ? 0 : formatted.length - decimalPos - 1;
+  //   if (precision < decimals) {
+  //     return (precision ? formatted : `${formatted}.`) + String(factor).substr(1, decimals - precision);
+  //   }
+  // }
   return formatted;
 }
 

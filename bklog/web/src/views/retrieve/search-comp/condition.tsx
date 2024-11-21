@@ -401,7 +401,7 @@ export default class Condition extends tsc<object> {
   }
 
   getIsExists(operator: string) {
-    return ['exists', 'does not exists'].includes(operator);
+    return ['exists', 'does not exists', 'is true', 'is false'].includes(operator);
   }
 
   /** 获取text类型操作符所需的值 */

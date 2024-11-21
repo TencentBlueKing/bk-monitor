@@ -2051,10 +2051,10 @@ class BkFtaEventDataSource(DataSource):
 
         if alert_name:
             # 如果传了告警名称，就直接用
-            self.alert_name = alert_name
+            self.alert_name = str(alert_name)
         elif self.metrics:
             # 如果没有传告警名称，那必定传了 metrics，从 metrics 提取
-            self.alert_name = self.metrics[0]["field"]
+            self.alert_name = str(self.metrics[0]["field"])
             self.metrics[0].update(
                 {
                     "field": "_index",
@@ -2071,7 +2071,7 @@ class BkFtaEventDataSource(DataSource):
         if self.alert_name:
             if self.alert_name == constants.event.ALL_EVENT_PLUGIN_METRIC:
                 self.filter_dict["plugin_id__neq"] = "bkmonitor"
-            elif str(self.alert_name).startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
+            elif self.alert_name.startswith(constants.event.EVENT_PLUGIN_METRIC_PREFIX):
                 self.filter_dict["plugin_id"] = self.alert_name[len(constants.event.EVENT_PLUGIN_METRIC_PREFIX) :]
             else:
                 self.filter_dict["alert_name.raw"] = self.alert_name

@@ -62,6 +62,9 @@ class GetDashboardList(Resource):
                 "folder_title": dashboard.get("folderTitle", ""),
                 "name": dashboard["title"],
                 "is_starred": dashboard["isStarred"],
+                "url": dashboard["url"],
+                "uri": dashboard["uri"],
+                "tags": dashboard["tags"],
             }
             for dashboard in dashboards
         ]
@@ -112,7 +115,7 @@ class GetDirectoryTree(Resource):
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
 
-        return [folder for folder_id, folder in folders.items()]
+        return list(folders.values())
 
 
 class CreateDashboardOrFolder(Resource):
@@ -129,7 +132,7 @@ class CreateDashboardOrFolder(Resource):
             result = api.grafana.create_folder(org_id=org_id, title=params["title"])
         else:
             result = api.grafana.import_dashboard(
-                dashboard={"title": params["title"], "tags": [], "timezone": "default", "schemaVersion": 0},
+                dashboard={"title": params["title"], "tags": [], "timezone": "", "schemaVersion": 0},
                 folderId=params["folderId"],
                 org_id=org_id,
             )

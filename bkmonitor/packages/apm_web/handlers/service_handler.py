@@ -46,6 +46,10 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceHandler:
+
+    # 避免数据量过大 只查询30分钟内数据 超过30分钟数据由拓扑发现获取
+    QUERY_FLOW_MAX_TIME_RANGE = 30
+
     @classmethod
     def build_cache_key(cls, application):
         return APM_APPLICATION_METRIC.format(
@@ -285,12 +289,13 @@ class ServiceHandler:
 
         # Step1: 从 Flow 指标中获取
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
+        s, e = get_datetime_range(period="minute", distance=cls.QUERY_FLOW_MAX_TIME_RANGE, rounding=False)
+
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int(start_time.timestamp()),
-                "end_time": int(end_time.timestamp()),
+                "start_time": int(s.timestamp()),
+                "end_time": int(e.timestamp()),
                 "where": [],
                 "group_by": [
                     "from_apm_service_name",  # index: 0

@@ -23,31 +23,52 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
 
-import { DocLinkType } from '../typings';
-import { rstrip } from './utils';
+import { debounce } from 'lodash';
 
-function linkJump(type: DocLinkType, path: string) {
-  const url = type === DocLinkType.Splice ? `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}` : path;
-  window.open(url, '_blank');
-}
-
-/**
- * @deprecated 已弃用(20240925)，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此方法，出于兼容性考虑保留此方法 --- 新方案详情路径：monitor-common/utils/docs.ts
- * @desc 文档跳转统一方案处理
- * @param { string } id
- * @param { Record<string, string> } localMap
- * @param { Record<string, IDocLinkData> } remoteMap
- */
-export function jumpToDocsLink(id, localMap, remoteMap) {
-  // 先匹配接口返回文档链接
-  if (remoteMap[id]) {
-    const { type, value } = remoteMap[id];
-    linkJump(type, value);
-  } else {
-    const path = localMap[id] || id;
-    if (path) {
-      linkJump(DocLinkType.Splice, path);
+export default (
+  target: Ref<HTMLElement>,
+  callback: (entry: IntersectionObserverEntry) => void,
+  options?: IntersectionObserverInit,
+) => {
+  let observer = null;
+  const destroyObserver = () => {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
     }
-  }
-}
+  };
+  const isIntersecting = ref(false);
+  const debounceCallback = debounce((entry: IntersectionObserverEntry) => callback?.(entry));
+
+  const createObserver = () => {
+    observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          isIntersecting.value = entry.isIntersecting;
+          debounceCallback(entry);
+        });
+      },
+      {
+        root: null,
+        threshold: 0.01,
+        ...(options ?? {}),
+      },
+    );
+
+    if (target.value) {
+      observer?.observe(target.value);
+    }
+  };
+
+  onMounted(() => {
+    createObserver();
+  });
+
+  onBeforeUnmount(() => {
+    destroyObserver();
+  });
+
+  return { isIntersecting };
+};

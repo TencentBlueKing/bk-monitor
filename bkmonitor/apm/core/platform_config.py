@@ -72,6 +72,12 @@ class PlatformConfig(BkCollectorConfig):
         #    2.2 获取到模板，则下发，否则忽略该集群
         """
         cluster_mapping = ClusterConfig.get_cluster_mapping()
+
+        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 补充中心化集群
+            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                cluster_mapping[cluster_id] = [0]
+
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
             with tracer.start_as_current_span(
                 f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
@@ -118,7 +124,7 @@ class PlatformConfig(BkCollectorConfig):
             "attribute_config": cls.get_attribute_config(),
         }
 
-        if bcs_cluster_id:
+        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
             if resource_fill_dimensions_config:
                 plat_config["resource_fill_dimensions_config"] = resource_fill_dimensions_config
@@ -290,6 +296,10 @@ class PlatformConfig(BkCollectorConfig):
         第二层，根据 net.host.ip 字段，继续补充 k8s 下的 pod 相关信息
         """
         if bcs_cluster_id is None:
+            return {}
+
+        if bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
             return {}
 
         bcs_client = BcsKubeClient(bcs_cluster_id)

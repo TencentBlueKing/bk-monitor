@@ -8,14 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import inspect
 import json
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
-import time
 import zipfile
 from collections import defaultdict
 from pathlib import Path
@@ -66,7 +64,7 @@ from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
-from monitor_web.commons.report.resources import FrontendReportEventResource
+from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.grafana.utils import get_org_id
 
 logger = logging.getLogger("monitor_web")
@@ -93,7 +91,28 @@ class ImportConfigResource(Resource):
         )
 
         try:
-            self.send_frontend_report_event(params["bk_biz_id"], params["configs"])
+            username = get_request().user.username if get_request(peaceful=True) else "system"
+
+            # 统计configs里配置的数量
+            config_stats_info = defaultdict(int)
+            for path in params["configs"].keys():
+                config_type = ""
+                if path.startswith("rule/") and not path[len("rule/") :].startswith("snippets/"):
+                    config_type = "rule"
+                elif path.startswith("action/") and not path[len("action/") :].startswith("snippets/"):
+                    config_type = "action"
+                elif path.startswith("notice/") and not path[len("notice/") :].startswith("snippets/"):
+                    config_type = "notice"
+                elif path.startswith("assign_group/") and not path[len("assign_group/") :].startswith("snippets/"):
+                    config_type = "assign_group"
+                elif path.startswith("grafana/") and not path[len("grafana") :].startswith("snippets/"):
+                    config_type = "grafana"
+
+                if config_type:
+                    config_stats_info[config_type] += 1
+            event_content = "导入" + ",".join([f"{count}条{key}" for key, count in config_stats_info.items()])
+
+            send_frontend_report_event(self, params["bk_biz_id"], username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event failed: {e}")
 
@@ -101,46 +120,6 @@ class ImportConfigResource(Resource):
             return {"result": False, "data": None, "errors": errors, "message": f"{len(errors)} configs import failed"}
         else:
             return {"result": True, "data": {}, "errors": {}, "message": ""}
-
-    def send_frontend_report_event(self, bk_biz_id, configs: Dict[str, str]):
-        """
-        发送前端审计上报
-        """
-
-        # 统计configs里配置的数量
-        config_stats_info = defaultdict(int)
-        for path in configs.keys():
-            config_type = ""
-            if path.startswith("rule/") and not path[len("rule/") :].startswith("snippets/"):
-                config_type = "rule"
-            elif path.startswith("action/") and not path[len("action/") :].startswith("snippets/"):
-                config_type = "action"
-            elif path.startswith("notice/") and not path[len("notice/") :].startswith("snippets/"):
-                config_type = "notice"
-            elif path.startswith("assign_group/") and not path[len("assign_group/") :].startswith("snippets/"):
-                config_type = "assign_group"
-            elif path.startswith("grafana/") and not path[len("grafana") :].startswith("snippets/"):
-                config_type = "grafana"
-
-            if config_type:
-                config_stats_info[config_type] += 1
-
-        event_name = "导入导出审计"
-        event_content = "导入" + ",".join([f"{count}条{key}" for key, count in config_stats_info.items()])
-        timestamp = int(time.time() * 1000)
-        dimensions = {
-            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_request().user.username if get_request(peaceful=True) else "system",
-        }
-
-        # 发送审计上报的请求
-        FrontendReportEventResource().request(
-            bk_biz_id=bk_biz_id,
-            dimensions=dimensions,
-            event_name=event_name,
-            event_content=event_content,
-            timestamp=timestamp,
-        )
 
 
 class ExportConfigResource(Resource):
@@ -571,29 +550,16 @@ class ExportConfigFileResource(ExportConfigResource):
             download_url = urljoin(settings.BK_MONITOR_HOST, download_url)
 
         try:
-            self.send_frontend_report_event(bk_biz_id, config_stats_info)
+            username = get_request().user.username if get_request(peaceful=True) else "system"
+            event_content = "导出" + ",".join(
+                [f"{count}条{config_type}" for config_type, count in config_stats_info.items()]
+            )
+
+            send_frontend_report_event(bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event failed: {e}")
 
         return {"download_url": download_url}
-
-    def send_frontend_report_event(self, bk_biz_id, config_stats_info):
-        """发送审计上班的代码"""
-        event_name = "导入导出审计"
-        event_content = "导出" + ",".join([f"{count}条{config_type}" for config_type, count in config_stats_info.items()])
-        timestamp = int(time.time() * 1000)
-        dimensions = {
-            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_request().user.username if get_request(peaceful=True) else "system",
-        }
-        # 发送审计上报的请求
-        FrontendReportEventResource().request(
-            bk_biz_id=bk_biz_id,
-            dimensions=dimensions,
-            event_name=event_name,
-            event_content=event_content,
-            timestamp=timestamp,
-        )
 
 
 class ExportAllConfigFileResource(ExportConfigFileResource):

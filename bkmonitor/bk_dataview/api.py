@@ -56,11 +56,15 @@ def get_or_create_user(username: str) -> dict:
     try:
         user = User.objects.get(login=username)
     except User.DoesNotExist:
+        email = username
+        if "@" not in email:
+            email += "@localhost"
+
         try:
             user = User.objects.create(
                 login=username,
                 version=0,
-                email=f"{username}@localhost",
+                email=email,
             )
         except IntegrityError:
             user = User.objects.get(login=username)

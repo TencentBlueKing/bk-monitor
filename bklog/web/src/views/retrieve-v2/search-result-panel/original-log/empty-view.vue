@@ -110,8 +110,10 @@
 </template>
 
 <script>
+  import docsMixin from '@/mixins/docs-link-mixin';
   import { mapGetters, mapState } from 'vuex';
   export default {
+    mixins: [docsMixin],
     inheritAttrs: false,
     data() {
       return {
@@ -159,7 +161,7 @@
       }),
       ...mapState({
         indexSetItem: 'indexFieldInfo',
-        indexSetQueryResult: 'indexSetQueryResult'
+        indexSetQueryResult: 'indexSetQueryResult',
       }),
       indexParams() {
         const { scenario_id, collector_scenario_id, index_set_id } = this.indexSetItem;
@@ -199,10 +201,10 @@
     },
     methods: {
       handleBtnClick(clickType) {
-        let baseUrl = window.SITE_URL;
+        let baseUrl = window.__IS_MONITOR_APM__ ? window.site_url : window.SITE_URL;
         if (!baseUrl.startsWith('/')) baseUrl = `/${baseUrl}`;
         if (!baseUrl.endsWith('/')) baseUrl += '/';
-        baseUrl = window.location.origin + baseUrl;
+        baseUrl = `${window.__IS_MONITOR_APM__ ? window.bk_log_search_url : window.location.origin}` + baseUrl;
         switch (clickType) {
           case 'queryString': // 查询更多语法
             this.handleGotoLink('queryString');
@@ -313,7 +315,7 @@
   }
 </style>
 
-<style>
+<style lang="scss">
   .empty-clear-width {
     /* stylelint-disable-next-line declaration-no-important */
     width: auto !important;

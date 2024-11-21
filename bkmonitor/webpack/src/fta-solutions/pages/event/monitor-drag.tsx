@@ -41,6 +41,7 @@ interface IMonitorDragProps {
   lineText?: string;
   isShow?: boolean;
   top?: number;
+  isOnlyShowIndex?: boolean;
 }
 interface IMonitorDragEvent {
   onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
@@ -61,6 +62,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: Boolean, default: false }) isInPanelView: boolean;
   @Prop({ type: Number, default: 0 }) top: number;
+  @Prop({ type: Boolean, default: false }) isOnlyShowIndex: boolean;
   left = 0;
   defaultLeft = 0;
   show = true;
@@ -193,7 +195,7 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
                   )}
                 </span>
               </span>
-              {this.lineText && (
+              {(this.lineText || this.isOnlyShowIndex) && (
                 <span
                   class='line-trigger'
                   onClick={this.handleTrigger}

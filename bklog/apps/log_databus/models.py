@@ -191,7 +191,7 @@ class CollectorConfig(CollectorBase):
         from apps.log_clustering.models import ClusteringConfig
 
         return ClusteringConfig.objects.filter(
-            collector_config_id=self.collector_config_id, signature_enable=True
+            collector_config_id=self.collector_config_id, signature_enable=True, access_finished=True
         ).exists()
 
     def get_etl_config(self):

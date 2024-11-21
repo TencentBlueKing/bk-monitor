@@ -2,9 +2,14 @@
   <div
     ref="lazyRenderCell"
     class="bklog-lazy-render-cell"
-    :class="{ 'bklog-lazy-loading': !isVisible, 'is-intersecting': isIntersecting }"
+    :class="{
+      'bklog-lazy-loading': !isVisible && delay,
+      'is-intersecting': isIntersecting,
+      'is-not-intersecting': !isIntersecting,
+    }"
+    :style="cellStyle"
   >
-    <template v-if="isVisible">
+    <template v-if="isVisible || !delay">
       <!-- 实际内容 -->
       <slot></slot>
     </template>
@@ -12,7 +17,8 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
+  import { ref, computed, onUnmounted } from 'vue';
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const props = defineProps({
     delay: {
@@ -23,83 +29,50 @@
       type: Boolean,
       default: false,
     },
+    minHeight: {
+      type: String,
+      default: '40px',
+    },
+    root: {
+      type: HTMLDivElement,
+      default: null,
+    },
   });
 
   const lazyRenderCell = ref(null);
   const isVisible = ref(false);
-  let observer = null;
-  let visibilityTimeout = null;
-  // const cellWidth = ref('auto');
-  // const cellHeight = ref('auto');
+  const localHeight = ref();
   const isIntersecting = ref(false);
 
-  // const setCellDimensions = () => {
-  //   if (lazyRenderCell.value) {
-  //     cellWidth.value = `${lazyRenderCell.value.offsetWidth}px`;
-  //     cellHeight.value = `${lazyRenderCell.value.offsetHeight}px`;
-  //   }
-  // };
-
-  // const cellStyle = computed(() => {
-  //   if (props.visibleOnly) {
-  //     return {
-  //       width: cellWidth.value,
-  //       height: cellHeight.value,
-  //     };
-  //   }
-
-  //   return {};
-  // });
-
-  const destroyObserver = () => {
-    if (observer) {
-      observer.disconnect();
-      observer = null;
-    }
-  };
-
-  const createObserver = () => {
-    observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          isIntersecting.value = entry.isIntersecting;
-          if (entry.isIntersecting) {
-            setTimeout(() => {
-              isVisible.value = true;
-            });
-          } else {
-            if (props.visibleOnly) {
-              // if (visibilityTimeout) {
-              //   cancelAnimationFrame(visibilityTimeout);
-              //   visibilityTimeout = null;
-              // }
-              // setCellDimensions();
-              isVisible.value = false;
-              return;
-            }
-          }
-        });
-      },
-      {
-        root: null,
-        threshold: 0.1,
-      },
-    );
-
-    if (lazyRenderCell.value) {
-      observer.observe(lazyRenderCell.value);
-    }
-  };
-
-  onMounted(() => {
-    createObserver();
+  const cellStyle = computed(() => {
+    return {
+      minHeight: localHeight.value ?? props.minHeight,
+    };
   });
 
-  onBeforeUnmount(() => {
-    destroyObserver();
-    if (visibilityTimeout) {
-      clearTimeout(visibilityTimeout);
+  let resizeObserver = new ResizeObserver(() => {
+    localHeight.value = `${lazyRenderCell.value.firstElementChild.offsetHeight ?? props.minHeight}px}`;
+  });
+
+  useIntersectionObserver(lazyRenderCell, entry => {
+    if (entry.isIntersecting) {
+      isVisible.value = true;
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.observe(lazyRenderCell.value.firstElementChild);
+      }
+    } else {
+      if (lazyRenderCell.value.firstElementChild) {
+        resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
+      }
+      if (props.visibleOnly) {
+        isVisible.value = false;
+      }
     }
+  });
+
+  onUnmounted(() => {
+    resizeObserver.disconnect();
+    resizeObserver = null;
   });
 </script>
 
@@ -108,15 +81,13 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
+    height: 100%;
+    min-height: 40px;
 
-    /* min-height: 40px; */
-
-    /* visibility: hidden; */
-
-    /*
-    &.is-intersecting {
-      visibility: visible;
-    } */
+    &.is-not-intersecting {
+      opacity: 1;
+      transition: opacity 1s;
+    }
   }
 
   .bklog-lazy-render-cell.bklog-lazy-loading::before {
@@ -129,7 +100,7 @@
     height: 12px;
 
     /* margin: 15px auto; */
-    color: #ddd;
+    color: #f0f1f5;
     content: '';
     border-radius: 50%;
     transform: translateY(-50%);
