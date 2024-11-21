@@ -447,6 +447,8 @@
         cleanType.value = collectData?.etl_config;
         indexBuiltField.value = collectData?.fields.filter(item => item.is_built_in && item.field_name !== 'data');
         originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
+        console.log(collectData?.fields.filter(item => item.is_built_in && item.field_name === 'data'));
+        
       });
 
     await http
@@ -457,6 +459,7 @@
       })
       .then(res => {
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text
       });
     sliderLoading.value = false;
   };
