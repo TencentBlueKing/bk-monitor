@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export const ROW_INDEX = '__component_row_index';
+export const ROW_CONFIG = '__component_row_config';
+export const ROW_KEY = '__component_row_key';
+export const ROW_EXPAND = '__component_row_expand';
+export const ROW_F_ORIGIN_TIME = '__component_origin_time';
+export const ROW_F_ORIGIN_CTX = '__component_origin_content';
+export const ROW_F_ORIGIN_OPT = '__component_table_operator';
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+// 滚动条查询条件
+export const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
-declare module '*/store';
-declare module '*.svg';
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
+// 搜索框查询条件
+export const SECTION_SEARCH_INPUT = '.search-bar-container';

@@ -23,16 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineComponent, Ref, ref } from 'vue';
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+import useResizeObserve from '@/hooks/use-resize-observe';
 
-declare module '*/store';
-declare module '*.svg';
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
+export default defineComponent({
+  props: {
+    rowIndex: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: ['row-resize'],
+  setup(props, { emit, slots }) {
+    const refRowNodeRoot: Ref<HTMLElement> = ref();
+    const renderRowVNode = () => {
+      return (
+        <div
+          ref={refRowNodeRoot}
+          data-row-index={props.rowIndex}
+        >
+          <div>{slots.default?.()}</div>
+        </div>
+      );
+    };
+
+    const getTargetElement = () => {
+      return refRowNodeRoot.value?.firstElementChild ?? refRowNodeRoot;
+    };
+
+    useResizeObserve(getTargetElement, entry => {
+      emit('row-resize', entry);
+    });
+
+    return {
+      renderRowVNode,
+    };
+  },
+  render() {
+    return this.renderRowVNode();
+  },
+});

@@ -1,8 +1,9 @@
 <script setup>
-  import { computed, nextTick } from 'vue';
+  import { computed, nextTick, ref } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import useScroll from '@/hooks/use-scroll';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -70,6 +71,22 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
+
+  // const scrollTop = ref(0);
+  // const handleScroll = (top, scrollElementOffset) => {
+  //   scrollTop.value = top > scrollElementOffset ? top - scrollElementOffset : 0;
+  // };
+
+  // const { searchBarHeight, containerId } = useScroll({ scrollCallbackFn: handleScroll });
+  // const bodyStyle = computed(() => {
+  //   if (scrollTop.value > 0) {
+  //     return {
+  //       '--fields-offset-top': `${scrollTop.value + searchBarHeight.value + 52}px`,
+  //     };
+  //   }
+
+  //   return {};
+  // });
 </script>
 
 <template>

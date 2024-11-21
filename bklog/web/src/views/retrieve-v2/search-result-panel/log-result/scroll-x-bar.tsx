@@ -23,16 +23,68 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+import { throttle } from 'lodash';
 
-declare module '*/store';
-declare module '*.svg';
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
+export default defineComponent({
+  props: {
+    outerWidth: {
+      type: Number,
+      default: 0,
+    },
+    innerWidth: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: ['scroll-change'],
+  setup(props, { emit }) {
+    const scrollXElementStyle = computed(() => {
+      return {
+        width: `${props.outerWidth}px`,
+      };
+    });
+
+    const scrollXInnerElementStyle = computed(() => {
+      return {
+        width: `${props.innerWidth}px`,
+      };
+    });
+    const refSrollRoot = ref();
+
+    const renderScrollXBar = () => {
+      return (
+        <div
+          ref={refSrollRoot}
+          style={scrollXElementStyle.value}
+          class='bklog-scroll-x'
+        >
+          <div style={scrollXInnerElementStyle.value}></div>
+        </div>
+      );
+    };
+
+    const handleScrollEvent = throttle((event: MouseEvent) => {
+      event.stopPropagation();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      emit('scroll-change', event);
+    });
+
+    onMounted(() => {
+      refSrollRoot.value?.addEventListener('scroll', handleScrollEvent);
+    });
+
+    onUnmounted(() => {
+      refSrollRoot.value?.removeEventListener('scroll', handleScrollEvent);
+    });
+
+    return {
+      renderScrollXBar,
+    };
+  },
+  render() {
+    return this.renderScrollXBar();
+  },
+});

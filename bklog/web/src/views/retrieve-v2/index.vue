@@ -186,7 +186,7 @@
   );
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
+  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true }]">
     <div class="sub-head">
       <div
         :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
@@ -219,32 +219,19 @@
         showFavorites
       />
     </div>
-    <div class="retrieve-body">
-      <CollectFavorites
-        ref="favoriteRef"
-        class="collect-favorites"
-        :is-refresh.sync="isRefreshList"
-        :is-show.sync="showFavorites"
-        :width.sync="favoriteWidth"
-      ></CollectFavorites>
-      <div
-        :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
-        class="retrieve-context"
-      >
-        <SearchBar
-          @height-change="handleHeightChange"
-          @refresh="handleRefresh"
-        ></SearchBar>
-        <div
-          ref="resultRow"
-          :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
-          class="result-row"
-        >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
-        </div>
-      </div>
-    </div>
+    <CollectFavorites
+      ref="favoriteRef"
+      class="collect-favorites"
+      :is-refresh.sync="isRefreshList"
+      :is-show.sync="showFavorites"
+      :width.sync="favoriteWidth"
+    ></CollectFavorites>
+    <SearchBar
+      @height-change="handleHeightChange"
+      @refresh="handleRefresh"
+    ></SearchBar>
+    <SearchResultTab v-model="activeTab"></SearchResultTab>
+    <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
   </div>
 </template>
 <style lang="scss">

@@ -190,6 +190,8 @@ export default {
       if (this.isUnionSearch && this.isShowSourceField) {
         sortFieldsList.unshift(this.logSourceField);
       }
+
+      console.log('fullQuantityFields------------')
       setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
     },
