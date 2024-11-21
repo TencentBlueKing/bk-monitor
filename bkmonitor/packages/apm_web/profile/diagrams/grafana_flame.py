@@ -1,0 +1,67 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+import logging
+from dataclasses import dataclass
+from typing import Optional
+
+from apm_web.profile.diagrams.base import FunctionNode
+from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
+from apm_web.profile.diagrams.tree_converter import TreeConverter
+
+logger = logging.getLogger("apm")
+
+
+def function_node_to_element(function_node: FunctionNode, level=0) -> dict:
+    return {
+        "id": function_node.id,
+        "name": function_node.name,
+        "value": function_node.value,
+        "self": function_node.self_time,
+        "level": level,
+        "children": [
+            function_node_to_element(child, level + 1) for child in function_node.children
+        ],  # 当function_node的children有两个child时，两个child都分别+1
+    }
+
+
+def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
+    return {
+        **diff_node.default.to_dict(),
+        "diff_info": diff_node.diff_info,
+        "children": [diff_node_to_element(child) for child in diff_node.children],
+    }
+
+
+@dataclass
+class GrafanaFlameDiagrammer:
+    def draw(self, c: TreeConverter, **_) -> dict:
+        level = 0
+        root = {"id": 0, "name": "total", "value": c.tree.root.value, 'level': level, "children": []}
+        for r in c.tree.root.children:
+            root["children"].append(function_node_to_element(r, level + 1))
+
+        return {"flame_data": root}
+
+    def diff(self, base_tree_c: TreeConverter, diff_tree_c: TreeConverter, **_) -> dict:
+        diff_tree = ProfileDiffer.from_raw(base_tree_c, diff_tree_c).diff_tree()
+
+        flame_data = [
+            {
+                **root.default.to_dict(),
+                "diff_info": root.diff_info,
+                "children": [diff_node_to_element(child) for child in root.children],
+            }
+            for root in diff_tree.roots
+        ]
+
+        if not flame_data:
+            logger.info("flame graph no data")
+            return {"flame_data": {}}
+        return {"flame_data": flame_data[0]}
