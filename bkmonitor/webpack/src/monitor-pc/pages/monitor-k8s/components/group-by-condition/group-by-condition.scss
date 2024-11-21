@@ -67,6 +67,12 @@
             background: #cddffe;
           }
         }
+
+        &.active {
+          .group-by-add {
+            background: #cddffe;
+          }
+        }
       }
     }
   }

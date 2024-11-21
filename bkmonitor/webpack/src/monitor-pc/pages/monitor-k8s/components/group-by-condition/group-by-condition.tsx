@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { nextTick } from 'vue';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
@@ -32,35 +33,44 @@ import type { IOption } from '../../typings';
 
 import './group-by-condition.scss';
 
-export interface IGroupOptions extends IOption {
-  checked: boolean;
+export interface IGroupOption extends IOption {
+  checked?: boolean;
   count: number;
-  list?: {
-    id: string;
-    name: string;
-    checked: boolean;
-  }[];
+  list: IGroupOption[];
+  [key: string]: any;
+}
+export interface IGroupByChangeEvent {
+  title: string;
+  id: number | string;
+  option: IGroupOption;
+  ids: Array<number | string>;
+  checked: boolean;
 }
 
-export interface IProps {
-  value?: string[];
-  dimensionOptions?: IGroupOptions[];
+export interface GroupByConditionProps {
+  title: string;
+  groupFilters: Array<number | string>;
+  dimensionOptions?: IGroupOption[];
 }
 
-export interface IEvents {
-  onChange: (item: { option: IGroupOptions; checked: boolean }) => void;
+export interface GroupByConditionEvents {
+  onChange: (item: IGroupByChangeEvent) => void;
 }
 @Component
-export default class GroupSelect extends tsc<IProps, IEvents> {
+export default class GroupByCondition extends tsc<GroupByConditionProps, GroupByConditionEvents> {
+  /** 选择器 label 名称 */
+  @Prop({ type: String, default: '' }) title: string;
+  /** 外部已选择数组 */
+  @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
   /** 外部传入选项options数组 */
-  @Prop({ type: Array }) dimensionOptions: IGroupOptions[];
+  @Prop({ type: Array }) dimensionOptions: IGroupOption[];
 
-  localValue: string[] = [];
+  @Ref() customSelectRef: any;
 
-  dimensionOptionsMap: Record<string, IGroupOptions> = {};
+  dimensionOptionsMap: Record<string, IGroupOption> = {};
 
   @Watch('dimensionOptions', { immediate: true })
-  convertDimensionOptions(newOptions: IGroupOptions[]) {
+  convertDimensionOptions(newOptions: IGroupOption[]) {
     this.$set(this, 'dimensionOptionsMap', {});
     for (const item of newOptions) {
       this.$set(this.dimensionOptionsMap, item.id, item);
@@ -68,52 +78,49 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
   }
   /** 可选项数据 */
   get options() {
-    return this.dimensionOptions.reduce(
-      (prev, curr) => {
-        if (curr.checked) {
-          prev.checkedArr.push(curr);
-        } else {
-          prev.unCheckedArr.push(curr);
-        }
-        return prev;
-      },
-      { checkedArr: [], unCheckedArr: [] }
-    );
+    const set = new Set(this.groupFilters);
+    return this.dimensionOptions?.filter(v => !set.has(v.id)) || [];
   }
 
   /** 添加、删除 */
   @Emit('change')
-  handleValueChange(option, checked: boolean) {
-    return { option, checked };
+  handleValueChange(id, option, ids, checked) {
+    return { id, option, ids, checked };
   }
 
-  handleSelect(arr) {
+  handleSelect(ids) {
+    if (ids?.length === this.groupFilters?.length) return;
     let changeId = null;
-    this.localValue = arr;
-    if (arr?.length > this.options.checkedArr?.length) {
-      changeId = arr[arr.length - 1];
+    if (ids?.length > this.groupFilters?.length) {
+      changeId = ids[ids.length - 1];
     } else {
-      changeId = this.options.checkedArr.filter(v => !arr.includes(v.id))?.[0]?.id;
+      changeId = this.groupFilters.filter(v => !ids.includes(v))?.[0];
     }
     const changeItem = this.dimensionOptionsMap[changeId];
-    this.handleValueChange(changeItem, !changeItem?.checked);
+    this.handleValueChange(changeId, changeItem, ids, !changeItem?.checked);
+    nextTick(() => {
+      if (!this.options?.length) {
+        this.customSelectRef?.handleHideDropDown?.();
+      }
+    });
   }
 
   /** 删除操作 */
-  handleDeleteItem(item: IGroupOptions) {
+  handleDeleteItem(item: IGroupOption) {
     // TODO: 删除逻辑
-    this.localValue = this.localValue.filter(v => v !== item.id);
-    this.handleValueChange(item, false);
+    const ids = this.groupFilters.filter(v => v !== item.id);
+    this.handleValueChange(item.id, item, ids, false);
+    this.customSelectRef?.handleShowDropDown?.();
   }
 
   render() {
     return (
       <div class='group-by-wrap'>
-        <span class='group-by-label'>Groups by</span>
+        <span class='group-by-label'>{this.title}</span>
         <span class='group-by-main'>
-          {this.localValue.map((id, index) => (
+          {this.groupFilters.map(id => (
             <span
-              key={index}
+              key={id}
               class='group-by-item'
             >
               {this.dimensionOptionsMap[id].name}
@@ -124,23 +131,26 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             </span>
           ))}
           <CustomSelect
+            ref='customSelectRef'
             class='group-by-select'
             // @ts-ignore
             extPopoverCls='group-by-select-popover'
-            options={this.options.unCheckedArr}
+            options={this.options}
             popoverMinWidth={140}
             searchable={false}
-            value={this.localValue}
+            value={this.groupFilters}
             multiple
             onSelected={this.handleSelect}
           >
-            <span
-              class='group-by-add'
-              slot='target'
-            >
-              <i class='icon-monitor icon-plus-line' />
-            </span>
-            {this.options.unCheckedArr.map(opt => (
+            <div slot='target'>
+              {this.options.length ? (
+                <span class='group-by-add'>
+                  <i class='icon-monitor icon-plus-line' />{' '}
+                </span>
+              ) : null}
+            </div>
+
+            {this.options.map(opt => (
               <bk-option
                 id={opt.id}
                 key={opt.id}
