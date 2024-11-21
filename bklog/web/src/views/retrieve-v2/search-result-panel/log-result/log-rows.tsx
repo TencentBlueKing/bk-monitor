@@ -100,23 +100,14 @@ export default defineComponent({
 
       return count;
     });
+
+    const hasMoreList = computed(() => totalCount.value > tableData.value.length);
+
     const visibleIndexs = ref({ startIndex: 0, endIndex: 30 });
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
-    const hasOverflowX = ref(false);
     const bufferCount = 30;
-
-    // const visibleTableList = computed(() =>
-    //   tableData.value.slice(visibleIndexs.value.startIndex, visibleIndexs.value.endIndex),
-    // );
-
-    // const tableMinHeight = computed(() => {
-    //   return tableData.value.reduce((height, row) => {
-    //     const config = row[ROW_CONFIG].value;
-    //     return height + config.minHeight;
-    //   }, 0);
-    // });
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     const resultContainerIdSelector = `#${resultContainerId.value}`;
@@ -417,7 +408,7 @@ export default defineComponent({
       () => {
         columns.value = loadTableColumns();
         setTimeout(() => {
-          hasOverflowX.value = hasScrollX();
+          computeRect();
           resetRowHeight();
         });
       },
@@ -519,14 +510,14 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, scrollDirection } = useLazyRender({
+    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       scrollCallbackFn: handleScrollEvent,
       container: resultContainerIdSelector,
     });
 
     const scrollXOffsetLeft = ref(0);
-    const getFixRightWidth = computed(() => {
+    const operatorFixRightWidth = computed(() => {
       const operatorWidth = getOperatorToolsWidth();
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
       return diff > operatorWidth ? 0 : operatorWidth - diff;
@@ -536,7 +527,7 @@ export default defineComponent({
       return {
         '--scroll-left': `-${scrollXOffsetLeft.value}px`,
         '--padding-right': `${getOperatorToolsWidth()}px`,
-        '--fix-right-width': `${getFixRightWidth.value}px`,
+        '--fix-right-width': `${operatorFixRightWidth.value}px`,
       };
     });
 
@@ -544,7 +535,6 @@ export default defineComponent({
       return {
         top: `${searchContainerHeight.value + 8}px`,
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
-        ...scrollXTransformStyle.value,
       };
     });
 
@@ -557,7 +547,7 @@ export default defineComponent({
         return (
           <div
             style={headStyle.value}
-            class={['bklog-row-container row-header', { 'has-overflow-x': hasOverflowX.value }]}
+            class={['bklog-row-container row-header', { 'has-overflow-x': hasScrollX.value }]}
           >
             <div class='bklog-list-row'>
               {renderColumns.value.map(column => (
@@ -641,7 +631,12 @@ export default defineComponent({
           const emptyRowStyle = {
             minHeight: `${preHiddenHeight.value}px`,
           };
-          return <div style={emptyRowStyle}></div>;
+          return (
+            <div
+              style={emptyRowStyle}
+              class={['preloading-placeholder', { 'has-animation': preHiddenHeight.value > 300 }]}
+            ></div>
+          );
         }
         const rowIndex = row[ROW_INDEX];
         const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
@@ -658,7 +653,7 @@ export default defineComponent({
               class={[
                 'bklog-row-container',
                 {
-                  'has-overflow-x': hasOverflowX.value,
+                  'has-overflow-x': hasScrollX.value,
                 },
               ]}
               row-index={rowIndex}
@@ -676,7 +671,7 @@ export default defineComponent({
             class={[
               'bklog-row-container',
               {
-                'has-overflow-x': hasOverflowX.value,
+                'has-overflow-x': hasScrollX.value,
               },
             ]}
             row-index={rowIndex}
@@ -701,13 +696,6 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,
-        ...scrollXTransformStyle.value,
-      };
-    });
-
-    const tableOffsetStyle = computed(() => {
-      return {
-        transform: `translate3d(0, ${rowsOffsetTop.value}px, 0)`,
       };
     });
 
@@ -717,56 +705,67 @@ export default defineComponent({
           <div
             style={{ width: `${offsetWidth.value}px` }}
             v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
-          ></div>
+          >
+            {hasMoreList.value || tableData.value.length === 0 ? '' : `已加载所有数据`}
+          </div>
         </div>
       );
     };
 
+    const renderFixRightShadow = () => {
+      if (hasScrollX.value && scrollXOffsetLeft.value > 0) {
+        return <div class='fixed-right-shadown'></div>;
+      }
+
+      return null;
+    };
+
+    const renderResultContainer = () => {
+      if (tableData.value.length) {
+        return [
+          renderHeadVNode(),
+          <div
+            id={resultContainerId.value}
+            style={tableStyle.value}
+            class={['bklog-row-box', { 'show-head': showHeader.value }]}
+          >
+            {renderRowVNode()}
+          </div>,
+          renderFixRightShadow(),
+          renderScrollTop(),
+          renderScrollXBar(),
+          renderLoader(),
+          <div class='resize-guide-line'></div>,
+        ];
+      }
+
+      return (
+        <bk-exception
+          style='margin-top: 100px;'
+          class='exception-wrap-item exception-part'
+          scene='part'
+          type='search-empty'
+        ></bk-exception>
+      );
+    };
+
     return {
-      tableData,
-      isLoading,
-      renderHeadVNode,
-      renderScrollTop,
-      renderRowVNode,
-      renderScrollXBar,
-      renderLoader,
-      resultContainerId,
-      tableStyle,
-      scrollXTransformStyle,
-      showHeader,
       refRootElement,
-      scrollDirection,
-      tableOffsetStyle,
+      isLoading,
+      isRequesting,
+      renderResultContainer,
+      scrollXTransformStyle,
     };
   },
   render() {
     return (
       <div
         ref='refRootElement'
+        style={this.scrollXTransformStyle}
         class='bklog-result-container'
+        v-bkloading={{ isLoading: this.isLoading && !this.isRequesting, opacity: 0.1 }}
       >
-        {this.renderHeadVNode()}
-        <div
-          id={this.resultContainerId}
-          style={this.tableStyle}
-          class={['bklog-row-box', { 'show-head': this.showHeader }]}
-        >
-          {this.renderRowVNode()}
-        </div>
-        {this.tableData.length === 0 ? (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          ></bk-exception>
-        ) : (
-          ''
-        )}
-        {this.renderScrollTop()}
-        {this.renderScrollXBar()}
-        {this.renderLoader()}
-        <div class='resize-guide-line'></div>
+        {this.renderResultContainer()}
       </div>
     );
   },

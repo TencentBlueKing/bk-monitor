@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import useResizeObserve from '@/hooks/use-resize-observe';
 import { throttle, debounce } from 'lodash';
@@ -57,7 +57,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
       isComputingCalcOffset = true;
       const currentElement = getCurrentElement();
       const relativeTo = getScrollElement();
-      scrollElementOffset = relativeTo.scrollHeight - currentElement.scrollHeight;
+      scrollElementOffset = relativeTo.scrollHeight - (currentElement?.scrollHeight ?? 0);
       debounceStopComputing();
     }
   };
@@ -90,16 +90,16 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
     getScrollElement().scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
   };
 
-  const hasScrollX = () => {
-    const target = getCurrentElement() as HTMLDivElement;
-    const wrapper = target.closest('.bklog-result-container') as HTMLElement;
-    offsetWidth.value = wrapper.offsetWidth;
-    scrollWidth.value = wrapper.scrollWidth;
-    return wrapper.scrollWidth > wrapper.offsetWidth;
-  };
+  const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
   const getParentContainer = () => {
     return getCurrentElement()?.closest('.bklog-result-container') as HTMLElement;
+  };
+
+  const computeRect = () => {
+    const target = getParentContainer();
+    scrollWidth.value = target?.scrollWidth ?? 0;
+    offsetWidth.value = target?.offsetWidth ?? 0;
   };
 
   useResizeObserve(getCurrentElement, entry => {
@@ -128,6 +128,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container }) => {
   return {
     scrollToTop,
     hasScrollX,
+    computeRect,
     scrollDirection,
     offsetWidth,
     scrollWidth,
