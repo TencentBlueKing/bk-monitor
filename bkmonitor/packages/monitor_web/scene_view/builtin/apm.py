@@ -170,6 +170,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         bk_biz_id = view.bk_biz_id
         app_name = params["app_name"]
         service_name = params["service_name"]
+        view_switches = params.get("view_switches", {})
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
@@ -367,6 +368,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
                 )
 
+            view_variables = {}
+            if not view_switches.get("only_dimension", False):
+                discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
+                    bk_biz_id, app_name, params["service_name"]
+                )
+                server_config: Dict[str, Any] = discover_result["server_config"]
+
+                if server_config["temporality"] == MetricTemporality.CUMULATIVE:
+                    # 指标为累加类型，需要添加 increase 函数
+                    cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
+                view_variables = {
+                    "temporality": server_config["temporality"],
+                    "server": server_config["server_field"],
+                    "service_name": server_config["service_field"],
+                    "server_filter_method": server_config["server_filter_method"],
+                    "ret_code_as_exception": server_config.get("ret_code_as_exception", False),
+                }
+
             if metric_count > 0:
                 # 使用非内部指标设置monitor_info_mapping
                 monitor_info_mapping = cls.get_monitor_info(
@@ -402,8 +422,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "filter_key_value": metric_info["filter_service_value"],
                     }
                     metric_panel = copy.deepcopy(metric_panel_template)
-                    for var_name, var_value in variables.items():
-                        metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
+                    if view_variables:
+                        variables.update(view_variables)
+                    metric_panel = cls._multi_replace_variables(metric_panel, variables)
 
                     monitor_name = metric_info["monitor_name"] or "default"
                     if monitor_name not in metric_group_mapping:
@@ -413,13 +434,15 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "group_id": group_id,
                             "group_name": monitor_name,
                         }
-                        for var_name, var_value in group_variables.items():
-                            group_panel = cls._replace_variable(group_panel, "${{{}}}".format(var_name), var_value)
+                        group_panel = cls._multi_replace_variables(group_panel, group_variables)
                         metric_group_mapping[monitor_name] = group_panel
                     metric_group_mapping[monitor_name]["panels"].append(metric_panel)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
             if not view_config["overview_panels"]:
                 cls._generate_non_custom_metric_view_config(view_config)
+
+            option_variables = {"request_total_name": _("请求总数")}
+            view_config = cls._multi_replace_variables(view_config, option_variables)
         return view_config
 
     @classmethod
@@ -496,6 +519,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             current_target["bk_host_id"] = span_host["bk_host_id"]
 
                         query_config["filter_dict"]["targets"] = [current_target]
+
+    @classmethod
+    def _multi_replace_variables(cls, replace_config, variables_mapping):
+        replace_content = json.dumps(replace_config)
+        for var_name, var_value in variables_mapping.items():
+            replace_content = replace_content.replace("${{{}}}".format(var_name), str(var_value))
+        return json.loads(replace_content)
 
     @classmethod
     def _replace_variable(cls, view_config, target, value):
@@ -769,6 +799,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
             "only_simple_info": params.get("only_simple_info") or False,
+            "view_switches": params.get("view_switches", {}),
         }
         # 自定义参数透传
         if scene_id == "apm_service" and params.get("id") in [
