@@ -1,0 +1,176 @@
+.group-item {
+  & + .group-item {
+    margin-top: 8px;
+  }
+
+  .group-count {
+    height: 16px;
+    padding: 0 8px;
+    margin: 0 4px;
+    line-height: 16px;
+    background: #ffffff;
+    border-radius: 2px;
+  }
+
+  .arrow-icon {
+    transition: transform 0.1s;
+    font-size: 18px;
+
+    &.expand {
+      transform: rotateZ(90deg);
+    }
+  }
+
+  .group-header {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px 0 24px;
+    margin-bottom: 8px;
+    height: 32px;
+    background: #f0f1f5;
+    border-radius: 2px;
+    cursor: pointer;
+
+    &-left {
+      display: flex;
+      align-items: center;
+
+      .arrow-icon {
+        position: absolute;
+        left: 4px;
+        top: 7px;
+      }
+
+      .group-name {
+        font-size: 12px;
+        color: #313238;
+      }
+
+      .icon-shaixuan {
+        font-size: 16px;
+        color: #3a84ff;
+      }
+    }
+
+    .group-select {
+      font-size: 12px;
+      color: #3a84ff;
+    }
+  }
+
+  .group-content {
+    .group-content-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-left: 24px;
+      height: 32px;
+      cursor: pointer;
+
+      .content-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-left: 4px;
+        width: 44px;
+        font-size: 14px;
+
+        .drill-down-icon {
+          width: 24px;
+          height: 24px;
+          line-height: 24px;
+          text-align: center;
+
+          &.active {
+            background: #cddffe;
+            color: #3a84ff;
+          }
+        }
+
+        .view-icon:hover {
+          color: #3a84ff;
+        }
+
+        .icon-monitor:hover {
+          color: #3a84ff;
+        }
+
+        .icon-sousuo- {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .show-more {
+      padding-bottom: 4px;
+      line-height: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #979ba5;
+
+      .text {
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .child-content {
+    .child-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding-left: 37px;
+      cursor: pointer;
+
+      &:hover {
+        background: #f5f7fa;
+      }
+
+      .group-count {
+        background-color: #f0f1f5;
+      }
+
+      .arrow-icon {
+        position: absolute;
+        left: 18px;
+        top: 7px;
+      }
+    }
+
+    .group-content-item {
+      padding-left: 37px;
+    }
+  }
+}
+
+.drill-down-list-menu {
+  width: 100px;
+  padding: 4px 0;
+
+  .menu-item {
+    line-height: 32px;
+    height: 32px;
+    padding: 0 7px 0 12px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}

@@ -26,14 +26,22 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { random } from 'monitor-common/utils';
+
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { getDefaultTimezone } from '../../i18n/dayjs';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import { GROUP_OPTIONS } from './components/filter-by-condition/utils';
 import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
 } from './components/group-by-condition/group-by-condition';
+import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
+import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew from './components/k8s-table-new/k8s-table-new';
 import { K8sNewTabEnum } from './typings/k8s-new';
+
+import type { TimeRangeType } from '../../components/time-range/time-range';
 
 import './monitor-k8s-new.scss';
 
@@ -56,6 +64,20 @@ const tabList = [
 ];
 @Component
 export default class MonitorK8sNew extends tsc<object> {
+  // 场景
+  scene = 'performance';
+  // 时间范围
+  timeRange: TimeRangeType = [...DEFAULT_TIME_RANGE];
+  // 时区
+  timezone = getDefaultTimezone();
+  // 刷新间隔
+  refreshInterval = -1;
+  // 立即刷新
+  immediateRefresh = random(8);
+  // 集群
+  cluster = '';
+  // 集群列表
+  clusterList = [];
   activeTab = K8sNewTabEnum.LIST;
   groupFilters: Array<number | string> = [];
   groupOptions = [...GROUP_OPTIONS];
@@ -72,6 +94,27 @@ export default class MonitorK8sNew extends tsc<object> {
 
   setGroupFilters(filters: Array<number | string>) {
     this.$set(this, 'groupFilters', filters);
+  }
+
+  handleImmediateRefresh() {
+    this.immediateRefresh = random(8);
+  }
+
+  handleRefreshChange(value: number) {
+    this.refreshInterval = value;
+  }
+
+  handleTimeRangeChange(timeRange: TimeRangeType) {
+    this.timeRange = timeRange;
+  }
+
+  handleTimezoneChange(timezone: string) {
+    this.timezone = timezone;
+    // updateTimezone(timezone);
+  }
+
+  handleClusterChange(cluster: string) {
+    this.cluster = cluster;
   }
 
   setGroupOption<T extends keyof IGroupOption>(option: IGroupOption, key: T, value: IGroupOption[T]) {
@@ -108,9 +151,37 @@ export default class MonitorK8sNew extends tsc<object> {
   render() {
     return (
       <div class='monitor-k8s-new'>
-        <div class='monitor-k8s-new-header' />
+        <div class='monitor-k8s-new-header'>
+          <K8sNavBar
+            refreshInterval={this.refreshInterval}
+            timeRange={this.timeRange}
+            timezone={this.timezone}
+            value={this.scene}
+            onImmediateRefresh={this.handleImmediateRefresh}
+            onRefreshChange={this.handleRefreshChange}
+            onTimeRangeChange={this.handleTimeRangeChange}
+            onTimezoneChange={this.handleTimezoneChange}
+          />
+        </div>
+
         <div class='monitor-k8s-new-content'>
-          <div class='content-left' />
+          <div class='content-left'>
+            <bk-select
+              class='cluster-select'
+              clearable={false}
+              value={this.cluster}
+              onChange={this.handleClusterChange}
+            >
+              {this.clusterList.map(cluster => (
+                <bk-option
+                  id={cluster.value}
+                  key={cluster.value}
+                  name={cluster.label}
+                />
+              ))}
+            </bk-select>
+            <K8sLeftPanel />
+          </div>
           <div class='content-right'>
             <div class='filter-header-wrap'>
               <div class='filter-by-wrap'>
