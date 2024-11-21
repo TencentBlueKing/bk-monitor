@@ -1,0 +1,262 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './group-item.scss';
+
+interface GroupListItem {
+  id: string;
+  title: string;
+  count?: number;
+  children?: GroupListItem[];
+}
+
+type Tools = 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
+
+interface GroupItemProps {
+  list: GroupListItem;
+  value?: string[];
+  isGroupBy?: boolean;
+  showMore?: boolean;
+  tools?: Tools[];
+  hiddenList?: string[];
+}
+
+interface GroupItemEvent {
+  onHandleSearch: (ids: string[]) => void;
+  onHandleDrillDown: (val: { id: string; drillDown: string }) => void;
+  onHandleGroupByChange: (val: boolean) => void;
+  onHandleMoreClick: () => void;
+  onHandleHiddenChange: (ids: string[]) => void;
+}
+
+@Component
+export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
+  @Prop({ default: () => ({}) }) list: GroupListItem;
+  @Prop({ default: () => [] }) value: string[];
+  @Prop({ default: false }) isGroupBy: boolean;
+  @Prop({ default: () => [] }) hiddenList: string[];
+  @Prop({ default: false }) showMore: boolean;
+  @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
+
+  @Ref('menu') menuRef: any;
+
+  /** 展开的组  */
+  expand = {};
+
+  drillDown = '';
+
+  popoverInstance = null;
+
+  collapseChange(id: string) {
+    this.$set(this.expand, id, !this.expand[id]);
+  }
+
+  async handleDrillDown(id: string, e: Event) {
+    this.drillDown = id;
+    this.popoverInstance = this.$bkPopover(e.target, {
+      content: this.menuRef,
+      trigger: 'click',
+      placement: 'bottom-start',
+      theme: 'light common-monitor',
+      arrow: false,
+      interactive: true,
+      followCursor: false,
+      onHidden: () => {
+        this.drillDown = '';
+        this.popoverInstance.destroy();
+        this.popoverInstance = null;
+      },
+    });
+    await this.$nextTick();
+    this.popoverInstance?.show(100);
+  }
+
+  handleClear(e: Event) {
+    e.stopPropagation();
+    this.handleSearch();
+  }
+
+  @Emit('handleSearch')
+  handleSearch(id?: string) {
+    if (id) {
+      const res = this.value.includes(id);
+      return res ? this.value.filter(item => item !== id) : [...this.value, id];
+    }
+    return [];
+  }
+
+  @Emit('handleDrillDown')
+  handleDrillDownChange(val: string) {
+    const id = this.drillDown;
+    this.popoverInstance?.hide();
+    return {
+      id,
+      drillDown: val,
+    };
+  }
+
+  @Emit('handleGroupByChange')
+  handleGroupByChange(e: Event) {
+    e.stopPropagation();
+    return !this.isGroupBy;
+  }
+
+  @Emit('handleMoreClick')
+  handleShowMore() {}
+
+  @Emit('handleHiddenChange')
+  handleHiddenChange(id: string) {
+    const res = this.hiddenList.includes(id);
+    return res ? this.hiddenList.filter(item => item !== id) : [...this.hiddenList, id];
+  }
+
+  renderGroupContent(item: GroupListItem) {
+    const isSelectSearch = this.value.includes(item.id);
+    const isHidden = this.hiddenList.includes(item.id);
+
+    if (item.children) {
+      return (
+        <div class='child-content'>
+          <div
+            class='child-header'
+            onClick={() => this.collapseChange(item.id)}
+          >
+            <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[item.id] ? 'expand' : ''}`} />
+            <span class='group-name'>{item.title}</span>
+            <div class='group-count'>{item.count}</div>
+          </div>
+
+          {this.expand[item.id] && item.children.map(child => this.renderGroupContent(child))}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={item.id}
+        class='group-content-item'
+      >
+        <span
+          class='content-name'
+          v-bk-overflow-tips
+        >
+          {item.title}
+        </span>
+        <div class='tools'>
+          {this.tools.includes('search') && (
+            <i
+              class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
+              v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
+              onClick={() => this.handleSearch(item.id)}
+            />
+          )}
+          {this.tools.includes('drillDown') && (
+            <div
+              class={`drill-down-icon ${this.drillDown === item.id ? 'active' : ''}`}
+              v-bk-tooltips={{ content: this.$t('下钻') }}
+            >
+              <i
+                class='icon-monitor icon-xiazuan'
+                onClick={e => this.handleDrillDown(item.id, e)}
+              />
+            </div>
+          )}
+          {this.tools.includes('view') && (
+            <i
+              class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
+              v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
+              onClick={() => this.handleHiddenChange(item.id)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  render() {
+    return (
+      <div class='group-item'>
+        <div
+          class='group-header'
+          onClick={() => this.collapseChange(this.list.id)}
+        >
+          <div class='group-header-left'>
+            <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[this.list.id] ? 'expand' : ''}`} />
+            <span class='group-name'>{this.list.title}</span>
+            <div class='group-count'>{this.list.count}</div>
+            {this.value.length > 0 && this.tools.includes('clear') && (
+              <i
+                class='icon-monitor icon-shaixuan'
+                v-bk-tooltips={{ content: this.$t('清空整组筛选项') }}
+                onClick={this.handleClear}
+              />
+            )}
+          </div>
+          {this.tools.includes('groupBy') && (
+            <div
+              class='group-select'
+              onClick={this.handleGroupByChange}
+            >
+              {this.isGroupBy ? 'unGroup' : 'Group'}
+            </div>
+          )}
+        </div>
+        <div
+          style={{ display: this.expand[this.list.id] ? 'block' : 'none' }}
+          class='group-content'
+        >
+          {this.list.children.map(child => this.renderGroupContent(child))}
+          {this.showMore && (
+            <div class='show-more'>
+              <span
+                class='text'
+                onClick={this.handleShowMore}
+              >
+                {this.$t('点击加载更多')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div style='display: none'>
+          <ul
+            ref='menu'
+            class='drill-down-list-menu'
+          >
+            <li
+              class='menu-item'
+              onClick={() => this.handleDrillDownChange('namespace')}
+            >
+              namespace
+            </li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
+}
