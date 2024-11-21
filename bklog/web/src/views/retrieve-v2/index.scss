@@ -1,5 +1,9 @@
 .retrieve-v2-index {
-  height: calc(100vh - 52px);
+  &.scroll-y {
+    height: calc(100vh - 52px);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 
   &.show-favorites {
     .sub-head {
@@ -64,6 +68,7 @@
   .sub-head {
     display: flex;
     height: 48px;
+    margin: 8px 8px 8px 0;
 
     .box-favorites {
       display: flex;
@@ -86,45 +91,26 @@
     }
   }
 
-  .retrieve-body {
-    width: 100%;
-    height: calc(100vh - 104px);
-    padding: 8px;
-    background: #f5f7fa;
+  .search-result-panel {
+    .search-result-content {
+      height: fit-content;
 
-    .retrieve-context {
-      height: 100%;
-
-      .result-row {
-        width: 100%;
+      .result-table-container {
         height: 100%;
-        min-height: 120px;
-        margin-top: 8px;
-        background: #ffffff;
-        border-radius: 2px;
-        box-shadow: 0 2px 4px 0 #1919290d;
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-        .search-result-panel {
-          .search-result-content {
-            .result-table-container {
-              height: 100%;
-              margin-top: 12px;
-              overflow: auto;
-            }
+      .finger-container {
+        height: calc(100vh - 310px);
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-            .finger-container {
-              height: calc(100vh - 310px);
-              margin-top: 12px;
-              overflow: auto;
-            }
-
-            &.is-trend-chart-show {
-              .result-table-container {
-                height: 100%;
-                overflow: auto;
-              }
-            }
-          }
+      &.is-trend-chart-show {
+        .result-table-container {
+          height: 100%;
+          overflow: auto;
         }
       }
     }

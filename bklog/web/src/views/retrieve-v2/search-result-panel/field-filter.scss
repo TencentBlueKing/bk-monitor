@@ -4,21 +4,22 @@
   height: 100%;
   padding: 8px 0;
   background: #ffffff;
-  box-shadow: 1px 0 0 0 #eaebf0;
+  // box-shadow: 1px 0 0 0 #eaebf0;
 
   &.is-close {
     /* stylelint-disable-next-line declaration-no-important */
     position: absolute !important;
-    z-index: 9;
+    z-index: 3;
     display: flex;
     align-items: center;
     width: auto;
 
     /* stylelint-disable-next-line declaration-no-important */
     height: 30px !important;
+    padding-top: 4px;
 
     /* stylelint-disable-next-line declaration-no-important */
-    padding: 8px 0 0 16px !important;
+    padding-left: 14px;
 
     box-shadow: none;
 
@@ -27,6 +28,7 @@
     }
 
     .field-filter-title {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -42,19 +44,16 @@
         cursor: pointer;
       }
 
-      &::after {
-        position: absolute;
-        right: -8px;
-        display: inline-block;
-        font-size: 16px;
-        color: #dcdee5;
-        pointer-events: none;
-        content: '|';
-      }
-
       .bklog-collapse-small {
         /* stylelint-disable-next-line declaration-no-important */
         transform: rotateZ(90deg) !important;
+      }
+
+      &::after {
+        position: absolute;
+        right: 18px;
+        color: #dcdee5;
+        content: '|';
       }
     }
   }
@@ -69,7 +68,7 @@
 
     .left-title {
       font-weight: 700;
-      color: #63656E;
+      color: #63656e;
     }
 
     .is-text-click {

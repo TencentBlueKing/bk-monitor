@@ -213,10 +213,17 @@
     right: 0;
     display: flex;
     align-items: flex-start;
-    justify-content: flex-end;
+    justify-content: center;
     width: 84px;
     padding: 14px 10px;
     overflow: hidden;
+
+    .handle-card {
+      display: inline-block;
+      height: 14px;
+      margin-left: 10px;
+      width: 14px;
+    }
   }
 
   .fix-content {

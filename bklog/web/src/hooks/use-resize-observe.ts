@@ -23,16 +23,62 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { onMounted, Ref, onUnmounted } from 'vue';
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+import { debounce, isElement } from 'lodash';
 
-declare module '*/store';
-declare module '*.svg';
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
+export default (
+  target: Ref<HTMLElement> | string | (() => string | HTMLElement),
+  callbackFn: (entry: ResizeObserverEntry) => void,
+) => {
+  const debounceCallback = debounce(entry => {
+    callbackFn?.(entry);
+  }, 120);
+
+  const getTarget = () => {
+    if (typeof target === 'string') {
+      return document.querySelector(target);
+    }
+
+    if (isElement(target)) {
+      return target;
+    }
+
+    if (typeof target === 'function') {
+      return target?.();
+    }
+
+    return target?.value;
+  };
+
+  let resizeObserver = null;
+  const createResizeObserve = () => {
+    const cellElement = getTarget();
+
+    if (isElement(cellElement)) {
+      // 创建一个 ResizeObserver 实例
+      resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          // 获取元素的新高度
+          debounceCallback(entry);
+        }
+      });
+
+      resizeObserver?.observe(cellElement);
+    }
+  };
+
+  onMounted(() => {
+    createResizeObserve();
+  });
+
+  onUnmounted(() => {
+    const cellElement = getTarget();
+
+    if (isElement(cellElement)) {
+      resizeObserver?.unobserve(cellElement);
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+    }
+  });
+};

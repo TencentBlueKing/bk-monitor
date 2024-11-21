@@ -378,6 +378,7 @@ const store = new Vuex.Store({
 
     updateIndexSetQueryResult(state, payload) {
       Object.assign(state.indexSetQueryResult, payload ?? {});
+      state.indexSetQueryResult.request_counter = state.indexSetQueryResult.request_counter + 1;
     },
 
     updateIndexItemParams(state, payload) {
@@ -589,9 +590,10 @@ const store = new Vuex.Store({
     },
     updateVisibleFields(state, val) {
       state.visibleFields = val;
+      state.indexFieldInfo.request_counter += 1;
     },
-    updateVisibleFieldMinWidth(state, fields) {
-      setDefaultTableWidth(state.visibleFields, fields);
+    updateVisibleFieldMinWidth(state, tableList) {
+      setDefaultTableWidth(state.visibleFields, tableList);
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -711,6 +713,8 @@ const store = new Vuex.Store({
           state.indexSetQueryResult.list,
           catchFieldsWidthObj,
         );
+
+        state.indexFieldInfo.request_counter += 1;
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
@@ -1004,7 +1008,6 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
-          // commit('updateAddition');
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID

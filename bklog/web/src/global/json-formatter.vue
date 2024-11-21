@@ -26,13 +26,12 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, nextTick } from 'vue';
+  import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  // import jsonEditorTask from '../global/utils/json-editor-task';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -73,12 +72,12 @@
     onSegmentClick,
   });
 
-  const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
-    if (entry.isIntersecting && !isEditorInit.value) {
-      isEditorInit.value = true;
-      setEditor(depth.value);
-    }
-  });
+  // const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
+  //   if (entry.isIntersecting && !isEditorInit.value) {
+  //     isEditorInit.value = true;
+  //     setEditor(depth.value);
+  //   }
+  // });
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {
@@ -133,10 +132,7 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
-      if (isIntersecting.value) {
-        isEditorInit.value = true;
-        setEditor(depth.value);
-      }
+      setEditor(depth.value);
     },
     {
       immediate: true,
@@ -146,13 +142,13 @@
   watch(
     () => [depth.value],
     () => {
-      if (isIntersecting.value) {
-        setExpand(depth.value);
-      } else {
-        isEditorInit.value = false;
-      }
+      setExpand(depth.value);
     },
   );
+
+  onBeforeUnmount(() => {
+    destroy();
+  });
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
@@ -163,10 +159,16 @@
     font-size: var(--table-fount-size);
     line-height: 20px;
     color: var(--table-fount-color);
+    text-align: left;
 
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
+      // display: inline-flex;
+
+      .bklog-json-view-row {
+        word-break: break-all;
+      }
 
       &:not(:first-child) {
         margin-top: 1px;

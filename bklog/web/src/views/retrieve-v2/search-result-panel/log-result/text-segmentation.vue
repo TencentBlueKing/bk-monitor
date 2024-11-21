@@ -1,10 +1,37 @@
+<!--
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 <script setup>
   import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
-  import UseJsonFormatter from '@/hooks/use-json-formatter';
-  import useTruncateText from '@/hooks/use-truncate-text';
+
+  import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import useTruncateText from '@/hooks/use-truncate-text';
   import { debounce } from 'lodash';
 
   const emit = defineEmits(['menu-click']);
@@ -25,19 +52,8 @@
   const maxWidth = ref(0);
   const isIntersecting = ref(false);
   const isSegmentTagInit = ref(false);
-  const textTruncateOption = computed(() => ({
-    fontSize: 12,
-    text: props.content,
-    maxWidth: maxWidth.value,
-    font: '12px Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace',
-    showAll: isLimitExpandView.value || showAll.value,
-  }));
 
-  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const handleMenuClick = event => {
-    if (showMore.value && refFieldValue.value.querySelectorAll('.valid-text').length === 1) {
-      event.option.value = props.content;
-    }
     emit('menu-click', event);
   };
 
@@ -48,8 +64,17 @@
     onSegmentClick: handleMenuClick,
   });
 
+  const textTruncateOption = computed(() => ({
+    fontSize: 12,
+    text: props.content,
+    maxWidth: maxWidth.value,
+    font: `12px ${TABLE_FOUNT_FAMILY}`,
+    showAll: isLimitExpandView.value || showAll.value,
+  }));
+
+  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
   const renderText = computed(() => {
-    if (showAll.value || isLimitExpandView.value) {
+    if (showAll.value || isLimitExpandView.value || true) {
       return props.content;
     }
 
@@ -66,10 +91,31 @@
 
   let resizeObserver = null;
 
+  const debounceSetSegmentTag = debounce(() => {
+    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
+      return;
+    }
+
+    instance.config.jsonValue = props.content;
+    instance.destroy?.();
+
+    const appendText =
+      showMore.value && !isLimitExpandView.value
+        ? {
+            text: btnText.value,
+            onClick: handleClickMore,
+            attributes: {
+              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
+            },
+          }
+        : undefined;
+    instance.initStringAsValue(props.content, appendText);
+  });
+
   watch(
-    () => [props.content],
+    () => [renderText.value],
     () => {
-      textTruncateOption.value.text = props.content;
+      debounceSetSegmentTag();
     },
     {
       immediate: true,
@@ -84,94 +130,57 @@
     showAll.value = !showAll.value;
   };
 
-  const debounceSetSegmentTag = debounce(() => {
-    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
-      return;
-    }
-
-    instance.config.jsonValue = renderText.value;
-    instance.destroy?.();
-
-    const appendText =
-      showMore.value && !isLimitExpandView.value
-        ? {
-            text: btnText.value,
-            onClick: handleClickMore,
-            attributes: {
-              class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
-            },
-          }
-        : undefined;
-    instance.initStringAsValue(renderText.value, appendText);
-  });
-
-  watch(
-    () => [renderText.value],
-    () => {
-      nextTick(() => {
-        debounceSetSegmentTag();
-      });
-    },
-  );
-
   const getCellElement = () => {
-    return refContent.value?.parentElement?.closest?.('.bklog-lazy-render-cell');
+    return refContent.value?.parentElement;
   };
 
   const debounceUpdateSegmentTag = debounce(() => {
     const cellElement = getCellElement();
+
     if (cellElement) {
-      const offsetWidth = cellElement.offsetWidth;
       const elementMaxWidth = cellElement.offsetWidth * 3;
       maxWidth.value = elementMaxWidth;
-      nextTick(() => debounceSetSegmentTag());
     }
   });
 
   const createResizeObserve = () => {
     const cellElement = getCellElement();
+    if (cellElement) {
+      const elementMaxWidth = cellElement.offsetWidth * 3;
+      maxWidth.value = elementMaxWidth;
 
-    if (!cellElement) {
-      return;
-    }
-    const offsetWidth = cellElement.offsetWidth;
-    const elementMaxWidth = cellElement.offsetWidth * 3;
-    maxWidth.value = elementMaxWidth;
-
-    // 创建一个 ResizeObserver 实例
-    resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        // 获取元素的新高度
+      // 创建一个 ResizeObserver 实例
+      resizeObserver = new ResizeObserver(() => {
         debounceUpdateSegmentTag();
-      }
-    });
-  };
+      });
 
-  let setObserveTimer = null;
+      resizeObserver?.observe(getCellElement());
+    }
+  };
 
   useIntersectionObserver(refContent, entry => {
     isIntersecting.value = entry.isIntersecting;
     if (entry.isIntersecting) {
-      // 开始监听元素
-      resizeObserver?.observe(getCellElement());
       // 进入可视区域重新计算宽度
-      debounceUpdateSegmentTag();
+      debounceSetSegmentTag();
     } else {
       if (refFieldValue.value) {
-        refFieldValue.value.innerText = renderText.value;
+        debounceSetSegmentTag.cancel();
+        refFieldValue.value.innerText = props.content;
       }
-
-      resizeObserver?.unobserve?.(getCellElement());
     }
   });
 
   onMounted(() => {
-    createResizeObserve();
     debounceUpdateSegmentTag();
+    createResizeObserve();
   });
 
   onBeforeUnmount(() => {
-    instance?.destroy?.();
+    const target = getCellElement();
+    if (target) {
+      resizeObserver?.unobserve(target);
+    }
     resizeObserver?.disconnect();
     resizeObserver = null;
   });
@@ -186,8 +195,8 @@
     ]"
   >
     <span
-      class="field-name"
       style="display: none"
+      class="field-name"
       ><span
         class="black-mark"
         :data-field-name="field.field_name"
@@ -196,8 +205,8 @@
       </span></span
     >
     <span
-      class="field-value"
       ref="refFieldValue"
+      class="field-value"
       :data-field-name="field.field_name"
       >{{ renderText }}</span
     >
@@ -205,9 +214,20 @@
 </template>
 <style lang="scss">
   .bklog-text-segment {
+    position: relative;
     max-height: 60px;
     overflow: hidden;
+    font:
+      12px Menlo,
+      Monaco,
+      Consolas,
+      Courier,
+      'PingFang SC',
+      'Microsoft Yahei',
+      monospace;
     font-size: 12px;
+    text-align: left;
+    word-break: break-all;
     white-space: pre-line;
 
     &.is-expand-all {
@@ -239,8 +259,8 @@
 
         .btn-more-action {
           position: absolute;
-          right: 16px;
-          bottom: 10px;
+          right: 0;
+          bottom: 2px;
           padding-left: 18px;
           color: #3a84ff;
           cursor: pointer;
@@ -261,16 +281,6 @@
 
     &.is-inline {
       display: flex;
-    }
-  }
-
-  .bk-table-row {
-    &.hover-row {
-      .bklog-text-segment {
-        .btn-more-action {
-          background-color: #f5f7fa;
-        }
-      }
     }
   }
 </style>
