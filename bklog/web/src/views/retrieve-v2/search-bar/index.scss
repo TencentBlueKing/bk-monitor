@@ -1,6 +1,6 @@
 .search-bar-container {
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 9;
   display: flex;
   padding: 0 8px 8px 8px;
@@ -194,5 +194,16 @@
     flex: 1;
     align-items: center;
     justify-content: end;
+  }
+
+  &::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 50px;
+    content: '';
+    background-color: #fff;
+    transform: translateY(-100%);
   }
 }

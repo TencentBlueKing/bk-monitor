@@ -532,7 +532,7 @@ export default defineComponent({
 
     const headStyle = computed(() => {
       return {
-        top: `${searchContainerHeight.value + 8}px`,
+        top: `${searchContainerHeight.value + 16}px`,
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
       };
     });
