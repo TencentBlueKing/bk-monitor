@@ -86,7 +86,7 @@
       @drop="handleDrop({}, group, $event)"
     >
       <i class="icon-monitor icon-mind-fill" />
-      {{ $t('暂无任何视图') }}
+      {{ $t('将已有视图拖拽至此') }}
     </div>
   </div>
 </template>

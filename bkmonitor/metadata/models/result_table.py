@@ -1215,22 +1215,8 @@ class ResultTable(models.Model):
         except Exception as e:
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        # 刷新清洗配置，减少冗余DB操作
-        data_source_ins = self.data_source
-        if data_source_ins.can_refresh_consul_and_gse():
-            data_source_ins.refresh_consul_config()
-            logger.info("table_id->[%s] refresh etl config success." % self.table_id)
-        elif self.default_storage == ClusterInfo.TYPE_ES:
-            # Note: 临时方案，ES相关配置变更后，需手动通知计算平台
-            data_id = data_source_ins.bk_data_id
-            try:
-                self.notify_bkdata_log_data_id_changed(data_id=data_id)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "notify_log_data_id_changed error, table_id->{},data_id->{}".format(self.table_id, data_id)
-                )
-                logger.exception(e)
-
+        # 刷新清洗配置
+        self.refresh_etl_config()
         logger.info("table_id->[%s] updated success." % self.table_id)
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))

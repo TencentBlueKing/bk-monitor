@@ -80,6 +80,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-caller_callee",
         "service-default-custom_metric",
     ]
+
+    # 只需要列表信息时，需要进一步进行渲染的 Tab
+    # 列表只关注需要展示哪些 Tab，可以跳过具体的 view_config 生成逻辑，以加快页面渲染
+    NEED_RENDER_IF_ONLY_SIMPLE_INFO: List[str] = [
+        # 调用分析页面需要另外判断是否展示，不直接跳过
+        "apm_service-service-default-caller_callee",
+    ]
+
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -121,6 +129,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 替换table_id
         table_id = Application.get_metric_table_id(bk_biz_id, app_name)
         view_config = cls._replace_variable(view_config, "${table_id}", table_id)
+
+        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
+            return view_config
 
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             # APM Trace检索处
@@ -225,7 +236,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
 
                     view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
-                        1
+                        0
                     ]["variables"] = {
                         "code_field": "code",
                         "code_values": ["0", "ret_0"],
@@ -254,7 +265,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 raise ValueError("Application does not exist")
 
             metric_group_mapping = dict()
-            group_panel_template = view_config["overview_panels"][0]
+            group_panel_template = view_config["overview_panels"].pop(0)
             metric_panel_template = group_panel_template["panels"].pop(0)
 
             metric_queryset = MetricListCache.objects.filter(
@@ -263,6 +274,22 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 data_type_label=DataTypeLabel.TIME_SERIES,
             )
             metric_count = metric_queryset.count()
+
+            # 根据dimension_keys判断metric的监控项维度名和服务维度名
+            dimension_keys = set()
+            for metric in metric_queryset:
+                for dimension in metric.dimensions:
+                    if dimension.get("id"):
+                        dimension_keys.add(dimension["id"])
+            candidate_queue = []
+            if "scope_name" in dimension_keys:
+                candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
+            if "monitor_name" in dimension_keys:
+                candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
+            metric_config = (
+                candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+            )
+
             if metric_count > 0:
                 # 使用非内部指标设置monitor_info_mapping
                 monitor_info_mapping = cls.get_monitor_info(
@@ -272,6 +299,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     count=metric_count,
                     start_time=params.get("start_time"),
                     end_time=params.get("end_time"),
+                    dimension_keys={
+                        "monitor_name_key": metric_config["monitor_name_key"],
+                        "service_name_key": metric_config["service_name_key"],
+                    },
                 )
 
                 for idx, i in enumerate(metric_queryset):
@@ -310,15 +341,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         metric_group_mapping[monitor_name] = group_panel
                     metric_group_mapping[monitor_name]["panels"].append(metric_panel)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
+            if not view_config["overview_panels"]:
+                cls._generate_non_custom_metric_view_config(view_config)
         return view_config
 
     @classmethod
     def get_monitor_info(
-        cls, bk_biz_id, result_table_id, service_name, count: int = 1000, start_time=None, end_time=None
+        cls, bk_biz_id, result_table_id, service_name, dimension_keys, count: int = 1000, start_time=None, end_time=None
     ) -> dict:
         if not start_time or not end_time:
             end_time = int(arrow.now().timestamp)
             start_time = int(end_time - 3600)
+
         request_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
@@ -340,25 +374,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         metric_table_id = result_table_id.replace('.', ':')
         monitor_info_mapping = {}
         try:
-            # 确定metric_config
-            metric_type_promql = f"count by (monitor_name, scope_name) ({{__name__=~\"custom:{metric_table_id}:.*\"}})"
-            request_params["query_configs"][0]["promql"] = metric_type_promql
-            metric_type_values = resource.grafana.graph_unify_query(request_params)["series"]
-            candidate_queue = []
-            for curve in metric_type_values:
-                if not curve.get("dimensions"):
-                    continue
-                if "scope_name" in curve["dimensions"]:
-                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
-                if "monitor_name" in curve["dimensions"]:
-                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
-            metric_config = (
-                candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
-            )
-            monitor_name_key = metric_config["monitor_name_key"]
-            service_name_key = metric_config["service_name_key"]
-
             # 查询具体的监控项名称和service_name
+            monitor_name_key = dimension_keys["monitor_name_key"]
+            service_name_key = dimension_keys["service_name_key"]
             promql = (
                 f"count by ({monitor_name_key}, {service_name_key}, __name__) "
                 f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=~\"{service_name}$\"}})"
@@ -503,6 +521,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "host",
                         "log",
                         "profiling",
+                        "custom_metric",
                     ]
                 },
             )
@@ -561,6 +580,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         }
 
     @classmethod
+    def _generate_non_custom_metric_view_config(cls, view_config):
+        view_config["variables"] = []
+        view_config["options"] = {}
+        view_config["overview_panels"] = [
+            {
+                "id": 1,
+                "title": "",
+                "type": "apm_custom_graph",
+                "targets": [],
+                "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+            }
+        ]
+
+    @classmethod
     def convert_custom_params(cls, scene_id, params):
         """
         将接口参数转换为视图类需要的参数 各个场景需要的参数如下:
@@ -579,11 +612,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "only_simple_info": params.get("only_simple_info") or False,
             }
 
-        return {
+        converted_params = {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
             "only_simple_info": params.get("only_simple_info") or False,
         }
+        # 自定义参数透传
+        if scene_id == "apm_service" and params.get("id") == "service-default-custom_metric":
+            if "start_time" in params:
+                converted_params["start_time"] = params["start_time"]
+            if "end_time" in params:
+                converted_params["end_time"] = params["end_time"]
+        return converted_params
 
     @classmethod
     def is_custom_view_list(cls) -> bool:

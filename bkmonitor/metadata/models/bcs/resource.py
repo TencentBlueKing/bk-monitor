@@ -304,7 +304,9 @@ class BCSResource(models.Model):
 
         # 0.检查cluster的公共dataid信息，判断是否与传入的dataid发生重复了,阻挡重复的情况
         cluster = BCSClusterInfo.objects.get(cluster_id=self.cluster_id)
-        is_federal_cluster = BcsFederalClusterInfo.objects.filter(fed_cluster_id=self.cluster_id).exists()
+        is_federal_cluster = BcsFederalClusterInfo.objects.filter(
+            fed_cluster_id=self.cluster_id, is_deleted=False
+        ).exists()
         for usage, register_info in cluster.DATASOURCE_REGISTER_INFO.items():
             if is_federal_cluster and usage == cluster.DATA_TYPE_CUSTOM_METRIC:
                 continue

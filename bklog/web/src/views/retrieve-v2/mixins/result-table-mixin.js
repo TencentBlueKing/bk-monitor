@@ -162,6 +162,9 @@ export default {
     getOperatorToolsWidth() {
       return this.operatorConfig?.bcsWebConsole?.is_active ? '84' : '58';
     },
+    apmRelation() {
+      return this.$store.state.indexSetFieldConfig.apm_relation;
+    },
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
       return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
@@ -408,6 +411,10 @@ export default {
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
 
+      if (type === 'trace-view') {
+        this.handleTraceIdClick(content);
+        return;
+      }
       if (type === 'search') {
         // 将表格单元添加到过滤条件
         this.handleAddCondition(field.field_name, 'eq', [value], isLink);
@@ -424,6 +431,19 @@ export default {
     getFieldIconColor(fieldType) {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
+    handleTraceIdClick(traceId) {
+      if (this.apmRelation.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
@@ -439,6 +459,9 @@ export default {
           break;
         case 'display':
           this.$emit('fields-updated', option.displayFieldNames, undefined, false);
+          break;
+        case 'trace-view':
+          this.handleTraceIdClick(option.value);
           break;
         default:
           break;
