@@ -1169,6 +1169,7 @@ class QueryTimeSeriesGroupResource(Resource):
         if time_series_group_name is not None:
             query_set = query_set.filter(time_series_group_name=time_series_group_name)
 
+        print(query_set)
         page_size = validated_request_data["page_size"]
         if page_size > 0:
             count = query_set.count()

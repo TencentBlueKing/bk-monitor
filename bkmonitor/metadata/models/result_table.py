@@ -2691,9 +2691,24 @@ class ResultTableFieldOption(OptionBase):
 
         for config_name, config_value in list(origin_option.items()):
             # 如果一个字段配置不是ES开头的，则跳过不再关注
-            if not config_name.startswith("es"):
+            if not config_name.startswith("es") or config_name == 'es_alias_path':
                 continue
 
             es_config[config_name[3:]] = config_value
 
+        return es_config
+
+    @classmethod
+    def get_field_es_read_alias(cls, table_id, field_name):
+        """
+        寻找ES字段关联别名，若有对应Option记录，回写至IndexBody.Properties中
+        :param table_id: 结果表ID
+        :param field_name: 字段名（原始字段名，非别名）
+        :return: dict {alias_name:{"type":alias,"path":origin_field_name}}
+        """
+        origin_option = cls.get_field_option(table_id=table_id, field_name=field_name)
+        es_config = {}
+        for config_name, config_value in list(origin_option.items()):
+            if config_name == 'es_alias_path':
+                es_config[config_value] = {"type": "alias", "path": field_name}
         return es_config
