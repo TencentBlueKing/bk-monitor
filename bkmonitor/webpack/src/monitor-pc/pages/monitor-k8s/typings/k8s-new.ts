@@ -40,3 +40,10 @@ export enum K8sNewTabEnum {
    */
   LIST = 'list',
 }
+
+export interface GroupListItem {
+  id: string;
+  title: string;
+  count?: number;
+  children?: GroupListItem[];
+}

@@ -81,6 +81,7 @@ export default class MonitorK8sNew extends tsc<object> {
   clusterList = [];
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
+  filterBy = [];
   // Group By 选择器的值
   groupFilters: Array<number | string> = [];
   // Group By 选择器选项
@@ -88,6 +89,86 @@ export default class MonitorK8sNew extends tsc<object> {
   // 表格数据
   k8sTableData: any[] = [];
   loading = false;
+
+  groupList = [
+    {
+      title: 'namespace',
+      id: 'namespace',
+      count: 4,
+      children: [
+        {
+          id: '监控测试集群(BCS-K8S-26286)',
+          title: '监控测试集群(BCS-K8S-26286)',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)__222',
+          title: '监控测试集群(BCS-K8S-26286)__222',
+        },
+      ],
+    },
+    {
+      title: 'workload',
+      id: 'workload',
+      count: 4,
+      children: [
+        {
+          title: 'Deployments',
+          id: 'Deployments',
+          count: 1,
+          children: [
+            {
+              id: 'monitor-test1',
+              title: 'monitor-test1',
+            },
+          ],
+        },
+        {
+          title: 'StatefulSets',
+          count: 1,
+          id: 'StatefulSets',
+          children: [
+            {
+              id: 'monitor-test2',
+              title: 'monitor-test2',
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  metricList = [
+    {
+      title: 'CPU',
+      id: 'CPU',
+      count: 3,
+      children: [
+        {
+          id: 'CPU使用量',
+          title: 'CPU使用量',
+        },
+        {
+          id: 'CPU limit 使用率',
+          title: 'CPU limit 使用率',
+        },
+        {
+          id: 'CPU request 使用率',
+          title: 'CPU request 使用率',
+        },
+      ],
+    },
+    {
+      title: '内存',
+      id: '内存',
+      count: 4,
+      children: [
+        {
+          id: '内存使用量(rss)',
+          title: '内存使用量(rss)',
+        },
+      ],
+    },
+  ];
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -130,6 +211,34 @@ export default class MonitorK8sNew extends tsc<object> {
   handleTimezoneChange(timezone: string) {
     this.timezone = timezone;
     // updateTimezone(timezone);
+  }
+
+  /** 左侧面板group状态切换 */
+  groupByChange({ groupId, isSelect }) {
+    this.groupFilters = this.groupFilters.reduce(
+      (pre, cur) => {
+        if (cur !== groupId) pre.push(cur);
+        return pre;
+      },
+      isSelect ? [groupId] : []
+    );
+  }
+
+  /** 左侧面板下钻功能 */
+  handleDrillDown({ groupId, ids, drillDownId }) {
+    this.groupByChange({ groupId: drillDownId, isSelect: true });
+    this.filterByChange({ ids, groupId });
+  }
+
+  /* 左侧面板检索功能 */
+  filterByChange({ ids, groupId }) {
+    const target = this.filterBy.find(item => item.key === groupId);
+    if (target) {
+      target.value = ids;
+      this.filterBy = [...this.filterBy];
+    } else {
+      this.filterBy.push({ key: groupId, value: ids, method: 'eq' });
+    }
   }
 
   handleClusterChange(cluster: string) {
@@ -200,7 +309,15 @@ export default class MonitorK8sNew extends tsc<object> {
                 />
               ))}
             </bk-select>
-            <K8sLeftPanel />
+            <K8sLeftPanel
+              filterBy={this.filterBy}
+              groupBy={this.groupFilters}
+              groupList={this.groupList}
+              metricList={this.metricList}
+              onDrillDown={this.handleDrillDown}
+              onFilterByChange={this.filterByChange}
+              onGroupByChange={this.groupByChange}
+            />
           </div>
           <div class='content-right'>
             <div class='filter-header-wrap'>
