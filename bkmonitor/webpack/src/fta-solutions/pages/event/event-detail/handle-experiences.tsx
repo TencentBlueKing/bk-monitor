@@ -201,24 +201,26 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     const valueable = new Set(this.dimensionList.map(item => item.id));
     const additionalCondition = needCondition ? { condition: 'and' } : {};
 
-    this.conditionList = Object.keys(this.defalutDimensionValue).reduce((list, key) => {
-      if (valueable.has(key)) {
-        list.push({
-          key,
-          value: this.defalutDimensionValue[key],
-          method: 'eq',
-          ...additionalCondition,
-        });
-      }
-      return list;
-    }, []);
+    this.conditionList = this.detail?.dimensions
+      .map(item => item.display_key)
+      .reduce((list, key) => {
+        if (valueable.has(key) && this.defalutDimensionValue[key]) {
+          list.push({
+            key,
+            value: this.defalutDimensionValue[key],
+            method: 'eq',
+            ...additionalCondition,
+          });
+        }
+        return list;
+      }, []);
   }
 
   /* 点击添加按钮 */
   handleAdd() {
     // 检查是否有维度信息
-    const showDimension = this.dimensionList.some(item =>
-      Object.prototype.hasOwnProperty.call(this.defalutDimensionValue, item.id)
+    const showDimension = this.dimensionList.some(
+      item => this.detail?.dimensions?.findIndex(dimension => dimension.display_key === item.id) > -1
     );
     this.curBind = showDimension ? EType.DIMENSION : EType.METRIC;
     this.curDescription = '';
