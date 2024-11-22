@@ -65,6 +65,7 @@ from apps.log_search.handlers.index_set import (
     UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
@@ -73,6 +74,7 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
@@ -1682,3 +1684,63 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+          "result": true,
+          "data": {
+            "total_records": 2,
+            "time_taken": 0.092,
+            "list": [
+              {
+                "aa": "aa",
+                "number": 16.3
+                "time": 1731260184
+              },
+              {
+                "aa": "bb",
+                "number": 20.56
+                "time": 1731260184
+              }
+            ],
+            "select_fields_order": [
+              "aa",
+              "number",
+              "time"
+            ],
+            "result_schema": [
+            {
+                "field_type": "string",
+                "field_name": "aa",
+                "field_alias": "aa",
+                "field_index": 0
+            },
+            {
+                "field_type": "double",
+                "field_name": "number",
+                "field_alias": "number",
+                "field_index": 1
+            },
+            {
+                "field_type": "long",
+                "field_name": "time",
+                "field_alias": "time",
+                "field_index": 2
+            }
+            ]
+          },
+          "code": 0,
+          "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+        result = instance.get_chart_data(params)
+        return Response(result)

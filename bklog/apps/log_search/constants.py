@@ -1426,6 +1426,17 @@ class SearchMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class QueryMode(ChoicesEnum):
+    """
+    查询模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1494,6 +1505,17 @@ class FavoriteListOrderType(ChoicesEnum):
         (NAME_DESC, _("名称降序")),
         (UPDATED_AT_DESC, _("更新时间降序")),
     )
+
+
+class FavoriteType(ChoicesEnum):
+    """
+    收藏类型
+    """
+
+    SEARCH = "search"
+    CHART = "chart"
+
+    _choices_labels = ((SEARCH, _("检索")), (CHART, _("图表")))
 
 
 # 用户指引步骤

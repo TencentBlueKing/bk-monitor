@@ -64,8 +64,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -97,9 +96,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -167,7 +168,7 @@
           "step":""
         }
       ],
-      "title":"正在执行的 execute 数量",
+      "title":"正在执行的execute数量",
       "type":"stat"
     },
     {
@@ -187,8 +188,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -220,9 +220,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -290,7 +292,7 @@
           "step":""
         }
       ],
-      "title":"正在执行的 schdule 数量",
+      "title":"正在执行的schdule数量",
       "type":"stat"
     },
     {
@@ -310,8 +312,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"green",
@@ -333,6 +334,8 @@
       },
       "id":32,
       "options":{
+        "minVizHeight":75,
+        "minVizWidth":75,
         "orientation":"auto",
         "reduceOptions":{
           "calcs":[
@@ -342,9 +345,10 @@
           "values":false
         },
         "showThresholdLabels":false,
-        "showThresholdMarkers":true
+        "showThresholdMarkers":true,
+        "sizing":"auto"
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -522,8 +526,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"green",
@@ -545,6 +548,8 @@
       },
       "id":34,
       "options":{
+        "minVizHeight":75,
+        "minVizWidth":75,
         "orientation":"auto",
         "reduceOptions":{
           "calcs":[
@@ -554,9 +559,10 @@
           "values":false
         },
         "showThresholdLabels":false,
-        "showThresholdMarkers":true
+        "showThresholdMarkers":true,
+        "sizing":"auto"
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -588,7 +594,7 @@
           "type":"range"
         }
       ],
-      "title":"插件 schdule 执行成功率",
+      "title":"插件schdule执行成功率",
       "type":"gauge"
     },
     {
@@ -608,8 +614,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -641,9 +646,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -725,6 +732,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -738,6 +746,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -761,8 +770,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -917,6 +925,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -930,6 +939,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -953,8 +963,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -1110,6 +1119,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1123,6 +1133,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -1146,8 +1157,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -1279,6 +1289,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1292,6 +1303,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -1315,8 +1327,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -1448,6 +1459,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1461,6 +1473,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -1484,8 +1497,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -1640,6 +1652,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1653,6 +1666,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -1676,8 +1690,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -1809,6 +1822,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1822,6 +1836,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -1845,8 +1860,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               }
             ]
           },
@@ -2008,6 +2022,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2021,6 +2036,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -2044,8 +2060,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -2168,8 +2183,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"green",
@@ -2201,9 +2215,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -2289,7 +2305,7 @@
           "type":"range"
         }
       ],
-      "title":"HTTP 请求数",
+      "title":"HTTP请求数",
       "type":"stat"
     },
     {
@@ -2303,6 +2319,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2316,6 +2333,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":3,
@@ -2339,8 +2357,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -2531,8 +2548,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -2871,7 +2887,7 @@
           "type":"range"
         }
       ],
-      "title":"插件每次执行 execute 的耗时分布",
+      "title":"插件每次执行execute的耗时分布",
       "type":"timeseries"
     },
     {
@@ -2921,8 +2937,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -3326,8 +3341,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -3343,7 +3357,7 @@
       },
       "gridPos":{
         "h":12,
-        "w":8,
+        "w":7,
         "x":0,
         "y":39
       },
@@ -3424,7 +3438,7 @@
           "type":"range"
         }
       ],
-      "title":"内存使用率",
+      "title":"容量/内存使用率",
       "type":"timeseries"
     },
     {
@@ -3474,8 +3488,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -3490,8 +3503,8 @@
       },
       "gridPos":{
         "h":12,
-        "w":9,
-        "x":8,
+        "w":6,
+        "x":7,
         "y":39
       },
       "id":40,
@@ -3621,8 +3634,7 @@
             "mode":"absolute",
             "steps":[
               {
-                "color":"green",
-                "value":null
+                "color":"green"
               },
               {
                 "color":"red",
@@ -3638,8 +3650,123 @@
       },
       "gridPos":{
         "h":12,
-        "w":7,
-        "x":17,
+        "w":6,
+        "x":13,
+        "y":39
+      },
+      "id":42,
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"single",
+          "sort":"none"
+        }
+      },
+      "targets":[
+        {
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "expressionList":[
+
+          ],
+          "format":"time_series",
+          "host":[
+
+          ],
+          "mode":"code",
+          "module":[
+
+          ],
+          "promqlAlias":"",
+          "query_configs":[
+
+          ],
+          "refId":"A",
+          "source":"(sum by(pod_name) (rate(container_cpu_usage_seconds_total{namespace=~\"bkapp-$bk_app_code-$bk_env\"}[2m])) / on(pod_name) group_right() sum by(pod_name) (kube_pod_container_resource_requests_cpu_cores{namespace=~\"bkapp-$bk_app_code-$bk_env\"})) * 100",
+          "step":"",
+          "type":"range"
+        }
+      ],
+      "title":"容量/CPU request使用率",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":25,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"auto",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"normal"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green"
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"percent"
+        },
+        "overrides":[
+
+        ]
+      },
+      "gridPos":{
+        "h":12,
+        "w":5,
+        "x":19,
         "y":39
       },
       "id":44,
@@ -3687,13 +3814,12 @@
           "type":"range"
         }
       ],
-      "title":"CPU 使用率",
+      "title":"容量/CPU limit使用率",
       "type":"timeseries"
     }
   ],
   "refresh":false,
-  "schemaVersion":37,
-  "style":"dark",
+  "schemaVersion":39,
   "tags":[
 
   ],
@@ -3720,7 +3846,7 @@
             "data_source_label":"bk_monitor",
             "data_type_label":"time_series",
             "group_by":"bk_app_code",
-            "metric_field":"django_http_responses_body_total_bytes_bucket",
+            "metric_field":"django_http_requests_latency_including_middlewares_seconds_bucket",
             "result_table_id":"",
             "result_table_label":"kubernetes",
             "where":[
@@ -3757,7 +3883,7 @@
             "data_source_label":"bk_monitor",
             "data_type_label":"time_series",
             "group_by":"bk_env",
-            "metric_field":"django_http_responses_body_total_bytes_bucket",
+            "metric_field":"django_http_requests_latency_including_middlewares_seconds_bucket",
             "result_table_id":"",
             "result_table_label":"kubernetes",
             "where":[
@@ -3784,7 +3910,7 @@
   },
   "timezone":"default",
   "title":"bksaas/sops-plugin-python",
-  "version":99,
+  "version":8,
   "weekStart":"",
   "__inputs":[
     {

@@ -27,10 +27,6 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Message } from 'bk-magic-vue';
-
-import $http from '../../../../api';
-import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/graph-chart.vue';
 import GraphTable from './chart/graph-table.vue';
@@ -38,8 +34,8 @@ import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
-import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
+import SqlEditor from './sql-editor/index.tsx';
 
 import './index.scss';
 
@@ -61,17 +57,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: {
-    GraphDragTool,
-    DashboardDialog,
-    TagInput,
-    SqlPanel,
-    GraphTable,
-    GraphChart,
-    FieldSettings,
-    BookmarkPop,
-    SqlEditor,
-  },
+  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart, FieldSettings, SqlEditor },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -80,14 +66,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   rightOptionWidth = 360;
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.BAR;
-  xAxis = [];
-  yAxis = [];
+  xAxis = '';
+  yAxis = '';
   chartData = {};
-  resultSchema = [];
+  select_fields_order = [];
   hidden = [];
   segmented = [];
-  uiQueryValue = [];
-  sqlQueryValue = '';
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isSqlMode = true;
@@ -247,6 +231,23 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       </div>,
       <div class='basic-info-row'>
         <bk-checkbox
+          v-model={this.basicInfoSubTitle.show}
+          checked={false}
+          false-value={false}
+          true-value={true}
+        >
+          {this.$t('副标题')}
+        </bk-checkbox>
+        {this.basicInfoSubTitle.show && (
+          <bk-input
+            style='margin-top: 8px;'
+            v-model={this.basicInfoSubTitle.title}
+            placeholder={this.$t('请输入副标题')}
+          ></bk-input>
+        )}
+      </div>,
+      <div class='basic-info-row'>
+        <bk-checkbox
           v-model={this.basicInfoDescription.show}
           checked={false}
           false-value={false}
@@ -377,28 +378,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ></GraphChart>,
     ];
   }
-  async save() {
-    if (!this.basicInfoTitle.title) {
-      Message({
-        message: '请输入标题',
-        theme: 'primary',
-      });
-      return;
-    }
-    const res = await $http.request('graphAnalysis/favoriteSQL', {
-      data: {
-        favorite_type: 'chart',
-        space_uid: this.$store.state.spaceUid,
-        name: this.basicInfoTitle.title,
-        visible_type: 'public',
-        index_set_id: this.$store.state.indexId,
-        chart_params: {
-          aa: 'aa',
-        },
-      },
-    });
-    console.log(res);
-  }
+  save() {}
   /** 打开添加到仪表盘dialog */
   handleAdd() {
     console.log(this.$refs.addDialog);
@@ -410,13 +390,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleSqlQueryResultChange(data) {
     let arr = data.data.result_schema.filter(item => item.field_type !== 'string');
-    this.xAxis = [arr[0].field_name];
-    this.yAxis = [arr[1].field_name];
-    this.resultSchema = data.data.result_schema;
+    this.xAxis = arr[0].field_name;
+    this.yAxis = arr[1].field_name;
+    this.select_fields_order = data.data.select_fields_order;
     this.chartData = data;
     this.$refs.refGraphChart.setOption(data, this.xAxis, this.yAxis);
+
     this.$refs.refGraphTable.setOption(data);
-    // this.fieldList = data.data.select_fields_order;
+    this.fieldList = data.data.select_fields_order;
   }
 
   updateChartData(axis, newValue) {
@@ -434,11 +415,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
     }
   }
-  handleRefresh() {}
-  // updateYAxis(newValue) {
-  //   this.yAxis = newValue;
-  //   this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
-  // }
+
   render() {
     return (
       <div class='graph-analysis-index'>
@@ -452,7 +429,16 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             ></bk-switcher>
             <span>{this.$t('SQL模式')}</span>
           </div>
-
+          <div class='option-list'>
+            <div class={{ active: this.activeItem === OptionList.Analysis }}>
+              <span class='bklog-icon bklog-help'></span>
+              <span>分析</span>
+            </div>
+            <div class={{ active: this.activeItem === OptionList.Overview }}>
+              <span class='bklog-icon bklog-overview'></span>
+              <span>概览</span>
+            </div>
+          </div>
           <div class='option-btn'>
             <bk-button
               style='margin-right: 8px;'
@@ -462,20 +448,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             >
               {this.$t('保存')}
             </bk-button>
-            {/* <BookmarkPop
-              addition={this.uiQueryValue}
-              // :class="{ disabled: isInputLoading }"
-              search-mode='sql'
-              sql={this.sqlQueryValue}
-              onRefresh={this.handleRefresh}
-            ></BookmarkPop> */}
-
-            {/* <bk-button
+            <bk-button
               outline={true}
               onClick={this.handleAdd}
             >
               {this.$t('添加至仪表盘')}
-            </bk-button> */}
+            </bk-button>
           </div>
         </div>
 
@@ -550,7 +528,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   <FieldSettings
                     slot='content'
                     activeGraphCategory={this.activeGraphCategory}
-                    result_schema={this.resultSchema}
+                    select_fields_order={this.select_fields_order}
                     xAxis={this.xAxis}
                     yAxis={this.yAxis}
                     onUpdate={this.updateChartData}
