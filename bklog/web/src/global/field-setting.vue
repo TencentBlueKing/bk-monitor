@@ -15,7 +15,7 @@
     >
       <template #header>
         <div>
-          {{ t('字段配置') }}
+          {{ t('索引集配置') }}
           <bk-button
             v-if="!isEdit"
             class="mt10 fr"
@@ -457,6 +457,7 @@
       })
       .then(res => {
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text
       });
     sliderLoading.value = false;
   };

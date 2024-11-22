@@ -264,4 +264,4 @@ def delete_application_async(bk_biz_id, app_name):
         )
         get_current_span().record_exception(e)
         EventReportHelper.report(f"删除应用: ({bk_biz_id}){app_name} 失败")
-    app.delete()
+    application.delete()
