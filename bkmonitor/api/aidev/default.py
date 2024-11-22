@@ -61,8 +61,10 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
                     if res_data.get("event") == "reference_doc":
                         doc_link_html = parse_doc_link(res_data)
                         yield doc_link_html
+                        continue
                     if res_data.get("event") == "done":
                         yield add_guide(res_data, reject)
+                        continue
                 except JSONDecodeError:
                     # 非json格式原样返回
                     # data: [DONE]
