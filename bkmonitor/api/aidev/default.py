@@ -40,23 +40,43 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
     method = "POST"
     IS_STREAM = True
 
+    @classmethod
+    def _get_wx_link(cls):
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                return item["link"]
+
     def handle_stream_response(self, response):
         # 处理流式响应
         def event_stream():
+            reject = False
             for line in response.iter_lines():
                 if not line:
                     continue
                 result = line.decode('utf-8') + '\n\n'
                 try:
                     res_data = json.loads(result.split("data: ", 1)[-1])
+                    if res_data.get("reject"):
+                        reject = True
                     if res_data.get("event") == "reference_doc":
                         doc_link_html = parse_doc_link(res_data)
                         yield doc_link_html
+                    if res_data.get("event") == "done":
+                        yield add_guide(res_data, reject)
                 except JSONDecodeError:
                     # 非json格式原样返回
                     # data: [DONE]
                     pass
                 yield result
+
+        def add_guide(res_data, reject):
+            link_tmp = """<a href="{doc_link}" target="_blank" class="knowledge-link">
+                        【BK助手】
+                        <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
+                      </a>"""
+            if reject:
+                res_data["content"] += " 您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
+            return "data: " + json.dumps(res_data) + "\n\n"
 
         def parse_doc_link(res_data):
             section_tmp = """<section class="knowledge-tips">
@@ -75,7 +95,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
             docs = res_data.pop("documents", [])
             link_map = {}
             for doc in docs:
-                doc_name = doc["metadata"]["file_name"].rsplit("/")[-1]
+                doc_name = doc["metadata"]["file_path"].rsplit("/")[-1]
                 doc_link = doc["metadata"]["path"]
                 if doc_link not in link_map:
                     link_map[doc_link] = doc_name
