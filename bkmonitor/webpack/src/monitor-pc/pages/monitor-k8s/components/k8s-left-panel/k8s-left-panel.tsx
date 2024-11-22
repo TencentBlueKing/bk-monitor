@@ -23,108 +23,73 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import GroupItem from './group-item';
 
+import type { GroupListItem } from '../../typings/k8s-new';
+
 import './k8s-left-panel.scss';
 
+interface K8sLeftPanelProps {
+  groupList: GroupListItem[];
+  metricList: GroupListItem[];
+  filterBy: any;
+  groupBy: string[];
+}
+
+interface K8sLeftPanelEvents {
+  onFilterByChange: (val: { ids: string[]; groupId: string }) => void;
+  onDrillDown: (val: { groupId: string; ids: string; drillDownId: string }) => void;
+  onGroupByChange: (val: { groupId: string; isSelect: boolean }) => void;
+}
+
 @Component
-export default class K8sLeftPanel extends tsc<object> {
-  groupList = [
-    {
-      title: 'namespace',
-      id: 'namespace',
-      count: 4,
-      children: [
-        {
-          id: '监控测试集群(BCS-K8S-26286)',
-          title: '监控测试集群(BCS-K8S-26286)',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)__222',
-          title: '监控测试集群(BCS-K8S-26286)__222',
-        },
-      ],
-    },
-    {
-      title: 'workload',
-      id: 'workload',
-      count: 4,
-      children: [
-        {
-          title: 'Deployments',
-          id: 'Deployments',
-          count: 1,
-          children: [
-            {
-              id: 'monitor-test1',
-              title: 'monitor-test1',
-            },
-          ],
-        },
-        {
-          title: 'StatefulSets',
-          count: 1,
-          id: 'StatefulSets',
-          children: [
-            {
-              id: 'monitor-test2',
-              title: 'monitor-test2',
-            },
-          ],
-        },
-      ],
-    },
-  ];
+export default class K8sLeftPanel extends tsc<K8sLeftPanelProps, K8sLeftPanelEvents> {
+  @Prop({ type: Array, default: () => [] }) groupList: GroupListItem[];
+  @Prop({ type: Array, default: () => [] }) metricList: GroupListItem[];
+  @Prop({ type: Array, default: () => [] }) filterBy: any;
+  @Prop({ type: Array, default: () => [] }) groupBy: string[];
 
-  filterGroupList = JSON.parse(JSON.stringify(this.groupList));
-
-  metricList = [
-    {
-      title: 'CPU',
-      id: 'CPU',
-      count: 3,
-      children: [
-        {
-          id: 'CPU使用量',
-          title: 'CPU使用量',
-        },
-        {
-          id: 'CPU limit 使用率',
-          title: 'CPU limit 使用率',
-        },
-        {
-          id: 'CPU request 使用率',
-          title: 'CPU request 使用率',
-        },
-      ],
-    },
-    {
-      title: '内存',
-      id: '内存',
-      count: 4,
-      children: [
-        {
-          id: '内存使用量(rss)',
-          title: '内存使用量(rss)',
-        },
-      ],
-    },
-  ];
+  filterGroupList = [];
 
   searchValue = '';
 
   /** 已选择的检索 */
-  selectData = {
-    namespace: ['监控测试集群(BCS-K8S-26286)'],
-    workload: [],
-  };
+  selectData = {};
 
   groupByList = ['namespace'];
 
   hiddenMetricList = [];
+
+  @Watch('groupList', { immediate: true })
+  handleGroupListChange(val: GroupListItem[]) {
+    if (val) {
+      this.filterGroupList = JSON.parse(JSON.stringify(val));
+      val.map(item => {
+        this.$set(this.selectData, item.id, []);
+      });
+    }
+  }
+
+  @Watch('filterBy', { immediate: true })
+  handleFilterByChange(val: K8sLeftPanelProps['filterBy']) {
+    if (val.length) {
+      val.map(item => {
+        this.selectData[item.key] = item.value;
+      });
+    } else {
+      Object.keys(this.selectData).map(key => {
+        this.selectData[key] = [];
+      });
+    }
+  }
+
+  @Watch('groupBy', { immediate: true })
+  watchGroupByChange(val: string[]) {
+    this.groupByList = val;
+  }
 
   handleSearch(val: string) {
     this.searchValue = val;
@@ -148,25 +113,35 @@ export default class K8sLeftPanel extends tsc<object> {
   }
 
   /** 检索 */
+  @Emit('filterByChange')
   handleGroupSearch(ids: string[], groupId: string) {
-    this.selectData[groupId] = ids;
+    return {
+      ids,
+      groupId,
+    };
   }
 
   /** 下钻 */
+  @Emit('drillDown')
   handleDrillDown({ id, drillDown }, groupId: string) {
-    this.handleGroupByChange(true, drillDown);
-    if (!this.selectData[groupId].includes(id)) {
-      this.selectData[groupId].push(id);
+    const ids = [...(this.selectData[groupId] || [])];
+    if (!ids.includes(id)) {
+      ids.push(id);
     }
+    return {
+      groupId,
+      ids,
+      drillDownId: drillDown,
+    };
   }
 
   /** 修改groupBy */
+  @Emit('groupByChange')
   handleGroupByChange(val: boolean, groupId: string) {
-    if (val) {
-      this.groupByList.push(groupId);
-    } else {
-      this.groupByList = this.groupByList.filter(item => item !== groupId);
-    }
+    return {
+      groupId,
+      isSelect: val,
+    };
   }
 
   /** 加载更多 */

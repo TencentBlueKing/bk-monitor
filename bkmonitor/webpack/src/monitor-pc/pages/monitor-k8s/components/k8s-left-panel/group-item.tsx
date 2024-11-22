@@ -26,14 +26,9 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './group-item.scss';
+import type { GroupListItem } from '../../typings/k8s-new';
 
-interface GroupListItem {
-  id: string;
-  title: string;
-  count?: number;
-  children?: GroupListItem[];
-}
+import './group-item.scss';
 
 type Tools = 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
 
@@ -110,6 +105,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
     return [];
   }
 
+  /** 下钻 */
   @Emit('handleDrillDown')
   handleDrillDownChange(val: string) {
     const id = this.drillDown;
