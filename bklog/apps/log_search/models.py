@@ -53,7 +53,6 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FavoriteGroupType,
     FavoriteListOrderType,
-    FavoriteType,
     FavoriteVisibleType,
     FieldBuiltInEnum,
     FieldDataTypeEnum,
@@ -380,10 +379,6 @@ class LogIndexSet(SoftDeleteModel):
 
     max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
     max_async_count = models.IntegerField(default=0, verbose_name=_("日志异步下载最大条数限制"))
-
-    # doris
-    support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
-    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
 
     def get_name(self):
         return self.index_set_name
@@ -826,9 +821,6 @@ class Favorite(OperateRecordModel):
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
-    )
-    favorite_type = models.CharField(
-        _("收藏类型"), max_length=32, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
 
     class Meta:

@@ -1549,6 +1549,8 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
                     if "field_index" not in item:
                         raise ValidationError(_("分隔符必须指定field_index"))
 
+                # 字段检查
+                CollectorEtlFieldsSerializer().validate(item)
                 fields.append(item)
 
                 if not item.get("is_delete", False):
@@ -1604,6 +1606,8 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
                     if "field_index" not in item:
                         raise ValidationError(_("分隔符必须指定field_index"))
 
+                # 字段检查
+                CollectorEtlFieldsSerializer().validate(item)
                 fields.append(item)
 
                 if not item.get("is_delete", False):

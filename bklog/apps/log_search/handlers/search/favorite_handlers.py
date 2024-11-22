@@ -29,7 +29,6 @@ from apps.log_search.constants import (
     INDEX_SET_NOT_EXISTED,
     FavoriteGroupType,
     FavoriteListOrderType,
-    FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
 )
@@ -185,19 +184,14 @@ class FavoriteHandler(object):
         search_fields: list,
         is_enable_display_fields: bool,
         display_fields: list,
-        chart_params: dict,
         search_mode: str = None,
         index_set_id: int = None,
         group_id: int = None,
         index_set_ids: list = None,
         index_set_type: str = IndexSetType.SINGLE.value,
-        favorite_type: str = FavoriteType.SEARCH.value,
     ) -> dict:
         # 构建params
-        params = {
-            "ip_chooser": ip_chooser, "addition": addition, "keyword": keyword,
-            "search_fields": search_fields, "chart_params": chart_params,
-        }
+        params = {"ip_chooser": ip_chooser, "addition": addition, "keyword": keyword, "search_fields": search_fields}
         space_uid = self.space_uid if self.space_uid else self.data.space_uid
         search_mode = search_mode if search_mode else self.data.search_mode
 
@@ -251,7 +245,6 @@ class FavoriteHandler(object):
                 display_fields=display_fields,
                 index_set_ids=index_set_ids,
                 index_set_type=index_set_type,
-                favorite_type=favorite_type,
             )
 
         return model_to_dict(self.data)

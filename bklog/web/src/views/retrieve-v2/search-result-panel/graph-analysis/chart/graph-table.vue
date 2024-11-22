@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, defineProps, defineExpose, computed  } from "vue";
+import { ref, defineProps, defineExpose, computed } from "vue";
 import useLocale from "@/hooks/use-locale";
 const { $t } = useLocale();
 const props = defineProps({
@@ -34,8 +34,7 @@ const props = defineProps({
   },
 });
 
-
-const tableData= ref([]);
+const tableData = ref([]);
 const rawColumns = ref([]);
 
 function setOption(data) {
@@ -44,7 +43,7 @@ function setOption(data) {
   rawColumns.value = data.data.select_fields_order;
 }
 const column = computed(() => {
-  return rawColumns.value.filter(item => !props.hidden.includes(item));
+  return rawColumns.value.filter((item) => !props.hidden.includes(item));
 });
 function handleRowMouseEnter() {}
 function handleRowMouseLeave() {}
@@ -59,8 +58,14 @@ defineExpose({
       :data="tableData"
       @row-mouse-enter="handleRowMouseEnter"
       @row-mouse-leave="handleRowMouseLeave"
+      height="300px"
     >
-    <bk-table-column v-for="item,index in column" :label="item" :prop="item" :key="index"></bk-table-column>
+      <bk-table-column
+        v-for="(item, index) in column"
+        :label="item"
+        :prop="item"
+        :key="index"
+      ></bk-table-column>
       <!-- <bk-table-column type="index" label="序列" width="60"></bk-table-column>
       <bk-table-column label="名称/内网IP" prop="ip"></bk-table-column>
       <bk-table-column label="来源" prop="source"></bk-table-column>

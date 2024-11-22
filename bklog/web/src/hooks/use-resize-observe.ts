@@ -28,7 +28,7 @@ import { onMounted, Ref, onUnmounted } from 'vue';
 import { debounce, isElement } from 'lodash';
 
 export default (
-  target: Ref<HTMLElement> | string | (() => string | HTMLElement),
+  target: (() => HTMLElement | string) | Ref<HTMLElement> | string,
   callbackFn: (entry: ResizeObserverEntry) => void,
 ) => {
   const debounceCallback = debounce(entry => {

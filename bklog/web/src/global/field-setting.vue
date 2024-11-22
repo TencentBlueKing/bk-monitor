@@ -169,7 +169,6 @@
             <setting-table
               v-if="formData.etl_params.retain_original_text"
               ref="originfieldTable"
-              :original-text-tokenize-on-chars="defaultParticipleStr"
               :extract-method="cleanType"
               :fields="originBuiltFields"
               :is-preview-mode="!isEdit"
@@ -191,7 +190,6 @@
             <div class="setting-title">{{ $t('索引字段配置') }}</div>
             <setting-table
               ref="indexfieldTable"
-              :original-text-tokenize-on-chars="defaultParticipleStr"
               :built-fields="indexBuiltField"
               :collector-config-id="collectorConfigId"
               :extract-method="cleanType"
@@ -259,7 +257,6 @@
   const tableField = ref([]);
   const cleanType = ref('');
   const collectorConfigId = ref('');
-  const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
 
   const formData = ref({
     data_link_id: '',
