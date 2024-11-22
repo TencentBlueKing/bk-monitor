@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-// import BookmarkPop from '../../search-result-panel/BookmarkPop.vue';
 import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/graph-chart.vue';
@@ -39,6 +38,7 @@ import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
+import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
 
 import './index.scss';
@@ -70,6 +70,7 @@ enum GraphCategory {
     GraphChart,
     FieldSettings,
     BookmarkPop,
+    SqlEditor,
   },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
@@ -82,14 +83,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   xAxis = [];
   yAxis = [];
   chartData = {};
-  select_fields_order = [];
+  resultSchema = [];
   hidden = [];
   segmented = [];
   uiQueryValue = [];
   sqlQueryValue = '';
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
-  isChartMode = false;
+  isSqlMode = true;
   graphCategoryList = [
     GraphCategory.LINE,
     GraphCategory.BAR,
@@ -116,6 +117,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   fieldList = [1];
   advanceSetting = false;
   activeCanvasType = 'bar';
+
+  sqlEditorHeight = 400;
 
   get graphCategory() {
     return {
@@ -167,15 +170,19 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
+  get bottomHeight() {
+    return this.isSqlMode ? this.sqlEditorHeight : this.axiosOptionHeight;
+  }
+
   get axiosStyle() {
     return {
-      height: `${this.axiosOptionHeight}px`,
+      height: `${this.bottomHeight}px`,
     };
   }
 
   get canvasStyle() {
     return {
-      height: `calc(100% - ${this.axiosOptionHeight + 16}px)`,
+      height: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 
@@ -298,13 +305,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         </div>,
       ];
     };
-    if (this.isChartMode) {
-      return [
-        <SqlPanel
-          ref='sqlPanelRef'
-          onSearch-completed={this.echartData}
-        ></SqlPanel>,
-      ];
+    if (this.isSqlMode) {
+      return [<SqlEditor onChange={this.handleSqlQueryResultChange}></SqlEditor>];
     }
     return [
       <div class='dimensions-index-row'>
@@ -339,8 +341,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       target = this.minAxiosOptionHeight;
     }
 
+    if (this.isSqlMode) {
+      this.sqlEditorHeight = target;
+      return;
+    }
+
     this.axiosOptionHeight = target;
-    if (this.isChartMode && this.$refs.sqlPanelRef) {
+    if (this.isSqlMode && this.$refs.sqlPanelRef) {
       this.$refs.sqlPanelRef.resize();
     }
   }
@@ -395,36 +402,23 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   /** 打开添加到仪表盘dialog */
   handleAdd() {
     console.log(this.$refs.addDialog);
-    this.$refs.addDialog.handleShow();
+    // this.$refs.addDialog.handleShow();
   }
   changeModel() {
-    this.isChartMode = !this.isChartMode;
-    // const { query } = panelModel.value;
-    // // query为空，无需切换提示
-    // if (isEqual(query, new QueryPanelClass())) {
-    //   switchSqlMode();
-    //   return;
-    // }
-    // // sql模式，没有配置指标维度，无需切换提示
-    // if (query.raw_query && query.dimensions?.length === 0 && query.metrics?.length === 0 && !query.query_text) {
-    //   switchSqlMode();
-    //   return;
-    // }
-    // Confirm(t('common.提示'), t('dashboards.切换模式后，图表配置将会被清空，是否继续？'), () => {
-    //   switchSqlMode();
-    // });
+    this.isSqlMode = !this.isSqlMode;
   }
-  /** echart和字段配置展示 */
-  echartData(data) {
+
+  handleSqlQueryResultChange(data) {
     let arr = data.data.result_schema.filter(item => item.field_type !== 'string');
     this.xAxis = [arr[0].field_name];
     this.yAxis = [arr[1].field_name];
-    this.select_fields_order = data.data.select_fields_order;
+    this.resultSchema = data.data.result_schema;
     this.chartData = data;
     this.$refs.refGraphChart.setOption(data, this.xAxis, this.yAxis);
     this.$refs.refGraphTable.setOption(data);
     // this.fieldList = data.data.select_fields_order;
   }
+
   updateChartData(axis, newValue) {
     console.log(axis, newValue);
     if (axis === 'x') {
@@ -453,7 +447,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             <bk-switcher
               class='ml-medium mr-min'
               theme='primary'
-              value={this.isChartMode}
+              value={this.isSqlMode}
               onChange={this.changeModel}
             ></bk-switcher>
             <span>{this.$t('SQL模式')}</span>
@@ -468,13 +462,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             >
               {this.$t('保存')}
             </bk-button>
-            <BookmarkPop
+            {/* <BookmarkPop
               addition={this.uiQueryValue}
               // :class="{ disabled: isInputLoading }"
               search-mode='sql'
               sql={this.sqlQueryValue}
               onRefresh={this.handleRefresh}
-            ></BookmarkPop>
+            ></BookmarkPop> */}
 
             {/* <bk-button
               outline={true}
@@ -486,7 +480,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         </div>
 
         <div class='graph-analysis-body'>
-          {/* {this.isChartMode ? (
+          {/* {this.isSqlMode ? (
             <SqlPanel></SqlPanel>
           ) : ( */}
           <div class='body-left'>
@@ -556,7 +550,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   <FieldSettings
                     slot='content'
                     activeGraphCategory={this.activeGraphCategory}
-                    select_fields_order={this.select_fields_order}
+                    result_schema={this.resultSchema}
                     xAxis={this.xAxis}
                     yAxis={this.yAxis}
                     onUpdate={this.updateChartData}

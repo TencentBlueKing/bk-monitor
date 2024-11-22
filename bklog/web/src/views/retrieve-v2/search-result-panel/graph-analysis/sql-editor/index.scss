@@ -1,0 +1,33 @@
+.bklog-sql-editor-root {
+  position: relative;
+  height: 100%;
+
+  .bklog-sql-editor {
+    height: 100%;
+  }
+
+  .sql-editor-tools {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+
+    button {
+      margin-right: 8px;
+
+      &:not(.sql-editor-query-button) {
+        height: 28px;
+        line-height: 26px;
+        color: #c4c6cc;
+        background-color: #313238;
+        border: 1px solid #63656e;
+        border-radius: 2px;
+        transition: border-color 0.3s ease-in-out;
+
+        &:hover {
+          color: #c4c6cc;
+          border-color: #979ba5;
+        }
+      }
+    }
+  }
+}

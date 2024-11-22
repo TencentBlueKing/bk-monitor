@@ -36,7 +36,7 @@ const props = defineProps({
   activeGraphCategory: {
     type: String,
   },
-  select_fields_order: {
+  result_schema: {
     type: Array,
   },
 });
@@ -45,7 +45,8 @@ const selectedXAxis = ref(props.xAxis);
 const selectedYAxis = ref(props.yAxis);
 const segmentedField = ref([]);
 const hiddenField = ref([]);
-const list = computed(() => props.select_fields_order);
+const list = computed(() => props.result_schema.map((item) => item.field_name));
+const filterList = computed(() => props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_name));
 // 监听 props.xAxis 的变化并更新 selectedXAxis
 watch(
   () => props.xAxis,
@@ -100,7 +101,7 @@ function change(axis, newValue) {
         multiple
       >
         <bk-option
-          v-for="(option, index) in list"
+          v-for="(option, index) in filterList"
           :key="index"
           :id="option"
           :name="option"

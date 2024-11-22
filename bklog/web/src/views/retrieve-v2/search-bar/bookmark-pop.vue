@@ -360,14 +360,14 @@ const handlePopoverHide = () => {
       class="bklog-icon bklog-star-line"
       @click="handleCollection"
     ></span>
-    <bk-button
+    <!-- <bk-button
       style="margin-right: 8px"
       :outline="true"
       theme="primary"
       @Click="handleCollection"
     >
       {{$t('保存')}}
-    </bk-button>
+    </bk-button> -->
     <template #content>
       <div>
         <div class="popover-title-content">

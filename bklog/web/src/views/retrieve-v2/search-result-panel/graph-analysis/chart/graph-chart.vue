@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose } from "vue";
+import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose  } from "vue";
 import useLocale from "@/hooks/use-locale";
 import BASE_CHART_OPTIONS from "@/hooks/trend-chart-options.ts";
 // import { BASE_CHART_OPTIONS } from './charts';
@@ -65,7 +65,7 @@ function updateChart() {
   if (!tableData.value.length) {
     return;
   }
-  const option = merge({}, BASE_CHART_OPTIONS, getChartOption(props.activeGraphCategory));
+  const option = Object.assign({}, BASE_CHART_OPTIONS, getChartOption(props.activeGraphCategory));
   console.log("option", option);
   myChart.setOption(option, {
     notMerge: true,
@@ -103,18 +103,53 @@ function getChartOption(type) {
       ],
     };
   }
-  const xAxisData = [];
+  let xAxisData = [];
+  // const yAxisData = [];
   xAxis.value.forEach((x) => {
     tableData.value.forEach((item) => {
-        xAxisData.push(item[x]);
+      xAxisData.push(item[x]);
     });
   });
-  
-
+  xAxisData = [...new Set(xAxisData)];
+  // yAxis.value.forEach((x) => {
+  //   tableData.value.forEach((item) => {
+  //     yAxisData.push(item[x]);
+  //   });
+  // });
+  let summedGseIndexes = [];
+  function sumGseIndexByHostId(data,hostId,gseIndexValue) {
+    const result = {};
+    console.log(hostId,gseIndexValue);
+    
+    data.forEach((item) => {
+      console.log(item,item[hostId],item[gseIndexValue]);
+      if (!result[item[hostId]]) {
+        result[item[hostId]] = 0;
+      }
+      result[item[hostId]] += item[gseIndexValue];
+    });
+    console.log(result);
+    summedGseIndexes.push(Object.values(result))
+    // return Object.values(result);
+  }
+  // const summedGseIndexes = sumGseIndexByHostId(tableData.value,xAxis.value[0],yAxis.value[0]);
+ 
+  xAxis.value.forEach((x,index) => {
+    yAxis.value.forEach((y,index2) => {
+      sumGseIndexByHostId(tableData.value,xAxis.value[index],yAxis.value[index2]);
+    })
+  })
+  console.log(summedGseIndexes);
+  const series = summedGseIndexes.map(item => {
+    return {
+      type: type,
+      data: item
+    }
+  })
   return {
-    // xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
-    // yAxis: { type: "value" },
-    // series: series,
+    xAxis: { type: "category", data: xAxisData },
+    yAxis: { type: "value" },
+    series: series
   };
 }
 defineExpose({
@@ -130,7 +165,7 @@ defineExpose({
       scene="part"
     >
     </bk-exception>
-    <div ref="chartRef" style="width: 1000px; height: 400px"></div>
+    <div ref="chartRef" style="width: 1000px; height: 300px"></div>
     <div>
       <div></div>
     </div>
