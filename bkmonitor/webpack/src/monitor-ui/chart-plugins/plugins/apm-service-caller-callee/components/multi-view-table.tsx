@@ -168,7 +168,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   get dialogTop() {
-    return window.innerHeight;
+    return (window.innerHeight - 720) / 2;
   }
 
   get appName() {
@@ -1053,11 +1053,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
         <bk-dialog
-          width={640}
+          width={960}
           ext-cls='multi-detail-dialog'
           v-model={this.isShowDimension}
           position={{
-            top: this.dialogTop / 3,
+            top: this.dialogTop,
           }}
           header-position={'left'}
           show-footer={false}

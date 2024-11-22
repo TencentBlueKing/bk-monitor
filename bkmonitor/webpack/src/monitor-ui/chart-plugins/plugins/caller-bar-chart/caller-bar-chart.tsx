@@ -47,8 +47,8 @@ interface IPieEchartProps {
 }
 @Component
 class CallerBarChart extends CommonSimpleChart {
-  height = 300;
-  width = 640;
+  height = 600;
+  width = 960;
   minBase = 0;
   needResetChart = true;
   inited = false;
