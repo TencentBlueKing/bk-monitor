@@ -36,10 +36,14 @@ class ResourceFilter(object):
 
     @property
     def filter_dict(self):
+        """
+        用于ORM的查询
+        """
+        if len(self.value) == 1:
+            if self.fuzzy:
+                return {f"{self.filter_field}__icontains": self.value[0]}
+            return {self.filter_field: self.value[0]}
         return {f"{self.filter_field}__in": self.value}
-
-    def filter(self, query_set):
-        return query_set.filter(**self.filter_dict)
 
     def filter_string(self):
         if self.fuzzy:
@@ -113,18 +117,18 @@ class NodeFilter(ResourceFilter):
 
 @register_filter
 class ClusterFilter(ResourceFilter):
-    resource_type = "cluster"
+    resource_type = "bcs_cluster_id"
     filter_field = "bcs_cluster_id"
 
 
 @register_filter
 class SpaceFilter(ResourceFilter):
-    resource_type = "space"
+    resource_type = "bk_biz_id"
     filter_field = "bk_biz_id"
 
 
-def load_resource_filter(resource_type, filter_value):
+def load_resource_filter(resource_type, filter_value, fuzzy=False):
     if resource_type not in filter_options:
         raise K8sResourceNotFound(resource_type=resource_type)
-    filter_obj = filter_options[resource_type](filter_value)
+    filter_obj = filter_options[resource_type](filter_value, fuzzy)
     return filter_obj

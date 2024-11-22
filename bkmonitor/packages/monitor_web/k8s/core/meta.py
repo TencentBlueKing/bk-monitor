@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import namedtuple
+from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
 from bkmonitor.models import BCSContainer, BCSPod, BCSWorkload
@@ -17,8 +17,10 @@ from monitor_web.k8s.core.filters import load_resource_filter
 
 
 class FilterCollection(object):
-    def __init__(self):
+    def __init__(self, meta):
         self.filters = dict()
+        self.meta = meta
+        self.query_set = meta.resource_class.objects.all()
 
     def add(self, filter_obj):
         self.filters[filter_obj.filter_uid] = filter_obj
@@ -28,10 +30,33 @@ class FilterCollection(object):
         self.filters.pop(filter_obj.filter_uid, None)
         return self
 
-    def filter(self, query_set):
+    @cached_property
+    def filter_queryset(self):
         for filter_obj in self.filters.values():
-            query_set = filter_obj.filter(query_set)
-        return query_set
+            self.query_set = self.query_set.filter(**self.transform_filter_dict(filter_obj))
+        return self.query_set
+
+    def transform_filter_dict(self, filter_obj):
+        """用于ORM的查询条件"""
+        resource_type = filter_obj.resource_type
+        resource_meta = load_resource_meta(resource_type, self.meta.bk_biz_id, self.meta.bcs_cluster_id)
+        if not resource_meta:
+            return filter_obj.filter_dict
+
+        orm_filter_dict = {}
+        for key, value in filter_obj.filter_dict.items():
+            # 解析查询条件， 带双下划线表示特殊查询条件，不带表示等于
+            parsed_token = key.split("__", 1)
+            if parsed_token[0] == key:
+                field_name = key
+            else:
+                field_name, condition = parsed_token
+            # 字段映射， prometheus数据字段 映射到 ORM中的 模型字段
+            field_name = resource_meta.column_mapping.get(field_name, field_name)
+            # 重新组装特殊查询条件
+            new_key = field_name if field_name == key else f"{field_name}__{condition}"
+            orm_filter_dict[new_key] = value
+        return orm_filter_dict
 
     def filter_string(self):
         return ",".join([filter_obj.filter_string() for filter_obj in self.filters.values()])
@@ -51,17 +76,15 @@ class K8sResourceMeta(object):
     def setup_filter(self):
         if self.filter is not None:
             return
-        self.filter = FilterCollection()
-        self.filter.add(load_resource_filter("cluster", self.bcs_cluster_id))
-        self.filter.add(load_resource_filter("space", self.bk_biz_id))
+        self.filter = FilterCollection(self)
+        # 默认范围，业务-集群
+        self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
+        self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
 
-    def get_from_meta(self, meta):
-        pass
+    def get_from_meta(self):
+        return self.filter.filter_queryset
 
-    def get_interval(self, start, end):
-        return get_interval_number(start, end, interval="auto")
-
-    def get_from_prom(self, start_time, end_time):
+    def get_from_promql(self, start_time, end_time):
         query_params = {
             "bk_biz_id": self.bk_biz_id,
             "query_configs": [
@@ -69,7 +92,7 @@ class K8sResourceMeta(object):
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
                     "promql": self.meta_prom,
-                    "interval": self.get_interval(start_time, end_time),
+                    "interval": get_interval_number(start_time, end_time, interval="auto"),
                     "alias": "result",
                 }
             ],
@@ -81,19 +104,6 @@ class K8sResourceMeta(object):
             "down_sample_range": "",
         }
         ret = resource.grafana.graph_unify_query(query_params)["series"]
-        """
-        [{'dimensions': {'container_name': 'bk-monitor-web',
-           'pod_name': 'bk-monitor-web-5dc76bbfd7-8w9c6'},
-          'target': '{container_name=bk-monitor-web, pod_name=bk-monitor-web-5dc76bbfd7-8w9c6}',
-          'metric_field': '_result_',
-          'datapoints': [[356.68, 1731654480000],
-            ...
-           [379.95, 1731658020000]],
-          'alias': '_result_',
-          'type': 'line',
-          'dimensions_translation': {},
-          'unit': ''}]
-        """
         resource_map = {}
         for series in ret:
             resource_name = self.get_resource_name(series)
@@ -130,7 +140,10 @@ class K8sPodMeta(K8sResourceMeta):
 
     @property
     def meta_prom(self):
-        return f"""sum by (workload_kind, workload_name, namespace, pod_name) (container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"""
+        return (
+            "sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+        )
 
 
 class K8sNodeMeta(K8sResourceMeta):
@@ -138,19 +151,53 @@ class K8sNodeMeta(K8sResourceMeta):
 
 
 class NameSpace(dict):
+    columns = ["bk_biz_id", "bcs_cluster_id", "namespace"]
+
     @property
     def __dict__(self):
+        return self
+
+    @property
+    def objects(self):
+        return BCSWorkload.objects.values(*self.columns)
+
+    def __getattr__(self, item):
+        if item in self:
+            return self[item]
+        return None
+
+    def __setattr__(self, item, value):
+        self[item] = value
+
+    def __call__(self, **kwargs):
+        ns = NameSpace.fromkeys(NameSpace.columns, None)
+        ns.update(kwargs)
+        return ns
+
+    def to_meta_dict(self):
         return self
 
 
 class K8sNamespaceMeta(K8sResourceMeta):
     resource_field = "namespace"
-    resource_class = NameSpace.fromkeys(["bk_biz_id", "bcs_cluster_id", "namespace"], None)
+    resource_class = NameSpace.fromkeys(NameSpace.columns, None)
     column_mapping = {}
 
     @property
     def meta_prom(self):
-        return f"""sum by (namespace) (kube_namespace_labels{{{self.filter.filter_string()}}})"""
+        return f"""sum by ({",".join(NameSpace.columns)}) (kube_namespace_labels{{{self.filter.filter_string()}}})"""
+
+    def get_from_meta(self):
+        return self.distinct(self.filter.filter_queryset)
+
+    @classmethod
+    def distinct(cls, objs):
+        unique_ns_query_set = set()
+        for ns in objs:
+            row = tuple(ns[field] for field in NameSpace.columns)
+            unique_ns_query_set.add(row)
+        # 默认按照namespace(第三个字段)排序
+        return [NameSpace(zip(NameSpace.columns, ns)) for ns in sorted(unique_ns_query_set, key=lambda x: x[2])]
 
 
 class K8sWorkloadMeta(K8sResourceMeta):
@@ -160,7 +207,10 @@ class K8sWorkloadMeta(K8sResourceMeta):
 
     @property
     def meta_prom(self):
-        return f"""sum by (workload_kind, workload_name, namespace) (container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"""
+        return (
+            f"sum by (workload_kind, workload_name, namespace) "
+            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+        )
 
 
 class K8sContainerMeta(K8sResourceMeta):
@@ -168,5 +218,22 @@ class K8sContainerMeta(K8sResourceMeta):
     resource_class = BCSContainer
     column_mapping = {"workload_kind": "workload_type", "container_name": "name"}
 
-    def get_from_prom(self, prom):
-        return f"""sum by (workload_kind, workload_name, namespace, container_name, pod_name) (container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"""
+    def meta_prom(self):
+        return (
+            f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
+            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+        )
+
+
+def load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id):
+    resource_meta_map = {
+        'node': K8sNodeMeta,
+        'container': K8sContainerMeta,
+        'pod': K8sPodMeta,
+        'workload': K8sWorkloadMeta,
+        'namespace': K8sNamespaceMeta,
+    }
+    if resource_type not in resource_meta_map:
+        return None
+    meta_class = resource_meta_map[resource_type]
+    return meta_class(bk_biz_id, bcs_cluster_id)
