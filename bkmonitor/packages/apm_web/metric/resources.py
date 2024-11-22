@@ -1429,7 +1429,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             query_params["category"] = data["filter"]
 
         if data["service_name"]:
-            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"])
+            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"], raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
                     data["bk_biz_id"],
@@ -2185,10 +2185,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                     "end_time": data["end_time"],
                     "service_name": service_name,
                     "bk_instance_id": query_param.get("bk_instance_id"),
+                    "raise_exception": False,
                 },
             )
 
-            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 query_param["category"] = node["extra_data"]["category"]
                 query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
@@ -2536,6 +2537,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
             validated_request_data["service_name"],
+            raise_exception=False,
         )
 
         if ComponentHandler.is_component_by_node(node):
