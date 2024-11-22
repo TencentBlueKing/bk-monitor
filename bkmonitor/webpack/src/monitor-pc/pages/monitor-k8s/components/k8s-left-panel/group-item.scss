@@ -1,4 +1,4 @@
-.group-item {
+.k8s-new___group-item {
   & + .group-item {
     margin-top: 8px;
   }
@@ -13,8 +13,8 @@
   }
 
   .arrow-icon {
-    transition: transform 0.1s;
     font-size: 18px;
+    transition: transform 0.1s;
 
     &.expand {
       transform: rotateZ(90deg);
@@ -24,14 +24,14 @@
   .group-header {
     position: relative;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
+    height: 32px;
     padding: 0 12px 0 24px;
     margin-bottom: 8px;
-    height: 32px;
+    cursor: pointer;
     background: #f0f1f5;
     border-radius: 2px;
-    cursor: pointer;
 
     &-left {
       display: flex;
@@ -39,8 +39,8 @@
 
       .arrow-icon {
         position: absolute;
-        left: 4px;
         top: 7px;
+        left: 4px;
       }
 
       .group-name {
@@ -65,8 +65,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-left: 24px;
       height: 32px;
+      padding-left: 24px;
       cursor: pointer;
 
       .content-name {
@@ -80,8 +80,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding-left: 4px;
         width: 44px;
+        padding-left: 4px;
         font-size: 14px;
 
         .drill-down-icon {
@@ -91,8 +91,8 @@
           text-align: center;
 
           &.active {
-            background: #cddffe;
             color: #3a84ff;
+            background: #cddffe;
           }
         }
 
@@ -112,10 +112,10 @@
 
     .show-more {
       padding-bottom: 4px;
-      line-height: 20px;
-      text-align: center;
       font-size: 12px;
+      line-height: 20px;
       color: #979ba5;
+      text-align: center;
 
       .text {
         cursor: pointer;
@@ -146,8 +146,8 @@
 
       .arrow-icon {
         position: absolute;
-        left: 18px;
         top: 7px;
+        left: 18px;
       }
     }
 
@@ -162,10 +162,10 @@
   padding: 4px 0;
 
   .menu-item {
-    line-height: 32px;
     height: 32px;
     padding: 0 7px 0 12px;
     font-size: 12px;
+    line-height: 32px;
     color: #4d4f56;
     cursor: pointer;
 

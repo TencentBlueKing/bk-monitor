@@ -42,6 +42,7 @@ export default class TextListOverview extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) textList: ITextsItem[];
 
   texts: ITextsItem[] = [];
+  delCount = 0;
 
   @Watch('textList', { immediate: true })
   handleWatchTextList() {
@@ -55,29 +56,72 @@ export default class TextListOverview extends tsc<IProps> {
         name,
       };
     });
+    // this.overflowCountRender();
+  }
+
+  async overflowCountRender() {
+    await this.$nextTick();
+    let target = this.$el;
+    while (target) {
+      if (target.classList.contains('filter-by-condition-tag')) {
+        break;
+      }
+      target = target.parentNode;
+    }
+    const wrapWidth = target.clientWidth;
+    let delCount = 0;
+    console.log('----', target, wrapWidth);
+    if (wrapWidth > 400) {
+      const visibleWrap = this.$el.querySelector('.condition-text-list-overview-visible');
+      const textListEl = Array.from(visibleWrap.children);
+      console.log(textListEl, visibleWrap);
+      let tempW = wrapWidth;
+      for (let i = textListEl.length - 1; i >= 0; i--) {
+        const textEl = textListEl[i];
+        tempW -= textEl.clientWidth;
+        console.log(tempW, textEl.clientWidth);
+        delCount += 1;
+        if (tempW < 400) {
+          break;
+        }
+      }
+    }
+    this.delCount = delCount;
+  }
+
+  textsRender(isVisible = false) {
+    if (isVisible) {
+      return this.texts.map((item, index) => (
+        <span key={`${item.id}_index`}>
+          {index > 0 && <span class='split'>, </span>}
+          <span
+            key={item.id}
+            class='text'
+          >
+            {item.name}
+          </span>
+        </span>
+      ));
+    }
+    return this.texts.slice(0, this.texts.length - this.delCount).map((item, index) => (
+      <span key={`${item.id}_index`}>
+        {index > 0 && <span class='split'>, </span>}
+        <span
+          key={item.id}
+          class='text'
+        >
+          {item.name}
+        </span>
+      </span>
+    ));
   }
 
   render() {
     return (
       <span class='condition-text-list-overview'>
-        {this.texts.map((item, index) => {
-          return [
-            index > 0 && (
-              <span
-                key={`,_${item.id}`}
-                class='split'
-              >
-                ,{' '}
-              </span>
-            ),
-            <span
-              key={item.id}
-              class='text'
-            >
-              {item.name}
-            </span>,
-          ];
-        })}
+        {this.textsRender()}
+        {this.delCount ? `+${this.delCount}` : undefined}
+        <div class='condition-text-list-overview-visible'>{this.textsRender(true)}</div>
       </span>
     );
   }

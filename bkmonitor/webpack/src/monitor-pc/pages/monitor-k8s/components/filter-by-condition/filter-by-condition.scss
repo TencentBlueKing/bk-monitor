@@ -6,7 +6,9 @@
   .filter-by-condition-tag {
     height: 22px;
     margin-right: 4px;
+    margin-bottom: 4px;
     font-size: 12px;
+    border-radius: 2px;
 
     &.type-add {
       display: inline-flex;
@@ -17,7 +19,6 @@
       color: #3A84FF;
       cursor: pointer;
       background: #E1ECFF;
-      border-radius: 2px;
 
       &:hover {
         background: #CDDFFE;
@@ -33,7 +34,7 @@
       cursor: pointer;
       background: #F0F1F5;
       border: 1px solid #F0F1F5;
-      border-radius: 2px;
+      
 
       .method {
         margin: 0 4px;
@@ -67,7 +68,50 @@
       padding: 0 8px;
       color: #E38B02;
       background: #FDEED8;
-      border-radius: 2px;
+    }
+
+    &.type-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px 0 6px;
+      color: #4D4F56;
+      cursor: pointer;
+      background: #F0F1F5;
+
+      .count-text {
+        margin-right: 4px;
+      }
+
+      .icon-arrow-down {
+        font-size: 18px;
+      }
+
+      &:hover {
+        background: #DCDEE5;
+      }
+    }
+
+    &.type-expand {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px 0 6px;
+      color: #3A84FF;
+      cursor: pointer;
+      background: #F0F1F5;
+
+      .count-text {
+        margin-right: 4px;
+      }
+
+      .icon-arrow-up {
+        font-size: 18px;
+      }
+
+      &:hover {
+        background: #DCDEE5;
+      }
     }
   }
 
@@ -76,7 +120,8 @@
 .filter-by-condition-component {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
+  padding: 14px 16px 10px 16px;
+  overflow: hidden;
 
   .tag-list-wrap {
     @include tag-list-wrap();
@@ -88,6 +133,12 @@
     left: -9999px;
     overflow: visible;
     @include tag-list-wrap();
+  }
+
+  &.expand-tags {
+    .tag-list-wrap {
+      flex-wrap: wrap;
+    }
   }
   
 
@@ -106,7 +157,7 @@
       .group-item {
         position: relative;
         display: flex;
-        flex: 1;
+        flex: 0 1 25%;
         align-items: center;
         justify-content: center;
         height: 100%;

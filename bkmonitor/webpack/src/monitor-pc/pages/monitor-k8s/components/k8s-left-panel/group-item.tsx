@@ -200,7 +200,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   render() {
     return (
-      <div class='group-item'>
+      <div class='k8s-new___group-item'>
         <div
           class='group-header'
           onClick={() => this.collapseChange(this.list.id)}

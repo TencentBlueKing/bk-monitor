@@ -204,13 +204,13 @@ export default class MonitorK8sNew extends tsc<object> {
           </div>
           <div class='content-right'>
             <div class='filter-header-wrap'>
-              <div class='filter-by-wrap'>
+              <div class='filter-by-wrap __filter-by__'>
                 <div class='filter-by-title'>Filter by</div>
                 <div class='filter-by-content'>
                   <FilterByCondition />
                 </div>
               </div>
-              <div class='filter-by-wrap'>
+              <div class='filter-by-wrap __group-by__'>
                 <GroupByCondition
                   dimensionOptions={this.groupOptions}
                   groupFilters={this.groupFilters}
