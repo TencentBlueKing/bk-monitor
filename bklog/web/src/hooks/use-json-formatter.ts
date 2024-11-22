@@ -44,7 +44,7 @@ export default class UseJsonFormatter {
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<any>;
+  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -86,8 +86,16 @@ export default class UseJsonFormatter {
     segmentPopInstance.hide();
   }
 
+  isValidTraceId(traceId) {
+    const traceIdPattern = /^[a-f0-9]{32}$/;
+    return traceIdPattern.test(traceId);
+  }
+
   handleSegmentClick(e, value) {
     if (!value.toString() || value === '--') return;
+    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
+    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
+    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
     segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
