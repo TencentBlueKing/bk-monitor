@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
-from typing import Dict, List, Pattern, Tuple
+from typing import Dict, List, Pattern, Set, Tuple
 
 import arrow
 from django.conf import settings
@@ -687,7 +687,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             params["post_query_filter_dict"]["target"] = target_instances
         return True
 
-    def get_dimension_combination(self, data_source, params, query_config):
+    def get_dimension_combination(self, data_source, params):
         """获取指定数量的topk维度组合"""
 
         if not (
@@ -734,30 +734,19 @@ class UnifyQueryRawResource(ApiAuthResource):
         data_source.functions = [f for f in data_source.functions if f["id"] != "topk"]
 
         # 提取topk维度组合
-        dimension_combination = []
-        seen_combinations = set()
+        dimension_tuples_set: Set[Tuple[Tuple]] = set()
         for point in points:
-            combination = {}
-            for key, value in point.items():
-                if key in data_source.group_by:
-                    combination[key] = value
-            combination_tuple = tuple(combination.items())
-            if combination_tuple not in seen_combinations:
-                seen_combinations.add(combination_tuple)
-                dimension_combination.append(combination)
+            dimension_tuples: List[Tuple] = []
+            for key in data_source.group_by:
+                if key in point:
+                    dimension_tuples.append((key, point[key]))
+            dimension_tuples_set.add(tuple(dimension_tuples))
 
-        # 将维度组合条件加入where条件中
-        for index, combination in enumerate(dimension_combination):
-            for i, (key, value) in enumerate(combination.items()):
-                if index == 0 and i == 0:
-                    condition = "and"  # 第一个条件是 "and"
-                elif index > 0 and i == 0:
-                    condition = "or"  # 维度组合条件之间使用 "or"
-                else:
-                    condition = "and"  # 维度组合条件内使用 "and"
-
-                data_source.where.append({"condition": condition, "key": key, "method": "eq", "value": [value]})
-        query_config["where"] = data_source.where
+        # 将topk维度组合条件拼接回第一个指标的查询条件中
+        data_source.filter_dict["series"] = [
+            {key: value for key, value in dimension_tuple}
+            for dimension_tuple in list(dimension_tuples_set)[:series_num]
+        ]
 
     def perform_request(self, params):
         # cookies filter
@@ -819,7 +808,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             # 先获取指定数量的topk维度组合条件，后续将基于这些维度组合条件进行查询
             # 目前只支持ui数据源的指标，如果有多个指标，只获取第一个指标的topk数量的维度组合条件，并将这些条件拼接回第一个指标的查询条件中
             if query_config_index == 0:
-                self.get_dimension_combination(data_source, params, query_config)
+                self.get_dimension_combination(data_source, params)
 
             data_sources.append(data_source)
 

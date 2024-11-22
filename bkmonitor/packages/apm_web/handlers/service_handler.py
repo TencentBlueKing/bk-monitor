@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceHandler:
-
     # 避免数据量过大 只查询30分钟内数据 超过30分钟数据由拓扑发现获取
     QUERY_FLOW_MAX_TIME_RANGE = 30
 
@@ -409,7 +408,16 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def get_service_metric(cls, metric, application, start_time, end_time, service_name, bk_instance_id=None):
+    def get_service_metric(
+        cls,
+        metric,
+        application,
+        start_time,
+        end_time,
+        service_name,
+        bk_instance_id=None,
+        raise_exception=True,
+    ):
         """获取某个 service 的指标项"""
         # 根据 service 的类型使用不同的逻辑
         from apm_web.handlers.component_handler import ComponentHandler
@@ -419,7 +427,7 @@ class ServiceHandler:
             "start_time": start_time,
             "end_time": end_time,
         }
-        node = ServiceHandler.get_node(application.bk_biz_id, application.app_name, service_name)
+        node = ServiceHandler.get_node(application.bk_biz_id, application.app_name, service_name, raise_exception)
         if ComponentHandler.is_component_by_node(node):
             return metric(
                 **endpoint_metrics_param,
