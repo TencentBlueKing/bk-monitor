@@ -39,6 +39,7 @@ import GroupByCondition, {
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew from './components/k8s-table-new/k8s-table-new';
+import { getK8sTableDataMock } from './components/k8s-table-new/utils';
 import { K8sNewTabEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -78,19 +79,37 @@ export default class MonitorK8sNew extends tsc<object> {
   cluster = '';
   // 集群列表
   clusterList = [];
+  // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
+  // Group By 选择器的值
   groupFilters: Array<number | string> = [];
+  // Group By 选择器选项
   groupOptions = [...GROUP_OPTIONS];
+  // 表格数据
+  k8sTableData: any[] = [];
   loading = false;
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
 
+  created() {
+    this.getK8sList();
+  }
+
   /**
    * @description 获取k8s列表
    */
-  getK8sList(param = {}) {}
+  getK8sList() {
+    this.loading = true;
+    getK8sTableDataMock(Math.floor(Math.random() * 101))
+      .then(res => {
+        this.$set(this, 'k8sTableData', res);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
+  }
 
   setGroupFilters(filters: Array<number | string>) {
     this.$set(this, 'groupFilters', filters);
@@ -122,11 +141,8 @@ export default class MonitorK8sNew extends tsc<object> {
   }
 
   async handleTabChange(v: K8sNewTabEnum) {
-    this.loading = true;
     this.activeTab = v;
-    setTimeout(() => {
-      this.loading = false;
-    }, 200);
+    this.getK8sList();
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
@@ -143,7 +159,11 @@ export default class MonitorK8sNew extends tsc<object> {
           <K8sTableNew
             activeTab={this.activeTab}
             loading={this.loading}
-            onGetList={this.getK8sList}
+            tableData={this.k8sTableData}
+            onColClick={() => {}}
+            onFilterChange={() => {}}
+            onGroupChange={() => {}}
+            onSortChange={() => {}}
           />
         );
     }

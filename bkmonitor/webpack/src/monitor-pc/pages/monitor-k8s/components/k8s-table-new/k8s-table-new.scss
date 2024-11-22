@@ -1,3 +1,50 @@
 .k8s-table-new {
+  height: 100%;
   padding: 16px;
+
+  .common-table {
+    height: 100%;
+
+    .bk-table {
+      height: 100%;
+
+      .bk-table-row.hover-row {
+        .col-item-operate {
+          display: block;
+        }
+      }
+    }
+  }
+
+  .k8s-table-col-item {
+    display: flex;
+
+    .col-item-label {
+      display: inline-block;
+      flex-basis: auto;
+      min-width: 0;
+      overflow: hidden;
+      color: #3a84ff;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .col-item-operate {
+      display: none;
+      flex-shrink: 0;
+
+      .icon-monitor {
+        width: 16px;
+        height: 16px;
+        margin-left: 10px;
+        font-size: 14px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
 }
