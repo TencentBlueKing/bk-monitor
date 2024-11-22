@@ -79,7 +79,14 @@ export default class FilterByCondition extends tsc<object> {
   valueCategorySelected = '';
   // 搜索框输入的值
   searchValue = '';
+  // 当前点击的tag
   updateActive = '';
+  // 溢出的数量
+  overflowCount = 0;
+  // 当前溢出的下标
+  overflowIndex = 0;
+  // 展开tagList
+  isExpand = false;
 
   created() {
     this.tagList = [];
@@ -123,14 +130,37 @@ export default class FilterByCondition extends tsc<object> {
   handleSelectGroup(id: string) {
     if (this.groupSelected !== id) {
       this.groupSelected = id;
+      const checkedSet = new Set();
+      for (const tag of this.tagList) {
+        if (tag.id === id) {
+          for (const v of tag.values) {
+            checkedSet.add(v.id);
+          }
+          break;
+        }
+      }
       if (this.groupSelected === EGroupBy.workload) {
         const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
-        this.valueCategoryOptions = groupValues.map(item => ({ ...item, checked: false }));
-        this.valueOptions = this.valueCategoryOptions?.[0]?.list?.map(item => ({ ...item, checked: false })) || [];
+        this.valueCategoryOptions = groupValues.map(item => ({
+          ...item,
+          checked: false,
+          list:
+            item?.list?.map(l => ({
+              ...l,
+              checked: checkedSet.has(l.id),
+            })) || [],
+        }));
+        if (this.valueCategorySelected) {
+          this.valueOptions =
+            this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
+        } else {
+          this.valueCategorySelected = this.valueCategoryOptions[0]?.id || '';
+          this.valueOptions = this.valueCategoryOptions?.[0]?.list || [];
+        }
       } else {
         this.valueCategoryOptions = [];
         const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
-        this.valueOptions = groupValues.map(item => ({ ...item, checked: false }));
+        this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
     }
   }
@@ -141,13 +171,32 @@ export default class FilterByCondition extends tsc<object> {
 
   handleCheck(item: IValueItem) {
     item.checked = !item.checked;
+    if (this.groupSelected === EGroupBy.workload) {
+      for (const option of this.valueCategoryOptions) {
+        for (const l of option.list) {
+          if (l.id === item.id) {
+            l.checked = item.checked;
+          }
+        }
+      }
+    }
   }
 
   setTagList() {
     const curSelected = [];
-    for (const value of this.valueOptions) {
-      if (value.checked) {
-        curSelected.push(value);
+    if (this.groupSelected === EGroupBy.workload) {
+      for (const option of this.valueCategoryOptions) {
+        for (const l of option.list) {
+          if (l.checked) {
+            curSelected.push(l);
+          }
+        }
+      }
+    } else {
+      for (const value of this.valueOptions) {
+        if (value.checked) {
+          curSelected.push(value);
+        }
       }
     }
     let has = false;
@@ -156,42 +205,108 @@ export default class FilterByCondition extends tsc<object> {
       if (delIndex > -1) {
         this.tagList.splice(delIndex, 1);
       }
-      return;
-    }
-    for (const tag of this.tagList) {
-      if (tag.id === this.groupSelected) {
-        tag.values = curSelected.map(item => ({
-          id: item.id,
-          name: item.name,
-        }));
-        has = true;
-        break;
+    } else {
+      for (const tag of this.tagList) {
+        if (tag.id === this.groupSelected) {
+          tag.values = curSelected.map(item => ({
+            id: item.id,
+            name: item.name,
+          }));
+          has = true;
+          break;
+        }
+      }
+      if (!has) {
+        const groupItem = this.groupOptions.find(item => item.id === this.groupSelected);
+        const obj = {
+          key: random(8),
+          id: groupItem.id,
+          name: groupItem.name,
+          values: curSelected.map(item => ({
+            id: item.id,
+            name: item.name,
+          })),
+        };
+        this.tagList.push(obj);
       }
     }
-    if (!has) {
-      const groupItem = this.groupOptions.find(item => item.id === this.groupSelected);
-      const obj = {
-        key: random(8),
-        id: groupItem.id,
-        name: groupItem.name,
-        values: curSelected.map(item => ({
-          id: item.id,
-          name: item.name,
-        })),
-      };
-      this.tagList.push(obj);
-    }
+    this.setGroupOptions();
+    this.overflowCountRender();
   }
 
   handleUpdateTag(event: MouseEvent, item: ITagListItem) {
     console.log(event);
+    let target = event.target as any | HTMLElement;
+    while (target) {
+      if (target.classList.contains('filter-by-condition-tag')) {
+        break;
+      }
+      target = target.parentNode;
+    }
     this.updateActive = item.key;
     this.handleSelectGroup(item.id as any);
-    this.handleAdd(event);
+    this.handleAdd({ target } as any);
   }
 
+  // 切换workload 分类
   handleSelectCategory(item: IValueItem) {
     this.valueCategorySelected = item.id;
+    const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
+    this.valueOptions = values;
+  }
+
+  // 计算溢出个数
+  async overflowCountRender() {
+    await this.$nextTick();
+    const wrapWidth = this.$el.clientWidth - 32;
+    const visibleWrap = this.$el.querySelector('.tag-list-wrap-visible');
+    let index = 0;
+    let w = 0;
+    let count = 0;
+    for (const item of Array.from(visibleWrap.children)) {
+      w += item.clientWidth;
+      if (w > wrapWidth) {
+        break;
+      }
+      index += 1;
+      if (index % 2) {
+        count += 1;
+      }
+    }
+    this.overflowIndex = index;
+    this.overflowCount = this.tagList.length - count;
+    if (!this.overflowCount) {
+      this.isExpand = false;
+    }
+  }
+
+  handleExpand() {
+    this.isExpand = !this.isExpand;
+  }
+
+  setGroupOptions() {
+    const groupsSet = new Set();
+    for (const tag of this.tagList) {
+      groupsSet.add(tag.id);
+    }
+    const groupOptions = [];
+    for (const item of GROUP_OPTIONS) {
+      if (!groupsSet.has(item.id)) {
+        groupOptions.push({
+          ...item,
+          list: [],
+        });
+      }
+    }
+    this.groupOptions = groupOptions;
+    this.handleSelectGroup(groupOptions?.[0]?.id);
+  }
+
+  handleDeleteTag(e: MouseEvent, item: ITagListItem) {
+    e.stopPropagation();
+    this.tagList = this.tagList.filter(tag => tag.key !== item.key);
+    this.setGroupOptions();
+    this.overflowCountRender();
   }
 
   valuesWrap() {
@@ -211,9 +326,9 @@ export default class FilterByCondition extends tsc<object> {
     );
   }
 
-  tagsWrap() {
-    return [
-      this.tagList.map((item, index) => {
+  tagsWrap(isVisible = false) {
+    if (isVisible) {
+      return this.tagList.map((item, index) => {
         return [
           index >= 1 && (
             <span
@@ -236,22 +351,91 @@ export default class FilterByCondition extends tsc<object> {
             <span class='icon-monitor icon-mc-close' />
           </span>,
         ];
+      });
+    }
+    const list = [];
+    let i = 0;
+    for (const tag of this.tagList) {
+      if (i > 0) {
+        list.push({
+          name: 'AND',
+          id: '__and__',
+          key: random(8),
+          values: [],
+        });
+      }
+      list.push(tag);
+      i += 1;
+    }
+    return [
+      list.map((item, index) => {
+        if (!this.isExpand && index >= this.overflowIndex && this.overflowCount > 0) {
+          return undefined;
+        }
+        if (item.id === '__and__') {
+          return (
+            <span
+              key={`and_${item.key}`}
+              class='filter-by-condition-tag type-condition'
+            >
+              AND
+            </span>
+          );
+        }
+        return (
+          <span
+            key={item.key}
+            class={['filter-by-condition-tag type-kv', { active: this.updateActive === item.key }]}
+            onClick={e => this.handleUpdateTag(e, item)}
+          >
+            <span>{item.name}</span>
+            <span class='method'>=</span>
+            <span>
+              <TextListOverview textList={item.values} />
+            </span>
+            <span
+              class='icon-monitor icon-mc-close'
+              onClick={e => this.handleDeleteTag(e, item)}
+            />
+          </span>
+        );
       }),
-      <span
-        key='__add__'
-        class='filter-by-condition-tag type-add'
-        onClick={this.handleAdd}
-      >
-        <span class='icon-monitor icon-plus-line' />
-      </span>,
+      this.overflowCount && !this.isExpand ? (
+        <span
+          key={'__count__'}
+          class='filter-by-condition-tag type-count'
+          onClick={() => this.handleExpand()}
+        >
+          <span class='count-text'>{this.overflowCount}</span>
+          <span class='icon-monitor icon-arrow-down' />
+        </span>
+      ) : (
+        <span
+          key='__add__'
+          class='filter-by-condition-tag type-add'
+          onClick={this.handleAdd}
+        >
+          <span class='icon-monitor icon-plus-line' />
+        </span>
+      ),
+      this.isExpand && (
+        <span
+          key={'__count__'}
+          class='filter-by-condition-tag type-expand'
+          onClick={() => this.handleExpand()}
+        >
+          <span class='count-text'>{this.$t('收起')}</span>
+          <span class='icon-monitor icon-arrow-up' />
+        </span>
+      ),
     ];
   }
 
   render() {
     return (
-      <div class='filter-by-condition-component'>
+      <div class={['filter-by-condition-component', { 'expand-tags': this.isExpand }]}>
         <div class='tag-list-wrap'>{this.tagsWrap()}</div>
-        <div class='tag-list-wrap-visible'>{this.tagsWrap()}</div>
+        <div class='tag-list-wrap-visible'>{this.tagsWrap(true)}</div>
         <div
           style={{
             display: 'none',
