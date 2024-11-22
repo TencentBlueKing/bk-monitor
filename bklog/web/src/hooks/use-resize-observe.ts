@@ -23,41 +23,62 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { onMounted, Ref, onUnmounted } from 'vue';
 
-const isMonitorProduction = process.env.NODE_ENV === 'production' && process.env.APP === 'apm';
-module.exports = function (api) {
-  api?.cache.never();
-  const presets = [
-    [
-      '@babel/preset-env',
-      {
-        targets: {
-          browsers:
-            process.env.APP === 'apm'
-              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
-              : ['> 1%', 'last 2 versions', 'not ie <= 8'],
-          node: 'current',
-        },
-        useBuiltIns: 'usage',
-        corejs: 3,
-        debug: false,
-      },
-    ],
-    ['@vue/babel-preset-jsx', { compositionAPI: true }],
-  ];
-  const plugins = [
-    '@babel/plugin-transform-runtime',
-    isMonitorProduction
-      ? undefined
-      : [
-          'babel-plugin-import-bk-magic-vue',
-          {
-            baseLibName: 'bk-magic-vue',
-          },
-        ],
-  ].filter(Boolean);
-  return {
-    presets,
-    plugins,
+import { debounce, isElement } from 'lodash';
+
+export default (
+  target: Ref<HTMLElement> | string | (() => string | HTMLElement),
+  callbackFn: (entry: ResizeObserverEntry) => void,
+) => {
+  const debounceCallback = debounce(entry => {
+    callbackFn?.(entry);
+  }, 120);
+
+  const getTarget = () => {
+    if (typeof target === 'string') {
+      return document.querySelector(target);
+    }
+
+    if (isElement(target)) {
+      return target;
+    }
+
+    if (typeof target === 'function') {
+      return target?.();
+    }
+
+    return target?.value;
   };
+
+  let resizeObserver = null;
+  const createResizeObserve = () => {
+    const cellElement = getTarget();
+
+    if (isElement(cellElement)) {
+      // 创建一个 ResizeObserver 实例
+      resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          // 获取元素的新高度
+          debounceCallback(entry);
+        }
+      });
+
+      resizeObserver?.observe(cellElement);
+    }
+  };
+
+  onMounted(() => {
+    createResizeObserve();
+  });
+
+  onUnmounted(() => {
+    const cellElement = getTarget();
+
+    if (isElement(cellElement)) {
+      resizeObserver?.unobserve(cellElement);
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+    }
+  });
 };
