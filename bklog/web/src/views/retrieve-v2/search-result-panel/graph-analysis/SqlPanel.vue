@@ -24,86 +24,68 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineExpose, nextTick, computed } from "vue";
-import { useRoute } from 'vue-router/composables';
-import { bkMessage } from 'bk-magic-vue'
-import * as monaco from "monaco-editor";
-import useLocale from "@/hooks/use-locale";
-import PreviewSql from "./common/PreviewSql.vue"
-import $http from '../../../../api';
-const { $t } = useLocale();
-const route = useRoute();
-const editorContainer = ref(null);
-const showDialog = ref(false);
-const sqlContent = ref("");
-const emit = defineEmits(["search-completed"]);
-let editorInstance = null;
-window.MonacoEnvironment = {
-  // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
-  // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
-  getWorker: (workerId, label) => {
-    if (label === "yaml") {
-      return process.env.NODE_ENV === "production"
-        ? `${window.BK_STATIC_URL}/yaml.worker.js`
-        : "./yaml.worker.js";
-    }
-    if (label === "json") {
-      return process.env.NODE_ENV === "production"
-        ? `${window.BK_STATIC_URL}/json.worker.js`
-        : "./json.worker.js";
-    }
-    return process.env.NODE_ENV === "production"
-      ? `${window.BK_STATIC_URL}/editor.worker.js`
-      : "./editor.worker.js";
-  },
-};
-// resize后重新计算高度
-async function resize() {
-  if (editorInstance) {
-    await nextTick();
-    editorInstance.layout();
-  }
-}
-function preview() {
-  showDialog.value = true;
-  sqlContent.value = editorInstance.getValue();
-}
+  import { ref, onMounted, defineExpose, nextTick, computed } from 'vue';
+  import { useRoute } from 'vue-router/composables';
+  import { bkMessage } from 'bk-magic-vue';
+  import * as monaco from 'monaco-editor';
+  import useLocale from '@/hooks/use-locale';
+  import PreviewSql from './common/PreviewSql.vue';
+  import $http from '../../../../api';
+  const { $t } = useLocale();
+  const route = useRoute();
+  const editorContainer = ref(null);
+  const showDialog = ref(false);
+  const sqlContent = ref('');
+  const emit = defineEmits(['search-completed']);
+  let editorInstance = null;
+  window.MonacoEnvironment = {
+    // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
+    // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
+    getWorker: () => {
+      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+    },
+  };
 
-function emitQuery() {}
-function emitStop() {}
-async function sqlSearch() {
-  if (!editorInstance) {
-    console.error("Editor instance is not available.");
-    return;
+  function preview() {
+    showDialog.value = true;
+    sqlContent.value = editorInstance.getValue();
   }
 
-  // 获取编辑器内容
-  const sqlQuery = editorInstance.getValue();
+  function emitQuery() {}
+  function emitStop() {}
+  async function sqlSearch() {
+    if (!editorInstance) {
+      console.error('Editor instance is not available.');
+      return;
+    }
 
-  const res = await $http.request("graphAnalysis/searchSQL", {
-    params: {
-      index_set_id: route.params.indexId,
-    },
-    data: {
-      query_mode: "sql",
-      sql: sqlQuery, // 使用获取到的内容
-    },
-  });
-  if (!res.data.list.length) {
-    bkMessage({
-      theme: 'primary',
-      message: '没有查询到数据',
+    // 获取编辑器内容
+    const sqlQuery = editorInstance.getValue();
+
+    const res = await $http.request('graphAnalysis/searchSQL', {
+      params: {
+        index_set_id: route.params.indexId,
+      },
+      data: {
+        query_mode: 'sql',
+        sql: sqlQuery, // 使用获取到的内容
+      },
     });
-    return;
+    if (!res.data.list.length) {
+      bkMessage({
+        theme: 'primary',
+        message: '没有查询到数据',
+      });
+      return;
+    }
+    emit('search-completed', res);
   }
-  emit("search-completed", res);
-}
-onMounted(() => {
-  // 在组件挂载后初始化 Monaco Editor
-  if (editorContainer.value) {
-    // editorContainer.value.style.height = "100%"; // 设置高度
-    editorInstance = monaco.editor.create(editorContainer.value, {
-      value: `SELECT
+  onMounted(() => {
+    // 在组件挂载后初始化 Monaco Editor
+    if (editorContainer.value) {
+      // editorContainer.value.style.height = "100%"; // 设置高度
+      editorInstance = monaco.editor.create(editorContainer.value, {
+        value: `SELECT
     thedate,
     dtEventTimeStamp,
     iterationIndex,
@@ -115,35 +97,34 @@ WHERE
     thedate >= '20241120'
     AND thedate <= '20241120'
 LIMIT 2;`,
-      language: "sql",
-      theme: "vs-dark",
-    });
-  }
-});
-defineExpose({
-  resize,
-});
+        language: 'sql',
+        theme: 'vs-dark',
+      });
+    }
+  });
+  defineExpose({
+    resize,
+  });
 </script>
 <template>
   <div class="sql-editor">
-    <div ref="editorContainer" :immediate="true" class="editorContainer"></div>
+    <div
+      ref="editorContainer"
+      class="editorContainer"
+    ></div>
     <div class="sql-editor-tools">
       <bk-button
         @click="emitQuery"
         class="sql-editor-query-button font-small mr-small"
         theme="primary"
         size="small"
-        v-bk-tooltips="{
-          content: $t('请先在左侧选择需要查询的数据源'),
-        }"
       >
-        <!-- <template v-if="props.isQuerying">
-          <img :src="loading" class="sql-editor-query-button-spinner font-small" />
-        </template>
-        <template v-else> -->
         <i class="bklog-icon bklog-bofang"></i>
-        <!-- </template> -->
-        <span class="ml-min" @click="sqlSearch">{{ $t("查询") }}</span>
+        <span
+          class="ml-min"
+          @click="sqlSearch"
+          >{{ $t('查询') }}</span
+        >
       </bk-button>
       <bk-button
         @click="emitStop"
@@ -151,55 +132,55 @@ defineExpose({
         size="small"
       >
         <span class="icon bklog-icon bklog-stop" />
-        <span>{{ $t("中止") }}</span>
+        <span>{{ $t('中止') }}</span>
       </bk-button>
       <bk-button
         class="sql-editor-view-button text-center pl-min pr-min cursor-pointer"
         size="small"
         @click="preview"
       >
-        {{ $t("预览查询 SQL") }}
+        {{ $t('预览查询 SQL') }}
       </bk-button>
       <PreviewSql
         :isShow="showDialog"
         :sqlContent="sqlContent"
-        @update:isShow="(newValue) => (showDialog = newValue)"
+        @update:isShow="newValue => (showDialog = newValue)"
       />
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.sql-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background-color: #1e1e1e;
-
-  .editorContainer {
+  .sql-editor {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    background-color: #1e1e1e;
 
-    .monaco-edito {
+    .editorContainer {
       height: 100%;
+
+      .monaco-edito {
+        height: 100%;
+      }
     }
-  }
 
-  .sql-editor-tools {
-    margin: 16px;
+    .sql-editor-tools {
+      margin: 16px;
 
-    .sql-editor-view-button {
-      height: 28px;
-      line-height: 26px;
-      color: #c4c6cc;
-      background-color: #313238;
-      border: 1px solid #63656e;
-      border-radius: 2px;
-      transition: border-color 0.3s ease-in-out;
+      .sql-editor-view-button {
+        height: 28px;
+        line-height: 26px;
+        color: #c4c6cc;
+        background-color: #313238;
+        border: 1px solid #63656e;
+        border-radius: 2px;
+        transition: border-color 0.3s ease-in-out;
 
-      &:hover {
-        border-color: #979ba5;
+        &:hover {
+          border-color: #979ba5;
+        }
       }
     }
   }
-}
 </style>
