@@ -62,22 +62,19 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
                         doc_link_html = parse_doc_link(res_data)
                         yield doc_link_html
                         continue
-                    if res_data.get("event") == "done":
-                        yield add_guide(res_data, reject)
-                        continue
+                    if res_data.get("event") == "done" and reject:
+                        # done 的时候， 同时reject了，需要补一个引导尾巴
+                        yield add_guide(res_data)
                 except JSONDecodeError:
                     # 非json格式原样返回
                     # data: [DONE]
                     pass
                 yield result
 
-        def add_guide(res_data, reject):
-            link_tmp = """<a href="{doc_link}" target="_blank" class="knowledge-link">
-                        【BK助手】
-                        <i class="ai-blueking-icon ai-blueking-cc-jump-link"></i>
-                      </a>"""
-            if reject:
-                res_data["content"] += " 您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
+        def add_guide(res_data):
+            link_tmp = """<a href="{doc_link}" target="_blank">【BK助手】</a>"""
+            res_data["content"] = " 您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
+            res_data["event"] = "text"
             return "data: " + json.dumps(res_data) + "\n\n"
 
         def parse_doc_link(res_data):
