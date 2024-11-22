@@ -25,12 +25,13 @@
 -->
 <script setup>
 import { ref, onMounted, defineExpose, nextTick, computed } from "vue";
-import { useRoute } from 'vue-router/composables';
-import { bkMessage } from 'bk-magic-vue'
+import { useRoute } from "vue-router/composables";
+import { bkMessage } from "bk-magic-vue";
 import * as monaco from "monaco-editor";
+import { language as sqlLanguage } from "monaco-editor/esm/vs/basic-languages/sql/sql.js";
 import useLocale from "@/hooks/use-locale";
-import PreviewSql from "./common/PreviewSql.vue"
-import $http from '../../../../api';
+import PreviewSql from "./common/PreviewSql.vue";
+import $http from "../../../../api";
 const { $t } = useLocale();
 const route = useRoute();
 const editorContainer = ref(null);
@@ -91,32 +92,48 @@ async function sqlSearch() {
   });
   if (!res.data.list.length) {
     bkMessage({
-      theme: 'primary',
-      message: '没有查询到数据',
+      theme: "primary",
+      message: "没有查询到数据",
     });
     return;
   }
   emit("search-completed", res);
 }
 onMounted(() => {
-  // 在组件挂载后初始化 Monaco Editor
   if (editorContainer.value) {
-    // editorContainer.value.style.height = "100%"; // 设置高度
     editorInstance = monaco.editor.create(editorContainer.value, {
-      value: `SELECT
-    thedate,
-    dtEventTimeStamp,
-    iterationIndex,
-    log,
-    time
-FROM
-    100968_proz_rd_ds2_test.doris
-WHERE
-    thedate >= '20241120'
-    AND thedate <= '20241120'
-LIMIT 2;`,
+      value: "sELECT * FROM 100968_proz_rd_ds2_test.doris WHERE thedate>='20241120' AND thedate<='20241120' limit 10",
       language: "sql",
       theme: "vs-dark",
+    });
+    monaco.languages.registerCompletionItemProvider("sql", {
+      provideCompletionItems: (model, position) => {
+        let suggestions = [];
+        const { lineNumber, column } = position;
+        const textBeforePointer = model.getValueInRange({
+          startLineNumber: lineNumber,
+          startColumn: 0,
+          endLineNumber: lineNumber,
+          endColumn: column,
+        });
+        const contents = textBeforePointer.trim().split(/\s+/);
+        const lastContents = contents[contents?.length - 1];
+        if (lastContents) {
+          const sqlConfigKey = ["builtinFunctions", "keywords", "operators"];
+          sqlConfigKey.forEach((key) => {
+            sqlLanguage[key].forEach((sql) => {
+              suggestions.push({
+                label: sql, // 显示的提示内容;默认情况下，这也是选择完成时插入的文本。
+                insertText: sql, // 选择此完成时应插入到文档中的字符串或片段
+                // kind: monaco.languages.CompletionItemKind['Function'], // 此完成项的种类。编辑器根据图标的种类选择图标。
+              });
+            });
+          });
+        }
+        return {
+          suggestions,
+        };
+      },
     });
   }
 });
@@ -133,9 +150,6 @@ defineExpose({
         class="sql-editor-query-button font-small mr-small"
         theme="primary"
         size="small"
-        v-bk-tooltips="{
-          content: $t('请先在左侧选择需要查询的数据源'),
-        }"
       >
         <!-- <template v-if="props.isQuerying">
           <img :src="loading" class="sql-editor-query-button-spinner font-small" />

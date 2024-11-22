@@ -26,6 +26,9 @@
 <script setup>
 import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose } from "vue";
 import useLocale from "@/hooks/use-locale";
+import BASE_CHART_OPTIONS from "@/hooks/trend-chart-options.ts";
+// import { BASE_CHART_OPTIONS } from './charts';
+import { merge } from "lodash";
 const { $t } = useLocale();
 import * as echarts from "echarts";
 
@@ -38,6 +41,8 @@ const props = defineProps({
 const chartRef = ref(null);
 const tableData = ref([]);
 const segment = ref([]);
+const xAxis = ref([]);
+const yAxis = ref([]);
 let myChart = null;
 watch(() => props.activeGraphCategory, updateChart);
 onMounted(() => {
@@ -60,29 +65,26 @@ function updateChart() {
   if (!tableData.value.length) {
     return;
   }
-  const option = getChartOption(props.activeGraphCategory);
+  const option = merge({}, BASE_CHART_OPTIONS, getChartOption(props.activeGraphCategory));
   console.log("option", option);
-  myChart.setOption(option);
-}
-function setOption(data, xAxis, yAxis, segmented = []) {
-  console.log(data, xAxis, yAxis);
-  segment.value = segmented;
-  tableData.value = data.data.list.map((item) => {
-    const segmentedValues = segmented.length > 0 ? segmented.map((seg) => item[seg]) : [];
-    return {
-      name: item[xAxis],
-      value: [item[yAxis], ...segmentedValues],
-    };
+  myChart.setOption(option, {
+    notMerge: true,
+    lazyUpdate: false,
+    silent: true,
   });
+}
+function setOption(data, xAxisValue, yAxisValue, segmented = []) {
+  // segment.value = segmented;
+  tableData.value = data.data.list;
+  xAxis.value = xAxisValue;
+  yAxis.value = yAxisValue;
+
   updateChart();
 }
 function getChartOption(type) {
   if (type === "pie") {
-    const pieData = tableData.value.map((item,index) => {
-      console.log();
-      const nmae = segment.value.forEach((seg) => {
-
-      });
+    const pieData = tableData.value.map((item, index) => {
+      const nmae = segment.value.forEach((seg) => {});
       const dimensionCombination = item.value.join("-");
       const totalValue = item.value.reduce((acc, val) => acc + val, 0);
       const combinedNameValue = `${item.name} (${dimensionCombination})`;
@@ -101,45 +103,18 @@ function getChartOption(type) {
       ],
     };
   }
-  const series = [];
-
-  const valueLength = tableData.value.length > 0 ? tableData.value[0].value.length : 0;
-
-  for (let i = 0; i < valueLength; i++) {
-    const seriesData = tableData.value.map((item) => item.value[i]);
-
-    switch (type) {
-      case "line":
-        series.push({ data: seriesData, type: "line", name: `Series ${i + 1}` });
-        break;
-      case "bar":
-        series.push({ data: seriesData, type: "bar", name: `Series ${i + 1}` });
-        break;
-      // case "line_bar":
-      //   if (i < 1) {
-      //     series.push({ data: seriesData, type: "bar", name: `Series ${i + 1}` });
-      //   } else {
-      //     series.push({ data: seriesData, type: "line", name: `Series ${i + 1}` });
-      //   }
-      //   break;
-      // case "pie":
-      //   if (i > 1) {
-      //     series.push({
-      //       type: "pie",
-      //       data: tableData.value.map(item => ({ name: item.name, value: item.value[i] })),
-      //       name: `Series ${i + 1}`
-      //     });
-      //   }
-      //   break;
-      default:
-        break;
-    }
-  }
+  const xAxisData = [];
+  xAxis.value.forEach((x) => {
+    tableData.value.forEach((item) => {
+        xAxisData.push(item[x]);
+    });
+  });
+  
 
   return {
-    xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
-    yAxis: { type: "value" },
-    series: series,
+    // xAxis: { type: "category", data: tableData.value.map((item) => item.name) },
+    // yAxis: { type: "value" },
+    // series: series,
   };
 }
 defineExpose({

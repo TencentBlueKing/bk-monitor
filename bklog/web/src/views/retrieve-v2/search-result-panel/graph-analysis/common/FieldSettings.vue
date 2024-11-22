@@ -28,10 +28,10 @@ import { ref, defineProps, watch, computed, defineEmits } from "vue";
 
 const props = defineProps({
   xAxis: {
-    type: String,
+    type: Array,
   },
   yAxis: {
-    type: String,
+    type: Array,
   },
   activeGraphCategory: {
     type: String,
@@ -45,7 +45,6 @@ const selectedXAxis = ref(props.xAxis);
 const selectedYAxis = ref(props.yAxis);
 const segmentedField = ref([]);
 const hiddenField = ref([]);
-const displayField = ref('');
 const list = computed(() => props.select_fields_order);
 // 监听 props.xAxis 的变化并更新 selectedXAxis
 watch(
@@ -77,9 +76,10 @@ function change(axis, newValue) {
       <div class="title">x轴字段</div>
       <bk-select
         v-model="selectedXAxis"
+        searchable
         @change="change('x', $event)"
         :clearable="false"
-        searchable
+        multiple
       >
         <bk-option
           v-for="(option, index) in list"
@@ -94,9 +94,10 @@ function change(axis, newValue) {
       <div class="title">y轴字段</div>
       <bk-select
         v-model="selectedYAxis"
+        searchable
         @change="change('y', $event)"
         :clearable="false"
-        searchable
+        multiple
       >
         <bk-option
           v-for="(option, index) in list"
@@ -120,7 +121,7 @@ function change(axis, newValue) {
       </bk-select>
     </div>
     <div v-show="activeGraphCategory !== 'table'">
-      <div class="title">分组字段</div>
+      <div class="title">时间维度</div>
       <bk-select v-model="segmentedField" :clearable="false"  @change="change('segmented', $event)" multiple searchable>
         <bk-option
           v-for="(option, index) in list"
