@@ -168,6 +168,7 @@ LIMIT 2;`);
       sqlContent,
       renderTools,
       handleUpdateIsContentShow,
+      handleQueryBtnClick
     };
   },
   render(h) {

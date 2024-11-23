@@ -306,7 +306,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ];
     };
     if (this.isSqlMode) {
-      return [<SqlEditor onChange={this.handleSqlQueryResultChange}></SqlEditor>];
+      return [<SqlEditor ref='SqlEditor' onChange={this.handleSqlQueryResultChange}></SqlEditor>];
     }
     return [
       <div class='dimensions-index-row'>
@@ -332,6 +332,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   handleCanvasTypeChange(t) {
+    this.handleGraphCategoryClick(t),
     this.activeCanvasType = t;
   }
 
@@ -374,6 +375,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         ref='refGraphChart'
         style={chartStyle}
         activeGraphCategory={this.activeGraphCategory}
+        onSqlQuery={this.sqlQuery}
       ></GraphChart>,
     ];
   }
@@ -434,7 +436,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
     }
   }
-  handleRefresh() {}
+    /** 查询sql */
+  sqlQuery() {
+    console.log( this.$refs.SqlEditor);
+    
+    this.$refs.SqlEditor.handleQueryBtnClick();
+  }
+  handleRefresh() { }
   // updateYAxis(newValue) {
   //   this.yAxis = newValue;
   //   this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
@@ -452,7 +460,16 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             ></bk-switcher>
             <span>{this.$t('SQL模式')}</span>
           </div>
-
+          {/* <div class='option-list'>
+            <div class={{ active: this.activeItem === OptionList.Analysis }}>
+              <span class='bklog-icon bklog-help'></span>
+              <span>分析</span>
+            </div>
+            <div class={{ active: this.activeItem === OptionList.Overview }}>
+              <span class='bklog-icon bklog-overview'></span>
+              <span>概览</span>
+            </div>
+          </div> */}
           <div class='option-btn'>
             <bk-button
               style='margin-right: 8px;'
