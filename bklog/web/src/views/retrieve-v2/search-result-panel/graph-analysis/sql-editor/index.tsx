@@ -1,20 +1,21 @@
-import { computed, defineComponent, onMounted, Ref, ref, h } from 'vue';
+import { computed, defineComponent, Ref, ref } from 'vue';
 import useResizeObserve from '@/hooks/use-resize-observe';
-import * as monaco from 'monaco-editor';
-import { setDorisFields } from './lang';
+
 import useStore from '@/hooks/use-store';
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
 import PreviewSql from '../common/PreviewSql.vue';
 
 import './index.scss';
+import useEditor from './use-editor';
 
 export default defineComponent({
   emits: ['change'],
-  setup(props, { emit }) {
+  setup(_, { emit }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
+    const isSyncSqlRequesting = ref(false);
     const queryResult = ref({});
     const isPreviewSqlShow = ref(false);
     const sqlContent = ref(`SELECT
@@ -28,68 +29,20 @@ FROM
 WHERE
     thedate >= '20241120'
     AND thedate <= '20241120'
-LIMIT 2;`);
+LIMIT 200;`);
 
-    let editorInstance = null;
+    const { editorInstance } = useEditor({ refRootElement, sqlContent });
 
     const editorConfig = ref({
       height: 400,
     });
 
     const { $t } = useLocale();
-    const fieldList = computed(() => store.state.indexFieldInfo.fields);
     const indexSetId = computed(() => store.state.indexId);
+    const retrieveParams = computed(() => store.getters.retrieveParams);
 
     useResizeObserve(refRootElement, entry => {
       editorConfig.value.height = entry.target?.offsetHeight ?? 400;
-    });
-
-    const initEditorInstance = () => {
-      // 初始化编辑器
-      editorInstance = monaco.editor.create(refRootElement.value, {
-        value: sqlContent.value,
-        language: 'dorisSQL',
-        theme: 'vs-dark',
-      });
-
-      // 监听编辑器的键盘事件
-      editorInstance.onKeyDown(e => {
-        if (e.keyCode === monaco.KeyCode.Space) {
-          // 阻止默认空格行为，使得我们可以手动处理
-          e.preventDefault();
-
-          // 获取当前光标位置
-          const position = editorInstance.getPosition();
-
-          // 手动插入空格
-          editorInstance.executeEdits(null, [
-            {
-              range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-              text: ' ',
-              forceMoveMarkers: true,
-            },
-          ]);
-
-          // 触发自动补全
-          editorInstance.trigger('keyboard', 'editor.action.triggerSuggest', {});
-        }
-      });
-    };
-
-    const setSuggestFields = () => {
-      setDorisFields(() =>
-        fieldList.value.map(field => {
-          return { name: field.field_name, type: field.field_type, description: field.description };
-        }),
-      );
-    };
-
-    onMounted(() => {
-      setTimeout(() => {
-        editorConfig.value.height = refRootElement.value.offsetHeight ?? 400;
-        initEditorInstance();
-        setSuggestFields();
-      });
     });
 
     const requestId = 'graphAnalysis_searchSQL';
@@ -103,7 +56,7 @@ LIMIT 2;`);
           },
           data: {
             query_mode: 'sql',
-            sql: editorInstance.getValue(), // 使用获取到的内容
+            sql: editorInstance.value.getValue(), // 使用获取到的内容
           },
         })
         .then(resp => {
@@ -117,13 +70,37 @@ LIMIT 2;`);
     };
 
     const handlePreviewSqlClick = () => {
-      sqlContent.value = editorInstance.getValue();
+      sqlContent.value = editorInstance.value.getValue();
       isPreviewSqlShow.value = true;
     };
 
     const handleStopBtnClick = () => {
       $http.cancelRequest(requestId);
       isRequesting.value = false;
+    };
+
+    const handleSyncAdditionToSQL = () => {
+      const { addition, start_time, end_time } = retrieveParams.value;
+      isSyncSqlRequesting.value = true;
+      $http
+        .request('graphAnalysis/generateSql', {
+          params: {
+            index_set_id: indexSetId.value,
+          },
+          data: {
+            addition,
+            start_time,
+            end_time,
+          },
+        })
+        .then(resp => {
+          sqlContent.value = resp.data.sql;
+          editorInstance.value.setValue(resp.data.sql);
+          editorInstance.value.focus();
+        })
+        .finally(() => {
+          isSyncSqlRequesting.value = false;
+        });
     };
 
     const renderTools = () => {
@@ -154,6 +131,20 @@ LIMIT 2;`);
           >
             {$t('预览查询 SQL')}
           </bk-button>
+          <bk-popconfirm
+            trigger='click'
+            width='288'
+            content='此操作会覆盖当前SQL，请谨慎操作'
+            onConfirm={handleSyncAdditionToSQL}
+          >
+            <bk-button
+              class='sql-editor-view-button'
+              size='small'
+              loading={isSyncSqlRequesting.value}
+            >
+              {$t('同步查询条件到SQL')}
+            </bk-button>
+          </bk-popconfirm>
         </div>
       );
     };

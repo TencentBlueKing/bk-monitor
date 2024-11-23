@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose } from "vue";
+import { ref, onMounted, defineProps, watch, onUnmounted, defineExpose  } from "vue";
 import useLocale from "@/hooks/use-locale";
 import BASE_CHART_OPTIONS from "@/hooks/trend-chart-options.ts";
 // import { BASE_CHART_OPTIONS } from "./chart";
@@ -231,13 +231,13 @@ defineExpose({
 </script>
 <template>
   <div class="graph-context graph-chart">
-    <bk-exception
+    <!-- <bk-exception
       v-if="!tableData.length"
       class="exception-wrap-item exception-part"
       type="empty"
       scene="part"
     >
-    </bk-exception>
+    </bk-exception> -->
     <!-- <bk-exception class="exception-wrap-item" v-if="isQueryChange && hint" type="500">
       <span class="title">图表查询配置已变更</span>
       <div class="text-wrap">

@@ -24,32 +24,32 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, defineProps, defineExpose, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
-const { $t } = useLocale();
-const props = defineProps({
-  hidden: {
-    type: Array,
-    default: [],
-  },
-});
+  import { ref, defineProps, defineExpose, computed } from 'vue';
+  import useLocale from '@/hooks/use-locale';
+  const { $t } = useLocale();
+  const props = defineProps({
+    hidden: {
+      type: Array,
+      default: [],
+    },
+  });
 
-const tableData = ref([]);
-const rawColumns = ref([]);
+  const tableData = ref([]);
+  const rawColumns = ref([]);
 
-function setOption(data) {
-  console.log(data);
-  tableData.value = data.data.list;
-  rawColumns.value = data.data.select_fields_order;
-}
-const column = computed(() => {
-  return rawColumns.value.filter((item) => !props.hidden.includes(item));
-});
-function handleRowMouseEnter() {}
-function handleRowMouseLeave() {}
-defineExpose({
-  setOption,
-});
+  function setOption(data) {
+    console.log(data);
+    tableData.value = data.data.list;
+    rawColumns.value = data.data.select_fields_order;
+  }
+  const column = computed(() => {
+    return rawColumns.value.filter(item => !props.hidden.includes(item));
+  });
+  function handleRowMouseEnter() {}
+  function handleRowMouseLeave() {}
+  defineExpose({
+    setOption,
+  });
 </script>
 <template>
   <div class="graph-context graph-table">
@@ -58,7 +58,6 @@ defineExpose({
       :data="tableData"
       @row-mouse-enter="handleRowMouseEnter"
       @row-mouse-leave="handleRowMouseLeave"
-      height="calc(100% - 22px)"
     >
       <bk-table-column
         v-for="(item, index) in column"
@@ -66,18 +65,13 @@ defineExpose({
         :prop="item"
         :key="index"
       ></bk-table-column>
-      <!-- <bk-table-column type="index" label="序列" width="60"></bk-table-column>
-      <bk-table-column label="名称/内网IP" prop="ip"></bk-table-column>
-      <bk-table-column label="来源" prop="source"></bk-table-column>
-      <bk-table-column label="状态" prop="status"></bk-table-column>
-      <bk-table-column label="创建时间" prop="create_time"></bk-table-column> -->
     </bk-table>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.graph-context {
-  width: 100%;
-  height: calc(100% - 22px);
-}
+  .graph-context {
+    width: 100%;
+    height: fit-content;
+  }
 </style>
