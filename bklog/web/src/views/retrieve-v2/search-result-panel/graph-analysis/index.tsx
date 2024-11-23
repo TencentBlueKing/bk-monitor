@@ -32,7 +32,7 @@ import { Message } from 'bk-magic-vue';
 import $http from '../../../../api';
 // import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
-import GraphChart from './chart/graph-chart.vue';
+import GraphChart from './chart/index.tsx';
 import GraphTable from './chart/graph-table.vue';
 import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
@@ -73,7 +73,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeGraphCategory = GraphCategory.BAR;
   xAxis = [];
   yAxis = [];
-  chartData = {};
+  chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hidden = [];
   segmented = [];
@@ -110,6 +110,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeCanvasType = 'bar';
 
   sqlEditorHeight = 400;
+  chartCounter = 0;
 
   get graphCategory() {
     return {
@@ -173,7 +174,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
+      height: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 
@@ -186,10 +187,21 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   get advanceSettingClass() {
     return this.advanceSetting ? 'icon-collapse-small' : 'icon-expand-small';
   }
+
+  get chartOptions() {
+    return {
+      xFields: this.xAxis,
+      yFields: this.yAxis,
+      type: this.activeCanvasType,
+      data: this.chartData.data,
+    };
+  }
+
   // 如果是table类型，切换为table，反之，切换为图表
   handleGraphCategoryClick(category: GraphCategory) {
     this.activeGraphCategory = category;
     this.activeCanvasType = category;
+    this.chartCounter++;
   }
 
   handleAdvanceSettingClick() {
@@ -324,6 +336,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleCanvasTypeChange(t) {
     this.activeCanvasType = t;
+    this.chartCounter++;
   }
 
   handleHorizionMoveEnd({ offsetY }) {
@@ -338,9 +351,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     this.axiosOptionHeight = target;
-    if (this.isSqlMode && this.$refs.sqlPanelRef) {
-      this.$refs.sqlPanelRef.resize();
-    }
+    // if (this.isSqlMode && this.$refs.sqlPanelRef) {
+    //   // this.$refs.sqlPanelRef.resize();
+    // }
   }
   handleVerticalMoveEnd({ offsetX }) {
     let target = this.rightOptionWidth - offsetX;
@@ -362,9 +375,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         hidden={this.hidden}
       ></GraphTable>,
       <GraphChart
-        ref='refGraphChart'
         style={chartStyle}
-        activeGraphCategory={this.activeGraphCategory}
+        chartOptions={this.chartOptions}
+        chartCounter={this.chartCounter}
       ></GraphChart>,
     ];
   }
@@ -405,25 +418,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.yAxis = [arr[1].field_name];
     this.resultSchema = data.data.result_schema;
     this.chartData = data;
-    this.$refs.refGraphChart.setOption(data, this.xAxis, this.yAxis);
-    this.$refs.refGraphTable.setOption(data);
-    // this.fieldList = data.data.select_fields_order;
+    this.chartCounter++;
   }
 
   updateChartData(axis, newValue) {
-    console.log(axis, newValue);
-    if (axis === 'x') {
-      this.xAxis = newValue;
-      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
-    } else if (axis === 'y') {
-      this.yAxis = newValue;
-      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
-    } else if (axis === 'hidden') {
-      this.hidden = newValue;
-    } else if (axis === 'segmented') {
-      this.segmented = newValue;
-      this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis, this.segmented);
-    }
+    this[axis] = Array.isArray(newValue) ? newValue : [newValue];
+    this.chartCounter++;
   }
   handleRefresh() {}
   // updateYAxis(newValue) {
