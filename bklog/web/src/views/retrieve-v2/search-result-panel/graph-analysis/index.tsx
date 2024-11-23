@@ -166,7 +166,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      height: `calc(100% - ${this.bottomHeight + 16}px)`,
+      minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 

@@ -29,4 +29,9 @@ const searchSQL = {
   method: 'post',
 };
 
-export { searchSQL };
+const generateSql = {
+  url: '/search/index_set/:index_set_id/generate_sql/',
+  method: 'post',
+};
+
+export { searchSQL, generateSql };
