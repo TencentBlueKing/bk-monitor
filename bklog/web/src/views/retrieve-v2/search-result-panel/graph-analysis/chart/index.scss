@@ -1,14 +1,12 @@
 .bklog-chart-container {
   height: calc(100% - 54px);
-  min-height: 200px;
-
+  min-height: 300px;
+  padding: 16px 0;
+  overflow: hidden;
   .chart-canvas {
     height: 100%;
   }
 
-  .exception{
-    height: 100%;
-  }
   .exception-wrap-item {
     padding: 10px;
     height: 100%;

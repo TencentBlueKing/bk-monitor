@@ -1,4 +1,4 @@
-import { defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 import useChartRender from './use-chart-render';
 import './index.scss';
 
@@ -17,19 +17,25 @@ export default defineComponent({
   setup(props, { }) {
     const refRootElement = ref();
     const exceptionShow = ref(true);
-    const { setChartOptions } = useChartRender({ target: refRootElement, type: props.chartOptions.type });
+    const { setChartOptions, destroyInstance } = useChartRender({
+      target: refRootElement,
+      type: props.chartOptions.type,
+    });
+    const showTable = computed(() => props.chartOptions.type === 'table');
 
     watch(
       () => props.chartCounter,
       () => {
         const { xFields, yFields, data, type } = props.chartOptions;
-        console.log(data);
-
-        setChartOptions(xFields, yFields, data, type);
+        if (!showTable.value) {
+          setTimeout(() => {
+            setChartOptions(xFields, yFields, data, type);
+          });
+        } else {
+          destroyInstance();
+        }
       },
     );
-
-
     const renderException = () => {
       if (!props.chartOptions.data || !props.chartOptions.data.list || props.chartOptions.data.list.length === 0) {
         return [
@@ -61,16 +67,33 @@ export default defineComponent({
       //   </bk-exception> ];
       // }
     }
-    const renderContext = () => {
+    const rendChildNode = () => {
+      if (showTable.value) {
+        return (
+          <bk-table data={props.chartOptions.data.list} height='100%'>
+            {props.chartOptions.data.select_fields_order.map(col => (
+              <bk-table-column
+                label={col}
+                prop={col}
+                key={col}
+              ></bk-table-column>
+            ))}
+          </bk-table>
+        );
+      }
       return (
         <div class='bklog-chart-container'>
-          <div class='exception'>{renderException()}</div>
+          {renderException()}
           <div
             ref={refRootElement}
             class='chart-canvas'
           ></div>
         </div>
       );
+    };
+
+    const renderContext = () => {
+      return <div class='bklog-chart-container'>{rendChildNode()}</div>;
     };
     return {
       renderContext,
