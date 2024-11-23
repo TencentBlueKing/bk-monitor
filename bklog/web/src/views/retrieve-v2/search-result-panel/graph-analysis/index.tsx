@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-import BookmarkPop from '../../search-bar/bookmark-pop.vue';
+// import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/graph-chart.vue';
 import GraphTable from './chart/graph-table.vue';
@@ -39,6 +39,7 @@ import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
 import SqlEditor from './sql-editor/index.tsx';
+// import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
 
 import './index.scss';
@@ -61,17 +62,7 @@ enum GraphCategory {
 }
 
 @Component({
-  components: {
-    GraphDragTool,
-    DashboardDialog,
-    TagInput,
-    SqlPanel,
-    GraphTable,
-    GraphChart,
-    FieldSettings,
-    BookmarkPop,
-    SqlEditor,
-  },
+  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart, FieldSettings, SqlEditor },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -182,7 +173,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      height: `calc(100% - ${this.bottomHeight + 16}px)`,
+      minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 
@@ -480,9 +471,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         </div>
 
         <div class='graph-analysis-body'>
-          {/* {this.isSqlMode ? (
-            <SqlPanel></SqlPanel>
-          ) : ( */}
           <div class='body-left'>
             <div
               style={this.axiosStyle}

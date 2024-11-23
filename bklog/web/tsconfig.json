@@ -6,6 +6,8 @@
   },
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "experimentalDecorators": true,
     "importHelpers": true,
     "resolveJsonModule": true,
