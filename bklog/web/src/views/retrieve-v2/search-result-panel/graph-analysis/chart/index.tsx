@@ -22,7 +22,6 @@ export default defineComponent({
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
-
     watch(
       () => props.chartCounter,
       () => {
@@ -36,7 +35,6 @@ export default defineComponent({
         }
       },
     );
-
     const rendChildNode = () => {
       if (showTable.value) {
         return (

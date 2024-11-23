@@ -43,7 +43,7 @@
   const emit = defineEmits(['update']);
   const selectedXAxis = ref(props.xAxis);
   const selectedYAxis = ref(props.yAxis);
-  const segmentedField = ref([]);
+  const timeAxis= ref([]);
   const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_name));
   const filterList = computed(() =>
@@ -131,7 +131,7 @@
     <div v-show="activeGraphCategory !== 'table'">
       <div class="title">时间维度</div>
       <bk-select
-        v-model="segmentedField"
+        v-model="timeAxis"
         :clearable="false"
         @change="change('dimensions', $event)"
         multiple

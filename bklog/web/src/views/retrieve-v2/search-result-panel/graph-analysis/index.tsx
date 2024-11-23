@@ -84,7 +84,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hidden = [];
-  segmented = [];
   dimensions = [];
   uiQueryValue = [];
   sqlQueryValue = '';
@@ -433,6 +432,50 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderCanvasChartAndTable() {
+    if (!this.chartOptions.data?.list?.length) {
+      return [
+        <bk-exception
+          class='exception-wrap-item exception-part'
+          type='empty'
+          scene='part'
+        ></bk-exception>,
+      ];
+    }
+
+    if (this.isSqlValueChanged) {
+      return [
+        <bk-exception
+          class='exception-wrap-item'
+          type='500'
+        >
+          <span class='title'>图表查询配置已变更</span>
+          <div class='text-wrap'>
+            <span class='text'>请重新发起查询</span>
+            <div>
+              <bk-button
+                theme='primary'
+                type='submit'
+                // onClick="search"
+                class='mr10'
+                size='small'
+              >
+                查询
+              </bk-button>
+              <bk-button
+                size='small'
+                class='mr10'
+                onClick={() => {
+                  this.isSqlValueChanged = false;
+                }}
+              >
+                我知道了
+              </bk-button>
+            </div>
+          </div>
+        </bk-exception>,
+      ];
+    }
+
     return (
       <GraphChart
         chartCounter={this.chartCounter}
