@@ -74,7 +74,7 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   // 数字 & 线性图
-  const updateLineAndBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {};
+  const updateLineAndBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => { };
 
   const updateChartOptions = (
     xFields?: string[],

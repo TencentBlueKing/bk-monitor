@@ -12,7 +12,7 @@ export default defineComponent({
     chartCounter: {
       type: Number,
       default: 0,
-    },
+    }
   },
   setup(props, {}) {
     const refRootElement = ref();
@@ -22,7 +22,6 @@ export default defineComponent({
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
-
     watch(
       () => props.chartCounter,
       () => {
@@ -36,7 +35,7 @@ export default defineComponent({
         }
       },
     );
-
+  
     const rendChildNode = () => {
       if (showTable.value) {
         return (
@@ -51,12 +50,11 @@ export default defineComponent({
           </bk-table>
         );
       }
-
       return (
-        <div
-          ref={refRootElement}
-          class='chart-canvas'
-        ></div>
+          <div
+            ref={refRootElement}
+            class='chart-canvas'
+          ></div>
       );
     };
 

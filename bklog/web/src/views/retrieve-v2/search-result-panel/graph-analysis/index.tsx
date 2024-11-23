@@ -84,7 +84,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hidden = [];
-  segmented = [];
   dimensions = [];
   uiQueryValue = [];
   sqlQueryValue = '';
@@ -323,7 +322,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       return [
         <SqlEditor
           ref='SqlEditor'
-          onChange={this.handleSqlQueryResultChange}
+          ref='SqlEditor' onChange={this.handleSqlQueryResultChange}
         ></SqlEditor>,
       ];
     }
