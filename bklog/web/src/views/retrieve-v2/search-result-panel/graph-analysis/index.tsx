@@ -85,7 +85,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hidden = [];
-  segmented = [];
+  timeAxis = [];
   uiQueryValue = [];
   sqlQueryValue = '';
   advanceHeight = 164;
@@ -198,8 +198,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   get chartOptions() {
+    const xFields = this.activeCanvasType === 'bar' || this.activeCanvasType === 'line'?[...this.xAxis,...this.timeAxis]  :this.xAxis
     return {
-      xFields: this.xAxis,
+      xFields ,
       yFields: this.yAxis,
       type: this.activeCanvasType,
       data: this.chartData.data,
