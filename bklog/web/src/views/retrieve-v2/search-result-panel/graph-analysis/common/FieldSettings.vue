@@ -24,52 +24,54 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, defineProps, watch, computed, defineEmits } from "vue";
+  import { ref, defineProps, watch, computed, defineEmits } from 'vue';
 
-const props = defineProps({
-  xAxis: {
-    type: Array,
-  },
-  yAxis: {
-    type: Array,
-  },
-  activeGraphCategory: {
-    type: String,
-  },
-  result_schema: {
-    type: Array,
-  },
-});
-const emit = defineEmits(["update"]);
-const selectedXAxis = ref(props.xAxis);
-const selectedYAxis = ref(props.yAxis);
-const segmentedField = ref([]);
-const hiddenField = ref([]);
-const list = computed(() => props.result_schema.map((item) => item.field_name));
-const filterList = computed(() => props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_name));
-// 监听 props.xAxis 的变化并更新 selectedXAxis
-watch(
-  () => props.xAxis,
-  (newValue) => {
-    selectedXAxis.value = newValue;
-  }
-);
+  const props = defineProps({
+    xAxis: {
+      type: Array,
+    },
+    yAxis: {
+      type: Array,
+    },
+    activeGraphCategory: {
+      type: String,
+    },
+    result_schema: {
+      type: Array,
+    },
+  });
+  const emit = defineEmits(['update']);
+  const selectedXAxis = ref(props.xAxis);
+  const selectedYAxis = ref(props.yAxis);
+  const segmentedField = ref([]);
+  const hiddenField = ref([]);
+  const list = computed(() => props.result_schema.map(item => item.field_name));
+  const filterList = computed(() =>
+    props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_name),
+  );
+  // 监听 props.xAxis 的变化并更新 selectedXAxis
+  watch(
+    () => props.xAxis,
+    newValue => {
+      selectedXAxis.value = newValue;
+    },
+  );
 
-// 同样操作 yAxis，如果需要的话
-watch(
-  () => props.yAxis,
-  (newValue) => {
-    selectedYAxis.value = newValue;
+  // 同样操作 yAxis，如果需要的话
+  watch(
+    () => props.yAxis,
+    newValue => {
+      selectedYAxis.value = newValue;
+    },
+  );
+  function change(axis, newValue) {
+    // if (axis === "x") {
+
+    emit('update', axis, newValue);
+    // } else if (axis === "y") {
+    // emit("update-yAxis", newValue);
+    // }
   }
-);
-function change(axis, newValue) {
-  // if (axis === "x") {
-  
-  emit("update", axis, newValue);
-  // } else if (axis === "y") {
-  // emit("update-yAxis", newValue);
-  // }
-}
 </script>
 <template>
   <div class="">
@@ -78,7 +80,7 @@ function change(axis, newValue) {
       <bk-select
         v-model="selectedXAxis"
         searchable
-        @change="change('x', $event)"
+        @change="change('xAxis', $event)"
         :clearable="false"
         multiple
       >
@@ -91,12 +93,12 @@ function change(axis, newValue) {
         </bk-option>
       </bk-select>
     </div>
-    <div  v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
+    <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
       <div class="title">y轴字段</div>
       <bk-select
         v-model="selectedYAxis"
         searchable
-        @change="change('y', $event)"
+        @change="change('yAxis', $event)"
         :clearable="false"
         multiple
       >
@@ -109,9 +111,14 @@ function change(axis, newValue) {
         </bk-option>
       </bk-select>
     </div>
-    <div  v-show="activeGraphCategory == 'line_bar' || activeGraphCategory == 'pie'">
+    <div v-show="activeGraphCategory == 'line_bar' || activeGraphCategory == 'pie'">
       <div class="title">显示字段</div>
-      <bk-select v-model="selectedYAxis"  @change="change('y', $event)"  :clearable="false"  searchable>
+      <bk-select
+        v-model="selectedYAxis"
+        @change="change('yAxis', $event)"
+        :clearable="false"
+        searchable
+      >
         <bk-option
           v-for="(option, index) in list"
           :key="index"
@@ -123,7 +130,13 @@ function change(axis, newValue) {
     </div>
     <div v-show="activeGraphCategory !== 'table'">
       <div class="title">时间维度</div>
-      <bk-select v-model="segmentedField" :clearable="false"  @change="change('segmented', $event)" multiple searchable>
+      <bk-select
+        v-model="segmentedField"
+        :clearable="false"
+        @change="change('segmented', $event)"
+        multiple
+        searchable
+      >
         <bk-option
           v-for="(option, index) in list"
           :key="index"
@@ -155,7 +168,7 @@ function change(axis, newValue) {
 </template>
 
 <style lang="scss" scoped>
-.title {
-  margin: 10px 0;
-}
+  .title {
+    margin: 10px 0;
+  }
 </style>

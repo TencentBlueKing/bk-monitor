@@ -1,0 +1,8 @@
+.bklog-chart-container {
+  height: calc(100% - 54px);
+  min-height: 300px;
+
+  .chart-canvas {
+    height: 100%;
+  }
+}

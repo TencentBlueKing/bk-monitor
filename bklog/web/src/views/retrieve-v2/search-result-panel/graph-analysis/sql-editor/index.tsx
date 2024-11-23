@@ -1,4 +1,4 @@
-import { computed, defineComponent, Ref, ref, h } from 'vue';
+import { computed, defineComponent, Ref, ref } from 'vue';
 import useResizeObserve from '@/hooks/use-resize-observe';
 
 import useStore from '@/hooks/use-store';
@@ -11,7 +11,7 @@ import useEditor from './use-editor';
 
 export default defineComponent({
   emits: ['change'],
-  setup(props, { emit }) {
+  setup(_, { emit }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
@@ -29,7 +29,7 @@ FROM
 WHERE
     thedate >= '20241120'
     AND thedate <= '20241120'
-LIMIT 2;`);
+LIMIT 200;`);
 
     const { editorInstance } = useEditor({ refRootElement, sqlContent });
 
