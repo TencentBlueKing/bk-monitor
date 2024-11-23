@@ -237,72 +237,72 @@ export const lineOrBarOptions = {
 };
 
 export const pieOptions: any = {
-  color,
-  lengend: {
+  padding: [0, 0],
+  series: {
+    type: 'pie',
+    radius: '60%',
+    center: ['50%', '50%'],
+    label: {
+      show: true,
+      alignTo: 'none',
+      fontSize: 12,
+      lineHeight: 18,
+      color: '#666666',
+    },
+    emphasis: {
+      labelLine: {
+        show: true,
+      },
+    },
+    itemStyle: {
+      borderRadius: 5,
+    },
+    encode: {
+      itemName: '',
+      value: '',
+    },
+  },
+  legend: {
     show: false,
   },
+  dataset: {
+    source: [],
+  },
   tooltip: {
+    show: true,
     trigger: 'item',
-  },
-  series: [
-    {
-      type: 'pie',
-      radius: ['50%', '70%'],
-      avoidLabelOverlap: false,
-      label: {
-        show: false,
-        position: 'center',
-      },
-      labelLine: {
-        show: false,
-      },
+    confine: true,
+    textStyle: {
+      fontSize: 12,
+      lineHeight: 18,
+      fontWeight: 'normal',
+      fontFamily: 'MicrosoftYaHei, PingFang SC',
     },
+    order: 'seriesAsc',
+    appendToBody: true,
+    renderMode: 'html',
+  },
+  icon: 'pin',
+  color: [
+    '#5BCCD8',
+    '#F77FA8',
+    '#F1CD46',
+    '#67C19B',
+    '#FABC47',
+    '#79A9D5',
+    '#F09D6B',
+    '#60C3B6',
+    '#C793E6',
+    '#E98C8C',
+    '#9FC8CC',
+    '#E6A3BA',
+    '#DBCE9E',
+    '#8DC2A3',
+    '#E0CBA2',
+    '#99B1C7',
+    '#DBB59E',
+    '#91B8B3',
+    '#C0ABCC',
+    '#CFA5A5',
   ],
-};
-
-export const pillarChartOption = {
-  color,
-  tooltip: {
-    trigger: 'axis',
-  },
-  xAxis: {
-    axisLine: {
-      show: false,
-    },
-    axisTick: {
-      show: false,
-    },
-    axisLabel: {
-      color: '#979BA5',
-    },
-    type: 'category',
-    data: [],
-  },
-  yAxis: {
-    type: 'value',
-    axisTick: {
-      show: false,
-    },
-    axisLine: {
-      show: false,
-    },
-    splitLine: {
-      show: true,
-      lineStyle: {
-        type: 'dashed',
-        color: '#F0F1F5',
-      },
-    },
-    axisLabel: {
-      color: '#979BA5',
-    },
-  },
-  grid: {
-    left: '0',
-    right: '4%',
-    top: '4%',
-    bottom: '0',
-    containLabel: true,
-  },
-  series: [],
 };

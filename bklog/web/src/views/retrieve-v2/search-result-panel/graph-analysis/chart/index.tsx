@@ -25,15 +25,16 @@ export default defineComponent({
       target: refRootElement,
       type: props.chartOptions.type,
     });
+
     const showTable = computed(() => props.chartOptions.type === 'table');
     const showRow = computed(() => props.chartOptions.data.select_fields_order.filter(item => !props.tableHidden.includes(item)));
     watch(
       () => props.chartCounter,
       () => {
-        const { xFields, yFields, data, type } = props.chartOptions;
+        const { xFields, yFields, dimensions, data, type } = props.chartOptions;
         if (!showTable.value) {
           setTimeout(() => {
-            setChartOptions(xFields, yFields, data, type);
+            setChartOptions(xFields, yFields, dimensions, data, type);
           });
         } else {
           destroyInstance();
