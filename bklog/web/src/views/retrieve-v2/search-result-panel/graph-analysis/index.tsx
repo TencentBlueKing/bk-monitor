@@ -207,6 +207,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
+  handleEditorSearchClick() {
+    (this.$refs.sqlEditor as any)?.handleQueryBtnClick();
+  }
+
+  handleSqlValueChange() {
+    this.isSqlValueChanged = true;
+  }
+
   // 如果是table类型，切换为table，反之，切换为图表
   handleGraphCategoryClick(category: GraphCategory) {
     this.activeGraphCategory = category;
@@ -322,7 +330,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       return [
         <SqlEditor
           ref='SqlEditor'
-          ref='SqlEditor' onChange={this.handleSqlQueryResultChange}
+          onChange={this.handleSqlQueryResultChange}
+          onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
       ];
     }
@@ -376,6 +385,52 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.rightOptionWidth = target;
   }
 
+  getExceptionRender() {
+    if (!this.chartOptions.data?.list?.length) {
+      return (
+        <bk-exception
+          class='bklog-chart-exception'
+          type='empty'
+          scene='part'
+        ></bk-exception>
+      );
+    }
+
+    if (this.isSqlValueChanged) {
+      return (
+        <bk-exception
+          class='bklog-chart-exception'
+          type='500'
+        >
+          <div class='bk-exception-title'>图表查询配置已变更</div>
+          <div class='bk-exception-description'>请重新发起查询</div>
+          <div class='bk-exception-footer'>
+            <bk-button
+              theme='primary'
+              type='submit'
+              onClick={this.handleEditorSearchClick}
+              class='mr10'
+              size='small'
+            >
+              查询
+            </bk-button>
+            <bk-button
+              size='small'
+              class='mr10'
+              onClick={() => {
+                this.isSqlValueChanged = false;
+              }}
+            >
+              我知道了
+            </bk-button>
+          </div>
+        </bk-exception>
+      );
+    }
+
+    return '';
+  }
+
   renderCanvasChartAndTable() {
     if (!this.chartOptions.data?.list?.length) {
       return [
@@ -425,7 +480,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <GraphChart
         chartCounter={this.chartCounter}
         chartOptions={this.chartOptions}
-      ></GraphChart>
+      >
+        {this.getExceptionRender()}
+      </GraphChart>
     );
   }
   async save() {

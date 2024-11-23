@@ -222,6 +222,35 @@
           width: 100%;
           height: calc(100% - 22px);
         }
+
+        .bklog-chart-exception {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          backdrop-filter: blur(6px);
+          background-color: #ffffff80;
+          padding-top: 120px;
+
+          .bk-exception-title {
+            margin-top: 8px;
+            font-size: 14px;
+            line-height: 22px;
+            color: #63656e;
+          }
+
+          .bk-exception-description {
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 20px;
+            color: #979ba5;
+          }
+
+          .bk-exception-footer {
+            margin-top: 8px;
+          }
+        }
       }
     }
 

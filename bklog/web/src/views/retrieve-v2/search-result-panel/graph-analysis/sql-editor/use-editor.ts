@@ -1,12 +1,17 @@
+import { debounce } from 'lodash';
 import { computed, onMounted, ref } from 'vue';
 import * as monaco from 'monaco-editor';
 import { setDorisFields } from './lang';
 import useStore from '@/hooks/use-store';
 
-export default ({ refRootElement, sqlContent }) => {
+export default ({ refRootElement, sqlContent, onValueChange }) => {
   const editorInstance = ref();
   const store = useStore();
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
+
+  const debounceUpdateSqlValue = debounce(() => {
+    onValueChange?.(editorInstance.value.getValue());
+  });
 
   const initEditorInstance = () => {
     // 初始化编辑器
@@ -39,6 +44,8 @@ export default ({ refRootElement, sqlContent }) => {
         editorInstance.value.trigger('keyboard', 'editor.action.triggerSuggest', {});
       }
     });
+
+    editorInstance.value.onDidChangeModelContent(() => debounceUpdateSqlValue());
   };
 
   const setSuggestFields = () => {

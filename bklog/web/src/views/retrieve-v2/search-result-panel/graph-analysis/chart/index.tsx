@@ -12,9 +12,9 @@ export default defineComponent({
     chartCounter: {
       type: Number,
       default: 0,
-    }
+    },
   },
-  setup(props, {}) {
+  setup(props, { slots }) {
     const refRootElement = ref();
     const { setChartOptions, destroyInstance } = useChartRender({
       target: refRootElement,
@@ -35,7 +35,6 @@ export default defineComponent({
         }
       },
     );
-  
     const rendChildNode = () => {
       if (showTable.value) {
         return (
@@ -50,16 +49,22 @@ export default defineComponent({
           </bk-table>
         );
       }
+
       return (
-          <div
-            ref={refRootElement}
-            class='chart-canvas'
-          ></div>
+        <div
+          ref={refRootElement}
+          class='chart-canvas'
+        ></div>
       );
     };
 
     const renderContext = () => {
-      return <div class='bklog-chart-container'>{rendChildNode()}</div>;
+      return (
+        <div class='bklog-chart-container'>
+          {rendChildNode()}
+          {slots.default?.()}
+        </div>
+      );
     };
     return {
       renderContext,
