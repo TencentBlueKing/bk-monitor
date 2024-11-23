@@ -39,7 +39,6 @@ import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
 import SqlEditor from './sql-editor/index.tsx';
-// import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
 
 import './index.scss';
@@ -86,6 +85,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   resultSchema = [];
   hidden = [];
   segmented = [];
+  dimensions = [];
   uiQueryValue = [];
   sqlQueryValue = '';
   advanceHeight = 164;
@@ -119,6 +119,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeCanvasType = 'bar';
 
   sqlEditorHeight = 400;
+  isSqlValueChanged = false;
   chartCounter = 0;
 
   get graphCategory() {
@@ -202,6 +203,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       xFields: this.xAxis,
       yFields: this.yAxis,
       type: this.activeCanvasType,
+      dimensions: this.dimensions,
       data: this.chartData.data,
     };
   }
@@ -376,6 +378,50 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderCanvasChartAndTable() {
+    if (!this.chartOptions.data?.list?.length) {
+      return [
+        <bk-exception
+          class='exception-wrap-item exception-part'
+          type='empty'
+          scene='part'
+        ></bk-exception>,
+      ];
+    }
+
+    if (this.isSqlValueChanged) {
+      return [
+        <bk-exception
+          class='exception-wrap-item'
+          type='500'
+        >
+          <span class='title'>图表查询配置已变更</span>
+          <div class='text-wrap'>
+            <span class='text'>请重新发起查询</span>
+            <div>
+              <bk-button
+                theme='primary'
+                type='submit'
+                // onClick="search"
+                class='mr10'
+                size='small'
+              >
+                查询
+              </bk-button>
+              <bk-button
+                size='small'
+                class='mr10'
+                onClick={() => {
+                  this.isSqlValueChanged = false;
+                }}
+              >
+                我知道了
+              </bk-button>
+            </div>
+          </div>
+        </bk-exception>,
+      ];
+    }
+
     return (
       <GraphChart
         chartCounter={this.chartCounter}
@@ -416,10 +462,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleSqlQueryResultChange(data) {
     let arr = data.data.result_schema.filter(item => item.field_type !== 'string');
-    this.xAxis = [arr[0].field_name];
-    this.yAxis = [arr[1].field_name];
+    this.xAxis = [arr[0]?.field_name];
+    this.yAxis = [arr[1]?.field_name];
     this.resultSchema = data.data.result_schema;
     this.chartData = data;
+    this.$set(this, 'chartData', data);
     this.chartCounter++;
   }
 
@@ -428,10 +475,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.chartCounter++;
   }
   handleRefresh() {}
-  // updateYAxis(newValue) {
-  //   this.yAxis = newValue;
-  //   this.$refs.refGraphChart.setOption(this.chartData, this.xAxis, this.yAxis);
-  // }
+
   render() {
     return (
       <div class='graph-analysis-index'>

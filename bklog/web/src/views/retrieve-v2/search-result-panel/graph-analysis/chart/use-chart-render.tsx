@@ -50,7 +50,7 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     data?: any,
     type?: string,
   ) => {
-    options.xAxis.data = (xFields ?? []).map((item: string) => (data?.list ?? []).map(row => row[item]));
+    options.xAxis.data = (data?.list ?? []).map(row => row[xFields[0]]);
     options.xAxis.type = getXAxisType(xFields, data);
 
     options.series = (yFields ?? []).map((item: string) => ({
