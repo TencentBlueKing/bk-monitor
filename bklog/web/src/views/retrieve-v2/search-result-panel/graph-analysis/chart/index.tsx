@@ -40,7 +40,7 @@ export default defineComponent({
       if (showTable.value) {
         return (
           <bk-table data={props.chartOptions.data.list} height='100%'>
-            {props.chartOptions.data.select_fields_orde.map(col => (
+            {props.chartOptions.data.select_fields_order.map(col => (
               <bk-table-column
                 label={col}
                 prop={col}
