@@ -133,7 +133,7 @@
       <bk-select
         v-model="segmentedField"
         :clearable="false"
-        @change="change('segmented', $event)"
+        @change="change('dimensions', $event)"
         multiple
         searchable
       >

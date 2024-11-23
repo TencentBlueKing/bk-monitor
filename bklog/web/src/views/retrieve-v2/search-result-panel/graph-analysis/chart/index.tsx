@@ -25,10 +25,10 @@ export default defineComponent({
     watch(
       () => props.chartCounter,
       () => {
-        const { xFields, yFields, data, type } = props.chartOptions;
+        const { xFields, yFields, dimensions, data, type } = props.chartOptions;
         if (!showTable.value) {
           setTimeout(() => {
-            setChartOptions(xFields, yFields, data, type);
+            setChartOptions(xFields, yFields, dimensions, data, type);
           });
         } else {
           destroyInstance();
