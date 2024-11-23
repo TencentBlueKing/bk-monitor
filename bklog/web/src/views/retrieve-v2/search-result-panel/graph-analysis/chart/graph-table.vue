@@ -58,7 +58,7 @@ defineExpose({
       :data="tableData"
       @row-mouse-enter="handleRowMouseEnter"
       @row-mouse-leave="handleRowMouseLeave"
-      height="300px"
+      height="220px"
     >
       <bk-table-column
         v-for="(item, index) in column"

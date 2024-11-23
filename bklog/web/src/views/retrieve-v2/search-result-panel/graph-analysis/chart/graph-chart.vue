@@ -149,7 +149,20 @@ function getChartOption(type) {
   return {
     xAxis: { type: "category", data: xAxisData },
     yAxis: { type: "value" },
-    series: series
+    series: series,
+    tooltip: {
+       formatter: function (params) {
+        console.log(params);
+        
+         return `<div>
+           <strong>${params?.name || 'No Data'}</strong>
+           <div style="display: flex; align-items: center;">
+             <span style="display: inline-block; background-color:${params.color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span> 
+             ${params?.data || 'No Value'}
+           </div>
+         </div>`;
+       },
+     },
   };
 }
 defineExpose({
@@ -165,7 +178,7 @@ defineExpose({
       scene="part"
     >
     </bk-exception>
-    <div ref="chartRef" style="width: 1000px; height: 300px"></div>
+    <div ref="chartRef" style="width: 1000px; height:100%"></div>
     <div>
       <div></div>
     </div>
