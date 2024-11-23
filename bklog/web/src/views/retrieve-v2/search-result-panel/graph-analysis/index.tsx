@@ -199,7 +199,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get chartOptions() {
     return {
-      xFields: this.xAxis ,
+      xFields: this.xAxis,
       yFields: this.yAxis,
       type: this.activeCanvasType,
       dimensions: this.dimensions,
@@ -425,7 +425,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <GraphChart
         chartCounter={this.chartCounter}
         chartOptions={this.chartOptions}
-        tableHidden={this.hidden}
       ></GraphChart>
     );
   }
