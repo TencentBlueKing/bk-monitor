@@ -103,7 +103,7 @@ LIMIT 2;`,
     }
   });
   defineExpose({
-    resize,
+    // resize,
   });
 </script>
 <template>
