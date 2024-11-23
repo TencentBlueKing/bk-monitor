@@ -159,6 +159,7 @@ LIMIT 200;`);
       sqlContent,
       renderTools,
       handleUpdateIsContentShow,
+      handleQueryBtnClick
     };
   },
   render(h) {
