@@ -32,8 +32,8 @@ import { Message } from 'bk-magic-vue';
 import $http from '../../../../api';
 // import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
-import GraphChart from './chart/index.tsx';
 import GraphTable from './chart/graph-table.vue';
+import GraphChart from './chart/index.tsx';
 import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
@@ -174,7 +174,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      height: `calc(100% - ${this.bottomHeight + 16}px)`,
+      minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 
@@ -376,8 +376,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ></GraphTable>,
       <GraphChart
         style={chartStyle}
-        chartOptions={this.chartOptions}
         chartCounter={this.chartCounter}
+        chartOptions={this.chartOptions}
       ></GraphChart>,
     ];
   }
