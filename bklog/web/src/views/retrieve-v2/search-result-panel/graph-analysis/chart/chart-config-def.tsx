@@ -178,7 +178,7 @@ export const lineOrBarOptions = {
     backgroundColor: 'transparent',
   },
   xAxis: {
-    type: 'time',
+    type: 'category',
     boundaryGap: false,
     axisTick: {
       show: false,

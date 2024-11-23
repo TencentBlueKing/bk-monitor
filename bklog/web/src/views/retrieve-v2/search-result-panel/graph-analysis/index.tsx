@@ -174,7 +174,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get canvasStyle() {
     return {
-      minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
+      height: `calc(100% - ${this.bottomHeight + 16}px)`,
     };
   }
 
@@ -365,21 +365,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderCanvasChartAndTable() {
-    const showTable = this.activeCanvasType === 'table';
-    const tableStyle = { display: showTable ? 'block' : 'none' };
-    const chartStyle = { display: !showTable ? 'block' : 'none' };
-    return [
-      <GraphTable
-        ref='refGraphTable'
-        style={tableStyle}
-        hidden={this.hidden}
-      ></GraphTable>,
+    return (
       <GraphChart
-        style={chartStyle}
         chartCounter={this.chartCounter}
         chartOptions={this.chartOptions}
-      ></GraphChart>,
-    ];
+      ></GraphChart>
+    );
   }
   async save() {
     if (!this.basicInfoTitle.title) {

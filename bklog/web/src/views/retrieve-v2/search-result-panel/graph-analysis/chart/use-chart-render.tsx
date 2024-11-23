@@ -27,8 +27,26 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     options = optionMap[t]?.() ?? getLineBarChartOption();
   };
 
+  const initChartInstance = () => {
+    if (target.value) {
+      chartInstance = Echarts.init(target.value);
+      setDefaultOption(type);
+    }
+  };
+
+  const getXAxisType = (xFields: string[], data?: any) => {
+    if (xFields.length === 1) {
+      const schema = (data.result_schema ?? []).find(f => f.field_name === xFields[0])?.field_type ?? 'category';
+      return /^date/.test(schema) ? 'time' : 'category';
+    }
+
+    return 'category';
+  };
+
   const updateLineBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
     options.xAxis.data = (xFields ?? []).map((item: string) => (data?.list ?? []).map(row => row[item]));
+    options.xAxis.type = getXAxisType(xFields, data);
+
     options.series = (yFields ?? []).map((item: string) => ({
       type,
       data: (data?.list ?? []).map(row => row[item]),
@@ -71,6 +89,9 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const setChartOptions = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
+    if (!chartInstance) {
+      initChartInstance();
+    }
     setDefaultOption(type);
     updateChartOptions(xFields, yFields, data, type);
   };
@@ -83,13 +104,16 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   );
 
   onMounted(() => {
-    if (target.value) {
-      chartInstance = Echarts.init(target.value);
-      setDefaultOption(type);
-    }
+    initChartInstance();
   });
+
+  const destroyInstance = () => {
+    chartInstance?.clear();
+    chartInstance = null;
+  };
 
   return {
     setChartOptions,
+    destroyInstance,
   };
 };
