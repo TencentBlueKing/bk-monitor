@@ -74,7 +74,7 @@
   }
 </script>
 <template>
-  <div class="">
+  <div class="bklog-chart-field">
     <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
       <div class="title">x轴字段</div>
       <bk-select
@@ -133,7 +133,7 @@
       <bk-select
         v-model="segmentedField"
         :clearable="false"
-        @change="change('segmented', $event)"
+        @change="change('dimensions', $event)"
         multiple
         searchable
       >
@@ -168,7 +168,11 @@
 </template>
 
 <style lang="scss" scoped>
-  .title {
-    margin: 10px 0;
+  .bklog-chart-field {
+    .title {
+      margin: 10px 0;
+      color: #63656e;
+      font-size: 12px;
+    }
   }
 </style>

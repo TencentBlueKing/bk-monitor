@@ -43,8 +43,14 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     return 'category';
   };
 
-  const updateLineBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
-    options.xAxis.data = (xFields ?? []).map((item: string) => (data?.list ?? []).map(row => row[item]));
+  const updateLineBarOption = (
+    xFields?: string[],
+    yFields?: string[],
+    dimensions?: string[],
+    data?: any,
+    type?: string,
+  ) => {
+    options.xAxis.data = (data?.list ?? []).map(row => row[xFields[0]]);
     options.xAxis.type = getXAxisType(xFields, data);
 
     options.series = (yFields ?? []).map((item: string) => ({
@@ -54,32 +60,29 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     chartInstance.setOption(options);
   };
 
-  const updatePieOption = (_?: string[], yFields?: string[], data?: any, type?: string) => {
-    options.series = (yFields ?? []).map((item: string) => ({
-      type,
-      radius: '50%',
-      data: {
-        name: item,
-        value: (data?.list ?? []).map(row => row[item]),
-      },
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowOffsetX: 0,
-          shadowColor: 'rgba(0, 0, 0, 0.5)',
-        },
-      },
-    }));
+  const updatePieOption = (_?: string[], yFields?: string[], dimensions?: string[], data?: any) => {
+    options.series.encode = {
+      itemName: yFields[0],
+      value: dimensions[0],
+    };
 
+    options.dataset.source = (data?.list ?? []).map(row => ({
+      [yFields[0]]: row[yFields[0]],
+      [dimensions[0]]: row[dimensions[0]],
+    }));
     chartInstance.setOption(options);
   };
 
   // 数字 & 线性图
-  const updateLineAndBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => { };
+  const updateLineAndBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {};
 
-  const updateChartOptions = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
-    console.log(xFields, yFields, data, type);
-
+  const updateChartOptions = (
+    xFields?: string[],
+    yFields?: string[],
+    dimensions?: string[],
+    data?: any,
+    type?: string,
+  ) => {
     const actionMap = {
       pie: updatePieOption,
       line: updateLineBarOption,
@@ -87,15 +90,21 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
       line_bar: updateLineAndBarOption,
     };
 
-    actionMap[type]?.(xFields, yFields, data, type);
+    actionMap[type]?.(xFields, yFields, dimensions, data, type);
   };
 
-  const setChartOptions = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
+  const setChartOptions = (
+    xFields?: string[],
+    yFields?: string[],
+    dimensions?: string[],
+    data?: any,
+    type?: string,
+  ) => {
     if (!chartInstance) {
       initChartInstance();
     }
     setDefaultOption(type);
-    updateChartOptions(xFields, yFields, data, type);
+    updateChartOptions(xFields, yFields, dimensions, data, type);
   };
 
   useResizeObserve(
