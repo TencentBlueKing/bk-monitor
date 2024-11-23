@@ -62,7 +62,16 @@ enum GraphCategory {
 }
 
 @Component({
-  components: { GraphDragTool, DashboardDialog, TagInput, SqlPanel, GraphTable, GraphChart, FieldSettings, SqlEditor },
+  components: {
+    GraphDragTool,
+    DashboardDialog,
+    TagInput,
+    SqlPanel,
+    GraphTable,
+    GraphChart,
+    FieldSettings,
+    SqlEditor,
+  },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
@@ -309,7 +318,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ];
     };
     if (this.isSqlMode) {
-      return [<SqlEditor onChange={this.handleSqlQueryResultChange}></SqlEditor>];
+      return [
+        <SqlEditor
+          ref='SqlEditor'
+          onChange={this.handleSqlQueryResultChange}
+        ></SqlEditor>,
+      ];
     }
     return [
       <div class='dimensions-index-row'>
@@ -335,7 +349,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   handleCanvasTypeChange(t) {
-    this.activeCanvasType = t;
+    this.handleGraphCategoryClick(t), (this.activeCanvasType = t);
     this.chartCounter++;
   }
 
@@ -351,9 +365,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     this.axiosOptionHeight = target;
-    // if (this.isSqlMode && this.$refs.sqlPanelRef) {
-    //   // this.$refs.sqlPanelRef.resize();
-    // }
   }
   handleVerticalMoveEnd({ offsetX }) {
     let target = this.rightOptionWidth - offsetX;
@@ -434,7 +445,16 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             ></bk-switcher>
             <span>{this.$t('SQL模式')}</span>
           </div>
-
+          {/* <div class='option-list'>
+            <div class={{ active: this.activeItem === OptionList.Analysis }}>
+              <span class='bklog-icon bklog-help'></span>
+              <span>分析</span>
+            </div>
+            <div class={{ active: this.activeItem === OptionList.Overview }}>
+              <span class='bklog-icon bklog-overview'></span>
+              <span>概览</span>
+            </div>
+          </div> */}
           <div class='option-btn'>
             <bk-button
               style='margin-right: 8px;'
