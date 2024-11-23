@@ -14,7 +14,7 @@ export default defineComponent({
       default: 0,
     },
   },
-  setup(props, {}) {
+  setup(props, { slots }) {
     const refRootElement = ref();
     const { setChartOptions, destroyInstance } = useChartRender({
       target: refRootElement,
@@ -61,7 +61,12 @@ export default defineComponent({
     };
 
     const renderContext = () => {
-      return <div class='bklog-chart-container'>{rendChildNode()}</div>;
+      return (
+        <div class='bklog-chart-container'>
+          {rendChildNode()}
+          {slots.default?.()}
+        </div>
+      );
     };
     return {
       renderContext,

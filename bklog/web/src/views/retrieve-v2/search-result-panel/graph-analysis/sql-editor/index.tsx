@@ -10,7 +10,7 @@ import './index.scss';
 import useEditor from './use-editor';
 
 export default defineComponent({
-  emits: ['change'],
+  emits: ['change', 'sql-change'],
   setup(_, { emit }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
@@ -31,7 +31,13 @@ WHERE
     AND thedate <= '20241120'
 LIMIT 200;`);
 
-    const { editorInstance } = useEditor({ refRootElement, sqlContent });
+    const onValueChange = (value: any) => {
+      if (value !== sqlContent.value) {
+        sqlContent.value = value;
+        emit('sql-change', value);
+      }
+    };
+    const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
 
     const editorConfig = ref({
       height: 400,
@@ -159,7 +165,7 @@ LIMIT 200;`);
       sqlContent,
       renderTools,
       handleUpdateIsContentShow,
-      handleQueryBtnClick
+      handleQueryBtnClick,
     };
   },
   render(h) {
