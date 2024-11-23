@@ -379,6 +379,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <GraphChart
         chartCounter={this.chartCounter}
         chartOptions={this.chartOptions}
+        tableHidden={this.hidden}
       ></GraphChart>
     );
   }

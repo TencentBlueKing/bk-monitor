@@ -13,6 +13,10 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    tableHidden:{
+      type: Array,
+      default: () => [],
+    }
   },
   setup(props, { }) {
     const refRootElement = ref();
@@ -22,7 +26,7 @@ export default defineComponent({
       type: props.chartOptions.type,
     });
     const showTable = computed(() => props.chartOptions.type === 'table');
-
+    const showRow = computed(() => props.chartOptions.data.select_fields_order.filter(item => !props.tableHidden.includes(item)));
     watch(
       () => props.chartCounter,
       () => {
@@ -71,7 +75,7 @@ export default defineComponent({
       if (showTable.value) {
         return (
           <bk-table data={props.chartOptions.data.list} height='100%'>
-            {props.chartOptions.data.select_fields_order.map(col => (
+            {showRow.value.map(col => (
               <bk-table-column
                 label={col}
                 prop={col}

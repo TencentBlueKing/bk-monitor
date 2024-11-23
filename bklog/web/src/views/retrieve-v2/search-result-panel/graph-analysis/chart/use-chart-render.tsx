@@ -44,52 +44,13 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const updateLineBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {
-    // options.xAxis.data = (xFields ?? []).map((item: string) => (data?.list ?? []).map(row => row[item]));
-    // options.xAxis.type = getXAxisType(xFields, data);
-
-    // options.series = (yFields ?? []).map((item: string) => ({
-    //   type,
-    //   data: (data?.list ?? []).map(row => row[item]),
-    // }));
-    let xAxisData = [];
-    let summedGseIndexes = [];
-    function sumGseIndexByHostId(eData: any, xAxisNames: string[], yAxis: string) {
-      const result = {};
-      console.log(xAxisNames, yAxis);
-
-      eData.forEach((item: any) => {
-        let xAxisName = xAxisNames.reduce((accumulator, currentValue, index) => {
-          return (
-            accumulator + item[currentValue] + (index === xAxisNames.length - 1 ? "" : "_")
-          );
-        }, "");
-
-        if (!result[xAxisName]) {
-          result[xAxisName] = 0;
-        }
-        result[xAxisName] += item[yAxis];
-      });
-      console.log(result);
-      summedGseIndexes.push(Object.values(result));
-      xAxisData.push(...Object.keys(result));
-      // return Object.values(result);
-    }
-    // const summedGseIndexes = sumGseIndexByHostId(tableData.value,xAxis.value[0],yAxis.value[0]);
-
-
-    yFields.forEach((y, index) => {
-      sumGseIndexByHostId(data?.list, xFields, yFields[index]);
-    });
-    console.log(summedGseIndexes);
-    const series = summedGseIndexes.map((item) => {
-      return {
-        type: type,
-        data: item,
-      };
-    });
-    options.xAxis.data = xAxisData
+    options.xAxis.data = (xFields ?? []).map((item: string) => (data?.list ?? []).map(row => row[item]));
     options.xAxis.type = getXAxisType(xFields, data);
-    options.series = series
+
+    options.series = (yFields ?? []).map((item: string) => ({
+      type,
+      data: (data?.list ?? []).map(row => row[item]),
+    }));
     chartInstance.setOption(options);
   };
 
