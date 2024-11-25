@@ -38,7 +38,12 @@ import GroupByCondition, {
 } from './components/group-by-condition/group-by-condition';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
-import K8sTableNew, { type K8sTableColumn, K8sTableColumnKeysEnum } from './components/k8s-table-new/k8s-table-new';
+import K8sTableNew, {
+  type K8sTableColumn,
+  K8sTableColumnKeysEnum,
+  type K8sTableGroupByEvent,
+  type K8sTableSort,
+} from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
 import { K8sNewTabEnum } from './typings/k8s-new';
 
@@ -66,7 +71,15 @@ const tabList = [
 @Component
 export default class MonitorK8sNew extends tsc<object> {
   @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
+  @Ref() k8sGroupByRef: InstanceType<typeof GroupByCondition>;
 
+  tableConfig = {
+    loading: false,
+    sortContainer: {
+      prop: null,
+      order: null,
+    },
+  };
   // 场景
   scene = 'performance';
   // 时间范围
@@ -94,8 +107,6 @@ export default class MonitorK8sNew extends tsc<object> {
   k8sTableData: any[] = [];
   // 是否展示取消下钻
   showCancelDrill = false;
-
-  loading = false;
 
   groupList = [
     {
@@ -232,22 +243,25 @@ export default class MonitorK8sNew extends tsc<object> {
    * @description 获取k8s列表
    */
   getK8sList() {
-    this.loading = true;
+    this.tableConfig.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     getK8sTableDataMock(Math.floor(Math.random() * 101))
       .then(res => {
         this.$set(this, 'k8sTableData', res);
-        this.loadAsyncData(startTime, endTime);
+        const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col => col.asyncable);
+        for (const asyncColumn of asyncColumns) {
+          asyncColumn.asyncable = true;
+        }
+        this.loadAsyncData(startTime, endTime, asyncColumns);
       })
       .finally(() => {
-        this.loading = false;
+        this.tableConfig.loading = false;
       });
   }
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
-  loadAsyncData(startTime: number, endTime: number) {
-    const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col => col.asyncable);
+  loadAsyncData(startTime: number, endTime: number, asyncColumns: K8sTableColumn[]) {
     const pods = (this.k8sTableData || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
     for (const field of asyncColumns) {
       getK8sTableAsyncDataMock({
@@ -386,6 +400,29 @@ export default class MonitorK8sNew extends tsc<object> {
     this.setGroupOption(item.option, 'checked', item.checked);
   }
 
+  /**
+   * @description 表格排序
+   * @param {K8sTableSort} sort
+   */
+  handleTableSortChange(sort: K8sTableSort) {
+    this.tableConfig.sortContainer = sort;
+    this.getK8sList();
+  }
+
+  /**
+   * @description 表格下钻点击回调
+   * @param {K8sTableGroupByEvent} item
+   */
+  handleTabGroupChange(item: K8sTableGroupByEvent) {
+    let ids = [];
+    if (item?.checked) {
+      ids = [...this.groupFilters, item.id];
+    } else {
+      ids = this.groupFilters.filter(id => id !== item.id);
+    }
+    this.handleGroupChecked({ ...item, option: this.k8sGroupByRef?.dimensionOptionsMap?.[item.id], ids });
+  }
+
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
@@ -395,12 +432,13 @@ export default class MonitorK8sNew extends tsc<object> {
           <K8sTableNew
             ref='k8sTableRef'
             activeTab={this.activeTab}
-            loading={this.loading}
+            groupFilters={this.groupFilters}
+            loading={this.tableConfig.loading}
             tableData={this.k8sTableData}
-            onColClick={() => {}}
             onFilterChange={() => {}}
-            onGroupChange={() => {}}
-            onSortChange={() => {}}
+            onGroupChange={this.handleTabGroupChange}
+            onSortChange={this.handleTableSortChange}
+            onTextClick={() => {}}
           />
         );
     }
@@ -444,6 +482,7 @@ export default class MonitorK8sNew extends tsc<object> {
             </div>
             <div class='filter-by-wrap __group-by__'>
               <GroupByCondition
+                ref='k8sGroupByRef'
                 dimensionOptions={this.groupOptions}
                 groupFilters={this.groupFilters}
                 title='Group by'

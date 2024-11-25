@@ -40,7 +40,6 @@ export interface IGroupOption extends IOption {
   [key: string]: any;
 }
 export interface IGroupByChangeEvent {
-  title: string;
   id: number | string;
   option: IGroupOption;
   ids: Array<number | string>;
