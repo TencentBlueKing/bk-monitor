@@ -950,7 +950,7 @@ class SearchConditionSerializer(serializers.Serializer):
 class UISearchSerializer(serializers.Serializer):
     addition = serializers.ListField(
         required=False,
-        default=[],
+        default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
     start_time = serializers.IntegerField(label=_("开始时间"), required=True)
