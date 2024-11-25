@@ -86,6 +86,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetDeleteConfigSerializer,
     SearchUserIndexSetOptionHistoryDeleteSerializer,
     SearchUserIndexSetOptionHistorySerializer,
+    UISearchSerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -1744,3 +1745,24 @@ class SearchViewSet(APIViewSet):
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
         result = instance.get_chart_data(params)
         return Response(result)
+
+    @detail_route(methods=["POST"], url_path="generate_sql")
+    def generate_sql(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/generate_sql/
+        @apiDescription 生成sql条件
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "sql": "dtEventTimeStamp>=1732220441000 and dtEventTimeStamp<=1732220443000"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(UISearchSerializer)
+        sql = ChartHandler.generate_sql(params)
+        return Response({"sql": sql})

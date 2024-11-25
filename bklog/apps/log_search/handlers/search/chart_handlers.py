@@ -25,7 +25,7 @@ from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 
 from apps.api import BkDataQueryApi
-from apps.log_search.constants import SearchMode
+from apps.log_search.constants import SQL_PREFIX, SQL_SUFFIX, SearchMode
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
@@ -66,6 +66,68 @@ class ChartHandler(object):
         :return: 图表数据 dict
         """
         raise NotImplementedError(_("功能暂未实现"))
+
+    @staticmethod
+    def generate_sql(params: dict) -> str:
+        """
+        根据过滤条件生成sql
+        :param params: 过滤条件
+        """
+        start_time = params["start_time"]
+        end_time = params["end_time"]
+
+        sql = f"WHERE dtEventTimeStamp>={start_time} AND dtEventTimeStamp<={end_time}"
+        addition = params["addition"]
+
+        for condition in addition:
+            sql += " AND "
+            field_name = condition["field"]
+            operator = condition["operator"]
+            values = condition["value"]
+
+            if operator in ["is true", "is false"]:
+                sql += f"{field_name} {operator.upper()}"
+                continue
+
+            # values 不为空时才走后面的逻辑
+            if not values:
+                continue
+
+            # 组内条件的与或关系
+            condition_type = "OR"
+            if operator in ["&=~", "&!=~", "all contains match phrase", "all not contains match phrase"]:
+                condition_type = "AND"
+
+            # 日志的操作符转化为sql操作符
+            sql_operator = operator
+            if operator in ["=~", "&=~", "contains"]:
+                sql_operator = "LIKE"
+            elif operator in ["!=~", "&!=~", "not contains"]:
+                sql_operator = "NOT LIKE"
+            elif operator in ["contains match phrase", "all contains match phrase"]:
+                sql_operator = "MATCH_ANY"
+            elif operator in ["not contains match phrase", "all not contains match phrase"]:
+                sql_operator = "NOT MATCH_ANY"
+
+            tmp_sql = ""
+            for index, value in enumerate(values):
+                if operator in ["=~", "&=~", "!=~", "&!=~"]:
+                    # 替换通配符
+                    value = value.replace("*", "%")
+                    value = value.replace("?", "_")
+                elif operator in ["contains", "not contains"]:
+                    # 添加通配符
+                    value = f"%{value}%"
+
+                if index > 0:
+                    tmp_sql += f" {condition_type} "
+                if not isinstance(value, int):
+                    value = f"\'{value}\'"
+                tmp_sql += f"{field_name} {sql_operator} {value}"
+
+            # 有两个以上的值,且是OR关系是才需要加括号
+            sql += tmp_sql if condition_type == "AND" or len(values) == 1 else ("(" + tmp_sql + ")")
+        return SQL_PREFIX + f" {sql} " + SQL_SUFFIX
 
 
 class UIChartHandler(ChartHandler):
