@@ -1940,10 +1940,6 @@ class ESStorage(models.Model, StorageResultTable):
         index_settings = {} if index_settings is None else index_settings
         mapping_settings = {} if mapping_settings is None else mapping_settings
 
-        if mapping_settings:
-            relations = es_tools.find_es_read_alias_paths_with_keys(mapping_settings)
-            es_tools.bulk_create_result_table_field_option(table_id, relations)
-
         # alias settings目前暂时没有用上，在参数和配置中都没有更新
         new_record = cls.objects.create(
             table_id=table_id,
@@ -1982,6 +1978,8 @@ class ESStorage(models.Model, StorageResultTable):
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
+        from metadata.models import ResultTableField
+
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
 
@@ -1990,12 +1988,15 @@ class ESStorage(models.Model, StorageResultTable):
         properties = body["mappings"]["properties"] = {}
         for field in ResultTableField.objects.filter(table_id=self.table_id):
             try:
-                properties[field.field_name] = ResultTableField.get_field_option_es_format(
+                properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
                     table_id=self.table_id, field_name=field.field_name
                 )
-                properties.update(
-                    ResultTableField.get_field_es_read_alias(table_id=self.table_id, field_name=field.field_name)
+                alias_settings = ResultTableFieldOption.get_field_es_read_alias(
+                    table_id=self.table_id, field_name=field.field_name
                 )
+
+                if alias_settings:  # 当别名配置不为空时，将别名添加至索引body中
+                    properties.update(alias_settings)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "index_body: error occurs for table_id->[%s],field->[%s],error->[%s]",
@@ -2040,6 +2041,9 @@ class ESStorage(models.Model, StorageResultTable):
         properties = self.compose_field_alias_settings()
         # 获取使用中的索引列表
         activate_index_list = self.get_activate_index_list()
+        if not activate_index_list:
+            logger.info("put_field_alias_mapping_to_es: table_id->[%s],got no activate index,return", self.table_id)
+            return
         logger.info("put_field_alias_mapping_to_es: try to put->[%s] for->[%s]", properties, activate_index_list)
 
         # 循环遍历激活的索引列表，推送别名配置
@@ -2730,6 +2734,13 @@ class ESStorage(models.Model, StorageResultTable):
         self.create_or_update_aliases(ahead_time)
 
     def update_index_and_aliases(self, ahead_time=1440):
+        try:
+            # 0. 更新mapping配置
+            self.put_field_alias_mapping_to_es()
+        except Exception as e:
+            logger.error(
+                "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
+            )
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
@@ -2808,6 +2819,7 @@ class ESStorage(models.Model, StorageResultTable):
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
         :return: True | raise Exception
         """
+        self.refresh_from_db()
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
             logger.info("update_index_v2: table_id->[%s] is not enabled, will not update index", self.table_id)
@@ -3271,7 +3283,6 @@ class ESStorage(models.Model, StorageResultTable):
                     "will delete it and recreate."
                 )
                 return False
-
             # 判断具体的内容是否一致，只要判断具体的四个内容
             for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer", "path"]:
                 database_value = database_config.get(field_config, None)
@@ -3647,14 +3658,26 @@ class ESStorage(models.Model, StorageResultTable):
         获取该采集项的未过期索引列表
         """
         logger.info("get_activated_index_list:try to get activate index list for table_id->[%s]", self.table_id)
-        alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        try:
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "get_activate_index_list:table_id->[%s],failed to get alias_list,error->[%s] ,try again later",
+                self.table_id,
+                e,
+            )
+            return None
         index_info = self.group_expired_alias(alias_list, self.retention)  # 获取索引-别名映射关系
         index_list = []
 
         for index, info in index_info.items():
-            if info["not_expired_alias"]:
-                if self.es_client.count(index=index).get("count", 0) != 0:
-                    index_list.append(index)
+            try:
+                if info["not_expired_alias"]:
+                    if self.es_client.count(index=index).get("count", 0) != 0:
+                        index_list.append(index)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("get_activate_index_list：error occurs for table_id->[%s],error->[%s]", self.table_id, e)
+                continue
 
         logger.info("get_activated_index_list: table_id->[%s],got activate index list->[%s]", self.table_id, index_list)
         return index_list

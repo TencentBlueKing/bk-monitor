@@ -283,6 +283,7 @@ class ResultTable(models.Model):
         create_storage=True,
         data_label: Optional[str] = None,
         is_builtin=False,
+        # es_query_alias_settings=None,
     ):
         """
         创建一个结果表
@@ -2691,7 +2692,7 @@ class ResultTableFieldOption(OptionBase):
 
         for config_name, config_value in list(origin_option.items()):
             # 如果一个字段配置不是ES开头的，则跳过不再关注
-            if not config_name.startswith("es") or config_name == 'es_alias_path':
+            if not config_name.startswith("es") or config_name == 'query_alias':
                 continue
 
             es_config[config_name[3:]] = config_value
@@ -2709,6 +2710,6 @@ class ResultTableFieldOption(OptionBase):
         origin_option = cls.get_field_option(table_id=table_id, field_name=field_name)
         es_config = {}
         for config_name, config_value in list(origin_option.items()):
-            if config_name == 'es_alias_path':
+            if config_name == 'query_alias':
                 es_config[config_value] = {"type": "alias", "path": field_name}
         return es_config

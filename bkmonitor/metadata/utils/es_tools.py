@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -122,30 +121,3 @@ def es_retry_session(
     transport.session = session
 
     return es_client
-
-
-def find_es_read_alias_paths_with_keys(mapping):
-    if not isinstance(mapping, dict):
-        mapping = json.loads(mapping)
-
-    # 提取类型为 alias 的字段
-    return {
-        key: value.get('path') for key, value in mapping.get('properties', {}).items() if value.get('type') == 'alias'
-    }
-
-
-def bulk_create_result_table_field_option(table_id, relations):
-    from metadata.models import ResultTableField, ResultTableFieldOption
-
-    for alias, path in relations.items():
-        try:
-            if not ResultTableField.objects.filter(field_name=path, table_id=table_id).exists():
-                logger.info("path->[%s],not exists in ResultTableField", path)
-                continue
-            option, _ = ResultTableFieldOption.objects.get_or_create(
-                table_id=table_id, field_name=path, name='es_alias_path', value=alias, value_type='string'
-            )
-            logger.info("Successfully Create Option for path->{},alias->{}".format(path, alias))
-        except Exception as e:  # pylint: disable=broad-except
-            logger.info("Unexpected Error Occurs ->[%s]", e)
-            continue
