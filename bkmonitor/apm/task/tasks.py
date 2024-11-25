@@ -140,7 +140,7 @@ def create_virtual_metric(bk_biz_id, app_name):
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def create_or_update_tail_sampling(trace_datasource, data, operator):
+def create_or_update_tail_sampling(trace_datasource, data, operator=None):
     """创建/更新尾部采样Flow"""
     bk_biz_id = trace_datasource.bk_biz_id
     app_name = trace_datasource.app_name
@@ -241,7 +241,7 @@ def bmw_task_cron():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def delete_application_async(bk_biz_id, app_name, operator):
+def delete_application_async(bk_biz_id, app_name, operator=None):
     """
     异步删除 API 侧 APM 应用
     """
