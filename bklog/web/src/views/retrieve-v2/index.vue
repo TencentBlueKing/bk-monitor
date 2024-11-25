@@ -176,15 +176,42 @@
     { deep: true },
   );
 
+  // watch(
+  //   () => store.state.indexItem.isUnionIndex,
+  //   () => {
+  //     if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+  //       activeTab.value = 'origin';
+  //     }
+  //   },
+  // );
   watch(
-    () => store.state.indexItem.isUnionIndex,
-    () => {
-      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
-        activeTab.value = 'origin';
+    () => store.state.panelListTab,
+    (newValue) => {
+      if (!newValue) return
+      const tabMap = {
+        search: 'origin',
+        chart: 'graphAnalysis'
+      };
+      const newTab = tabMap[newValue];
+      if (newTab && activeTab.value !== newTab) {
+        activeTab.value = newTab;
+        store.commit('updateCollectTab','');
       }
-    },
+      }
   );
-
+  // watch(
+  //   () => store.state.indexItem.ids,
+  //   () => {
+  //     const tabMap = {
+  //       search: 'origin',
+  //       chart: 'graphAnalysis'
+  //     };
+  //     const newTab = tabMap[store.state.indexItem.favorite_type];
+  //     if (newTab && activeTab.value !== newTab) {
+  //       activeTab.value = newTab;
+  //     }
+  //     }
+  // );
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 </script>

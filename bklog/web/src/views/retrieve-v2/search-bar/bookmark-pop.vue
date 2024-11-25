@@ -18,11 +18,16 @@
       type: Array,
       required: true,
     },
+    // sql和ui是普通收藏功能   sqlchart是图表功能收藏
     searchMode: {
       default: '',
       type: String,
       required: true,
     },
+    favoriteChartData:{
+      default: () => ({}),
+      type: Object,
+    }
   });
   const emit = defineEmits(['refresh']);
   const { $t } = useLocale();
@@ -46,6 +51,7 @@
     // 收藏参数
     space_uid: -1,
     index_set_id: -1,
+    favorite_type:'',
     name: '',
     group_id: undefined,
     created_by: '',
@@ -66,6 +72,7 @@
     index_set_names: [],
     visible_type: 'public',
     display_fields: [],
+    chart_params:{}
   });
   const spaceUid = computed(() => store.state.spaceUid);
   const isShowAddGroup = ref(true); // 是否新增组
@@ -208,7 +215,7 @@
   });
 
   const sqlString = computed(() => {
-    if (props.searchMode === 'sql') {
+    if (props.searchMode === 'sql' || props.searchMode === 'sqlChart') {
       return props.sql;
     }
 
@@ -219,11 +226,36 @@
   const handleCreateRequest = async () => {
     const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
-    const searchParams =
-      props.searchMode === 'sql'
-        ? { keyword: props.sql, addition: [] }
-        : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+    // const searchParams =
+    //   props.searchMode === 'sql'
+    //     ? { keyword: props.sql, addition: [] }
+    //     : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+    let searchParams;
+    switch (props.searchMode) {
+      case 'sql':
+        searchParams = { keyword: props.sql, addition: [] };
+        break;
 
+      case 'ui':
+        searchParams = {
+          addition: formatAddition.value.filter(v => v.field !== '_ip-select_'),
+          keyword: '*',
+        };
+        break;
+
+      case 'sqlChart':
+        searchParams = { 
+          keyword: props.sql,
+          addition: [],
+          favorite_type: 'chart',
+          chart_params: props.favoriteChartData,
+          search_mode: 'sql'
+         };
+        break;
+      default:
+        break;
+    }
+    
     const data = {
       name,
       group_id,
@@ -335,7 +367,17 @@
     :on-show="handlePopoverShow"
     :tippy-options="tippyOptions"
   >
+     <bk-button
+      v-if="searchMode === 'sqlChart'"
+      style='margin-right: 8px;'
+      :outline='true'
+      theme='primary'
+      @click="handleCollection"
+    >
+      {{$t('保存')}}
+    </bk-button>
     <span
+      v-else
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"

@@ -66,6 +66,7 @@ export interface IFavoriteItem {
   index_set_names?: string[];
   index_set_ids?: string[];
   display_fields: string[];
+  favorite_type: string
 }
 
 type visibleType = 'private' | 'public' | 'unknown';
@@ -251,6 +252,10 @@ export default class CollectIndex extends tsc<IProps> {
 
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
+    console.log(
+      value
+    );
+   
     if (!value) {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
@@ -258,7 +263,13 @@ export default class CollectIndex extends tsc<IProps> {
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
       return;
     }
+    this.$store.commit('updateCollectTab',value.favorite_type);
+   
     const cloneValue = deepClone(value);
+    if(value.favorite_type === 'chart'){
+      this.$store.commit('updateChartData',cloneValue);
+      return
+    }
     this.activeFavorite = cloneValue;
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
@@ -266,7 +277,7 @@ export default class CollectIndex extends tsc<IProps> {
     const isUnionIndex = cloneValue.index_set_ids.length > 0;
     const keyword = cloneValue.params.keyword;
     const addition = cloneValue.params.addition ?? [];
-
+    const favorite_type = cloneValue.favorite_type;
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
     if (isUnionIndex) {
       this.$store.commit(
@@ -285,6 +296,7 @@ export default class CollectIndex extends tsc<IProps> {
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
+      favorite_type,
       ip_chooser,
       index_set_id: cloneValue.index_set_id,
       ids,

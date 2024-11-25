@@ -166,6 +166,10 @@ const stateTpl = {
   // 存放接口报错信息的对象
   apiErrorInfo: {},
   clusterParams: null,
+  // 检索页tab
+  panelListTab: '',
+  // 收藏夹返回图表数据
+  chartData:{}
 };
 
 const store = new Vuex.Store({
@@ -777,6 +781,14 @@ const store = new Vuex.Store({
     resetState(state) {
       Object.assign(state, deepClone(stateTpl));
     },
+    // 收藏夹切换tab
+    updateCollectTab(state, payload) {
+      state.panelListTab = payload;
+    },
+    // 更新chart数据
+    updateChartData(state, payload) {
+      state.chartData = payload;
+    }
   },
   actions: {
     /**

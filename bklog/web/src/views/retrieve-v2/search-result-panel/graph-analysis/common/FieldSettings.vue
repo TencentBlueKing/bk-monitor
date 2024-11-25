@@ -56,8 +56,6 @@
       selectedXAxis.value = newValue;
     },
   );
-
-  // 同样操作 yAxis，如果需要的话
   watch(
     () => props.yAxis,
     newValue => {
@@ -65,12 +63,7 @@
     },
   );
   function change(axis, newValue) {
-    // if (axis === "x") {
-
     emit('update', axis, newValue);
-    // } else if (axis === "y") {
-    // emit("update-yAxis", newValue);
-    // }
   }
 </script>
 <template>

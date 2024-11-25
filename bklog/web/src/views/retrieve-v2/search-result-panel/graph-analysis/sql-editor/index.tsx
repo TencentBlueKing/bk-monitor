@@ -1,17 +1,23 @@
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, Ref, ref, onMounted, watch } from 'vue';
 import useResizeObserve from '@/hooks/use-resize-observe';
 
 import useStore from '@/hooks/use-store';
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
 import PreviewSql from '../common/PreviewSql.vue';
-
+import { format } from 'sql-formatter';
 import './index.scss';
 import useEditor from './use-editor';
 
 export default defineComponent({
+  props: {
+    initialSqlContent: {
+      type: String,
+      default: '',
+    },
+  },
   emits: ['change', 'sql-change'],
-  setup(_, { emit }) {
+  setup(props, { emit }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
@@ -31,6 +37,16 @@ WHERE
     AND thedate <= '20241120'
 LIMIT 200;`);
 
+    watch(
+      () => props.initialSqlContent,
+      (val) => {
+        if(editorInstance.value){
+          sqlContent.value =val;
+          editorInstance.value.setValue(val);
+          handleQueryBtnClick()
+        }
+      },
+    );
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
         sqlContent.value = value;
@@ -100,8 +116,9 @@ LIMIT 200;`);
           },
         })
         .then(resp => {
-          sqlContent.value = resp.data.sql;
-          editorInstance.value.setValue(resp.data.sql);
+          const formattedSql = format(resp.data.sql);
+          sqlContent.value = formattedSql;
+          editorInstance.value.setValue(formattedSql);
           editorInstance.value.focus();
         })
         .finally(() => {
@@ -159,6 +176,10 @@ LIMIT 200;`);
       isPreviewSqlShow.value = val;
     };
 
+    onMounted(() => {
+      emit('sql-change', sqlContent.value);
+    });
+
     return {
       refRootElement,
       isPreviewSqlShow,
@@ -166,6 +187,7 @@ LIMIT 200;`);
       renderTools,
       handleUpdateIsContentShow,
       handleQueryBtnClick,
+      onValueChange
     };
   },
   render(h) {

@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-// import BookmarkPop from '../../search-bar/bookmark-pop.vue';
+import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphTable from './chart/graph-table.vue';
 import GraphChart from './chart/index.tsx';
@@ -70,6 +69,7 @@ enum GraphCategory {
     GraphChart,
     FieldSettings,
     SqlEditor,
+    BookmarkPop
   },
 })
 export default class GraphAnalysisIndex extends tsc<IProps> {
@@ -86,7 +86,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   hidden = [];
   dimensions = [];
   uiQueryValue = [];
-  sqlQueryValue = '';
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isSqlMode = true;
@@ -103,11 +102,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  basicInfoSubTitle = {
-    show: false,
-    title: '',
-  };
-
   basicInfoDescription = {
     show: false,
     title: '',
@@ -118,6 +112,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeCanvasType = 'bar';
 
   sqlEditorHeight = 400;
+  sqlContent = '';
+  initialSqlContent = '';
   isSqlValueChanged = false;
   chartCounter = 0;
 
@@ -207,11 +203,55 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
+  get favoriteData() {
+    return {
+      basicInfoTitle: this.basicInfoTitle.title,
+      basicInfoDescription: this.basicInfoDescription.title,
+      xFields: this.xAxis,
+      yFields: this.yAxis,
+      type: this.activeCanvasType,
+      dimensions: this.dimensions,
+      sql: this.sqlContent
+      // data: this.chartData.data,
+    }
+  }
+
+  get favoriteChartData() {
+    return this.$store.state.chartData
+  }
+  @Watch('favoriteChartData', { immediate: true, deep: true })
+  handleIsShowChange(val) {
+    this.$nextTick(() => {
+      if (!val.params) return;
+      const {
+        basicInfoTitle,
+        basicInfoDescription,
+        xFields,
+        yFields,
+        type,
+        dimensions,
+        sql
+      } = val.params.chart_params;
+      this.basicInfoDescription = {
+        show: !!basicInfoDescription,
+        title: basicInfoTitle,
+      };
+      this.basicInfoTitle.title = basicInfoTitle;
+      this.activeGraphCategory = type;
+      this.activeCanvasType = type;
+      this.initialSqlContent = sql;
+
+      this.dimensions = dimensions;
+      this.xAxis = xFields;
+      this.yAxis = yFields;
+    })
+  }
   handleEditorSearchClick() {
     (this.$refs.sqlEditor as any)?.handleQueryBtnClick();
   }
 
-  handleSqlValueChange() {
+  handleSqlValueChange(val) {
+    this.sqlContent = val;
     this.isSqlValueChanged = true;
   }
 
@@ -330,6 +370,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       return [
         <SqlEditor
           ref='SqlEditor'
+          initialSqlContent={this.initialSqlContent}
           onChange={this.handleSqlQueryResultChange}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
@@ -486,13 +527,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     );
   }
   async save() {
-    if (!this.basicInfoTitle.title) {
-      Message({
-        message: '请输入标题',
-        theme: 'primary',
-      });
-      return;
-    }
     const res = await $http.request('graphAnalysis/favoriteSQL', {
       data: {
         favorite_type: 'chart',
@@ -509,7 +543,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
   /** 打开添加到仪表盘dialog */
   handleAdd() {
-    console.log(this.$refs.addDialog);
     // this.$refs.addDialog.handleShow();
   }
   changeModel() {
@@ -530,7 +563,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this[axis] = Array.isArray(newValue) ? newValue : [newValue];
     this.chartCounter++;
   }
-  handleRefresh() {}
+  handleRefresh() { }
 
   render() {
     return (
@@ -556,21 +589,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             </div>
           </div> */}
           <div class='option-btn'>
-            <bk-button
-              style='margin-right: 8px;'
-              outline={true}
-              theme='primary'
-              onClick={this.save}
-            >
-              {this.$t('保存')}
-            </bk-button>
-            {/* <BookmarkPop
+
+            <BookmarkPop
               addition={this.uiQueryValue}
               // :class="{ disabled: isInputLoading }"
-              search-mode='sql'
-              sql={this.sqlQueryValue}
-              onRefresh={this.handleRefresh}
-            ></BookmarkPop> */}
+              search-mode='sqlChart'
+              sql={this.sqlContent}
+              favoriteChartData={this.favoriteData}
+            // onRefresh={this.handleRefresh}
+            ></BookmarkPop>
 
             {/* <bk-button
               outline={true}
