@@ -103,7 +103,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   keywork = '';
   showAddForm = false;
   curFormType: FormType = MoreType.dir;
-  curDirId: number;
   /** 选中的仪表盘 */
   checked: string = null;
   /** 外链数据 */
@@ -520,7 +519,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
     this.formData.name = (this.isCopyDashboard && item?.title) || '';
-    this.curDirId = (this.isCopyDashboard && item?.dirId) || null;
   }
 
   /** 表单校验 */
@@ -828,15 +826,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 required
               >
                 <bk-select v-model={this.formData.dir}>
-                  {(this.isCopyDashboard ? this.dirList.filter(({ id }) => id !== this.curDirId) : this.dirList).map(
-                    item => (
-                      <bk-option
-                        id={item.id}
-                        key={item.id}
-                        name={item.name}
-                      />
-                    )
-                  )}
+                  {this.dirList.map(item => (
+                    <bk-option
+                      id={item.id}
+                      key={item.id}
+                      name={item.name}
+                    />
+                  ))}
                 </bk-select>
               </bk-form-item>
             )}
