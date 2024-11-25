@@ -252,10 +252,6 @@ export default class CollectIndex extends tsc<IProps> {
 
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
-    console.log(
-      value
-    );
-   
     if (!value) {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;

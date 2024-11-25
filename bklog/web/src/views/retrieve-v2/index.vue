@@ -199,19 +199,6 @@
       }
       }
   );
-  // watch(
-  //   () => store.state.indexItem.ids,
-  //   () => {
-  //     const tabMap = {
-  //       search: 'origin',
-  //       chart: 'graphAnalysis'
-  //     };
-  //     const newTab = tabMap[store.state.indexItem.favorite_type];
-  //     if (newTab && activeTab.value !== newTab) {
-  //       activeTab.value = newTab;
-  //     }
-  //     }
-  // );
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 </script>
