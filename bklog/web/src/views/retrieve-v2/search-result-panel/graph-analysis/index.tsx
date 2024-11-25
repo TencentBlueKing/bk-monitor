@@ -93,7 +93,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   graphCategoryList = [
     GraphCategory.LINE,
     GraphCategory.BAR,
-    GraphCategory.LINE_BAR,
+    // GraphCategory.LINE_BAR,
     GraphCategory.PIE,
     GraphCategory.TABLE,
   ];
@@ -141,15 +141,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           active: StyleImages.chartBarActive,
         },
       },
-      [GraphCategory.LINE_BAR]: {
-        icon: '',
-        text: this.$t('数字'),
-        click: () => this.handleGraphCategoryClick(GraphCategory.LINE_BAR),
-        images: {
-          def: StyleImages.chartLineBarDef,
-          active: StyleImages.chartLineBarActive,
-        },
-      },
+      // [GraphCategory.LINE_BAR]: {
+      //   icon: '',
+      //   text: this.$t('数字'),
+      //   click: () => this.handleGraphCategoryClick(GraphCategory.LINE_BAR),
+      //   images: {
+      //     def: StyleImages.chartLineBarDef,
+      //     active: StyleImages.chartLineBarActive,
+      //   },
+      // },
       [GraphCategory.PIE]: {
         icon: '',
         text: this.$t('饼图'),
@@ -537,13 +537,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <div class='graph-analysis-index'>
         <div class='graph-analysis-navi'>
           <div class='option-switch'>
-            <bk-switcher
+            {/* <bk-switcher
               class='ml-medium mr-min'
               theme='primary'
               value={this.isSqlMode}
               onChange={this.changeModel}
             ></bk-switcher>
-            <span>{this.$t('SQL模式')}</span>
+            <span>{this.$t('SQL模式')}</span> */}
           </div>
           {/* <div class='option-list'>
             <div class={{ active: this.activeItem === OptionList.Analysis }}>
@@ -585,7 +585,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           <div class='body-left'>
             <div
               style={this.axiosStyle}
-              class='graph-axios-options'
+              class={['graph-axios-options', this.isSqlMode ? 'sql-mode' : '']}
             >
               <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
               <div class='graph-axios-drag'>

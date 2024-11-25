@@ -151,23 +151,7 @@ export const lineOrBarOptions = {
       shadowOffsetX: 0,
       shadowOffsetY: 0,
     },
-    feature: {
-      saveAsImage: {
-        icon: 'path://',
-      },
-      dataZoom: {
-        icon: {
-          zoom: 'path://',
-          back: 'path://',
-        },
-        show: true,
-        yAxisIndex: [],
-        iconStyle: {
-          opacity: 0,
-        },
-      },
-      restore: { icon: 'path://' },
-    },
+    feature: {},
   },
   grid: {
     containLabel: true,
