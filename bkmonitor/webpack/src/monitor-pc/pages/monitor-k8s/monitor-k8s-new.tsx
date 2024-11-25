@@ -45,7 +45,7 @@ import { K8sNewTabEnum } from './typings/k8s-new';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 
 import './monitor-k8s-new.scss';
-
+const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
     label: '列表',
@@ -86,8 +86,13 @@ export default class MonitorK8sNew extends tsc<object> {
   groupFilters: Array<number | string> = [];
   // Group By 选择器选项
   groupOptions = [...GROUP_OPTIONS];
+  // 指标隐藏项
+  hideMetrics = JSON.parse(localStorage.getItem(HIDE_METRICS_KEY) || '[]');
   // 表格数据
   k8sTableData: any[] = [];
+  // 是否展示取消下钻
+  showCancelDrill = false;
+
   loading = false;
 
   groupList = [
@@ -103,6 +108,22 @@ export default class MonitorK8sNew extends tsc<object> {
         {
           id: '监控测试集群(BCS-K8S-26286)__222',
           title: '监控测试集群(BCS-K8S-26286)__222',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_3',
+          title: '监控测试集群(BCS-K8S-26286)_3',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_4',
+          title: '监控测试集群(BCS-K8S-26286)_4',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_5',
+          title: '监控测试集群(BCS-K8S-26286)_5',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_6',
+          title: '监控测试集群(BCS-K8S-26286)_6',
         },
       ],
     },
@@ -132,6 +153,33 @@ export default class MonitorK8sNew extends tsc<object> {
               title: 'monitor-test2',
             },
           ],
+        },
+      ],
+    },
+    {
+      title: 'pod',
+      id: 'pod',
+      count: 5,
+      children: [
+        {
+          id: 'bkbase-puller-datanode-inland…',
+          title: 'bkbase-puller-datanode-inland…',
+        },
+        {
+          id: 'sql-f76a1c37c9ae48f1a9daf0843534535345',
+          title: 'sql-f76a1c37c9ae48f1a9daf081213123',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b13123123',
+          title: 'pf-d1fba8d425e24f268bbed3b13123123',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b56456465466111',
+          title: 'pf-d1fba8d425e24f268bbed3b56456465466111',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
+          title: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
         },
       ],
     },
@@ -241,6 +289,12 @@ export default class MonitorK8sNew extends tsc<object> {
     }
   }
 
+  /** 隐藏指标项变化 */
+  metricHiddenChange(hideMetrics: string[]) {
+    this.hideMetrics = hideMetrics;
+    localStorage.setItem(HIDE_METRICS_KEY, JSON.stringify(hideMetrics));
+  }
+
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
   }
@@ -280,7 +334,7 @@ export default class MonitorK8sNew extends tsc<object> {
   render() {
     return (
       <div class='monitor-k8s-new'>
-        <div class='monitor-k8s-new-header'>
+        <div class='monitor-k8s-new-nav-bar'>
           <K8sNavBar
             refreshInterval={this.refreshInterval}
             timeRange={this.timeRange}
@@ -292,50 +346,56 @@ export default class MonitorK8sNew extends tsc<object> {
             onTimezoneChange={this.handleTimezoneChange}
           />
         </div>
+        <div class='monitor-k8s-new-header'>
+          <bk-select
+            class='cluster-select'
+            clearable={false}
+            value={this.cluster}
+            onChange={this.handleClusterChange}
+          >
+            {this.clusterList.map(cluster => (
+              <bk-option
+                id={cluster.value}
+                key={cluster.value}
+                name={cluster.label}
+              />
+            ))}
+          </bk-select>
+          <div class='filter-header-wrap'>
+            <div class='filter-by-wrap __filter-by__'>
+              <div class='filter-by-title'>Filter by</div>
+              <div class='filter-by-content'>
+                <FilterByCondition />
+              </div>
+            </div>
+            <div class='filter-by-wrap __group-by__'>
+              <GroupByCondition
+                dimensionOptions={this.groupOptions}
+                groupFilters={this.groupFilters}
+                title='Group by'
+                onChange={this.handleGroupChecked}
+              />
+            </div>
+          </div>
+        </div>
 
         <div class='monitor-k8s-new-content'>
           <div class='content-left'>
-            <bk-select
-              class='cluster-select'
-              clearable={false}
-              value={this.cluster}
-              onChange={this.handleClusterChange}
-            >
-              {this.clusterList.map(cluster => (
-                <bk-option
-                  id={cluster.value}
-                  key={cluster.value}
-                  name={cluster.label}
-                />
-              ))}
-            </bk-select>
             <K8sLeftPanel
+              slot='main'
               filterBy={this.filterBy}
               groupBy={this.groupFilters}
               groupList={this.groupList}
+              hideMetrics={this.hideMetrics}
               metricList={this.metricList}
               onDrillDown={this.handleDrillDown}
               onFilterByChange={this.filterByChange}
               onGroupByChange={this.groupByChange}
+              onMetricHiddenChange={this.metricHiddenChange}
             />
           </div>
+
           <div class='content-right'>
-            <div class='filter-header-wrap'>
-              <div class='filter-by-wrap __filter-by__'>
-                <div class='filter-by-title'>Filter by</div>
-                <div class='filter-by-content'>
-                  <FilterByCondition />
-                </div>
-              </div>
-              <div class='filter-by-wrap __group-by__'>
-                <GroupByCondition
-                  dimensionOptions={this.groupOptions}
-                  groupFilters={this.groupFilters}
-                  title='Group by'
-                  onChange={this.handleGroupChecked}
-                />
-              </div>
-            </div>
             <div class='content-tab-wrap'>
               <bk-tab
                 class='k8s-new-tab'

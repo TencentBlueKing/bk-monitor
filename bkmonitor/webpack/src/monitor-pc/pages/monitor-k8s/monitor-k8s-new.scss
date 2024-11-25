@@ -3,7 +3,7 @@
   width: 100%;
   height: 100%;
 
-  .monitor-k8s-new-header {
+  .monitor-k8s-new-nav-bar {
     display: flex;
     width: 100%;
     height: 52px;
@@ -13,45 +13,105 @@
       0 3px 4px 0 #4070cb0f;
   }
 
+  .monitor-k8s-new-header {
+    position: relative;
+    display: flex;
+
+    .cluster-select {
+      width: 321px;
+      height: 48px;
+      line-height: 48px;
+      background: #fdf4e8;
+      border: 1px solid #dcdee5;
+
+      &.is-unselected::before {
+        left: 24px;
+      }
+
+      .icon-angle-down {
+        top: 13px;
+      }
+
+      .bk-select-name {
+        height: 46px;
+        padding: 0 36px 0 24px;
+        font-size: 14px;
+        color: #313238;
+      }
+    }
+
+    .cluster-select-trigger {
+      width: 320px;
+      height: 48px;
+      line-height: 48px;
+      background: #fdf4e8;
+      border: 1px solid #dcdee5;
+    }
+
+    .filter-header-wrap {
+      position: absolute;
+      top: 0;
+      left: 321px;
+      z-index: 666;
+      display: flex;
+      width: calc(100% - 321px);
+      min-height: 48px;
+      background: #ffffff;
+      border: 1px solid #dcdee5;
+      border-left: none;
+
+      .filter-by-wrap {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+
+        .filter-by-title {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          min-height: 48px;
+          padding: 0 24px;
+          background: #fafbfd;
+        }
+
+        .filter-by-content {
+          min-width: 400px;
+          min-height: 48px;
+          background: #fff;
+        }
+
+        &.__filter-by__ {
+          min-width: 64%;
+          max-width: 64%;
+
+          .filter-by-title {
+            border-right: 1px solid #dcdee5;
+          }
+
+          .filter-by-content {
+            flex: 1;
+          }
+        }
+
+        &.__group-by__ {
+          flex: 1;
+        }
+      }
+    }
+  }
+
   .monitor-k8s-new-content {
     display: flex;
-    height: calc(100% - 52px);
+    height: calc(100% - 100px);
 
     .content-left {
       flex-shrink: 0;
-      width: 320px;
       background: #fafbfd;
       box-shadow: 1px 0 0 0 #dcdee5;
 
-      .cluster-select {
-        width: 321px;
-        height: 48px;
-        line-height: 48px;
-        background: #fdf4e8;
-        border: 1px solid #dcdee5;
-
-        &.is-unselected::before {
-          left: 24px;
-        }
-
-        .icon-angle-down {
-          top: 13px;
-        }
-
-        .bk-select-name {
-          height: 46px;
-          padding: 0 36px 0 24px;
-          font-size: 14px;
-          color: #313238;
-        }
-      }
-
-      .cluster-select-trigger {
-        width: 321px;
-        height: 48px;
-        line-height: 48px;
-        background: #fdf4e8;
-        border: 1px solid #dcdee5;
+      .bk-resize-layout-aside {
+        display: none;
       }
     }
 
@@ -60,54 +120,6 @@
       flex-direction: column;
       width: 100%;
       min-width: 0;
-
-      .filter-header-wrap {
-        position: relative;
-        display: flex;
-        width: 100%;
-        min-height: 48px;
-        background: #ffffff;
-        border: 1px solid #dcdee5;
-
-        .filter-by-wrap {
-          display: flex;
-          align-items: center;
-          min-height: 48px;
-
-          .filter-by-title {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            min-height: 48px;
-            padding: 0 24px;
-            background: #fafbfd;
-          }
-
-          .filter-by-content {
-            min-width: 400px;
-            min-height: 48px;
-            background: #fff;
-          }
-
-          &.__filter-by__ {
-            min-width: 64%;
-            max-width: 64%;
-
-            .filter-by-title {
-              border-right: 1px solid #DCDEE5;
-            }
-
-            .filter-by-content {
-              flex: 1;
-            }
-          }
-
-          &.__group-by__ {
-            flex: 1;
-          }
-        }
-      }
 
       .content-tab-wrap {
         padding: 16px;
