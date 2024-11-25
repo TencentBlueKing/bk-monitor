@@ -1311,7 +1311,7 @@ class DimensionPromqlQueryResource(Resource):
                 params["start_time"] = start_time
                 params["end_time"] = end_time
 
-            result = api.unify_query.get_promql_label_values(match=match_promql, label=label, bk_biz_ids=[bk_biz_id])
+            result = api.unify_query.get_promql_label_values(params)
             return result["values"].get(label, [])
         except Exception as e:
             logger.exception(e)
