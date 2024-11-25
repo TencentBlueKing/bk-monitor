@@ -1,15 +1,20 @@
 .k8s-left-panel {
-  width: 320px;
   height: 100%;
-  box-shadow: 1px 0 0 0 #dcdee5;
-  border-radius: 2px 0 0 0;
-  overflow-y: auto;
+
+  .k8s-left-panel-content {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    user-select: none;
+    border-radius: 2px 0 0 0;
+    box-shadow: 1px 0 0 0 #dcdee5;
+  }
 
   .panel-title {
-    font-weight: 700;
-    font-size: 14px;
-    color: #313238;
     margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
   }
 
   .k8s-object {

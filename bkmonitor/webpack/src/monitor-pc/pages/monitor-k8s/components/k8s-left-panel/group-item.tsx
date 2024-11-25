@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import type { GroupListItem } from '../../typings/k8s-new';
@@ -39,6 +39,8 @@ interface GroupItemProps {
   showMore?: boolean;
   tools?: Tools[];
   hiddenList?: string[];
+  defaultExpand?: { [key: string]: boolean } | boolean;
+  drillDownList?: string[];
 }
 
 interface GroupItemEvent {
@@ -52,13 +54,19 @@ interface GroupItemEvent {
 @Component
 export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: () => ({}) }) list: GroupListItem;
+  /** 检索 */
   @Prop({ default: () => [] }) value: string[];
+  /** 是否选择group By */
   @Prop({ default: false }) isGroupBy: boolean;
+  /** 隐藏项列表 */
   @Prop({ default: () => [] }) hiddenList: string[];
   @Prop({ default: false }) showMore: boolean;
   @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
+  @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
+  @Prop({ default: () => [] }) drillDownList: string[];
 
-  @Ref('menu') menuRef: any;
+  @Ref('menu')
+  menuRef: any;
 
   /** 展开的组  */
   expand = {};
@@ -66,6 +74,17 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   drillDown = '';
 
   popoverInstance = null;
+
+  @Watch('defaultExpand', { immediate: true })
+  handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
+    if (typeof val === 'boolean') {
+      this.expand = {
+        [this.list.id]: val,
+      };
+    } else {
+      this.expand = val;
+    }
+  }
 
   collapseChange(id: string) {
     this.$set(this.expand, id, !this.expand[id]);
@@ -218,7 +237,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               class='group-select'
               onClick={this.handleGroupByChange}
             >
-              {this.isGroupBy ? 'unGroup' : 'Group'}
+              {this.isGroupBy ? 'ungroup' : 'Group'}
             </div>
           )}
         </div>
@@ -244,12 +263,15 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             ref='menu'
             class='drill-down-list-menu'
           >
-            <li
-              class='menu-item'
-              onClick={() => this.handleDrillDownChange('namespace')}
-            >
-              namespace
-            </li>
+            {this.drillDownList.map(item => (
+              <li
+                key={item}
+                class='menu-item'
+                onClick={() => this.handleDrillDownChange(item)}
+              >
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
       </div>

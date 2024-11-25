@@ -115,7 +115,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
               </bk-option>
             ))}
           </bk-select>
-          <i class='icon-monitor icon-mc-target-link' />
+          <i class='icon-monitor icon-copy-link' />
         </div>
         {this.$slots.default}
         <div class='nav-tools'>
