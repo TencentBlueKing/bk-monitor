@@ -25,7 +25,14 @@ from apm.constants import (
     ConfigTypes,
 )
 from bkmonitor.utils.db import JsonField
-from constants.apm import OtlpKey, SpanKindKey, TrpcAttributes
+from constants.apm import (
+    K8sAttributes,
+    NodeAttributes,
+    OtlpKey,
+    SdkAttributes,
+    SpanKindKey,
+    TrpcAttributes,
+)
 
 logger = logging.getLogger("apm")
 
@@ -53,6 +60,16 @@ class ApmTopoDiscoverRule(models.Model):
     APM_TOPO_CATEGORY_MESSAGING = "messaging"
     APM_TOPO_CATEGORY_ASYNC_BACKEND = "async_backend"
     APM_TOPO_CATEGORY_OTHER = "other"
+    APM_TOPO_CATEGORY_TRPC = "trpc"
+    APM_TOPO_CATEGORY_GRPC = "grpc"
+    APM_TOPO_CATEGORY_K8S = "k8s"
+    APM_TOPO_CATEGORY_NODE = "node"
+    APM_TOPO_CATEGORY_SDK = "sdk"
+    APM_TOPO_TYPE_FRAMEWORK = "framework"
+    APM_TOPO_TYPE_CATEGORY = "category"
+    APM_TOPO_TYPE_PLATFORM = "platform"
+    APM_TOPO_TYPE_SDK = "sdk"
+    APM_TOPO_GELILEO = "gelileo"
 
     APM_TOPO_CATEGORY_CHOICES = (
         (APM_TOPO_CATEGORY_HTTP, "http"),
@@ -71,6 +88,15 @@ class ApmTopoDiscoverRule(models.Model):
     # for trpc
     TRPC_PREDICATE_KEY = OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE)
 
+    # for k8s
+    K8S_PREDICATE_KEY = f"{OtlpKey.get_k8s_key(K8sAttributes.BCS_CLUSTER_ID)},{OtlpKey.get_resource_key(K8sAttributes.K8S_POD_NAME)},{OtlpKey.get_resource_key(K8sAttributes.K8S_NAMESPACE_NAME)}"
+
+    # for node
+    NODE_PREDICATE_KEY = f"{OtlpKey.get_k8s_key(K8sAttributes.BCS_CLUSTER_ID)},{OtlpKey.get_resource_key(K8sAttributes.K8S_POD_NAME)},{OtlpKey.get_resource_key(K8sAttributes.K8S_NAMESPACE_NAME)},{OtlpKey.get_resource_key(NodeAttributes.NET_HOST_IP)}"
+
+    # for SDK
+    SDK_PREDICATE_KEY = f"{OtlpKey.get_resource_key(SdkAttributes.TELEMETRY_SDK_NAME)}"
+
     COMMON_RULE = [
         {
             "category_id": APM_TOPO_CATEGORY_DB,
@@ -79,6 +105,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_COMPONENT,
             "predicate_key": DB_PREDICATE_KEY,
             "sort": 0,
+            "type": "category",
         },
         {
             # messaging 优先级比 异步任务高
@@ -89,6 +116,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_COMPONENT,
             "predicate_key": MESSAGING_PREDICATE_KEY,
             "sort": 1,
+            "type": "category",
         },
         {
             "category_id": APM_TOPO_CATEGORY_ASYNC_BACKEND,
@@ -97,6 +125,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": ASYNC_BACKEND_PREDICATE_KEY,
             "sort": 2,
+            "type": "category",
         },
         {
             "category_id": APM_TOPO_CATEGORY_RPC,
@@ -105,6 +134,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": RPC_PREDICATE_KEY,
             "sort": 3,
+            "type": "category",
         },
         {
             "category_id": APM_TOPO_CATEGORY_HTTP,
@@ -113,6 +143,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": HTTP_PREDICATE_KEY,
             "sort": 4,
+            "type": "category",
         },
         {
             "category_id": APM_TOPO_CATEGORY_OTHER,
@@ -121,6 +152,52 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": "",
             "sort": 5,
+            "type": "category",
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_TRPC,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": TRPC_PREDICATE_KEY,
+            "sort": 0,
+            "type": "framework",
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_GRPC,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": RPC_PREDICATE_KEY,
+            "sort": 1,
+            "type": "framework",
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_K8S,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": K8S_PREDICATE_KEY,
+            "sort": 0,
+            "type": "platform ",
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_NODE,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": NODE_PREDICATE_KEY,
+            "sort": 1,
+            "type": "platform",
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_SDK,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": SDK_PREDICATE_KEY,
+            "sort": 0,
+            "type": "sdk",
         },
     ]
     PREDICATE_OP_EXISTS = "exists"
@@ -139,6 +216,7 @@ class ApmTopoDiscoverRule(models.Model):
     topo_kind = models.CharField("topo发现类型", max_length=50)
     predicate_key = models.CharField("判断字段", max_length=128)
     sort = models.IntegerField("排序", default=0)
+    type = models.CharField("服务信息", max_length=128, default='category')
 
     @classmethod
     def get_application_rule(cls, bk_biz_id, app_name, topo_kind=None):
@@ -167,7 +245,7 @@ class ApmTopoDiscoverRule(models.Model):
 
         cls.objects.bulk_create(create_instances)
         cls.objects.bulk_update(
-            update_instances, fields=["endpoint_key", "instance_key", "topo_kind", "predicate_key", "sort"]
+            update_instances, fields=["endpoint_key", "instance_key", "topo_kind", "predicate_key", "sort", "type"]
         )
 
 

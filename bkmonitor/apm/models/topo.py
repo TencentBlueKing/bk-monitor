@@ -51,6 +51,9 @@ class TopoNode(TopoBase):
     # 如果这个Node是http类型，那么在extra_data数据：
     # {"category":"http","kind":"service","predicate_value":"POST","service_language":"python","instance":{}}
     topo_key = models.CharField("节点key", max_length=255, db_index=True)
+    framework = models.JSONField("服务框架", max_length=255, default='')
+    platform = models.JSONField("部署平台", max_length=255, default='')
+    sdk = models.JSONField("上报sdk", max_length=255, default='')
 
 
 class TopoRelation(TopoBase):
