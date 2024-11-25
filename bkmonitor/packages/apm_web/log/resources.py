@@ -24,7 +24,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
 
     # Resource: 从 SpanId 关联主机中找
     if span_id:
-        host_indexes = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
+        host_indexes, ip = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
         for item in host_indexes:
             if str(item["index_set_id"]) not in index_set_ids:
                 index_info = next(
@@ -36,6 +36,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                     None,
                 )
                 if index_info:
+                    # 默认查询语句: 机器 IP
+                    index_info["query_string"] = ip
                     index_set_ids.append(str(item["index_set_id"]))
                     yield index_info
 
@@ -51,6 +53,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             None,
         )
         if index_info:
+            # 默认查询语句: 服务名称
+            index_info["query_string"] = f'resource.service.name: "{service_name}"'
             index_set_ids.append(str(datasource_index_set_id))
             yield index_info
 
@@ -65,6 +69,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 None,
             )
             if index_info:
+                # 默认查询语句: 服务名称
+                index_info["query_string"] = f'resource.service.name: "{service_name}"'
                 index_set_ids.append(relation.value)
                 yield index_info
         else:
@@ -73,6 +79,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 None,
             )
             if index_info:
+                # 默认查询语句: 服务名称
+                index_info["query_string"] = f'resource.service.name: "{service_name}"'
                 index_set_ids.append(relation.value)
                 yield index_info
 

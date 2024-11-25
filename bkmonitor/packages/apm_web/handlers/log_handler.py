@@ -137,8 +137,11 @@ class ServiceLogHandler:
         if span_host:
             from monitor_web.scene_view.resources import HostIndexQueryMixin
 
-            return HostIndexQueryMixin.query_indexes({"bk_biz_id": bk_biz_id, "bk_host_id": span_host["bk_host_id"]})
-        return []
+            return HostIndexQueryMixin.query_indexes(
+                {"bk_biz_id": bk_biz_id, "bk_host_id": span_host["bk_host_id"]},
+            ), span_host.get("bk_host_innerip")
+
+        return [], None
 
     @classmethod
     def get_log_relation(cls, bk_biz_id, app_name, service_name):
