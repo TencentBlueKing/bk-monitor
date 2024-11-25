@@ -939,3 +939,19 @@ class ChartSerializer(serializers.Serializer):
     query_mode = serializers.ChoiceField(
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
+
+
+class SearchConditionSerializer(serializers.Serializer):
+    field = serializers.CharField(label=_("字段名"), required=True)
+    operator = serializers.CharField(label=_("操作符"), required=True)
+    value = serializers.ListField(label=_("值"), required=True)
+
+
+class UISearchSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=False,
+        default=[],
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
