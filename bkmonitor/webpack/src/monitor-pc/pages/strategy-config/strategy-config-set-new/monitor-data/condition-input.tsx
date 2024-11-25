@@ -90,6 +90,7 @@ export default class ConditionInput extends tsc<
 
   conditions = [];
   menuList = [];
+
   showSelectMenu = false;
   curSelectTarget = null;
   curConditionIndex = -1;
