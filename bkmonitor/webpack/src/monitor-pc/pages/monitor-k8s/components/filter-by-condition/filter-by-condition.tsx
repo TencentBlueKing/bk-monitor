@@ -26,9 +26,9 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 
-import TextListOverview from './text-list-overview';
+import KvTag from './kv-tag';
 import { EGroupBy, GROUP_OPTIONS } from './utils';
 
 import './filter-by-condition.scss';
@@ -79,6 +79,8 @@ export default class FilterByCondition extends tsc<object> {
   valueCategorySelected = '';
   // 搜索框输入的值
   searchValue = '';
+  searchValueOptions = [];
+  searchValueCategoryOptions = [];
   // 当前点击的tag
   updateActive = '';
   // 溢出的数量
@@ -88,14 +90,10 @@ export default class FilterByCondition extends tsc<object> {
   // 展开tagList
   isExpand = false;
 
-  created() {
-    this.tagList = [];
-    this.groupSelected = GROUP_OPTIONS[0].id;
-    this.valueOptions = GROUP_OPTIONS[0].list.map(item => ({ ...item, checked: false }));
-    this.groupOptions = GROUP_OPTIONS.map(item => ({
-      ...item,
-      list: [],
-    }));
+  get hasAdd() {
+    const ids = GROUP_OPTIONS.map(item => item.id);
+    const tags = new Set(this.tagList.map(item => item.id));
+    return !ids.every(id => tags.has(id));
   }
 
   async handleAdd(event: MouseEvent) {
@@ -162,11 +160,35 @@ export default class FilterByCondition extends tsc<object> {
         const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
+      this.handleSearchChange('');
     }
+  }
+
+  @Debounce(300)
+  handleSearchChangeDebounce(value: string) {
+    this.handleSearchChange(value);
   }
 
   handleSearchChange(value: string) {
     this.searchValue = value;
+    const searchValue = value.toLocaleLowerCase();
+    if (!value) {
+      this.searchValueOptions = this.valueOptions;
+      this.searchValueCategoryOptions = this.valueCategoryOptions;
+      return;
+    }
+    if (this.groupSelected === EGroupBy.workload) {
+      this.searchValueCategoryOptions = this.valueCategoryOptions.filter(item => {
+        return item.list.some(l => {
+          const lName = l.name.toLocaleLowerCase();
+          return lName.includes(searchValue);
+        });
+      });
+    }
+    this.searchValueOptions = this.valueOptions.filter(item => {
+      const name = item.name.toLocaleLowerCase();
+      return name.includes(searchValue);
+    });
   }
 
   handleCheck(item: IValueItem) {
@@ -230,21 +252,17 @@ export default class FilterByCondition extends tsc<object> {
         this.tagList.push(obj);
       }
     }
-    this.setGroupOptions();
     this.overflowCountRender();
   }
 
-  handleUpdateTag(event: MouseEvent, item: ITagListItem) {
-    console.log(event);
-    let target = event.target as any | HTMLElement;
-    while (target) {
-      if (target.classList.contains('filter-by-condition-tag')) {
-        break;
-      }
-      target = target.parentNode;
-    }
+  async handleAddTag(event: MouseEvent) {
+    this.setGroupOptions();
+    this.handleAdd(event);
+  }
+
+  async handleUpdateTag(target: any, item: ITagListItem) {
     this.updateActive = item.key;
-    this.handleSelectGroup(item.id as any);
+    this.setGroupOptions();
     this.handleAdd({ target } as any);
   }
 
@@ -253,31 +271,33 @@ export default class FilterByCondition extends tsc<object> {
     this.valueCategorySelected = item.id;
     const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
     this.valueOptions = values;
+    this.handleSearchChange(this.searchValue);
   }
 
   // 计算溢出个数
   async overflowCountRender() {
-    await this.$nextTick();
-    const wrapWidth = this.$el.clientWidth - 32;
-    const visibleWrap = this.$el.querySelector('.tag-list-wrap-visible');
-    let index = 0;
-    let w = 0;
-    let count = 0;
-    for (const item of Array.from(visibleWrap.children)) {
-      w += item.clientWidth;
-      if (w > wrapWidth) {
-        break;
+    setTimeout(() => {
+      const wrapWidth = this.$el.clientWidth - 32;
+      const visibleWrap = this.$el.querySelector('.tag-list-wrap-visible');
+      let index = 0;
+      let w = 0;
+      let count = 0;
+      for (const item of Array.from(visibleWrap.children)) {
+        w += item.clientWidth;
+        if (w > wrapWidth) {
+          break;
+        }
+        index += 1;
+        if (index % 2) {
+          count += 1;
+        }
       }
-      index += 1;
-      if (index % 2) {
-        count += 1;
+      this.overflowIndex = index;
+      this.overflowCount = this.tagList.length - count;
+      if (!this.overflowCount) {
+        this.isExpand = false;
       }
-    }
-    this.overflowIndex = index;
-    this.overflowCount = this.tagList.length - count;
-    if (!this.overflowCount) {
-      this.isExpand = false;
-    }
+    }, 100);
   }
 
   handleExpand() {
@@ -286,12 +306,16 @@ export default class FilterByCondition extends tsc<object> {
 
   setGroupOptions() {
     const groupsSet = new Set();
+    let updateActiveId = '';
     for (const tag of this.tagList) {
       groupsSet.add(tag.id);
+      if (tag.key === this.updateActive) {
+        updateActiveId = tag.id;
+      }
     }
     const groupOptions = [];
     for (const item of GROUP_OPTIONS) {
-      if (!groupsSet.has(item.id)) {
+      if (!groupsSet.has(item.id) || updateActiveId === item.id) {
         groupOptions.push({
           ...item,
           list: [],
@@ -299,20 +323,18 @@ export default class FilterByCondition extends tsc<object> {
       }
     }
     this.groupOptions = groupOptions;
-    this.handleSelectGroup(groupOptions?.[0]?.id);
+    this.handleSelectGroup(updateActiveId || groupOptions?.[0]?.id);
   }
 
-  handleDeleteTag(e: MouseEvent, item: ITagListItem) {
-    e.stopPropagation();
+  handleDeleteTag(item: ITagListItem) {
     this.tagList = this.tagList.filter(tag => tag.key !== item.key);
-    this.setGroupOptions();
     this.overflowCountRender();
   }
 
   valuesWrap() {
     return (
       <div class='value-items'>
-        {this.valueOptions.map(item => (
+        {this.searchValueOptions.map(item => (
           <div
             key={item.id}
             class={['value-item', { checked: item.checked }]}
@@ -338,18 +360,11 @@ export default class FilterByCondition extends tsc<object> {
               AND
             </span>
           ),
-          <span
+          <KvTag
             key={item.key}
-            class={['filter-by-condition-tag type-kv', { active: this.updateActive === item.key }]}
-            onClick={e => this.handleUpdateTag(e, item)}
-          >
-            <span>{item.name}</span>
-            <span class='method'>=</span>
-            <span>
-              <TextListOverview textList={item.values} />
-            </span>
-            <span class='icon-monitor icon-mc-close' />
-          </span>,
+            active={this.updateActive === item.key}
+            value={item}
+          />,
         ];
       });
     }
@@ -383,21 +398,13 @@ export default class FilterByCondition extends tsc<object> {
           );
         }
         return (
-          <span
+          <KvTag
             key={item.key}
-            class={['filter-by-condition-tag type-kv', { active: this.updateActive === item.key }]}
-            onClick={e => this.handleUpdateTag(e, item)}
-          >
-            <span>{item.name}</span>
-            <span class='method'>=</span>
-            <span>
-              <TextListOverview textList={item.values} />
-            </span>
-            <span
-              class='icon-monitor icon-mc-close'
-              onClick={e => this.handleDeleteTag(e, item)}
-            />
-          </span>
+            active={this.updateActive === item.key}
+            value={item}
+            onClickTag={target => this.handleUpdateTag(target, item)}
+            onDeleteTag={() => this.handleDeleteTag(item)}
+          />
         );
       }),
       this.overflowCount && !this.isExpand ? (
@@ -409,15 +416,15 @@ export default class FilterByCondition extends tsc<object> {
           <span class='count-text'>{this.overflowCount}</span>
           <span class='icon-monitor icon-arrow-down' />
         </span>
-      ) : (
+      ) : this.hasAdd ? (
         <span
           key='__add__'
           class='filter-by-condition-tag type-add'
-          onClick={this.handleAdd}
+          onClick={this.handleAddTag}
         >
           <span class='icon-monitor icon-plus-line' />
         </span>
-      ),
+      ) : undefined,
       this.isExpand && (
         <span
           key={'__count__'}
@@ -464,10 +471,10 @@ export default class FilterByCondition extends tsc<object> {
                   left-icon='bk-icon icon-search'
                   placeholder={this.$t('请输入关键字')}
                   value={this.searchValue}
-                  onChange={this.handleSearchChange}
+                  onChange={this.handleSearchChangeDebounce}
                 />
               </div>
-              {this.valueCategoryOptions.length ? (
+              {this.searchValueCategoryOptions.length ? (
                 <div class='value-items-wrap'>
                   <div class='left-wrap'>
                     {this.valueCategoryOptions.map(item => (
