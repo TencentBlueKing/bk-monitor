@@ -2737,6 +2737,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             # 0. 更新mapping配置
             self.put_field_alias_mapping_to_es()
+            logger.info("update_index_and_aliases:put alias to es for table_id->[%s] success", self.table_id)
         except Exception as e:
             logger.error(
                 "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
@@ -2819,6 +2820,7 @@ class ESStorage(models.Model, StorageResultTable):
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
         :return: True | raise Exception
         """
+        # 0. 轮转前，刷新以获取最新值
         self.refresh_from_db()
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():

@@ -283,7 +283,6 @@ class ResultTable(models.Model):
         create_storage=True,
         data_label: Optional[str] = None,
         is_builtin=False,
-        # es_query_alias_settings=None,
     ):
         """
         创建一个结果表
@@ -2692,7 +2691,7 @@ class ResultTableFieldOption(OptionBase):
 
         for config_name, config_value in list(origin_option.items()):
             # 如果一个字段配置不是ES开头的，则跳过不再关注
-            if not config_name.startswith("es") or config_name == 'query_alias':
+            if not config_name.startswith("es"):
                 continue
 
             es_config[config_name[3:]] = config_value

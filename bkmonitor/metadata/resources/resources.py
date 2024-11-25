@@ -261,7 +261,7 @@ class ModifyResultTableResource(Resource):
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-            if ds.created_from == 'bkdata':
+            if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
                 result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
                 logger.info(
                     "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
@@ -1171,7 +1171,6 @@ class QueryTimeSeriesGroupResource(Resource):
         if time_series_group_name is not None:
             query_set = query_set.filter(time_series_group_name=time_series_group_name)
 
-        print(query_set)
         page_size = validated_request_data["page_size"]
         if page_size > 0:
             count = query_set.count()
