@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import { GROUP_OPTIONS } from './components/filter-by-condition/utils';
@@ -38,8 +38,8 @@ import GroupByCondition, {
 } from './components/group-by-condition/group-by-condition';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
-import K8sTableNew from './components/k8s-table-new/k8s-table-new';
-import { getK8sTableDataMock } from './components/k8s-table-new/utils';
+import K8sTableNew, { type K8sTableColumn, K8sTableColumnKeysEnum } from './components/k8s-table-new/k8s-table-new';
+import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
 import { K8sNewTabEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -60,11 +60,13 @@ const tabList = [
   {
     label: '数据明细',
     id: K8sNewTabEnum.DETAIL,
-    icon: 'icon-mc-detail',
+    icon: 'icon-mingxi',
   },
 ];
 @Component
 export default class MonitorK8sNew extends tsc<object> {
+  @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
+
   // 场景
   scene = 'performance';
   // 时间范围
@@ -231,13 +233,84 @@ export default class MonitorK8sNew extends tsc<object> {
    */
   getK8sList() {
     this.loading = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     getK8sTableDataMock(Math.floor(Math.random() * 101))
       .then(res => {
         this.$set(this, 'k8sTableData', res);
+        this.loadAsyncData(startTime, endTime);
       })
       .finally(() => {
         this.loading = false;
       });
+  }
+  /**
+   * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
+   */
+  loadAsyncData(startTime: number, endTime: number) {
+    const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col => col.asyncable);
+    const pods = (this.k8sTableData || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
+    for (const field of asyncColumns) {
+      getK8sTableAsyncDataMock({
+        start_time: startTime,
+        end_time: endTime,
+        column: field.id,
+        pods: pods,
+      }).then(podData => {
+        this.mapAsyncData(podData, field.id, asyncColumns);
+      });
+    }
+  }
+
+  /**
+   * @description 将异步数据数组结构为 key-value 的 map
+   * @param podData 异步数据
+   * @param field 当前column的key
+   * @param asyncColumns 需要异步加载的column字段对象
+   */
+  mapAsyncData(podData, field: K8sTableColumnKeysEnum, asyncColumns: K8sTableColumn[]) {
+    const dataMap = {};
+    if (podData?.length) {
+      for (const podItem of podData) {
+        if (podItem?.[K8sTableColumnKeysEnum.POD]) {
+          const columnItem = asyncColumns.find(item => item.id === field);
+          podItem[field].valueTitle = columnItem?.name || null;
+          dataMap[String(podItem?.[K8sTableColumnKeysEnum.POD])] = podItem[field];
+        }
+      }
+    }
+    this.renderTableBatchByBatch(field, dataMap || {}, asyncColumns);
+  }
+
+  /**
+   *
+   * @description: 按需渲染表格数据
+   * @param field 字段名
+   * @param dataMap 数据map
+   * @param asyncColumns 异步获取的column字段对象
+   */
+  renderTableBatchByBatch(field: string, dataMap: Record<string, any>, asyncColumns: K8sTableColumn[]) {
+    const setData = (currentIndex = 0) => {
+      let needBreak = false;
+      if (currentIndex <= this.k8sTableData.length && this.k8sTableData.length) {
+        const endIndex = Math.min(currentIndex + 2, this.k8sTableData.length);
+        for (let i = currentIndex; i < endIndex; i++) {
+          const item = this.k8sTableData[i];
+          item[field] = dataMap[String(item?.[K8sTableColumnKeysEnum.POD] || '')] || null;
+          needBreak = i === this.k8sTableData.length - 1;
+        }
+        if (!needBreak) {
+          window.requestIdleCallback(() => {
+            window.requestAnimationFrame(() => setData(endIndex));
+          });
+        } else {
+          const item = asyncColumns.find(col => col.id === field);
+          item.asyncable = false;
+        }
+      }
+    };
+    const item = asyncColumns.find(col => col.id === field);
+    item.asyncable = false;
+    setData(0);
   }
 
   setGroupFilters(filters: Array<number | string>) {
@@ -320,6 +393,7 @@ export default class MonitorK8sNew extends tsc<object> {
       default:
         return (
           <K8sTableNew
+            ref='k8sTableRef'
             activeTab={this.activeTab}
             loading={this.loading}
             tableData={this.k8sTableData}

@@ -35,7 +35,8 @@ import type { ITableColumn, TableRow } from '../../typings/table';
 
 import './k8s-table-new.scss';
 
-interface K8sTableColumn extends ITableColumn {
+export interface K8sTableColumn extends ITableColumn {
+  id: K8sTableColumnKeysEnum;
   k8s_filter?: boolean;
   k8s_group?: boolean;
 }
@@ -55,7 +56,7 @@ interface K8sTableNewEvent {
 /**
  * @description: k8s table column keys 枚举 (方便后期字段名维护)
  */
-enum K8sTableColumnKeysEnum {
+export enum K8sTableColumnKeysEnum {
   /**
    * @description: cluster - 集群
    */
@@ -123,16 +124,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.activeTab === K8sNewTabEnum.LIST;
   }
 
-  get tableColumns() {
+  get tableColumns(): K8sTableColumn[] {
     const map = this.getKeyToTableColumnsMap();
     return tabToTableColumnsMap[this.activeTab].map(key => map[key]);
   }
   // k8s 表格作用域插槽
   get tableScopedSlots() {
     return {
+      [K8sTableColumnKeysEnum.CLUSTER]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.CLUSTER),
       [K8sTableColumnKeysEnum.POD]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.POD),
+      [K8sTableColumnKeysEnum.WORKLOAD_TYPE]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.WORKLOAD_TYPE),
       [K8sTableColumnKeysEnum.WORKLOAD]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.WORKLOAD),
       [K8sTableColumnKeysEnum.NAMESPACE]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.NAMESPACE),
+      [K8sTableColumnKeysEnum.CONTAINER]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.CONTAINER),
     };
   }
 
@@ -169,9 +173,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         id: CLUSTER,
         name: 'cluster',
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 90,
+        showOverflowTooltip: false,
       },
       [POD]: {
         id: POD,
@@ -187,9 +192,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         id: WORKLOAD_TYPE,
         name: 'workload_type',
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 120,
+        showOverflowTooltip: false,
       },
       [WORKLOAD]: {
         id: WORKLOAD,
@@ -217,9 +223,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         id: CONTAINER,
         name: 'container',
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 120,
+        showOverflowTooltip: false,
       },
       [CPU]: {
         id: CPU,
@@ -228,6 +235,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: 'datapoints',
         width: null,
         min_width: 180,
+        asyncable: true,
       },
       [INTERNAL_MEMORY]: {
         id: INTERNAL_MEMORY,
@@ -236,6 +244,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: 'datapoints',
         width: null,
         min_width: 180,
+        asyncable: true,
       },
     };
   }
@@ -245,6 +254,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {Object} { column, prop, order }
    */
   handleSortChange({ prop, order }) {
+    console.log(prop, order);
     this.sortChange();
   }
 
@@ -254,6 +264,34 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   handleClearSearch() {
     this.clearSearch();
+  }
+
+  /**
+   * @description 表格列 filter icon 渲染配置方法
+   * @param {TableRow} row
+   * @param {K8sTableColumn} column
+   */
+  filterIconFormatter(row: TableRow, column: K8sTableColumn) {
+    return column.k8s_filter ? (
+      <i
+        class='icon-monitor icon-a-sousuo'
+        tabindex={0}
+      />
+    ) : null;
+  }
+
+  /**
+   * @description 表格列 group icon 渲染配置方法
+   * @param {TableRow} row
+   * @param {K8sTableColumn} column
+   */
+  groupIconFormatter(row: TableRow, column: K8sTableColumn) {
+    return column.k8s_group ? (
+      <i
+        class='icon-monitor icon-xiazuan'
+        tabindex={0}
+      />
+    ) : null;
   }
 
   /**
@@ -274,18 +312,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             {row[columnKey]}
           </span>
           <div class='col-item-operate'>
-            {column.k8s_filter ? (
-              <i
-                class='icon-monitor icon-a-sousuo'
-                tabindex={0}
-              />
-            ) : null}
-            {column.k8s_group ? (
-              <i
-                class='icon-monitor icon-xiazuan'
-                tabindex={0}
-              />
-            ) : null}
+            {this.filterIconFormatter(row, column)}
+            {this.groupIconFormatter(row, column)}
           </div>
         </div>
       );
