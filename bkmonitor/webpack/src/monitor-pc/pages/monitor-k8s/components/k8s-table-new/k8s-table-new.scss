@@ -16,6 +16,10 @@
     }
   }
 
+  .mini-time-series-chart-wrap {
+    height: 42px;
+  }
+
   .k8s-table-col-item {
     display: flex;
 
@@ -40,6 +44,10 @@
         margin-left: 10px;
         font-size: 14px;
         cursor: pointer;
+
+        &.is-active {
+          color: #3a84ff;
+        }
 
         &:hover {
           color: #3a84ff;

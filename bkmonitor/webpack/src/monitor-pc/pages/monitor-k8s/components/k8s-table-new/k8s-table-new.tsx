@@ -32,30 +32,41 @@ import { K8sNewTabEnum } from '../../typings/k8s-new';
 import CommonTable from '../common-table';
 
 import type { ITableColumn, TableRow } from '../../typings/table';
+import type { IGroupByChangeEvent } from '../group-by-condition/group-by-condition';
 
 import './k8s-table-new.scss';
 
-interface K8sTableColumn extends ITableColumn {
+export interface K8sTableColumn extends ITableColumn {
+  id: K8sTableColumnKeysEnum;
   k8s_filter?: boolean;
   k8s_group?: boolean;
 }
+
+export interface K8sTableSort {
+  prop: K8sTableColumnKeysEnum.CPU | K8sTableColumnKeysEnum.INTERNAL_MEMORY | null;
+  order: 'ascending' | 'descending' | null;
+}
+
+export type K8sTableGroupByEvent = Pick<IGroupByChangeEvent, 'checked' | 'id'>;
+
 interface K8sTableNewProps {
   activeTab: K8sNewTabEnum;
   tableData: any[];
+  groupFilters: Array<number | string>;
   loading: boolean;
 }
 interface K8sTableNewEvent {
-  onColClick: (param: any) => void;
+  onTextClick: (param: any) => void;
   onFilterChange: (param: any) => void;
-  onGroupChange: (param: any) => void;
-  onSortChange: (param: any) => void;
+  onGroupChange: (item: K8sTableGroupByEvent) => void;
+  onSortChange: (sort: K8sTableSort) => void;
   onClearSearch: () => void;
 }
 
 /**
  * @description: k8s table column keys 枚举 (方便后期字段名维护)
  */
-enum K8sTableColumnKeysEnum {
+export enum K8sTableColumnKeysEnum {
   /**
    * @description: cluster - 集群
    */
@@ -114,29 +125,31 @@ const tabToTableColumnsMap = {
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
   @Prop({ type: String }) activeTab: K8sNewTabEnum;
   @Prop({ type: Array }) tableData: any[];
-  @Prop({ type: String }) groupCondition: any[];
+  @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
   @Prop({ type: Array }) filterCondition: any[];
-  @Prop({ type: Object }) sortCondition: any;
   @Prop({ type: Boolean, default: false }) loading: boolean;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
   }
 
-  get tableColumns() {
+  get tableColumns(): K8sTableColumn[] {
     const map = this.getKeyToTableColumnsMap();
     return tabToTableColumnsMap[this.activeTab].map(key => map[key]);
   }
   // k8s 表格作用域插槽
   get tableScopedSlots() {
     return {
+      [K8sTableColumnKeysEnum.CLUSTER]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.CLUSTER),
       [K8sTableColumnKeysEnum.POD]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.POD),
+      [K8sTableColumnKeysEnum.WORKLOAD_TYPE]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.WORKLOAD_TYPE),
       [K8sTableColumnKeysEnum.WORKLOAD]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.WORKLOAD),
       [K8sTableColumnKeysEnum.NAMESPACE]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.NAMESPACE),
+      [K8sTableColumnKeysEnum.CONTAINER]: this.scopedSlotFormatter(K8sTableColumnKeysEnum.CONTAINER),
     };
   }
 
-  @Emit('colClick')
+  @Emit('textClick')
   colClick() {
     return {};
   }
@@ -147,13 +160,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   @Emit('groupChange')
-  groupChange() {
-    return {};
+  groupChange(item: K8sTableGroupByEvent) {
+    return item;
   }
 
   @Emit('sortChange')
-  sortChange() {
-    return {};
+  sortChange(sort: K8sTableSort) {
+    return sort;
   }
 
   @Emit('clearSearch')
@@ -167,15 +180,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return {
       [CLUSTER]: {
         id: CLUSTER,
-        name: 'cluster',
+        name: this.$t('cluster'),
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 90,
+        showOverflowTooltip: false,
       },
       [POD]: {
         id: POD,
-        name: 'Pod',
+        name: this.$t('Pod'),
         sortable: false,
         type: 'scoped_slots',
         width: null,
@@ -185,15 +199,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [WORKLOAD_TYPE]: {
         id: WORKLOAD_TYPE,
-        name: 'workload_type',
+        name: this.$t('workload_type'),
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 120,
+        showOverflowTooltip: false,
       },
       [WORKLOAD]: {
         id: WORKLOAD,
-        name: 'workload',
+        name: this.$t('workload'),
         sortable: false,
         type: 'scoped_slots',
         width: null,
@@ -204,7 +219,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [NAMESPACE]: {
         id: NAMESPACE,
-        name: 'namespace',
+        name: this.$t('namespace'),
         sortable: false,
         type: 'scoped_slots',
         width: null,
@@ -215,27 +230,30 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [CONTAINER]: {
         id: CONTAINER,
-        name: 'container',
+        name: this.$t('container'),
         sortable: false,
-        type: 'link',
+        type: 'scoped_slots',
         width: null,
         min_width: 120,
+        showOverflowTooltip: false,
       },
       [CPU]: {
         id: CPU,
-        name: 'CPU使用率',
+        name: this.$t('CPU使用率'),
         sortable: 'custom',
         type: 'datapoints',
         width: null,
         min_width: 180,
+        asyncable: true,
       },
       [INTERNAL_MEMORY]: {
         id: INTERNAL_MEMORY,
-        name: '内存使用率',
+        name: this.$t('内存使用率'),
         sortable: 'custom',
         type: 'datapoints',
         width: null,
         min_width: 180,
+        asyncable: true,
       },
     };
   }
@@ -244,8 +262,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 表格排序
    * @param {Object} { column, prop, order }
    */
-  handleSortChange({ prop, order }) {
-    this.sortChange();
+  handleSortChange(sortItem: K8sTableSort) {
+    this.sortChange(sortItem);
   }
 
   /**
@@ -254,6 +272,42 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   handleClearSearch() {
     this.clearSearch();
+  }
+
+  /**
+   * @description 表格列 filter icon 渲染配置方法
+   * @param {TableRow} row
+   * @param {K8sTableColumn} column
+   */
+  filterIconFormatter(row: TableRow, column: K8sTableColumn) {
+    return column.k8s_filter ? (
+      <i
+        class='icon-monitor icon-a-sousuo'
+        v-bk-tooltips={{ content: this.$t('添加为筛选项'), interactive: false }}
+      />
+    ) : null;
+  }
+
+  /**
+   * @description 表格列 group icon 渲染配置方法
+   * @param {TableRow} row
+   * @param {K8sTableColumn} column
+   */
+  groupIconFormatter(row: TableRow, column: K8sTableColumn) {
+    if (!column.k8s_group) {
+      return null;
+    }
+    const hasGroup = this.groupFilters.includes(column.id);
+    return (
+      <i
+        class={['icon-monitor', 'icon-xiazuan', { 'is-active': this.groupFilters.includes(column.id) }]}
+        v-bk-tooltips={{
+          content: this.$t(`${hasGroup ? '移除' : ''}下钻`),
+          interactive: false,
+        }}
+        onClick={() => this.groupChange({ id: column.id, checked: !hasGroup })}
+      />
+    );
   }
 
   /**
@@ -274,18 +328,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             {row[columnKey]}
           </span>
           <div class='col-item-operate'>
-            {column.k8s_filter ? (
-              <i
-                class='icon-monitor icon-a-sousuo'
-                tabindex={0}
-              />
-            ) : null}
-            {column.k8s_group ? (
-              <i
-                class='icon-monitor icon-xiazuan'
-                tabindex={0}
-              />
-            ) : null}
+            {this.filterIconFormatter(row, column)}
+            {this.groupIconFormatter(row, column)}
           </div>
         </div>
       );
