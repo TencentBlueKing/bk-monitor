@@ -89,8 +89,8 @@ export default class ConditionInput extends tsc<
   @Model('change', { default: () => [], type: Array }) conditionList!: any[];
 
   conditions = [];
-  menuList = [];
 
+  menuList = [];
   showSelectMenu = false;
   curSelectTarget = null;
   curConditionIndex = -1;
