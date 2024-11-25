@@ -202,12 +202,17 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
 
     this.conditionList = this.detail.dimensions
       .filter(item => item.display_value) // 过滤掉没有display_value的项
-      .map(item => ({
-        key: item.display_key,
-        value: [item.display_value],
-        method: 'eq',
-        ...additionalCondition,
-      }));
+      .map(item => {
+        if (this.dimensionList.findIndex(dimension => dimension.id === item.display_key) === -1) {
+          this.dimensionList.push({ id: item.display_key, name: item.display_key });
+        }
+        return {
+          key: item.display_key,
+          value: [item.display_value],
+          method: 'eq',
+          ...additionalCondition,
+        };
+      });
   }
 
   /* 点击添加按钮 */

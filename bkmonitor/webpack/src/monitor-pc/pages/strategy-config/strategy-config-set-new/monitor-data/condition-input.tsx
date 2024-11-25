@@ -89,7 +89,6 @@ export default class ConditionInput extends tsc<
   @Model('change', { default: () => [], type: Array }) conditionList!: any[];
 
   conditions = [];
-  readonlyDimension = true;
   menuList = [];
   showSelectMenu = false;
   curSelectTarget = null;
@@ -166,7 +165,6 @@ export default class ConditionInput extends tsc<
   }
 
   handleToggleKey(show: boolean, index: number) {
-    this.readonlyDimension = false;
     if (!show && !this.conditions[index].key) {
       this.handleDeleteKey(index);
     }
@@ -254,16 +252,6 @@ export default class ConditionInput extends tsc<
           {dimension.name}
         </span>
       </bk-option>
-    );
-  }
-  handleRenderReadonlyDimension(key) {
-    if (this.dimensionsList.findIndex(dimension => dimension.id === key) > -1) return;
-    return (
-      <bk-option
-        id={key}
-        key={key}
-        name={key}
-      />
     );
   }
   // value变化时触发
@@ -401,7 +389,6 @@ export default class ConditionInput extends tsc<
             on-toggle={e => this.handleToggleKey(e, index)}
           >
             {this.dimensionsList.map(dimension => this.handleRenderDimensionList(dimension))}
-            {this.readonlyDimension && this.handleRenderReadonlyDimension(item.key)}
             <div
               style={{ display: item.key ? 'flex' : 'none' }}
               class='extension'
