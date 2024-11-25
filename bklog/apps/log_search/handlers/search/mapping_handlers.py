@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import datetime
 import functools
 import re
 from collections import defaultdict
@@ -52,12 +53,14 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
+    MultiFieldsErrorException,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
@@ -69,6 +72,8 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
@@ -465,10 +470,22 @@ class MappingHandlers(object):
             only_search=self.only_search,
         )
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+    def _direct_latest_mapping(self, params):
         from apps.log_esquery.esquery.esquery import EsQuery
         from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
+
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
+            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+            latest_mapping = EsQuery(data).mapping()
+        else:
+            latest_mapping = BkLogApi.mapping(params)
+        return latest_mapping
+
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+            index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
+        ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         params = {
             "indices": self.indices,
@@ -479,12 +496,48 @@ class MappingHandlers(object):
             "end_time": end_time,
             "add_settings_details": False if only_search else True,
         }
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
-            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
-            latest_mapping = EsQuery(data).mapping()
-        else:
-            latest_mapping = BkLogApi.mapping(params)
-        return latest_mapping
+        if not storage_cluster_record_objs:
+            return self._direct_latest_mapping(params)
+
+        multi_execute_func = MultiExecuteFunc()
+        multi_num = 1
+        storage_cluster_ids = {self.storage_cluster_id}
+
+        # 获取当前使用的存储集群数据
+        multi_execute_func.append(
+            result_key=f"multi_search_{multi_num}", func=self._direct_latest_mapping, params=params
+        )
+
+        # 获取历史使用的存储集群数据
+        for storage_cluster_record_obj in storage_cluster_record_objs:
+            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                multi_params = copy.deepcopy(params)
+                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                multi_num += 1
+                multi_execute_func.append(
+                    result_key=f"multi_search_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                )
+                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+
+        multi_result = multi_execute_func.run()
+
+        # 合并多个集群的检索结果
+        merge_result = list()
+        try:
+            for _key, _result in multi_result.items():
+                if not _result:
+                    continue
+
+                if not merge_result:
+                    merge_result = _result
+                    continue
+
+                merge_result.extend(_result)
+        except Exception as e:
+            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
+            raise MultiFieldsErrorException()
+
+        return merge_result
 
     @staticmethod
     def _get_context_fields(final_fields_list):
@@ -775,11 +828,13 @@ class MappingHandlers(object):
 
                 # 为指定日志时间字段添加标识,时区和格式
                 if a_field_name == field_time_format_dict.get("field_name"):
-                    _field.update({
-                        "is_time": True,
-                        "field_time_zone": field_time_format_dict.get("field_time_zone"),
-                        "field_time_format": field_time_format_dict.get("field_time_format"),
-                    })
+                    _field.update(
+                        {
+                            "is_time": True,
+                            "field_time_zone": field_time_format_dict.get("field_time_zone"),
+                            "field_time_format": field_time_format_dict.get("field_time_format"),
+                        }
+                    )
 
         return fields_list
 
