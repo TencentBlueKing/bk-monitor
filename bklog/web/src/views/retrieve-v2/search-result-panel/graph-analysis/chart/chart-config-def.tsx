@@ -109,7 +109,8 @@ export const lineOrBarOptions = {
   color,
   legend: {
     type: 'scroll',
-    bottom: 0,
+    top: 'bottom',
+    left: 120,
     show: true,
     itemGap: 12,
     itemWidth: 12,
@@ -155,10 +156,10 @@ export const lineOrBarOptions = {
   },
   grid: {
     containLabel: true,
-    left: 0,
-    right: 26,
-    top: 16,
-    bottom: 0,
+    top: 28,
+    left: 80,
+    right: 40,
+    bottom: 40,
     backgroundColor: 'transparent',
   },
   xAxis: {
