@@ -36,6 +36,7 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard,
+  copyDashboard,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -531,13 +532,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
 
   /**
-   * 新增他提交
+   * 新增提交
    */
   async handleConfirm() {
     this.loading = true;
     const isPass = await this.handleValidate();
     if (isPass) {
-      const api = this.isDashboard || this.isCopyDashboard ? this.handleAddDashboard : this.handleAddFolder;
+      const api = this.isDashboard
+        ? this.handleAddDashboard
+        : this.isCopyDashboard
+          ? this.handleCopyDashboard
+          : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
       if (isSuccess) {
         this.showAddForm = false;
@@ -556,7 +561,25 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       type: 'dashboard',
     };
     return createDashboardOrFolder(params)
-      .then(() => true)
+      .then(res => {
+        this.$bkMessage({ message: `${this.$t('创建成功')}：${res?.title}`, theme: 'success' });
+        return true;
+      })
+      .catch(() => false);
+  }
+  /**
+   * 复制仪表盘
+   */
+  handleCopyDashboard() {
+    const params = {
+      dashboard_uid: this.checked,
+      folder_id: this.formData.dir,
+    };
+    return copyDashboard(params)
+      .then(res => {
+        this.$bkMessage({ message: `${this.$t('复制成功')}：${res?.title}`, theme: 'success' });
+        return true;
+      })
       .catch(() => false);
   }
   /**
@@ -786,15 +809,18 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             ref='dashboardForm'
             formType='vertical'
           >
-            {!this.isCopyDashboard && (
+            {
               <bk-form-item
-                label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
+                label={this.$t(this.isDashboard || this.isCopyDashboard ? '仪表盘名称' : '目录名称')}
                 property='name'
                 required
               >
-                <bk-input v-model={this.formData.name} />
+                <bk-input
+                  v-model={this.formData.name}
+                  readonly={this.isCopyDashboard}
+                />
               </bk-form-item>
-            )}
+            }
             {(this.isDashboard || this.isCopyDashboard) && (
               <bk-form-item
                 label={this.$t('所属目录')}
