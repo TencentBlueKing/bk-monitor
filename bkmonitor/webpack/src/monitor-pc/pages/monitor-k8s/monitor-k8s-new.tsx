@@ -36,11 +36,14 @@ import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
 } from './components/group-by-condition/group-by-condition';
+import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
+  type K8sTableClickEvent,
   type K8sTableColumn,
   K8sTableColumnKeysEnum,
+  type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
@@ -80,6 +83,7 @@ export default class MonitorK8sNew extends tsc<object> {
       order: null,
     },
   };
+  sliderShow = false;
   // 场景
   scene = 'performance';
   // 时间范围
@@ -247,11 +251,15 @@ export default class MonitorK8sNew extends tsc<object> {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     getK8sTableDataMock(Math.floor(Math.random() * 101))
       .then(res => {
-        this.$set(this, 'k8sTableData', res);
-        const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col => col.asyncable);
+        const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col =>
+          // @ts-ignore
+          Object.hasOwn(col, 'asyncable')
+        );
         for (const asyncColumn of asyncColumns) {
           asyncColumn.asyncable = true;
         }
+
+        this.$set(this, 'k8sTableData', res);
         this.loadAsyncData(startTime, endTime, asyncColumns);
       })
       .finally(() => {
@@ -416,7 +424,7 @@ export default class MonitorK8sNew extends tsc<object> {
    * @description 表格下钻点击回调
    * @param {K8sTableGroupByEvent} item
    */
-  handleTabGroupChange(item: K8sTableGroupByEvent) {
+  handleTableGroupChange(item: K8sTableGroupByEvent) {
     let ids = [];
     if (item?.checked) {
       ids = [...this.groupFilters, item.id];
@@ -424,6 +432,27 @@ export default class MonitorK8sNew extends tsc<object> {
       ids = this.groupFilters.filter(id => id !== item.id);
     }
     this.handleGroupChecked({ ...item, option: this.k8sGroupByRef?.dimensionOptionsMap?.[item.id], ids });
+  }
+
+  /**
+   * @description 表格 添加筛选/移除筛选 icon点击回调
+   * @param {K8sTableFilterByEvent} item
+   */
+  handleFilterChange(item: K8sTableFilterByEvent) {
+    console.log('handleFilterChange 待完善', item);
+  }
+
+  /**
+   * @description 表格文本点击回调
+   * @param {K8sTableClickEvent} item
+   */
+  handleTextClick(item: K8sTableClickEvent) {
+    console.log('handleTextClick 待完善', item);
+    this.handleSliderChange(true);
+  }
+
+  handleSliderChange(v: boolean) {
+    this.sliderShow = v;
   }
 
   tabContentRender() {
@@ -438,10 +467,10 @@ export default class MonitorK8sNew extends tsc<object> {
             groupFilters={this.groupFilters}
             loading={this.tableConfig.loading}
             tableData={this.k8sTableData}
-            onFilterChange={() => {}}
-            onGroupChange={this.handleTabGroupChange}
+            onFilterChange={this.handleFilterChange}
+            onGroupChange={this.handleTableGroupChange}
             onSortChange={this.handleTableSortChange}
-            onTextClick={() => {}}
+            onTextClick={this.handleTextClick}
           />
         );
     }
@@ -558,6 +587,10 @@ export default class MonitorK8sNew extends tsc<object> {
             <div class='content-main-wrap'>{this.tabContentRender()}</div>
           </div>
         </div>
+        <K8sDetailSlider
+          isShow={this.sliderShow}
+          onShowChange={this.handleSliderChange}
+        />
       </div>
     );
   }
