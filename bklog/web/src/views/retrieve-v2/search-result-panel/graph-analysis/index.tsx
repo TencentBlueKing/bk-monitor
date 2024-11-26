@@ -329,7 +329,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (this.isSqlMode) {
       return [
         <SqlEditor
-          ref='SqlEditor'
+          ref='sqlEditor'
           onChange={this.handleSqlQueryResultChange}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
@@ -359,7 +359,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   handleCanvasTypeChange(t) {
-    this.handleGraphCategoryClick(t), (this.activeCanvasType = t);
+    this.handleGraphCategoryClick(t);
+    this.activeCanvasType = t;
     this.chartCounter++;
   }
 
@@ -390,8 +391,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       return (
         <bk-exception
           class='bklog-chart-exception'
-          type='empty'
           scene='part'
+          type='empty'
         ></bk-exception>
       );
     }
@@ -406,17 +407,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           <div class='bk-exception-description'>请重新发起查询</div>
           <div class='bk-exception-footer'>
             <bk-button
+              class='mr10'
+              size='small'
               theme='primary'
               type='submit'
               onClick={this.handleEditorSearchClick}
-              class='mr10'
-              size='small'
             >
               查询
             </bk-button>
             <bk-button
-              size='small'
               class='mr10'
+              size='small'
               onClick={() => {
                 this.isSqlValueChanged = false;
               }}
@@ -432,57 +433,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderCanvasChartAndTable() {
-    if (!this.chartOptions.data?.list?.length) {
-      return [
-        <bk-exception
-          class='exception-wrap-item exception-part'
-          type='empty'
-          scene='part'
-        ></bk-exception>,
-      ];
-    }
-
-    if (this.isSqlValueChanged) {
-      return [
-        <bk-exception
-          class='exception-wrap-item'
-          type='500'
-        >
-          <span class='title'>图表查询配置已变更</span>
-          <div class='text-wrap'>
-            <span class='text'>请重新发起查询</span>
-            <div>
-              <bk-button
-                theme='primary'
-                type='submit'
-                // onClick="search"
-                class='mr10'
-                size='small'
-              >
-                查询
-              </bk-button>
-              <bk-button
-                size='small'
-                class='mr10'
-                onClick={() => {
-                  this.isSqlValueChanged = false;
-                }}
-              >
-                我知道了
-              </bk-button>
-            </div>
-          </div>
-        </bk-exception>,
-      ];
-    }
-
     return (
       <GraphChart
         chartCounter={this.chartCounter}
         chartOptions={this.chartOptions}
-      >
-        {this.getExceptionRender()}
-      </GraphChart>
+      ></GraphChart>
     );
   }
   async save() {
@@ -524,6 +479,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.chartData = data;
     this.$set(this, 'chartData', data);
     this.chartCounter++;
+    this.isSqlValueChanged = false;
   }
 
   updateChartData(axis, newValue) {
@@ -535,7 +491,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   render() {
     return (
       <div class='graph-analysis-index'>
-        <div class='graph-analysis-navi'>
+        <div
+          style='display: none;'
+          class='graph-analysis-navi'
+        >
           <div class='option-switch'>
             {/* <bk-switcher
               class='ml-medium mr-min'
@@ -555,16 +514,16 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               <span>概览</span>
             </div>
           </div> */}
-          <div class='option-btn'>
-            <bk-button
+          {/* <div class='option-btn'> */}
+          {/* <bk-button
               style='margin-right: 8px;'
               outline={true}
               theme='primary'
               onClick={this.save}
             >
               {this.$t('保存')}
-            </bk-button>
-            {/* <BookmarkPop
+            </bk-button> */}
+          {/* <BookmarkPop
               addition={this.uiQueryValue}
               // :class="{ disabled: isInputLoading }"
               search-mode='sql'
@@ -572,13 +531,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               onRefresh={this.handleRefresh}
             ></BookmarkPop> */}
 
-            {/* <bk-button
+          {/* <bk-button
               outline={true}
               onClick={this.handleAdd}
             >
               {this.$t('添加至仪表盘')}
             </bk-button> */}
-          </div>
+          {/* </div> */}
         </div>
 
         <div class='graph-analysis-body'>
@@ -618,6 +577,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 </span>
               </div>
               {this.renderCanvasChartAndTable()}
+              {this.getExceptionRender()}
             </div>
           </div>
           {/* )} */}

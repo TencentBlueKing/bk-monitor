@@ -1,35 +1,51 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { computed, defineComponent, Ref, ref } from 'vue';
-import useResizeObserve from '@/hooks/use-resize-observe';
 
-import useStore from '@/hooks/use-store';
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
+import useResizeObserve from '@/hooks/use-resize-observe';
+import useStore from '@/hooks/use-store';
+
 import PreviewSql from '../common/PreviewSql.vue';
+import SaveSql from '../save-sql';
+import useEditor from './use-editor';
 
 import './index.scss';
-import useEditor from './use-editor';
 
 export default defineComponent({
   emits: ['change', 'sql-change'],
-  setup(_, { emit }) {
+  setup(_, { emit, expose }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
     const isSyncSqlRequesting = ref(false);
     const queryResult = ref({});
     const isPreviewSqlShow = ref(false);
-    const sqlContent = ref(`SELECT
-    thedate,
-    dtEventTimeStamp,
-    iterationIndex,
-    log,
-    time
-FROM
-    100968_proz_rd_ds2_test.doris
-WHERE
-    thedate >= '20241120'
-    AND thedate <= '20241120'
-LIMIT 200;`);
+    const sqlContent = ref('');
 
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
@@ -114,9 +130,9 @@ LIMIT 200;`);
         <div class='sql-editor-tools'>
           <bk-button
             class='sql-editor-query-button'
-            theme='primary'
-            size='small'
             loading={isRequesting.value}
+            size='small'
+            theme='primary'
             onClick={handleQueryBtnClick}
           >
             <i class='bklog-icon bklog-bofang'></i>
@@ -138,19 +154,20 @@ LIMIT 200;`);
             {$t('预览查询 SQL')}
           </bk-button>
           <bk-popconfirm
-            trigger='click'
             width='288'
             content='此操作会覆盖当前SQL，请谨慎操作'
+            trigger='click'
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
               class='sql-editor-view-button'
-              size='small'
               loading={isSyncSqlRequesting.value}
+              size='small'
             >
               {$t('同步查询条件到SQL')}
             </bk-button>
           </bk-popconfirm>
+          <SaveSql></SaveSql>
         </div>
       );
     };
@@ -158,6 +175,10 @@ LIMIT 200;`);
     const handleUpdateIsContentShow = val => {
       isPreviewSqlShow.value = val;
     };
+
+    expose({
+      handleQueryBtnClick,
+    });
 
     return {
       refRootElement,
@@ -168,7 +189,7 @@ LIMIT 200;`);
       handleQueryBtnClick,
     };
   },
-  render(h) {
+  render() {
     return (
       <div class='bklog-sql-editor-root'>
         <div

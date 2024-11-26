@@ -2,7 +2,6 @@
   width: 100%;
 
   .graph-analysis-navi {
-    // position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -78,10 +77,6 @@
     }
 
     .option-btn {
-      // position: absolute;
-      // top: 0;
-      // right: 48px;
-      // bottom: 0;
       display: flex;
       align-items: center;
       margin-right: 20px;
@@ -91,13 +86,13 @@
   .graph-analysis-body {
     display: flex;
     width: 100%;
-    height: calc(100vh - 267px);
+    height: calc(100vh - 220px);
 
     .body-left {
       width: calc(100% - 360px);
+      overflow: auto;
       background: #f5f7fa;
       border-right: solid 1px #dcdee5;
-      overflow: auto;
 
       .graph-axios-options {
         position: relative;
@@ -170,13 +165,14 @@
       }
 
       .graph-canvas-options {
+        position: relative;
+        display: flex;
+        flex-direction: column;
         padding: 12px 16px;
         margin: 16px 0;
         margin-bottom: 0;
         background: #ffffff;
         border-radius: 2px;
-        display: flex;
-        flex-direction: column;
         box-shadow:
           0 -2px 4px -1px #1919290d,
           -2px 0 4px -1px #1919290d,
@@ -230,12 +226,12 @@
         .bklog-chart-exception {
           position: absolute;
           top: 0;
-          left: 0;
           right: 0;
           bottom: 0;
-          backdrop-filter: blur(6px);
-          background-color: #ffffff80;
+          left: 0;
           padding-top: 120px;
+          background-color: #ffffff80;
+          backdrop-filter: blur(6px);
 
           .bk-exception-title {
             margin-top: 8px;
