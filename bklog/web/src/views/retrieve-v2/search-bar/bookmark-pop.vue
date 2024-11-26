@@ -213,7 +213,7 @@
 
   const sqlString = computed(() => {
     if (props.searchMode === 'sql' || props.searchMode === 'sqlChart') {
-      return props.sql;
+      return props.keyword;
     }
 
     return additionString.value;
@@ -225,7 +225,7 @@
 
     let searchParams =
     props.searchMode === 'ui'
-    ? { addition: formatAddition.value.filter(v => v.field !== 'ip-select'), keyword: '*' } : { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) };
+    ? { addition: formatAddition.value.filter(v => v.field !== 'ip-select'), keyword: '*' } : { keyword: props.keyword, addition: [], ...(props.extendParams ?? {}) };
     const data = {
       name,
       group_id,
