@@ -73,8 +73,8 @@ class ChartHandler(object):
         根据过滤条件生成sql
         :param params: 过滤条件
         """
-        start_time = params["start_time"]
-        end_time = params["end_time"]
+        start_time = params["start_time"] * 1000
+        end_time = params["end_time"] * 1000
 
         sql = f"WHERE dtEventTimeStamp>={start_time} AND dtEventTimeStamp<={end_time}"
         addition = params["addition"]
@@ -197,7 +197,9 @@ class SQLChartHandler(ChartHandler):
         # 接口中不存在时,构造result_schema
         if not result_schema and data_list:
             for key, value in data_list[0].items():
-                if isinstance(value, int):
+                if key in ["dtEventTimeStamp", "dtEventTime", "time"]:
+                    field_type = "date"
+                elif isinstance(value, int):
                     field_type = "long"
                 elif isinstance(value, float):
                     field_type = "double"
