@@ -358,6 +358,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
     @classmethod
     def converter_to_data(cls, validate_data, tree_converter):
+        if isinstance(tree_converter, dict) and not tree_converter:
+            return {}
+
         if not tree_converter.tree:
             return {}
 
