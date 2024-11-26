@@ -367,7 +367,7 @@ class DataSource(models.Model):
         # 从GSE接口分配dataid
         try:
             params = {
-                "metadata": {"channel_id": 1574283, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+                "metadata": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
                 "operation": {"operator_name": operator},
             }
             result = api.gse.add_route(**params)
