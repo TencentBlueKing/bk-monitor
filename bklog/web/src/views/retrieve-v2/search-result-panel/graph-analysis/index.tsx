@@ -99,7 +99,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   ];
 
   basicInfoTitle = {
-    show: true,
+    show: false,
     title: '',
   };
 
@@ -108,10 +108,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  basicInfoDescription = {
-    show: false,
-    title: '',
-  };
+  // basicInfoDescription = {
+  //   show: false,
+  //   title: '',
+  // };
 
   fieldList = [1];
   advanceSetting = false;
@@ -266,24 +266,24 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           ></bk-input>
         )}
       </div>,
-      <div class='basic-info-row'>
-        <bk-checkbox
-          v-model={this.basicInfoDescription.show}
-          checked={false}
-          false-value={false}
-          true-value={true}
-        >
-          {this.$t('描述')}
-        </bk-checkbox>
-        {this.basicInfoDescription.show && (
-          <bk-input
-            style='margin-top: 8px;'
-            v-model={this.basicInfoDescription.title}
-            placeholder={this.$t('请输入描述')}
-            type='textarea'
-          ></bk-input>
-        )}
-      </div>,
+      // <div class='basic-info-row'>
+      //   <bk-checkbox
+      //     v-model={this.basicInfoDescription.show}
+      //     checked={false}
+      //     false-value={false}
+      //     true-value={true}
+      //   >
+      //     {this.$t('描述')}
+      //   </bk-checkbox>
+      //   {this.basicInfoDescription.show && (
+      //     <bk-input
+      //       style='margin-top: 8px;'
+      //       v-model={this.basicInfoDescription.title}
+      //       placeholder={this.$t('请输入描述')}
+      //       type='textarea'
+      //     ></bk-input>
+      //   )}
+      // </div>,
     ];
   }
 
