@@ -31,7 +31,6 @@ import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
 import SqlPanel from './SqlPanel.vue';
-import GraphTable from './chart/graph-table.vue';
 import GraphChart from './chart/index.tsx';
 import FieldSettings from './common/FieldSettings.vue';
 import DashboardDialog from './dashboardDialog.vue';
@@ -66,7 +65,6 @@ enum GraphCategory {
     DashboardDialog,
     TagInput,
     SqlPanel,
-    GraphTable,
     GraphChart,
     FieldSettings,
     SqlEditor,
@@ -84,7 +82,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   yAxis = [];
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
-  hidden = [];
+  hiddenFields = [];
   dimensions = [];
   uiQueryValue = [];
   sqlQueryValue = '';
@@ -186,6 +184,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       type: chartType,
       dimensions: this.dimensions,
       data: this.chartData.data,
+      category: this.activeGraphCategory,
+      hiddenFields: this.hiddenFields,
     };
   }
 
@@ -210,7 +210,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   @Watch('storedChartParams', { deep: true })
   handleChartParamsChange() {
     if (this.storedChartParams) {
-      ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions'].forEach(key => {
+      ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions', 'hiddenFields'].forEach(key => {
         if (this.storedChartParams[key]) {
           Object.assign(this, { [key]: this.storedChartParams[key] });
         }

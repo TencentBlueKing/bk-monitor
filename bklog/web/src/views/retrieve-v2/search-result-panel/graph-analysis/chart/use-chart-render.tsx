@@ -132,7 +132,7 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
 
     (dataList ?? []).forEach(item => {
       // 将多个维度组合为一个标签
-      const groupKey = dimensions.map(dim => item[dim]).join(' - ');
+      const groupKey = dimensions.map(dim => item[dim]).join(',');
       if (!aggregatedData[groupKey]) {
         aggregatedData[groupKey] = 0;
       }
