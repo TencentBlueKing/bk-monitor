@@ -125,17 +125,21 @@ from monitor_web.models import CustomEventGroup
 logger = logging.getLogger("root")
 
 
-class GetFtaData(Resource):
+class GetFourMetricsData(Resource):
     """
     4线策略告警统计
+    在线： 在线 或 online
+    登录： 登录 或 登陆 或 login
+    注册： 注册 或 registation 或 reg
+    对局： 对局 或 排队 或 battle 或 bat
     """
 
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
         thedate = validated_request_data.get("thedate", None)
-        # 获取日期
+        biz_ids = validated_request_data.get("biz_ids", "")
         biz_list = api.cmdb.get_business()
-        target_biz_ids = []
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
         # 如果有预期的业务 id 则取预期的业务内容
         if target_biz_ids:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
@@ -143,13 +147,14 @@ class GetFtaData(Resource):
             biz_info = {biz.bk_biz_id: biz for biz in biz_list}
 
         if not thedate:
-            # 如果没有传入指定日期 则获取上一周的日期
+            # 获取日期
+            # 如果没有传入指定日期 则获取上一周的日期 四线以每周计
             start_time, end_time = get_previous_week_range_unix()
         else:
             start_time, end_time = get_day_range_unix(thedate)
 
         ret = []
-        scenario = constants.QuickSolutionsConfig.SCENARIO
+        scenario = constants.SCENARIO
         # 日期为第一层 再分业务获取对应的告警数量
         for day_start, day_end in generate_date_ranges(start_time, end_time):
             # 初始化存储映射 告警名称/业务
@@ -223,15 +228,35 @@ class GetTmpData(Resource):
         start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
             "end_time", None
         )
+        biz_ids = validated_request_data.get("biz_ids", "")
+        thedate = validated_request_data.get("thedate", None)
+
+         # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
+        if not thedate:
+            start_time, end_time = get_previous_month_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix(thedate)
         biz_list = api.cmdb.get_business()
-        target_biz_ids = []
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
+        # 检查是否有传入目标业务列表 如果没有 则走事件中心先查询有 tmp 告警来源的业务
         if target_biz_ids:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
         else:
-            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
-        # 如果都没未指定时间，则默认为上一个月 且必须以 unix 时间传入为准
-        if not start_time and not end_time:
-            start_time, end_time = get_previous_month_range_unix()
+            tmp_biz_params = {
+                'bk_biz_ids': [-1],
+                'status': [],
+                'conditions': [],
+                'query_string': "",
+                'start_time': start_time,
+                'end_time': end_time,
+                'fields': ['bk_biz_id'],
+                'size': 100,
+                'bk_biz_id': -4228445,
+            }
+            biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
+            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数 
+            # 考虑到还要根据过滤条件 符合的其实更少
 
         ret = {}
         results = []
@@ -240,7 +265,7 @@ class GetTmpData(Resource):
             params = {
                 'bk_biz_ids': [biz],
                 'status': [],
-                'conditions': constants.QuickSolutionsConfig.CONDITIONS_REQ,
+                'conditions': constants.CONDITIONS_REQ,
                 'query_string': "",
                 'start_time': start_time,
                 'end_time': end_time,
@@ -269,7 +294,7 @@ class GetTmpData(Resource):
             # 在内存读写文件 避免污染 Pod 的 OS 文件
             output.write('\ufeff')
             # 写入 utf-8 bom 避免纯文本乱码
-            fieldnames = constants.QuickSolutionsConfig.TMP_HEADERS
+            fieldnames = constants.TMP_HEADERS
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             for row in results:
@@ -282,9 +307,9 @@ class GetTmpData(Resource):
             return results
 
 
-class GetFtaStrategy(Resource):
+class GetFourMetricsStrategy(Resource):
     """
-    游戏业务下统计业务相关策略数据接口
+    游戏业务下四线统计 业务相关策略数据接口
     """
 
     def perform_request(self, validated_request_data):
@@ -297,7 +322,7 @@ class GetFtaStrategy(Resource):
         # 策略业务统计
         results_format = validated_request_data.get("results", "json")
         biz_list = api.cmdb.get_business()
-        scenario = constants.QuickSolutionsConfig.SCENARIO
+        scenario = constants.SCENARIO
         to_be_deleted = set()
         Biz = namedtuple("Biz", ["name", "info"])
         biz_map = {biz.bk_biz_id: Biz(biz.display_name, defaultdict(int)) for biz in biz_list if biz.bk_biz_id > 0}
