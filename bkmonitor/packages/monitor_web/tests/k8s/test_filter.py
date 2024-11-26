@@ -275,32 +275,94 @@ class TestK8sListResources(TestCase):
         # 验证workload meta
         meta = load_resource_meta(validated_request_data["resource_type"], 2, "BCS-K8S-00000")
         # 验证meta类型
-        self.assertIsInstance(meta, K8sNamespaceMeta)
+        self.assertIsInstance(meta, K8sWorkloadMeta)
         query_set = meta.filter.filter_queryset
         # 验证orm sql
         self.assertEqual(
             str(query_set.query),
             (
-                'SELECT `bkmonitor_bcsworkload`.`bk_biz_id`, '
-                '`bkmonitor_bcsworkload`.`bcs_cluster_id`, '
-                '`bkmonitor_bcsworkload`.`namespace` FROM `bkmonitor_bcsworkload` WHERE '
-                '(`bkmonitor_bcsworkload`.`bcs_cluster_id` = BCS-K8S-00000 AND '
-                '`bkmonitor_bcsworkload`.`bk_biz_id` = 2)'
+                'SELECT `bkmonitor_bcsworkload`.`id`, `bkmonitor_bcsworkload`.`bk_biz_id`, '
+                '`bkmonitor_bcsworkload`.`bcs_cluster_id`, `bkmonitor_bcsworkload`.`type`, '
+                '`bkmonitor_bcsworkload`.`name`, `bkmonitor_bcsworkload`.`namespace` FROM '
+                '`bkmonitor_bcsworkload` WHERE (`bkmonitor_bcsworkload`.`bcs_cluster_id` = '
+                'BCS-K8S-00000 AND `bkmonitor_bcsworkload`.`bk_biz_id` = 2)'
             ),
         )
         # 验证promql
         self.assertEqual(
             meta.meta_prom,
-            'sum by (bk_biz_id,bcs_cluster_id,namespace) '
-            '(kube_namespace_labels{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
+            'sum by (workload_kind, workload_name, namespace) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
+        )
+        orm_resource = (
+            BCSWorkload.objects.filter(**validated_request_data["filter_dict"])
+            .filter(name__icontains=validated_request_data["query_string"])
+            .only(*K8sWorkloadMeta.only_fields)
         )
         # 验证get_from_meta
-        orm_resource = [
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking"}),
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "default"}),
+        workload_list = ListK8SResources()(validated_request_data)
+        self.assertEqual(workload_list, [obj.to_meta_dict() for obj in orm_resource])
+
+        # 验证promql with  filter_dict AND query_string
+        ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
+        meta.filter.add(
+            load_resource_filter(
+                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+            )
+        )
+        self.assertEqual(
+            meta.meta_prom,
+            'sum by (workload_kind, workload_name, namespace) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
+            'bk_biz_id="2",namespace="blueking",workload_name=~"monitor"})',
+        )
+        query_result = [
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-monitor-web",
+                },
+                "target": "{namespace=blueking, workload_kind=Deployment, workload_name=bk-monitor-web}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [587.75, 1732602420000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-monitor-web-beat",
+                },
+                # 历史出现的数据
+                "target": "{namespace=blueking, workload_kind=Deployment, workload_name=bk-monitor-web-beat}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [1.68, 1732602420000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
         ]
-        self.assertEqual(meta.get_from_meta(), orm_resource)
-        # 带上历史数据, 去重
+        # 附带历史数据
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": query_result}
+            validated_request_data["with_history"] = True
+            workload_list = ListK8SResources()(validated_request_data)
+            self.assertEqual(
+                workload_list,
+                (
+                    [obj.to_meta_dict() for obj in orm_resource]
+                    + [BCSWorkload(namespace="blueking", type="Deployment", name="bk-monitor-web-beat").to_meta_dict()]
+                ),
+            )
 
     def test_with_pod(self):
         pass

@@ -87,11 +87,13 @@ class WorkloadFilter(ResourceFilter):
                 "workload_name": workload_name.strip(),
             }
         else:
+            if self.fuzzy:
+                return {"workload_name__icontains": self.value[0].strip()}
             return {"workload_name": self.value[0].strip()}
 
     def filter_string(self):
         if self.fuzzy:
-            return f'''workload_name=~"{self.filter_dict['workload_name']}"'''
+            return f'''workload_name=~"{self.value[0].strip()}"'''
         where = ""
         for field, value in self.filter_dict.items():
             where += "," if where else ""

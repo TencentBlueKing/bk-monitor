@@ -21,6 +21,8 @@ class FilterCollection(object):
         self.filters = dict()
         self.meta = meta
         self.query_set = meta.resource_class.objects.all()
+        if meta.only_fields:
+            self.query_set = self.query_set.only(*self.meta.only_fields)
 
     def add(self, filter_obj):
         self.filters[filter_obj.filter_uid] = filter_obj
@@ -67,6 +69,7 @@ class K8sResourceMeta(object):
     resource_field = ""
     resource_class = None
     column_mapping = {}
+    only_fields = []
 
     def __init__(self, bk_biz_id, bcs_cluster_id):
         self.bk_biz_id = bk_biz_id
@@ -204,6 +207,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     resource_field = "workload_name"
     resource_class = BCSWorkload
     column_mapping = {"workload_kind": "type", "workload_name": "name"}
+    only_fields = ["type", "name", "namespace", "bk_biz_id", "bcs_cluster_id"]
 
     @property
     def meta_prom(self):
