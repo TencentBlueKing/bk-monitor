@@ -12,9 +12,16 @@
     position: absolute;
     bottom: 6px;
     left: 16px;
+    display: flex;
 
-    button {
+    button,
+    .bklog-sqleditor-bookmark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
       margin-right: 8px;
+      cursor: pointer;
 
       &:not(.sql-editor-query-button) {
         height: 28px;
