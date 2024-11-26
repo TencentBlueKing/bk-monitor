@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.iam import ActionEnum
@@ -147,14 +146,12 @@ class GrafanaViewSet(ResourceViewSet):
             "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
         ),
         # profile 查询
-        ResourceRoute("POST", resource.grafana.query_graph_profile, endpoint="query_graph_profile"),
+        ResourceRoute("POST", resource.apm_web.grafana_query_profile, endpoint="query_graph_profile"),
         # 获得应用服务列表
-        ResourceRoute(
-            "GET", resource.grafana.get_profile_application_service, endpoint="get_profile_application_service"
-        ),
+        ResourceRoute("GET", resource.apm_web.list_application_services, endpoint="get_profile_application_service"),
         # 获得profile类型
-        ResourceRoute("GET", resource.grafana.get_profile_type, endpoint="get_profile_type"),
+        ResourceRoute("GET", resource.apm_web.query_services_detail, endpoint="get_profile_type"),
         # 获得profile维度，可选值
-        ResourceRoute("GET", resource.grafana.get_profile_label, endpoint="get_profile_label"),
-        ResourceRoute("GET", resource.grafana.get_profile_label_values, endpoint="get_profile_label_values"),
+        ResourceRoute("GET", resource.apm_web.grafana_query_profile_label, endpoint="get_profile_label"),
+        ResourceRoute("GET", resource.apm_web.grafana_query_profile_label_values, endpoint="get_profile_label_values"),
     ]

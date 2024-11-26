@@ -26,6 +26,8 @@ DESCRIBING_SAMPLE_UNIT = "count"
 LARGE_SERVICE_MAX_QUERY_SIZE = 5000
 # 普通 profile 服务最大可以查询 10000条 sample 数据
 NORMAL_SERVICE_MAX_QUERY_SIZE = 10000
+# grafana 查询的 label 最大数量
+GRAFANA_LABEL_MAX_SIZE = 1000
 
 
 class InputType(Enum):
