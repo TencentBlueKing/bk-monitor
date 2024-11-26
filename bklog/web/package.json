@@ -67,7 +67,6 @@
     "qs": "^6.11.2",
     "resize-detector": "0.3.0",
     "sass-loader": "^14.2.1",
-    "sql-formatter": "^15.4.6",
     "thread-loader": "^4.0.4",
     "throttle-debounce": "^5.0.0",
     "tippy.js": "^6.3.7",

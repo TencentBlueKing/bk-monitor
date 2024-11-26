@@ -179,7 +179,7 @@
           :addition="uiQueryValue"
           :class="{ disabled: isInputLoading }"
           :search-mode="queryParams[activeIndex]"
-          :sql="sqlQueryValue"
+          :keyword="sqlQueryValue"
           @refresh="handleRefresh"
         ></BookmarkPop>
         <!-- <span class="disabled bklog-icon bklog-set-icon"></span> -->

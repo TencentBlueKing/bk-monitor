@@ -5,7 +5,6 @@ import useStore from '@/hooks/use-store';
 import $http from '@/api/index.js';
 import useLocale from '@/hooks/use-locale';
 import PreviewSql from '../common/PreviewSql.vue';
-import { format } from 'sql-formatter';
 import './index.scss';
 import useEditor from './use-editor';
 
@@ -116,9 +115,8 @@ LIMIT 200;`);
           },
         })
         .then(resp => {
-          const formattedSql = format(resp.data.sql);
-          sqlContent.value = formattedSql;
-          editorInstance.value.setValue(formattedSql);
+          sqlContent.value = resp.data.sql;
+          editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
         })
         .finally(() => {

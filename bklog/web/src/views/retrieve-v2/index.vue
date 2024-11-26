@@ -185,7 +185,7 @@
   //   },
   // );
   watch(
-    () => store.state.panelListTab,
+    () => store.state.ids,
     (newValue) => {
       if (!newValue) return
       const tabMap = {
@@ -195,7 +195,6 @@
       const newTab = tabMap[newValue];
       if (newTab && activeTab.value !== newTab) {
         activeTab.value = newTab;
-        store.commit('updateCollectTab','');
       }
       }
   );

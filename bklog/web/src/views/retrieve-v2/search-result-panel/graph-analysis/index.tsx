@@ -203,49 +203,52 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
-  get favoriteData() {
+  get extendParams() {
     return {
-      basicInfoTitle: this.basicInfoTitle.title,
-      basicInfoDescription: this.basicInfoDescription.title,
-      xFields: this.xAxis,
-      yFields: this.yAxis,
-      type: this.activeCanvasType,
-      dimensions: this.dimensions,
-      sql: this.sqlContent
-      // data: this.chartData.data,
+      favorite_type: 'chart',
+      chart_params: {
+        basicInfoTitle: this.basicInfoTitle.title,
+        basicInfoDescription: this.basicInfoDescription.title,
+        xFields: this.xAxis,
+        yFields: this.yAxis,
+        type: this.activeCanvasType,
+        dimensions: this.dimensions,
+        sql: this.sqlContent
+      },
+      search_mode: 'sql'
     }
   }
 
-  get favoriteChartData() {
-    return this.$store.state.chartData
-  }
-  @Watch('favoriteChartData', { immediate: true, deep: true })
-  handleIsShowChange(val) {
-    this.$nextTick(() => {
-      if (!val.params) return;
-      const {
-        basicInfoTitle,
-        basicInfoDescription,
-        xFields,
-        yFields,
-        type,
-        dimensions,
-        sql
-      } = val.params.chart_params;
-      this.basicInfoDescription = {
-        show: !!basicInfoDescription,
-        title: basicInfoTitle,
-      };
-      this.basicInfoTitle.title = basicInfoTitle;
-      this.activeGraphCategory = type;
-      this.activeCanvasType = type;
-      this.initialSqlContent = sql;
+  // get favoriteChartData() {
+  //   return this.$store.state.chartData
+  // }
+  // @Watch('favoriteChartData', { immediate: true, deep: true })
+  // handleIsShowChange(val) {
+  //   this.$nextTick(() => {
+  //     if (!val.params) return;
+  //     const {
+  //       basicInfoTitle,
+  //       basicInfoDescription,
+  //       xFields,
+  //       yFields,
+  //       type,
+  //       dimensions,
+  //       sql
+  //     } = val.params.chart_params;
+  //     this.basicInfoDescription = {
+  //       show: !!basicInfoDescription,
+  //       title: basicInfoTitle,
+  //     };
+  //     this.basicInfoTitle.title = basicInfoTitle;
+  //     this.activeGraphCategory = type;
+  //     this.activeCanvasType = type;
+  //     this.initialSqlContent = sql;
 
-      this.dimensions = dimensions;
-      this.xAxis = xFields;
-      this.yAxis = yFields;
-    })
-  }
+  //     this.dimensions = dimensions;
+  //     this.xAxis = xFields;
+  //     this.yAxis = yFields;
+  //   })
+  // }
   handleEditorSearchClick() {
     (this.$refs.sqlEditor as any)?.handleQueryBtnClick();
   }
@@ -594,8 +597,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               addition={this.uiQueryValue}
               // :class="{ disabled: isInputLoading }"
               search-mode='sqlChart'
-              sql={this.sqlContent}
-              favoriteChartData={this.favoriteData}
+              keyword={this.sqlContent}
+              extendParams={this.extendParams}
             // onRefresh={this.handleRefresh}
             ></BookmarkPop>
 

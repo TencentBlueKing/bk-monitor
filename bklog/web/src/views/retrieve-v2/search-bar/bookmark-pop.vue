@@ -8,7 +8,7 @@
   import $http from '../../../api';
 
   const props = defineProps({
-    sql: {
+    keyword: {
       default: '',
       type: String,
       required: true,
@@ -24,8 +24,7 @@
       type: String,
       required: true,
     },
-    favoriteChartData:{
-      default: () => ({}),
+    extendParams:{
       type: Object,
     }
   });
@@ -51,7 +50,6 @@
     // 收藏参数
     space_uid: -1,
     index_set_id: -1,
-    favorite_type:'',
     name: '',
     group_id: undefined,
     created_by: '',
@@ -71,8 +69,7 @@
     index_set_name: '',
     index_set_names: [],
     visible_type: 'public',
-    display_fields: [],
-    chart_params:{}
+    display_fields: []
   });
   const spaceUid = computed(() => store.state.spaceUid);
   const isShowAddGroup = ref(true); // 是否新增组
@@ -226,36 +223,9 @@
   const handleCreateRequest = async () => {
     const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
-    // const searchParams =
-    //   props.searchMode === 'sql'
-    //     ? { keyword: props.sql, addition: [] }
-    //     : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
-    let searchParams;
-    switch (props.searchMode) {
-      case 'sql':
-        searchParams = { keyword: props.sql, addition: [] };
-        break;
-
-      case 'ui':
-        searchParams = {
-          addition: formatAddition.value.filter(v => v.field !== '_ip-select_'),
-          keyword: '*',
-        };
-        break;
-
-      case 'sqlChart':
-        searchParams = { 
-          keyword: props.sql,
-          addition: [],
-          favorite_type: 'chart',
-          chart_params: props.favoriteChartData,
-          search_mode: 'sql'
-         };
-        break;
-      default:
-        break;
-    }
-    
+    let searchParams =
+    props.searchMode === 'ui'
+    ? { addition: formatAddition.value.filter(v => v.field !== 'ip-select'), keyword: '*' } : { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) };
     const data = {
       name,
       group_id,

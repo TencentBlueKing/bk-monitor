@@ -259,13 +259,13 @@ export default class CollectIndex extends tsc<IProps> {
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
       return;
     }
-    this.$store.commit('updateCollectTab',value.favorite_type);
+    // this.$store.commit('updateCollectTab',value.favorite_type);
    
     const cloneValue = deepClone(value);
-    if(value.favorite_type === 'chart'){
-      this.$store.commit('updateChartData',cloneValue);
-      return
-    }
+    // if(value.favorite_type === 'chart'){
+    //   this.$store.commit('updateChartData',cloneValue);
+    //   return
+    // }
     this.activeFavorite = cloneValue;
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
