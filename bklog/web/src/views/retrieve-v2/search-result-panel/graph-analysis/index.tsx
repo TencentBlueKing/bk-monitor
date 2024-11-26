@@ -213,13 +213,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleChartParamsChange() {
     if (this.storedChartParams) {
       [
-<<<<<<< HEAD
         // 'basicInfoTitle',
         // 'basicInfoDescription',
-=======
-        'basicInfoTitle',
-        'basicInfoDescription',
->>>>>>> df415bdc7dafc1c7c300cbb52b7e0f55bed0be5f
         'xFields',
         'yFields',
         'activeGraphCategory',
