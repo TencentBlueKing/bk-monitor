@@ -163,7 +163,7 @@ class QueryProfileDataResource(QueryDataResource):
     临时提供给 Profile 类型，一个独立的查询地址 (you can delete me if you need)
     """
 
-    base_url = settings.BKDATA_QUERY_API_BASE_URL or QueryDataResource.base_url
+    base_url = settings.BKDATA_PROFILE_QUERY_API_BASE_URL or QueryDataResource.base_url
 
 
 class CommonRequestSerializer(serializers.Serializer):
