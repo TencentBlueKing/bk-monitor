@@ -168,7 +168,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   get dialogTop() {
-    return window.innerHeight;
+    return (window.innerHeight - 720) / 2;
   }
 
   get appName() {
@@ -220,7 +220,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Watch('tableListData', { immediate: true })
   handleListData(val: IListItem[]) {
     this.filterOpt = {};
-    console.log(val, 'tableListData');
+    // console.log(val, 'tableListData');
   }
 
   get showTableList() {
@@ -459,9 +459,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       return;
     }
     const { kind, timeParams, pointTime } = this.dimensionParam;
-    const interval = pointTime?.startTime ? 60 : 0;
-    const from = (timeParams.start_time - interval) * 1000;
-    const to = timeParams.end_time * 1000;
+    /** 是否选中了图表中的某个点 */
+    const isHasPointTime = pointTime?.startTime;
+    const interval = isHasPointTime ? 60 : 0;
+    const from = isHasPointTime ? (timeParams.start_time - interval) * 1000 : this.timeRange[0];
+    const to = isHasPointTime ? timeParams.end_time * 1000 : this.timeRange[1];
 
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
@@ -574,7 +576,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   @Watch('filterOpt', { deep: true })
   handleFilterOpt(val) {
-    console.log(val, 'val');
+    // console.log(val, 'val');
   }
   fieldFilterMethod(value, row, column) {
     const { property } = column;
@@ -1051,11 +1053,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
         <bk-dialog
-          width={640}
+          width={960}
           ext-cls='multi-detail-dialog'
           v-model={this.isShowDimension}
           position={{
-            top: this.dialogTop / 3,
+            top: this.dialogTop,
           }}
           header-position={'left'}
           show-footer={false}

@@ -197,11 +197,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
         if getattr(view, "login_exempt", False):
             return None
 
-        # 后台仪表盘渲染豁免
-        if "/grafana/" in request.path:
-            request.user = auth.authenticate(username="admin")
-            return
-
         if request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME):
             request.jwt = BkJWTClient(request, self.get_apigw_public_keys())
             result, error_message = request.jwt.validate()
@@ -214,8 +209,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
 
+        # 后台仪表盘渲染豁免
+        if "/grafana/" in request.path and not app_code:
+            request.user = auth.authenticate(username="admin")
+            return
+
         # 校验app_code及token
-        token = request.GET.get("HTTP_X_BKMONITOR_TOKEN")
+        token = request.META.get("HTTP_X_BKMONITOR_TOKEN")
         if app_code and is_match_api_token(request, app_code, token):
             request.user = auth.authenticate(username=username)
             return

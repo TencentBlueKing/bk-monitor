@@ -103,7 +103,7 @@
             >
               <template #default="props">
                 <div
-                  v-if="!props.row.is_edit && isPreviewMode"
+                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog'"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -142,7 +142,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-bk-tooltips.top="$t('新建类型不支持快速修改')">{{ props.row.field_type }}</span>
+                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
                 <bk-form-item
                   v-else
@@ -759,7 +759,6 @@
         if (isDelete) {
           return true;
         }
-
         if (aliasName) {
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
@@ -767,12 +766,12 @@
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
             return false;
           }
-          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
+          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
             // 别名不能与内置字段名相同
             row.aliasErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
           // 字段名与内置字段冲突，必须设置别名
           row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
           return false;

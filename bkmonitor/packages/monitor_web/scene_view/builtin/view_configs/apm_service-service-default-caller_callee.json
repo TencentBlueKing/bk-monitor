@@ -1570,11 +1570,11 @@
                   "text": "主调接口"
                 },
                 {
-                  "value": "caller_ip",
+                  "value": "instance",
                   "text": "主调 IP"
                 },
                 {
-                  "value": "caller_container",
+                  "value": "container_name",
                   "text": "主调容器"
                 },
                 {
@@ -1666,7 +1666,7 @@
                     "caller_server",
                     "caller_service",
                     "caller_method",
-                    "caller_ip",
+                    "instance",
                     "callee_service",
                     "callee_method",
                     "callee_ip",
@@ -1691,7 +1691,7 @@
                     "caller_method": {
                       "field": "attributes.trpc.caller_method"
                     },
-                    "caller_ip": {
+                    "instance": {
                       "field": "attributes.net.host.ip"
                     },
                     "callee_service": {
@@ -1777,11 +1777,11 @@
                   "default_group_by_field": true
                 },
                 {
-                  "value": "callee_ip",
+                  "value": "instance",
                   "text": "被调 IP"
                 },
                 {
-                  "value": "callee_container",
+                  "value": "container_name",
                   "text": "被调容器"
                 },
                 {
@@ -1847,7 +1847,7 @@
                     "callee_server",
                     "callee_service",
                     "callee_method",
-                    "callee_ip",
+                    "instance",
                     "namespace",
                     "env_name",
                     "code"
@@ -1878,7 +1878,7 @@
                     "callee_method": {
                       "field": "attributes.trpc.callee_method"
                     },
-                    "callee_ip": {
+                    "instance": {
                       "field": "attributes.net.host.ip"
                     },
                     "namespace": {
