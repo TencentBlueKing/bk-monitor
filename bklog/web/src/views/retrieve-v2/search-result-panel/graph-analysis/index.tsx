@@ -467,10 +467,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   handleSqlQueryResultChange(data) {
-    let arr = data.data.result_schema.filter(item => item.field_type !== 'string');
-    this.xAxis = [arr[0]?.field_name];
-    this.yAxis = [arr[1]?.field_name];
-    this.resultSchema = data.data.result_schema;
+    this.resultSchema = data.data?.result_schema ?? [];
     this.chartData = data;
     this.$set(this, 'chartData', data);
     this.chartCounter++;
@@ -478,7 +475,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   updateChartData(axis, newValue) {
-    this[axis] = Array.isArray(newValue) ? newValue : [newValue];
+    this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
     this.chartCounter++;
   }
   handleRefresh() {}
