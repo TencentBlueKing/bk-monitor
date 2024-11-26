@@ -183,6 +183,7 @@ class DataSource(models.Model):
             try:
                 rt_st = real_storage.objects.get(table_id=table_id)
                 consul_config = rt_st.consul_config
+                print(consul_config)
                 # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
                 if not consul_config:
                     continue
@@ -367,7 +368,7 @@ class DataSource(models.Model):
         # 从GSE接口分配dataid
         try:
             params = {
-                "metadata": {"channel_id": 1574283, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+                "metadata": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
                 "operation": {"operator_name": operator},
             }
             result = api.gse.add_route(**params)
