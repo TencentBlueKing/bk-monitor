@@ -6,6 +6,30 @@
 
   .bklog-sql-editor {
     height: 100%;
+
+    .bk-monaco-tools {
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      color: #C4C6CC;
+      background: #2E2E2E;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      //   border-bottom: 1px solid #3f51b594;
+
+      >div {
+        display: flex;
+        align-items: center;
+      }
+      .sqlFormat{
+        margin-right: 10px;
+      }
+
+      :deep(.header-tool-right) {
+        display: flex;
+        align-items: center;
+      }
+    }
   }
 
   .sql-editor-tools {

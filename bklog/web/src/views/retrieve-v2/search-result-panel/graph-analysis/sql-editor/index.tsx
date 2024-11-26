@@ -33,7 +33,8 @@ import useStore from '@/hooks/use-store';
 import PreviewSql from '../common/PreviewSql.vue';
 import SaveSql from '../save-sql';
 import useEditor from './use-editor';
-
+import screenfull from 'screenfull';
+import { format } from 'sql-formatter';
 import './index.scss';
 
 export default defineComponent({
@@ -41,12 +42,13 @@ export default defineComponent({
   setup(_, { emit, expose }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
+    const refSqlBox: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
     const isSyncSqlRequesting = ref(false);
     const queryResult = ref({});
     const isPreviewSqlShow = ref(false);
     const sqlContent = ref('');
-
+    const isFullscreen = ref(false)
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
         sqlContent.value = value;
@@ -118,13 +120,23 @@ export default defineComponent({
         .then(resp => {
           sqlContent.value = resp.data.sql;
           editorInstance.value.setValue(resp.data.sql);
+          formatMonacoSqlCode()
           editorInstance.value.focus();
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
         });
     };
-
+    const handleFullscreenClick = () => {
+      if (!screenfull.isEnabled) return
+      isFullscreen.value ? screenfull.exit() : screenfull.request(refSqlBox.value)
+      isFullscreen.value = !isFullscreen.value
+      editorInstance.value.focus();
+    }
+    const formatMonacoSqlCode = () => {
+      const val = format(editorInstance.value.getValue(), { language: 'mysql' });
+      editorInstance.value.setValue([val].join('\n'));
+    }
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
@@ -171,7 +183,37 @@ export default defineComponent({
         </div>
       );
     };
-
+    const renderHeadTools = () => {
+      return (
+        <div
+          v-if="toolsConfig.enabled"
+          class="bk-monaco-tools"
+        >
+          <span>SQL查询</span>
+          <div>
+            <div class="fr header-tool-right">
+              <bk-popover content="格式化" class='sqlFormat'>
+                <div onClick={formatMonacoSqlCode}>
+                <span class="bk-icon icon-script-file"></span>
+                </div>
+              </bk-popover>
+              {
+                isFullscreen.value ? <bk-popover content="取消全屏">
+                  <div onClick={handleFullscreenClick}>
+                    <span class="bk-icon icon-un-full-screen"></span>
+                  </div>
+                </bk-popover>:
+                  <bk-popover content="全屏">
+                    <div onClick={handleFullscreenClick}>
+                      <span class="bk-icon icon-full-screen"></span>
+                    </div>
+                  </bk-popover>
+              }
+            </div>
+          </div>
+        </div>
+      )
+    }
     const handleUpdateIsContentShow = val => {
       isPreviewSqlShow.value = val;
     };
@@ -182,20 +224,25 @@ export default defineComponent({
 
     return {
       refRootElement,
+      refSqlBox,
       isPreviewSqlShow,
       sqlContent,
       renderTools,
+      renderHeadTools,
       handleUpdateIsContentShow,
       handleQueryBtnClick,
     };
   },
   render() {
     return (
-      <div class='bklog-sql-editor-root'>
+      <div ref='refSqlBox' class='bklog-sql-editor-root'>
+
         <div
           ref='refRootElement'
           class='bklog-sql-editor'
-        ></div>
+        >
+          {this.renderHeadTools()}
+        </div>
         {this.renderTools()}
         <PreviewSql
           isShow={this.isPreviewSqlShow}
