@@ -542,7 +542,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           ? this.handleCopyDashboard
           : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
-        if (isSuccess) {
+      if (isSuccess) {
         this.showAddForm = false;
         this.handleFetchGrafanaTree();
       }
@@ -582,7 +582,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         return true;
       })
       .catch(rs => {
-        this.$bkMessage({ message: `${rs?.message}`, theme: 'error' });
+        rs?.message && this.$bkMessage({ message: `${rs?.message}`, theme: 'error' });
         return false;
       });
   }
