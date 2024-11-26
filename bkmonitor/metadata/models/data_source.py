@@ -183,7 +183,6 @@ class DataSource(models.Model):
             try:
                 rt_st = real_storage.objects.get(table_id=table_id)
                 consul_config = rt_st.consul_config
-                print(consul_config)
                 # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
                 if not consul_config:
                     continue
