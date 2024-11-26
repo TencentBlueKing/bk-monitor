@@ -197,8 +197,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return {
       favorite_type: 'chart',
       chart_params: {
-        basicInfoTitle: this.basicInfoTitle.title,
-        basicInfoDescription: this.basicInfoDescription.title,
+        // basicInfoTitle: this.basicInfoTitle.title,
+        // basicInfoDescription: this.basicInfoDescription.title,
         xFields: this.xAxis,
         yFields: this.yAxis,
         activeGraphCategory: this.activeGraphCategory,
@@ -213,8 +213,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleChartParamsChange() {
     if (this.storedChartParams) {
       [
+<<<<<<< HEAD
+        // 'basicInfoTitle',
+        // 'basicInfoDescription',
+=======
         'basicInfoTitle',
         'basicInfoDescription',
+>>>>>>> df415bdc7dafc1c7c300cbb52b7e0f55bed0be5f
         'xFields',
         'yFields',
         'activeGraphCategory',
