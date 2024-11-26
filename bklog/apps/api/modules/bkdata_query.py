@@ -37,5 +37,6 @@ class _BkDataQueryApi:
             module=self.MODULE,
             description="原始数据操作",
             default_return_value=None,
+            use_superuser=True,
             before_request=add_esb_info_before_request_for_bkdata_token,
         )

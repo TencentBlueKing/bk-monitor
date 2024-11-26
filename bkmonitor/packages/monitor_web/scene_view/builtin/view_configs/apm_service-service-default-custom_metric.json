@@ -24,6 +24,7 @@
             ]
         }
     ],
+    "app_name": "$app_name",
     "service_name": "$service_name",
     "panels": [
 

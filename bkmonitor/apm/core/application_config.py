@@ -16,6 +16,7 @@ from collections import defaultdict
 from typing import List
 
 import jinja2
+from django.conf import settings
 from kubernetes import client
 from opentelemetry import trace
 
@@ -84,8 +85,11 @@ class ApplicationConfig(BkCollectorConfig):
         cluster_ids = ClusterRelation.objects.filter(bk_biz_id=self._application.bk_biz_id).values_list(
             'cluster_id', flat=True
         )
+        need_deploy_cluster_ids = set(cluster_ids)
+        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            need_deploy_cluster_ids = need_deploy_cluster_ids | set(settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER)
 
-        for cluster_id in set(cluster_ids):
+        for cluster_id in need_deploy_cluster_ids:
             with tracer.start_as_current_span(
                 f"cluster-id: {cluster_id}", attributes={"apm_application_id": self._application.id}
             ) as s:

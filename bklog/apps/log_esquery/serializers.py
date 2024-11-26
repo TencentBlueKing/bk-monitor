@@ -98,6 +98,13 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
     # 是否包含嵌套字段
     include_nested_fields = serializers.BooleanField(required=False, default=True)
 
+    # 是否分片查询
+    slice_search = serializers.BooleanField(required=False, default=False)
+    # 指定分片
+    slice_id = serializers.IntegerField(required=False, default=0)
+    # 分片数量
+    slice_max = serializers.IntegerField(required=False, default=0)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         # index_set_id覆盖信息

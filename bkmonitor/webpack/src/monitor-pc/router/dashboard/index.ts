@@ -176,7 +176,7 @@ export default [
     },
   },
   {
-    path: '/grafana/d/:url',
+    path: '/grafana/d/:url(.*)',
     name: 'favorite-dashboard',
     components: {
       noCache: Grafana,
