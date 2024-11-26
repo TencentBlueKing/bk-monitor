@@ -203,4 +203,5 @@ export default {
   模板: 'Template',
   补齐: 'Make up for',
   新建模板: 'Create template',
+  索引集配置: 'Index set configuration',
 };

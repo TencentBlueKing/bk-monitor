@@ -25,6 +25,10 @@
  */
 import { Component, Watch } from 'vue-property-decorator';
 
+import { start } from 'monitor-api/modules/apm_meta';
+import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils';
+
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
@@ -42,9 +46,17 @@ export default class CustomChart extends TimeSeries {
   }));
   method = this.viewOptions?.method || 'AVG';
 
+  isEnabledMetric = false;
+  isEnabledMetricLoading = false;
+  guideUrl = ''; // 接入指引url
+  noDataLoading = false;
+  isSingleNoData = false;
+  applicationId = -1;
+
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
   handleFieldDictChange() {
+    this.noDataInit();
     this.getPanelData();
   }
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
@@ -54,6 +66,45 @@ export default class CustomChart extends TimeSeries {
     };
     this.getPanelData();
   }
+
+  /**
+   * @description 判断是否是无数据(并且是单图模式), 展示自定义指标无数据提示
+   */
+  @Debounce(300)
+  async noDataInit() {
+    this.isSingleNoData = this.isSingleChart && !this.panel.targets.length;
+    if (this.isSingleNoData) {
+      this.noDataLoading = true;
+      const { app_name } = this.viewOptions.filters as any;
+      const data = await applicationInfoByAppName({
+        app_name,
+      }).catch(() => {});
+      this.isEnabledMetric = !!data?.is_enabled_metric;
+      this.applicationId = data?.application_id || -1;
+      const config = await metaConfigInfo().catch(() => ({}));
+      this.guideUrl = config?.setup?.guide_url?.access_url || '';
+      this.noDataLoading = false;
+    }
+  }
+
+  async handleEmptyEvent() {
+    if (this.isEnabledMetric) {
+      window.open(this.guideUrl);
+    } else {
+      if (this.isEnabledMetricLoading) {
+        return;
+      }
+      this.isEnabledMetricLoading = true;
+      await start({ application_id: this.applicationId, type: 'metric' })
+        .then(() => {
+          this.isEnabledMetric = true;
+        })
+        .finally(() => {
+          this.isEnabledMetricLoading = false;
+        });
+    }
+  }
+
   render() {
     const { legend } = this.panel?.options || ({ legend: {} } as any);
     return (
@@ -131,6 +182,32 @@ export default class CustomChart extends TimeSeries {
                 )}
               </div>
             )}
+          </div>
+        ) : this.isSingleNoData ? (
+          <div
+            class='empty-page'
+            v-bkloading={{ isLoading: this.noDataLoading }}
+          >
+            <bk-exception type='building'>
+              <span>{!this.isEnabledMetric ? this.$t('暂未开启 指标 功能') : this.$t('暂无 指标 数据')}</span>
+              <div class='text-wrap'>
+                <span class='text-row'>
+                  {!this.isEnabledMetric
+                    ? this.isEnabledMetricLoading
+                      ? this.$t('开启中，请耐心等待...')
+                      : this.$t('该服务所在 APM 应用未开启 指标 功能')
+                    : this.$t('已开启 指标 功能，请参考接入指引进行数据上报')}
+                </span>
+                <bk-button
+                  loading={this.isEnabledMetricLoading}
+                  text={this.isEnabledMetric}
+                  theme='primary'
+                  onClick={() => this.handleEmptyEvent()}
+                >
+                  {this.isEnabledMetric ? this.$t('查看接入指引') : this.$t('立即开启')}
+                </bk-button>
+              </div>
+            </bk-exception>
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
