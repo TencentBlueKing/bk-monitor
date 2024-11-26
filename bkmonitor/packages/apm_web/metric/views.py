@@ -134,6 +134,4 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
         ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
-        ResourceRoute("POST", CalculateByRangeResource, "calculate_by_range"),
-        ResourceRoute("POST", QueryDimensionsByLimitResource, "query_dimensions_by_limit"),
     ]
