@@ -1176,6 +1176,7 @@ class GraphPromqlQueryResource(Resource):
         step = serializers.CharField(default="1m")
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
+        down_sample_range = serializers.CharField(label="降采样周期", default="", allow_blank=True)
 
         def validate(self, attrs):
             if attrs["step"] == "auto":
@@ -1239,6 +1240,7 @@ class GraphPromqlQueryResource(Resource):
             step=params["step"],
             bk_biz_ids=[params["bk_biz_id"]],
             timezone=timezone.get_current_timezone_name(),
+            down_sample_range=params["down_sample_range"],
         )
 
         result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
