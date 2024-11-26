@@ -61,8 +61,8 @@ class RecordRule(BaseModelWithTime):
         rule_dict = yaml.safe_load(rule_config)
         rules = rule_dict.get("rules", [])
         # 如果规则为空，则直接返回
-        # if not rules:
-        #     return {}
+        if not rules:
+            return {}
         # 获取所有的record
         all_rule_record = [rule["record"] for rule in rules]
         # 如果没有设置interval，则使用默认值
