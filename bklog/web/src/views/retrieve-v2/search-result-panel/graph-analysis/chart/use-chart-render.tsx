@@ -106,6 +106,7 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const aggregateData = (data, dimensions, metrics, type, timeField?) => {
+    debugger;
     if (timeField) {
       const timeGroup = {};
       data.forEach(item => {
