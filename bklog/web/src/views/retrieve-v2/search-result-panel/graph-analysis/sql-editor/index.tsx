@@ -23,30 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, nextTick, Ref, ref, watch } from 'vue';
 
 import $http from '@/api/index.js';
-import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
+import RequestPool from '@/store/request-pool';
+import axios from 'axios';
 
-import PreviewSql from '../common/PreviewSql.vue';
-import SaveSql from '../save-sql';
+import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
 
 import './index.scss';
 
 export default defineComponent({
+  props: {
+    extendParams: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
   emits: ['change', 'sql-change'],
-  setup(_, { emit, expose }) {
+  setup(props, { emit, expose }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
     const isRequesting = ref(false);
     const isSyncSqlRequesting = ref(false);
-    const queryResult = ref({});
     const isPreviewSqlShow = ref(false);
     const sqlContent = ref('');
-
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
         sqlContent.value = value;
@@ -59,45 +63,75 @@ export default defineComponent({
       height: 400,
     });
 
-    const { $t } = useLocale();
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
+
+    // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
+    // 这里会回填收藏的查询
+    watch(
+      () => retrieveParams.value.chart_params,
+      () => {
+        if (retrieveParams.value.chart_params.sql) {
+          sqlContent.value = retrieveParams.value.chart_params.sql;
+        }
+      },
+      {
+        immediate: true,
+        deep: true,
+      },
+    );
+
+    const chartParams = computed(() => {
+      const target = props.extendParams ?? {};
+
+      return {
+        ...target,
+        chart_params: {
+          ...target.chart_params,
+          sql: sqlContent.value,
+        },
+      };
+    });
 
     useResizeObserve(refRootElement, entry => {
       editorConfig.value.height = entry.target?.offsetHeight ?? 400;
     });
 
+    const storeChartOptions = () => {
+      store.commit('updateIndexItem', { chart_params: chartParams });
+    };
+
     const requestId = 'graphAnalysis_searchSQL';
     const handleQueryBtnClick = () => {
       isRequesting.value = true;
-      $http
-        .request('graphAnalysis/searchSQL', {
-          requestId,
-          params: {
-            index_set_id: indexSetId.value,
-          },
-          data: {
-            query_mode: 'sql',
-            sql: editorInstance.value.getValue(), // 使用获取到的内容
-          },
-        })
+
+      const requestCancelToken = RequestPool.getCancelToken(requestId);
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
+      const params = {
+        method: 'post',
+        url: `/search/index_set/${indexSetId.value}/chart/`,
+        cancelToken: requestCancelToken,
+        withCredentials: true,
+        baseURL: baseUrl,
+        data: {
+          query_mode: 'sql',
+          sql: editorInstance.value.getValue(), // 使用获取到的内容
+        },
+      };
+
+      return axios(params)
         .then(resp => {
+          storeChartOptions();
           isRequesting.value = false;
-          queryResult.value = resp.data;
-          emit('change', resp);
+          emit('change', resp.data);
         })
         .finally(() => {
           isRequesting.value = false;
         });
     };
 
-    const handlePreviewSqlClick = () => {
-      sqlContent.value = editorInstance.value.getValue();
-      isPreviewSqlShow.value = true;
-    };
-
     const handleStopBtnClick = () => {
-      $http.cancelRequest(requestId);
+      RequestPool.execCanceToken(requestId);
       isRequesting.value = false;
     };
 
@@ -116,9 +150,10 @@ export default defineComponent({
           },
         })
         .then(resp => {
-          sqlContent.value = resp.data.sql;
+          onValueChange(resp.data.sql);
           editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
+          storeChartOptions();
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
@@ -126,6 +161,7 @@ export default defineComponent({
     };
 
     const renderTools = () => {
+      const { addition, keyword } = retrieveParams.value;
       return (
         <div class='sql-editor-tools'>
           <bk-button
@@ -136,22 +172,15 @@ export default defineComponent({
             onClick={handleQueryBtnClick}
           >
             <i class='bklog-icon bklog-bofang'></i>
-            <span class='ml-min'>{$t('查询')}</span>
+            {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
             class='sql-editor-view-button'
             size='small'
             onClick={handleStopBtnClick}
           >
-            <span class='icon bklog-icon bklog-stop' />
-            <span>{$t('中止')}</span>
-          </bk-button>
-          <bk-button
-            class='sql-editor-view-button'
-            size='small'
-            onClick={handlePreviewSqlClick}
-          >
-            {$t('预览查询 SQL')}
+            <i class='bk-icon icon-stop-shape' />
+            {/* <span>{$t('中止')}</span> */}
           </bk-button>
           <bk-popconfirm
             width='288'
@@ -160,14 +189,20 @@ export default defineComponent({
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
-              class='sql-editor-view-button'
+              class='sql-editor-view-button '
               loading={isSyncSqlRequesting.value}
               size='small'
             >
-              {$t('同步查询条件到SQL')}
+              <i class='bklog-icon bklog-tongbu'></i>
             </bk-button>
           </bk-popconfirm>
-          <SaveSql></SaveSql>
+          <BookmarkPop
+            class='bklog-sqleditor-bookmark'
+            addition={addition}
+            extendParams={chartParams.value}
+            search-mode='sqlChart'
+            sql={keyword}
+          ></BookmarkPop>
         </div>
       );
     };
@@ -175,6 +210,21 @@ export default defineComponent({
     const handleUpdateIsContentShow = val => {
       isPreviewSqlShow.value = val;
     };
+
+    /**
+     * 索引集改变时，同步查询条件到SQL
+     */
+    watch(
+      () => indexSetId.value,
+      () => {
+        nextTick(() => {
+          handleSyncAdditionToSQL();
+        });
+      },
+      {
+        immediate: true,
+      },
+    );
 
     expose({
       handleQueryBtnClick,
@@ -197,15 +247,6 @@ export default defineComponent({
           class='bklog-sql-editor'
         ></div>
         {this.renderTools()}
-        <PreviewSql
-          isShow={this.isPreviewSqlShow}
-          sqlContent={this.sqlContent}
-          {...{
-            on: {
-              'update:isShow': this.handleUpdateIsContentShow,
-            },
-          }}
-        />
       </div>
     );
   },

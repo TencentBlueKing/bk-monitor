@@ -61,6 +61,7 @@ export const IndexSetQueryResult = {
   origin_log_list: [],
   aggs: {},
   fields: [],
+  chart_params: {},
 };
 
 export const IndexFieldInfo = {
@@ -85,6 +86,7 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
+  chart_params: {},
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };

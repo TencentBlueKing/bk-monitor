@@ -35,3 +35,4 @@ declare module '@/hooks/use-store';
 declare module '@/hooks/use-locale';
 declare module '@/api/*';
 declare module '@/hooks/*';
+declare module '@/store/*';

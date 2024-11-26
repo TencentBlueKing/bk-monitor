@@ -127,6 +127,27 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     return { categories, seriesData };
   };
 
+  const preparePieChartDataMultiDimension = (dataList, dimensions, valueField) => {
+    const aggregatedData = {};
+
+    (dataList ?? []).forEach(item => {
+      // 将多个维度组合为一个标签
+      const groupKey = dimensions.map(dim => item[dim]).join(' - ');
+      if (!aggregatedData[groupKey]) {
+        aggregatedData[groupKey] = 0;
+      }
+      aggregatedData[groupKey] += item[valueField];
+    });
+
+    // 转换为饼图数据格式
+    const pieChartData = Object.keys(aggregatedData).map(key => ({
+      name: key,
+      value: aggregatedData[key],
+    }));
+
+    return pieChartData;
+  };
+
   const setDefaultOption = t => {
     const optionMap = {
       line: getLineBarChartOption,
@@ -210,15 +231,8 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const updatePieOption = (_?: string[], yFields?: string[], dimensions?: string[], data?: any) => {
-    options.series.encode = {
-      itemName: yFields[0],
-      value: dimensions[0],
-    };
-
-    options.dataset.source = (data?.list ?? []).map(row => ({
-      [yFields[0]]: row[yFields[0]],
-      [dimensions[0]]: row[dimensions[0]],
-    }));
+    const pieChartData = preparePieChartDataMultiDimension(data.list, dimensions, yFields[0]);
+    options.series.data = pieChartData;
     chartInstance.setOption(options);
   };
 
@@ -242,6 +256,16 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     actionMap[type]?.(xFields, yFields, dimensions, data, type);
   };
 
+  const setResizeObserve = () => {
+    const getTargetElement = () => {
+      return target.value.parentElement;
+    };
+
+    useResizeObserve(getTargetElement, () => {
+      chartInstance?.resize();
+    });
+  };
+
   const setChartOptions = (
     xFields?: string[],
     yFields?: string[],
@@ -251,18 +275,12 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   ) => {
     chartInstance?.clear();
     if (!chartInstance) {
+      setResizeObserve();
       initChartInstance();
     }
     setDefaultOption(type);
     updateChartOptions(xFields, yFields, dimensions, data, type);
   };
-
-  useResizeObserve(
-    () => target.value.parentElement,
-    () => {
-      chartInstance?.resize();
-    },
-  );
 
   onMounted(() => {
     initChartInstance();
