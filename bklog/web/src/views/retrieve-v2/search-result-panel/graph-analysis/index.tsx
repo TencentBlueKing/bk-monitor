@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Watch } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 

@@ -85,7 +85,6 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
-  favorite_type: '',
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };
