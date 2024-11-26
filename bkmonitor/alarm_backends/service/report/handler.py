@@ -606,7 +606,7 @@ class ReportHandler:
                 if (bk_biz_id, graph_uid) not in panel_names:
                     panel_names[(bk_biz_id, graph_uid)] = {}
                     for panel in fetch_panel_title_ids(bk_biz_id, graph_uid):
-                        panel_names[(bk_biz_id, graph_uid)][panel["id"]] = panel["title"]
+                        panel_names[(bk_biz_id, graph_uid)][str(panel["id"])] = panel["title"]
                 panel_name = panel_names[(bk_biz_id, graph_uid)].get(graph_panel_id, "")
 
                 graph_url = ""

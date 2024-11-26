@@ -167,11 +167,11 @@ class ReportContentResource(Resource):
                 if (bk_biz_id, dashboard_uid) not in panel_names:
                     panel_names[(bk_biz_id, dashboard_uid)] = {}
                     for panel in fetch_panel_title_ids(bk_biz_id, dashboard_uid):
-                        panel_names[(bk_biz_id, dashboard_uid)][panel["id"]] = panel["title"]
+                        panel_names[(bk_biz_id, dashboard_uid)][str(panel["id"])] = panel["title"]
                 dashboard_panel_names = panel_names[(bk_biz_id, dashboard_uid)]
 
                 # 补充图表名称
-                content["graph_name"].append({"graph_id": graph, "graph_name": dashboard_panel_names.get(panel_id, "")})
+                content["graph_name"].append({"graph_id": graph, "graph_name": dashboard_panel_names.get(panel_id)})
         return ret_data
 
 
