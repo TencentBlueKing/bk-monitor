@@ -366,18 +366,23 @@ export default class QueryStatement extends tsc<object> {
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
-    const { start_time, end_time, timezone } = this.indexItem;
+    const { start_time, end_time, timezone, keyword, search_mode } = this.indexItem;
     const payload = {
       start_time,
       end_time,
       timezone,
       ids,
+      keyword: keyword || '',
+      search_mode,
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
       isUnionIndex: !this.isAloneType,
       sort_list: [],
     };
-
+    if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
+      payload.keyword = payload.items[0].query_string;
+      payload.search_mode = 'sql';
+    }
     return payload;
   }
 
@@ -1125,17 +1130,21 @@ export default class QueryStatement extends tsc<object> {
       </div>
     );
     const indexHandDom = item => {
-      return this.isAloneType ? (
-        <span
-          class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
-          onClick={e => this.handleCollection(item, e)}
-        />
-      ) : (
-        <bk-checkbox
-          checked={this.getCheckedVal(item.index_set_id)}
-          disabled={this.getDisabled(item.index_set_id)}
-        />
-      );
+      if (this.isAloneType) {
+        return !window.__IS_MONITOR_APM__ ? (
+          <span
+            class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
+            onClick={e => this.handleCollection(item, e)}
+          />
+        ) : undefined;
+      } else {
+        return (
+          <bk-checkbox
+            checked={this.getCheckedVal(item.index_set_id)}
+            disabled={this.getDisabled(item.index_set_id)}
+          />
+        );
+      }
     };
     const selectGroupDom = () => {
       return (
@@ -1173,7 +1182,7 @@ export default class QueryStatement extends tsc<object> {
                       onClick={() => this.handelClickIndexSet(item)}
                     >
                       <span class='index-info'>
-                        {!window.__IS_MONITOR_APM__ && indexHandDom(item)}
+                        {indexHandDom(item)}
                         {item.isNotVal && <i class='not-val' />}
                         <span
                           class='index-name'
