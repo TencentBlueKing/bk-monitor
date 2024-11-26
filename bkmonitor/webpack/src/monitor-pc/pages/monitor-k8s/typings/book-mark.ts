@@ -260,6 +260,10 @@ export class BookMarkModel implements IBookMark {
   get hasRequiredVariable() {
     return !!this.variables?.some(item => !!item.options?.variables?.required);
   }
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return this.options?.group_panel?.type === 'compare_or_group';
+  }
   // 是否显示状态统计组件
   get isStatusFilter() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
@@ -358,10 +362,12 @@ export class BookMarkModel implements IBookMark {
   get variableEditable() {
     return !!this.options?.variable_editable;
   }
+
   // 是否可配置页签
   get viewEditable() {
     return !!this.options?.view_editable;
   }
+
   getAllVariables() {
     let str = JSON.stringify(this.bookmark);
     const variableList = new Set<string>();

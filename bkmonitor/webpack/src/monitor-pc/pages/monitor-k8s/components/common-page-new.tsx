@@ -85,6 +85,7 @@ import CommonTree from './common-tree/common-tree';
 import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
+import GroupCompareSelect from './group-compare-select/group-compare-select';
 import GroupSelect from './group-select/group-select';
 import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
@@ -502,6 +503,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get curPanelCount() {
     return this.sceneData?.updatePanels(this.localSceneType) || 0;
   }
+
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return this.sceneData.isGroupCompareType;
+  }
+
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
@@ -1834,7 +1841,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                             renderAnimation={false}
                             onExpandChange={val => (this.filterActive = val)}
                           >
-                            <div class='dashboard-panel-filter-content'>
+                            <div
+                              class={[
+                                'dashboard-panel-filter-content',
+                                { 'is-group-compare-type': this.isGroupCompareType },
+                              ]}
+                            >
                               {!!this.sceneData.variables.length && (
                                 <FilterVarSelectGroup
                                   key={this.sceneData.id + this.refleshVariablesKey}
@@ -1851,15 +1863,19 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                 />
                               )}
                               {this.sceneData.enableGroup ? (
-                                <GroupSelect
-                                  class='k8s-group-select'
-                                  pageId={this.dashboardId}
-                                  panel={this.sceneData.groupPanel}
-                                  scencId={this.sceneId}
-                                  sceneType={this.localSceneType}
-                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
-                                  onChange={this.handleGroupsChange}
-                                />
+                                this.isGroupCompareType ? (
+                                  <GroupCompareSelect />
+                                ) : (
+                                  <GroupSelect
+                                    class='k8s-group-select'
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    scencId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    value={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    onChange={this.handleGroupsChange}
+                                  />
+                                )
                               ) : undefined}
                             </div>
                           </Collapse>
