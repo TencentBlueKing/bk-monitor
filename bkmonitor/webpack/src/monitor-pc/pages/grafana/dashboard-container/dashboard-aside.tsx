@@ -36,7 +36,7 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard,
-  copyDashboard,
+  copyDashboardToFolder,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -573,7 +573,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       dashboard_uid: this.checked,
       folder_id: this.formData.dir,
     };
-    return copyDashboard(params)
+    return copyDashboardToFolder(params)
       .then(res => {
         const url = res?.imported_url
           ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
