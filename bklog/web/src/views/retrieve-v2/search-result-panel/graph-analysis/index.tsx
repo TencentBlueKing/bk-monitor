@@ -94,16 +94,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   graphCategoryList = [GraphCategory.TABLE, GraphCategory.LINE, GraphCategory.BAR, GraphCategory.PIE];
 
   basicInfoTitle = {
-    show: true,
-    title: '',
-  };
-
-  basicInfoSubTitle = {
     show: false,
     title: '',
   };
 
-  basicInfoDescription = {
+  basicInfoSubTitle = {
     show: false,
     title: '',
   };
@@ -291,24 +286,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             style='margin-top: 8px;'
             v-model={this.basicInfoTitle.title}
             placeholder={this.$t('请输入标题')}
-          ></bk-input>
-        )}
-      </div>,
-      <div class='basic-info-row'>
-        <bk-checkbox
-          v-model={this.basicInfoDescription.show}
-          checked={false}
-          false-value={false}
-          true-value={true}
-        >
-          {this.$t('描述')}
-        </bk-checkbox>
-        {this.basicInfoDescription.show && (
-          <bk-input
-            style='margin-top: 8px;'
-            v-model={this.basicInfoDescription.title}
-            placeholder={this.$t('请输入描述')}
-            type='textarea'
           ></bk-input>
         )}
       </div>,

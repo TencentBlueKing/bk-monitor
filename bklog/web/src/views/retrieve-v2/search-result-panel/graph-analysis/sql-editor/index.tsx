@@ -179,7 +179,7 @@ export default defineComponent({
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
-              class='sql-editor-view-button '
+              class='sql-editor-view-button'
               loading={isSyncSqlRequesting.value}
               size='small'
             >

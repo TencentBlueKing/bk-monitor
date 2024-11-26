@@ -50,7 +50,11 @@ const dorisFunctions = [
   'CAST',
   'CONVERT',
 ];
-
+// 多词短语高亮
+const specialKeywords = [
+  'ORDER BY',
+  'GROUP BY',
+];
 monaco.languages.register({ id: 'dorisSQL' });
 
 monaco.languages.setMonarchTokensProvider('dorisSQL', {
@@ -59,6 +63,10 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
 
   tokenizer: {
     root: [
+      ...specialKeywords.map(keyword => ({
+        regex: new RegExp(`\\b${keyword.replace(/\s+/g, '\\s+')}\\b`),
+        action: { token: 'keyword' }
+      })),
       [
         /[a-zA-Z_]\w*/,
         {
