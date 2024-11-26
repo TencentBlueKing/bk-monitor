@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, Ref, ref, watch } from 'vue';
 
 import $http from '@/api/index.js';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import axios from 'axios';
+import { debounce } from 'lodash';
 
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
@@ -65,21 +66,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-
-    // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
-    // 这里会回填收藏的查询
-    watch(
-      () => retrieveParams.value.chart_params,
-      () => {
-        if (retrieveParams.value.chart_params.sql) {
-          sqlContent.value = retrieveParams.value.chart_params.sql;
-        }
-      },
-      {
-        immediate: true,
-        deep: true,
-      },
-    );
+    const storedParams = computed(() => store.state.indexItem.chart_params ?? {});
 
     const chartParams = computed(() => {
       const target = props.extendParams ?? {};
@@ -98,11 +85,11 @@ export default defineComponent({
     });
 
     const storeChartOptions = () => {
-      store.commit('updateIndexItem', { chart_params: chartParams });
+      store.commit('updateIndexItem', { chart_params: chartParams.value.chart_params });
     };
 
     const requestId = 'graphAnalysis_searchSQL';
-    const handleQueryBtnClick = () => {
+    const handleQueryBtnClick = (updateStore = true) => {
       isRequesting.value = true;
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
@@ -121,7 +108,9 @@ export default defineComponent({
 
       return axios(params)
         .then(resp => {
-          storeChartOptions();
+          if (updateStore) {
+            storeChartOptions();
+          }
           isRequesting.value = false;
           emit('change', resp.data);
         })
@@ -135,7 +124,7 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
-    const handleSyncAdditionToSQL = () => {
+    const handleSyncAdditionToSQL = (storeResult = true) => {
       const { addition, start_time, end_time } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       $http
@@ -153,7 +142,9 @@ export default defineComponent({
           onValueChange(resp.data.sql);
           editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
-          storeChartOptions();
+          if (storeResult) {
+            storeChartOptions();
+          }
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
@@ -161,7 +152,6 @@ export default defineComponent({
     };
 
     const renderTools = () => {
-      const { addition, keyword } = retrieveParams.value;
       return (
         <div class='sql-editor-tools'>
           <bk-button
@@ -198,10 +188,10 @@ export default defineComponent({
           </bk-popconfirm>
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
-            addition={addition}
+            addition={[]}
             extendParams={chartParams.value}
             search-mode='sqlChart'
-            sql={keyword}
+            sql=''
           ></BookmarkPop>
         </div>
       );
@@ -211,18 +201,24 @@ export default defineComponent({
       isPreviewSqlShow.value = val;
     };
 
-    /**
-     * 索引集改变时，同步查询条件到SQL
-     */
+    const debounceQuery = debounce(handleQueryBtnClick, 120);
+
+    // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
+    // 这里会回填收藏的查询
     watch(
-      () => indexSetId.value,
+      () => storedParams.value.sql,
       () => {
-        nextTick(() => {
-          handleSyncAdditionToSQL();
-        });
+        if (storedParams.value.sql) {
+          sqlContent.value = storedParams.value.sql;
+        } else {
+          handleSyncAdditionToSQL(false);
+        }
+
+        debounceQuery(false);
       },
       {
         immediate: true,
+        deep: true,
       },
     );
 

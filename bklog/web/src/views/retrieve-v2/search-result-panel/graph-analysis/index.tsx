@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-// import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphTable from './chart/graph-table.vue';
 import GraphChart from './chart/index.tsx';
@@ -195,6 +194,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
+  get storedChartParams() {
+    return this.$store.state.indexItem.chart_params ?? {};
+  }
+
   get extendParams() {
     return {
       favorite_type: 'chart',
@@ -209,6 +212,25 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       },
       search_mode: 'sql',
     };
+  }
+
+  @Watch('storedChartParams', { deep: true })
+  handleChartParamsChange() {
+    if (this.storedChartParams) {
+      [
+        'basicInfoTitle',
+        'basicInfoDescription',
+        'xFields',
+        'yFields',
+        'activeGraphCategory',
+        'chartActiveType',
+        'dimensions',
+      ].forEach(key => {
+        if (this.storedChartParams[key]) {
+          Object.assign(this, { [key]: this.storedChartParams[key] });
+        }
+      });
+    }
   }
 
   handleEditorSearchClick() {

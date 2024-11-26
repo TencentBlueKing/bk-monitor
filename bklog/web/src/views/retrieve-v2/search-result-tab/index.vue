@@ -15,8 +15,6 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
-  const indexSetList = computed(() => store.state.indexItem.ids ?? []);
-
   const isAiopsToggle = computed(() => {
     return (
       (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
@@ -24,12 +22,14 @@
     );
   });
 
+  const isChartEnable = computed(() => true);
+
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
-      { name: 'graphAnalysis', label: $t('图表分析'), disabled: false },
+      { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
     ];
   });
 

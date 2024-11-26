@@ -108,7 +108,6 @@
   };
 
   handleSpaceIdChange();
-  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   watch(
     routeQueryParams,
@@ -184,7 +183,6 @@
       }
     },
   );
-
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 </script>
