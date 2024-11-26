@@ -33,6 +33,7 @@
     yAxis: {
       type: Array,
     },
+
     activeGraphCategory: {
       type: String,
     },
@@ -43,7 +44,7 @@
   const emit = defineEmits(['update']);
   const selectedXAxis = ref(props.xAxis);
   const selectedYAxis = ref(props.yAxis);
-  const timeAxis= ref([]);
+  const timeAxis = ref([]);
   const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_name));
   const stringFilterList = computed(() =>
@@ -68,12 +69,7 @@
     },
   );
   function change(axis, newValue) {
-    // if (axis === "x") {
-
     emit('update', axis, newValue);
-    // } else if (axis === "y") {
-    // emit("update-yAxis", newValue);
-    // }
   }
 </script>
 <template>
@@ -173,8 +169,8 @@
   .bklog-chart-field {
     .title {
       margin: 10px 0;
-      color: #63656e;
       font-size: 12px;
+      color: #63656e;
     }
   }
 </style>

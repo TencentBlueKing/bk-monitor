@@ -340,6 +340,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
+      state.indexItem.chart_params = {};
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -954,6 +955,7 @@ const store = new Vuex.Store({
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
+          chart_params: {},
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };

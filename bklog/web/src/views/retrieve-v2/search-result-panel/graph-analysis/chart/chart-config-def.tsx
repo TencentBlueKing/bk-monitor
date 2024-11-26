@@ -242,17 +242,14 @@ export const pieOptions: any = {
     itemStyle: {
       borderRadius: 5,
     },
-    encode: {
-      itemName: '',
-      value: '',
-    },
+    data: [],
   },
   legend: {
     show: false,
   },
-  dataset: {
-    source: [],
-  },
+  // dataset: {
+  //   source: [],
+  // },
   tooltip: {
     show: true,
     trigger: 'item',

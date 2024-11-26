@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Message } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-// import BookmarkPop from '../../search-bar/bookmark-pop.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphTable from './chart/graph-table.vue';
 import GraphChart from './chart/index.tsx';
@@ -54,6 +53,7 @@ enum OptionList {
 
 enum GraphCategory {
   BAR = 'bar',
+  CHART = 'chart',
   LINE = 'line',
   LINE_BAR = 'line_bar',
   PIE = 'pie',
@@ -78,7 +78,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   axiosOptionHeight = 148;
   rightOptionWidth = 360;
   minRightOptionWidth = 360;
-  activeGraphCategory = GraphCategory.BAR;
+  activeGraphCategory = GraphCategory.TABLE;
+  chartActiveType = GraphCategory.TABLE;
   xAxis = [];
   yAxis = [];
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
@@ -90,13 +91,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isSqlMode = true;
-  graphCategoryList = [
-    GraphCategory.LINE,
-    GraphCategory.BAR,
-    // GraphCategory.LINE_BAR,
-    GraphCategory.PIE,
-    GraphCategory.TABLE,
-  ];
+  graphCategoryList = [GraphCategory.TABLE, GraphCategory.LINE, GraphCategory.BAR, GraphCategory.PIE];
 
   basicInfoTitle = {
     show: false,
@@ -108,11 +103,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-
-
   fieldList = [1];
   advanceSetting = false;
-  activeCanvasType = 'bar';
 
   sqlEditorHeight = 400;
   isSqlValueChanged = false;
@@ -120,6 +112,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   get graphCategory() {
     return {
+      [GraphCategory.TABLE]: {
+        icon: '',
+        text: this.$t('表格'),
+        click: () => this.handleGraphCategoryClick(GraphCategory.TABLE),
+        images: {
+          def: StyleImages.chartTableDef,
+          active: StyleImages.chartTableActive,
+        },
+      },
       [GraphCategory.LINE]: {
         icon: '',
         text: this.$t('折线图'),
@@ -138,15 +139,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           active: StyleImages.chartBarActive,
         },
       },
-      // [GraphCategory.LINE_BAR]: {
-      //   icon: '',
-      //   text: this.$t('数字'),
-      //   click: () => this.handleGraphCategoryClick(GraphCategory.LINE_BAR),
-      //   images: {
-      //     def: StyleImages.chartLineBarDef,
-      //     active: StyleImages.chartLineBarActive,
-      //   },
-      // },
+
       [GraphCategory.PIE]: {
         icon: '',
         text: this.$t('饼图'),
@@ -154,15 +147,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         images: {
           def: StyleImages.chartPieDef,
           active: StyleImages.chartPieActive,
-        },
-      },
-      [GraphCategory.TABLE]: {
-        icon: '',
-        text: this.$t('表格'),
-        click: () => this.handleGraphCategoryClick(GraphCategory.TABLE),
-        images: {
-          def: StyleImages.chartTableDef,
-          active: StyleImages.chartTableActive,
         },
       },
     };
@@ -195,13 +179,43 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   get chartOptions() {
+    const chartType = this.chartActiveType === GraphCategory.TABLE ? GraphCategory.TABLE : this.activeGraphCategory;
     return {
       xFields: this.xAxis,
       yFields: this.yAxis,
-      type: this.activeCanvasType,
+      type: chartType,
       dimensions: this.dimensions,
       data: this.chartData.data,
     };
+  }
+
+  get storedChartParams() {
+    return this.$store.state.indexItem.chart_params ?? {};
+  }
+
+  get extendParams() {
+    return {
+      favorite_type: 'chart',
+      chart_params: {
+        xFields: this.xAxis,
+        yFields: this.yAxis,
+        activeGraphCategory: this.activeGraphCategory,
+        chartActiveType: this.chartActiveType,
+        dimensions: this.dimensions,
+      },
+      search_mode: 'sql',
+    };
+  }
+
+  @Watch('storedChartParams', { deep: true })
+  handleChartParamsChange() {
+    if (this.storedChartParams) {
+      ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions'].forEach(key => {
+        if (this.storedChartParams[key]) {
+          Object.assign(this, { [key]: this.storedChartParams[key] });
+        }
+      });
+    }
   }
 
   handleEditorSearchClick() {
@@ -214,8 +228,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   // 如果是table类型，切换为table，反之，切换为图表
   handleGraphCategoryClick(category: GraphCategory) {
+    if (category !== GraphCategory.TABLE) {
+      this.chartActiveType = GraphCategory.CHART;
+    }
     this.activeGraphCategory = category;
-    this.activeCanvasType = category;
     this.chartCounter++;
   }
 
@@ -263,7 +279,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           ></bk-input>
         )}
       </div>,
-
     ];
   }
 
@@ -310,6 +325,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       return [
         <SqlEditor
           ref='sqlEditor'
+          extendParams={this.extendParams}
           onChange={this.handleSqlQueryResultChange}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
@@ -338,9 +354,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     ];
   }
 
-  handleCanvasTypeChange(t) {
-    this.handleGraphCategoryClick(t);
-    this.activeCanvasType = t;
+  handleCanvasTypeChange(t?: GraphCategory) {
+    this.chartActiveType = t;
     this.chartCounter++;
   }
 
@@ -474,51 +489,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         <div
           style='display: none;'
           class='graph-analysis-navi'
-        >
-          <div class='option-switch'>
-            {/* <bk-switcher
-              class='ml-medium mr-min'
-              theme='primary'
-              value={this.isSqlMode}
-              onChange={this.changeModel}
-            ></bk-switcher>
-            <span>{this.$t('SQL模式')}</span> */}
-          </div>
-          {/* <div class='option-list'>
-            <div class={{ active: this.activeItem === OptionList.Analysis }}>
-              <span class='bklog-icon bklog-help'></span>
-              <span>分析</span>
-            </div>
-            <div class={{ active: this.activeItem === OptionList.Overview }}>
-              <span class='bklog-icon bklog-overview'></span>
-              <span>概览</span>
-            </div>
-          </div> */}
-          {/* <div class='option-btn'> */}
-          {/* <bk-button
-              style='margin-right: 8px;'
-              outline={true}
-              theme='primary'
-              onClick={this.save}
-            >
-              {this.$t('保存')}
-            </bk-button> */}
-          {/* <BookmarkPop
-              addition={this.uiQueryValue}
-              // :class="{ disabled: isInputLoading }"
-              search-mode='sql'
-              sql={this.sqlQueryValue}
-              onRefresh={this.handleRefresh}
-            ></BookmarkPop> */}
-
-          {/* <bk-button
-              outline={true}
-              onClick={this.handleAdd}
-            >
-              {this.$t('添加至仪表盘')}
-            </bk-button> */}
-          {/* </div> */}
-        </div>
+        ></div>
 
         <div class='graph-analysis-body'>
           <div class='body-left'>
@@ -543,14 +514,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
                 <span class='icons'>
                   <span
-                    class={{ active: this.activeCanvasType !== 'table' }}
-                    onClick={() => this.handleCanvasTypeChange('bar')}
+                    class={{ active: this.chartActiveType !== GraphCategory.TABLE }}
+                    v-show={this.activeGraphCategory !== GraphCategory.TABLE}
+                    onClick={() => this.handleCanvasTypeChange(GraphCategory.CHART)}
                   >
                     <i class='bklog-icon bklog-bar'></i>
                   </span>
                   <span
-                    class={{ active: this.activeCanvasType === 'table' }}
-                    onClick={() => this.handleCanvasTypeChange('table')}
+                    class={{ active: this.chartActiveType === GraphCategory.TABLE }}
+                    onClick={() => this.handleCanvasTypeChange(GraphCategory.TABLE)}
                   >
                     <i class='bklog-icon bklog-table'></i>
                   </span>
