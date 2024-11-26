@@ -131,7 +131,7 @@
       <div class="title">时间维度</div>
       <bk-select
         v-model="timeAxis"
-        :clearable="false"
+        :clearable="true"
         @change="change('dimensions', $event)"
         searchable
       >

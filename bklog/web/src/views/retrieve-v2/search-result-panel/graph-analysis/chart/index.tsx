@@ -63,9 +63,10 @@ export default defineComponent({
       return {
         list: list.map(item => {
           const timeFields = timeFieldList.reduce((obj, field) => {
+            const value = item[field.field_name];
             return Object.assign(obj, {
-              [field.field_name]: formatDateTimeField(item[field.field_name], field.field_type),
-              [`__origin_${field.field_name}`]: item[field.field_name],
+              [field.field_name]: formatDateTimeField(value, field.field_type),
+              [`__origin_${field.field_name}`]: value,
             });
           }, {});
           return Object.assign(item, timeFields);

@@ -168,10 +168,9 @@ export default defineComponent({
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
-          
           <bk-button
-            v-bk-tooltips={{ content: '查询' }}
             class='sql-editor-query-button'
+            v-bk-tooltips={{ content: '查询' }}
             loading={isRequesting.value}
             size='small'
             theme='primary'
@@ -181,8 +180,8 @@ export default defineComponent({
             {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
-            v-bk-tooltips={{ content: '中止' }}
             class='sql-editor-view-button'
+            v-bk-tooltips={{ content: '中止' }}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -196,8 +195,8 @@ export default defineComponent({
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
-              v-bk-tooltips={{ content: '同步查询条件到SQL' }}
               class='sql-editor-view-button'
+              v-bk-tooltips={{ content: '同步查询条件到SQL' }}
               loading={isSyncSqlRequesting.value}
               size='small'
             >
@@ -205,8 +204,8 @@ export default defineComponent({
             </bk-button>
           </bk-popconfirm>
           <BookmarkPop
-            v-bk-tooltips={{ content: '收藏' }}
             class='bklog-sqleditor-bookmark'
+            v-bk-tooltips={{ content: '收藏' }}
             addition={[]}
             extendParams={chartParams.value}
             search-mode='sqlChart'
@@ -261,13 +260,15 @@ export default defineComponent({
     watch(
       () => storedParams.value.sql,
       () => {
-        if (storedParams.value.sql) {
-          sqlContent.value = storedParams.value.sql;
-        } else {
-          handleSyncAdditionToSQL(false);
-        }
+        if (sqlContent.value !== storedParams.value.sql) {
+          if (storedParams.value.sql) {
+            sqlContent.value = storedParams.value.sql;
+          } else {
+            handleSyncAdditionToSQL(false);
+          }
 
-        debounceQuery(false);
+          debounceQuery(false);
+        }
       },
       {
         immediate: true,
