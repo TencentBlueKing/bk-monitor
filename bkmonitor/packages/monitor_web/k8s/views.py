@@ -14,13 +14,15 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class K8SViewSet(ResourceViewSet):
+class ResourcesViewSet(ResourceViewSet):
     def get_permissions(self):
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
         # 获取集群列表
         ResourceRoute("GET", resource.k8s.list_bcs_cluster, endpoint="list_bcs_cluster"),
+        # 获取场景下指标列表
+        ResourceRoute("GET", resource.k8s.scenario_metric_list, endpoint="scenario_metric_list"),
         # 获取指定集群下资源列表
-        ResourceRoute("GET", resource.k8s.list_resources, endpoint="list_resources"),
+        ResourceRoute("GET", resource.k8s.list_k8s_resources, endpoint="list_resources"),
     ]
