@@ -542,7 +542,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           ? this.handleCopyDashboard
           : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
-      if (isSuccess) {
+        if (isSuccess) {
         this.showAddForm = false;
         this.handleFetchGrafanaTree();
       }
@@ -575,10 +575,16 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     };
     return copyDashboard(params)
       .then(res => {
-        this.$bkMessage({ message: `${this.$t('复制成功')}：${res?.title}`, theme: 'success' });
+        const url = res?.imported_url
+          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
+          : '';
+        url && window.open(url, '_blank');
         return true;
       })
-      .catch(() => false);
+      .catch(rs => {
+        this.$bkMessage({ message: `${rs?.message}`, theme: 'error' });
+        return false;
+      });
   }
   /**
    * 新增目录
@@ -821,7 +827,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             }
             {(this.isDashboard || this.isCopyDashboard) && (
               <bk-form-item
-                label={this.$t('所属目录')}
+                label={this.$t(this.isCopyDashboard ? '目标目录' : '所属目录')}
                 property='dir'
                 required
               >
