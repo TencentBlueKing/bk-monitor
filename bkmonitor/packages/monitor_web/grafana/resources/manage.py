@@ -337,6 +337,7 @@ class CopyDashboardToFolder(Resource):
                 "result": False,
                 "message": f"Copy failed. The dashboard information could not be found. "
                 f"dashboard_uid: {params['dashboard_uid']}",
+                "code": 200,
                 "data": {},
             }
 
@@ -356,4 +357,17 @@ class CopyDashboardToFolder(Resource):
             org_id=org_id,
         )
 
-        return result
+        if not result["result"]:
+            return {
+                "result": False,
+                "message": f"Dashboard_uid: {params['dashboard_uid']} Copy failed. {result['message']}",
+                "code": result["code"],
+                "data": {},
+            }
+
+        return {
+            "result": True,
+            "message": "Copy success.",
+            "code": result["code"],
+            "data": {"imported_url": result["data"].get("importedUrl", "")},
+        }
