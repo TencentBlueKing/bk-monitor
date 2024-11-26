@@ -94,6 +94,7 @@ from constants.apm import (
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
+from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
@@ -2907,7 +2908,26 @@ class ErrorListByTraceIdsResource(PageListResource):
         return paginated_data
 
 
+class HostDetailResource(GetHostOrTopoNodeDetailResource):
+    """主机详情"""
+
+    class RequestSerializer(GetHostOrTopoNodeDetailResource.RequestSerializer):
+        source_type = serializers.CharField(label="主机关联来源")
+
+    def perform_request(self, params):
+        # 此接口的作用是在主机详情的基础上增加一个关联来源字段 用在页面显示
+        response = GetHostOrTopoNodeDetailResource()(**params)
+        if not response or not isinstance(response, list):
+            return response
+        response.append(
+            {"name": _("关联来源"), "type": "string", "value": HostHandler.SourceType.get_label(params["source_type"])}
+        )
+        return response
+
+
 class HostInstanceDetailListResource(Resource):
+    """关联主机列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")

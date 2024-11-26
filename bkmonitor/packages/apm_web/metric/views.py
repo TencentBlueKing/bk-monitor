@@ -21,6 +21,7 @@ from apm_web.metric.resources import (
     ErrorListResource,
     ExceptionDetailListResource,
     GetFieldOptionValuesResource,
+    HostDetailResource,
     HostInstanceDetailListResource,
     InstanceListResource,
     MetricDetailStatisticsResource,
@@ -53,6 +54,9 @@ class MetricViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        if self.action in ["host_instance_detail"]:
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
@@ -99,6 +103,14 @@ class MetricViewSet(ResourceViewSet):
             "POST",
             HostInstanceDetailListResource,
             endpoint="host_instance_detail_list",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            HostDetailResource,
+            endpoint="host_instance_detail",
             decorators=[
                 user_visit_record,
             ],
