@@ -66,9 +66,9 @@ export default class StatusTab extends tsc<IProps> {
 
   @Watch('maxWidth', { immediate: true })
   handleWatchMaxWidth() {
-    this.$nextTick(() => {
+    setTimeout(() => {
       this.throttleSetList();
-    });
+    }, 200);
   }
 
   @Watch('value', { immediate: true })
