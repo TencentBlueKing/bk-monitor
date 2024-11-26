@@ -97,7 +97,7 @@
       <bk-select
         v-model="selectedXAxis"
         searchable
-        @change="change('dimensions', $event)"
+        @change="change('xAxis', $event)"
         :clearable="false"
         multiple
       >
