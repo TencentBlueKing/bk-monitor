@@ -10,9 +10,9 @@ SEARCH_PARAMS = {
         {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
         {"field": "service", "operator": "!=", "value": ["php"]},
         {"field": "count", "operator": "<", "value": [100]},
-        {"field": "count", "operator": ">", "value": [500]},
+        {"field": "index", "operator": ">", "value": [500]},
         {"field": "number", "operator": ">=", "value": [100]},
-        {"field": "number", "operator": "<=", "value": [500]},
+        {"field": "id", "operator": "<=", "value": [500]},
         {"field": "gseIndex", "operator": "=~", "value": ["?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"]},
         {"field": "path", "operator": "!=~", "value": ["?app/*/python.*"]},
         {"field": "cloudId", "operator": "contains", "value": ["6", "9"]},
@@ -25,6 +25,7 @@ SEARCH_PARAMS = {
         {"field": "log", "operator": "all not contains match phrase", "value": ["error", "500"]},
         {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
         {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
+        {"field": "name", "operator": "=", "value": ['\'hello\'', "\"world\""]},
     ],
 }
 
@@ -38,11 +39,11 @@ SQL_RESULT = (
     " AND "
     "count < 100"
     " AND "
-    "count > 500"
+    "index > 500"
     " AND "
     "number >= 100"
     " AND "
-    "number <= 500"
+    "id <= 500"
     " AND "
     "gseIndex LIKE '_proz/Saved/Logs/ProjectA_2024.10.20-23.17.50%'"
     " AND "
@@ -56,17 +57,19 @@ SQL_RESULT = (
     " AND "
     "flag IS TRUE"
     " AND "
-    "(log MATCH_ANY 'html' OR log MATCH_ANY 'css')"
+    "(log MATCH_PHRASE 'html' OR log MATCH_PHRASE 'css')"
     " AND "
-    "log NOT MATCH_ANY 'js'"
+    "log NOT MATCH_PHRASE 'js'"
     " AND "
-    "log MATCH_ANY 'success' AND log MATCH_ANY '200'"
+    "(log MATCH_PHRASE 'success' AND log MATCH_PHRASE '200')"
     " AND "
-    "log NOT MATCH_ANY 'error' AND log NOT MATCH_ANY '500'"
+    "(log NOT MATCH_PHRASE 'error' AND log NOT MATCH_PHRASE '500')"
     " AND "
-    "describe LIKE '_el%' AND describe LIKE 'wor_d'"
+    "(describe LIKE '_el%' AND describe LIKE 'wor_d')"
     " AND "
-    "theme NOT LIKE 'pg%' AND theme NOT LIKE '_h_'"
+    "(theme NOT LIKE 'pg%' AND theme NOT LIKE '_h_')"
+    " AND "
+    "(name = \"\'hello\'\" OR name = '\"world\"')"
     f" {SQL_SUFFIX}"
 )
 

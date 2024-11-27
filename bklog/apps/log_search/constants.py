@@ -1653,3 +1653,25 @@ SEARCH_OPTION_HISTORY_NUM = 20
 # SQL模板
 SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
 SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
+
+# 日志检索条件到sql操作符的映射
+SQL_CONDITION_MAPPINGS = {
+    ">": ">",
+    ">=": ">=",
+    "<": "<",
+    "<=": "<=",
+    "=": "=",
+    "!=": "!=",
+    "=~": "LIKE",
+    "&=~": "LIKE",
+    "!=~": "NOT LIKE",
+    "&!=~": "NOT LIKE",
+    "contains": "LIKE",
+    "not contains": "NOT LIKE",
+    "contains match phrase": "MATCH_PHRASE",
+    "not contains match phrase": "NOT MATCH_PHRASE",
+    "all contains match phrase": "MATCH_PHRASE",
+    "all not contains match phrase": "NOT MATCH_PHRASE",
+    "is true": "IS TRUE",
+    "is false": "IS FALSE",
+}

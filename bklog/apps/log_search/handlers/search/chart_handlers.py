@@ -25,7 +25,12 @@ from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 
 from apps.api import BkDataQueryApi
-from apps.log_search.constants import SQL_PREFIX, SQL_SUFFIX, SearchMode
+from apps.log_search.constants import (
+    SQL_CONDITION_MAPPINGS,
+    SQL_PREFIX,
+    SQL_SUFFIX,
+    SearchMode,
+)
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
@@ -84,9 +89,14 @@ class ChartHandler(object):
             field_name = condition["field"]
             operator = condition["operator"]
             values = condition["value"]
-
+            # 获取sql操作符
+            sql_operator = SQL_CONDITION_MAPPINGS.get(operator)
+            # 异常情况,跳过
+            if not sql_operator or field_name in ["*", "query_string"]:
+                continue
+            # IS TRUE和IS FALSE的逻辑
             if operator in ["is true", "is false"]:
-                sql += f"{field_name} {operator.upper()}"
+                sql += f"{field_name} {sql_operator}"
                 continue
 
             # values 不为空时才走后面的逻辑
@@ -97,17 +107,6 @@ class ChartHandler(object):
             condition_type = "OR"
             if operator in ["&=~", "&!=~", "all contains match phrase", "all not contains match phrase"]:
                 condition_type = "AND"
-
-            # 日志的操作符转化为sql操作符
-            sql_operator = operator
-            if operator in ["=~", "&=~", "contains"]:
-                sql_operator = "LIKE"
-            elif operator in ["!=~", "&!=~", "not contains"]:
-                sql_operator = "NOT LIKE"
-            elif operator in ["contains match phrase", "all contains match phrase"]:
-                sql_operator = "MATCH_ANY"
-            elif operator in ["not contains match phrase", "all not contains match phrase"]:
-                sql_operator = "NOT MATCH_ANY"
 
             tmp_sql = ""
             for index, value in enumerate(values):
@@ -121,13 +120,12 @@ class ChartHandler(object):
 
                 if index > 0:
                     tmp_sql += f" {condition_type} "
-                if not isinstance(value, int):
-                    value = f"\'{value}\'"
-                tmp_sql += f"{field_name} {sql_operator} {value}"
 
-            # 有两个以上的值,且是OR关系是才需要加括号
-            sql += tmp_sql if condition_type == "AND" or len(values) == 1 else ("(" + tmp_sql + ")")
-        return SQL_PREFIX + f" {sql} " + SQL_SUFFIX
+                tmp_sql += f"{field_name} {sql_operator} " + repr(value)
+
+            # 有两个以上的值时加括号
+            sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
+        return f"{SQL_PREFIX} {sql} {SQL_SUFFIX}"
 
 
 class UIChartHandler(ChartHandler):
@@ -189,26 +187,14 @@ class SQLChartHandler(ChartHandler):
             if errors:
                 errors_message = errors_message + ":" + errors
             logger.info("SQL query exception [%s]", errors_message)
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=errors_message), errors=sql)
+            raise SQLQueryException(
+                SQLQueryException.MESSAGE.format(name=errors_message),
+                errors={"sql": "sql"},
+            )
 
         data_list = result_data["data"]["list"]
         result_schema = result_data["data"].get("result_schema", [])
-        index = 0
-        # 接口中不存在时,构造result_schema
-        if not result_schema and data_list:
-            for key, value in data_list[0].items():
-                if key in ["dtEventTimeStamp", "dtEventTime", "time"]:
-                    field_type = "date"
-                elif isinstance(value, int):
-                    field_type = "long"
-                elif isinstance(value, float):
-                    field_type = "double"
-                else:
-                    field_type = "string"
-                result_schema.append(
-                    {"field_type": field_type, "field_name": key, "field_alias": key, "field_index": index}
-                )
-                index += 1
+
         data = {
             "total_records": result_data["data"]["totalRecords"],
             "time_taken": result_data["data"]["timetaken"],
