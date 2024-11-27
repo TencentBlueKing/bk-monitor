@@ -27,7 +27,13 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, { RoleType, type IMessage, ChatHelper, MessageStatus } from '@blueking/ai-blueking/vue2';
+import AiBlueking, {
+  RoleType,
+  type IMessage,
+  ChatHelper,
+  MessageStatus,
+  type ISendData,
+} from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText, getCookie, random } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -180,7 +186,7 @@ export default class AiWhale extends tsc<{
     const { bizId } = this.$store.getters;
     return this.$store.getters.bizList.find(item => item.id === bizId) || { name: '', type_name: '' };
   }
-  @Watch('enableAiAssistant')
+  @Watch('enableAiAssistant', { immediate: true })
   enableAiAssistantChange() {
     this.enableAiAssistant && this.initStreamChatHelper();
   }
@@ -495,18 +501,25 @@ export default class AiWhale extends tsc<{
   handleAiBluekingClear() {
     this.messages = [];
   }
-  handleAiBluekingSend(message: string) {
+  handleAiBluekingSend(message: ISendData) {
     // 记录当前消息记录
     // const chatHistory = [...this.messages];
     // 添加一条消息
     this.messages.push({
       role: RoleType.User,
-      content: message,
+      content: message.content,
+      cite: message.cite,
     });
+    // 根据参数构造输入内容
+    const input = message.prompt
+      ? message.prompt // 如果有 prompt，直接使用
+      : message.cite
+        ? `${message.content}: ${message.cite}` // 如果有 cite，拼接 content 和 cite
+        : message.content;
     // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
     this.chatHelper.stream(
       {
-        query: message,
+        query: input,
         type: 'nature',
         polish: true,
         stream: true,
@@ -774,6 +787,7 @@ export default class AiWhale extends tsc<{
         class='ai-blueking'
         background={this.background}
         head-background={this.headBackground}
+        isShow={this.showAIBlueking}
         loading={this.loading}
         messages={this.messages}
         position-limit={this.positionLimit}
@@ -784,6 +798,9 @@ export default class AiWhale extends tsc<{
         onClear={this.handleAiBluekingClear}
         onClose={this.handleAiBluekingClose}
         onSend={this.handleAiBluekingSend}
+        onShowDialog={(v: boolean) => {
+          this.showAIBlueking = v;
+        }}
         onStop={this.handleAiBluekingStop}
       />
     );
@@ -826,7 +843,7 @@ export default class AiWhale extends tsc<{
             </div>
           )}
         </div>
-        {this.enableAiAssistant && this.showAIBlueking && this.createAiBlueking()}
+        {this.enableAiAssistant && this.createAiBlueking()}
       </div>
     );
   }

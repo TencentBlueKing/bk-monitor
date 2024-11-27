@@ -131,7 +131,7 @@ class Query:
                 "prefer_storage": "doris",
                 "_user_request": True,
             }
-            return api.bkdata.query_data(**params)
+            return api.bkdata.query_profile_data(**params)
         except BKAPIError as e:
             logger.exception(f"query bkdata doris failed, error: {e}")
 

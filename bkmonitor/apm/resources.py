@@ -61,6 +61,7 @@ from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -1448,7 +1449,7 @@ class DeleteApplicationResource(Resource):
         if not app:
             raise ValueError(_("应用不存在"))
 
-        delete_application_async.delay(app.bk_biz_id, app.app_name)
+        delete_application_async.delay(app.bk_biz_id, app.app_name, get_request_username())
 
 
 class QuerySpanStatisticsListResource(Resource):
@@ -1569,7 +1570,7 @@ class CreateOrUpdateBkdataFlowResource(Resource):
                 raise ValueError(f"没有找到app_name: {app_name}的Trace数据表")
 
             if settings.IS_ACCESS_BK_DATA:
-                create_or_update_tail_sampling.delay(trace, ser.data)
+                create_or_update_tail_sampling.delay(trace, ser.data, get_request_username())
                 return
 
             raise ValueError("环境中未开启计算平台，无法创建")

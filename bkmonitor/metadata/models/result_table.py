@@ -2697,3 +2697,18 @@ class ResultTableFieldOption(OptionBase):
             es_config[config_name[3:]] = config_value
 
         return es_config
+
+    @classmethod
+    def get_field_es_read_alias(cls, table_id, field_name):
+        """
+        寻找ES字段关联别名，若有对应Option记录，回写至IndexBody.Properties中
+        :param table_id: 结果表ID
+        :param field_name: 字段名（原始字段名，非别名）
+        :return: dict {alias_name:{"type":alias,"path":origin_field_name}}
+        """
+        origin_option = cls.get_field_option(table_id=table_id, field_name=field_name)
+        es_config = {}
+        for config_name, config_value in list(origin_option.items()):
+            if config_name == 'query_alias':
+                es_config[config_value] = {"type": "alias", "path": field_name}
+        return es_config

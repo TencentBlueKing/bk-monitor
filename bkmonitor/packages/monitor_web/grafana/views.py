@@ -107,6 +107,7 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("DELETE", resource.grafana.delete_folder, endpoint="delete_folder"),
         ResourceRoute("PUT", resource.grafana.rename_folder, endpoint="rename_folder"),
         ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
+        ResourceRoute("POST", resource.grafana.copy_dashboard_to_folder, endpoint="copy_dashboard_to_folder"),
         # 视图保存
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
         # 统一数据查询
