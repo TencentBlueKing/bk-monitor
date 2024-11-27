@@ -211,7 +211,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                 if response:
                     # 实际有 Pod 数据才返回
-                    return cls._add_config_from_container(view, view_config)
+                    return cls._add_config_from_container(app_name, service_name, view, view_config)
 
             return cls._get_non_container_view_config(builtin_view, params)
 
@@ -482,7 +482,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
-    def _add_config_from_container(cls, view, view_config):
+    def _add_config_from_container(cls, app_name, service_name, view, view_config):
         """获取容器 Pod 图表配置"""
         from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
 
@@ -505,6 +505,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         if "panels" in pod_view:
             pod_view["overview_panels"] = pod_view["panels"]
             del pod_view["panels"]
+
+        pod_view["options"]["selector_panel"]["targets"][0]["data"] = {
+            "app_name": app_name,
+            "service_name": service_name,
+        }
         return pod_view
 
     @classmethod
