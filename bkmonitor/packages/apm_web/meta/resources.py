@@ -273,10 +273,8 @@ class ListApplicationInfoResource(Resource):
 
     def perform_request(self, validated_request_data):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
-        return Application.objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            metric_result_table_id__isnull=False,
-            trace_result_table_id__isnull=False,
+        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).filter(
+            Application.q_filter_create_finished()
         )
 
 
@@ -854,6 +852,11 @@ class ListApplicationResource(PageListResource):
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
 
     class ApplicationSerializer(serializers.ModelSerializer):
+        is_create_finished = serializers.SerializerMethodField()
+
+        def get_is_create_finished(self, instance):
+            return instance.is_create_finished
+
         class Meta:
             model = Application
             fields = [
@@ -870,6 +873,7 @@ class ListApplicationResource(PageListResource):
                 "service_count",
                 "trace_result_table_id",
                 "metric_result_table_id",
+                "is_create_finished",
             ]
 
     def get_filter_fields(self):
