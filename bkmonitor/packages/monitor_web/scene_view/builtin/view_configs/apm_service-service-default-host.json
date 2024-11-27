@@ -4,7 +4,7 @@
   "mode": "auto",
   "name": "主机",
   "variables": [],
-  "panels": [],
+  "overview_panels": [],
   "order": [],
   "options": {
     "panel_tool": {
@@ -36,7 +36,7 @@
         }
       ]
     },
-    "detail_panel": {
+    "overview_detail_panel": {
       "title": "主机详情",
       "type": "info",
       "targets": [

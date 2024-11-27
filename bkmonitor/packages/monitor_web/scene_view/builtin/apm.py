@@ -209,7 +209,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     end_time=end_time,
                 )
 
-                if response.get("data"):
+                if response:
                     # 实际有 Pod 数据才返回
                     return cls._add_config_from_container(view, view_config)
 
@@ -502,6 +502,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
         pod_view["options"] = view_config["options"]
+        if "panels" in pod_view:
+            pod_view["overview_panels"] = pod_view["panels"]
+            del pod_view["panels"]
         return pod_view
 
     @classmethod
@@ -512,7 +515,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 特殊处理服务主机页面 -> 为主机监控panel配置
         host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
         if host_view:
-            view_config["panels"], view_config["order"] = get_auto_view_panels(view)
+            view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
 
     @classmethod
     def create_default_views(cls, bk_biz_id: int, scene_id: str, view_type: str, existed_views):

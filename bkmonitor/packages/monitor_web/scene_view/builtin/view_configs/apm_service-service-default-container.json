@@ -2,9 +2,8 @@
   "id": "container",
   "type": "detail",
   "mode": "auto",
-  "name": "k8s",
+  "name": "容器",
   "variables": [],
-  "panels": [],
   "overview_panels": [],
   "order": [],
   "options": {
@@ -20,11 +19,11 @@
     "enable_group": true,
     "alert_filterable": true,
     "selector_panel": {
-      "title": "Pods",
-      "type": "table",
+      "title": "容器列表",
+      "type": "target_list",
       "targets": [
         {
-          "datasource": "pod_list",
+          "datasource": "host_list",
           "dataType": "list",
           "api": "apm_container.listServicePods",
           "data": {
@@ -36,20 +35,20 @@
           "fields": {
             "bcs_cluster_id": "bcs_cluster_id",
             "namespace": "namespace",
-            "pod_name": "name"
+            "pod_name": "name",
+            "app_name": "$app_name",
+            "service_name": "$service_name"
           }
         }
       ],
       "options": {
-        "selector_list": {
-          "query_update_url": true,
-          "status_filter": true,
-          "field_sort": true,
-          "default_sort_field": "-limit_cpu_usage_ratio"
+        "target_list": {
+          "show_status_bar": true,
+          "show_overview": false
         }
       }
     },
-    "detail_panel": {
+    "overview_detail_panel": {
       "title": "Pod",
       "type": "info",
       "targets": [
