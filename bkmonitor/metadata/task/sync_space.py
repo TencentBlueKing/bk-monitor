@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from datetime import datetime
 from typing import Dict, List, Optional, Set
 
 from django.conf import settings
@@ -25,6 +26,7 @@ from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
     SYSTEM_USERNAME,
+    SpaceStatus,
     BCSClusterTypes,
     SpaceTypes,
 )
@@ -61,6 +63,10 @@ def sync_bkcc_space(allow_deleted=False):
     NOTE: 空间创建后，不需要单独推送
     """
     logger.info("start sync bkcc space task")
+
+    # 先同步已归档业务
+    sync_archived_bkcc_space()
+
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list = api.cmdb.get_business()
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -110,6 +116,43 @@ def sync_bkcc_space(allow_deleted=False):
         RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps({"time": time.time()})])
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
+
+
+def sync_archived_bkcc_space():
+    """同步 bkcc 被归档的业务，停用对应的空间"""
+    logger.info("start sync archived bkcc space task")
+    bkcc_type_id = SpaceTypes.BKCC.value
+    # 获取已归档的业务
+    archived_biz_list = api.cmdb.get_business(is_archived=True)
+    archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
+    # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
+    name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"
+    # 获取当前启用且需要同步归档的业务空间
+    need_archive_space = Space.objects.filter(
+        space_type_id=bkcc_type_id, status=SpaceStatus.NORMAL.value, space_id__in=archived_biz_id_list
+    )
+    if not need_archive_space:
+        return
+    need_archive_biz_id_list = []
+    for obj in need_archive_space:
+        need_archive_biz_id_list.append(obj.space_id)
+        obj.space_name = f"{obj.space_name}{name_suffix}"
+        obj.status = SpaceStatus.DISABLED.value
+    Space.objects.bulk_update(need_archive_space, ["space_name", "status"], batch_size=BULK_UPDATE_BATCH_SIZE)
+    # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
+    space_resources = SpaceResource.objects.filter(
+        resource_type=bkcc_type_id, resource_id__in=need_archive_biz_id_list
+    )
+    # 对应的 BKCI(BCS) 空间，也标识为不可用
+    Space.objects.filter(
+        space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
+    ).update(is_bcs_valid=False)
+
+    logger.info(
+        "update archived space_type_id: [%s], space_id: [%s]",
+        bkcc_type_id,
+        ",".join(need_archive_biz_id_list)
+    )
 
 
 @share_lock(identify="metadata__refresh_bkcc_space_name")
