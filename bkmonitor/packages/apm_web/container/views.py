@@ -8,10 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.container.resources import ListServicePodsResource
+from apm_web.container.resources import ListServicePodsResource, PodDetailResource
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import BusinessActionPermission, InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -21,6 +21,9 @@ class K8sViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        if self.action in ["pod_detail"]:
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
@@ -32,4 +35,5 @@ class K8sViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", ListServicePodsResource, "list_service_pods"),
+        ResourceRoute("POST", PodDetailResource, "pod_detail"),
     ]

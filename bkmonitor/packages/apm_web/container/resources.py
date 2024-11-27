@@ -16,7 +16,53 @@ from core.drf_resource import Resource
 from monitor_web.collecting.constant import CollectStatus
 
 
+class PodDetailResource(Resource):
+    """获取 Pod 详情"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        namespace = serializers.CharField(required=False, allow_null=True)
+        pod_name = serializers.CharField(required=False, allow_null=True)
+
+    def perform_request(self, validated_data):
+        from bkmonitor.models import BCSPod
+
+        query_params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+        }
+        if validated_data.get("bcs_cluster_id"):
+            query_params["bcs_cluster_id"] = validated_data["bcs_cluster_id"]
+        if validated_data.get("namespace"):
+            query_params["namespace"] = validated_data["namespace"]
+        if validated_data.get("pod_name"):
+            query_params["name"] = validated_data["pod_name"]
+
+        if BCSPod.objects.filter(**query_params).exists():
+            # 存在 交给 Pod 详情接口
+            from monitor_web.scene_view.resources import GetKubernetesPod
+
+            return GetKubernetesPod()(**validated_data)
+
+        res = [{"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}]
+        if validated_data.get("pod_name"):
+            res.append({"key": "pod_name", "name": "Pod 名称", "type": "string", "value": validated_data["pod_name"]})
+
+        if validated_data.get("bcs_cluster_id"):
+            res.append(
+                {"key": "bcs_cluster_id", "name": "集群 ID", "type": "string", "value": validated_data["bcs_cluster_id"]}
+            )
+        if validated_data.get("namespace"):
+            res.append(
+                {"key": "namespace", "name": "NameSpace", "type": "string", "value": validated_data["namespace"]}
+            )
+
+        return res
+
+
 class ListServicePodsResource(Resource):
+    """获取关联 Pod 列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
         app_name = serializers.CharField(label="应用名称")

@@ -62,7 +62,7 @@
         {
           "datasource": "info",
           "dataType": "info",
-          "api": "scene_view.getKubernetesPod",
+          "api": "apm_container.podDetail",
           "data": {
             "bcs_cluster_id": "$bcs_cluster_id",
             "namespace": "$namespace",
