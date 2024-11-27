@@ -497,7 +497,7 @@ class MappingHandlers(object):
                     index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
                 ).exclude(storage_cluster_id=self.storage_cluster_id)
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception(f"[_multi_search] parse time error -> e: {e}")
+                logger.exception(f"[_multi_mappings] parse time error -> e: {e}")
 
         params = {
             "indices": self.indices,
@@ -508,7 +508,7 @@ class MappingHandlers(object):
             "end_time": end_time,
             "add_settings_details": False if only_search else True,
         }
-        if not storage_cluster_record_objs:
+        if not storage_cluster_record_objs.exists():
             return self._direct_latest_mapping(params)
 
         multi_execute_func = MultiExecuteFunc()
@@ -517,7 +517,7 @@ class MappingHandlers(object):
 
         # 获取当前使用的存储集群数据
         multi_execute_func.append(
-            result_key=f"multi_search_{multi_num}", func=self._direct_latest_mapping, params=params
+            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
         )
 
         # 获取历史使用的存储集群数据
@@ -527,7 +527,7 @@ class MappingHandlers(object):
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
                 multi_execute_func.append(
-                    result_key=f"multi_search_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
                 )
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
@@ -537,13 +537,6 @@ class MappingHandlers(object):
         merge_result = list()
         try:
             for _key, _result in multi_result.items():
-                if not _result:
-                    continue
-
-                if not merge_result:
-                    merge_result = _result
-                    continue
-
                 merge_result.extend(_result)
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
