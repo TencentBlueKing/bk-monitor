@@ -181,6 +181,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 )
             ):
                 cls._add_config_from_host(view, view_config)
+                # 兼容前端对 selector_panel 类型为 target_list 做的特殊处理 直接直接替换变量
+                view_config["options"]["selector_panel"]["targets"][0]["data"] = {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
                 return view_config
 
             return cls._get_non_host_view_config(builtin_view, params)
