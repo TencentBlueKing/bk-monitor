@@ -64,6 +64,20 @@
           }
         }
       ]
+    },
+    "group_panel": {
+      "targets": [
+        {
+          "datasource": "dimensions",
+          "dataType": "list",
+          "api": "scene_view.getSceneViewDimensions",
+          "data": {
+            "scene_id": "kubernetes",
+            "type": "detail",
+            "id": "pod"
+          }
+        }
+      ]
     }
   }
 }

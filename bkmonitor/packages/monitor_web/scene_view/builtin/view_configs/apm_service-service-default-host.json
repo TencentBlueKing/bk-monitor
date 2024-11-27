@@ -19,7 +19,8 @@
           "fields": {
             "bk_host_id": "bk_host_id",
             "bk_host_innerip": "bk_target_ip",
-            "bk_cloud_id": "bk_target_cloud_id"
+            "bk_cloud_id": "bk_target_cloud_id",
+            "source_type": "source_type"
           }
         }
       ],
@@ -70,8 +71,11 @@
         {
           "datasource": "info",
           "dataType": "info",
-          "api": "scene_view.getHostOrTopoNodeDetail",
-          "data": {"bk_host_id": "$bk_host_id"}
+          "api": "apm_metric.hostDetail",
+          "data": {
+            "bk_host_id": "$bk_host_id",
+            "source_type": "$source_type"
+          }
         }
       ]
     }
