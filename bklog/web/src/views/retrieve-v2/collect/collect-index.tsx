@@ -193,6 +193,7 @@ export default class CollectIndex extends tsc<IProps> {
     } else {
       this.collectList = [];
       this.filterCollectList = [];
+      this.activeFavorite = null;
       this.groupList = [];
       this.searchVal = '';
     }
@@ -212,12 +213,18 @@ export default class CollectIndex extends tsc<IProps> {
   watchFavoriteData(value) {
     this.handleInitFavoriteList(value);
   }
-
+  @Watch('activeFavorite', { deep: true })
+  changeActiveFavorite(val) {
+    this.updateActiveFavorite(val);
+  }
   @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
     return value;
   }
-
+  @Emit('update-active-favorite')
+  updateActiveFavorite(value) {
+    return value;
+  }
   /** 获取收藏列表 */
   async getFavoriteList() {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
@@ -259,7 +266,7 @@ export default class CollectIndex extends tsc<IProps> {
       return;
     }
     const cloneValue = deepClone(value);
-    this.activeFavorite = cloneValue;
+    this.activeFavorite = deepClone(value);
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
     this.$store.commit('updateIsSetDefaultTableColumn', false);
