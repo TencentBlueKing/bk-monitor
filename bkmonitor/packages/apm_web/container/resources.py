@@ -67,15 +67,15 @@ class ListServicePodsResource(Resource):
         ]
 
         res = []
-        index = 0
+        index = 1
         for i in relations:
             for n in i.nodes:
                 source_info = n.source_info.to_source_info()
                 source_info["id"] = index
-                source_info["name"] = source_info["name"]
+                source_info["name"] = source_info["pod"]
                 source_info["app_name"] = app_name
                 source_info["service_name"] = service_name
-                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("name"))
+                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod"))
                 if key in current_pods:
                     source_info["status"] = CollectStatus.SUCCESS
                 else:

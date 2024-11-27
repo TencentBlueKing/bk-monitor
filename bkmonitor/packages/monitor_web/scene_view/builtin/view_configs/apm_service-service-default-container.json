@@ -36,6 +36,13 @@
             "bcs_cluster_id": "bcs_cluster_id",
             "namespace": "namespace",
             "pod_name": "name",
+            "app_name": "app_name",
+            "service_name": "service_name"
+          },
+          "fields_template": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "pod_name": "$name",
             "app_name": "$app_name",
             "service_name": "$service_name"
           }
