@@ -33,7 +33,7 @@ import axios from 'axios';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
-
+import useLocale from '@/hooks/use-locale';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
 
@@ -62,6 +62,7 @@ export default defineComponent({
         emit('sql-change', value);
       }
     };
+    const { $t } = useLocale();
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
 
     const editorConfig = ref({
@@ -168,9 +169,9 @@ export default defineComponent({
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
-          
+
           <bk-button
-            v-bk-tooltips={{ content: '查询' }}
+            v-bk-tooltips={{ content: $t('查询') }}
             class='sql-editor-query-button'
             loading={isRequesting.value}
             size='small'
@@ -181,7 +182,7 @@ export default defineComponent({
             {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
-            v-bk-tooltips={{ content: '中止' }}
+            v-bk-tooltips={{ content: $t('中止') }}
             class='sql-editor-view-button'
             size='small'
             onClick={handleStopBtnClick}
@@ -191,12 +192,12 @@ export default defineComponent({
           </bk-button>
           <bk-popconfirm
             width='288'
-            content='此操作会覆盖当前SQL，请谨慎操作'
+            content={$t('此操作会覆盖当前SQL，请谨慎操作')}
             trigger='click'
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
-              v-bk-tooltips={{ content: '同步查询条件到SQL' }}
+              v-bk-tooltips={{ content: $t('同步查询条件到SQL') }}
               class='sql-editor-view-button'
               loading={isSyncSqlRequesting.value}
               size='small'
@@ -205,7 +206,7 @@ export default defineComponent({
             </bk-button>
           </bk-popconfirm>
           <BookmarkPop
-            v-bk-tooltips={{ content: '收藏' }}
+            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', '') }}
             class='bklog-sqleditor-bookmark'
             addition={[]}
             extendParams={chartParams.value}
@@ -218,32 +219,32 @@ export default defineComponent({
     const renderHeadTools = () => {
       return (
         <div
-          v-if='toolsConfig.enabled'
           class='bk-monaco-tools'
         >
-          <span>SQL查询</span>
+          <span>{$t('SQL查询')}</span>
           <div>
             <div class='fr header-tool-right'>
-              <bk-popover
-                class='sqlFormat'
-                content='格式化'
-              >
-                <div onClick={formatMonacoSqlCode}>
-                  <span class='bk-icon icon-script-file'></span>
-                </div>
-              </bk-popover>
+
+              <div
+                v-bk-tooltips={{ content: $t('格式化') }}
+                class='sqlFormat header-tool-right-icon'
+                onClick={formatMonacoSqlCode}>
+                <span class='bk-icon icon-script-file'></span>
+              </div>
               {isFullscreen.value ? (
-                <bk-popover content='取消全屏'>
-                  <div onClick={handleFullscreenClick}>
-                    <span class='bk-icon icon-un-full-screen'></span>
-                  </div>
-                </bk-popover>
+                <div
+                  class='header-tool-right-icon'
+                  v-bk-tooltips={{ content: $t('取消全屏') }}
+                  onClick={handleFullscreenClick}>
+                  <span class='bk-icon icon-un-full-screen'></span>
+                </div>
               ) : (
-                <bk-popover content='全屏'>
-                  <div onClick={handleFullscreenClick}>
-                    <span class='bk-icon icon-full-screen'></span>
-                  </div>
-                </bk-popover>
+                <div
+                  class='header-tool-right-icon'
+                  v-bk-tooltips={{ content: $t('全屏') }}
+                  onClick={handleFullscreenClick}>
+                  <span class='bk-icon icon-full-screen'></span>
+                </div>
               )}
             </div>
           </div>

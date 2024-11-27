@@ -983,4 +983,6 @@ export default {
   副标题: 'Subhead',
   收藏至仪表盘: 'Favorite to dashboard',
   同名视图替换: 'Replace the same name view',
+  '此操作会覆盖当前SQL，请谨慎操作':'This operation will overwrite the current SQL, please operate with caution:',
+  SQL查询: 'SQL Query',
 };
