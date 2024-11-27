@@ -770,6 +770,7 @@ export default {
   绑定关系: 'Binding',
   仪表盘名称: 'Dashboard Name',
   所属目录: 'Category',
+  目标目录: 'Target Category',
   映射范围: 'Mapping Range',
   通知状态: 'Notification Status',
   支持插件: 'Support Plugin',

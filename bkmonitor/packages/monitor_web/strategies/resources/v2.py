@@ -9,7 +9,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 
 import arrow
 import pytz
@@ -2230,7 +2230,12 @@ class UpdatePartialStrategyV2Resource(Resource):
         return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 
     @staticmethod
-    def update_notice(strategy: Strategy, notice: Dict):
+    def update_notice(
+        strategy: Strategy,
+        notice: Dict,
+        relations: Dict[int, List[StrategyActionConfigRelation]],
+        action_configs: Dict[int, ActionConfig],
+    ):
         """
         更新告警通知
 
@@ -2280,11 +2285,12 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
-        strategy.save_notice()
+        extra_create_or_update_datas = strategy.bulk_save_notice(relations, action_configs)
         return (
             StrategyActionConfigRelation,
             ["user_groups", "options"],
             [action.instance for action in strategy.actions],
+            extra_create_or_update_datas,
         )
 
     @staticmethod
@@ -2309,12 +2315,64 @@ class UpdatePartialStrategyV2Resource(Resource):
         strategy.save_actions()
         return None, [], []
 
+    @staticmethod
+    def get_relations(strategy_ids: List[int]):
+        action_config_ids = set()
+        relations: Dict[int, List[StrategyActionConfigRelation]] = defaultdict(list)
+        related_query = StrategyActionConfigRelation.objects.filter(
+            strategy_id__in=strategy_ids, relate_type=StrategyActionConfigRelation.RelateType.NOTICE
+        )
+        for relation in related_query:
+            relations[relation.strategy_id].append(relation)
+            action_config_ids.add(relation.config_id)
+        return list(action_config_ids), relations
+
+    @staticmethod
+    def get_action_configs(action_config_ids: List[int]):
+        action_query = ActionConfig.objects.filter(id__in=action_config_ids)
+        action_configs: Dict[int, ActionConfig] = {}
+        for action_config in action_query:
+            action_configs[action_config.id] = action_config
+        return action_configs
+
+    @staticmethod
+    def process_extra_data(
+        extra_create_or_update_datas: Dict[str, List[Dict[str, any]]],
+        key: str,
+        updates_data: DefaultDict[str, Dict[str, any]],
+        create_datas: DefaultDict[str, Dict[str, any]],
+    ):
+        extra_update_datas = extra_create_or_update_datas.get("update_data", [])
+        extra_create_datas = extra_create_or_update_datas.get("create_data", [])
+        for update_data in extra_update_datas:
+            if update_data["cls"] is ActionConfig:
+                updates_data[f"extra_{key}_config"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_config"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_config"]["objs"].extend(update_data["objs"])
+            elif update_data["cls"] is StrategyActionConfigRelation:
+                updates_data[f"extra_{key}_relation"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_relation"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_relation"]["objs"].extend(update_data["objs"])
+
+        for data in extra_create_datas:
+            if data["cls"] is ActionConfig:
+                create_datas[f"extra_{key}_config"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_config"]["objs"].extend(data["objs"])
+            elif data["cls"] is StrategyActionConfigRelation:
+                create_datas[f"extra_{key}_relation"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
         username = get_global_user()
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
+        strategy_ids = params["ids"]
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids)
 
+        action_config_ids, relations = self.get_relations(strategy_ids)
+        action_configs = self.get_action_configs(action_config_ids)
+
+        create_datas = defaultdict(lambda: {"cls": None, "objs": []})
         updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
         updates_data["update_time"]["cls"] = StrategyModel
         updates_data["update_time"]["keys"] = ["update_time", "update_user"]
@@ -2325,7 +2383,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if key == "notice":
+                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = self.update_notice(
+                        strategy, value, relations, action_configs
+                    )
+                    self.process_extra_data(extra_create_or_update_datas, key, updates_data, create_datas)
+                else:
+                    update_cls, update_keys, update_objs = update_method(strategy, value)
                 if update_cls:
                     updates_data[key]["cls"] = update_cls
                     updates_data[key]["keys"] = update_keys
@@ -2345,6 +2409,9 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         for update_data in updates_data.values():
             update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
+        for create_data in create_datas.values():
+            create_data["cls"].objects.bulk_create(create_data["objs"])
 
         StrategyHistoryModel.objects.bulk_create(history)
 

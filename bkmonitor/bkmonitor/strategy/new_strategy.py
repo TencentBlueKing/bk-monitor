@@ -24,6 +24,7 @@ import xxhash
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Model, QuerySet
+from django.utils import timezone
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -623,6 +624,55 @@ class BaseActionRelation(AbstractConfig):
             setattr(action_relation, key, value)
         action_relation.save()
 
+    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig] = None):
+        """
+        根据配置新建或更新关联记录,循环结束后批量创建或更新
+        """
+        action_relations = relations.get(self.strategy_id, [])
+        username = get_global_user() or "unknown"
+        for action_relation in action_relations:
+            if self.id == action_relation.id:
+                action_relation.config_id = self.config_id
+                action_relation.user_groups = self.user_groups
+                action_relation.user_type = self.user_type
+                action_relation.signal = self.signal
+                action_relation.options = self.options
+                action_relation.relate_type = self.RELATE_TYPE
+                action_relation.update_user = username
+                action_relation.update_time = timezone.now()
+
+                return {
+                    "update_data": [
+                        {
+                            "cls": RelationModel,
+                            "keys": [
+                                "config_id",
+                                "user_groups",
+                                "user_type",
+                                "signal",
+                                "options",
+                                "relate_type",
+                                "update_user",
+                                "update_time",
+                            ],
+                            "objs": [action_relation],
+                        }
+                    ]
+                }
+        else:
+            new_relation = RelationModel(
+                strategy_id=self.strategy_id,
+                config_id=self.config_id,
+                relate_type=self.RELATE_TYPE,
+                signal=self.signal,
+                user_groups=self.user_groups,
+                options=self.options,
+                create_user=username,
+                create_time=timezone.now(),
+            )
+
+            return {"create_data": [{"cls": RelationModel, "objs": [new_relation]}]}
+
     @classmethod
     def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
         """
@@ -762,6 +812,59 @@ class NoticeRelation(BaseActionRelation):
         self.config_id = action_config.id
 
         return super(NoticeRelation, self).save()
+
+    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig]):
+        """
+        根据配置新建或更新关联记录,循环结束后批量创建或更新
+        """
+        action_relations = relations.get(self.strategy_id, [])
+        create_or_update_datas = {"create_data": [], "update_data": []}
+        username = get_global_user() or "unknown"
+        for action_relation in action_relations:
+            if self.id == action_relation.id:
+                config_id = action_relation.config_id
+                action_config = action_configs.get(config_id)
+                if action_config:
+                    action_config.name = _("告警通知")
+                    action_config.desc = _("通知套餐，策略ID: {}").format(self.strategy_id)
+                    action_config.bk_biz_id = 0
+                    action_config.plugin_id = ActionConfig.NOTICE_PLUGIN_ID
+                    action_config.execute_config = {"template_detail": self.config}
+                    action_config.update_user = username
+                    action_config.update_time = timezone.now()
+                    create_or_update_datas["update_data"].append(
+                        {
+                            "cls": ActionConfig,
+                            "keys": [
+                                "name",
+                                "desc",
+                                "bk_biz_id",
+                                "plugin_id",
+                                "execute_config",
+                                "update_user",
+                                "update_time",
+                            ],
+                            "objs": [action_config],
+                        }
+                    )
+                    break
+        else:
+            action_config = ActionConfig(
+                name=_("告警通知"),
+                desc=_("通知套餐，策略ID: {}").format(self.strategy_id),
+                bk_biz_id=0,
+                plugin_id=ActionConfig.NOTICE_PLUGIN_ID,
+                execute_config={"template_detail": self.config},
+                create_user=username,
+                create_time=timezone.now(),
+            )
+            create_or_update_datas["create_data"].append({"cls": ActionConfig, "objs": [action_config]})
+
+        parent_data = super(NoticeRelation, self).bulk_save(relations)
+        create_or_update_datas["create_data"].extend(parent_data.get("create_data", []))
+        create_or_update_datas["update_data"].extend(parent_data.get("update_data", []))
+
+        return create_or_update_datas
 
     @classmethod
     def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
@@ -2149,6 +2252,21 @@ class Strategy(AbstractConfig):
 
         # 保存子配置
         self.notice.save()
+
+    @transaction.atomic
+    def bulk_save_notice(self, relations, action_configs):
+        """保存actions配置,循环结束后批量创建或更新."""
+        self.reuse_exists_records(
+            RelationModel,
+            relations.get(self.id),
+            [self.notice],
+            NoticeRelation,
+        )
+
+        # 保存子配置
+        create_or_update_datas = self.notice.bulk_save(relations, action_configs)
+
+        return create_or_update_datas
 
     @transaction.atomic
     def save(self, rollback=False):

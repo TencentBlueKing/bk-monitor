@@ -15,6 +15,8 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
+  const chartParams = computed(() => store.state.indexItem.chart_params);
+
   const isAiopsToggle = computed(() => {
     return (
       (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
@@ -22,7 +24,7 @@
     );
   });
 
-  const isChartEnable = computed(() => true);
+  const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
 
   // 可切换Tab数组
   const panelList = computed(() => {
@@ -43,6 +45,28 @@
       }
     },
     { immediate: true },
+  );
+
+  watch(
+    () => isChartEnable.value,
+    () => {
+      if (!isChartEnable.value && props.value === 'graphAnalysis') {
+        emit('input', 'origin');
+      }
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  watch(
+    () => chartParams.value,
+    () => {
+      if (isChartEnable.value && props.value !== 'graphAnalysis' && chartParams.value.sql?.length > 0) {
+        emit('input', 'graphAnalysis');
+      }
+    },
+    { deep: true, immediate: true },
   );
 
   // after边框

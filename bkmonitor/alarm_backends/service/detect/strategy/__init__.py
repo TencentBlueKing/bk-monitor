@@ -18,7 +18,6 @@ import logging
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import ugettext as _
-from six.moves import range
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.data.records import DataRecord
@@ -418,8 +417,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
     def gen_expr(self):
         if self.validated_config["floor"]:
             yield ExprDetectAlgorithms(
-                "(unit_convert_min(value, unit) or "
-                "(unit_convert_min(floor_history_value, unit) * (100 - floor) * 0.01)) "
+                "(unit_convert_min(value, unit) or unit_convert_min(floor_history_value, unit)) "
                 "and (unit_convert_min(value, unit) <= "
                 "(unit_convert_min(floor_history_value, unit) * (100 - floor) * 0.01))",
                 self.floor_desc_tpl,
@@ -427,8 +425,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 
         if self.validated_config["ceil"]:
             yield ExprDetectAlgorithms(
-                "(unit_convert_min(value, unit) or "
-                "(unit_convert_min(ceil_history_value, unit) * (100 + ceil) * 0.01)) "
+                "(unit_convert_min(value, unit) or unit_convert_min(ceil_history_value, unit)) "
                 "and (unit_convert_min(value, unit) >= "
                 "(unit_convert_min(ceil_history_value, unit) * (100 + ceil) * 0.01))",
                 self.ceil_desc_tpl,

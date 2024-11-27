@@ -26,6 +26,7 @@
 import { computed, defineComponent, Ref, ref, watch } from 'vue';
 
 import $http from '@/api/index.js';
+import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
@@ -33,7 +34,7 @@ import axios from 'axios';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
-import useLocale from '@/hooks/use-locale';
+
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
 import { bkMessage  } from 'bk-magic-vue'
@@ -46,7 +47,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['change', 'sql-change'],
+  emits: ['change', 'sql-change', 'error'],
   setup(props, { emit, expose }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
@@ -111,13 +112,19 @@ export default defineComponent({
         },
       };
 
+      emit('error', { code: 200, message: '请求中', result: true });
+
       return axios(params)
-        .then(resp => {
-          if (updateStore) {
-            storeChartOptions();
+        .then((resp: any) => {
+          if (resp.result) {
+            if (updateStore) {
+              storeChartOptions();
+            }
+            isRequesting.value = false;
+            emit('change', resp.data);
+          } else {
+            emit('error', resp);
           }
-          isRequesting.value = false;
-          emit('change', resp.data);
         })
         .finally(() => {
           isRequesting.value = false;
@@ -169,10 +176,9 @@ export default defineComponent({
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
-
           <bk-button
-            v-bk-tooltips={{ content: $t('查询') }}
             class='sql-editor-query-button'
+            v-bk-tooltips={{ content: $t('查询') }}
             loading={isRequesting.value}
             size='small'
             theme='primary'
@@ -182,8 +188,8 @@ export default defineComponent({
             {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
-            v-bk-tooltips={{ content: $t('中止') }}
             class='sql-editor-view-button'
+            v-bk-tooltips={{ content: $t('中止') }}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -197,8 +203,8 @@ export default defineComponent({
             onConfirm={handleSyncAdditionToSQL}
           >
             <bk-button
-              v-bk-tooltips={{ content: $t('同步查询条件到SQL') }}
               class='sql-editor-view-button'
+              v-bk-tooltips={{ content: $t('同步查询条件到SQL') }}
               loading={isSyncSqlRequesting.value}
               size='small'
             >
@@ -206,8 +212,8 @@ export default defineComponent({
             </bk-button>
           </bk-popconfirm>
           <BookmarkPop
-            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', '') }}
             class='bklog-sqleditor-bookmark'
+            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', '') }}
             addition={[]}
             extendParams={chartParams.value}
             search-mode='sqlChart'
@@ -218,31 +224,31 @@ export default defineComponent({
     };
     const renderHeadTools = () => {
       return (
-        <div
-          class='bk-monaco-tools'
-        >
+        <div class='bk-monaco-tools'>
           <span>{$t('SQL查询')}</span>
           <div>
             <div class='fr header-tool-right'>
-
               <div
-                v-bk-tooltips={{ content: $t('格式化') }}
                 class='sqlFormat header-tool-right-icon'
-                onClick={formatMonacoSqlCode}>
+                v-bk-tooltips={{ content: $t('格式化') }}
+                onClick={formatMonacoSqlCode}
+              >
                 <span class='bk-icon icon-script-file'></span>
               </div>
               {isFullscreen.value ? (
                 <div
                   class='header-tool-right-icon'
                   v-bk-tooltips={{ content: $t('取消全屏') }}
-                  onClick={handleFullscreenClick}>
+                  onClick={handleFullscreenClick}
+                >
                   <span class='bk-icon icon-un-full-screen'></span>
                 </div>
               ) : (
                 <div
                   class='header-tool-right-icon'
                   v-bk-tooltips={{ content: $t('全屏') }}
-                  onClick={handleFullscreenClick}>
+                  onClick={handleFullscreenClick}
+                >
                   <span class='bk-icon icon-full-screen'></span>
                 </div>
               )}

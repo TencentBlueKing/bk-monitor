@@ -26,6 +26,7 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField } from '@/common/util';
+import useResizeObserve from '@/hooks/use-resize-observe';
 
 import useChartRender from './use-chart-render';
 
@@ -45,9 +46,17 @@ export default defineComponent({
   },
   setup(props, { slots }) {
     const refRootElement = ref();
-    const { setChartOptions, destroyInstance } = useChartRender({
+    const { setChartOptions, destroyInstance, chartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
+    });
+
+    const getTargetElement = () => {
+      return refRootElement.value.parentElement;
+    };
+
+    useResizeObserve(getTargetElement, () => {
+      chartInstance?.resize();
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
@@ -59,17 +68,16 @@ export default defineComponent({
         select_fields_order = [],
         total_records = 0,
       } = props.chartOptions.data ?? {};
-      const timeFieldList = result_schema.filter(item => /^date/.test(item.field_type));
+      const timeFields = result_schema.filter(item => /^date/.test(item.field_type));
       return {
         list: list.map(item => {
-          const timeFields = timeFieldList.reduce((obj, field) => {
-            const value = item[field.field_name];
-            return Object.assign(obj, {
-              [field.field_name]: formatDateTimeField(value, field.field_type),
-              [`__origin_${field.field_name}`]: value,
-            });
-          }, {});
-          return Object.assign(item, timeFields);
+          return Object.assign(
+            {},
+            item,
+            timeFields.reduce((acc, cur) => {
+              return Object.assign(acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
+            }, {}),
+          );
         }),
         result_schema,
         select_fields_order,

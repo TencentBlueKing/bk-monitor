@@ -10,13 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 import itertools
+from collections import defaultdict
 
 from django.utils import timezone
 
 from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import Application, LogServiceRelation
-from apm_web.topo.handle.relation.define import SourceDatasource, SourceService
+from apm_web.topo.handle.relation.define import (
+    SourceDatasource,
+    SourceK8sPod,
+    SourceService,
+    SourceSystem,
+)
 from apm_web.topo.handle.relation.query import RelationQ
 from bkm_space.api import SpaceApi
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -137,8 +143,11 @@ class ServiceLogHandler:
         if span_host:
             from monitor_web.scene_view.resources import HostIndexQueryMixin
 
-            return HostIndexQueryMixin.query_indexes({"bk_biz_id": bk_biz_id, "bk_host_id": span_host["bk_host_id"]})
-        return []
+            return HostIndexQueryMixin.query_indexes(
+                {"bk_biz_id": bk_biz_id, "bk_host_id": span_host["bk_host_id"]},
+            ), span_host.get("bk_host_innerip")
+
+        return [], None
 
     @classmethod
     def get_log_relation(cls, bk_biz_id, app_name, service_name):
@@ -152,16 +161,18 @@ class ServiceLogHandler:
     @classmethod
     def list_indexes_by_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
         """
-        通过关联查询获取服务的 dataId 关联
+        通过关联查询获取服务的 dataId 关联并拼接默认查询
         """
-        data_ids = set()
         if not start_time or not end_time:
             start_time, end_time = Application.objects.get(
                 bk_biz_id=bk_biz_id,
                 app_name=app_name,
             ).list_retention_time_range()
 
-        for path_item in ["pod", "system"]:
+        datasource_infos = defaultdict(list)
+        data_ids = set()
+        path_mapping = {SourceK8sPod.name: SourceK8sPod, SourceSystem.name: SourceSystem}
+        for path_name, path_item in path_mapping.items():
             relations = RelationQ.query(
                 RelationQ.generate_q(
                     bk_biz_id=bk_biz_id,
@@ -172,22 +183,48 @@ class ServiceLogHandler:
                     target_type=SourceDatasource,
                     start_time=start_time,
                     end_time=end_time,
-                    path_resource=[path_item],
+                    path_resource=[path_name],
                 )
             )
             for r in relations:
                 for n in r.nodes:
                     source_info = n.source_info.to_source_info()
                     bk_data_id = source_info.get("bk_data_id")
-                    if bk_data_id:
+                    if bk_data_id and bk_data_id not in data_ids:
+                        datasource_infos[path_item].append(SourceDatasource(bk_data_id=bk_data_id))
                         data_ids.add(bk_data_id)
             if len(data_ids) >= cls.LOG_RELATION_BY_UNIFY_QUERY:
                 break
 
-        if not data_ids:
+        if not datasource_infos:
             return []
 
-        res = []
+        # 使用 bk_data_id 获取关联的 Pod / System
+        qs = []
+        for path_item, source_infos in datasource_infos.items():
+            qs += RelationQ.generate_multi_q(
+                bk_biz_id=bk_biz_id,
+                source_infos=source_infos,
+                target_type=path_item,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+        data_id_query_mapping = defaultdict(lambda: defaultdict(set))
+        for r in RelationQ.query(qs):
+            data_id = r.source_info.get("bk_data_id")
+            if not data_id:
+                continue
+
+            for n in r.nodes:
+                source_info = n.source_info.to_source_info()
+                pod = source_info.get("pod")
+                bk_target_ip = source_info.get("bk_target_ip")
+
+                if pod:
+                    data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"].add(pod)
+                elif bk_target_ip:
+                    data_id_query_mapping[data_id]["serverIp"].add(pod)
 
         @using_cache(CacheType.APM(600))
         def log_list_collectors():
@@ -197,9 +234,19 @@ class ServiceLogHandler:
 
         full_collectors = log_list_collectors()
 
+        res = []
         for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
             info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
             if info:
-                res.append(info["index_set_id"])
+                res.append(
+                    {
+                        "index_set_id": info["index_set_id"],
+                        "addition": [
+                            {"field": k, "operator": "=", "value": v} for k, v in data_id_query_mapping[i].items()
+                        ]
+                        if i in data_id_query_mapping
+                        else [],
+                    }
+                )
 
         return res

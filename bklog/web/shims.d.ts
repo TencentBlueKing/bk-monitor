@@ -31,6 +31,9 @@ declare module '*.vue' {
 
 declare module '*/store';
 declare module '*.svg';
+declare module 'screenfull';
+declare module 'sql-formatter';
+
 declare module '@/hooks/use-store';
 declare module '@/hooks/use-locale';
 declare module '@/api/*';

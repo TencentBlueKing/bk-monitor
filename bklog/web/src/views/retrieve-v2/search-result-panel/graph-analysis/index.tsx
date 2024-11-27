@@ -102,6 +102,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   sqlEditorHeight = 400;
   isSqlValueChanged = false;
   chartCounter = 0;
+  errorResponse = { code: 0, message: '', result: true };
 
   get graphCategory() {
     return {
@@ -213,6 +214,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
   }
 
+  handleSqlQueryError(resp) {
+    Object.assign(this.errorResponse, resp);
+  }
+
   handleEditorSearchClick() {
     (this.$refs.sqlEditor as any)?.handleQueryBtnClick();
   }
@@ -321,6 +326,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           ref='sqlEditor'
           extendParams={this.extendParams}
           onChange={this.handleSqlQueryResultChange}
+          onError={this.handleSqlQueryError}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
       ];
@@ -376,6 +382,27 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   getExceptionRender() {
+    if (!this.errorResponse.result && this.errorResponse.message) {
+      <bk-exception
+        class='bklog-chart-exception'
+        type='500'
+      >
+        <div class='bk-exception-title'>{this.errorResponse.message}</div>
+        <div class='bk-exception-description'>请重新发起查询</div>
+        <div class='bk-exception-footer'>
+          <bk-button
+            class='mr10'
+            size='small'
+            theme='primary'
+            type='submit'
+            onClick={this.handleEditorSearchClick}
+          >
+            查询
+          </bk-button>
+        </div>
+      </bk-exception>;
+    }
+
     if (!this.chartOptions.data?.list?.length) {
       return (
         <bk-exception
