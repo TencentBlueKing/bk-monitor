@@ -2950,6 +2950,8 @@ class ESStorage(models.Model, StorageResultTable):
     def _should_create_index(self, force_rotate: bool = False):
         """
         是否需要创建新索引
+        :param force_rotate: 是否强制创建新索引
+        :return: True | False
         """
         try:
             current_index_info = self.current_index_info()
