@@ -171,6 +171,7 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
+        down_sample_range = serializers.CharField(allow_blank=True, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
