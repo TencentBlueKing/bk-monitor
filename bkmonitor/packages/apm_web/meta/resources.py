@@ -272,7 +272,12 @@ class ListApplicationInfoResource(Resource):
             fields = "__all__"
 
     def perform_request(self, validated_request_data):
-        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
+        return Application.objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            metric_result_table_id__isnull=False,
+            trace_result_table_id__isnull=False,
+        )
 
 
 class ApplicationInfoResource(Resource):
