@@ -205,6 +205,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 return view_config
 
             server_config: Dict[str, Any] = group.get_server_config(server=params["service_name"])
+            # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
+            server_overwrite_config: Dict[str, Any] = (
+                settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {}
+            )
+            server_config.update(server_overwrite_config)
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])

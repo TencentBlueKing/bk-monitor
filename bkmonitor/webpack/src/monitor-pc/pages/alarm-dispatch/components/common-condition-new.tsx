@@ -215,7 +215,7 @@ export default class CommonCondition extends tsc<IProps> {
   focusType = '';
 
   /* 校验提示 */
-  errorMsg: TranslateResult | string = '';
+  errorMsg: string | TranslateResult = '';
   /* 二级选项搜索 */
   secondSearch = '';
   /* 当前key选项分类标签 */
@@ -378,9 +378,11 @@ export default class CommonCondition extends tsc<IProps> {
     }
   }
   /* 输入框失焦 */
-  handBlur() {
+  handBlur(index: number, tagIndex: number) {
     if (!this.popInstance?.show && !this.inputValue) {
       this.resetInputPosition();
+    } else {
+      this.handleInputEnter(index, tagIndex);
     }
     this.inputValue = '';
   }
@@ -846,7 +848,8 @@ export default class CommonCondition extends tsc<IProps> {
     this.popInstance = null;
     this.addActive = false;
     this.clickType = TypeEnum.null;
-    this.$nextTick(() => {
+    // 处理将该事件执行时机延后，使input输入框 blur 失焦事件能够先执行
+    requestAnimationFrame(() => {
       this.resetInputPosition();
     });
   }
@@ -1069,66 +1072,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.handlePopoverHidden(isOnlyHide);
     };
     if (event.key === 'Enter') {
-      if (this.selectType === TypeEnum.key) {
-        if (this.inputValue) {
-          const keyItem = this.keyList.find(kItem => kItem.name === this.inputValue);
-          if (tagIndex === 0) {
-            this.tagList[index].condition = {
-              ...JSON.parse(JSON.stringify(defaultCondition)),
-              field: keyItem?.id || this.inputValue,
-            };
-            this.tagList[index].tags.push({
-              id: keyItem?.id || this.inputValue,
-              name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key,
-            });
-          } else {
-            /* 多行 */
-            this.tagList[index].condition.field = this.inputValue;
-            this.tagList[index].tags.splice(tagIndex, 1, {
-              id: keyItem?.id || this.inputValue,
-              name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key,
-            });
-          }
-          this.curIndex = [index, 0];
-          this.handleChange();
-          /* 自动弹出 */
-          setTimeout(() => {
-            this.handleClickLineWrap(null, this.curIndex[0]);
-          }, 100);
-        }
-      } else if (this.selectType === TypeEnum.value) {
-        if (this.inputValue) {
-          const curValues = this.tagList[index].condition.value;
-          if (!curValues.includes(this.inputValue)) {
-            const key = this.tagList[index].condition.field;
-            const values = this.getCurValuesList(key);
-            const valueItem = values.find(vItem => vItem.id === this.inputValue);
-            this.tagList[index].condition.value.push(this.inputValue);
-            this.tagList[index].tags.splice(tagIndex, 0, {
-              id: valueItem?.id || this.inputValue,
-              name: valueItem?.name || this.inputValue,
-              type: TypeEnum.value,
-            });
-            if (this.tagList[index].condition.value.includes(nullOption.id)) {
-              /* 清除空选项 */
-              const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
-              const tagDelIndex = this.tagList[index].tags.findIndex(
-                t => t.type === TypeEnum.value && t.id === nullOption.id
-              );
-              if (delIndex > -1) {
-                this.tagList[index].condition.value.splice(delIndex, 1);
-              }
-              if (tagDelIndex > -1) {
-                this.tagList[index].tags.splice(tagDelIndex, 1);
-              }
-            }
-            this.curIndex = [index, 0];
-            this.handleChange();
-          }
-        }
-      }
+      this.handleInputEnter(index, tagIndex);
       this.inputValue = '';
       hiddenFn();
     } else if (event.key === 'Backspace') {
@@ -1159,6 +1103,70 @@ export default class CommonCondition extends tsc<IProps> {
       }
     } else {
       hiddenFn(true);
+    }
+  }
+
+  /** 自定义输入 -- Enter按钮处理逻辑 */
+  handleInputEnter(index: number, tagIndex: number) {
+    if (this.selectType === TypeEnum.key) {
+      if (this.inputValue) {
+        const keyItem = this.keyList.find(kItem => kItem.name === this.inputValue);
+        if (tagIndex === 0) {
+          this.tagList[index].condition = {
+            ...JSON.parse(JSON.stringify(defaultCondition)),
+            field: keyItem?.id || this.inputValue,
+          };
+          this.tagList[index].tags.push({
+            id: keyItem?.id || this.inputValue,
+            name: keyItem?.name || this.inputValue,
+            type: TypeEnum.key,
+          });
+        } else {
+          /* 多行 */
+          this.tagList[index].condition.field = this.inputValue;
+          this.tagList[index].tags.splice(tagIndex, 1, {
+            id: keyItem?.id || this.inputValue,
+            name: keyItem?.name || this.inputValue,
+            type: TypeEnum.key,
+          });
+        }
+        this.curIndex = [index, 0];
+        this.handleChange();
+        /* 自动弹出 */
+        setTimeout(() => {
+          this.handleClickLineWrap(null, this.curIndex[0]);
+        }, 100);
+      }
+    } else if (this.selectType === TypeEnum.value) {
+      if (this.inputValue) {
+        const curValues = this.tagList[index].condition.value;
+        if (!curValues.includes(this.inputValue)) {
+          const key = this.tagList[index].condition.field;
+          const values = this.getCurValuesList(key);
+          const valueItem = values.find(vItem => vItem.id === this.inputValue);
+          this.tagList[index].condition.value.push(this.inputValue);
+          this.tagList[index].tags.splice(tagIndex, 0, {
+            id: valueItem?.id || this.inputValue,
+            name: valueItem?.name || this.inputValue,
+            type: TypeEnum.value,
+          });
+          if (this.tagList[index].condition.value.includes(nullOption.id)) {
+            /* 清除空选项 */
+            const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
+            const tagDelIndex = this.tagList[index].tags.findIndex(
+              t => t.type === TypeEnum.value && t.id === nullOption.id
+            );
+            if (delIndex > -1) {
+              this.tagList[index].condition.value.splice(delIndex, 1);
+            }
+            if (tagDelIndex > -1) {
+              this.tagList[index].tags.splice(tagDelIndex, 1);
+            }
+          }
+          this.curIndex = [index, 0];
+          this.handleChange();
+        }
+      }
     }
   }
 
@@ -1377,7 +1385,7 @@ export default class CommonCondition extends tsc<IProps> {
                           ref='input'
                           class='input'
                           v-model={this.inputValue}
-                          onBlur={this.handBlur}
+                          onBlur={() => this.handBlur(index, tagIndex)}
                           onInput={this.handleInput}
                           onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
                         />

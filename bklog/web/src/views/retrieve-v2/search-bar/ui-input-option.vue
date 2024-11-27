@@ -437,8 +437,8 @@
 
     currentEditTagIndex.value = tagIndex;
     setTimeout(() => {
-      parent.querySelector('input').focus();
-    }, 300);
+      parent.querySelector('.tag-item-input').focus();
+    }, 500);
   };
 
   const handleConditionValueClick = (e = null) => {
@@ -456,7 +456,6 @@
       }
     }
   };
-
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';
   };
@@ -1013,8 +1012,17 @@
                   :class="!tagValidateFun(item) ? 'tag-validate-error' : ''"
                   :key="`-${index}`"
                 >
+                  <!-- <template v-if="currentEditTagIndex === index">
+                    <textarea
+                      class="tag-item-input"
+                      v-model="condition.value[index]"
+                      type="text"
+                      @blur.stop="handleTagInputBlur"
+                      @keyup.enter="handleTagInputEnter"
+                    />
+                  </template> -->
                   <template v-if="currentEditTagIndex === index">
-                    <input
+                    <textarea
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
@@ -1022,7 +1030,7 @@
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
-                  <template v-else>
+                  <template>
                     <span
                       class="tag-item-text"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
@@ -1149,7 +1157,7 @@
       > li {
         display: inline-flex;
         align-items: center;
-        height: 22px;
+        // height: 22px;
         margin: 4px 5px 4px 0;
         overflow: hidden;
         font-size: 12px;
@@ -1162,11 +1170,18 @@
           border-color: #f0f1f5;
 
           .tag-item-text {
+            // white-space: nowrap;
+            display: -webkit-box;
             max-width: 100%;
             padding: 0 4px;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-all;
+            user-select: none;
+
+            /* 第三行溢出省略 */
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
 
             &:hover {
               background-color: #dcdee5;
@@ -1186,15 +1201,27 @@
 
         input.tag-option-focus-input {
           width: 8px;
-          height: 38px;
+          height: auto;
           font-size: 12px;
           color: #63656e;
           border: none;
         }
 
-        input.tag-item-input {
+        .tag-item-input {
+          position: absolute;
+          top: 0;
+          width: 100%;
           max-width: 100%;
+          height: 100%;
+
+          /* overflow: hidden; */
+          padding: 0;
+          resize: none;
           border: 1px solid #c4c6cc;
+
+          &::-webkit-scrollbar {
+            width: 12px; /* Width of the scrollbar */
+          }
         }
       }
     }
