@@ -186,7 +186,6 @@
       });
       return !differerntUISQL;
     } else {
-      console.log(sqlQueryValue.value, '|', sourceSQLStr.value);
       return sqlQueryValue.value === sourceSQLStr.value;
     }
   });
