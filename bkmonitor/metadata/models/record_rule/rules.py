@@ -237,7 +237,7 @@ class ResultTableFlow(BaseModelWithTime):
         组装存储配置
         :param table_id: 结果表ID
         :param process_id: 计算节点ID
-        :param expires: 过期时间（秒）
+        :param expires: 过期时间（天）
         :return: 存储配置
         """
         from metadata.models.vm import utils as vm_utils
