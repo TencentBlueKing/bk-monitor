@@ -25,14 +25,7 @@ from apm.constants import (
     ConfigTypes,
 )
 from bkmonitor.utils.db import JsonField
-from constants.apm import (
-    K8sAttributes,
-    NodeAttributes,
-    OtlpKey,
-    SdkAttributes,
-    SpanKindKey,
-    TrpcAttributes,
-)
+from constants.apm import OtlpKey, SpanKindKey, TopoServiceAttributes, TrpcAttributes
 
 logger = logging.getLogger("apm")
 
@@ -44,6 +37,8 @@ class ApmTopoDiscoverRule(models.Model):
     TOPO_COMPONENT = "component"
     # remote_service
     TOPO_REMOTE_SERVICE = "remote_service"
+    # k8s instance_key
+    K8S_INSTANCE_KEY = OtlpKey.get_resource_key(TopoServiceAttributes.RESOURCE_TARGET)
     # instance_key
     DEFAULT_SERVICE_INSTANCE_KEY = OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
     DEFAULT_COMPONENT_INSTANCE_KEY = (
@@ -60,16 +55,18 @@ class ApmTopoDiscoverRule(models.Model):
     APM_TOPO_CATEGORY_MESSAGING = "messaging"
     APM_TOPO_CATEGORY_ASYNC_BACKEND = "async_backend"
     APM_TOPO_CATEGORY_OTHER = "other"
-    APM_TOPO_CATEGORY_TRPC = "trpc"
-    APM_TOPO_CATEGORY_GRPC = "grpc"
-    APM_TOPO_CATEGORY_K8S = "k8s"
-    APM_TOPO_CATEGORY_NODE = "node"
-    APM_TOPO_CATEGORY_SDK = "sdk"
+    APM_TOPO_FRAMEWORK_TRPC = "trpc"
+    APM_TOPO_FRAMEWORK_GRPC = "grpc"
+    APM_TOPO_PLATFORM_K8S = "k8s"
+    APM_TOPO_PLATFORM_NODE = "node"
+    APM_TOPO_SDK_SDK = "sdk"
     APM_TOPO_TYPE_FRAMEWORK = "framework"
     APM_TOPO_TYPE_CATEGORY = "category"
     APM_TOPO_TYPE_PLATFORM = "platform"
-    APM_TOPO_TYPE_SDK = "sdk"
     APM_TOPO_GELILEO = "gelileo"
+
+    TARGET = "target"
+    TELEMETRY_SDK_NAME = "telemetry.sdk.name"
 
     APM_TOPO_CATEGORY_CHOICES = (
         (APM_TOPO_CATEGORY_HTTP, "http"),
@@ -89,13 +86,12 @@ class ApmTopoDiscoverRule(models.Model):
     TRPC_PREDICATE_KEY = OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE)
 
     # for k8s
-    K8S_PREDICATE_KEY = f"{OtlpKey.get_k8s_key(K8sAttributes.BCS_CLUSTER_ID)},{OtlpKey.get_resource_key(K8sAttributes.K8S_POD_NAME)},{OtlpKey.get_resource_key(K8sAttributes.K8S_NAMESPACE_NAME)}"
+    K8S_PREDICATE_KEY = ",".join(TopoServiceAttributes.K8S_ATTRIBUTES)
 
-    # for node
-    NODE_PREDICATE_KEY = f"{OtlpKey.get_k8s_key(K8sAttributes.BCS_CLUSTER_ID)},{OtlpKey.get_resource_key(K8sAttributes.K8S_POD_NAME)},{OtlpKey.get_resource_key(K8sAttributes.K8S_NAMESPACE_NAME)},{OtlpKey.get_resource_key(NodeAttributes.NET_HOST_IP)}"
-
+    # for system
+    NODE_PREDICATE_KEY = f"{OtlpKey.get_resource_key(TopoServiceAttributes.SYSTEM_ATTRIBUTES)}"
     # for SDK
-    SDK_PREDICATE_KEY = f"{OtlpKey.get_resource_key(SdkAttributes.TELEMETRY_SDK_NAME)}"
+    SDK_PREDICATE_KEY = f"{OtlpKey.get_resource_key(TopoServiceAttributes.TELEMETRY_SDK_NAME)}"
 
     COMMON_RULE = [
         {
@@ -155,46 +151,34 @@ class ApmTopoDiscoverRule(models.Model):
             "type": "category",
         },
         {
-            "category_id": APM_TOPO_CATEGORY_TRPC,
-            "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
+            "category_id": APM_TOPO_FRAMEWORK_TRPC,
             "predicate_key": TRPC_PREDICATE_KEY,
             "sort": 0,
             "type": "framework",
         },
         {
-            "category_id": APM_TOPO_CATEGORY_GRPC,
-            "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
+            "category_id": APM_TOPO_FRAMEWORK_GRPC,
             "predicate_key": RPC_PREDICATE_KEY,
             "sort": 1,
             "type": "framework",
         },
         {
-            "category_id": APM_TOPO_CATEGORY_K8S,
+            "category_id": APM_TOPO_PLATFORM_K8S,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "instance_key": K8S_INSTANCE_KEY,
             "topo_kind": TOPO_SERVICE,
             "predicate_key": K8S_PREDICATE_KEY,
             "sort": 0,
-            "type": "platform ",
+            "type": "platform",
         },
         {
-            "category_id": APM_TOPO_CATEGORY_NODE,
-            "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
+            "category_id": APM_TOPO_PLATFORM_NODE,
             "predicate_key": NODE_PREDICATE_KEY,
             "sort": 1,
             "type": "platform",
         },
         {
-            "category_id": APM_TOPO_CATEGORY_SDK,
-            "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
+            "category_id": APM_TOPO_SDK_SDK,
             "predicate_key": SDK_PREDICATE_KEY,
             "sort": 0,
             "type": "sdk",
@@ -205,6 +189,7 @@ class ApmTopoDiscoverRule(models.Model):
     PREDICATE_OP_NOT_EQ = "!="
     DEFAULT_PREDICATE_OP_VALUE = ""
 
+    type_choice = ((0, "category"), (1, "framework"), (2, "platform"), (3, "sdk"))
     # 0 全平台通用规则
     bk_biz_id = models.IntegerField("业务id")
     app_name = models.CharField("应用名称", max_length=128)
@@ -216,7 +201,7 @@ class ApmTopoDiscoverRule(models.Model):
     topo_kind = models.CharField("topo发现类型", max_length=50)
     predicate_key = models.CharField("判断字段", max_length=128)
     sort = models.IntegerField("排序", default=0)
-    type = models.CharField("服务信息", max_length=128, default='category')
+    type = models.IntegerField("服务信息", choices=type_choice, default=0)
 
     @classmethod
     def get_application_rule(cls, bk_biz_id, app_name, topo_kind=None):

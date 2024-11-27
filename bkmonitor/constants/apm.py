@@ -72,8 +72,6 @@ class OtlpKey:
     STATUS_CODE = "status.code"
     STATUS_MESSAGE = "status.message"
     RESOURCE = "resource"
-    TARGET = "target"
-    TELEMETRY_SDK_NAME = "telemetry.sdk.name"
     BK_INSTANCE_ID = "bk.instance.id"
     UNKNOWN_SERVICE = "unknown.service"
     UNKNOWN_COMPONENT = "unknown.service-component"
@@ -88,10 +86,6 @@ class OtlpKey:
 
     @classmethod
     def get_attributes_key(cls, key: str) -> str:
-        return f"{cls.ATTRIBUTES}.{key}"
-
-    @classmethod
-    def get_k8s_key(cls, key: str) -> str:
         return f"{cls.ATTRIBUTES}.{key}"
 
     @classmethod
@@ -690,18 +684,11 @@ class TrpcAttributes:
     TRPC_STATUS_CODE = "trpc.status_code"
 
 
-class K8sAttributes:
-    BCS_CLUSTER_ID = "bcs.cluster.id"
-    K8S_POD_NAME = "k8s.pod.name"
-    K8S_NAMESPACE_NAME = "k8s.namespace.name"
-
-
-class NodeAttributes:
-    NET_HOST_IP = "net.host.ip"
-
-
-class SdkAttributes:
+class TopoServiceAttributes:
     TELEMETRY_SDK_NAME = "telemetry.sdk.name"
+    K8S_ATTRIBUTES = ["k8s.bcs.cluster.id", "resource.k8s.pod.name", "resource.k8s.namespace.name"]
+    SYSTEM_ATTRIBUTES = "net.host.ip"
+    RESOURCE_TARGET = "resource.target"
 
 
 class TRPCMetricTag:
