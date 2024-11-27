@@ -225,8 +225,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             <span class='group-name'>{this.list.title}</span>
             <div class='group-count'>{this.list.count}</div>
             {this.value.length > 0 && this.tools.includes('clear') && (
-              <i
-                class='icon-monitor icon-shaixuan'
+              <div
+                class='clear-filter-icon'
                 v-bk-tooltips={{ content: this.$t('清空整组筛选项') }}
                 onClick={this.handleClear}
               />

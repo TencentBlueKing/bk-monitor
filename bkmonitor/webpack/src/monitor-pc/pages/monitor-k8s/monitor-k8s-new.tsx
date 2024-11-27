@@ -348,6 +348,9 @@ export default class MonitorK8sNew extends tsc<object> {
     // updateTimezone(timezone);
   }
 
+  /** 取消下钻 */
+  handleCancelDrillDown() {}
+
   /** 左侧面板group状态切换 */
   groupByChange({ groupId, isSelect }) {
     this.groupFilters = this.groupFilters.reduce(
@@ -456,7 +459,19 @@ export default class MonitorK8sNew extends tsc<object> {
             onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
-          />
+          >
+            {this.showCancelDrill && (
+              <div
+                class='cancel-drill-down'
+                onClick={this.handleCancelDrillDown}
+              >
+                <div class='back-icon'>
+                  <i class='icon-monitor icon-back-left' />
+                </div>
+                <span class='text'>{this.$t('取消下钻')}</span>
+              </div>
+            )}
+          </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header'>
           <bk-select

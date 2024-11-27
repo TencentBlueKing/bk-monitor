@@ -11,6 +11,38 @@
     box-shadow:
       0 1px 0 0 #dcdee5,
       0 3px 4px 0 #4070cb0f;
+
+    .cancel-drill-down {
+      display: flex;
+      width: 120px;
+      height: 32px;
+      padding: 4px;
+      margin: 0 auto;
+      cursor: pointer;
+      background: #e1ecff;
+      border-radius: 16px;
+
+      .back-icon {
+        width: 24px;
+        height: 24px;
+        margin-right: 12px;
+        line-height: 24px;
+        text-align: center;
+        background: #3a84ff;
+        border-radius: 50%;
+      }
+
+      .icon-back-left {
+        font-size: 24px;
+        color: #fff;
+      }
+
+      .text {
+        font-size: 14px;
+        line-height: 24px;
+        color: #4d4f56;
+      }
+    }
   }
 
   .monitor-k8s-new-header {
