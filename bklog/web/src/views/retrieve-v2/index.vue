@@ -36,9 +36,7 @@
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
-
   import SubBar from './sub-bar/index.vue';
-
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -184,6 +182,10 @@
       }
     },
   );
+  const activeFavorite = ref();
+  const updateActiveFavorite = value => {
+    activeFavorite.value = value;
+  };
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -216,7 +218,7 @@
       </div>
       <SubBar
         :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
-        showFavorites
+        show-favorites
       />
     </div>
     <div class="retrieve-body">
@@ -226,12 +228,14 @@
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
+        @update-active-favorite="updateActiveFavorite"
       ></CollectFavorites>
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
       >
         <SearchBar
+          :active-favorite="activeFavorite"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         ></SearchBar>
