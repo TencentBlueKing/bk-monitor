@@ -79,7 +79,7 @@ class ListServicePodsResource(Resource):
                 source_info["name"] = source_info["pod_name"]
                 source_info["app_name"] = app_name
                 source_info["service_name"] = service_name
-                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod"))
+                key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod_name"))
                 if key in current_pods:
                     pod_info = current_pods[key]
                     if pod_info.get("monitor_status") == BCSBase.METRICS_STATE_STATE_SUCCESS:

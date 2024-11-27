@@ -510,6 +510,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "app_name": app_name,
             "service_name": service_name,
         }
+
+        # 不展示事件页面 时间页面单独页面进行展示
+        pod_view["overview_panels"] = [
+            i for i in pod_view["overview_panels"] if i["id"] != 'bk_monitor.time_series.k8s.events'
+        ]
         return pod_view
 
     @classmethod
