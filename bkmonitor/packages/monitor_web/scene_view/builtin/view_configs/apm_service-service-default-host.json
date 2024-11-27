@@ -66,7 +66,7 @@
           "fields": {
             "bk_host_id": "bk_host_id",
             "bk_host_innerip": "bk_target_ip",
-            "bk_cloud_id": "bk_target_cloud_id",
+            "bk_cloud_id": "bk_cloud_id",
             "source_type": "source_type",
             "app_name": "app_name",
             "service_name": "service_name"
@@ -74,7 +74,7 @@
           "fields_template": {
             "bk_host_id": "$bk_host_id",
             "bk_host_innerip": "$bk_target_ip",
-            "bk_cloud_id": "$bk_target_cloud_id",
+            "bk_cloud_id": "$bk_cloud_id",
             "source_type": "$source_type",
             "app_name": "$app_name",
             "service_name": "$service_name"

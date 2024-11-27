@@ -59,12 +59,14 @@ class ListServicePodsResource(Resource):
                 if pod:
                     query_values_mapping["name__in"].add(pod)
 
-        from bkmonitor.models import BCSPod
+        from bkmonitor.models import BCSBase, BCSPod
 
-        current_pods = [
-            (i["bcs_cluster_id"], i["namespace"], i["name"])
-            for i in BCSPod.objects.filter(**query_values_mapping).values("bcs_cluster_id", "namespace", "name")
-        ]
+        current_pods = {
+            (i["bcs_cluster_id"], i["namespace"], i["name"]): i
+            for i in BCSPod.objects.filter(**query_values_mapping).values(
+                "bcs_cluster_id", "namespace", "name", "monitor_status"
+            )
+        }
 
         res = []
         index = 1
@@ -72,12 +74,20 @@ class ListServicePodsResource(Resource):
             for n in i.nodes:
                 source_info = n.source_info.to_source_info()
                 source_info["id"] = index
-                source_info["name"] = source_info["pod"]
+                source_info["pod_name"] = source_info.pop("pod")
+                # 前端侧边栏需要有 name 字段 单独加上
+                source_info["name"] = source_info["pod_name"]
                 source_info["app_name"] = app_name
                 source_info["service_name"] = service_name
                 key = (source_info.get("bcs_cluster_id"), source_info.get("namespace"), source_info.get("pod"))
                 if key in current_pods:
-                    source_info["status"] = CollectStatus.SUCCESS
+                    pod_info = current_pods[key]
+                    if pod_info.get("monitor_status") == BCSBase.METRICS_STATE_STATE_SUCCESS:
+                        source_info["status"] = CollectStatus.SUCCESS
+                    elif pod_info.get("monitor_status") == BCSBase.METRICS_STATE_FAILURE:
+                        source_info["status"] = CollectStatus.FAILED
+                    else:
+                        source_info["status"] = CollectStatus.NODATA
                 else:
                     source_info["status"] = CollectStatus.NODATA
 
