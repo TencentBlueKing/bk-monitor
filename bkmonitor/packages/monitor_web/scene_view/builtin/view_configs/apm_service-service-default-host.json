@@ -37,7 +37,7 @@
         }
       ]
     },
-    "overview_detail_panel": {
+    "detail_panel": {
       "title": "主机详情",
       "type": "info",
       "targets": [
