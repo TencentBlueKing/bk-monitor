@@ -1872,7 +1872,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                     groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
                                     pageId={this.dashboardId}
                                     panel={this.sceneData.groupPanel}
-                                    scencId={this.sceneId}
+                                    sceneId={this.sceneId}
                                     sceneType={this.localSceneType}
                                     timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
                                     onGroupChange={this.handleGroupsChange}
@@ -1924,7 +1924,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                               onChange={this.handleMethodChange}
                             />
                           )}
-                          {this.isShowCompareTool && (
+                          {this.isShowCompareTool && !this.isGroupCompareType && (
                             <CompareSelect
                               compareListEnable={this.compareTypeMap}
                               curTarget={this.currentTitle}

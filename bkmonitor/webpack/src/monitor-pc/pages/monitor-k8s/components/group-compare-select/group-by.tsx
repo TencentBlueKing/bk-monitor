@@ -39,6 +39,7 @@ interface IProps {
   method?: string;
   limit?: number;
   limitType?: string;
+  methods?: IListItem[];
   onChange?: (v: string[]) => void;
   onLimitType?: (v: string) => void;
   onMethodChange?: (v: string) => void;

@@ -40,7 +40,7 @@ const VALUE_KEY = 'groups';
 
 interface IProps {
   panel?: IPanelModel;
-  scencId?: string;
+  sceneId?: string;
   sceneType?: string;
   pageId?: string;
   groupOptions?: IGroupOption[];
@@ -51,18 +51,20 @@ interface IProps {
   limitType?: string;
   timeValue?: string[];
   active?: ETypeSelect;
+  methods?: IListItem[];
   onTimeCompareChange?: (val: string[]) => void;
   onGroupChange?: (val: string[]) => void;
   onMethodChange?: (val: string) => void;
   onLimitChange?: (val: number) => void;
   onLimitTypeChange?: (val: string) => void;
+  onTypeChange?: (val: ETypeSelect) => void;
 }
 
 @Component
 export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Object }) panel: IPanelModel;
   /** 场景id */
-  @Prop({ default: 'host', type: String }) scencId: string;
+  @Prop({ default: 'host', type: String }) sceneId: string;
   /** 场景类型 */
   @Prop({ default: 'detail', type: String }) sceneType: string;
   /** 页签id */
@@ -73,10 +75,15 @@ export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) hasGroupOptions: boolean;
   /* groups可选项 */
   @Prop({ type: Array, default: () => [] }) groupOptions: IGroupOption[];
+  @Prop({ type: Array, default: () => [] }) methods: IListItem[];
   /* 时间对比数据 */
   @Prop({ type: Array, default: () => [] }) timeValue: string[];
   // 当前激活的tab
   @Prop({ type: String, default: '' }) active: ETypeSelect;
+  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: Number, default: 0 }) limit: number;
+  @Prop({ type: String, default: '' }) limitType: string;
+  @Prop({ type: Array, default: () => [] }) limitTypes: IListItem[];
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
@@ -102,7 +109,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
         {
           api: 'scene_view.getSceneViewDimensions',
           data: {
-            scene_id: this.scencId,
+            scene_id: this.sceneId,
             type: this.sceneType,
             id: this.pageId,
             bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
@@ -126,8 +133,12 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
 
   handleChange() {
-    this.typeSelected = this.typeSelected === ETypeSelect.compare ? ETypeSelect.group : ETypeSelect.compare;
-    return this.typeSelected;
+    if (this.typeSelected === ETypeSelect.compare) {
+      this.typeSelected = ETypeSelect.group;
+    } else {
+      this.typeSelected = ETypeSelect.compare;
+    }
+    this.$emit('typeChange', this.typeSelected);
   }
 
   /** 解析api 格式： commons.getTopoTree (模块.api)的字符串 , 返回对应的api*/
@@ -150,6 +161,18 @@ export default class GroupCompareSelect extends tsc<IProps> {
   handleGroupsChange(val) {
     this.$emit('groupChange', val);
   }
+  handleLimitTypeChange(val) {
+    this.$emit('limitTypeChange', val);
+  }
+  handleMethodChange(val) {
+    this.$emit('methodChange', val);
+  }
+  handleLimitChange(val) {
+    this.$emit('limitChange', val);
+  }
+  handleTimeValueChange(val) {
+    this.$emit('timeCompareChange', val);
+  }
 
   render() {
     return (
@@ -168,12 +191,23 @@ export default class GroupCompareSelect extends tsc<IProps> {
         </div>
         <div class='group-compare-wrap'>
           {this.typeSelected === ETypeSelect.compare ? (
-            <CompareTime value={this.timeValue} />
+            <CompareTime
+              value={this.timeValue}
+              onChange={this.handleTimeValueChange}
+            />
           ) : (
             <GroupBy
               groupBy={this.groups}
               groupOptions={this.getGroupOptions}
+              limit={this.limit}
+              limitType={this.limitType}
+              limitTypes={this.limitTypes}
+              method={this.method}
+              methods={this.methods}
               onChange={this.handleGroupsChange}
+              onLimitChange={this.handleLimitChange}
+              onLimitType={this.handleLimitTypeChange}
+              onMethodChange={this.handleMethodChange}
             />
           )}
         </div>
