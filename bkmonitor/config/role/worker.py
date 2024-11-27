@@ -240,6 +240,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.bcs.discover_bcs_clusters", "*/10 * * * *", "global"),
     # 同步空间信息
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
+    ("metadata.task.sync_space.sync_archived_bkcc_space", "*/10 * * * *"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
 ]
