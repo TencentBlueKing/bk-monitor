@@ -95,7 +95,7 @@ from constants.apm import (
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
-from monitor_web.constants import AGENT_STATUS
+from monitor_web.collecting.constant import CollectStatus
 from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
@@ -2948,7 +2948,7 @@ class HostInstanceDetailListResource(Resource):
                 **i,
                 "id": i["bk_host_id"],
                 "name": i["bk_host_innerip"],
-                "status": AGENT_STATUS.UNKNOWN,
+                "status": CollectStatus.NODATA,
                 "app_name": data["app_name"],
                 "service_name": data["service_name"],
             }
@@ -2972,6 +2972,15 @@ class HostInstanceDetailListResource(Resource):
             ],
             hosts,
         )
+        # 根据 status 字段
+        for k in hosts:
+            status = hosts[k].get("status")
+            if not status:
+                continue
+            if status == 0:
+                hosts[k]["status"] = CollectStatus.SUCCESS
+            else:
+                hosts[k]["status"] = CollectStatus.NODATA
 
     def filter_keyword(self, data, keyword):
         if not keyword:
