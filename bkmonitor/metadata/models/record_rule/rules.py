@@ -263,7 +263,7 @@ class ResultTableFlow(BaseModelWithTime):
         创建计算平台flow
         :param table_id: 结果表ID
         :param waiting_time: 等待时间（秒）
-        :param expires: 过期时间（秒）
+        :param expires: 过期时间（天）
         :return: bool 是否接入成功
         """
         # 组装参数
