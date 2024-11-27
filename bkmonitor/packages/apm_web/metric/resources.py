@@ -26,6 +26,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
+from api.cmdb.define import Host
 from apm_web.constants import (
     COLLECT_SERVICE_CONFIG_KEY,
     AlertLevel,
@@ -94,6 +95,7 @@ from constants.apm import (
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
+from monitor_web.constants import AGENT_STATUS
 from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
@@ -2941,21 +2943,43 @@ class HostInstanceDetailListResource(Resource):
 
         host_instances = HostHandler.list_application_hosts(**data)
 
-        host_instance = [
-            {"id": index, "name": f"{i['bk_host_innerip']}({i['bk_cloud_id']})", **i}
-            for index, i in enumerate(host_instances, 1)
-        ]
-        return {"data": self.filter_keyword(host_instance, keyword), "filter": [], "sort": []}
+        host_mapping = {
+            int(i["bk_host_id"]): {
+                **i,
+                "id": i["bk_host_id"],
+                "name": i["bk_host_innerip"],
+                "status": AGENT_STATUS.UNKNOWN,
+            }
+            for i in host_instances
+        }
+        res = self.filter_keyword(host_mapping, keyword)
+        self.add_status(data["bk_biz_id"], res)
+        return list(res.values())
+
+    def add_status(self, bk_biz_id, hosts):
+        """添加主机 agent 状态字段"""
+        resource.performance.search_host_metric.get_agent_status(
+            bk_biz_id,
+            [
+                Host(
+                    bk_host_innerip=hosts[i]["bk_host_innerip"],
+                    bk_cloud_id=hosts[i]["bk_cloud_id"],
+                    bk_host_id=hosts[i]["bk_host_id"],
+                )
+                for i in hosts
+            ],
+            hosts,
+        )
 
     def filter_keyword(self, data, keyword):
         if not keyword:
             return data
 
-        res = []
-        for item in data:
-            if keyword in item["bk_host_innerip"]:
-                res.append(item)
-
+        res = {}
+        for i in data:
+            for k, v in data[i].items():
+                if keyword in v:
+                    res[i] = data[i]
         return res
 
 
