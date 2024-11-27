@@ -238,7 +238,7 @@ export default class K8sLeftPanel extends tsc<K8sLeftPanelProps, K8sLeftPanelEve
             {this.metricList.map(group => (
               <GroupItem
                 key={group.id}
-                defaultExpand={this.defaultExpand[group.id]}
+                defaultExpand={true}
                 hiddenList={this.hideMetrics}
                 list={group}
                 tools={['view']}
