@@ -114,7 +114,8 @@ class ListServicePodsResource(Resource):
             )
         }
 
-        res = []
+        have_data_pods = []
+        no_data_pods = []
         index = 1
         for i in relations:
             for n in i.nodes:
@@ -130,14 +131,17 @@ class ListServicePodsResource(Resource):
                     pod_info = current_pods[key]
                     if pod_info.get("monitor_status") == BCSBase.METRICS_STATE_STATE_SUCCESS:
                         source_info["status"] = CollectStatus.SUCCESS
+                        have_data_pods.append(source_info)
                     elif pod_info.get("monitor_status") == BCSBase.METRICS_STATE_FAILURE:
                         source_info["status"] = CollectStatus.FAILED
+                        have_data_pods.append(source_info)
                     else:
                         source_info["status"] = CollectStatus.NODATA
+                        no_data_pods.append(source_info)
                 else:
                     source_info["status"] = CollectStatus.NODATA
+                    no_data_pods.append(source_info)
 
-                res.append(source_info)
                 index += 1
 
-        return res
+        return have_data_pods + no_data_pods
