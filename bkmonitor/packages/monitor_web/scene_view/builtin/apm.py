@@ -55,6 +55,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
+        "apm_service-service-default-container",
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
         "apm_service-service-default-overview",
@@ -79,6 +80,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-db",
         "service-default-caller_callee",
         "service-default-custom_metric",
+        "service-default-container",
     ]
 
     # 只需要列表信息时，需要进一步进行渲染的 Tab
@@ -179,9 +181,39 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 )
             ):
                 cls._add_config_from_host(view, view_config)
+                # 兼容前端对 selector_panel 类型为 target_list 做的特殊处理 直接直接替换变量
+                view_config["options"]["selector_panel"]["targets"][0]["data"] = {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
                 return view_config
 
             return cls._get_non_host_view_config(builtin_view, params)
+
+        # k8s 场景
+        if builtin_view == "apm_service-service-default-container":
+            # 时间范围必传
+            start_time = params.get("start_time")
+            end_time = params.get("end_time")
+            if not start_time or not end_time:
+                raise ValueError("没有传递 start_time, end_time")
+
+            if app_name and service_name:
+                from apm_web.container.resources import ListServicePodsResource
+
+                response = ListServicePodsResource()(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+                if response:
+                    # 实际有 Pod 数据才返回
+                    return cls._add_config_from_container(app_name, service_name, view, view_config)
+
+            return cls._get_non_container_view_config(builtin_view, params)
 
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
@@ -455,6 +487,42 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
+    def _add_config_from_container(cls, app_name, service_name, view, view_config):
+        """获取容器 Pod 图表配置"""
+        from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
+
+        if not KubernetesBuiltinProcessor.builtin_views:
+            KubernetesBuiltinProcessor.load_builtin_views()
+
+        # 因为 kubernetes 场景不需要 type 字段(在接口处已处理) 这里查询 type 为空的数据
+        pod_view = SceneViewModel.objects.filter(
+            bk_biz_id=view.bk_biz_id,
+            scene_id="kubernetes",
+            name="pod",
+            type="",
+        ).first()
+        pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
+        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
+
+        # 调整配置
+        pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
+        pod_view["options"] = view_config["options"]
+        if "panels" in pod_view:
+            pod_view["overview_panels"] = pod_view["panels"]
+            del pod_view["panels"]
+
+        pod_view["options"]["selector_panel"]["targets"][0]["data"] = {
+            "app_name": app_name,
+            "service_name": service_name,
+        }
+
+        # 不展示事件页面 时间页面单独页面进行展示
+        pod_view["overview_panels"] = [
+            i for i in pod_view["overview_panels"] if i["id"] != 'bk_monitor.time_series.k8s.events'
+        ]
+        return pod_view
+
+    @classmethod
     def _add_config_from_host(cls, view, view_config):
         """从主机监控中获取并增加配置"""
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
@@ -524,6 +592,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "error",
                         "instance",
                         "host",
+                        "container",
                         "log",
                         "profiling",
                         "custom_metric",
@@ -536,27 +605,63 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return scene_id.startswith(cls.SCENE_ID)
 
     @classmethod
+    def _get_non_container_view_config(cls, builtin_view, params):
+        return {
+            "id": "container",
+            "type": "overview",
+            "mode": "auto",
+            "name": _("k8s"),
+            "panels": [],
+            "overview_panels": [
+                {
+                    "id": 1,
+                    "title": "",
+                    "type": "exception-guide",
+                    "targets": [
+                        {
+                            "data": {
+                                "type": "empty",
+                                "title": _("暂未发现关联 Pod"),
+                                "subTitle": _(
+                                    "如何发现容器信息:\n"
+                                    "1. [推荐] 将上报地址切换为集群内上报，即可自动获取关联。\n"
+                                    "2. 手动补充以下全部集群信息字段，也可以进行关联："
+                                    "k8s.bcs.cluster.id(集群 Id), "
+                                    "k8s.pod.name(Pod 名称), "
+                                    "k8s.namespace.name(Pod 所在命名空间)。\n"
+                                    "如果还是没有数据，可能是由于所选时间段的 Pod 已经销毁。\n",
+                                ),
+                            }
+                        }
+                    ],
+                    "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+                }
+            ],
+            "order": [],
+        }
+
+    @classmethod
     def _get_non_host_view_config(cls, builtin_view, params):
         # 不同场景下返回不同的无数据配置
         link = {}
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
-            title = _("暂未发现主机")
+            title = _("暂未在 Span 中发现主机")
             sub_title = _(
-                "关联主机方法:\n1. 上报时增加 IP 信息。"
+                "如何发现主机:\n1. 上报时增加 IP 信息。"
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "可将上报地址切换为集群内上报，自动获得关联。\n",
+                "可将上报地址切换为集群内上报，即可自动获得关联。\n",
             )
 
         else:
-            title = _("暂未关联主机")
+            title = _("暂未发现主机")
             sub_title = _(
-                "关联主机方法:\n1. SDK上报时增加IP信息。"
+                "如何发现主机:\n1. 上报时增加IP信息。"
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "可将上报地址切换为集群内上报，自动获得关联。\n"
+                "可将上报地址切换为集群内上报，即可自动获得关联。\n"
                 "2. 在服务设置中，通过【关联 CMDB 服务】设置关联服务模版，会自动关联此服务模版下的主机列表"
             )
 
@@ -623,7 +728,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "only_simple_info": params.get("only_simple_info") or False,
         }
         # 自定义参数透传
-        if scene_id == "apm_service" and params.get("id") == "service-default-custom_metric":
+        if scene_id == "apm_service" and params.get("id") in [
+            "service-default-custom_metric",
+            "service-default-container",
+        ]:
             if "start_time" in params:
                 converted_params["start_time"] = params["start_time"]
             if "end_time" in params:
@@ -671,8 +779,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         res = default_views + specific_views
         if ServiceHandler.is_remote_service_by_node(node):
-            # 自定义服务 无实例、 Profiling 、 DB
-            ignore_tabs = ["db", "instance", "profiling"]
+            # 自定义服务 无实例、 Profiling 、 DB 、 k8s
+            ignore_tabs = ["db", "instance", "profiling", "container"]
             res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
         return res
