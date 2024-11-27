@@ -63,6 +63,10 @@ def sync_bkcc_space(allow_deleted=False):
     NOTE: 空间创建后，不需要单独推送
     """
     logger.info("start sync bkcc space task")
+
+    # 先同步已归档业务
+    sync_archived_bkcc_space()
+
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list = api.cmdb.get_business()
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -114,7 +118,6 @@ def sync_bkcc_space(allow_deleted=False):
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
 
-@share_lock(identify="metadata__sync_archived_bkcc_space")
 def sync_archived_bkcc_space():
     """同步 bkcc 被归档的业务，停用对应的空间"""
     logger.info("start sync archived bkcc space task")
