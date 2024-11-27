@@ -46,13 +46,6 @@
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref([]);
   const hiddenField = ref([]);
-  // const xAxisFilterList = computed(() => props.result_schema.map(item => item.field_alias)).filter(item => ![...selectedYAxis,...timeAxis].includes(item));
-  // const yAxisFilterList = computed(() =>
-  //   props.result_schema.filter(item => item.field_type == 'long' || item.field_type == 'double').map(item => item.field_alias).filter(item => ![...selectedXAxis,...timeAxis].includes(item))
-  // );
-  // const timeFilterList = computed(() =>
-  //   props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_alias).filter(item => ![...selectedYAxis,...selectedXAxis].includes(item)),
-  // );
   const filterFields = ( typeCheck, excludeList) => {
     return props.result_schema.filter(item => typeCheck(item))
       .map(item => item.field_alias)
