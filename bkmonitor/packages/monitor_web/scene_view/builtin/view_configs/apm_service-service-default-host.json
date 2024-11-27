@@ -3,36 +3,7 @@
   "type": "detail",
   "mode": "auto",
   "name": "主机",
-  "variables": [
-    {
-      "title": "主机列表",
-      "type": "list",
-      "targets": [
-        {
-          "datasource": "host_list",
-          "dataType": "list",
-          "api": "apm_metric.hostInstanceDetailList",
-          "data": {
-            "app_name": "$app_name",
-            "service_name": "$service_name"
-          },
-          "fields": {
-            "bk_host_id": "bk_host_id",
-            "bk_host_innerip": "bk_target_ip",
-            "bk_cloud_id": "bk_target_cloud_id"
-          }
-        }
-      ],
-      "options": {
-        "variables": {
-          "required": true,
-          "multiple": false,
-          "clearable": false
-        }
-      }
-    }
-  ],
-  "panels": [],
+  "variables": [],
   "overview_panels": [],
   "order": [],
   "options": {
@@ -58,7 +29,9 @@
           "api": "scene_view.getStrategyAndEventCount",
           "data": {
             "scene_id": "host",
-            "target": {"bk_host_id": "$bk_host_id"}
+            "target": {
+              "bk_host_id": "$bk_host_id"
+            }
           }
         }
       ]
@@ -70,10 +43,50 @@
         {
           "datasource": "info",
           "dataType": "info",
-          "api": "scene_view.getHostOrTopoNodeDetail",
-          "data": {"bk_host_id": "$bk_host_id"}
+          "api": "apm_metric.hostDetail",
+          "data": {
+            "bk_host_id": "$bk_host_id",
+            "source_type": "$source_type"
+          }
         }
       ]
+    },
+    "selector_panel": {
+      "title": "主机列表",
+      "type": "target_list",
+      "targets": [
+        {
+          "datasource": "host_list",
+          "dataType": "list",
+          "api": "apm_metric.hostInstanceDetailList",
+          "data": {
+            "app_name": "$app_name",
+            "service_name": "$service_name"
+          },
+          "fields": {
+            "bk_host_id": "bk_host_id",
+            "bk_host_innerip": "bk_target_ip",
+            "bk_cloud_id": "bk_cloud_id",
+            "source_type": "source_type",
+            "app_name": "app_name",
+            "service_name": "service_name"
+          },
+          "fields_template": {
+            "bk_host_id": "$bk_host_id",
+            "bk_host_innerip": "$bk_target_ip",
+            "bk_cloud_id": "$bk_cloud_id",
+            "source_type": "$source_type",
+            "app_name": "$app_name",
+            "service_name": "$service_name"
+          }
+        }
+      ],
+      "options": {
+        "target_list": {
+          "show_status_bar": true,
+          "show_overview": false
+        }
+      }
     }
   }
 }
