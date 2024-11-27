@@ -361,7 +361,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   handleMetricMouseenter(e: MouseEvent, item: MetricDetail) {
     let content = '';
     try {
-      content = this.handleGetMetricTipsContent(item);
+      content = this.handleGetMetricTipsContent(item, { enableCopy: true });
     } catch (error) {
       // content = `${this.$t('指标不存在')}`;
     }
@@ -372,15 +372,24 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         theme: 'monitor-metric-input',
         arrow: true,
         flip: false,
+        interactive: true,
+        interactiveBorder: 6,
+        onMount: () => {
+          this.$bkPopover('.monitor-metric-copy-btn', {
+            content: this.$t('复制'),
+            theme: 'light monitor-metric-icon',
+            arrow: true,
+            flip: false,
+            placement: 'top',
+          });
+        },
+        onHidden: () => {
+          this.metricpopoerInstance?.destroy?.();
+          this.metricpopoerInstance = null;
+        },
       });
       this.metricpopoerInstance?.show?.(100);
     }
-  }
-
-  handleMetricMouseleave() {
-    this.metricpopoerInstance?.hide?.();
-    this.metricpopoerInstance?.destroy?.();
-    this.metricpopoerInstance = null;
   }
 
   /**
@@ -545,7 +554,6 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                         <span
                           key={metric.metric_id}
                           onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
-                          onMouseleave={this.handleMetricMouseleave}
                         >
                           <bk-tag>{metric.name}</bk-tag>
                         </span>

@@ -25,13 +25,36 @@
  */
 import { Component, Vue } from 'vue-property-decorator';
 
+import { copyText } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
 import type { MetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
 
+const PRIVATE_METRIC_COPY_WINDOW_KEY = '__strategy_config_copy_key__';
 @Component
 export default class metricTipsContentMixin extends Vue {
-  handleGetMetricTipsContent(data: MetricDetail) {
+  created() {
+    if (window[PRIVATE_METRIC_COPY_WINDOW_KEY]) return;
+    window[PRIVATE_METRIC_COPY_WINDOW_KEY] = (e: PointerEvent) => {
+      e.stopPropagation();
+      let hasErr = false;
+      copyText(e.currentTarget.dataset.copyValue, errMsg => {
+        this.$bkMessage({
+          message: errMsg,
+          theme: 'error',
+        });
+        hasErr = true;
+      });
+      if (!hasErr) {
+        this.$bkMessage({
+          message: this.$t('复制成功'),
+          theme: 'success',
+        });
+      }
+    };
+  }
+
+  handleGetMetricTipsContent(data: MetricDetail, configs: { enableCopy: boolean } = {}) {
     if (data.isNullMetric) throw Error('Metric data is wrong');
     const sourceType =
       data.data_source_label === 'bk_log_search' && data.data_type_label === 'time_series'
@@ -47,7 +70,7 @@ export default class metricTipsContentMixin extends Vue {
     }
     const options = [
       // 公共展示项
-      { val: data.metric_field, label: this.$t('指标名') },
+      { val: data.metric_field, label: this.$t('指标名'), canCopy: true },
       { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
     const unit = !data?.unit || data.unit === 'none' ? '--' : data.unit;
@@ -91,7 +114,7 @@ export default class metricTipsContentMixin extends Vue {
       custom_time_series: [
         // 自定义指标
         ...options,
-        { val: data?.extend_fields?.bk_data_id, label: this.$t('数据ID') },
+        { val: data?.extend_fields?.bk_data_id, label: this.$t('数据ID'), canCopy: true },
         { val: data.result_table_name, label: this.$t('数据名') },
         { val: data.result_table_label_name, label: this.$t('监控对象') },
         { val: unit, label: this.$t('单位') },
@@ -171,10 +194,30 @@ export default class metricTipsContentMixin extends Vue {
       });
     }
     curElList?.forEach(item => {
-      content += `<div class="item"><div>${item.label}：${
-        (this.$t('采集配置') === item.label ? item.val : xssFilter(item.val)) || '--'
-      }</div></div>\n`;
+      const value = (this.$t('采集配置') === item.label ? item.val : xssFilter(item.val)) || '--';
+      const copyEl =
+        configs.enableCopy && item.canCopy
+          ? `<div class="monitor-metric-copy-btn" data-copy-value="${value}" onclick="${PRIVATE_METRIC_COPY_WINDOW_KEY}?.(event)" >
+            <span class='icon-monitor icon-mc-copy' />
+          </div>`
+          : '';
+
+      content += `
+      <div class="item">
+        <div>
+          <span>
+            ${item.label}：${value}
+          </span>
+          ${copyEl}
+        </div>
+      </div>\n`;
     });
     return content;
+  }
+
+  beforeDestroy() {
+    if (!window[PRIVATE_METRIC_COPY_WINDOW_KEY]) return;
+    window[PRIVATE_METRIC_COPY_WINDOW_KEY] = null;
+    delete window[PRIVATE_METRIC_COPY_WINDOW_KEY];
   }
 }

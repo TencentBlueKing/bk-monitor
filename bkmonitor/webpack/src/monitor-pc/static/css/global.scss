@@ -103,6 +103,31 @@
     }
   }
 
+  &.monitor-metric-input-theme {
+    padding: 8px;
+    line-height: 20px;
+
+    .monitor-metric-copy-btn {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      padding-left: 4px;
+      font-size: 12px;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  &.monitor-metric-icon-theme {
+    pointer-events: all;
+    background-color: white !important;
+    border-radius: 2px !important;
+    box-shadow: 0px 3px 12px 0px rgba(0, 0, 0, 0.2);
+  }
+
   &.shield-theme {
     border-radius: 2px;
     box-shadow: 0px 1px 4px 0px rgba(196, 198, 204, 1);
