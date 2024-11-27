@@ -46,12 +46,12 @@
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref([]);
   const hiddenField = ref([]);
-  const list = computed(() => props.result_schema.map(item => item.field_name));
+  const list = computed(() => props.result_schema.map(item => item.field_alias));
   const stringFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_name),
+    props.result_schema.filter(item => item.field_type == 'long' || item.field_type == 'double').map(item => item.field_alias),
   );
   const timeFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_name),
+    props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_alias),
   );
   // 监听 props.xAxis 的变化并更新 selectedXAxis
   watch(
@@ -88,6 +88,7 @@
           :key="index"
           :id="option"
           :name="option"
+          :disabled="[...selectedXAxis,...timeAxis].includes(option)"
         >
         </bk-option>
       </bk-select>
@@ -106,6 +107,7 @@
           :key="index"
           :id="option"
           :name="option"
+          :disabled="[...selectedYAxis,...timeAxis].includes(option)"
         >
         </bk-option>
       </bk-select>
@@ -123,6 +125,7 @@
           :key="index"
           :id="option"
           :name="option"
+         :disabled="[...selectedYAxis,...selectedXAxis].includes(option)"
         >
         </bk-option>
       </bk-select>

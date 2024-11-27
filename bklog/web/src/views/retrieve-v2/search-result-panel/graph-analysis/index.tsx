@@ -96,11 +96,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     title: '',
   };
 
-  basicInfoSubTitle = {
-    show: false,
-    title: '',
-  };
-
   fieldList = [1];
   advanceSetting = false;
 
@@ -265,7 +260,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       <div class='basic-info-row'>
         <bk-checkbox
           v-model={this.basicInfoTitle.show}
-          checked={true}
           false-value={false}
           true-value={true}
         >

@@ -36,7 +36,7 @@ import { format } from 'sql-formatter';
 import useLocale from '@/hooks/use-locale';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
-
+import { bkMessage  } from 'bk-magic-vue'
 import './index.scss';
 
 export default defineComponent({
@@ -113,6 +113,15 @@ export default defineComponent({
 
       return axios(params)
         .then(resp => {
+          // 查询报错提示
+          if(resp.data.code !== 0){
+            bkMessage({
+              theme: 'error',
+              message: resp.data.message,
+            });
+            isRequesting.value = false;
+            return
+          }
           if (updateStore) {
             storeChartOptions();
           }
@@ -173,7 +182,6 @@ export default defineComponent({
           <bk-button
             v-bk-tooltips={{ content: $t('查询') }}
             class='sql-editor-query-button'
-            v-bk-tooltips={{ content: '查询' }}
             loading={isRequesting.value}
             size='small'
             theme='primary'
@@ -185,7 +193,6 @@ export default defineComponent({
           <bk-button
             v-bk-tooltips={{ content: $t('中止') }}
             class='sql-editor-view-button'
-            v-bk-tooltips={{ content: '中止' }}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -201,7 +208,6 @@ export default defineComponent({
             <bk-button
               v-bk-tooltips={{ content: $t('同步查询条件到SQL') }}
               class='sql-editor-view-button'
-              v-bk-tooltips={{ content: '同步查询条件到SQL' }}
               loading={isSyncSqlRequesting.value}
               size='small'
             >
@@ -211,7 +217,6 @@ export default defineComponent({
           <BookmarkPop
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', '') }}
             class='bklog-sqleditor-bookmark'
-            v-bk-tooltips={{ content: '收藏' }}
             addition={[]}
             extendParams={chartParams.value}
             search-mode='sqlChart'
