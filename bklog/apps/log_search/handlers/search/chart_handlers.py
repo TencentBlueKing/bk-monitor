@@ -163,7 +163,7 @@ class SQLChartHandler(ChartHandler):
         pattern = (
             r"^\s*?(SELECT\s+?.+?)"
             r"(?:\bFROM\b.+?)?"
-            r"(\bWHERE\b.*|\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bINTO\s+?OUTFILE\b.*)?$"
+            r"(\bWHERE\b.*|\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
         )
         matches = re.match(pattern, raw_sql, re.DOTALL | re.IGNORECASE)
         if not matches:
@@ -189,7 +189,7 @@ class SQLChartHandler(ChartHandler):
             if errors:
                 errors_message = errors_message + ":" + errors
             logger.info("SQL query exception [%s]", errors_message)
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=errors_message))
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=errors_message), errors=sql)
 
         data_list = result_data["data"]["list"]
         result_schema = result_data["data"].get("result_schema", [])
