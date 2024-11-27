@@ -25,7 +25,7 @@
  */
 import { onMounted, Ref } from 'vue';
 
-import useResizeObserve from '@/hooks/use-resize-observe';
+import { formatDate } from '@/common/util';
 import * as Echarts from 'echarts';
 import { cloneDeep } from 'lodash';
 
@@ -75,8 +75,8 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
       if (field) {
         const target = groupedData[field];
 
-        const group1Keys = Object.keys(target);
-        const group2Keys = Object.keys(group);
+        const group1Keys = Object.keys(target).sort();
+        const group2Keys = Object.keys(group).sort();
 
         if (group2Keys.length === 0) {
           return getNewGroup(index + 1, target);
@@ -106,7 +106,8 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const aggregateData = (data, dimensions, metrics, type, timeField?) => {
-    if (timeField) {
+    const dimFields = dimensions.length > 0 ? dimensions : [timeField];
+    if (timeField && dimensions.length > 0) {
       const timeGroup = {};
       data.forEach(item => {
         if (timeGroup[item[timeField]] === undefined) {
@@ -116,9 +117,8 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
         timeGroup[item[timeField]].push(item);
       });
 
-      const dimFields = dimensions.length > 0 ? dimensions : [timeField];
-      const categories = Object.keys(timeGroup);
-      const seriesData = Object.keys(timeGroup)
+      const categories = Object.keys(timeGroup).sort();
+      const seriesData = categories
         .map(key => {
           const aggregatedData = aggregateDataByDimensions(timeGroup[key] ?? [], dimFields, metrics);
           return metrics.map(metric => ({
@@ -135,10 +135,10 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
       };
     }
 
-    const aggregatedData = aggregateDataByDimensions(data, dimensions, metrics);
+    const aggregatedData = aggregateDataByDimensions(data, dimFields, metrics);
 
     // 提取用于 ECharts 的数据
-    const categories = Object.keys(aggregatedData);
+    const categories = Object.keys(aggregatedData).sort();
 
     const seriesData = metrics.map(metric => ({
       name: metric,
@@ -180,19 +180,6 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     }
   };
 
-  // const getXAxisType = (xFields: string[], data?: any, timeDimensions?: string[]) => {
-  //   if (timeDimensions.length === 1) {
-  //     return 'time';
-  //   }
-
-  //   if (xFields.length === 1) {
-  //     const schema = (data.result_schema ?? []).find(f => f.field_name === xFields[0])?.field_type ?? 'category';
-  //     return /^date/.test(schema) ? 'time' : 'category';
-  //   }
-
-  //   return 'category';
-  // };
-
   /** 缩写数字 */
   const abbreviateNumber = (value: number) => {
     let newValue = value;
@@ -227,8 +214,21 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     };
   };
 
+  const getTooltipFormatter = () => {
+    return {
+      formatter: params => {
+        return (Array.isArray(params) ? params : [params])
+          .map(({ value, seriesName }) => `<span>${seriesName}: ${abbreviateNumber(value)}</span>`)
+          .join('</br>');
+      },
+    };
+  };
+
   const getXAxisTimeValue = (data: any[], timeField: string) => {
-    return data.map(d => d[timeField]);
+    return data
+      .map(d => d[timeField])
+      .sort()
+      .map(value => formatDate(value, /^\d+$/.test(value), true));
   };
 
   const updateLineBarOption = (
@@ -239,7 +239,6 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     type?: string,
   ) => {
     const { categories, seriesData } = aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]);
-
     options.xAxis.data = dimensions[0] ? getXAxisTimeValue(data?.list ?? [], dimensions[0]) : categories;
     Object.assign(options.yAxis.axisLabel, getYAxisLabel());
     options.series = seriesData;
@@ -272,16 +271,6 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     actionMap[type]?.(xFields, yFields, dimensions, data, type);
   };
 
-  const setResizeObserve = () => {
-    const getTargetElement = () => {
-      return target.value.parentElement;
-    };
-
-    useResizeObserve(getTargetElement, () => {
-      chartInstance?.resize();
-    });
-  };
-
   const setChartOptions = (
     xFields?: string[],
     yFields?: string[],
@@ -291,10 +280,10 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   ) => {
     chartInstance?.clear();
     if (!chartInstance) {
-      setResizeObserve();
       initChartInstance();
     }
     setDefaultOption(type);
+    Object.assign(options.tooltip, getTooltipFormatter());
     updateChartOptions(xFields, yFields, dimensions, data, type);
   };
 
@@ -310,5 +299,6 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   return {
     setChartOptions,
     destroyInstance,
+    chartInstance,
   };
 };

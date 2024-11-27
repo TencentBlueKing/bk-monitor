@@ -46,12 +46,12 @@
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref([]);
   const hiddenField = ref([]);
-  const list = computed(() => props.result_schema.map(item => item.field_name));
+  const list = computed(() => props.result_schema.map(item => item.field_alias));
   const stringFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_name),
+    props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_alias),
   );
   const timeFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_name),
+    props.result_schema.filter(item => /^date/.test(item.field_type)).map(item => item.field_alias),
   );
   // 监听 props.xAxis 的变化并更新 selectedXAxis
   watch(
@@ -75,7 +75,7 @@
 <template>
   <div class="bklog-chart-field">
     <div v-show="activeGraphCategory !== 'table'">
-      <div class="title">{{this.$t('指标')}}</div>
+      <div class="title">{{ this.$t('指标') }}</div>
       <bk-select
         v-model="selectedYAxis"
         searchable
@@ -93,7 +93,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory !== 'table'">
-      <div class="title">{{this.$t('维度')}}</div>
+      <div class="title">{{ this.$t('维度') }}</div>
       <bk-select
         v-model="selectedXAxis"
         searchable
@@ -111,7 +111,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'line_bar'">
-      <div class="title">{{this.$t('显示字段')}}</div>
+      <div class="title">{{ this.$t('显示字段') }}</div>
       <bk-select
         v-model="selectedYAxis"
         @change="change('yAxis', $event)"
@@ -128,7 +128,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
-      <div class="title">{{this.$t('时间维度')}}</div>
+      <div class="title">{{ this.$t('时间维度') }}</div>
       <bk-select
         v-model="timeAxis"
         @change="change('dimensions', $event)"
@@ -144,7 +144,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'table'">
-      <div class="title">{{this.$t('隐藏字段')}}</div>
+      <div class="title">{{ this.$t('隐藏字段') }}</div>
       <bk-select
         v-model="hiddenField"
         :clearable="false"
