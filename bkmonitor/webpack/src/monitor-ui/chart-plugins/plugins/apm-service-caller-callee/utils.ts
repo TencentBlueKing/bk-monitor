@@ -25,8 +25,9 @@
  * IN THE SOFTWARE.
  */
 
-import { EKind, type ITabItem } from './type';
+import dayjs from 'dayjs';
 
+import { EKind, type ITabItem } from './type';
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
     label: '主调',
@@ -231,4 +232,42 @@ export function setRecordCallOptionChart(keyObject, chart) {
  */
 export function getRecordCallOptionChart(keyObject) {
   return getRecord(recordCallOptionChartKey, keyObject, EChartType.exceptionRate);
+}
+
+/**
+ * @description 计算某个时间的前一天/前一周
+ * @param timestamp
+ * @returns
+ */
+export function getPreviousDayAndWeekTimestamps(timestamp) {
+  const oneDayInMilliseconds = 24 * 60 * 60; // 一天的毫秒数
+  const oneWeekInMilliseconds = 7 * oneDayInMilliseconds; // 一周的毫秒数
+
+  const previousDayTimestamp = timestamp - oneDayInMilliseconds;
+  const previousWeekTimestamp = timestamp - oneWeekInMilliseconds;
+
+  return {
+    yesterday: previousDayTimestamp * 1000,
+    lastWeek: previousWeekTimestamp * 1000,
+  };
+}
+
+export function formatDateRange(start: number, end: number) {
+  const formatStr = 'MM-DD HH:mm:ss';
+  const year = new Date(start).getFullYear();
+  return `${year}（${dayjs(start).format(formatStr)} ~ ${dayjs(end).format(formatStr)}）`;
+}
+/**
+ * @description 处理时间要展示的格式 2024（11-21  18:00:00 ～ 11-22  18:00:00）
+ * @param timeArr
+ * @returns
+ */
+export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
+  const start = getPreviousDayAndWeekTimestamps(timeArr[0]);
+  const end = getPreviousDayAndWeekTimestamps(timeArr[1]);
+
+  return {
+    '1d': formatDateRange(start.yesterday, end.yesterday),
+    '1w': formatDateRange(start.lastWeek, end.lastWeek),
+  };
 }
