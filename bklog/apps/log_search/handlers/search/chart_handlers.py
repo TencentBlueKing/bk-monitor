@@ -120,8 +120,9 @@ class ChartHandler(object):
 
                 if index > 0:
                     tmp_sql += f" {condition_type} "
-
-                tmp_sql += f"{field_name} {sql_operator} " + repr(value)
+                if not isinstance(value, int):
+                    value = repr(value)
+                tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
