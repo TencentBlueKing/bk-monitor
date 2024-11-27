@@ -171,13 +171,12 @@ class NodeDiscover(DiscoverBase):
             }
 
     def find_sdk(self, match_rule, span, find_instances, topo_key):
-        sdk_list = []
-        sdk_map = {
-            "name": match_rule.category_id,
-            "extra_data": extract_field_value(match_rule.predicate_key, span),
-        }
-        sdk_list.append(sdk_map)
-        find_instances[topo_key]["sdk"] = sdk_list
+        find_instances[topo_key]["sdk"].append(
+            {
+                "name": match_rule.category_id,
+                "extra_data": extract_field_value(match_rule.predicate_key, span),
+            }
+        )
 
     def list_exists(self):
         res = {}
