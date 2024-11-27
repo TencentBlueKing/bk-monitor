@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 
 
+import re
+
+
 class GroupId(object):
     """
     CMDB 组名称
@@ -49,13 +52,12 @@ GROUPS = [
 ]
 
 
-def return_replace_val_dict(mail_report_biz):
-    REPLACE_VAL = {
-        BuildInBizType.ALL: str(mail_report_biz),
-        BuildInBizType.NOTIFY: str(mail_report_biz),
-        BuildInBizType.SETTINGS: str(mail_report_biz),
-    }
-    return REPLACE_VAL
+# 订阅报表 graph_id 格式
+# 分为三段，由减号分隔
+# 第一段是逗号分隔的业务ID，或是内置业务类型BuildInBizType。业务ID是数字可以是负数，内置业务类型是非数字字符串
+# 第二段是仪表盘UID，可能包含减号
+# 第三段是图表ID，图表ID应该是正整数，有一种特殊情况是*，表示整个仪表盘
+GRAPH_ID_REGEX = re.compile(r"((-?\d+|[a-zA-Z_]+)(,-?\d+)*)-([0-9a-zA-Z-_]+)-(\d+|\*)")
 
 
 LOGO = """
