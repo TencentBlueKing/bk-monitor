@@ -2949,6 +2949,8 @@ class HostInstanceDetailListResource(Resource):
                 "id": i["bk_host_id"],
                 "name": i["bk_host_innerip"],
                 "status": AGENT_STATUS.UNKNOWN,
+                "app_name": data["app_name"],
+                "service_name": data["service_name"],
             }
             for i in host_instances
         }
