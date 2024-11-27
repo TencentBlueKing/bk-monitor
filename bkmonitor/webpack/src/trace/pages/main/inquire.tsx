@@ -374,7 +374,7 @@ export default defineComponent({
         app_name: state.app,
         [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
-      if (isTraceIDSearch) {
+      if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
         params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
       }
       const resultData = await requestFn(params).catch(() => null);

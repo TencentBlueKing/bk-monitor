@@ -378,6 +378,14 @@ export default defineComponent({
     };
     // 切换视图
     const handleTabChange = (v: IPanelEnum) => {
+      if (
+        state.activePanel === 'timeline' &&
+        cacheFilterToolsValues.waterFallAndTopo.includes(QUERY_TRACE_RELATION_APP)
+      ) {
+        cacheFilterToolsValues.waterFallAndTopo = cacheFilterToolsValues.waterFallAndTopo.filter(
+          item => item !== QUERY_TRACE_RELATION_APP
+        );
+      }
       state.activePanel = v;
       state.filterSpanIds = [];
       state.filterSpanSubTitle = '';
