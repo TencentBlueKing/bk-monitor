@@ -26,6 +26,7 @@ from apm.constants import (
 )
 from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
+from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5
@@ -116,7 +117,7 @@ class PlatformConfig(BkCollectorConfig):
         plat_config = {
             "apdex_config": cls.get_apdex_config(),
             "sampler_config": cls.get_sampler_config(),
-            "token_checker_config": cls.get_token_checker_config(),
+            "token_checker_config": cls.get_token_checker_config(bcs_cluster_id),
             "resource_filter_config": cls.get_resource_filter_config(),
             "qps_config": cls.get_qps_config(),
             "metric_configs": cls.list_metric_config(),
@@ -270,13 +271,13 @@ class PlatformConfig(BkCollectorConfig):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
 
     @classmethod
-    def get_token_checker_config(cls):
+    def get_token_checker_config(cls, bcs_cluster_id=None):
         # 需要判断是否有指定密钥，如有，优先级最高
         x_key = getattr(settings, settings.AES_X_KEY_FIELD)
         if settings.SPECIFY_AES_KEY != "":
             x_key = settings.SPECIFY_AES_KEY
 
-        return {
+        token_checker_config = {
             "name": "token_checker/aes256",
             "resource_key": "bk.data.token",
             "type": "aes256",
@@ -287,6 +288,40 @@ class PlatformConfig(BkCollectorConfig):
             if isinstance(settings.BK_DATA_AES_IV, bytes)
             else settings.BK_DATA_AES_IV,
         }
+
+        if bcs_cluster_id:
+            # 集群内默认上报 APM 应用
+            default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
+                cluster_id=bcs_cluster_id
+            ).first()
+            if default_app_relation:
+                default_app = default_app_relation.application
+                if not default_app:
+                    logger.info(f"{bcs_cluster_id} relate apm application({default_app_relation.app_name}) not exist")
+                else:
+                    token_checker_config.update(cls.get_dataids_config_from_application(default_app))
+
+        return token_checker_config
+
+    @classmethod
+    def get_dataids_config_from_application(cls, application):
+        data_ids = {}
+        metric_data_source = application.metric_datasource
+        if application.is_enabled_metric and metric_data_source:
+            data_ids["metrics_dataid"] = metric_data_source.bk_data_id
+
+        log_data_source = application.log_datasource
+        if application.is_enabled_log and log_data_source:
+            data_ids["logs_dataid"] = log_data_source.bk_data_id
+
+        trace_data_source = application.trace_datasource
+        if application.is_enabled_trace and trace_data_source:
+            data_ids["traces_dataid"] = trace_data_source.bk_data_id
+
+        profile_data_source = application.profile_datasource
+        if application.is_enabled_profiling and profile_data_source:
+            data_ids["profiles_dataid"] = profile_data_source.bk_data_id
+        return data_ids
 
     @classmethod
     def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None):
