@@ -3004,14 +3004,16 @@ class ESStorage(models.Model, StorageResultTable):
             return True
 
         # 4. 若配置了归档时间，且当前索引在归档日期之前，需要创建新的index
-        archive_time_point = self.now - datetime.timedelta(days=self.archive_index_days)
-        if current_index_info["datetime_object"] < archive_time_point:
-            logger.info(
-                "_should_create_index: table_id->[%s] index->[%s] has arrive archive date, will create new " "index",
-                self.table_id,
-                last_index_name,
-            )
-            return True
+        if self.archive_index_days > 0:
+            archive_time_point = self.now - datetime.timedelta(days=self.archive_index_days)
+            if current_index_info["datetime_object"] < archive_time_point:
+                logger.info(
+                    "_should_create_index: table_id->[%s] index->[%s] has arrive archive date, will create new "
+                    "index",
+                    self.table_id,
+                    last_index_name,
+                )
+                return True
 
         # 5. 暖数据等待天数大于0且当前索引未过期，需要创建新的index
         # arrive warm_phase_days date to split index
