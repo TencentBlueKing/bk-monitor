@@ -378,14 +378,6 @@ export default defineComponent({
     };
     // 切换视图
     const handleTabChange = (v: IPanelEnum) => {
-      if (
-        state.activePanel === 'timeline' &&
-        cacheFilterToolsValues.waterFallAndTopo.includes(QUERY_TRACE_RELATION_APP)
-      ) {
-        cacheFilterToolsValues.waterFallAndTopo = cacheFilterToolsValues.waterFallAndTopo.filter(
-          item => item !== QUERY_TRACE_RELATION_APP
-        );
-      }
       state.activePanel = v;
       state.filterSpanIds = [];
       state.filterSpanSubTitle = '';
@@ -566,6 +558,7 @@ export default defineComponent({
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
         };
+        clearCrossApp();
         if (state.activePanel === 'timeline') {
           params[QUERY_TRACE_RELATION_APP] = val.includes(QUERY_TRACE_RELATION_APP);
         }
@@ -639,6 +632,7 @@ export default defineComponent({
       () => props.traceID,
       () => {
         clearCompareParams();
+        clearCrossApp();
       }
     );
     watch(
@@ -717,6 +711,18 @@ export default defineComponent({
       updateCompareStatus(false);
       state.compareSpanList = [];
       state.compareTraceID = '';
+    };
+
+    /** 从非timeline视图切换Trace ID，过滤跨应用checkbox */
+    const clearCrossApp = () => {
+      if (
+        state.activePanel !== 'timeline' &&
+        cacheFilterToolsValues.waterFallAndTopo.includes(QUERY_TRACE_RELATION_APP)
+      ) {
+        cacheFilterToolsValues.waterFallAndTopo = cacheFilterToolsValues.waterFallAndTopo.filter(
+          item => item !== QUERY_TRACE_RELATION_APP
+        );
+      }
     };
     /** 更新对比状态 */
     const updateCompareStatus = (isCompare = true) => {
