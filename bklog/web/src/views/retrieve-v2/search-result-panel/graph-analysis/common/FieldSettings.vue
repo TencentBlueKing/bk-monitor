@@ -46,13 +46,36 @@
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref([]);
   const hiddenField = ref([]);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
-  const stringFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type == 'long' || item.field_type == 'double').map(item => item.field_alias),
-  );
-  const timeFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_alias),
-  );
+  // const xAxisFilterList = computed(() => props.result_schema.map(item => item.field_alias)).filter(item => ![...selectedYAxis,...timeAxis].includes(item));
+  // const yAxisFilterList = computed(() =>
+  //   props.result_schema.filter(item => item.field_type == 'long' || item.field_type == 'double').map(item => item.field_alias).filter(item => ![...selectedXAxis,...timeAxis].includes(item))
+  // );
+  // const timeFilterList = computed(() =>
+  //   props.result_schema.filter(item => item.field_type == 'date').map(item => item.field_alias).filter(item => ![...selectedYAxis,...selectedXAxis].includes(item)),
+  // );
+  const filterFields = ( typeCheck, excludeList) => {
+    return props.result_schema.filter(item => typeCheck(item))
+      .map(item => item.field_alias)
+      .filter(item => !excludeList.includes(item));
+  };
+
+  const xAxisFilterList = computed(() => {
+    return filterFields(item => true, [...selectedYAxis, ...timeAxis]);
+  });
+
+  const yAxisFilterList = computed(() => {
+    return filterFields(
+      item => item.field_type === 'long' || item.field_type === 'double',
+      [...selectedXAxis, ...timeAxis]
+    );
+  });
+
+  const timeFilterList = computed(() => {
+    return filterFields(
+      item => item.field_type === 'date',
+      [...selectedYAxis, ...selectedXAxis]
+    );
+  });
   // 监听 props.xAxis 的变化并更新 selectedXAxis
   watch(
     () => props.xAxis,
@@ -84,11 +107,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in stringFilterList"
+          v-for="(option, index) in yAxisFilterList"
           :key="index"
           :id="option"
           :name="option"
-          :disabled="[...selectedXAxis,...timeAxis].includes(option)"
         >
         </bk-option>
       </bk-select>
@@ -103,11 +125,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in list"
+          v-for="(option, index) in xAxisFilterList"
           :key="index"
           :id="option"
           :name="option"
-          :disabled="[...selectedYAxis,...timeAxis].includes(option)"
         >
         </bk-option>
       </bk-select>
@@ -125,7 +146,6 @@
           :key="index"
           :id="option"
           :name="option"
-         :disabled="[...selectedYAxis,...selectedXAxis].includes(option)"
         >
         </bk-option>
       </bk-select>

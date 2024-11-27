@@ -113,15 +113,6 @@ export default defineComponent({
 
       return axios(params)
         .then(resp => {
-          // 查询报错提示
-          if(resp.data.code !== 0){
-            bkMessage({
-              theme: 'error',
-              message: resp.data.message,
-            });
-            isRequesting.value = false;
-            return
-          }
           if (updateStore) {
             storeChartOptions();
           }
