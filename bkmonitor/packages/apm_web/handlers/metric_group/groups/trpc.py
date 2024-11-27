@@ -297,7 +297,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
                     "field": TRPCMetricTag.APP,
-                    "filter_dict": {f"{TRPCMetricTag.CALLEE_SERVER}__eq": server},
+                    "filter_dict": {f"{TRPCMetricTag.SERVICE_NAME}__eq": server},
                 },
             ],
             start_time=start_time,
