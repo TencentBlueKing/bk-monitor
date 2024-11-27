@@ -5,7 +5,6 @@
   "name": "主机",
   "variables": [],
   "panels": [],
-  "overview_panels": [],
   "order": [],
   "options": {
     "panel_tool": {
@@ -77,7 +76,7 @@
       "options": {
         "target_list": {
           "show_status_bar": true,
-          "show_overview": true
+          "show_overview": false
         }
       }
     }

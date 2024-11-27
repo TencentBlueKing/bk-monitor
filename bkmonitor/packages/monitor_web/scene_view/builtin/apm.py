@@ -512,7 +512,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 特殊处理服务主机页面 -> 为主机监控panel配置
         host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
         if host_view:
-            view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+            view_config["panels"], view_config["order"] = get_auto_view_panels(view)
 
     @classmethod
     def create_default_views(cls, bk_biz_id: int, scene_id: str, view_type: str, existed_views):
