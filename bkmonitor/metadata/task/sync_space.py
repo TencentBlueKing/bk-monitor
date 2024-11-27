@@ -125,39 +125,34 @@ def sync_archived_bkcc_space():
     # 获取已归档的业务
     archived_biz_list = api.cmdb.get_business(is_archived=True)
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
-
-    # 获取当前启用的业务空间
-    space_id_list = Space.objects.filter(
-        space_type_id=bkcc_type_id, status=SpaceStatus.NORMAL.value
-    ).values_list("space_id", flat=True)
-    # 需要同步归档的业务
-    need_archive_biz_id_list = set(archived_biz_id_list) & set(space_id_list)
-
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
     name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"
-    if need_archive_biz_id_list:
-        # 获取要变更的空间
-        objs = Space.objects.filter(space_type_id=bkcc_type_id, space_id__in=need_archive_biz_id_list)
-        updated_spaces = []
-        for obj in objs:
-            obj.space_name = f"{obj.space_name}{name_suffix}"
-            obj.status = SpaceStatus.DISABLED.value
-            updated_spaces.append(obj)
-        Space.objects.bulk_update(updated_spaces, ["space_name", "status"], batch_size=BULK_UPDATE_BATCH_SIZE)
-        # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
-        space_resources = SpaceResource.objects.filter(
-            resource_type=bkcc_type_id, resource_id__in=need_archive_biz_id_list
-        )
-        # 对应的 BKCI(BCS) 空间，也标识为不可用
-        Space.objects.filter(
-            space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
-        ).update(is_bcs_valid=False)
+    # 获取当前启用且需要同步归档的业务空间
+    need_archive_space = Space.objects.filter(
+        space_type_id=bkcc_type_id, status=SpaceStatus.NORMAL.value, space_id__in=archived_biz_id_list
+    )
+    if not need_archive_space:
+        return
+    need_archive_biz_id_list = []
+    for obj in need_archive_space:
+        need_archive_biz_id_list.append(obj.space_id)
+        obj.space_name = f"{obj.space_name}{name_suffix}"
+        obj.status = SpaceStatus.DISABLED.value
+    Space.objects.bulk_update(need_archive_space, ["space_name", "status"], batch_size=BULK_UPDATE_BATCH_SIZE)
+    # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
+    space_resources = SpaceResource.objects.filter(
+        resource_type=bkcc_type_id, resource_id__in=need_archive_biz_id_list
+    )
+    # 对应的 BKCI(BCS) 空间，也标识为不可用
+    Space.objects.filter(
+        space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
+    ).update(is_bcs_valid=False)
 
-        logger.info(
-            "update archived space_type_id: [%s], space_id: [%s]",
-            bkcc_type_id,
-            ",".join(need_archive_biz_id_list)
-        )
+    logger.info(
+        "update archived space_type_id: [%s], space_id: [%s]",
+        bkcc_type_id,
+        ",".join(need_archive_biz_id_list)
+    )
 
 
 @share_lock(identify="metadata__refresh_bkcc_space_name")
