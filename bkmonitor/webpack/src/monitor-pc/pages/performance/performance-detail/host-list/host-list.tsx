@@ -222,6 +222,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
 
   async created() {
+    this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     await this.handleGetDataList();
     this.initDisplayBack();
   }
@@ -244,7 +245,6 @@ export default class HostList extends tsc<IProps, IEvents> {
 
   /** 处理选中回显 */
   initDisplayBack() {
-    this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     const item = this.hostListData.find(item => this.panel.targets?.[0]?.handleCreateItemId?.(item) === this.selectId);
     this.$emit('titleChange', item ? item.name : this.$tc('概览'));
   }
@@ -254,6 +254,7 @@ export default class HostList extends tsc<IProps, IEvents> {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const variablesService = new VariablesService({
       ...this.viewOptions,
+      ...this.viewOptions.filters,
       start_time: startTime,
       end_time: endTime,
     });
@@ -283,7 +284,12 @@ export default class HostList extends tsc<IProps, IEvents> {
     });
     this.loading = false;
     this.hostListData = res.reduce((total, cur) => total.concat(cur), []);
-    this.handleListChange(this.hostListData);
+    // 如果没有配置overview 而且没有初始回填的数据 则默认选中第一条
+    this.hostListData = this.handleListChange(this.hostListData);
+    if (!this.enableOverview && this.selectId === 'overview') {
+      const firstItem = this.hostListData[0];
+      firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
+    }
     this.hoastListDataCache = deepClone(this.hostListData);
     this.updataHostStatus();
     this.updateHostList();
