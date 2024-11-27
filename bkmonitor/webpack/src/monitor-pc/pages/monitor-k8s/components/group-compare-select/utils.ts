@@ -34,14 +34,9 @@ export enum EPreDateType {
   yesterday = '1d',
 }
 
-export interface IServiceConfig {
-  value: string;
-  text: string;
-  label: string;
+export interface IGroupOption {
+  id: string;
   name: string;
-  operate: number;
-  values: string[];
-  value_type: number;
   checked?: boolean;
 }
 

@@ -28,41 +28,54 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
-import type { IListItem, IServiceConfig } from './utils';
+import type { IListItem, IGroupOption } from './utils';
 
 import './group-by.scss';
 
+interface IProps {
+  groupOptions?: IGroupOption[];
+  limitTypes?: IListItem[];
+  groupBy?: string[];
+  method?: string;
+  limit?: number;
+  limitType?: string;
+  onChange?: (v: string[]) => void;
+  onLimitType?: (v: string) => void;
+  onMethodChange?: (v: string) => void;
+  onLimitChange?: (v: number) => void;
+}
+
 @Component
-export default class GroupBy extends tsc<object> {
-  @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
-  @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
+export default class GroupBy extends tsc<IProps> {
+  @Prop({ required: true, type: Array, default: () => [] }) groupOptions: IGroupOption[];
+  @Prop({ type: Array, default: () => [] }) limitTypes: IListItem[];
+  @Prop({ type: Array, default: () => [] }) methods: IListItem[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: String, default: '' }) method: string;
   @Prop({ type: Number, default: 0 }) limit: number;
-  @Prop({ type: String, default: '' }) metricCalType: string;
+  @Prop({ type: String, default: '' }) limitType: string;
 
   @Ref('dimension-select') dimensionSelectRef: any;
 
   /* groupBy已选项tag */
-  groupBySelectedTags: IServiceConfig[] = [];
+  groupBySelectedTags: IGroupOption[] = [];
   /* groupBy已选项key */
   groupBySelectedKey = [];
   oldGroupBySelectedKey = [];
   /* groupBy可选项  */
-  groupByList: IServiceConfig[] = [];
+  groupByList: IGroupOption[] = [];
   /* 是否显示选择器 */
   isShowPicker = false;
   localLimit = 0;
   localMethod = '';
-  localMetricCalType = '';
+  localLimitType = '';
 
   groupBySearch = '';
 
   get groupByListFilter() {
     return this.groupByList.filter(item => {
       if (this.groupBySearch) {
-        return item.text.toLowerCase().includes(this.groupBySearch.toLowerCase());
+        return item.name.toLowerCase().includes(this.groupBySearch.toLowerCase());
       }
       return true;
     });
@@ -74,8 +87,8 @@ export default class GroupBy extends tsc<object> {
       this.groupBySelectedKey = [...this.groupBy];
       const groupByTags = [];
       const groupBySet = new Set(this.groupBy);
-      this.groupByList = this.searchList.map(item => {
-        const checked = groupBySet.has(item.value);
+      this.groupByList = this.groupOptions.map(item => {
+        const checked = groupBySet.has(item.id);
         if (checked) {
           groupByTags.push(item);
         }
@@ -88,12 +101,12 @@ export default class GroupBy extends tsc<object> {
     }
   }
 
-  @Watch('searchList', { immediate: true })
+  @Watch('groupOptions', { immediate: true })
   handleWatchSearchList() {
     const groupBySet = new Set(this.groupBy);
     const groupByTags = [];
-    this.groupByList = this.searchList.map(item => {
-      const checked = groupBySet.has(item.value);
+    this.groupByList = this.groupOptions.map(item => {
+      const checked = groupBySet.has(item.id);
       if (checked) {
         groupByTags.push(item);
       }
@@ -117,10 +130,10 @@ export default class GroupBy extends tsc<object> {
       this.localMethod = val;
     }
   }
-  @Watch('metricCalType', { immediate: true })
-  handleWatchMetricCalType(val) {
-    if (this.localMetricCalType !== val) {
-      this.localMetricCalType = val;
+  @Watch('limitType', { immediate: true })
+  handleWatchLimitType(val) {
+    if (this.localLimitType !== val) {
+      this.localLimitType = val;
     }
   }
 
@@ -129,9 +142,9 @@ export default class GroupBy extends tsc<object> {
     return this.groupBySelectedKey;
   }
 
-  @Emit('metricCalType')
-  handleChangeMetricCalType(val) {
-    this.localMetricCalType = val;
+  @Emit('limitType')
+  handleChangeLimitType(val) {
+    this.localLimitType = val;
     return val;
   }
   @Emit('methodChange')
@@ -152,7 +165,7 @@ export default class GroupBy extends tsc<object> {
     const groupByTags = [];
     for (const item of this.groupByList) {
       if (item.checked) {
-        groupByKey.push(item.value);
+        groupByKey.push(item.id);
         groupByTags.push(item);
       }
     }
@@ -209,17 +222,17 @@ export default class GroupBy extends tsc<object> {
         <div>
           {list.map(item => (
             <bk-tag
-              key={item.value}
+              key={item.id}
               closable
               on-close={() => this.closeGroupBy(item)}
             >
-              {item.text}
+              {item.name}
             </bk-tag>
           ))}
           <bk-tag
             v-bk-tooltips={this.groupBySelectedTags
               .slice(2)
-              .map(item => item.text)
+              .map(item => item.name)
               .join('、')}
           >
             {' '}
@@ -230,11 +243,11 @@ export default class GroupBy extends tsc<object> {
     }
     return this.groupBySelectedTags.map(item => (
       <bk-tag
-        key={item.value}
+        key={item.id}
         closable
         on-close={() => this.closeGroupBy(item)}
       >
-        {item.text}
+        {item.name}
       </bk-tag>
     ));
   }
@@ -258,10 +271,10 @@ export default class GroupBy extends tsc<object> {
           >
             <div
               class='group-by-select'
-              title={this.groupBySelectedTags.map(item => item.text).join(',')}
+              title={this.groupBySelectedTags.map(item => item.name).join(',')}
             >
               {this.groupBySelectedTags.length ? (
-                this.groupBySelectedTags.map(item => item.text).join(',')
+                this.groupBySelectedTags.map(item => item.name).join(',')
               ) : (
                 <span class='placeholder'>{this.$t('请选择维度')}</span>
               )}
@@ -285,12 +298,12 @@ export default class GroupBy extends tsc<object> {
                   this.groupByListFilter.map(option => {
                     return (
                       <div
-                        key={option.value}
+                        key={option.id}
                         class={['group-by-select-item', { active: option.checked }]}
-                        title={option.value}
+                        title={option.id}
                         onClick={() => this.chooseSelect(option)}
                       >
-                        {option.text}
+                        {option.name}
                         {option.checked && <i class='icon-monitor icon-mc-check-small' />}
                       </div>
                     );
@@ -315,12 +328,12 @@ export default class GroupBy extends tsc<object> {
             <bk-select
               style='width: 150px;'
               ext-cls='ml-8'
-              v-model={this.localMetricCalType}
+              v-model={this.localLimitType}
               behavior='simplicity'
               clearable={false}
-              onChange={this.handleChangeMetricCalType}
+              onChange={this.handleChangeLimitType}
             >
-              {this.supportedCalculationTypes.map(option => (
+              {this.limitTypes.map(option => (
                 <bk-option
                   id={option.value}
                   key={option.value}
@@ -336,7 +349,7 @@ export default class GroupBy extends tsc<object> {
               clearable={false}
               onChange={this.handleChangeMethod}
             >
-              {this.supportedMethods.map(option => (
+              {this.methods.map(option => (
                 <bk-option
                   id={option.value}
                   key={option.value}

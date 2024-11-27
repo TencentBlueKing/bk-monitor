@@ -23,17 +23,63 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import CompareTime from './compare-time';
 import GroupBy from './group-by';
-import { ETypeSelect } from './utils';
+import { ETypeSelect, type IListItem, type IGroupOption } from './utils';
+
+import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './group-compare-select.scss';
 
+const VALUE_KEY = 'groups';
+
+interface IProps {
+  panel?: IPanelModel;
+  scencId?: string;
+  sceneType?: string;
+  pageId?: string;
+  groupOptions?: IGroupOption[];
+  limitTypes?: IListItem[];
+  groups?: string[];
+  method?: string;
+  limit?: number;
+  limitType?: string;
+  timeValue?: string[];
+  active?: ETypeSelect;
+  onTimeCompareChange?: (val: string[]) => void;
+  onGroupChange?: (val: string[]) => void;
+  onMethodChange?: (val: string) => void;
+  onLimitChange?: (val: number) => void;
+  onLimitTypeChange?: (val: string) => void;
+}
+
 @Component
-export default class GroupCompareSelect extends tsc<object> {
+export default class GroupCompareSelect extends tsc<IProps> {
+  @Prop({ type: Object }) panel: IPanelModel;
+  /** 场景id */
+  @Prop({ default: 'host', type: String }) scencId: string;
+  /** 场景类型 */
+  @Prop({ default: 'detail', type: String }) sceneType: string;
+  /** 页签id */
+  @Prop({ default: '', type: String }) pageId: string;
+  /** 外部传入回来显值 */
+  @Prop({ type: Array, default: () => [] }) groups: string[];
+  /* 是否包含group可选项（有上层传入，无需调用接口） */
+  @Prop({ type: Boolean, default: false }) hasGroupOptions: boolean;
+  /* groups可选项 */
+  @Prop({ type: Array, default: () => [] }) groupOptions: IGroupOption[];
+  /* 时间对比数据 */
+  @Prop({ type: Array, default: () => [] }) timeValue: string[];
+  // 当前激活的tab
+  @Prop({ type: String, default: '' }) active: ETypeSelect;
+
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+
   typeSelects = {
     [ETypeSelect.compare]: {
       name: window.i18n.tc('对比'),
@@ -46,9 +92,63 @@ export default class GroupCompareSelect extends tsc<object> {
   };
   typeSelected = ETypeSelect.compare;
 
+  localGroupOptions: IGroupOption[] = [];
+
+  /** 接口数据 */
+  get currentPanel() {
+    if (this.panel) return this.panel;
+    return {
+      targets: [
+        {
+          api: 'scene_view.getSceneViewDimensions',
+          data: {
+            scene_id: this.scencId,
+            type: this.sceneType,
+            id: this.pageId,
+            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
+          },
+          field: {
+            id: VALUE_KEY,
+          },
+        },
+      ],
+    };
+  }
+
+  get getGroupOptions() {
+    return this.hasGroupOptions ? this.groupOptions : this.localGroupOptions;
+  }
+
+  created() {
+    if (!this.hasGroupOptions) {
+      this.handleGetOptionsData();
+    }
+  }
+
   handleChange() {
     this.typeSelected = this.typeSelected === ETypeSelect.compare ? ETypeSelect.group : ETypeSelect.compare;
     return this.typeSelected;
+  }
+
+  /** 解析api 格式： commons.getTopoTree (模块.api)的字符串 , 返回对应的api*/
+  handleGetApi(expr: string) {
+    return expr.split('.').reduce((data, curKey) => data[curKey], this.$api);
+  }
+  /** 获取可选项数据 */
+  handleGetOptionsData() {
+    const target = this.currentPanel?.targets[0];
+    const api = target?.api;
+    const variablesService = new VariablesService({
+      ...this.viewOptions.filters,
+    });
+    const params: Record<string, any> = variablesService.transformVariables(target.data);
+    this.handleGetApi(api)?.(params).then(data => {
+      this.localGroupOptions = data;
+    });
+  }
+
+  handleGroupsChange(val) {
+    this.$emit('groupChange', val);
   }
 
   render() {
@@ -67,7 +167,15 @@ export default class GroupCompareSelect extends tsc<object> {
           </span>
         </div>
         <div class='group-compare-wrap'>
-          {this.typeSelected === ETypeSelect.compare ? <CompareTime /> : <GroupBy />}
+          {this.typeSelected === ETypeSelect.compare ? (
+            <CompareTime value={this.timeValue} />
+          ) : (
+            <GroupBy
+              groupBy={this.groups}
+              groupOptions={this.getGroupOptions}
+              onChange={this.handleGroupsChange}
+            />
+          )}
         </div>
       </div>
     );

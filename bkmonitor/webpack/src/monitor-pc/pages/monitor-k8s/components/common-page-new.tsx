@@ -86,6 +86,7 @@ import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
 import GroupCompareSelect from './group-compare-select/group-compare-select';
+import { ETypeSelect as EGroupCompareType } from './group-compare-select/utils';
 import GroupSelect from './group-select/group-select';
 import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
@@ -1864,7 +1865,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                               )}
                               {this.sceneData.enableGroup ? (
                                 this.isGroupCompareType ? (
-                                  <GroupCompareSelect />
+                                  <GroupCompareSelect
+                                    active={
+                                      this.compareType === 'time' ? EGroupCompareType.compare : EGroupCompareType.group
+                                    }
+                                    groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    scencId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                                    onGroupChange={this.handleGroupsChange}
+                                  />
                                 ) : (
                                   <GroupSelect
                                     class='k8s-group-select'

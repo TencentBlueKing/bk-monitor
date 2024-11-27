@@ -32,8 +32,13 @@ import { EPreDateType } from './utils';
 
 import './compare-time.scss';
 
+interface IProps {
+  value?: string[];
+  onChange?: (value: string[]) => void;
+}
+
 @Component
-export default class CompareTime extends tsc<object> {
+export default class CompareTime extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
   localValue = [];
   /* 预设日期 */
