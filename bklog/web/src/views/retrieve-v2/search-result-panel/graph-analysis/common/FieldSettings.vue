@@ -75,7 +75,7 @@
 <template>
   <div class="bklog-chart-field">
     <div v-show="activeGraphCategory !== 'table'">
-      <div class="title">指标</div>
+      <div class="title">{{this.$t('指标')}}</div>
       <bk-select
         v-model="selectedYAxis"
         searchable
@@ -93,7 +93,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory !== 'table'">
-      <div class="title">维度</div>
+      <div class="title">{{this.$t('维度')}}</div>
       <bk-select
         v-model="selectedXAxis"
         searchable
@@ -111,7 +111,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'line_bar'">
-      <div class="title">显示字段</div>
+      <div class="title">{{this.$t('显示字段')}}</div>
       <bk-select
         v-model="selectedYAxis"
         @change="change('yAxis', $event)"
@@ -128,10 +128,9 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
-      <div class="title">时间维度</div>
+      <div class="title">{{this.$t('时间维度')}}</div>
       <bk-select
         v-model="timeAxis"
-        :clearable="true"
         @change="change('dimensions', $event)"
         searchable
       >
@@ -145,7 +144,7 @@
       </bk-select>
     </div>
     <div v-show="activeGraphCategory == 'table'">
-      <div class="title">隐藏字段</div>
+      <div class="title">{{this.$t('隐藏字段')}}</div>
       <bk-select
         v-model="hiddenField"
         :clearable="false"
