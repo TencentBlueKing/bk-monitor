@@ -36,6 +36,50 @@ from monitor_web.scene_view.builtin import BuiltinProcessor
 logger = logging.getLogger(__name__)
 
 
+@using_cache(CacheType.APM(60 * 1))
+def discover_caller_callee(
+    bk_biz_id: int, app_name: str, service_name: str
+) -> Dict[str, Union[Dict[str, Any], List[str]]]:
+    # 页面请求时，get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
+    # 后续这段逻辑可以下沉到统一的框架/语言发现任务，而不是每次请求都要执行一遍。
+    def _fetch_server_list(_group: metric_group.TrpcMetricGroup):
+        discover_result["server_list"] = group.fetch_server_list()
+
+    def _get_server_config(_group: metric_group.TrpcMetricGroup):
+        server_config: Dict[str, Any] = group.get_server_config(server=service_name)
+        try:
+            code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            )
+            server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
+        except CodeRedefinedConfigRelation.DoesNotExist:
+            server_config["ret_code_as_exception"] = False
+
+        # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
+        server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
+        discover_result["server_config"] = server_config
+
+    discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
+    group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+        metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+    )
+    run_threads(
+        [
+            InheritParentThread(target=_fetch_server_list, args=(group,)),
+            InheritParentThread(target=_get_server_config, args=(group,)),
+        ]
+    )
+
+    # run_threads 会吃掉异常，这里需要二次检查补偿，有异常也要在外层抛出
+    if "server_list" not in discover_result:
+        _fetch_server_list(group)
+
+    if "server_config" not in discover_result:
+        _get_server_config(group)
+
+    return discover_result
+
+
 class ApmBuiltinProcessor(BuiltinProcessor):
     SCENE_ID = "apm"
     builtin_views: Dict = None
@@ -116,50 +160,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             view.order = view_config["order"]
         view.save()
         return view
-
-    @classmethod
-    @using_cache(CacheType.APM(60 * 1))
-    def discover_caller_callee(
-        cls, bk_biz_id: int, app_name: str, service_name: str
-    ) -> Dict[str, Union[Dict[str, Any], List[str]]]:
-        # 页面请求时，get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
-        # 后续这段逻辑可以下沉到统一的框架/语言发现任务，而不是每次请求都要执行一遍。
-        def _fetch_server_list(_group: metric_group.TrpcMetricGroup):
-            discover_result["server_list"] = group.fetch_server_list()
-
-        def _get_server_config(_group: metric_group.TrpcMetricGroup):
-            server_config: Dict[str, Any] = group.get_server_config(server=service_name)
-            try:
-                code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-                    bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-                )
-                server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-            except CodeRedefinedConfigRelation.DoesNotExist:
-                server_config["ret_code_as_exception"] = False
-
-            # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
-            server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
-            discover_result["server_config"] = server_config
-
-        discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
-        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-            metric_group.GroupEnum.TRPC, bk_biz_id, app_name
-        )
-        run_threads(
-            [
-                InheritParentThread(target=_fetch_server_list, args=(group,)),
-                InheritParentThread(target=_get_server_config, args=(group,)),
-            ]
-        )
-
-        # run_threads 会吃掉异常，这里需要二次检查补偿，有异常也要在外层抛出
-        if "server_list" not in discover_result:
-            _fetch_server_list(group)
-
-        if "server_config" not in discover_result:
-            _get_server_config(group)
-
-        return discover_result
 
     @classmethod
     def get_view_config(cls, view: SceneViewModel, params: Dict = None, *args, **kwargs) -> Dict:
@@ -263,7 +263,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
-            discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = cls.discover_caller_callee(
+            discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
                 bk_biz_id, app_name, params["service_name"]
             )
             server_list: List[str] = discover_result["server_list"]
