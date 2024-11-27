@@ -244,12 +244,7 @@ export const pieOptions: any = {
     },
     data: [],
   },
-  legend: {
-    show: false,
-  },
-  // dataset: {
-  //   source: [],
-  // },
+
   tooltip: {
     show: true,
     trigger: 'item',

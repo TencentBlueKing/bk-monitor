@@ -25,6 +25,8 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
+import { formatDateTimeField } from '@/common/util';
+
 import useChartRender from './use-chart-render';
 
 import './index.scss';
@@ -49,13 +51,39 @@ export default defineComponent({
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
+
+    const formatListData = computed(() => {
+      const {
+        list = [],
+        result_schema = [],
+        select_fields_order = [],
+        total_records = 0,
+      } = props.chartOptions.data ?? {};
+      const timeFieldList = result_schema.filter(item => /^date/.test(item.field_type));
+      return {
+        list: list.map(item => {
+          const timeFields = timeFieldList.reduce((obj, field) => {
+            const value = item[field.field_name];
+            return Object.assign(obj, {
+              [field.field_name]: formatDateTimeField(value, field.field_type),
+              [`__origin_${field.field_name}`]: value,
+            });
+          }, {});
+          return Object.assign(item, timeFields);
+        }),
+        result_schema,
+        select_fields_order,
+        total_records,
+      };
+    });
+
     watch(
       () => props.chartCounter,
       () => {
-        const { xFields, yFields, dimensions, data, type } = props.chartOptions;
+        const { xFields, yFields, dimensions, type } = props.chartOptions;
         if (!showTable.value) {
           setTimeout(() => {
-            setChartOptions(xFields, yFields, dimensions, data, type);
+            setChartOptions(xFields, yFields, dimensions, formatListData.value, type);
           });
         } else {
           destroyInstance();
@@ -63,8 +91,16 @@ export default defineComponent({
       },
     );
 
-    const tableData = computed(() => props.chartOptions.data?.list ?? []);
-    const columns = computed(() => props.chartOptions.data?.select_fields_order ?? []);
+    const tableData = computed(() => formatListData.value?.list ?? []);
+    const columns = computed(() => {
+      if (props.chartOptions.category === 'table') {
+        return (props.chartOptions.data?.select_fields_order ?? []).filter(
+          col => !(props.chartOptions.hiddenFields ?? []).includes(col),
+        );
+      }
+
+      return props.chartOptions.data?.select_fields_order ?? [];
+    });
     const rendChildNode = () => {
       if (showTable.value) {
         return (

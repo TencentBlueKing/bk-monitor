@@ -44,105 +44,120 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     return options;
   };
 
-  const aggregateData = (dataList, xFields, yFields, type = 'bar') => {
-    const aggregatedData = {};
+  type DataItem = Record<string, any>;
 
-    dataList.forEach(item => {
-      // 创建分组键
-      const groupKey = xFields.map(field => item[field]).join(',');
+  const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
+    const groupedData = {};
+    let reservedFields = dimensionFields;
 
-      if (!aggregatedData[groupKey]) {
-        aggregatedData[groupKey] = yFields.reduce((acc, field) => {
-          acc[field] = 0;
-          return acc;
-        }, {});
-      }
+    data.forEach(item => {
+      reservedFields.forEach(field => {
+        if (groupedData[field] === undefined) {
+          groupedData[field] = {};
+        }
 
-      // 聚合 yFields
-      yFields.forEach(field => {
-        aggregatedData[groupKey][field] += item[field];
-      });
-    });
+        if (groupedData[field][item[field]] === undefined) {
+          groupedData[field][item[field]] = {};
+        }
 
-    // 转换为 ECharts 格式
-    const categories = Object.keys(aggregatedData);
-    const seriesData = yFields.map(yField => ({
-      name: yField,
-      type,
-      data: categories.map(category => aggregatedData[category][yField]),
-    }));
+        metricFields.forEach(m => {
+          if (groupedData[field][item[field]][m] === undefined) {
+            groupedData[field][item[field]][m] = 0;
+          }
 
-    return { categories, seriesData };
-  };
-
-  const aggregateTimeData = (dataList, xFields, yFields, timeField = null, type = 'bar') => {
-    const aggregatedData = {};
-
-    (dataList ?? []).forEach(item => {
-      // 构建分组键
-      const groupKey = xFields.map(field => item[field]).join(',');
-      const timeKey = item[timeField];
-
-      if (!aggregatedData[timeKey]) {
-        aggregatedData[timeKey] = {};
-      }
-
-      if (!aggregatedData[timeKey][groupKey]) {
-        aggregatedData[timeKey][groupKey] = yFields.reduce((acc, field) => {
-          acc[field] = 0;
-          return acc;
-        }, {});
-      }
-
-      // 聚合 yFields
-      yFields.forEach(field => {
-        aggregatedData[timeKey][groupKey][field] += item[field];
-      });
-    });
-
-    // 提取分类维度和序列数据
-    const categories = Object.keys(aggregatedData).sort();
-    // 生成 series 数据
-    const seriesData = [];
-    const uniqueDimensions = new Set<string>();
-
-    categories.forEach(timeKey => {
-      Object.keys(aggregatedData[timeKey]).forEach(dimensionKey => {
-        uniqueDimensions.add(dimensionKey);
-      });
-    });
-
-    uniqueDimensions.forEach(dimensionKey => {
-      yFields.forEach(yField => {
-        seriesData.push({
-          name: `${dimensionKey} - ${yField}`,
-          type,
-          data: categories.map(category => {
-            return aggregatedData[category][dimensionKey] ? aggregatedData[category][dimensionKey][yField] : 0;
-          }),
+          groupedData[field][item[field]][m] += item[m];
         });
       });
     });
 
-    return { categories, seriesData };
+    const getNewGroup = (index, group) => {
+      const field = reservedFields[index];
+      if (field) {
+        const target = groupedData[field];
+
+        const group1Keys = Object.keys(target);
+        const group2Keys = Object.keys(group);
+
+        if (group2Keys.length === 0) {
+          return getNewGroup(index + 1, target);
+        }
+
+        const newGroup = {};
+        group1Keys.forEach(k1 => {
+          group2Keys.forEach(k2 => {
+            metricFields.forEach(m => {
+              const key3 = `${k1},${k2}`;
+              if (newGroup[key3] === undefined) {
+                newGroup[key3] = {};
+              }
+
+              newGroup[key3][m] = Math.min(target[k1][m], group[k2][m]);
+            });
+          });
+        });
+
+        return getNewGroup(index + 1, newGroup);
+      }
+
+      return group;
+    };
+
+    return getNewGroup(0, {});
   };
 
-  const preparePieChartDataMultiDimension = (dataList, dimensions, valueField) => {
-    const aggregatedData = {};
+  const aggregateData = (data, dimensions, metrics, type, timeField?) => {
+    if (timeField) {
+      const timeGroup = {};
+      data.forEach(item => {
+        if (timeGroup[item[timeField]] === undefined) {
+          timeGroup[item[timeField]] = [];
+        }
 
-    (dataList ?? []).forEach(item => {
-      // 将多个维度组合为一个标签
-      const groupKey = dimensions.map(dim => item[dim]).join(' - ');
-      if (!aggregatedData[groupKey]) {
-        aggregatedData[groupKey] = 0;
-      }
-      aggregatedData[groupKey] += item[valueField];
-    });
+        timeGroup[item[timeField]].push(item);
+      });
 
+      const dimFields = dimensions.length > 0 ? dimensions : [timeField];
+      const categories = Object.keys(timeGroup);
+      const seriesData = Object.keys(timeGroup)
+        .map(key => {
+          const aggregatedData = aggregateDataByDimensions(timeGroup[key] ?? [], dimFields, metrics);
+          return metrics.map(metric => ({
+            name: metric,
+            type,
+            data: Object.keys(aggregatedData).map(item => [key, aggregatedData[item][metric]]),
+          }));
+        })
+        .flat(2);
+
+      return {
+        categories,
+        seriesData,
+      };
+    }
+
+    const aggregatedData = aggregateDataByDimensions(data, dimensions, metrics);
+
+    // 提取用于 ECharts 的数据
+    const categories = Object.keys(aggregatedData);
+
+    const seriesData = metrics.map(metric => ({
+      name: metric,
+      type,
+      data: categories.map(item => aggregatedData[item][metric]),
+    }));
+
+    return {
+      categories,
+      seriesData,
+    };
+  };
+
+  const aggregatePieData = (dataList, dimensions, valueField) => {
+    const { categories, seriesData } = aggregateData(dataList, dimensions, [valueField], 'pie');
     // 转换为饼图数据格式
-    const pieChartData = Object.keys(aggregatedData).map(key => ({
+    const pieChartData = categories.map((key, index) => ({
       name: key,
-      value: aggregatedData[key],
+      value: seriesData[0].data[index],
     }));
 
     return pieChartData;
@@ -165,18 +180,18 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     }
   };
 
-  const getXAxisType = (xFields: string[], data?: any, timeDimensions?: string[]) => {
-    if (timeDimensions.length === 1) {
-      return 'time';
-    }
+  // const getXAxisType = (xFields: string[], data?: any, timeDimensions?: string[]) => {
+  //   if (timeDimensions.length === 1) {
+  //     return 'time';
+  //   }
 
-    if (xFields.length === 1) {
-      const schema = (data.result_schema ?? []).find(f => f.field_name === xFields[0])?.field_type ?? 'category';
-      return /^date/.test(schema) ? 'time' : 'category';
-    }
+  //   if (xFields.length === 1) {
+  //     const schema = (data.result_schema ?? []).find(f => f.field_name === xFields[0])?.field_type ?? 'category';
+  //     return /^date/.test(schema) ? 'time' : 'category';
+  //   }
 
-    return 'category';
-  };
+  //   return 'category';
+  // };
 
   /** 缩写数字 */
   const abbreviateNumber = (value: number) => {
@@ -212,6 +227,10 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     };
   };
 
+  const getXAxisTimeValue = (data: any[], timeField: string) => {
+    return data.map(d => d[timeField]);
+  };
+
   const updateLineBarOption = (
     xFields?: string[],
     yFields?: string[],
@@ -219,19 +238,16 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
     data?: any,
     type?: string,
   ) => {
-    options.xAxis.type = getXAxisType(xFields, data, dimensions);
-    const { categories, seriesData } = dimensions[0]
-      ? aggregateTimeData(data?.list ?? [], xFields, yFields, dimensions[0], type)
-      : aggregateData(data?.list ?? [], xFields, yFields, type);
+    const { categories, seriesData } = aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]);
 
-    options.xAxis.data = categories;
+    options.xAxis.data = dimensions[0] ? getXAxisTimeValue(data?.list ?? [], dimensions[0]) : categories;
     Object.assign(options.yAxis.axisLabel, getYAxisLabel());
     options.series = seriesData;
     chartInstance.setOption(options);
   };
 
-  const updatePieOption = (_?: string[], yFields?: string[], dimensions?: string[], data?: any) => {
-    const pieChartData = preparePieChartDataMultiDimension(data.list, dimensions, yFields[0]);
+  const updatePieOption = (dimensions?: string[], yFields?: string[], _?: string[], data?: any) => {
+    const pieChartData = aggregatePieData(data.list, dimensions, yFields[0]);
     options.series.data = pieChartData;
     chartInstance.setOption(options);
   };

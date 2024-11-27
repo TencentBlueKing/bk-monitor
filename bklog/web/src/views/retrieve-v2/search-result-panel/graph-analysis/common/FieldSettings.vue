@@ -74,7 +74,7 @@
 </script>
 <template>
   <div class="bklog-chart-field">
-    <div v-show="activeGraphCategory  !== 'table'">
+    <div v-show="activeGraphCategory !== 'table'">
       <div class="title">{{this.$t('指标')}}</div>
       <bk-select
         v-model="selectedYAxis"
@@ -92,7 +92,7 @@
         </bk-option>
       </bk-select>
     </div>
-    <div v-show="activeGraphCategory  !== 'table'">
+    <div v-show="activeGraphCategory !== 'table'">
       <div class="title">{{this.$t('维度')}}</div>
       <bk-select
         v-model="selectedXAxis"
@@ -149,7 +149,7 @@
         v-model="hiddenField"
         :clearable="false"
         multiple
-        @change="change('hidden', $event)"
+        @change="change('hiddenFields', $event)"
         searchable
       >
         <bk-option
