@@ -120,8 +120,9 @@ class ChartHandler(object):
 
                 if index > 0:
                     tmp_sql += f" {condition_type} "
-                if not isinstance(value, int):
-                    value = repr(value)
+                if isinstance(value, str):
+                    value = value.replace("'", "''")
+                    value = f"\'{value}\'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
@@ -190,7 +191,7 @@ class SQLChartHandler(ChartHandler):
             logger.info("SQL query exception [%s]", errors_message)
             raise SQLQueryException(
                 SQLQueryException.MESSAGE.format(name=errors_message),
-                errors={"sql": "sql"},
+                errors={"sql": sql},
             )
 
         data_list = result_data["data"]["list"]

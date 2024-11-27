@@ -25,7 +25,7 @@ SEARCH_PARAMS = {
         {"field": "log", "operator": "all not contains match phrase", "value": ["error", "500"]},
         {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
         {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
-        {"field": "name", "operator": "=", "value": ['\'hello\'', "\"world\""]},
+        {"field": "name", "operator": "=", "value": ["he'll'o", "world'"]},
     ],
 }
 
@@ -69,7 +69,7 @@ SQL_RESULT = (
     " AND "
     "(theme NOT LIKE 'pg%' AND theme NOT LIKE '_h_')"
     " AND "
-    "(name = \"\'hello\'\" OR name = '\"world\"')"
+    "(name = 'he''ll''o' OR name = 'world''')"
     f" {SQL_SUFFIX}"
 )
 
