@@ -563,11 +563,17 @@ class EtlStorage(object):
             if "es_type" in field.get("option", {}) and field["option"]["es_type"] in ["text"]:
                 field["option"]["es_norms"] = False
 
-            # 别名配置
-            if alias_settings:
-                for item in alias_settings:
-                    if field["field_name"] == item["field_name"]:
-                        field["option"].update({"query_alias": item["query_alias"]})
+        # 别名配置
+        if alias_settings:
+            for item in alias_settings:
+                new_field = {
+                    "field_name": item["field_name"],
+                    "field_type": "keyword",
+                    "tag": "metric",
+                    "description": "",
+                    "option": {"query_alias": item["query_alias"]},
+                }
+                params["field_list"].append(new_field)
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:
