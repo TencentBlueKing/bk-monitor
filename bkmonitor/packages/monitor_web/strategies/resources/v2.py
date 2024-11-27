@@ -2383,8 +2383,8 @@ class UpdatePartialStrategyV2Resource(Resource):
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                if update_method == getattr(self, "update_notice", None):
-                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = update_method(
+                if key == "notice":
+                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = self.update_notice(
                         strategy, value, relations, action_configs
                     )
                     self.process_extra_data(extra_create_or_update_datas, key, updates_data, create_datas)
