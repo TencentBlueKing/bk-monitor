@@ -11,17 +11,19 @@ specific language governing permissions and limitations under the License.
 """
 进程端口存活检测：基于时序数据 system.env.uptime 进行判断。
 uptime表示主机运行时长。
-该检测算法依赖basereport采集器被gse agent托管(机器重启后basereport自动拉起)否则无数据上报会导致该检测算法失效。
+该检测算法依赖bkmonitorbeat采集器被gse agent托管(机器重启后bkmonitorbeat自动拉起)否则无数据上报会导致该检测算法失效。
 """
 
 
 from django.utils.translation import ugettext as _
 
-from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection, ExprDetectAlgorithms
+from alarm_backends.service.detect.strategy import (
+    BasicAlgorithmsCollection,
+    ExprDetectAlgorithms,
+)
 
 
 class ProcPort(BasicAlgorithmsCollection):
-
     expr_op = "or"
     config_serializer = None
 

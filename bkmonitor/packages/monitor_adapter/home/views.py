@@ -237,9 +237,13 @@ def dispatch_external_proxy(request):
             f"dispatch_plugin_query: request:{request}, user:{request.user},"
             f" external_user: {external_user}, bk_biz_id: {bk_biz_id}"
         )
-        # 处理grafana接口请求头携带组织ID
-        if request.META.get("HTTP_X_GRAFANA_ORG_ID"):
-            fake_request.META["HTTP_X_GRAFANA_ORG_ID"] = request.META["HTTP_X_GRAFANA_ORG_ID"]
+        # 处理grafana接口请求头，TC适配腾讯云数据源，DS适配数据源鉴权参数
+        meta_prefixs = ["HTTP_X_TC", "HTTP_X_DS", "HTTP_X_GRAFANA"]
+        for key, value in request.META.items():
+            key = key.upper()
+            if any(key.startswith(prefix) for prefix in meta_prefixs):
+                fake_request.META[key] = value
+
         # 绕过csrf鉴权
         setattr(fake_request, "csrf_processing_done", True)
         setattr(request, "csrf_processing_done", True)

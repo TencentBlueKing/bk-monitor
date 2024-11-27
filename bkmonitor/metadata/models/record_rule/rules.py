@@ -78,6 +78,7 @@ class RecordRule(BaseModelWithTime):
             rule_metrics.update({rule["record"]: rule_metric})
 
             sql = {
+                "name": rule_metric,
                 "count_freq": parse_duration(interval),
                 "sql": sql_and_metrics["promql"],
                 "metric_name": rule_metric,
@@ -173,7 +174,11 @@ class ResultTableFlow(BaseModelWithTime):
 
     @classmethod
     def compose_source_node(cls, vm_table_ids: List) -> List:
-        """组装计算配置"""
+        """
+        组装计算配置
+        :param vm_table_ids: VM 结果表列表
+        :return: 源节点配置
+        """
         nodes = []
         # 组装源节点
         for index, tid in enumerate(vm_table_ids):
@@ -192,8 +197,14 @@ class ResultTableFlow(BaseModelWithTime):
         return nodes
 
     @classmethod
-    def compose_process_node(cls, table_id: str, vm_table_ids: List) -> Dict:
-        """组装计算配置"""
+    def compose_process_node(cls, table_id: str, vm_table_ids: List, waiting_time: int = 30) -> Dict:
+        """
+        组装计算节点配置
+        :param table_id: 结果表ID
+        :param vm_table_ids: VM 结果表列表
+        :param waiting_time: 等待时间(秒)
+        :return: 计算节点配置
+        """
         from_result_table_ids, from_nodes = [], []
         for index, tid in enumerate(vm_table_ids):
             from_result_table_ids.append(tid)
@@ -204,7 +215,7 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return {}
-        dedicated_config = {"sql_list": rule_record.bk_sql_config}
+        dedicated_config = {"waiting_time": waiting_time, "sql_list": rule_record.bk_sql_config}
         name = utils.compose_rule_table_id(table_id)
         return {
             "id": len(from_result_table_ids) + 1,
@@ -221,8 +232,14 @@ class ResultTableFlow(BaseModelWithTime):
         }
 
     @classmethod
-    def compose_vm_storage(cls, table_id: str, process_id: int) -> Dict:
-        """组装存储配置"""
+    def compose_vm_storage(cls, table_id: str, process_id: int, expires: int = 30) -> Dict:
+        """
+        组装存储配置
+        :param table_id: 结果表ID
+        :param process_id: 计算节点ID
+        :param expires: 过期时间（天）
+        :return: 存储配置
+        """
         from metadata.models.vm import utils as vm_utils
 
         rt_name = RecordRule.get_dst_table_id(table_id)
@@ -236,12 +253,19 @@ class ResultTableFlow(BaseModelWithTime):
             "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
             "cluster": vm_info["cluster_name"],
             "from_result_table_ids": [rt_name],
+            "expires": expires,
             "from_nodes": [{"id": process_id, "from_result_table_ids": [rt_name]}],
         }
 
     @classmethod
-    def create_flow(cls, table_id: str) -> bool:
-        """创建 flow"""
+    def create_flow(cls, table_id: str, waiting_time: int = 30, expires: int = 30) -> bool:
+        """
+        创建计算平台flow
+        :param table_id: 结果表ID
+        :param waiting_time: 等待时间（秒）
+        :param expires: 过期时间（天）
+        :return: bool 是否接入成功
+        """
         # 组装参数
         req_data = {
             "project_id": settings.BK_DATA_RECORD_RULE_PROJECT_ID,
@@ -251,33 +275,38 @@ class ResultTableFlow(BaseModelWithTime):
         try:
             rule_obj = RecordRule.objects.get(table_id=table_id)
         except RecordRule.DoesNotExist:
-            logger.error("table_id: %s not found record rule", table_id)
+            logger.error("create_flow：table_id->[%s] not found record rule", table_id)
             return False
         # 检测并授权结果表
         if not batch_add_permission(
             settings.BK_DATA_RECORD_RULE_PROJECT_ID, settings.BK_DATA_BK_BIZ_ID, rule_obj.src_vm_table_ids
         ):
-            logger.error("batch add permission error, vm_table_id: %s", rule_obj.src_vm_table_ids)
+            logger.error("create_flow: batch add permission error, vm_table_id->[%s]", rule_obj.src_vm_table_ids)
             return False
         nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
-        nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids))
+        nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids, waiting_time))
         node_len = len(nodes)
         # 添加存储节点
-        nodes.append(cls.compose_vm_storage(table_id, node_len))
+        nodes.append(cls.compose_vm_storage(table_id, node_len, expires))
         req_data["nodes"] = nodes
+        logger.info("create_flow: try to create flow for table_id->[%s] with params->[%s]", table_id, req_data)
         # 调用接口，然后保存数据
         try:
             data = api.bkdata.apply_data_flow(req_data)
+            logger.info("create_flow: create flow for table_id->[%s] successfully", table_id)
         except BKAPIError as e:
-            logger.error("create data flow error: %s", e)
+            logger.error("create_flow: create data flow for table_id->[%s] failed,error->[%s]", table_id, e)
             return False
+
+        # 获取 flow_id
         flow_id = data.get("flow_id")
         if not flow_id:
-            logger.error("create data flow error, response not found flow id: %s", json.dumps(data))
+            logger.error("create_flow: create data flow error, response not found flow id: %s", json.dumps(data))
             return False
         # 保存记录
         cls.objects.create(table_id=table_id, flow_id=flow_id, config=req_data, status=BkDataFlowStatus.NO_START.value)
+        logger.info("create_flow: create flow for table_id->[%s] successfully,flow_", table_id)
         return True
 
     @classmethod
