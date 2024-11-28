@@ -151,6 +151,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     const params = {
       start_time: startTime,
       end_time: endTime,
+      bk_biz_id: this.$store.getters.bizId,
       keyword: '',
       sort: '',
     };
@@ -316,7 +317,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
         maskClose: true,
         escClose: true,
         confirmFn: () => {
-          deleteApplication({ app_name: row.app_name }).then(() => {
+          deleteApplication({ app_name: row.app_name, bk_biz_id: this.$store.getters.bizId }).then(() => {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
             this.getAppList();
           });

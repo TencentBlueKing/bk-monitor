@@ -209,6 +209,7 @@ export default class Trace extends tsc<IProps, IEvent> {
         application_id: this.appInfo.application_id,
         trace_datasource_option: datasourceConfig,
         telemetry_data_type: this.telemetryDataType,
+        bk_biz_id: this.$store.getters.bizId,
       };
       await setup(params).then(() => {
         this.$emit('change', datasourceConfig);

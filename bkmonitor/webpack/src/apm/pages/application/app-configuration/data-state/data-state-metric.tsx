@@ -142,6 +142,7 @@ export default class DataStatusMetric extends tsc<IProps> {
       start_time: startTime,
       end_time: endTime,
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     };
     const data = await noDataStrategyInfo(params).catch(() => {});
     Object.assign(this.strategyInfo, data);
@@ -183,6 +184,7 @@ export default class DataStatusMetric extends tsc<IProps> {
     this.dataViewLoading = true;
     const data = await dataViewConfig(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => []);
     this.dashboardPanels = data.map(item => new PanelModel(item));
     this.dataViewLoading = false;
@@ -197,6 +199,7 @@ export default class DataStatusMetric extends tsc<IProps> {
       size: 10,
       log_type: 'trace',
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     };
     const data = await dataSampling(this.appInfo.application_id, params).catch(() => []);
     this.collapseRowIndexs = [];
@@ -290,6 +293,7 @@ export default class DataStatusMetric extends tsc<IProps> {
     return await api({
       application_id: this.appInfo.application_id,
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     }).then(() => {
       this.getNoDataStrategyInfo();
       this.$refs.switcherRef.isLoading = false;

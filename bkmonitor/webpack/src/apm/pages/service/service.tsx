@@ -187,7 +187,7 @@ export default class Service extends tsc<object> {
   /** 获取应用列表 */
   async getApplicationList() {
     this.routeList[1].selectOption.loading = true;
-    const listData = await listApplicationInfo().catch(() => []);
+    const listData = await listApplicationInfo({ bk_biz_id: this.$store.getters.bizId }).catch(() => []);
     this.appList = listData.map(item => ({
       id: item.app_name,
       name: `${item.app_name}(${item.app_alias})`,
@@ -201,7 +201,9 @@ export default class Service extends tsc<object> {
   async getServiceList() {
     if (!this.appName) return;
     this.routeList[2].selectOption.loading = true;
-    const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    const listData = await simpleServiceList({ app_name: this.appName, bk_biz_id: this.$store.getters.bizId }).catch(
+      () => []
+    );
     this.routeList[2].selectOption.loading = false;
     this.serviceList = listData.map(item => ({
       id: item.service_name,

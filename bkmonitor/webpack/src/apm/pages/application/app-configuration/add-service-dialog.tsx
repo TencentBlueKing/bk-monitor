@@ -146,6 +146,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     const data = await customServiceDataSource({
       app_name: this.appName,
       type: 'http', // 暂时只有一种类型
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => []);
     this.urlResource = data.join('\n');
     this.urlListLoading = false;
@@ -212,6 +213,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
       type,
       match_type: matchType,
       rule: {},
+      bk_biz_id: this.$store.getters.bizId,
     };
 
     if (matchType === 'auto') {

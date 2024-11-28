@@ -136,7 +136,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
 
   async getStorageStatus() {
     this.storageStatusLoading = true;
-    const data = await storageStatus(this.appInfo.application_id).catch(() => this.storageStatus);
+    const data = await storageStatus(this.appInfo.application_id, { bk_biz_id: this.$store.getters.bizId }).catch(
+      () => this.storageStatus
+    );
     if (data) {
       this.storageStatus = data;
       for (const tab of this.tabList) {
@@ -157,6 +159,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     this.storageLoading = true;
     const data = await storageInfo(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => null);
     this.storageInfo[this.activeTab] = data;
     this.storageLoading = false;
@@ -165,7 +168,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
    * @desc 获取过期时间最大值
    */
   async getMetaConfigInfo() {
-    const data = await metaConfigInfo().catch(() => null);
+    const data = await metaConfigInfo({ bk_biz_id: this.$store.getters.bizId }).catch(() => null);
     this.setupData = data.setup;
   }
 
@@ -176,6 +179,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     this.indicesLoading = true;
     this.indicesList = await indicesInfo(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => []);
     this.indicesLoading = false;
   }
@@ -186,6 +190,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     this.fieldLoading = true;
     this.fieldList = await storageFieldInfo(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => []);
     this.fieldFilterList = this.getFieldFilterList(this.fieldList);
     this.fieldLoading = false;

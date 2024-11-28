@@ -249,6 +249,7 @@ export default class BasicInfo extends tsc<object> {
     const data = await serviceUrlList({
       app_name: this.params.app_name,
       service_name: this.params.service_name,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => []);
     this.urlResource = data.join('\n');
     this.urlListLoading = false;

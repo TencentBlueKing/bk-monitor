@@ -133,7 +133,10 @@ export default class AppAddForm extends tsc<IProps> {
           resolve(true);
         } else {
           this.clickSubmit = false;
-          const { exists } = await checkDuplicateName({ app_name: this.formData.enName });
+          const { exists } = await checkDuplicateName({
+            app_name: this.formData.enName,
+            bk_biz_id: this.$store.getters.bizId,
+          });
           this.existedName = exists;
           if (exists) {
             this.addForm.validateField('enName');

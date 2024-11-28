@@ -87,6 +87,7 @@ export default class CustomService extends tsc<IProps> {
       sort: this.sortKey,
       page: current,
       page_size: limit,
+      bk_biz_id: this.$store.getters.bizId,
     };
     this.tableLoading = true;
     await customServiceList(params)
@@ -165,7 +166,7 @@ export default class CustomService extends tsc<IProps> {
       confirmLoading: true,
 
       confirmFn: async () => {
-        const res = await deleteCustomSerivice({ id })
+        const res = await deleteCustomSerivice({ id, bk_biz_id: this.$store.getters.bizId })
           .then(() => true)
           .catch(() => false);
         if (res) {

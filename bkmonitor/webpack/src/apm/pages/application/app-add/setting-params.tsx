@@ -129,7 +129,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
   async getEsCluster() {
     try {
       this.tableLoading = true;
-      const list = await listEsClusterGroups();
+      const list = await listEsClusterGroups({ bk_biz_id: this.$store.getters.bizId });
       this.esClusterList = list;
       /** 默认选中私有集群 */
       list.forEach(item => {
