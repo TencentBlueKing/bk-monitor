@@ -55,6 +55,7 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
       automaticLayout: true,
       minimap: { enabled: false },
       scrollBeyondLastLine: false, // 避免空白行
+      contextmenu: false  // 禁用右键菜单
     });
 
     // 监听编辑器的键盘事件
