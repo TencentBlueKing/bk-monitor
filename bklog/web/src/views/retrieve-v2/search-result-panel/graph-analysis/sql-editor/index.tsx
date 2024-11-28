@@ -37,6 +37,7 @@ import { format } from 'sql-formatter';
 
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
+
 import './index.scss';
 
 export default defineComponent({
@@ -278,7 +279,7 @@ export default defineComponent({
           if (storedParams.value.sql) {
             sqlContent.value = storedParams.value.sql;
           } else {
-            await handleSyncAdditionToSQL(false);
+            await handleSyncAdditionToSQL(true);
           }
 
           debounceQuery(false);
