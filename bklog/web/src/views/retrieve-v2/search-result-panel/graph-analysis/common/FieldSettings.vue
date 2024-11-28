@@ -44,15 +44,31 @@
   const emit = defineEmits(['update']);
   const selectedXAxis = ref(props.xAxis);
   const selectedYAxis = ref(props.yAxis);
-  const timeAxis = ref([]);
+  const timeAxis = ref('');
   const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_alias));
-  const stringFilterList = computed(() =>
-    props.result_schema.filter(item => item.field_type !== 'string').map(item => item.field_alias),
-  );
-  const timeFilterList = computed(() =>
-    props.result_schema.filter(item => /^date/.test(item.field_type)).map(item => item.field_alias),
-  );
+  const filterFields = ( typeCheck, excludeList) => {
+    return props.result_schema.filter(item => typeCheck(item))
+      .filter(item => !excludeList.includes(item.field_alias));
+  };
+
+  const xAxisFilterList = computed(() => {
+    return filterFields(item => true, [...selectedYAxis.value, timeAxis.value]);
+  });
+
+  const yAxisFilterList = computed(() => {
+    return filterFields(
+      item => item.field_type !== 'string',
+      [...selectedXAxis.value, timeAxis.value]
+    );
+  });
+
+  const timeFilterList = computed(() => {
+    return filterFields(
+      item => item.field_type == 'long',
+      [...selectedYAxis.value, ...selectedXAxis.value]
+    );
+  });
   // 监听 props.xAxis 的变化并更新 selectedXAxis
   watch(
     () => props.xAxis,
@@ -84,10 +100,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in stringFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in yAxisFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
@@ -102,27 +118,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in list"
-          :key="index"
-          :id="option"
-          :name="option"
-        >
-        </bk-option>
-      </bk-select>
-    </div>
-    <div v-show="activeGraphCategory == 'line_bar'">
-      <div class="title">{{ this.$t('显示字段') }}</div>
-      <bk-select
-        v-model="selectedYAxis"
-        @change="change('yAxis', $event)"
-        :clearable="false"
-        searchable
-      >
-        <bk-option
-          v-for="(option, index) in list"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in xAxisFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
@@ -135,10 +134,10 @@
         searchable
       >
         <bk-option
-          v-for="(option, index) in timeFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in timeFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
