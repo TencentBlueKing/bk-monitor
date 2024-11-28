@@ -27,9 +27,8 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Message } from 'bk-magic-vue';
+import { isElement, debounce } from 'lodash';
 
-import $http from '../../../../api';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
 import FieldSettings from './common/FieldSettings.vue';
@@ -103,7 +102,21 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   isSqlValueChanged = false;
   chartCounter = 0;
   errorResponse = { code: 0, message: '', result: true };
+  sqlContent = '';
+  canvasBodyStyle = {
+    with: 300,
+    height: 400,
+  };
 
+  debounceCallback = debounce(entry => {
+    const { offsetWidth, offsetHeight } = entry.target;
+    this.canvasBodyStyle = {
+      with: offsetWidth,
+      height: offsetHeight,
+    };
+  }, 120);
+
+  resizeObserver = null;
   get graphCategory() {
     return {
       [GraphCategory.TABLE]: {
@@ -222,8 +235,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     (this.$refs.sqlEditor as any)?.handleQueryBtnClick();
   }
 
-  handleSqlValueChange() {
-    this.isSqlValueChanged = true;
+  handleSqlValueChange(value: string) {
+    // 确保是有效修改这里才会触发提示
+    if (this.sqlContent.length && value.length) {
+      this.isSqlValueChanged = true;
+    }
+
+    this.sqlContent = value;
   }
 
   // 如果是table类型，切换为table，反之，切换为图表
@@ -381,26 +399,61 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.rightOptionWidth = target;
   }
 
-  getExceptionRender() {
+  getChartConfigValidate() {
+    let showException = false;
+    const message = '请完成指标、维度配置';
+    const showQuery = false;
+    if (this.activeGraphCategory === GraphCategory.PIE) {
+      showException = !(this.dimensions.length && this.yAxis.length);
+      return { showException, message, showQuery };
+    }
+
+    if (this.activeGraphCategory !== GraphCategory.TABLE) {
+      showException = !((this.dimensions.length || this.xAxis.length) && this.yAxis.length);
+    }
+
+    return { showException, message, showQuery };
+  }
+
+  getExceptionMessage() {
     if (!this.errorResponse.result && this.errorResponse.message) {
-      <bk-exception
-        class='bklog-chart-exception'
-        type='500'
-      >
-        <div class='bk-exception-title'>{this.errorResponse.message}</div>
-        <div class='bk-exception-description'>请重新发起查询</div>
-        <div class='bk-exception-footer'>
-          <bk-button
-            class='mr10'
-            size='small'
-            theme='primary'
-            type='submit'
-            onClick={this.handleEditorSearchClick}
-          >
-            查询
-          </bk-button>
-        </div>
-      </bk-exception>;
+      return { showException: true, message: this.errorResponse.message, showQuery: true };
+    }
+
+    if (this.isSqlValueChanged) {
+      return { showException: true, message: '图表查询配置已变更', showQuery: true };
+    }
+
+    return this.getChartConfigValidate();
+  }
+
+  getExceptionRender() {
+    const { showException, message, showQuery } = this.getExceptionMessage();
+    if (showException) {
+      return (
+        <bk-exception
+          class='bklog-chart-exception'
+          type='500'
+        >
+          <div class='bk-exception-title'>{message}</div>
+          {showQuery
+            ? [
+                <div class='bk-exception-description'>请重新发起查询</div>,
+                <div class='bk-exception-footer'>
+                  <bk-button
+                    class='mr10'
+                    size='small'
+                    theme='primary'
+                    type='submit'
+                    onClick={this.handleEditorSearchClick}
+                  >
+                    查询
+                  </bk-button>
+                </div>,
+              ]
+            : ''}
+        </bk-exception>
+      );
     }
 
     if (!this.chartOptions.data?.list?.length) {
@@ -410,38 +463,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           scene='part'
           type='empty'
         ></bk-exception>
-      );
-    }
-
-    if (this.isSqlValueChanged) {
-      return (
-        <bk-exception
-          class='bklog-chart-exception'
-          type='500'
-        >
-          <div class='bk-exception-title'>图表查询配置已变更</div>
-          <div class='bk-exception-description'>请重新发起查询</div>
-          <div class='bk-exception-footer'>
-            <bk-button
-              class='mr10'
-              size='small'
-              theme='primary'
-              type='submit'
-              onClick={this.handleEditorSearchClick}
-            >
-              查询
-            </bk-button>
-            <bk-button
-              class='mr10'
-              size='small'
-              onClick={() => {
-                this.isSqlValueChanged = false;
-              }}
-            >
-              我知道了
-            </bk-button>
-          </div>
-        </bk-exception>
       );
     }
 
@@ -456,33 +477,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ></GraphChart>
     );
   }
-  async save() {
-    if (!this.basicInfoTitle.title) {
-      Message({
-        message: '请输入标题',
-        theme: 'primary',
-      });
-      return;
-    }
-    const res = await $http.request('graphAnalysis/favoriteSQL', {
-      data: {
-        favorite_type: 'chart',
-        space_uid: this.$store.state.spaceUid,
-        name: this.basicInfoTitle.title,
-        visible_type: 'public',
-        index_set_id: this.$store.state.indexId,
-        chart_params: {
-          aa: 'aa',
-        },
-      },
-    });
-    console.log(res);
-  }
-  /** 打开添加到仪表盘dialog */
-  handleAdd() {
-    console.log(this.$refs.addDialog);
-    // this.$refs.addDialog.handleShow();
-  }
+
   changeModel() {
     this.isSqlMode = !this.isSqlMode;
   }
@@ -499,7 +494,40 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
     this.chartCounter++;
   }
-  handleRefresh() {}
+
+  createResizeObserve() {
+    const cellElement = this.$refs.refCanvasBody;
+
+    if (isElement(cellElement)) {
+      // 创建一个 ResizeObserver 实例
+      this.resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          // 获取元素的新高度
+          this.debounceCallback(entry);
+        }
+      });
+
+      this.resizeObserver?.observe(cellElement);
+    }
+  }
+
+  destoyResizeObserve() {
+    const cellElement = this.$refs.refCanvasBody;
+
+    if (isElement(cellElement)) {
+      this.resizeObserver?.unobserve(cellElement);
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = null;
+    }
+  }
+
+  mounted() {
+    this.createResizeObserve();
+  }
+
+  unmount() {
+    this.destoyResizeObserve();
+  }
 
   render() {
     return (
@@ -525,6 +553,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               </div>
             </div>
             <div
+              ref='refCanvasBody'
               style={this.canvasStyle}
               class='graph-canvas-options'
             >
@@ -550,7 +579,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               {this.getExceptionRender()}
             </div>
           </div>
-          {/* )} */}
           <div
             style={this.rightOptionStyle}
             class='body-right'

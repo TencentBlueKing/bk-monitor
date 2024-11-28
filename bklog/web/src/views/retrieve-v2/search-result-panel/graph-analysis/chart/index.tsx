@@ -26,8 +26,9 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField } from '@/common/util';
-import useResizeObserve from '@/hooks/use-resize-observe';
+import { debounce } from 'lodash';
 
+import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
 
 import './index.scss';
@@ -46,17 +47,10 @@ export default defineComponent({
   },
   setup(props, { slots }) {
     const refRootElement = ref();
+    const refRootContent = ref();
     const { setChartOptions, destroyInstance, chartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
-    });
-
-    const getTargetElement = () => {
-      return refRootElement.value.parentElement;
-    };
-
-    useResizeObserve(getTargetElement, () => {
-      chartInstance?.resize();
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
@@ -109,8 +103,12 @@ export default defineComponent({
 
       return props.chartOptions.data?.select_fields_order ?? [];
     });
+    const handleChartRootResize = debounce(() => {
+      chartInstance?.resize();
+    });
+
     const rendChildNode = () => {
-      if (showTable.value) {
+      if (showTable.value && tableData.value.length) {
         return (
           <bk-table data={tableData.value}>
             {columns.value.map(col => (
@@ -125,16 +123,20 @@ export default defineComponent({
       }
 
       return (
-        <div
+        <ChartRoot
           ref={refRootElement}
           class='chart-canvas'
-        ></div>
+          onResize={handleChartRootResize}
+        ></ChartRoot>
       );
     };
 
     const renderContext = () => {
       return (
-        <div class='bklog-chart-container'>
+        <div
+          ref={refRootContent}
+          class='bklog-chart-container'
+        >
           {rendChildNode()}
           {slots.default?.()}
         </div>

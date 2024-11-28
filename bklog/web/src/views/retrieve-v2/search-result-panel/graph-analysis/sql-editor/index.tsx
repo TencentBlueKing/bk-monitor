@@ -95,6 +95,12 @@ export default defineComponent({
 
     const requestId = 'graphAnalysis_searchSQL';
     const handleQueryBtnClick = (updateStore = true) => {
+      const sql = editorInstance?.value?.getValue();
+
+      if (!sql || isRequesting.value) {
+        return;
+      }
+
       isRequesting.value = true;
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
@@ -107,7 +113,7 @@ export default defineComponent({
         baseURL: baseUrl,
         data: {
           query_mode: 'sql',
-          sql: editorInstance.value.getValue(), // 使用获取到的内容
+          sql, // 使用获取到的内容
         },
       };
 
@@ -138,7 +144,7 @@ export default defineComponent({
     const handleSyncAdditionToSQL = (storeResult = true) => {
       const { addition, start_time, end_time } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
-      $http
+      return $http
         .request('graphAnalysis/generateSql', {
           params: {
             index_set_id: indexSetId.value,
@@ -150,11 +156,11 @@ export default defineComponent({
           },
         })
         .then(resp => {
-          onValueChange(resp.data.sql);
           editorInstance.value.setValue(resp.data.sql);
           formatMonacoSqlCode();
           editorInstance.value.focus();
           if (storeResult) {
+            onValueChange(resp.data.sql);
             storeChartOptions();
           }
         })
@@ -162,6 +168,7 @@ export default defineComponent({
           isSyncSqlRequesting.value = false;
         });
     };
+
     const handleFullscreenClick = () => {
       if (!screenfull.isEnabled) return;
       isFullscreen.value ? screenfull.exit() : screenfull.request(refSqlBox.value);
@@ -177,7 +184,7 @@ export default defineComponent({
         <div class='sql-editor-tools'>
           <bk-button
             class='sql-editor-query-button'
-            v-bk-tooltips={{ content: $t('查询') }}
+            v-bk-tooltips={{ content: $t('查询'), theme: 'light' }}
             loading={isRequesting.value}
             size='small'
             theme='primary'
@@ -188,7 +195,7 @@ export default defineComponent({
           </bk-button>
           <bk-button
             class='sql-editor-view-button'
-            v-bk-tooltips={{ content: $t('中止') }}
+            v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -203,7 +210,7 @@ export default defineComponent({
           >
             <bk-button
               class='sql-editor-view-button'
-              v-bk-tooltips={{ content: $t('同步查询条件到SQL') }}
+              v-bk-tooltips={{ content: $t('同步查询条件到SQL'), theme: 'light' }}
               loading={isSyncSqlRequesting.value}
               size='small'
             >
@@ -212,7 +219,7 @@ export default defineComponent({
           </bk-popconfirm>
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
-            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', '') }}
+            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
             addition={[]}
             extendParams={chartParams.value}
             search-mode='sqlChart'
@@ -266,12 +273,12 @@ export default defineComponent({
     // 这里会回填收藏的查询
     watch(
       () => storedParams.value.sql,
-      () => {
+      async () => {
         if (sqlContent.value !== storedParams.value.sql) {
           if (storedParams.value.sql) {
             sqlContent.value = storedParams.value.sql;
           } else {
-            handleSyncAdditionToSQL(false);
+            await handleSyncAdditionToSQL(false);
           }
 
           debounceQuery(false);
