@@ -90,12 +90,8 @@ export default defineComponent({
       editorConfig.value.height = entry.target?.offsetHeight ?? 400;
     });
 
-    const storeChartOptions = () => {
-      store.commit('updateIndexItem', { chart_params: chartParams.value.chart_params });
-    };
-
     const requestId = 'graphAnalysis_searchSQL';
-    const handleQueryBtnClick = (updateStore = true) => {
+    const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
 
       if (!sql || isRequesting.value) {
@@ -123,9 +119,6 @@ export default defineComponent({
       return axios(params)
         .then((resp: any) => {
           if (resp.data.result) {
-            if (updateStore) {
-              storeChartOptions();
-            }
             isRequesting.value = false;
             emit('change', resp.data);
           } else {
@@ -162,7 +155,6 @@ export default defineComponent({
           editorInstance.value.focus();
           if (storeResult) {
             onValueChange(resp.data.sql);
-            storeChartOptions();
           }
         })
         .finally(() => {
