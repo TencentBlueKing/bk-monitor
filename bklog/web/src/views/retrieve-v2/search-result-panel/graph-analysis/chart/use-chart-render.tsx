@@ -341,8 +341,11 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     if (!chartInstance) {
       initChartInstance();
     }
-    setDefaultOption(type);
-    updateChartOptions(xFields, yFields, dimensions, data, type);
+
+    if (chartInstance) {
+      setDefaultOption(type);
+      updateChartOptions(xFields, yFields, dimensions, data, type);
+    }
   };
 
   onMounted(() => {
