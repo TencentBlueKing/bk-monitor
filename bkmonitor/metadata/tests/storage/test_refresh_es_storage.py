@@ -80,6 +80,44 @@ PAST_AVAILABLE_INDEX = 'v2_2_bklog_test_rotation_20241015_0'
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_should_create_index_logic(es_storage):
+    """
+    测试_should_create_index方法的逻辑，包括归档时间的验证
+    """
+
+    # Mock返回current_index_info的不同情况
+    def mock_current_index_info_before_archive():
+        return {
+            'index_version': 'v2',
+            'datetime_object': datetime(2024, 10, 10, 0, 0, tzinfo=tz.tzutc()),  # 早于归档时间点
+            'index': 0,
+            'size': 1 * 1024**3,
+        }
+
+    def mock_current_index_info_after_archive():
+        return {
+            'index_version': 'v2',
+            'datetime_object': datetime(2024, 10, 18, 0, 0, tzinfo=tz.tzutc()),  # 晚于归档时间点
+            'index': 0,
+            'size': 1 * 1024**3,
+        }
+
+    # Mock方法和属性
+    es_storage.is_mapping_same = mock.Mock(return_value=True)  # 默认mapping相同
+    es_storage.archive_index_days = 7  # 设置归档时间为 7 天
+
+    # 使用 mock.patch.object 覆盖 now 属性
+    with mock.patch.object(type(es_storage), 'now', new=datetime(2024, 10, 20, 0, 0, tzinfo=tz.tzutc())):
+        # 场景：索引在归档时间之前
+        es_storage.current_index_info = mock.Mock(side_effect=mock_current_index_info_before_archive)
+        assert es_storage._should_create_index() is True, "Index is before archive time, should create index."
+
+        # 场景：索引在归档时间之后
+        es_storage.current_index_info = mock.Mock(side_effect=mock_current_index_info_after_archive)
+        assert es_storage._should_create_index() is False, "Index is after archive time, no need to create."
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_alias_creation_with_ready_index(es_storage, mock_es_client):
     # 场景1：新索引就绪，能够正常创建当前和明天的别名及其对应的索引绑定关系
     es_storage.es_client = mock_es_client

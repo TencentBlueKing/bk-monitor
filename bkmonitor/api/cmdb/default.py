@@ -417,6 +417,7 @@ class GetBusiness(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(label="业务ID列表", child=serializers.IntegerField(), required=False, default=[])
         all = serializers.BooleanField(default=False, help_text="return all space list in Business")
+        is_archived = serializers.BooleanField(default=False, help_text="if True return archived Business")
 
         def validate(self, attrs):
             for bk_biz_id in attrs["bk_biz_ids"]:
@@ -427,7 +428,11 @@ class GetBusiness(Resource):
 
     def perform_request(self, validated_request_data):
         # 查询全部业务
-        response_data = client.search_business()["info"]
+        if validated_request_data["is_archived"]:
+            response_data = client.search_business(condition={"bk_data_status": "disabled"})["info"]
+        else:
+            response_data = client.search_business()["info"]
+
         if validated_request_data["all"]:
             # 额外空间列表
             space_list = SpaceApi.list_spaces_dict()

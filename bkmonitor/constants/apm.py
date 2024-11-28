@@ -714,6 +714,8 @@ class TRPCMetricTag:
     CALLEE_CON_SETID: str = "callee_con_setid"
 
     TARGET: str = "target"
+    # 后续不同上报端都会使用该字段唯一标识一个 RPC 服务
+    SERVICE_NAME: str = "service_name"
     # 特殊维度
     APP: str = "server"
 
