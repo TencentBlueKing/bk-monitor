@@ -79,14 +79,16 @@ export default defineComponent({
       };
     });
 
+    const debounceUpdateChartOptions = debounce((xFields, yFields, dimensions, type) => {
+      setChartOptions(xFields, yFields, dimensions, formatListData.value, type);
+    }, 300);
+
     watch(
       () => props.chartCounter,
       () => {
         const { xFields, yFields, dimensions, type } = props.chartOptions;
         if (!showTable.value) {
-          setTimeout(() => {
-            setChartOptions(xFields, yFields, dimensions, formatListData.value, type);
-          });
+          debounceUpdateChartOptions(xFields, yFields, dimensions, type);
         } else {
           destroyInstance();
         }

@@ -77,8 +77,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.TABLE;
   chartActiveType = GraphCategory.TABLE;
-  xAxis = [];
-  yAxis = [];
+  xFields = [];
+  yFields = [];
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hiddenFields = [];
@@ -110,13 +110,19 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   debounceCallback = debounce(entry => {
     const { offsetWidth, offsetHeight } = entry.target;
-    this.canvasBodyStyle = {
-      with: offsetWidth,
-      height: offsetHeight,
-    };
+    Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
   resizeObserver = null;
+
+  get exceptionStyle() {
+    return {
+      '--exception-width': `${this.canvasBodyStyle.with}px`,
+      '--exception-height': `${this.canvasBodyStyle.height}px`,
+      '--exception-right': `${this.rightOptionWidth + 10}px`,
+    };
+  }
+
   get graphCategory() {
     return {
       [GraphCategory.TABLE]: {
@@ -188,8 +194,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   get chartOptions() {
     const chartType = this.chartActiveType === GraphCategory.TABLE ? GraphCategory.TABLE : this.activeGraphCategory;
     return {
-      xFields: this.xAxis,
-      yFields: this.yAxis,
+      xFields: this.xFields,
+      yFields: this.yFields,
       type: chartType,
       dimensions: this.dimensions,
       data: this.chartData.data,
@@ -206,8 +212,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return {
       favorite_type: 'chart',
       chart_params: {
-        xFields: this.xAxis,
-        yFields: this.yAxis,
+        xFields: this.xFields,
+        yFields: this.yFields,
         activeGraphCategory: this.activeGraphCategory,
         chartActiveType: this.chartActiveType,
         dimensions: this.dimensions,
@@ -216,13 +222,20 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     };
   }
 
-  @Watch('storedChartParams', { deep: true })
+  @Watch('storedChartParams', { deep: true, immediate: true })
   handleChartParamsChange() {
     if (this.storedChartParams) {
-      ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions', 'hiddenFields'].forEach(key => {
-        if (this.storedChartParams[key]) {
-          Object.assign(this, { [key]: this.storedChartParams[key] });
-        }
+      setTimeout(() => {
+        ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions', 'hiddenFields'].forEach(key => {
+          const target = this.storedChartParams[key];
+          if (target) {
+            if (Array.isArray(target)) {
+              this[key].splice(0, this[key].length, ...target);
+            } else {
+              this[key] = target;
+            }
+          }
+        });
       });
     }
   }
@@ -404,12 +417,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const message = '请完成指标、维度配置';
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
-      showException = !(this.dimensions.length && this.yAxis.length);
+      showException = !(this.xFields.length && this.yFields.length);
       return { showException, message, showQuery };
     }
 
     if (this.activeGraphCategory !== GraphCategory.TABLE) {
-      showException = !((this.dimensions.length || this.xAxis.length) && this.yAxis.length);
+      showException = !((this.dimensions.length || this.xFields.length) && this.yFields.length);
     }
 
     return { showException, message, showQuery };
@@ -432,6 +445,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (showException) {
       return (
         <bk-exception
+          style={this.exceptionStyle}
           class='bklog-chart-exception'
           type='500'
         >
@@ -448,6 +462,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     onClick={this.handleEditorSearchClick}
                   >
                     查询
+                  </bk-button>
+                  <bk-button
+                    class='mr10'
+                    size='small'
+                    onClick={() => {
+                      this.isSqlValueChanged = false;
+                    }}
+                  >
+                    我知道了
                   </bk-button>
                 </div>,
               ]
@@ -501,6 +524,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       this.resizeObserver = new ResizeObserver(entries => {
+        console.log('entries', entries);
         for (let entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
@@ -608,8 +632,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     slot='content'
                     activeGraphCategory={this.activeGraphCategory}
                     result_schema={this.resultSchema}
-                    xAxis={this.xAxis}
-                    yAxis={this.yAxis}
+                    xAxis={this.xFields}
+                    yAxis={this.yFields}
                     onUpdate={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>

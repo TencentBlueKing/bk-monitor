@@ -224,12 +224,13 @@
         }
 
         .bklog-chart-exception {
-          position: absolute;
-          top: 0;
-          right: 0;
+          position: fixed;
+          right: var(--exception-right);
           bottom: 0;
-          left: 0;
+
           z-index: 10;
+          width: var(--exception-width);
+          height: var(--exception-height);
           padding-top: 120px;
           background-color: #ffffff80;
           backdrop-filter: blur(6px);
