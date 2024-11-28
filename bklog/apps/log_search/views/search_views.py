@@ -119,7 +119,17 @@ class SearchViewSet(APIViewSet):
         if self.action in ["operators", "user_search_history"]:
             return []
 
-        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "history"]:
+        if self.action in [
+            "bizs",
+            "search",
+            "context",
+            "tailf",
+            "export",
+            "fields",
+            "history",
+            "chart",
+            "generate_sql",
+        ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         if self.action in ["union_search", "config"]:
@@ -1751,7 +1761,7 @@ class SearchViewSet(APIViewSet):
         """
         @api {get} /search/index_set/$index_set_id/generate_sql/
         @apiDescription 生成sql条件
-        @apiName chart
+        @apiName generate_sql
         @apiGroup 11_Search
         @apiSuccessExample {json} 成功返回:
         {
