@@ -299,7 +299,7 @@ export default defineComponent({
             title: SPAN_KIND_MAPS[kind],
           },
           {
-            label: t('版本'),
+            label: t('SDK 版本'),
             content: resource['telemetry.sdk.version'] || '--',
             title: resource['telemetry.sdk.version'] || '',
           },
