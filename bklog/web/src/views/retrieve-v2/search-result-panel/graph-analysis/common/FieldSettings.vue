@@ -44,7 +44,7 @@
   const emit = defineEmits(['update']);
   const selectedXAxis = ref(props.xAxis);
   const selectedYAxis = ref(props.yAxis);
-  const timeAxis = ref([]);
+  const timeAxis = ref('');
   const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_alias));
   const filterFields = ( typeCheck, excludeList) => {
@@ -54,19 +54,19 @@
   };
 
   const xAxisFilterList = computed(() => {
-    return filterFields(item => true, [...selectedYAxis.value, ...timeAxis.value]);
+    return filterFields(item => true, [...selectedYAxis.value, timeAxis.value]);
   });
 
   const yAxisFilterList = computed(() => {
     return filterFields(
-      item => item.field_type === 'long' || item.field_type === 'double',
-      [...selectedXAxis.value, ...timeAxis.value]
+      item => item.field_type !== 'string',
+      [...selectedXAxis.value, timeAxis.value]
     );
   });
 
   const timeFilterList = computed(() => {
     return filterFields(
-      item => /^date/.test(item.field_type),
+      item => item.field_type == 'long',
       [...selectedYAxis.value, ...selectedXAxis.value]
     );
   });
