@@ -236,6 +236,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             }
           }
         });
+
+        this.sqlContent = this.storedChartParams.sql;
       });
     }
   }
