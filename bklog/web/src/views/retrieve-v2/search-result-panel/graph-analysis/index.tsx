@@ -252,7 +252,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleSqlValueChange(value: string) {
     // 确保是有效修改这里才会触发提示
-    if (this.sqlContent.length && value.length) {
+    if (this.sqlContent?.length && value.length) {
       this.isSqlValueChanged = true;
     }
 
