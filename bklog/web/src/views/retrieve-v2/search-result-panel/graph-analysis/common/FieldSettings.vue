@@ -46,6 +46,7 @@
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref([]);
   const hiddenField = ref([]);
+  const list = computed(() => props.result_schema.map(item => item.field_alias));
   const filterFields = ( typeCheck, excludeList) => {
     return props.result_schema.filter(item => typeCheck(item))
       .map(item => item.field_alias)
@@ -119,23 +120,6 @@
       >
         <bk-option
           v-for="(option, index) in xAxisFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
-        >
-        </bk-option>
-      </bk-select>
-    </div>
-    <div v-show="activeGraphCategory == 'line_bar'">
-      <div class="title">{{ this.$t('显示字段') }}</div>
-      <bk-select
-        v-model="selectedYAxis"
-        @change="change('yAxis', $event)"
-        :clearable="false"
-        searchable
-      >
-        <bk-option
-          v-for="(option, index) in list"
           :key="index"
           :id="option"
           :name="option"
