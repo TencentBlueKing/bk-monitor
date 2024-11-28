@@ -30,7 +30,7 @@ import * as Echarts from 'echarts';
 import { cloneDeep } from 'lodash';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
-export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string }) => {
+export default ({ target, type }: { target: Ref<any>; type: string }) => {
   let chartInstance: Echarts.ECharts = null;
   let options: any = {};
 
@@ -174,8 +174,8 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   };
 
   const initChartInstance = () => {
-    if (target.value) {
-      chartInstance = Echarts.init(target.value);
+    if (target.value?.$el) {
+      chartInstance = Echarts.init(target.value?.$el);
       setDefaultOption(type);
     }
   };

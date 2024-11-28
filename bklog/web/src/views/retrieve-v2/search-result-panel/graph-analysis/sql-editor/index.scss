@@ -9,16 +9,16 @@
 
     .bk-monaco-tools {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       padding: 0px 20px;
       font-family: MicrosoftYaHei;
       font-size: 14px;
-      color: #C4C6CC;
-      background: #2E2E2E;
-      align-items: center;
+      color: #c4c6cc;
+      background: #2e2e2e;
       //   border-bottom: 1px solid #3f51b594;
 
-      >div {
+      > div {
         display: flex;
         align-items: center;
       }
@@ -31,7 +31,6 @@
           padding: 10px;
           cursor: pointer;
         }
-
       }
     }
   }
@@ -63,6 +62,14 @@
         &:hover {
           color: #c4c6cc;
           border-color: #979ba5;
+        }
+      }
+    }
+
+    .bklog-sqleditor-bookmark {
+      > div {
+        > span {
+          padding: 4px 10px;
         }
       }
     }

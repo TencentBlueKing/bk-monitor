@@ -229,12 +229,15 @@
           right: 0;
           bottom: 0;
           left: 0;
+          z-index: 10;
           padding-top: 120px;
           background-color: #ffffff80;
           backdrop-filter: blur(6px);
 
           .bk-exception-title {
+            max-height: 72px;
             margin-top: 8px;
+            overflow: scroll;
             font-size: 14px;
             line-height: 22px;
             color: #63656e;
