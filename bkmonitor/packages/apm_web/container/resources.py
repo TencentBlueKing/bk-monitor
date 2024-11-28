@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
-from core.drf_resource import Resource
+from core.drf_resource import Resource, resource
 from monitor_web.collecting.constant import CollectStatus
 
 
@@ -39,10 +39,8 @@ class PodDetailResource(Resource):
             query_params["name"] = validated_data["pod_name"]
 
         if BCSPod.objects.filter(**query_params).exists():
-            # 存在 交给 Pod 详情接口
-            from monitor_web.scene_view.resources import GetKubernetesPod
-
-            return GetKubernetesPod()(**validated_data)
+            # 存在则交给 Pod 详情接口
+            return resource.scene_view.get_kubernetes_pod()
 
         res = [{"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}]
         if validated_data.get("pod_name"):
