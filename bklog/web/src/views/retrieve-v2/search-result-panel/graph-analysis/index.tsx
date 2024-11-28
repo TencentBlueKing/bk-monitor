@@ -240,6 +240,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (this.sqlContent.length && value.length) {
       this.isSqlValueChanged = true;
     }
+
+    this.sqlContent = value;
   }
 
   // 如果是table类型，切换为table，反之，切换为图表
@@ -476,11 +478,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     );
   }
 
-  /** 打开添加到仪表盘dialog */
-  handleAdd() {
-    console.log(this.$refs.addDialog);
-    // this.$refs.addDialog.handleShow();
-  }
   changeModel() {
     this.isSqlMode = !this.isSqlMode;
   }
