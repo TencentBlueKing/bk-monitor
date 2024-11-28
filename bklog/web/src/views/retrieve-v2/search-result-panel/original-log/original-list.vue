@@ -91,7 +91,7 @@
               :visibleOnly="!tableJsonFormat"
             >
               <JsonFormatter
-                :jsonValue="row"
+                :jsonValue="Object.assign({'日志来源':unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? ''},row)"
                 :fields="getShowTableVisibleFields"
                 :formatJson="formatJson"
                 class="bklog-column-container"

@@ -29,7 +29,7 @@
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   import { useRoute } from 'vue-router/composables';
-
+  import FieldsSetting from '../../result-comp/fields-setting';
   import $http from '@/api';
 
   const store = useStore();
@@ -41,9 +41,42 @@
   const isDropdownShow = ref(false);
   const isLoading = ref(false);
   const configList = ref([]);
-
+  const retrieveParams = computed(() => store.getters.retrieveParams);
   const unionIndexList = computed(() => store.state.unionIndexList);
   const isUnionSearch = computed(() => store.state.isUnionSearch);
+  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+
+  const fieldsSettingPopper = ref();
+  const fieldAliasMap = computed(() => {
+    return (indexFieldInfo.fields ?? []).reduce(
+      (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+      {},
+    );
+  });
+  const showFieldsSetting = ref(true);
+  // 字段设置
+  const handleDropdownShow = () => {
+    showFieldsSetting.value = true;
+  };
+  const handleDropdownHide = () => {
+    showFieldsSetting.value = false;
+  };
+  const showModeifyFields = ()=>{
+    fieldsSettingPopper?.value?.showHandler()
+  } 
+  const cancelModifyFields = () => {
+    closeDropdown();
+  };
+  const closeDropdown = () => {
+    showFieldsSetting.value = false;
+    fieldsSettingPopper?.value?.instance.hide();
+  };
+  const setPopperInstance = (status = true) => {
+    fieldsSettingPopper?.value?.instance.set({
+      hideOnClick: status,
+    });
+  };
+
   const dropdownShow = () => {
     isDropdownShow.value = true;
     getFiledConfigList();
@@ -101,8 +134,36 @@
         class="dropdown-trigger-text"
         slot="dropdown-trigger"
       >
-        <span> {{ $t('字段配置模板') }} </span>
-        <i :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
+        <bk-popover
+          ref="fieldsSettingPopper"
+          :distance="15"
+          offset = "500"
+          :on-hide="handleDropdownHide"
+          :on-show="handleDropdownShow"
+          animation="slide-toggle"
+          placement="right-end"
+          theme="light bk-select-dropdown"
+          trigger = 'manual'
+          class="fieldsSettingPopover"
+        >
+          <slot name="trigger">
+            <!-- @click="handleClickManagementConfig" -->
+            <span> {{ $t('字段配置模板') }} </span>
+            <i :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
+          </slot>
+          <template #content>
+            <div class="fields-setting-container">
+              <fields-setting
+                v-if="showFieldsSetting"
+                v-on="$listeners"
+                :field-alias-map="fieldAliasMap"
+                :retrieve-params="retrieveParams"
+                @cancel="cancelModifyFields"
+                @set-popper-instance="setPopperInstance"
+              />
+            </div>
+          </template>
+        </bk-popover>
       </div>
       <ul
         v-bkloading="{ isLoading: isLoading, size: 'small' }"
@@ -124,7 +185,7 @@
           <a
             href="javascript:;"
             style="color: #3a84ff; background-color: #fafbfd"
-            @click="handleClickManagementConfig"
+            @click="showModeifyFields"
           >
             {{ $t('管理配置') }}
           </a>
@@ -135,4 +196,11 @@
 </template>
 <style lang="scss">
   @import './field-select-config.scss';
+
+  .fieldsSettingPopover{
+    .bk-tooltip-ref{
+      display: flex;
+      justify-content: center;
+    }
+  }
 </style>
