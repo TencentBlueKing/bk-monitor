@@ -49,8 +49,7 @@
   const list = computed(() => props.result_schema.map(item => item.field_alias));
   const filterFields = ( typeCheck, excludeList) => {
     return props.result_schema.filter(item => typeCheck(item))
-      .map(item => item.field_alias)
-      .filter(item => !excludeList.includes(item));
+      .filter(item => !excludeList.includes(item.field_alias));
   };
 
   const xAxisFilterList = computed(() => {
@@ -101,10 +100,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in yAxisFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in yAxisFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
@@ -119,10 +118,10 @@
         multiple
       >
         <bk-option
-          v-for="(option, index) in xAxisFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in xAxisFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
@@ -135,10 +134,10 @@
         searchable
       >
         <bk-option
-          v-for="(option, index) in timeFilterList"
-          :key="index"
-          :id="option"
-          :name="option"
+          v-for="(option) in timeFilterList"
+          :key="option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
         >
         </bk-option>
       </bk-select>
