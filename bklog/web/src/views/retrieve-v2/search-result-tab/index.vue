@@ -15,7 +15,7 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
-  const indexSetList = computed(() => store.state.indexItem.ids ?? []);
+  const chartParams = computed(() => store.state.indexItem.chart_params);
 
   const isAiopsToggle = computed(() => {
     return (
@@ -24,11 +24,14 @@
     );
   });
 
+  const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
+
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: indexSetList.value.length > 1 && !isAiopsToggle.value },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
+      { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
     ];
   });
 
@@ -42,6 +45,28 @@
       }
     },
     { immediate: true },
+  );
+
+  watch(
+    () => isChartEnable.value,
+    () => {
+      if (!isChartEnable.value && props.value === 'graphAnalysis') {
+        emit('input', 'origin');
+      }
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  watch(
+    () => chartParams.value,
+    () => {
+      if (isChartEnable.value && props.value !== 'graphAnalysis' && chartParams.value.sql?.length > 0) {
+        emit('input', 'graphAnalysis');
+      }
+    },
+    { deep: true, immediate: true },
   );
 
   // after边框

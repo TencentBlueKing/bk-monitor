@@ -258,6 +258,7 @@ export default class CollectIndex extends tsc<IProps> {
 
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
+    console.log('handleClickFavoriteItem', value);
     if (!value) {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
@@ -289,6 +290,9 @@ export default class CollectIndex extends tsc<IProps> {
       });
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+
+    console.log('handleClickFavoriteItem', cloneValue.params.chart_params);
+
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
@@ -298,6 +302,7 @@ export default class CollectIndex extends tsc<IProps> {
       items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
       search_mode: cloneValue.search_mode,
+      chart_params: cloneValue.params.chart_params,
     });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {

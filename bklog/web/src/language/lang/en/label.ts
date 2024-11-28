@@ -724,4 +724,5 @@ export default {
   索引字段配置: 'Index field configuration',
   字段类型不支持快速修改: 'Field type does not support quick modification',
   关联Trace检索: 'Associated Trace Search',
+  时间维度: 'Time dimension',
 };
