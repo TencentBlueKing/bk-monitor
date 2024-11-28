@@ -53,20 +53,20 @@
   };
 
   const xAxisFilterList = computed(() => {
-    return filterFields(item => true, [...selectedYAxis, ...timeAxis]);
+    return filterFields(item => true, [...selectedYAxis.value, ...timeAxis.value]);
   });
 
   const yAxisFilterList = computed(() => {
     return filterFields(
       item => item.field_type === 'long' || item.field_type === 'double',
-      [...selectedXAxis, ...timeAxis]
+      [...selectedXAxis.value, ...timeAxis.value]
     );
   });
 
   const timeFilterList = computed(() => {
     return filterFields(
       item => /^date/.test(item.field_type),
-      [...selectedYAxis, ...selectedXAxis]
+      [...selectedYAxis.value, ...selectedXAxis.value]
     );
   });
   // 监听 props.xAxis 的变化并更新 selectedXAxis

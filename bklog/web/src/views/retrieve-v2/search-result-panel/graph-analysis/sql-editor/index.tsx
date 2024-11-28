@@ -37,7 +37,6 @@ import { format } from 'sql-formatter';
 
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
-import { bkMessage  } from 'bk-magic-vue'
 import './index.scss';
 
 export default defineComponent({
