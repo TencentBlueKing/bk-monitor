@@ -360,7 +360,12 @@ class PlatformConfig(BkCollectorConfig):
             "from_cache": {
                 "key": "resource.net.host.ip",
                 "dimensions": ["k8s.namespace.name", "k8s.pod.name", "k8s.pod.ip", "k8s.bcs.cluster.id"],
-                "cache": {"key": "k8s.pod.ip", "url": f"http://{operator_service_name}:8080/pods"},
+                "cache": {
+                    "key": "k8s.pod.ip",
+                    "url": f"http://{operator_service_name}:8080/pods",
+                    "timeout": "60s",
+                    "interval": "10s",
+                },
             },
         }
 
