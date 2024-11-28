@@ -73,7 +73,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     const getNewGroup = (index, group) => {
       const field = reservedFields[index];
       if (field) {
-        const target = groupedData[field];
+        const target = groupedData[field] ?? {};
 
         const group1Keys = Object.keys(target).sort();
         const group2Keys = Object.keys(group).sort();
@@ -105,6 +105,12 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return getNewGroup(0, {});
   };
 
+  const getDateTimeFormatValue = value => {
+    const timestamp = /^\d+$/.test(value) ? Number(value) : value;
+    const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
+    return timeValue || value;
+  };
+
   const aggregateData = (data, dimensions, metrics, type, timeField?) => {
     const dimFields = dimensions.length > 0 ? dimensions : [timeField];
     if (timeField && dimensions.length > 0) {
@@ -117,21 +123,50 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
         timeGroup[item[timeField]].push(item);
       });
 
-      const categories = Object.keys(timeGroup).sort();
+      const categories = Object.keys(timeGroup)
+        .sort()
+        .map(key => [key, getDateTimeFormatValue(key)]);
+
       const seriesData = categories
-        .map(key => {
+        .map(([key, timeValue]) => {
           const aggregatedData = aggregateDataByDimensions(timeGroup[key] ?? [], dimFields, metrics);
           return metrics.map(metric => ({
             name: metric,
             type,
-            data: Object.keys(aggregatedData).map(item => [key, aggregatedData[item][metric]]),
+            data: Object.keys(aggregatedData).map(item => [timeValue, aggregatedData[item][metric], item]),
           }));
         })
         .flat(2);
 
+      const seriesDataMap = new Map();
+      seriesData.forEach(d => {
+        if (!seriesDataMap.has(d.name)) {
+          seriesDataMap.set(d.name, {});
+        }
+
+        const mapValue = seriesDataMap.get(d.name);
+        d.data.forEach(([timeValue, value, key]) => {
+          if (mapValue[key] === undefined) {
+            mapValue[key] = [];
+          }
+
+          mapValue[key].push([timeValue, value, key]);
+        });
+      });
+
       return {
-        categories,
-        seriesData,
+        categories: categories.map(c => c[1]),
+        seriesData: Array.from(
+          seriesDataMap.entries().map(([name, mapValue]) => {
+            return Object.keys(mapValue).map(k => {
+              return {
+                name: `${name}-${k}`,
+                type,
+                data: mapValue[k],
+              };
+            });
+          }),
+        ).flat(2),
       };
     }
 
@@ -143,7 +178,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     const seriesData = metrics.map(metric => ({
       name: metric,
       type,
-      data: categories.map(item => aggregatedData[item][metric]),
+      data: categories.map(item => [item, aggregatedData[item][metric]]),
     }));
 
     return {
@@ -219,18 +254,34 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       formatter: params => {
         const label = new Set(params.map(p => p.axisValueLabel));
         const content = `<div><span>${[...label].join(',')}</span></br>${(Array.isArray(params) ? params : [params])
-          .map(({ value, seriesName }) => `<span>${seriesName}: ${abbreviateNumber(value)}</span>`)
+          .map(({ value, seriesName }) => `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`)
           .join('</br>')}</div>`;
         return content;
       },
     };
   };
 
-  const getXAxisTimeValue = (data: any[], timeField: string) => {
-    return data
-      .map(d => d[timeField])
-      .sort()
-      .map(value => formatDate(value, /^\d+$/.test(value), true));
+  const formatTimeDimensionResultData = ({ categories, seriesData }, formatDateField = false) => {
+    if (formatDateField) {
+      return {
+        categories: categories.map(value => getDateTimeFormatValue(value)),
+        seriesData: seriesData.map(item => {
+          const data = item.data;
+          return {
+            ...item,
+            data: data.map(d => {
+              d[0] = getDateTimeFormatValue(d[0]);
+              return d;
+            }),
+          };
+        }),
+      };
+    }
+
+    return {
+      categories,
+      seriesData,
+    };
   };
 
   const updateLineBarOption = (
@@ -240,8 +291,11 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     data?: any,
     type?: string,
   ) => {
-    const { categories, seriesData } = aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]);
-    options.xAxis.data = dimensions[0] ? getXAxisTimeValue(data?.list ?? [], dimensions[0]) : categories;
+    const { categories, seriesData } = formatTimeDimensionResultData(
+      aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]),
+      dimensions.length === 1,
+    );
+    options.xAxis.data = categories;
     Object.assign(options.yAxis.axisLabel, getYAxisLabel());
     options.series = seriesData;
     chartInstance.setOption(options);
