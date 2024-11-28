@@ -283,6 +283,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // getSceneViewList 是否报错了
   isSceneDataError = false;
 
+  metricCalType = '';
+  limitSortMethod = '';
+  limit = 0;
+
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -1203,6 +1207,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeOffset = type === 'time' ? ['1d'] : [];
     this.handleCompareTargetChange();
   }
+  /* group by / 时间对比 */
   handleGroupCompareTypeChange(type: EGroupCompareType) {
     if (type === EGroupCompareType.compare) {
       this.compareType = 'time';
@@ -1210,6 +1215,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       this.compareType = 'none';
       this.timeOffset = [];
     }
+    this.handleUpdateViewOptions();
+  }
+  handleLimitChange(limit: number) {
+    this.limit = limit;
+    this.handleUpdateViewOptions();
+  }
+  handleMetricCalTypeChange(type: string) {
+    this.metricCalType = type;
+    this.handleUpdateViewOptions();
+  }
+  handleLimitSortMethodChange(type: string) {
+    this.limitSortMethod = type;
     this.handleUpdateViewOptions();
   }
   /** 目标对比值更新 */
@@ -1307,6 +1324,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
       this.filters = filters;
     }
+    let groupLimitVariables = {};
+    if (this.isGroupCompareType) {
+      groupLimitVariables = {
+        metric_cal_type: this.metricCalType,
+        limit_sort_method: this.limitSortMethod,
+        limit: this.limit,
+      };
+    }
     this.viewOptions = {
       // filter_dict: filterDict,
       ...filters,
@@ -1317,6 +1342,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       group_by: this.group_by ? [...this.group_by] : [],
       filters: this.filters,
       variables: this.variables,
+      ...groupLimitVariables,
     };
     this.handleResetRouteQuery();
   }
@@ -1353,11 +1379,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
+    let groupLimitVariables = {};
+    if (this.isGroupCompareType) {
+      groupLimitVariables = {
+        metricCalType: this.metricCalType,
+        limitSortMethod: this.limitSortMethod,
+        limit: this.limit,
+      };
+    }
     this.$router.replace({
       name: this.$route.name,
       query: {
         ...filters,
         ...this.customRouteQuery,
+        ...groupLimitVariables,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,
@@ -1884,12 +1919,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                       this.compareType === 'time' ? EGroupCompareType.compare : EGroupCompareType.group
                                     }
                                     groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    limit={this.limit}
+                                    limitSortMethod={this.limitSortMethod}
+                                    metricCalType={this.metricCalType}
                                     pageId={this.dashboardId}
                                     panel={this.sceneData.groupPanel}
                                     sceneId={this.sceneId}
                                     sceneType={this.localSceneType}
                                     timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
                                     onGroupChange={this.handleGroupsChange}
+                                    onLimitChange={this.handleLimitChange}
+                                    onLimitSortMethodChange={this.handleLimitSortMethodChange}
+                                    onMetricCalTypeChange={this.handleMetricCalTypeChange}
                                     onTimeCompareChange={this.handleGroupCompareTimeChange}
                                     onTypeChange={this.handleGroupCompareTypeChange}
                                   />

@@ -44,19 +44,19 @@ interface IProps {
   sceneType?: string;
   pageId?: string;
   groupOptions?: IGroupOption[];
-  limitTypes?: IListItem[];
+  metricCalTypes?: IListItem[];
   groups?: string[];
-  method?: string;
+  limitSortMethod?: string;
   limit?: number;
-  limitType?: string;
+  metricCalType?: string;
   timeValue?: string[];
   active?: ETypeSelect;
-  methods?: IListItem[];
+  limitSortMethods?: IListItem[];
   onTimeCompareChange?: (val: string[]) => void;
   onGroupChange?: (val: string[]) => void;
-  onMethodChange?: (val: string) => void;
+  onLimitSortMethodChange?: (val: string) => void;
   onLimitChange?: (val: number) => void;
-  onLimitTypeChange?: (val: string) => void;
+  onMetricCalTypeChange?: (val: string) => void;
   onTypeChange?: (val: ETypeSelect) => void;
 }
 
@@ -75,15 +75,15 @@ export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) hasGroupOptions: boolean;
   /* groups可选项 */
   @Prop({ type: Array, default: () => [] }) groupOptions: IGroupOption[];
-  @Prop({ type: Array, default: () => [] }) methods: IListItem[];
+  @Prop({ type: Array, default: () => [] }) limitSortMethods: IListItem[];
   /* 时间对比数据 */
   @Prop({ type: Array, default: () => [] }) timeValue: string[];
   // 当前激活的tab
   @Prop({ type: String, default: '' }) active: ETypeSelect;
-  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: String, default: '' }) limitSortMethod: string;
   @Prop({ type: Number, default: 0 }) limit: number;
-  @Prop({ type: String, default: '' }) limitType: string;
-  @Prop({ type: Array, default: () => [] }) limitTypes: IListItem[];
+  @Prop({ type: String, default: '' }) metricCalType: string;
+  @Prop({ type: Array, default: () => [] }) metricCalTypes: IListItem[];
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
@@ -162,10 +162,10 @@ export default class GroupCompareSelect extends tsc<IProps> {
     this.$emit('groupChange', val);
   }
   handleLimitTypeChange(val) {
-    this.$emit('limitTypeChange', val);
+    this.$emit('metricCalTypeChange', val);
   }
   handleMethodChange(val) {
-    this.$emit('methodChange', val);
+    this.$emit('limitSortMethodChange', val);
   }
   handleLimitChange(val) {
     this.$emit('limitChange', val);
@@ -200,10 +200,10 @@ export default class GroupCompareSelect extends tsc<IProps> {
               groupBy={this.groups}
               groupOptions={this.getGroupOptions}
               limit={this.limit}
-              limitType={this.limitType}
-              limitTypes={this.limitTypes}
-              method={this.method}
-              methods={this.methods}
+              limitType={this.metricCalType}
+              limitTypes={this.metricCalTypes}
+              method={this.limitSortMethod}
+              methods={this.limitSortMethods}
               onChange={this.handleGroupsChange}
               onLimitChange={this.handleLimitChange}
               onLimitType={this.handleLimitTypeChange}
