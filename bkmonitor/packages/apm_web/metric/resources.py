@@ -2977,7 +2977,7 @@ class HostInstanceDetailListResource(Resource):
         # 根据 status 字段
         for k in hosts:
             status = hosts[k].get("status")
-            if not status:
+            if status is None:
                 continue
             if status == 0:
                 hosts[k]["status"] = CollectStatus.SUCCESS
