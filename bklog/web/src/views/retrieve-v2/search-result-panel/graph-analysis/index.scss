@@ -237,11 +237,13 @@
 
           .bk-exception-title {
             max-height: 72px;
+            padding: 0 40px;
             margin-top: 8px;
-            overflow: scroll;
+            overflow: auto;
             font-size: 14px;
             line-height: 22px;
             color: #63656e;
+            text-align: left;
           }
 
           .bk-exception-description {
