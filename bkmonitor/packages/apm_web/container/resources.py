@@ -40,7 +40,7 @@ class PodDetailResource(Resource):
 
         if BCSPod.objects.filter(**query_params).exists():
             # 存在则交给 Pod 详情接口
-            return resource.scene_view.get_kubernetes_pod()
+            return resource.scene_view.get_kubernetes_pod(**validated_data)
 
         res = [{"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}]
         if validated_data.get("pod_name"):
