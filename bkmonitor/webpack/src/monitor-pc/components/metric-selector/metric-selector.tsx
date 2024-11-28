@@ -483,7 +483,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       this.popoverInstance = this.$bkPopover(target, {
         content: this.handleGetMetricTipsContent(item),
         trigger: 'manual',
-        theme: 'monitor-metric-input tippy-metric',
+        theme: 'tippy-metric',
         arrow: true,
         placement: 'right',
         boundary: 'window',

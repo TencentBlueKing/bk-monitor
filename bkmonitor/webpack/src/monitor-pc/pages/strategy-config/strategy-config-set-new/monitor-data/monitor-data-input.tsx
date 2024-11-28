@@ -343,7 +343,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   handleMetricMouseenter(e: MouseEvent, item: MetricDetail) {
     let content = '';
     try {
-      content = this.handleGetMetricTipsContent(item, { enableCopy: true });
+      content = this.handleGetMetricTipsContent(item);
     } catch (error) {
       // content = `${this.$t('指标不存在')}`;
     }
@@ -356,15 +356,6 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         flip: false,
         interactive: true,
         interactiveBorder: 6,
-        onMount: () => {
-          this.$bkPopover('.monitor-metric-copy-btn', {
-            content: this.$t('复制'),
-            theme: 'light monitor-metric-icon',
-            arrow: true,
-            flip: false,
-            placement: 'top',
-          });
-        },
         onHidden: () => {
           this.metricpopoerInstance?.destroy?.();
           this.metricpopoerInstance = null;
