@@ -42,7 +42,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
+import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
@@ -1857,7 +1857,7 @@ export default defineComponent({
           onShow={v => (this.isShowSpanDetail = v)}
         />
 
-        <Dialog
+        {/* <Dialog
           class='trace-info-fullscreen-dialog'
           esc-close={false}
           is-show={this.isFullscreen}
@@ -1884,16 +1884,34 @@ export default defineComponent({
               />
             </div>
           </div>
-        </Dialog>
-
-        <div class={`monitor-trace-alert ${this.isFullscreen ? 'fadeout' : ''}`}>
-          <i18n-t
-            class='alert-text'
-            keypath='按{0}即可关闭全屏弹窗'
-          >
-            <span class='keyboard-button'>esc</span>
-          </i18n-t>
-        </div>
+        </Dialog> */}
+        <Sideslider
+          width='1200'
+          class='trace-info-sideslider'
+          esc-close={false}
+          is-show={this.isFullscreen}
+          scrollable={false}
+          multi-instance
+          transfer
+          onClosed={this.handleDialogClose}
+        >
+          <SimpleList
+            ref='simpleListElem'
+            data={this.simpleTraceList}
+            loading={this.tableLoading}
+            selectedId={this.curTraceId}
+            onChange={this.handleTraceDetail}
+            onLoadMore={() => this.$emit('scrollBottom')}
+          />
+          <div class='detail-box'>
+            <TraceDetail
+              ref='traceDetailElem'
+              appName={appName}
+              traceID={this.curTraceId}
+              onClose={this.handleColseDetail}
+            />
+          </div>
+        </Sideslider>
       </div>
     );
   },
