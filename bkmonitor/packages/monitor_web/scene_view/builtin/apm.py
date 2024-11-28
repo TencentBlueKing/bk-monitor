@@ -567,6 +567,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
         if host_view:
             view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+        if "overview_panel" in view_config.get("options"):
+            # 去除顶部栏中的策略告警信息
+            del view_config["options"]["overview_panel"]
 
     @classmethod
     def create_default_views(cls, bk_biz_id: int, scene_id: str, view_type: str, existed_views):
