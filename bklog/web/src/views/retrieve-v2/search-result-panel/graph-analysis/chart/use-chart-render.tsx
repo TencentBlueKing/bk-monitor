@@ -34,16 +34,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   let chartInstance: Echarts.ECharts = null;
   let options: any = {};
 
-  const getLineBarChartOption = () => {
-    const options = cloneDeep(lineOrBarOptions);
-    return options;
-  };
-
-  const getPieChartOption = () => {
-    const options = cloneDeep(pieOptions);
-    return options;
-  };
-
   type DataItem = Record<string, any>;
 
   const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
@@ -192,27 +182,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     // 转换为饼图数据格式
     const pieChartData = categories.map((key, index) => ({
       name: key,
-      value: seriesData[0].data[index],
+      value: seriesData[0].data[index][1],
     }));
 
     return pieChartData;
-  };
-
-  const setDefaultOption = t => {
-    const optionMap = {
-      line: getLineBarChartOption,
-      bar: getLineBarChartOption,
-      pie: getPieChartOption,
-    };
-
-    options = optionMap[t]?.() ?? getLineBarChartOption();
-  };
-
-  const initChartInstance = () => {
-    if (target.value?.$el) {
-      chartInstance = Echarts.init(target.value?.$el);
-      setDefaultOption(type);
-    }
   };
 
   /** 缩写数字 */
@@ -252,13 +225,43 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   const getTooltipFormatter = () => {
     return {
       formatter: params => {
-        const label = new Set(params.map(p => p.axisValueLabel));
-        const content = `<div><span>${[...label].join(',')}</span></br>${(Array.isArray(params) ? params : [params])
-          .map(({ value, seriesName }) => `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`)
+        const args = Array.isArray(params) ? params : [params];
+        const label = new Set(args.map(p => p.axisValueLabel));
+        const content = `<div>${label ? `<span>${[...label].join(',')}</span></br>` : ''}${args
+          .map(({ value, name }) => `<span>${value[2] ?? name}: ${abbreviateNumber(value[1])}</span>`)
           .join('</br>')}</div>`;
         return content;
       },
     };
+  };
+
+  const getLineBarChartOption = () => {
+    const options = cloneDeep(lineOrBarOptions);
+    Object.assign(options.tooltip, getTooltipFormatter());
+
+    return options;
+  };
+
+  const getPieChartOption = () => {
+    const options = cloneDeep(pieOptions);
+    return options;
+  };
+
+  const setDefaultOption = t => {
+    const optionMap = {
+      line: getLineBarChartOption,
+      bar: getLineBarChartOption,
+      pie: getPieChartOption,
+    };
+
+    options = optionMap[t]?.() ?? getLineBarChartOption();
+  };
+
+  const initChartInstance = () => {
+    if (target.value?.$el) {
+      chartInstance = Echarts.init(target.value?.$el);
+      setDefaultOption(type);
+    }
   };
 
   const formatTimeDimensionResultData = ({ categories, seriesData }, formatDateField = false) => {
@@ -339,7 +342,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       initChartInstance();
     }
     setDefaultOption(type);
-    Object.assign(options.tooltip, getTooltipFormatter());
     updateChartOptions(xFields, yFields, dimensions, data, type);
   };
 

@@ -47,9 +47,8 @@
   const timeAxis = ref('');
   const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_alias));
-  const filterFields = ( typeCheck, excludeList) => {
-    return props.result_schema.filter(item => typeCheck(item))
-      .filter(item => !excludeList.includes(item.field_alias));
+  const filterFields = (typeCheck, excludeList) => {
+    return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
   };
 
   const xAxisFilterList = computed(() => {
@@ -57,17 +56,11 @@
   });
 
   const yAxisFilterList = computed(() => {
-    return filterFields(
-      item => item.field_type !== 'string',
-      [...selectedXAxis.value, timeAxis.value]
-    );
+    return filterFields(item => item.field_type !== 'string', [...selectedXAxis.value, timeAxis.value]);
   });
 
   const timeFilterList = computed(() => {
-    return filterFields(
-      item => item.field_type == 'long',
-      [...selectedYAxis.value, ...selectedXAxis.value]
-    );
+    return filterFields(item => item.field_type == 'long', [...selectedYAxis.value, ...selectedXAxis.value]);
   });
   // 监听 props.xAxis 的变化并更新 selectedXAxis
   watch(
@@ -95,12 +88,12 @@
       <bk-select
         v-model="selectedYAxis"
         searchable
-        @change="change('yAxis', $event)"
+        @change="change('yFields', $event)"
         :clearable="false"
         multiple
       >
         <bk-option
-          v-for="(option) in yAxisFilterList"
+          v-for="option in yAxisFilterList"
           :key="option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
@@ -113,12 +106,12 @@
       <bk-select
         v-model="selectedXAxis"
         searchable
-        @change="change('xAxis', $event)"
+        @change="change('xFields', $event)"
         :clearable="false"
         multiple
       >
         <bk-option
-          v-for="(option) in xAxisFilterList"
+          v-for="option in xAxisFilterList"
           :key="option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
@@ -134,7 +127,7 @@
         searchable
       >
         <bk-option
-          v-for="(option) in timeFilterList"
+          v-for="option in timeFilterList"
           :key="option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
