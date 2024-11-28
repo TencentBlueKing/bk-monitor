@@ -164,7 +164,7 @@ export const lineOrBarOptions = {
   },
   xAxis: {
     type: 'category',
-    boundaryGap: false,
+    boundaryGap: true,
     axisTick: {
       show: false,
     },

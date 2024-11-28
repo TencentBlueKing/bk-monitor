@@ -50,10 +50,9 @@ def is_match_api_token(request, app_code: str, token: str) -> bool:
         result = {}
         records = ApiAuthToken.objects.filter(type=AuthType.API)
         for record in records:
-            app_code = record.params.get("app_code")
-            if not app_code:
+            if not record.params.get("app_code"):
                 continue
-            result[app_code] = (record.token, record.namespaces)
+            result[record.params["app_code"]] = (record.token, record.namespaces)
         APP_CODE_UPDATE_TIME = time.time()
         APP_CODE_TOKENS = result
 
