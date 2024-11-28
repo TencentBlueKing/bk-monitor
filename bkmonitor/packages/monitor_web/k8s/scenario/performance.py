@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import List
+
 from django.utils.translation import ugettext_lazy as _lazy
 
 from monitor_web.k8s.scenario import Category, Metric
@@ -18,7 +20,7 @@ k8s 性能场景配置, 初版
 
 
 # 每个场景需要配置一个 get_metrics函数 以返回指标列表
-def get_metrics():
+def get_metrics() -> List:
     return [
         Category(
             id="CPU",

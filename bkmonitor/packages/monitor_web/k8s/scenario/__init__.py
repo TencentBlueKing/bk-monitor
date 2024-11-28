@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import namedtuple
+from typing import List
 
 from django.utils.module_loading import import_string
 
@@ -17,7 +18,10 @@ Category = namedtuple("Category", ["id", "name", "children"])
 Metric = namedtuple("Metric", ["id", "name"])
 
 
-def get_metrics(scenario):
+def get_metrics(scenario) -> List:
+    """
+    获取指标
+    """
     metrics_generator = import_string(f"{get_metrics.__module__}.{scenario}.get_metrics")
     metrics = metrics_generator()
     metrics_list = []

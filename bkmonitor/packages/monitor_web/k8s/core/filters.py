@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict
+
 from monitor_web.k8s.core.errors import K8sResourceNotFound, MultiWorkloadError
 
 filter_options = {}
@@ -35,7 +37,7 @@ class ResourceFilter(object):
         return f"{self.resource_type}{self.filter_field}{self.value}"
 
     @property
-    def filter_dict(self):
+    def filter_dict(self) -> Dict:
         """
         用于ORM的查询
         """
@@ -45,7 +47,7 @@ class ResourceFilter(object):
             return {self.filter_field: self.value[0]}
         return {f"{self.filter_field}__in": self.value}
 
-    def filter_string(self):
+    def filter_string(self) -> str:
         if self.fuzzy:
             return self.fuzzy_filter_string()
         if len(self.value) == 1:
@@ -53,7 +55,7 @@ class ResourceFilter(object):
         value_regex = "|".join(self.value)
         return f'{self.filter_field}=~"^({value_regex})$"'
 
-    def fuzzy_filter_string(self):
+    def fuzzy_filter_string(self) -> str:
         return f'''{self.filter_field}=~"({'|'.join(self.value)})"'''
 
 
@@ -129,7 +131,7 @@ class SpaceFilter(ResourceFilter):
     filter_field = "bk_biz_id"
 
 
-def load_resource_filter(resource_type, filter_value, fuzzy=False):
+def load_resource_filter(resource_type, filter_value, fuzzy=False) -> ResourceFilter:
     if resource_type not in filter_options:
         raise K8sResourceNotFound(resource_type=resource_type)
     filter_obj = filter_options[resource_type](filter_value, fuzzy)
