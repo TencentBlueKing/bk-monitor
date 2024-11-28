@@ -217,9 +217,11 @@ export default ({ target, type }: { target: Ref<HTMLDivElement>; type: string })
   const getTooltipFormatter = () => {
     return {
       formatter: params => {
-        return (Array.isArray(params) ? params : [params])
+        const label = new Set(params.map(p => p.axisValueLabel));
+        const content = `<div><span>${[...label].join(',')}</span></br>${(Array.isArray(params) ? params : [params])
           .map(({ value, seriesName }) => `<span>${seriesName}: ${abbreviateNumber(value)}</span>`)
-          .join('</br>');
+          .join('</br>')}</div>`;
+        return content;
       },
     };
   };

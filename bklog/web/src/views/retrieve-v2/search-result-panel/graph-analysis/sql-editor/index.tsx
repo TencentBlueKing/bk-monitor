@@ -115,14 +115,14 @@ export default defineComponent({
 
       return axios(params)
         .then((resp: any) => {
-          if (resp.result) {
+          if (resp.data.result) {
             if (updateStore) {
               storeChartOptions();
             }
             isRequesting.value = false;
             emit('change', resp.data);
           } else {
-            emit('error', resp);
+            emit('error', resp.data);
           }
         })
         .finally(() => {

@@ -14,6 +14,7 @@ from celery import task
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -647,6 +648,17 @@ class Application(AbstractRecordModel):
             Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
+
+    @property
+    def is_create_finished(self):
+        return bool(self.trace_result_table_id and self.metric_result_table_id)
+
+    @classmethod
+    def q_filter_create_finished(cls):
+        """
+        获取过滤应用未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
+        """
+        return Q(trace_result_table_id__isnull=False, metric_result_table_id__isnull=False)
 
     @staticmethod
     @task()
