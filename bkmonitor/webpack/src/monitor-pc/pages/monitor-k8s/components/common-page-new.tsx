@@ -1192,11 +1192,25 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeOffset = timeList;
     this.handleUpdateViewOptions();
   }
+  handleGroupCompareTimeChange(timeList: string[]) {
+    this.compareType = 'time';
+    this.timeOffset = timeList;
+    this.handleUpdateViewOptions();
+  }
   /** 对比类型变更 */
   handleCompareTypeChange(type: PanelToolsType.CompareId) {
     this.compareType = type;
     this.timeOffset = type === 'time' ? ['1d'] : [];
     this.handleCompareTargetChange();
+  }
+  handleGroupCompareTypeChange(type: EGroupCompareType) {
+    if (type === EGroupCompareType.compare) {
+      this.compareType = 'time';
+    } else {
+      this.compareType = 'none';
+      this.timeOffset = [];
+    }
+    this.handleUpdateViewOptions();
   }
   /** 目标对比值更新 */
   handleCompareTargetChange(viewOptions?: IViewOptions) {
@@ -1876,6 +1890,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                     sceneType={this.localSceneType}
                                     timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
                                     onGroupChange={this.handleGroupsChange}
+                                    onTimeCompareChange={this.handleGroupCompareTimeChange}
+                                    onTypeChange={this.handleGroupCompareTypeChange}
                                   />
                                 ) : (
                                   <GroupSelect
