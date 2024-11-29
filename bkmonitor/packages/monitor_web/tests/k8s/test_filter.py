@@ -22,6 +22,8 @@ from monitor_web.k8s.core.filters import (
     load_resource_filter,
 )
 from monitor_web.k8s.core.meta import (
+    BCSContainer,
+    BCSPod,
     BCSWorkload,
     FilterCollection,
     K8sContainerMeta,
@@ -97,6 +99,10 @@ class TestK8sListResources(TestCase):
     databases = {'default', 'monitor_api'}
 
     def setUp(self):
+        self.create_workloads()
+        self.create_pods()
+
+    def create_workloads(self):
         BCSWorkload(
             bk_biz_id=2,
             bcs_cluster_id="BCS-K8S-00000",
@@ -127,6 +133,108 @@ class TestK8sListResources(TestCase):
             last_synced_at=timezone.now(),
             pod_count=0,
         ).save()
+
+    def create_pods(self):
+        BCSPod(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            namespace="blueking",
+            name="bk-monitor-web-worker-784b79c9f-s9fhh",
+            node_name="node-9-136-175-75",
+            node_ip="127.0.0.1",
+            workload_type="Deployment",
+            workload_name="bk-monitor-web-worker",
+            total_container_count=1,
+            ready_container_count=1,
+            pod_ip="127.0.0.1",
+            restarts=0,
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+        ).save()
+        BCSPod(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            namespace="default",
+            name="bk-monitor-web-worker-784b79c9f-8lw9j",
+            node_name="node-30-167-61-89",
+            node_ip="127.0.0.1",
+            workload_type="Deployment",
+            workload_name="bk-monitor-web-worker",
+            total_container_count=1,
+            ready_container_count=1,
+            pod_ip="127.0.0.1",
+            restarts=0,
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+        ).save()
+        BCSPod(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            namespace="blueking",
+            name="bk-monitor-web-worker-resource-557cd688bd-c2q2c",
+            node_name="node-30-167-61-61",
+            node_ip="127.0.0.1",
+            workload_type="Deployment",
+            workload_name="bk-monitor-web-worker-resource",
+            total_container_count=1,
+            ready_container_count=1,
+            pod_ip="127.0.0.1",
+            restarts=0,
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+        ).save()
+
+    def craete_containers(self):
+        BCSContainer(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="bk-monitor-web",  # <- meta_data
+            namespace="blueking",  # <- meta_data
+            pod_name="bk-monitor-web-579f6bf4bc-nmld9",  # <- meta_data
+            workload_type="Deployment",  # <- meta_data
+            workload_name="bk-monitor-web",  # <- meta_data
+            node_ip="127.0.0.1",
+            node_name="node-30-186-110-66",
+            image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+        ).save()
+        BCSContainer(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="bk-monitor-web",  # <- meta_data
+            namespace="blueking",  # <- meta_data
+            pod_name="bk-monitor-web-579f6bf4bc-qhmxk",  # <- meta_data
+            workload_type="Deployment",  # <- meta_data
+            workload_name="bk-monitor-web",  # <- meta_data
+            node_ip="127.0.0.1",
+            node_name="node-9-136-133-78",
+            image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+        ).save()
+        BCSContainer(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="bk-monitor-web",  # <- meta_data
+            namespace="blueking",  # <- meta_data
+            pod_name="bk-monitor-web-579f6bf4bc-qrzxv",  # <- meta_data
+            workload_type="Deployment",  # <- meta_data
+            workload_name="bk-monitor-web",  # <- meta_data
+            node_ip="127.0.0.1",
+            node_name="node-30-186-151-225",
+            image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+        ).save()
+        # 充当历史数据
+        # BCSContainer(
+        #     bk_biz_id=2,
+        #     bcs_cluster_id="BCS-K8S-00000",
+        #     name="bk-monitor-web",  # <- meta_data
+        #     namespace="blueking",  # <- meta_data
+        #     pod_name="bk-monitor-web-579f6bf4bc-nmld9",  # <- meta_data
+        #     workload_type="Deployment",  # <- meta_data
+        #     workload_name="bk-monitor-web",  # <- meta_data
+        #     node_ip="",
+        #     node_name="node-30-186-110-66",
+        #     image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335"
+        # ).save()
+        pass
 
     def tearDown(self):
         pass
@@ -360,12 +468,278 @@ class TestK8sListResources(TestCase):
                 workload_list,
                 (
                     [obj.to_meta_dict() for obj in orm_resource]
+                    # + ...  # TODO: 这里需要通过打断点搞明白 为什么要加点东西, workload_list 里面有啥， orm_resource 有啥
                     + [BCSWorkload(namespace="blueking", type="Deployment", name="bk-monitor-web-beat").to_meta_dict()]
                 ),
             )
 
     def test_with_pod(self):
-        pass
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "resource_type": "pod",
+            # 资源名过滤
+            "query_string": "monitor",
+            # 近一小时
+            "start_time": 1732240257,
+            "end_time": 1732243857,
+            "filter_dict": {"namespace": "blueking"},
+            "scenario": "performance",
+            "with_history": False,
+        }
+
+        meta = load_resource_meta(validated_request_data["resource_type"], 2, "BCS-K8S-00000")
+        # 验证 meta 类型
+        self.assertIsInstance(meta, K8sPodMeta)
+        query_set = meta.filter.filter_queryset
+        # 验证 orm sql
+        self.assertEqual(
+            str(query_set.query),
+            (
+                'SELECT `bkmonitor_bcspod`.`id`, '
+                '`bkmonitor_bcspod`.`bk_biz_id`, '
+                '`bkmonitor_bcspod`.`bcs_cluster_id`, '
+                '`bkmonitor_bcspod`.`name`, '
+                '`bkmonitor_bcspod`.`namespace`, '
+                '`bkmonitor_bcspod`.`workload_type`, '
+                '`bkmonitor_bcspod`.`workload_name` '
+                'FROM `bkmonitor_bcspod` WHERE '
+                '(`bkmonitor_bcspod`.`bcs_cluster_id` = BCS-K8S-00000 AND '
+                '`bkmonitor_bcspod`.`bk_biz_id` = 2)'
+            ),
+        )
+        # 验证 promql
+        self.assertEqual(
+            meta.meta_prom,
+            'sum by (workload_kind, workload_name, namespace, pod_name) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
+        )
+
+        # 校验包含更多查询的内容
+        orm_resource = (
+            BCSPod.objects.filter(**validated_request_data["filter_dict"])
+            .filter(name__icontains=validated_request_data["query_string"])
+            .only(*K8sPodMeta.only_fields)
+        )
+        # 验证 get_from_meta
+        pod_list = ListK8SResources()(validated_request_data)
+        self.assertEqual(pod_list, [obj.to_meta_dict() for obj in orm_resource])
+        # 验证 promql with  filter_dict AND query_string
+        ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
+        meta.filter.add(
+            load_resource_filter(
+                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+            )
+        )
+        self.assertEqual(
+            meta.meta_prom,
+            'sum by (workload_kind, workload_name, namespace, pod_name) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
+            'bk_biz_id="2",namespace="blueking",pod_name=~"(monitor)"})',
+        )
+        query_result = [
+            # {
+            #     "dimensions": {
+            #         "namespace": "blueking",
+            #         "pod_name": "bk-datalink-bk-worker-scheduler-695856bb4f-fh6dn",
+            #         "workload_kind": "Deployment",
+            #         "workload_name": "bk-datalink-bk-worker-scheduler"
+            #     },
+            #     "target": "{namespace=blueking, pod_name=bk-datalink-bk-worker-scheduler-695856bb4f-fh6dn, workload_kind=Deployment, workload_name=bk-datalink-bk-worker-scheduler}",
+            #     "metric_field": "_result_",
+            #     "datapoints": [
+            #         [3044.11,1732777440000],
+            #     ],
+            #     "alias": "_result_",
+            #     "type": "line",
+            #     "dimensions_translation": {},
+            #     "unit": ""
+            # },
+            # mock 历史数据
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod_name": "bk-monitor-web-worker-scheduler-7b666c7788-2abcd",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-monitor-web-worker-scheduler",
+                },
+                "target": "{namespace=blueking, pod_name=bk-monitor-web-worker-scheduler-7b666c7788-2abcd, workload_kind=Deployment, workload_name=bk-monitor-web-worker-scheduler}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [644.77, 1732794960000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
+            # {
+            #     "dimensions": {
+            #         "namespace": "blueking",
+            #         "pod_name": "bk-monitor-web-worker-7b666c4fc6-srlgb",
+            #         "workload_kind": "Deployment",
+            #         "workload_name": "bk-monitor-web-worker"
+            #     },
+            #     "target": "{namespace=blueking, pod_name=bk-monitor-web-worker-7b666c4fc6-srlgb, workload_kind=Deployment, workload_name=bk-monitor-web-worker}",
+            #     "metric_field": "_result_",
+            #     "datapoints": [
+            #         [ 413.64,1732794960000],
+            #     ],
+            #     "alias": "_result_",
+            #     "type": "line",
+            #     "dimensions_translation": {},
+            #     "unit": ""
+            # }
+        ]
+        # 附带历史数据
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": query_result}
+            validated_request_data["with_history"] = True
+            pod_list = ListK8SResources()(validated_request_data)
+            self.assertEqual(
+                pod_list,
+                (
+                    [obj.to_meta_dict() for obj in orm_resource]
+                    + [
+                        BCSPod(
+                            workload_type="Deployment",
+                            workload_name="bk-monitor-web-worker-scheduler",
+                            namespace="blueking",
+                            name="bk-monitor-web-worker-scheduler-7b666c7788-2abcd",
+                        ).to_meta_dict()
+                    ]
+                ),
+            )
 
     def test_with_container(self):
-        pass
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "resource_type": "container",
+            # 资源名过滤
+            "query_string": "monitor",
+            # 近一小时
+            "start_time": 1732240257,
+            "end_time": 1732243857,
+            "filter_dict": {"namespace": "blueking", "workload": "bk-monitor-web"},  # 查询是否有相同命名空间的数据
+            "scenario": "performance",
+            "with_history": False,
+        }
+
+        meta = load_resource_meta(validated_request_data["resource_type"], 2, "BCS-K8S-00000")
+        # 验证 meta 类型
+        self.assertIsInstance(meta, K8sContainerMeta)
+        query_set = meta.filter.filter_queryset
+        # 验证 orm sql
+        self.assertEqual(
+            str(query_set.query),
+            (
+                'SELECT `bkmonitor_bcscontainer`.`id`, '
+                '`bkmonitor_bcscontainer`.`bk_biz_id`, '
+                '`bkmonitor_bcscontainer`.`bcs_cluster_id`, '
+                '`bkmonitor_bcscontainer`.`name`, '
+                '`bkmonitor_bcscontainer`.`namespace`, '
+                '`bkmonitor_bcscontainer`.`pod_name`, '
+                '`bkmonitor_bcscontainer`.`workload_type`, '
+                '`bkmonitor_bcscontainer`.`workload_name` FROM `bkmonitor_bcscontainer` WHERE '
+                '(`bkmonitor_bcscontainer`.`bcs_cluster_id` = BCS-K8S-00000 AND '
+                '`bkmonitor_bcscontainer`.`bk_biz_id` = 2)'
+            ),
+        )
+        # 验证 promql
+        self.assertEqual(
+            meta.meta_prom,
+            'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
+        )
+
+        # 校验包含更多查询的内容
+        orm_resource = (
+            BCSContainer.objects.filter(namespace="blueking", workload_name="bk-monitor-web")
+            # BCSContainer.objects.filter(**validated_request_data["filter_dict"])
+            .filter(name__icontains=validated_request_data["query_string"]).only(*K8sContainerMeta.only_fields)
+        )
+        # 验证 get_from_meta
+        contianer_list = ListK8SResources()(validated_request_data)
+        orm_data = [obj.to_meta_dict() for obj in orm_resource]
+
+        self.assertEqual(contianer_list, [obj.to_meta_dict() for obj in orm_resource])
+        # 验证 promql with  filter_dict AND query_string
+        ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
+        meta.filter.add(
+            load_resource_filter(
+                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+            )
+        )
+        self.assertEqual(
+            meta.meta_prom,
+            'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
+            'bk_biz_id="2",namespace="blueking",workload_name=~"monitor"})',  # <- 这里应该需要添加一个 podname可能
+        )
+        query_result = [
+            # 需要构造数据
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod_name": "bk-datalink-bk-monitor-worker-scheduler-695856bb4f-fh6dn",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-datalink-bk-monitor-worker-scheduler",
+                },
+                "target": "{namespace=blueking, pod_name=bk-datalink-bk-monitor-worker-scheduler-695856bb4f-fh6dn, workload_kind=Deployment, workload_name=bk-datalink-bk-monitor-worker-scheduler}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [3044.11, 1732777440000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod_name": "bk-datalink-bk-monitor-worker-web-c7f56d8b6-m789s",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-datalink-bk-monitor-worker-web",
+                },
+                "target": "{namespace=blueking, pod_name=bk-datalink-bk-monitor-worker-web-c7f56d8b6-m789s, workload_kind=Deployment, workload_name=bk-datalink-bk-monitor-worker-web}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [64.41, 1732777440000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod_name": "bk-datalink-bk-monitor-worker-worker-queue-alarm-85b46bf576gfdb",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-datalink-bk-monitor-worker-worker-queue-alarm",
+                },
+                "target": "{namespace=blueking, pod_name=bk-datalink-bk-monitor-worker-worker-queue-alarm-85b46bf576gfdb, workload_kind=Deployment, workload_name=bk-datalink-bk-monitor-worker-worker-queue-alarm}",
+                "metric_field": "_result_",
+                "datapoints": [
+                    [3271.04, 1732777440000],
+                ],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            },
+        ]
+        # 附带历史数据
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": query_result}
+            validated_request_data["with_history"] = True
+            pod_list = ListK8SResources()(validated_request_data)
+            self.assertEqual(
+                pod_list,
+                (
+                    [obj.to_meta_dict() for obj in orm_resource]
+                    # + ...  # TODO: 这里需要通过打断点搞明白 为什么要就加点东西
+                ),
+            )
