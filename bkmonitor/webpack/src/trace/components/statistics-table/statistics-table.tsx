@@ -251,7 +251,7 @@ export default defineComponent({
       },
       {
         label: t('操作'),
-        width: 160,
+        width: 90,
 
         render: ({ cell, row }: { cell: Record<string, string>; row: ItableDataItem }) => (
           <div style='display: flex;'>
@@ -939,7 +939,7 @@ export default defineComponent({
           </div>
         ),
         fixed: 'right',
-        width: 151,
+        width: 91,
       },
     ];
     /** 默认表格列配置 */
