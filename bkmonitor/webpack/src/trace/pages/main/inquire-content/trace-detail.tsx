@@ -894,11 +894,11 @@ export default defineComponent({
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <label>{this.$t('产生时间')}</label>
+            <label for=''>{this.$t('产生时间')}</label>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('总耗时')}</label>
+            <label for=''>{this.$t('总耗时')}</label>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -932,19 +932,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <label>{this.$t('时间区间')}</label>
+            <label for=''>{this.$t('耗时分布')}</label>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('服务数')}</label>
+            <label for=''>{this.$t('服务数')}</label>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('层级数')}</label>
+            <label for=''>{this.$t('层级数')}</label>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('span总数')}</label>
+            <label for=''>{this.$t('span总数')}</label>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>
