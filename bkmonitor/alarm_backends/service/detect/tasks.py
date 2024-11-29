@@ -48,6 +48,6 @@ def run_detect(strategy_id):
     metrics.report_all()
 
 
-@task(ingnore_result=True, queue="celery_aiops_service")
+@task(ingnore_result=True, queue="celery_service_aiops")
 def run_detect_with_sdk(strategy_id):
     return run_detect(strategy_id)
