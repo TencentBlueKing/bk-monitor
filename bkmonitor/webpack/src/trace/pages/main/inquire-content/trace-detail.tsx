@@ -836,7 +836,7 @@ export default defineComponent({
         loading={this.isLoading}
         zIndex={99999}
       >
-        {this.isInTable && (
+        {/* {this.isInTable && (
           <div
             class='fullscreen-btn toggle-full-screen'
             onClick={() => this.$emit('close')}
@@ -844,7 +844,7 @@ export default defineComponent({
             <div class='circle' />
             <span class='icon-monitor icon-mc-close icon-page-close' />
           </div>
-        )}
+        )} */}
         <div class='header'>
           <span class='trace-id'>{traceId}</span>
           <Popover
@@ -873,11 +873,11 @@ export default defineComponent({
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <label>{this.$t('产生时间')}</label>
+            <span>{this.$t('产生时间')}</span>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('总耗时')}</label>
+            <span>{this.$t('总耗时')}</span>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -911,19 +911,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <label>{this.$t('时间区间')}</label>
+            <span>{this.$t('时间区间')}</span>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('服务数')}</label>
+            <span>{this.$t('服务数')}</span>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('层级数')}</label>
+            <span>{this.$t('层级数')}</span>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('span总数')}</label>
+            <span>{this.$t('span总数')}</span>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>

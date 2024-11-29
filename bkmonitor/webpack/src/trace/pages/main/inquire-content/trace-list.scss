@@ -603,21 +603,21 @@
 }
 
 .trace-info-sideslider {
-  .bk-modal-content > div {
-    vertical-align: middle;
+  .bk-modal-content {
+    height: 100%;
+
+    & > div {
+      height: 100%;
+      vertical-align: middle;
+    }
   }
 
-  .bk-modal-content > div, .bk-sideslider-content {
+  .bk-sideslider-content {
     height: 100%;
   }
 
   .detail-box {
-    position: absolute;
-    top: 0;
-    left: 250px;
-    z-index: 1000;
     box-sizing: border-box;
-    width: calc(100% - 250px);
     height: 100%;
     min-height: 100%;
     background-color: #f5f7fa;

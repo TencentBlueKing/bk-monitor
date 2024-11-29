@@ -61,7 +61,7 @@ import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
 import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
-import SimpleList from './simple-list/simple-list';
+// import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
 
 import type { PanelModel } from '../../../plugins/typings';
@@ -175,7 +175,7 @@ export default defineComponent({
     const traceTableElem = ref<HTMLDivElement>();
     const traceTableContainer = ref<HTMLDivElement>();
     const traceDetailElem = ref(TraceDetail);
-    const simpleListElem = ref(SimpleList);
+    // const simpleListElem = ref(SimpleList);
     const isFullscreen = ref(false);
     const height = ref<number>(0);
     const curTraceId = ref<string>('');
@@ -907,9 +907,7 @@ export default defineComponent({
       curTraceIndex.value = -1;
 
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
-      setTimeout(() => {
-        store.setTraceDetail(false);
-      }, 100);
+      store.setTraceDetail(false);
     };
     const traceListFilter = reactive<TraceListType>({
       // 属于 Trace 列表的
@@ -1451,7 +1449,7 @@ export default defineComponent({
       traceTableMain,
       traceTableElem,
       traceDetailElem,
-      simpleListElem,
+      // simpleListElem,
       traceTableContainer,
       statusList,
       handleSpanFilter,
@@ -1886,28 +1884,30 @@ export default defineComponent({
           </div>
         </Dialog> */}
         <Sideslider
-          width='1200'
+          width='80%'
           class='trace-info-sideslider'
           esc-close={false}
           is-show={this.isFullscreen}
           scrollable={false}
+          title={this.$t('详情')}
           multi-instance
           transfer
           onClosed={this.handleDialogClose}
         >
-          <SimpleList
-            ref='simpleListElem'
+          {/* <SimpleList
+            ref='simpleListElem'`
             data={this.simpleTraceList}
             loading={this.tableLoading}
             selectedId={this.curTraceId}
             onChange={this.handleTraceDetail}
             onLoadMore={() => this.$emit('scrollBottom')}
-          />
+          /> */}
           <div class='detail-box'>
             <TraceDetail
               ref='traceDetailElem'
               appName={appName}
               traceID={this.curTraceId}
+              isInTable
               onClose={this.handleColseDetail}
             />
           </div>
