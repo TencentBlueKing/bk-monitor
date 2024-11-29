@@ -96,7 +96,7 @@ interface ITableFilter {
   value: string;
 }
 
-type CustomSortField = '' | 'P95' | 'count' | 'max_duration' | 'min_duration' | 'sum_duration';
+type CustomSortField = '' | 'count' | 'max_duration' | 'min_duration' | 'P95' | 'sum_duration';
 type CustomSortChildField = '' | 'current' | 'difference' | 'refer';
 type SortType = '' | 'asc' | 'desc';
 
@@ -271,7 +271,8 @@ export default defineComponent({
             </div>
 
             {/* TODO: 这里需要带什么参数去跳转页面 */}
-            <Popover
+            {/* TODO: 2024.11.29 去除操作栏里的「观测」按钮（重复） */}
+            {/* <Popover
               content={t('该数据是internal类型，没有对应的观测场景。')}
               disabled={!row.is_interval}
               popoverDelay={[200, 0]}
@@ -296,7 +297,7 @@ export default defineComponent({
                 </span>
                 <i class='icon-monitor icon-fenxiang' />
               </div>
-            </Popover>
+            </Popover> */}
           </div>
         ),
       },
@@ -964,34 +965,6 @@ export default defineComponent({
               </span>
               <i class='icon-monitor icon-fenxiang' />
             </div>
-
-            {/* TODO: 这里需要带什么参数去跳转页面 */}
-            <Popover
-              content={t('该数据是internal类型，没有对应的观测场景。')}
-              disabled={!row.is_interval}
-              popoverDelay={[200, 0]}
-            >
-              <div
-                style={{
-                  marginLeft: '10px',
-                  color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                  cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
-                }}
-                class='link-column'
-                onClick={() => !row.is_interval && handleToObserve(row)}
-              >
-                <span
-                  style={{
-                    color: row.is_interval ? '#dcdee5 !important' : '#3a84ff',
-                    cursor: row.is_interval ? 'not-allowed !important' : 'pointer',
-                  }}
-                  class='link-text'
-                >
-                  {t('观测')}
-                </span>
-                <i class='icon-monitor icon-fenxiang' />
-              </div>
-            </Popover>
           </div>
         ),
         fixed: 'right',
@@ -1370,18 +1343,18 @@ export default defineComponent({
       window.open(url, '_blank');
     }
 
-    function handleToObserve(data: ItableDataItem) {
-      const filters = store.traceViewFilters;
-      if (filters.includes('endpoint') && filters.includes('service')) {
-        handleToEndpoint(data?.['resource.service.name']?.value, data.span_name);
-      } else if (filters.includes('endpoint')) {
-        handleToEndpointPreview();
-      } else if (filters.includes('service')) {
-        handleToService(data?.['resource.service.name']?.value);
-      } else {
-        handleToEndpointPreview();
-      }
-    }
+    // function handleToObserve(data: ItableDataItem) {
+    //   const filters = store.traceViewFilters;
+    //   if (filters.includes('endpoint') && filters.includes('service')) {
+    //     handleToEndpoint(data?.['resource.service.name']?.value, data.span_name);
+    //   } else if (filters.includes('endpoint')) {
+    //     handleToEndpointPreview();
+    //   } else if (filters.includes('service')) {
+    //     handleToService(data?.['resource.service.name']?.value);
+    //   } else {
+    //     handleToEndpointPreview();
+    //   }
+    // }
     /**
      * 这个函数用于将文本截断并添加省略号
      */
