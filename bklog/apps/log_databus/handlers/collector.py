@@ -2862,6 +2862,7 @@ class CollectorHandler(object):
         bk_biz_id = data["bk_biz_id"]
         collector_config_update = {
             "collector_config_name": data["collector_config_name"],
+            "collector_config_name_en": data["collector_config_name_en"],
             "description": data["description"] or data["collector_config_name"],
             "environment": Environment.CONTAINER,
             "collector_scenario_id": data["collector_scenario_id"],
@@ -2882,6 +2883,36 @@ class CollectorHandler(object):
                 raise ContainerCollectConfigValidateYamlException()
             data["configs"] = validate_result["parse_result"]["configs"]
 
+        if self._pre_check_collector_config_en(model_fields=collector_config_update, bk_biz_id=bk_biz_id):
+            logger.error(
+                "collector_config_name_en {collector_config_name_en} already exists".format(
+                    collector_config_name_en=data["collector_config_name_en"]
+                )
+            )
+            raise CollectorConfigNameENDuplicateException(
+                CollectorConfigNameENDuplicateException.MESSAGE.format(
+                    collector_config_name_en=data["collector_config_name_en"]
+                )
+            )
+
+        # 判断是否已存在同bk_data_name, result_table_id
+        bk_data_name = build_bk_data_name(
+            bk_biz_id=bk_biz_id, collector_config_name_en=data["collector_config_name_en"]
+        )
+        result_table_id = build_result_table_id(
+            bk_biz_id=bk_biz_id, collector_config_name_en=data["collector_config_name_en"]
+        )
+        if self._pre_check_bk_data_name(model_fields=collector_config_update, bk_data_name=bk_data_name):
+            logger.error(f"bk_data_name {bk_data_name} already exists")
+            raise CollectorBkDataNameDuplicateException(
+                CollectorBkDataNameDuplicateException.MESSAGE.format(bk_data_name=bk_data_name)
+            )
+        if self._pre_check_result_table_id(model_fields=collector_config_update, result_table_id=result_table_id):
+            logger.error(f"result_table_id {result_table_id} already exists")
+            raise CollectorResultTableIDDuplicateException(
+                CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=result_table_id)
+            )
+
         # 效验共享集群命名空间是否在允许的范围
         for config in data["configs"]:
             if config.get("namespaces"):
@@ -2895,6 +2926,16 @@ class CollectorHandler(object):
         _collector_config_name = self.data.collector_config_name
         for key, value in collector_config_update.items():
             setattr(self.data, key, value)
+
+        collector_scenario = CollectorScenario.get_instance(CollectorScenarioEnum.CUSTOM.value)
+
+        self.data.bk_data_id = collector_scenario.update_or_create_data_id(
+            bk_data_id=self.data.bk_data_id,
+            data_link_id=self.data.data_link_id,
+            data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name"]),
+            description=collector_config_update["description"],
+            encoding=META_DATA_ENCODING,
+        )
 
         try:
             self.data.save()
