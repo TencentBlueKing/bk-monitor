@@ -44,6 +44,8 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
   @Ref() metricSelectorPopover: HTMLElement;
   /* 宽度 */
   @Prop({ type: Number, default: 558 }) width: number;
+  /** 用于匹配 外部点击后不想触发该 popover 隐藏的 dom 元素 的有效的 CSS 选择器字符串 */
+  @Prop({ type: String, default: () => null }) coexistDomSelectors: string;
 
   /** 弹层实例 */
   popoverInstance = null;
@@ -64,7 +66,7 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       placement: 'bottom-start',
       theme: 'light common-monitor',
       arrow: false,
-      // hideOnClick: false,
+      hideOnClick: false,
       interactive: true,
       boundary: 'window',
       // offset: -1,
@@ -75,9 +77,23 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       onHidden: () => {
         this.destroyPopoverInstance();
         this.handleShowChange(false);
+        document.body.removeEventListener('mousedown', this.handleClickHide, true);
       },
     });
     // this.curTarget = target;
+  }
+  handleClickHide(e) {
+    if (this.popoverInstance?.popper?.contains(e.target)) {
+      return;
+    }
+
+    if (typeof this.coexistDomSelectors === 'string' && this.coexistDomSelectors) {
+      const target = document.querySelector(`${this.coexistDomSelectors}`);
+      if (target?.contains(e.target)) {
+        return;
+      }
+    }
+    this.handleDropDownHide();
   }
   /**
    * @description: 显示添加条件弹层
@@ -89,6 +105,7 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
     this.registerDropDown();
     await this.$nextTick();
     this.popoverInstance?.show();
+    document.body.addEventListener('mousedown', this.handleClickHide, true);
   }
 
   // 清除popover实例
