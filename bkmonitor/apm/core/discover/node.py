@@ -191,7 +191,7 @@ class NodeDiscover(DiscoverBase):
             {
                 "name": match_rule.category_id,
                 "extra_data": {''.join(match_rule.predicate_key): extract_field_value(match_rule.predicate_key, span)}
-                if match_rule.predicate_key
+                if extract_field_value(match_rule.predicate_key, span)  # 当predicate_key为('','')时，"extra_data"的值为{}
                 else {},
             }
         )
