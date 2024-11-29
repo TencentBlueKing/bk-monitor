@@ -170,6 +170,7 @@ class K8sPodMeta(K8sResourceMeta):
     resource_field = "pod_name"
     resource_class = BCSPod
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
+    only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
     @property
     def meta_prom(self):
@@ -251,6 +252,7 @@ class K8sContainerMeta(K8sResourceMeta):
     resource_field = "container_name"
     resource_class = BCSContainer
     column_mapping = {"workload_kind": "workload_type", "container_name": "name"}
+    only_fields = ["name", "namespace", "pod_name", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
     def meta_prom(self):
         return (
