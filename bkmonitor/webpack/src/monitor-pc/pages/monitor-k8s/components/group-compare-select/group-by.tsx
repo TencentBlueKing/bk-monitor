@@ -44,6 +44,7 @@ interface IProps {
   onLimitType?: (v: string) => void;
   onMethodChange?: (v: string) => void;
   onLimitChange?: (v: number) => void;
+  onGroupByLimitEnabledChange?: (v: boolean) => void;
 }
 
 @Component
@@ -73,6 +74,8 @@ export default class GroupBy extends tsc<IProps> {
 
   groupBySearch = '';
 
+  everyTopLimitEnable = false;
+
   get groupByListFilter() {
     return this.groupByList.filter(item => {
       if (this.groupBySearch) {
@@ -99,6 +102,7 @@ export default class GroupBy extends tsc<IProps> {
         };
       });
       this.groupBySelectedTags = groupByTags;
+      this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
     }
   }
 
@@ -117,6 +121,7 @@ export default class GroupBy extends tsc<IProps> {
       };
     });
     this.groupBySelectedTags = groupByTags;
+    this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
   }
 
   @Watch('limit', { immediate: true })
@@ -140,6 +145,7 @@ export default class GroupBy extends tsc<IProps> {
 
   @Emit('change')
   emitChange() {
+    this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
     return this.groupBySelectedKey;
   }
 
@@ -153,6 +159,23 @@ export default class GroupBy extends tsc<IProps> {
     this.localMethod = val;
     return val;
   }
+
+  handleGroupByLimitEnabledChange() {
+    let everyTopLimitEnable = false;
+    for (const item of this.groupByList) {
+      if (item.checked) {
+        if (item?.top_limit_enable) {
+          everyTopLimitEnable = true;
+        } else {
+          everyTopLimitEnable = false;
+          break;
+        }
+      }
+    }
+    this.$emit('groupByLimitEnabledChange', everyTopLimitEnable);
+    return everyTopLimitEnable;
+  }
+
   @Debounce(300)
   handleChangeLimit(val) {
     if (val && val >= 1 && val <= 30) {
@@ -323,7 +346,7 @@ export default class GroupBy extends tsc<IProps> {
             <i class='icon-monitor icon-plus-line' />
           </span>
         )}
-        {this.groupBySelectedKey.length > 0 && !this.isShowPicker && (
+        {this.groupBySelectedKey.length > 0 && !this.isShowPicker && this.everyTopLimitEnable && (
           <div class='limit-selector'>
             <span>limit</span>
             <bk-select
@@ -336,9 +359,9 @@ export default class GroupBy extends tsc<IProps> {
             >
               {this.limitTypes.map(option => (
                 <bk-option
-                  id={option.value}
-                  key={option.value}
-                  name={option.text}
+                  id={option.id}
+                  key={option.id}
+                  name={option.name}
                 />
               ))}
             </bk-select>

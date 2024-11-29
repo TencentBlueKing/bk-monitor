@@ -268,6 +268,14 @@ export class BookMarkModel implements IBookMark {
   get isStatusFilter() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
   }
+  /* group by limit_sort_methods */
+  get limitSortMethods() {
+    return this.options?.group_panel?.options?.limit_sort_methods || [];
+  }
+  /* group by metric_cal_types */
+  get metricCalTypes() {
+    return this.options?.group_panel?.options?.metric_cal_types || [];
+  }
   // 是否可配置视图
   get orderEditable() {
     return this.mode === 'auto' && !!this.order?.length;
@@ -358,6 +366,7 @@ export class BookMarkModel implements IBookMark {
   get statusMapping() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.status_mapping || [];
   }
+
   // 是否可配置变量
   get variableEditable() {
     return !!this.options?.variable_editable;
@@ -472,6 +481,11 @@ export interface IViewOptions {
   strategy_id?: number | string;
   app_name?: string;
   service_name?: string;
+  // 是否开启分组限制
+  group_by_limit_enabled?: boolean;
+  limit?: number;
+  limit_sort_method?: string;
+  metric_cal_type?: string;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

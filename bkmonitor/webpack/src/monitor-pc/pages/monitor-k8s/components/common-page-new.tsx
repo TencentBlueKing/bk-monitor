@@ -283,9 +283,17 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // getSceneViewList 是否报错了
   isSceneDataError = false;
 
+  /* 当前是否选择了group by 选项 */
+  isGroupByLimit = false;
+  /* 以下四个皆为group by 相关变量 */
+  /* $metric_cal_type */
   metricCalType = '';
+  /* limit_sort_method */
   limitSortMethod = '';
+  /* $limit */
   limit = 0;
+  /* $group_by_limit_enabled */
+  groupByLimitEnabled = false;
 
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
@@ -511,7 +519,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   /* 将group选择替换为group by与compare混合的选择器   */
   get isGroupCompareType() {
-    return this.sceneData.isGroupCompareType;
+    return !!this.sceneData?.isGroupCompareType;
+  }
+
+  get limitSortMethods() {
+    return this.sceneData?.limitSortMethods || [];
+  }
+  get metricCalTypes() {
+    return this.sceneData?.metricCalTypes || [];
   }
 
   // 派发到子孙组件内的一些视图配置变量
@@ -736,6 +751,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           }
         } else if (customRouterQueryKeys.includes(key)) {
           this.customRouteQuery[key] = val;
+        } else if (key === 'limit') {
+          this[key] = +val;
+        } else if (key === 'groupByLimitEnabled') {
+          this[key] = val === 'true';
         } else {
           this[key] = val;
         }
@@ -747,6 +766,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.interval = this.defaultViewOptions.interval || (this.$route.query.interval as string) || DEFAULT_INTERVAL;
     this.filters = filters;
     this.variables = variables;
+    this.isGroupByLimit = this.$route.query.isGroupByLimit === 'true';
   }
   // 初始化默认分屏宽度
   handleSetDefaultSplitPanelWidth() {
@@ -1210,11 +1230,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* group by / 时间对比 */
   handleGroupCompareTypeChange(type: EGroupCompareType) {
     if (type === EGroupCompareType.compare) {
+      this.isGroupByLimit = false;
+      this.limit = 0;
+      this.metricCalType = '';
+      this.limitSortMethod = '';
+      this.groups = [];
       this.compareType = 'time';
     } else {
+      this.isGroupByLimit = true;
       this.compareType = 'none';
       this.timeOffset = [];
     }
+    this.groupByLimitEnabled = false;
     this.handleUpdateViewOptions();
   }
   handleLimitChange(limit: number) {
@@ -1228,6 +1255,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleLimitSortMethodChange(type: string) {
     this.limitSortMethod = type;
     this.handleUpdateViewOptions();
+  }
+  handleGroupByLimitEnabledChange(val: boolean) {
+    if (this.groupByLimitEnabled !== val) {
+      this.groupByLimitEnabled = val;
+      this.handleUpdateViewOptions();
+    }
   }
   /** 目标对比值更新 */
   handleCompareTargetChange(viewOptions?: IViewOptions) {
@@ -1330,19 +1363,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         metric_cal_type: this.metricCalType,
         limit_sort_method: this.limitSortMethod,
         limit: this.limit,
+        group_by_limit_enabled: this.groupByLimitEnabled,
       };
     }
     this.viewOptions = {
       // filter_dict: filterDict,
       ...filters,
       ...variables,
+      ...groupLimitVariables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
       filters: this.filters,
       variables: this.variables,
-      ...groupLimitVariables,
     };
     this.handleResetRouteQuery();
   }
@@ -1385,6 +1419,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         metricCalType: this.metricCalType,
         limitSortMethod: this.limitSortMethod,
         limit: this.limit,
+        groupByLimitEnabled: this.groupByLimitEnabled ? 'true' : 'false',
       };
     }
     this.$router.replace({
@@ -1419,6 +1454,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
             : undefined /** 时间对比 */,
+        isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',
       },
     });
   }
@@ -1915,18 +1951,19 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                               {this.sceneData.enableGroup ? (
                                 this.isGroupCompareType ? (
                                   <GroupCompareSelect
-                                    active={
-                                      this.compareType === 'time' ? EGroupCompareType.compare : EGroupCompareType.group
-                                    }
+                                    active={this.isGroupByLimit ? EGroupCompareType.group : EGroupCompareType.compare}
                                     groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
                                     limit={this.limit}
                                     limitSortMethod={this.limitSortMethod}
+                                    limitSortMethods={this.limitSortMethods}
                                     metricCalType={this.metricCalType}
+                                    metricCalTypes={this.metricCalTypes}
                                     pageId={this.dashboardId}
                                     panel={this.sceneData.groupPanel}
                                     sceneId={this.sceneId}
                                     sceneType={this.localSceneType}
-                                    timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                                    timeValue={this.timeOffset}
+                                    onGroupByLimitEnabledChange={this.handleGroupByLimitEnabledChange}
                                     onGroupChange={this.handleGroupsChange}
                                     onLimitChange={this.handleLimitChange}
                                     onLimitSortMethodChange={this.handleLimitSortMethodChange}

@@ -38,10 +38,13 @@ export interface IGroupOption {
   id: string;
   name: string;
   checked?: boolean;
+  top_limit_enable?: boolean;
 }
 
 export interface IListItem {
-  value?: string;
+  id?: string;
+  name?: string;
   text?: string;
-  label?: string;
+  value?: string;
+  top_limit_enable?: boolean;
 }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -58,6 +58,7 @@ interface IProps {
   onLimitChange?: (val: number) => void;
   onMetricCalTypeChange?: (val: string) => void;
   onTypeChange?: (val: ETypeSelect) => void;
+  onGroupByLimitEnabledChange?: (val: boolean) => void;
 }
 
 @Component
@@ -126,6 +127,13 @@ export default class GroupCompareSelect extends tsc<IProps> {
     return this.hasGroupOptions ? this.groupOptions : this.localGroupOptions;
   }
 
+  @Watch('active', { immediate: true })
+  handleWatchActive(val: ETypeSelect) {
+    if (this.typeSelected !== val) {
+      this.typeSelected = val;
+    }
+  }
+
   created() {
     if (!this.hasGroupOptions) {
       this.handleGetOptionsData();
@@ -153,7 +161,9 @@ export default class GroupCompareSelect extends tsc<IProps> {
       ...this.viewOptions.filters,
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
+    console.log(structuredClone(this.viewOptions.filters), structuredClone(params));
     this.handleGetApi(api)?.(params).then(data => {
+      console.log(data);
       this.localGroupOptions = data;
     });
   }
@@ -172,6 +182,9 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
   handleTimeValueChange(val) {
     this.$emit('timeCompareChange', val);
+  }
+  handleGroupByLimitEnabledChange(val) {
+    this.$emit('groupByLimitEnabledChange', val);
   }
 
   render() {
@@ -205,6 +218,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
               method={this.limitSortMethod}
               methods={this.limitSortMethods}
               onChange={this.handleGroupsChange}
+              onGroupByLimitEnabledChange={this.handleGroupByLimitEnabledChange}
               onLimitChange={this.handleLimitChange}
               onLimitType={this.handleLimitTypeChange}
               onMethodChange={this.handleMethodChange}

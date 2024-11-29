@@ -431,6 +431,9 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
+          if (!this.viewOptions?.group_by_limit_enabled && newPrarams.group_by_limit) {
+            newPrarams.group_by_limit = undefined;
+          }
           const primaryKey = item?.primary_key;
           const paramsArr = [];
           if (primaryKey) {
