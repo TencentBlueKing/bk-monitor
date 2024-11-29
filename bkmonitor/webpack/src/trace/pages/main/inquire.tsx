@@ -75,7 +75,7 @@ import {
   VIEWOPTIONS_KEY,
   useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
-import { DEFAULT_TRACE_DATA } from '../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
 import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
 import { monitorDrag } from '../../utils/drag-directive';
@@ -110,6 +110,14 @@ interface IState {
   isAlreadyAccurateQuery: boolean;
   isAlreadyScopeQuery: boolean;
   cacheQueryAppName: string;
+}
+
+interface Params {
+  bk_biz_id: number | string;
+  app_name: string;
+  trace_id?: number | string;
+  span_id?: number | string;
+  query_trace_relation_app?: boolean;
 }
 
 /** 头部工具栏高度 */
@@ -264,6 +272,8 @@ export default defineComponent({
       () => !!appList.value.find(item => item.app_name === state.app)?.is_enabled_profiling
     );
 
+    const traceViewFilters = computed(() => store.traceViewFilters);
+
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
       const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
@@ -361,11 +371,14 @@ export default defineComponent({
 
       const isTraceIDSearch = searchIdType.value === 'traceID';
       const requestFn = isTraceIDSearch ? traceDetail : spanDetail;
-      const params = {
+      const params: Params = {
         bk_biz_id: window.bk_biz_id,
         app_name: state.app,
         [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
+      if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
+        params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
+      }
       const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {

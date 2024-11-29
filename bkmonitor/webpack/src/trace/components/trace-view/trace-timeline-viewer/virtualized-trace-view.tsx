@@ -57,6 +57,7 @@ import _isEqual from 'lodash/isEqual';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import SpanDetails from '../../../pages/main/span-details';
+import { QUERY_TRACE_RELATION_APP } from '../../../store/constant';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject } from '../hooks';
@@ -76,8 +77,8 @@ type RowState = {
 const VirtualizedTraceViewProps = {
   registerAccessors: Function as PropType<(accesors: any) => void>,
   setSpanNameColumnWidth: Function as PropType<(width: number) => void>,
-  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: TNil | string) => void>,
-  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: TNil | string, allowHide?: boolean) => void>,
+  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: string | TNil) => void>,
+  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: string | TNil, allowHide?: boolean) => void>,
   shouldScrollToFirstUiFindMatch: {
     type: Boolean,
   },
@@ -181,7 +182,7 @@ export default defineComponent({
     const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
 
     const childrenHiddenStore = useChildrenHiddenInject();
     const isFullscreen = inject('isFullscreen', false);
@@ -237,6 +238,7 @@ export default defineComponent({
           app_name: appName,
           trace_id: traceId,
           bk_biz_id: bkBizId,
+          [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
         };
         const data = await traceDetail(params).catch(() => null);
         if (data) {
