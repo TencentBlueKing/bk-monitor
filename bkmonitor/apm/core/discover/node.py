@@ -205,9 +205,7 @@ class NodeDiscover(DiscoverBase):
             ):
                 resource_target = extract_field_value((OtlpKey.RESOURCE, TopoServiceAttributes.RESOURCE_TARGET), span)
                 if resource_target:
-                    resource_target = extract_field_value(
-                        (OtlpKey.RESOURCE, TopoServiceAttributes.RESOURCE_TARGET), span
-                    ).split('.', 1)[0]
+                    resource_target = resource_target.split('.', 1)[0]
                 find_instances[topo_key]["platform"] = {
                     "name": match_rule.category_id,
                     # 以resource.target为key，以被.分割并取第一部分的resource.target的值作为value
