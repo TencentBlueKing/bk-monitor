@@ -164,6 +164,9 @@ class ApmTopoDiscoverRule(models.Model):
         },
         {
             "category_id": APM_TOPO_FRAMEWORK_GRPC,
+            "endpoint_key": "",
+            "instance_key": "",
+            "topo_kind": "",
             "predicate_key": RPC_PREDICATE_KEY,
             "sort": 1,
             "type": TopoServiceType.FRAMEWORK.value,
