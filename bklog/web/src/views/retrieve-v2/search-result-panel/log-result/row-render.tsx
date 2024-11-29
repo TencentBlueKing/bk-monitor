@@ -39,17 +39,19 @@ export default defineComponent({
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const renderRowVNode = () => {
       return (
-        <div
-          ref={refRowNodeRoot}
-          data-row-index={props.rowIndex}
-        >
-          <div>{slots.default?.()}</div>
+        <div data-row-index={props.rowIndex}>
+          <div
+            ref={refRowNodeRoot}
+            class='bklog-row-observe'
+          >
+            {slots.default?.()}
+          </div>
         </div>
       );
     };
 
     const getTargetElement = () => {
-      return refRowNodeRoot.value?.firstElementChild ?? refRowNodeRoot;
+      return refRowNodeRoot.value;
     };
 
     useResizeObserve(getTargetElement, entry => {

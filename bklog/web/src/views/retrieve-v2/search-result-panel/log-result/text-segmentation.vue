@@ -24,15 +24,15 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
-
+  import { ref, watch, computed } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
-  import useIntersectionObserver from '@/hooks/use-intersection-observer';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import useTruncateText from '@/hooks/use-truncate-text';
   import { debounce } from 'lodash';
+  import useResizeObserve from '@/hooks/use-resize-observe';
+  import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const emit = defineEmits(['menu-click']);
 
@@ -50,8 +50,6 @@
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
-  const isIntersecting = ref(false);
-  const isSegmentTagInit = ref(false);
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -72,13 +70,9 @@
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
-  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
+  const { showMore } = useTruncateText(textTruncateOption);
   const renderText = computed(() => {
-    if (showAll.value || isLimitExpandView.value || true) {
-      return props.content;
-    }
-
-    return truncatedText.value;
+    return props.content;
   });
 
   const btnText = computed(() => {
@@ -89,13 +83,7 @@
     return $t('更多');
   });
 
-  let resizeObserver = null;
-
   const debounceSetSegmentTag = debounce(() => {
-    if (!isIntersecting.value || (isSegmentTagInit.value && instance.config.jsonValue === renderText.value)) {
-      return;
-    }
-
     instance.config.jsonValue = props.content;
     instance.destroy?.();
 
@@ -143,46 +131,24 @@
     }
   });
 
-  const createResizeObserve = () => {
-    const cellElement = getCellElement();
-    if (cellElement) {
-      const elementMaxWidth = cellElement.offsetWidth * 3;
-      maxWidth.value = elementMaxWidth;
+  useResizeObserve(getCellElement, debounceUpdateSegmentTag);
 
-      // 创建一个 ResizeObserver 实例
-      resizeObserver = new ResizeObserver(() => {
-        debounceUpdateSegmentTag();
-      });
-
-      resizeObserver?.observe(getCellElement());
-    }
-  };
-
+  const isIntersecting = ref(false);
+  const isResolved = ref(false);
   useIntersectionObserver(refContent, entry => {
     isIntersecting.value = entry.isIntersecting;
-    if (entry.isIntersecting) {
+
+    if (entry.isIntersecting && !isResolved.value) {
+      isResolved.value = true;
       // 进入可视区域重新计算宽度
       debounceSetSegmentTag();
     } else {
+      isResolved.value = false;
       if (refFieldValue.value) {
         debounceSetSegmentTag.cancel();
         refFieldValue.value.innerText = props.content;
       }
     }
-  });
-
-  onMounted(() => {
-    debounceUpdateSegmentTag();
-    createResizeObserve();
-  });
-
-  onBeforeUnmount(() => {
-    const target = getCellElement();
-    if (target) {
-      resizeObserver?.unobserve(target);
-    }
-    resizeObserver?.disconnect();
-    resizeObserver = null;
   });
 </script>
 <template>

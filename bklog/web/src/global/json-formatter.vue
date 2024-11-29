@@ -26,12 +26,11 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
-  import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -53,7 +52,6 @@
 
   const formatCounter = ref(0);
   const refJsonFormatterCell = ref();
-  const isEditorInit = ref(false);
 
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
@@ -71,13 +69,6 @@
     fields: fieldList.value,
     onSegmentClick,
   });
-
-  // const { isIntersecting } = useIntersectionObserver(refJsonFormatterCell, entry => {
-  //   if (entry.isIntersecting && !isEditorInit.value) {
-  //     isEditorInit.value = true;
-  //     setEditor(depth.value);
-  //   }
-  // });
 
   const convertToObject = val => {
     if (typeof val === 'string' && props.formatJson) {

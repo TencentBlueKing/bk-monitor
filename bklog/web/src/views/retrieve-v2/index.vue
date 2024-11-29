@@ -39,6 +39,11 @@
 
   import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
+  import useScroll from '../../hooks/use-scroll';
+
+  import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
+  import useResizeObserve from '../../hooks/use-resize-observe';
+
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -200,6 +205,36 @@
   const updateActiveFavorite = value => {
     activeFavorite.value = value;
   };
+
+  /** 开始处理滚动容器滚动时，收藏夹高度 */
+
+  // 顶部二级导航高度，这个高度是固定的
+  const subBarHeight = ref(64);
+  const paddingTop = ref(0);
+  // 滚动容器高度
+  const scrollContainerHeight = ref(0);
+
+  useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+    const scrollTop = event.target.scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  });
+
+  useResizeObserve(GLOBAL_SCROLL_SELECTOR, entry => {
+    scrollContainerHeight.value = entry.target.offsetHeight;
+  });
+
+  const favoritesStlye = computed(() => {
+    const height = scrollContainerHeight.value - subBarHeight.value;
+    if (showFavorites.value) {
+      return {
+        height: `${height + paddingTop.value}px`,
+      };
+    }
+
+    return {};
+  });
+
+  /*** 结束计算 ***/
 </script>
 <template>
   <div
@@ -248,6 +283,7 @@
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
+        :style="favoritesStlye"
         @update-active-favorite="updateActiveFavorite"
       ></CollectFavorites>
       <div class="retrieve-v2-content">
