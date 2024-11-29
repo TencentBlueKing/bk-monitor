@@ -8,11 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict
+
 from rest_framework import serializers
 
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
-from monitor_web.k8s.core.meta import load_resource_meta
+from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
 from monitor_web.k8s.scenario import get_metrics
 
 
@@ -60,13 +62,17 @@ class MetricGraphQueryConfig(Resource):
 
 
 class ListK8SResources(Resource):
+    """获取K8s资源列表"""
+
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
         resource_type = serializers.ChoiceField(
             required=True, choices=['pod', 'node', 'workload', 'namespace', 'container'], label='资源类型'
         )
+        # 用于模糊查询
         query_string = serializers.CharField(required=False, default='', allow_blank=True, label='名字过滤')
+        # 用于精确过滤查询
         filter_dict = serializers.DictField(required=False, allow_null=True)
         start_time = serializers.IntegerField(required=True, label='开始时间')
         end_time = serializers.IntegerField(required=True, label='结束时间')
@@ -79,7 +85,9 @@ class ListK8SResources(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
         # 1. 基于resource_type 加载对应资源元信息
-        resource_meta = load_resource_meta(validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id)
+        resource_meta: K8sResourceMeta = load_resource_meta(
+            validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id
+        )
         # 2.0 基于filter_dict 加载 filter
         self.add_filter(resource_meta, validated_request_data["filter_dict"])
         if validated_request_data["query_string"]:
@@ -103,7 +111,7 @@ class ListK8SResources(Resource):
                     resource_list.append(rs_dict)
         return resource_list
 
-    def add_filter(self, meta, filter_dict):
+    def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
         filter_dict = {
             "pod": ["pod1", "pod2"],
