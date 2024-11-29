@@ -154,6 +154,7 @@ export default defineComponent({
   ],
   setup(props, { emit }) {
     /** 取消请求方法 */
+    let listOptionCancelFn = () => {};
     let searchCancelFn = () => {};
     const route = useRoute();
     const store = useTraceStore();
@@ -784,6 +785,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       echartsDisconnect(searchStore.dashboardId);
+      listOptionCancelFn();
     });
 
     watch(
@@ -943,7 +945,11 @@ export default defineComponent({
         end_time: endTime,
         mode: modeMapping[selectedListType.value],
       };
-      listOptionValues(params).then(res => {
+      listOptionValues(params, {
+        cancelToken: new CancelToken((c: any) => {
+          listOptionCancelFn = c;
+        }),
+      }).then(res => {
         Object.keys(res).forEach(key => {
           // 该列表是全量获取的，每次添加时需要重置一下 filter 。
           if (traceListFilter[key]?.length) traceListFilter[key].length = 0;

@@ -41,6 +41,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
+import axios, { type CancelTokenSource } from 'axios';
 import { Button, Cascader, Dialog, Input, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
@@ -174,6 +175,7 @@ export default defineComponent({
     const cacheTimeRange = ref('');
     const enableSelectionRestoreAll = ref(true);
     const showRestore = ref(false);
+    const cancelTokenSource = ref<CancelTokenSource | null>(null);
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
@@ -606,7 +608,7 @@ export default defineComponent({
       if (selectedListType.value === 'trace') {
         store.setTraceLoading(true);
         try {
-          const listData = await listTrace(params).catch(() => []);
+          const listData = await listTrace(params, { cancelToken: cancelTokenSource.value.token }).catch(() => []);
           const { total, data, type = 'pre_calculation' } = listData;
           store.setTraceListMode(type);
           store.setTraceTotalCount(total);
@@ -792,6 +794,8 @@ export default defineComponent({
     /* 切换查询方式 */
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
+      cancelTokenSource?.value?.cancel?.();
+      cancelTokenSource.value = axios.CancelToken.source();
       if (id === 'scope') {
         if (!state.isAlreadyScopeQuery) {
           state.isAlreadyScopeQuery = true;
@@ -1329,9 +1333,11 @@ export default defineComponent({
 
     const standardFieldList = ref([]);
     const getStandardFields = async () => {
-      const result = await listStandardFilterFields().catch(() => {});
+      const result = await listStandardFilterFields({}, { cancelToken: cancelTokenSource.value?.token }).catch(
+        () => {}
+      );
 
-      result.map(item => (item.disabled = false));
+      result?.map(item => (item.disabled = false));
       standardFieldList.value = result;
       setDefaultConditionList();
     };
@@ -1351,7 +1357,7 @@ export default defineComponent({
       selectedConditions.value = defaultShowCondition;
       // 初始化条件要置灰
       selectedConditions.value.forEach(targetID => {
-        standardFieldList.value.forEach(item => {
+        standardFieldList.value?.forEach(item => {
           traverseIds(item, targetID, true);
         });
       });
@@ -1385,7 +1391,7 @@ export default defineComponent({
     const handleConditionBlur = async () => {
       // 置灰
       const targetID = selectedConditions.value[0];
-      standardFieldList.value.forEach(item => {
+      standardFieldList.value?.forEach(item => {
         traverseIds(item, targetID, true);
       });
       // 需要把已选过的置灰，然后放在最底部。
@@ -1403,13 +1409,13 @@ export default defineComponent({
       // 没有选择或配置正确的筛选项就不应该发生请求。
       if (params.fields.length === 0) return;
       isAddConditionButtonLoading.value = true;
-      const result = await getFieldOptionValues(params)
+      const result = await getFieldOptionValues(params, { cancelToken: cancelTokenSource.value?.token })
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      for (const key of Object.keys(result)) {
+      for (const key of Object.keys(result || {})) {
         const singleCondition = {
           selectedCondition: {
             label: '=',
