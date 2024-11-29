@@ -125,7 +125,7 @@ export const lineOrBarOptions = {
   },
   tooltip: {
     show: true,
-    trigger: 'axis',
+    trigger: 'item',
     axisPointer: {
       type: 'line',
       label: {
