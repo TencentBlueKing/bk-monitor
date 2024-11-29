@@ -13,7 +13,11 @@ import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set
 
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import TelemetrySdkLanguageValues
+from rest_framework import exceptions as drf_exc
+from rest_framework import serializers
 
 from apm_web.handlers import metric_group
 from apm_web.handlers.metric_group import CalculationType, MetricHelper, TrpcMetricGroup
@@ -50,6 +54,17 @@ STRATEGY_CONFIGS: Dict[str, Dict[str, Dict[str, Any]]] = {
 }
 
 
+class TrpcStrategyCallerCalleeOptions(serializers.Serializer):
+    extra_group_by = serializers.ListField(
+        label=_("额外的下钻维度"), child=serializers.CharField(label=_("下钻维度")), required=False, default=[]
+    )
+
+
+class TrpcStrategyOptions(serializers.Serializer):
+    callee = TrpcStrategyCallerCalleeOptions(label=_("被调"), required=False, default={})
+    caller = TrpcStrategyCallerCalleeOptions(label=_("主调"), required=False, default={})
+
+
 class TrpcStrategyGroup(base.BaseStrategyGroup):
     class Meta:
         name = define.GroupEnum.TRPC
@@ -61,6 +76,7 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
         notice_group_ids: List[int],
         metric_helper: MetricHelper,
         apply_types: Optional[List[str]] = None,
+        options: Dict[str, Any] = None,
         metric_group_constructor: Optional[Callable[..., metric_group.BaseMetricGroup]] = None,
         **kwargs,
     ):
@@ -72,6 +88,15 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
         self.labels: List[str] = [f"tRPC({self.app_name})"]
         # 需要应用的策略类别
         self.apply_types: List[str] = apply_types or constants.TRPCApplyType.options()
+
+        options_serializer = TrpcStrategyOptions(data=options or {})
+        try:
+            options_serializer.is_valid(raise_exception=True)
+        except drf_exc.ValidationError as err:
+            raise ValueError("[TrpcStrategyGroup] initial group got err -> %s", err)
+        else:
+            self.options = options_serializer.validated_data
+
         # 指标组构造器，后续场景不是一对一关系时，可从上层传入构造器，构造基于 BaseMetricGroup 接口实现的 group 实例
         self.metric_group_constructor: Callable[
             ..., metric_group.BaseMetricGroup
@@ -121,10 +146,29 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
     def _list_caller_callee(self, kind: str, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
         strategies: List[StrategyT] = []
         metric_field: str = TrpcMetricGroup.METRIC_FIELDS[kind]["rpc_handled_total"]
-        server_field: str = (TRPCMetricTag.CALLEE_SERVER, TRPCMetricTag.CALLER_SERVER)[
-            kind == SeriesAliasType.CALLER.value
-        ]
-        servers: List[str] = self.metric_helper.get_field_option_values(metric_field, server_field)
+        server_field = (
+            settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{self.bk_biz_id}-{self.app_name}") or {}
+        ).get(
+            "server_field",
+            (TRPCMetricTag.CALLEE_SERVER, TRPCMetricTag.CALLER_SERVER)[kind == SeriesAliasType.CALLER.value],
+        )
+
+        # 列举出全部有效服务
+        discover_servers: Set[str] = {
+            service["topo_key"] for service in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name)
+        }
+        report_servers: Set[str] = set(self.metric_helper.get_field_option_values(metric_field, server_field))
+        servers: List[str] = list(discover_servers & set(report_servers))
+        if not servers:
+            logger.info(
+                "[_list_caller_callee] no servers found: kind -> %s, discover_servers -> %s, report_servers -> %s",
+                discover_servers,
+                report_servers,
+            )
+            return []
+        logger.info("[_list_caller_callee] found servers -> %s", servers)
+
+        # 错误码重定义配置载入
         code_redefined_configs: List[CodeRedefinedConfigRelation] = CodeRedefinedConfigRelation.objects.filter(
             bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=servers
         )
@@ -133,6 +177,7 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
             for code_redefined_config in code_redefined_configs
             if code_redefined_config.ret_code_as_exception
         ]
+        logger.info("[_list_caller_callee] ret_code_as_exception_servers -> %s", ret_code_as_exception_servers)
 
         def _collect(_server: str):
             _apps: List[str] = self.metric_helper.get_field_option_values(
@@ -153,7 +198,7 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
 
             _group: metric_group.BaseMetricGroup = self.metric_group_constructor(
                 # 增加服务实体作为维度，虽然策略已经按实体维度划分，但补充维度能在事件中心进行更好的下钻。
-                group_by=["time", _entity_field],
+                group_by=["time", _entity_field, *self.options[kind]["extra_group_by"]],
                 filter_dict=_filter_dict,
                 kind=kind,
                 temporality=_temporality,
@@ -173,7 +218,7 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
                 )
                 strategies.append(_strategy)
 
-        run_threads([InheritParentThread(target=_collect, args=(server,)) for server in servers if server != "."])
+        run_threads([InheritParentThread(target=_collect, args=(server,)) for server in servers])
         return strategies
 
     def _list_callee(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
@@ -250,7 +295,7 @@ class TrpcStrategyGroup(base.BaseStrategyGroup):
     def _handle_add(self, strategies: List[StrategyT]):
         for strategy in strategies:
             resource.strategies.save_strategy_v2(**strategy)
-        logger.info("[_handle_add] % created", len(strategies))
+        logger.info("[_handle_add] %s created", len(strategies))
 
     def _handle_delete(self, strategies: List[StrategyT]):
         ids: List[int] = [strategy["id"] for strategy in strategies]
