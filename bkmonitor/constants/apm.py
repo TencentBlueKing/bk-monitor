@@ -75,7 +75,6 @@ class OtlpKey:
     BK_INSTANCE_ID = "bk.instance.id"
     UNKNOWN_SERVICE = "unknown.service"
     UNKNOWN_COMPONENT = "unknown.service-component"
-    K8S = 'k8s'
 
     # apdex_type自身维度
     APDEX_TYPE = "apdex_type"
@@ -684,11 +683,24 @@ class TrpcAttributes:
     TRPC_STATUS_CODE = "trpc.status_code"
 
 
+# 用于存放k8s、node的predicate_key等字段
 class TopoServiceAttributes:
-    TELEMETRY_SDK_NAME = "telemetry.sdk.name"
-    K8S_ATTRIBUTES = ["k8s.bcs.cluster.id", "resource.k8s.pod.name", "resource.k8s.namespace.name"]
+    # 用于获取sdk的predicate_key字段
+    TELEMETRY_SDK_NAME = "telemetry.sdk.name"  #
+    # 用于获取k8s的predicate_key字段
+    K8S_ATTRIBUTES = ["resource.k8s.bcs.cluster.id", "resource.k8s.pod.name", "resource.k8s.namespace.name"]
+    # 用于获取node的predicate_key字段
     SYSTEM_ATTRIBUTES = "net.host.ip"
-    RESOURCE_TARGET = "resource.target"
+    RESOURCE_TARGET = "target"
+    K8S = 'k8s'
+    NODE = 'node'
+
+
+class TopoServiceType(TextChoices):
+    CATEGORY = "category"
+    FRAMEWORK = "framework"
+    PLATFORM = "platform"
+    SDK = "sdk"
 
 
 class TRPCMetricTag:
