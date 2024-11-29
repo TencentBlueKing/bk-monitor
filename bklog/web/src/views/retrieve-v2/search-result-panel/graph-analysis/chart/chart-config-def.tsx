@@ -179,8 +179,8 @@ export const lineOrBarOptions = {
     axisLabel: {
       fontSize: 12,
       color: '#979BA5',
-      showMinLabel: false,
-      showMaxLabel: false,
+      showMinLabel: true,
+      showMaxLabel: true,
       align: 'left',
     },
     splitLine: {
