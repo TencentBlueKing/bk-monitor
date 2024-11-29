@@ -308,19 +308,19 @@ class PlatformConfig(BkCollectorConfig):
         data_ids = {}
         metric_data_source = application.metric_datasource
         if application.is_enabled_metric and metric_data_source:
-            data_ids["metrics_dataid"] = metric_data_source.bk_data_id
+            data_ids["metric_data_id"] = metric_data_source.bk_data_id
 
         log_data_source = application.log_datasource
         if application.is_enabled_log and log_data_source:
-            data_ids["logs_dataid"] = log_data_source.bk_data_id
+            data_ids["log_data_id"] = log_data_source.bk_data_id
 
         trace_data_source = application.trace_datasource
         if application.is_enabled_trace and trace_data_source:
-            data_ids["traces_dataid"] = trace_data_source.bk_data_id
+            data_ids["trace_data_id"] = trace_data_source.bk_data_id
 
         profile_data_source = application.profile_datasource
         if application.is_enabled_profiling and profile_data_source:
-            data_ids["profiles_dataid"] = profile_data_source.bk_data_id
+            data_ids["profile_data_id"] = profile_data_source.bk_data_id
         return data_ids
 
     @classmethod
