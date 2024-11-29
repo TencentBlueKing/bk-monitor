@@ -98,8 +98,28 @@ export default defineComponent({
         }
       },
     );
+    watch(() => formatListData.value?.total_records, (newTotal) => {
+      pagination.value.count = newTotal;
+    });
+    const tableData = computed(() => {
+      const list = formatListData.value?.list ?? [];
+      const start = (pagination.value.current - 1) * pagination.value.limit;
+      const end = start + pagination.value.limit;
+      return list.slice(start, end);
+    });
+    const pagination = ref({ 
+      current: 1,
+      count: formatListData.value?.total_records,
+      limit: 20
+    })
 
-    const tableData = computed(() => formatListData.value?.list ?? []);
+    const handlePageChange = (newPage) => {
+      pagination.value.current = newPage;
+    }
+    const handlePageLimitChange = (limit) => {
+      pagination.value.current = 1;
+      pagination.value.limit = limit;
+    }
     const columns = computed(() => {
       if (props.chartOptions.category === 'table') {
         return (props.chartOptions.data?.select_fields_order ?? []).filter(
@@ -116,7 +136,12 @@ export default defineComponent({
     const rendChildNode = () => {
       if (showTable.value && tableData.value.length) {
         return (
-          <bk-table data={tableData.value}>
+          <bk-table 
+            data={tableData.value}   
+            pagination={pagination.value} 
+            on-page-change={handlePageChange}
+            on-page-limit-change={handlePageLimitChange}
+            >
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
