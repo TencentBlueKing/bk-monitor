@@ -330,4 +330,5 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

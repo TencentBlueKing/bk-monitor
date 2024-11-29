@@ -33,7 +33,8 @@ class Command(BaseCommand):
         parser.add_argument('-b', "--bk_biz_id", type=int, help=_("业务ID"))
         parser.add_argument('-a', "--app_name", type=str, help=_("应用名"))
         parser.add_argument(
-            "-t" "--apply-types",
+            "-t",
+            "--apply-types",
             nargs="+",
             type=str,
             default=TRPCApplyType.options(),
@@ -41,6 +42,8 @@ class Command(BaseCommand):
             help=_("应用告警策略类型列表"),
         )
         parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, help=_("告警组 ID 列表"))
+        parser.add_argument("--caller-extra-group-by", nargs="+", type=str, default=[], help=_("额外下钻维度（主调）"))
+        parser.add_argument("--callee-extra-group-by", nargs="+", type=str, default=[], help=_("额外下钻维度（被调）"))
 
     def handle(self, *args, **options):
         bk_biz_id: int = options["bk_biz_id"]
@@ -68,5 +71,9 @@ class Command(BaseCommand):
             metric_helper=metric_helper,
             notice_group_ids=notice_group_ids,
             apply_types=apply_types,
+            options={
+                TRPCApplyType.CALLEE.value: {"extra_group_by": list(options.get("callee_extra_group_by", []))},
+                TRPCApplyType.CALLER.value: {"extra_group_by": list(options.get("caller_extra_group_by", []))},
+            },
         )
         group.apply()
