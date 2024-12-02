@@ -70,6 +70,17 @@
     min-height: 40px;
     transform: translateZ(0);
 
+    &.is-pending {
+      width: 100%;
+      background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
+        linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
+      background-repeat: no-repeat;
+      background-size:
+        100% 100%,
+        50% 100%;
+      animation: loading-animation 1.5s infinite;
+    }
+
     .bklog-list-row {
       position: relative;
       box-sizing: border-box;
