@@ -29,7 +29,7 @@
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
+  import { isEqual, debounce } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
@@ -181,6 +181,24 @@
         activeTab.value = 'origin';
       }
     },
+  );
+
+  const debounceUpdateTabValue = debounce(() => {
+    router.replace({
+      params: { ...(route.params ?? {}) },
+      query: {
+        ...(route.query ?? {}),
+        tab: activeTab.value,
+      },
+    });
+  }, 60);
+
+  watch(
+    () => activeTab.value,
+    () => {
+      debounceUpdateTabValue();
+    },
+    { immediate: true },
   );
 
   const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');

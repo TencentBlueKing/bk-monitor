@@ -91,6 +91,7 @@ export default defineComponent({
     });
 
     const requestId = 'graphAnalysis_searchSQL';
+
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
 
@@ -168,10 +169,12 @@ export default defineComponent({
       isFullscreen.value = !isFullscreen.value;
       editorInstance.value.focus();
     };
+
     const formatMonacoSqlCode = () => {
       const val = format(editorInstance.value.getValue(), { language: 'mysql' });
       editorInstance.value.setValue([val].join('\n'));
     };
+
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
@@ -213,10 +216,10 @@ export default defineComponent({
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
-            addition={[]}
+            addition={retrieveParams.value.addition ?? []}
             extendParams={chartParams.value}
             search-mode='sqlChart'
-            sql=''
+            sql={retrieveParams.value.keyword}
           ></BookmarkPop>
         </div>
       );

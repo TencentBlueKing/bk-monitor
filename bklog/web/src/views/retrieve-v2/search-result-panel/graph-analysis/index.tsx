@@ -296,11 +296,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return [
       <div class='basic-info-row'>
         <div class='title'> {this.$t('标题')}</div>
-          <bk-input
-            style='margin-top: 8px;'
-            v-model={this.basicInfoTitle.title}
-            placeholder={this.$t('请输入标题')}
-          ></bk-input>
+        <bk-input
+          style='margin-top: 8px;'
+          v-model={this.basicInfoTitle.title}
+          placeholder={this.$t('请输入标题')}
+        ></bk-input>
       </div>,
     ];
   }
@@ -407,7 +407,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   getChartConfigValidate() {
     let showException = false;
-    const message = this.activeGraphCategory === GraphCategory.PIE? this.$t('至少需要一个指标，一个维度') : this.$t('至少需要一个指标，一个维度/时间维度');
+    const message =
+      this.activeGraphCategory === GraphCategory.PIE
+        ? this.$t('至少需要一个指标，一个维度')
+        : this.$t('至少需要一个指标，一个维度/时间维度');
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -454,7 +457,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     type='submit'
                     onClick={this.handleEditorSearchClick}
                   >
-                   {this.$t('查询')}
+                    {this.$t('查询')}
                   </bk-button>
                   <bk-button
                     class='mr10'
@@ -463,7 +466,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                       this.isSqlValueChanged = false;
                     }}
                   >
-                   {this.$t('我知道了')} 
+                    {this.$t('我知道了')}
                   </bk-button>
                 </div>,
               ]
@@ -576,10 +579,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             >
               <div class='canvas-head'>
                 {this.basicInfoTitle.title ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
-                <span class='icons'>
+                <span
+                  class='icons'
+                  v-show={this.activeGraphCategory !== GraphCategory.TABLE}
+                >
                   <span
                     class={{ active: this.chartActiveType !== GraphCategory.TABLE }}
-                    v-show={this.activeGraphCategory !== GraphCategory.TABLE}
                     onClick={() => this.handleCanvasTypeChange(GraphCategory.CHART)}
                   >
                     <i class='bklog-icon bklog-bar'></i>

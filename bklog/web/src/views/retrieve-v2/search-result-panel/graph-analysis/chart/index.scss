@@ -4,6 +4,23 @@
   min-height: 300px;
   padding: 16px 0;
 
+  .bklog-chart-result-table {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .top-pagination {
+      display: flex;
+      justify-content: flex-end;
+
+      > div {
+        &:not(:last-child) {
+          margin-right: 16px;
+        }
+      }
+    }
+  }
+
   .chart-canvas {
     height: 100%;
   }
