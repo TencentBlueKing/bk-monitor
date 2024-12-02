@@ -189,6 +189,7 @@ export default defineComponent({
           <bk-button
             class='sql-editor-view-button'
             v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
+            disabled={!isRequesting.value}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -197,7 +198,7 @@ export default defineComponent({
           </bk-button>
           <bk-popconfirm
             width='288'
-            content={$t('此操作会覆盖当前SQL，请谨慎操作')}
+            content={$t('此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作')}
             trigger='click'
             onConfirm={handleSyncAdditionToSQL}
           >
