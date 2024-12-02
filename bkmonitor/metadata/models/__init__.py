@@ -75,7 +75,14 @@ from .result_table import (
     ResultTableOption,
     ResultTableRecordFormat,
 )
-from .space import Space, SpaceDataSource, SpaceResource, SpaceStickyInfo, SpaceType
+from .space import (
+    BkAppSpaceRecord,
+    Space,
+    SpaceDataSource,
+    SpaceResource,
+    SpaceStickyInfo,
+    SpaceType,
+)
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -152,6 +159,7 @@ __all__ = [
     "SpaceDataSource",
     "SpaceResource",
     "SpaceStickyInfo",
+    "BkAppSpaceRecord",
     # data pipeline
     "DataPipeline",
     "DataPipelineSpace",
