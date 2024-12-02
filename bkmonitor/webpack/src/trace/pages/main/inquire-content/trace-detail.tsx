@@ -845,29 +845,32 @@ export default defineComponent({
             <span class='icon-monitor icon-mc-close icon-page-close' />
           </div>
         )} */}
-        <div class='header'>
-          <span class='trace-id'>{traceId}</span>
-          <Popover
-            content={this.$t('复制 TraceID')}
-            placement='right'
-            theme='light'
-          >
-            <span
-              class='icon-monitor icon-mc-copy'
-              onClick={() => this.handleCopy('text')}
-            />
-          </Popover>
-          <Popover
-            content={this.$t('复制链接')}
-            placement='right'
-            theme='light'
-          >
-            <span
-              class='icon-monitor icon-copy-link'
-              onClick={() => this.handleCopy('link')}
-            />
-          </Popover>
-        </div>
+        {!this.isInTable && (
+          <div class='header'>
+            <span class='trace-id'>{traceId}</span>
+            <Popover
+              content={this.$t('复制 TraceID')}
+              placement='right'
+              theme='light'
+            >
+              <span
+                class='icon-monitor icon-mc-copy'
+                onClick={() => this.handleCopy('text')}
+              />
+            </Popover>
+            <Popover
+              content={this.$t('复制链接')}
+              placement='right'
+              theme='light'
+            >
+              <span
+                class='icon-monitor icon-copy-link'
+                onClick={() => this.handleCopy('link')}
+              />
+            </Popover>
+          </div>
+        )}
+
         <div
           ref='baseMessage'
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}

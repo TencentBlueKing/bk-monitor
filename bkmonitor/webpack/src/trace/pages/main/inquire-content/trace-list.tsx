@@ -1644,6 +1644,32 @@ export default defineComponent({
       </div>
     );
 
+    const sidesliderTitle = () => (
+      <div class='header'>
+        <span class='trace-id'>{`TraceID：${this.curTraceId}`}</span>
+        <Popover
+          content={this.$t('复制 TraceID')}
+          placement='right'
+          theme='light'
+        >
+          <span
+            class='icon-monitor icon-mc-copy'
+            onClick={() => this.traceDetailElem?.handleCopy('text')}
+          />
+        </Popover>
+        <Popover
+          content={this.$t('复制链接')}
+          placement='right'
+          theme='light'
+        >
+          <span
+            class='icon-monitor icon-copy-link'
+            onClick={() => this.traceDetailElem.handleCopy('link')}
+          />
+        </Popover>
+      </div>
+    );
+
     return (
       <div
         ref='traceListWrapper'
@@ -1886,10 +1912,10 @@ export default defineComponent({
         <Sideslider
           width='80%'
           class='trace-info-sideslider'
+          v-slots={{ header: () => sidesliderTitle() }}
           esc-close={false}
           is-show={this.isFullscreen}
           scrollable={false}
-          title={this.$t('详情')}
           multi-instance
           transfer
           onClosed={this.handleDialogClose}
