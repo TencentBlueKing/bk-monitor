@@ -254,6 +254,7 @@ class K8sContainerMeta(K8sResourceMeta):
     column_mapping = {"workload_kind": "workload_type", "container_name": "name"}
     only_fields = ["name", "namespace", "pod_name", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    @property
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
