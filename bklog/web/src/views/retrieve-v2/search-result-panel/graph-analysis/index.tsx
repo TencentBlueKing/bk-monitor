@@ -91,7 +91,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   graphCategoryList = [GraphCategory.TABLE, GraphCategory.LINE, GraphCategory.BAR, GraphCategory.PIE];
 
   basicInfoTitle = {
-    show: false,
     title: '',
   };
 
@@ -296,20 +295,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   renderBasicInfo() {
     return [
       <div class='basic-info-row'>
-        <bk-checkbox
-          v-model={this.basicInfoTitle.show}
-          false-value={false}
-          true-value={true}
-        >
-          {this.$t('标题')}
-        </bk-checkbox>
-        {this.basicInfoTitle.show && (
+        <div class='title'> {this.$t('标题')}</div>
           <bk-input
             style='margin-top: 8px;'
             v-model={this.basicInfoTitle.title}
             placeholder={this.$t('请输入标题')}
           ></bk-input>
-        )}
       </div>,
     ];
   }
@@ -416,7 +407,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   getChartConfigValidate() {
     let showException = false;
-    const message = '请完成指标、维度配置';
+    const message = this.activeGraphCategory === GraphCategory.PIE? this.$t('至少需要一个指标，一个维度') : this.$t('至少需要一个指标，一个维度/时间维度');
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -436,7 +427,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     if (this.isSqlValueChanged) {
-      return { showException: true, message: '图表查询配置已变更', showQuery: true };
+      return { showException: true, message: this.$t('图表查询配置已变更'), showQuery: true };
     }
 
     return this.getChartConfigValidate();
@@ -454,7 +445,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           <div class='bk-exception-title'>{message}</div>
           {showQuery
             ? [
-                <div class='bk-exception-description'>请重新发起查询</div>,
+                <div class='bk-exception-description'>{this.$t('请重新发起查询')}</div>,
                 <div class='bk-exception-footer'>
                   <bk-button
                     class='mr10'
@@ -463,7 +454,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     type='submit'
                     onClick={this.handleEditorSearchClick}
                   >
-                    查询
+                   {this.$t('查询')}
                   </bk-button>
                   <bk-button
                     class='mr10'
@@ -472,7 +463,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                       this.isSqlValueChanged = false;
                     }}
                   >
-                    我知道了
+                   {this.$t('我知道了')} 
                   </bk-button>
                 </div>,
               ]
@@ -584,7 +575,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               class='graph-canvas-options'
             >
               <div class='canvas-head'>
-                {this.basicInfoTitle.show ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
+                {this.basicInfoTitle.title ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
                 <span class='icons'>
                   <span
                     class={{ active: this.chartActiveType !== GraphCategory.TABLE }}

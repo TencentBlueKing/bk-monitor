@@ -985,4 +985,9 @@ export default {
   同名视图替换: 'Replace the same name view',
   '此操作会覆盖当前SQL，请谨慎操作':'This operation will overwrite the current SQL, please operate with caution:',
   SQL查询: 'SQL Query',
+  '至少需要一个指标，一个维度': 'At least one metric, one dimension',
+  '至少需要一个指标，一个维度/时间维度': 'At least one metric, one dimension/time dimension',
+  图表查询配置已变更: 'Chart query configuration has changed',
+  请重新发起查询: 'Please initiate a query again',
+  我知道了: 'I know',
 };

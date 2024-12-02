@@ -225,10 +225,12 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   const getTooltipFormatter = () => {
     return {
       formatter: params => {
+        console.log(params);
+        
         const args = Array.isArray(params) ? params : [params];
-        const label = new Set(args.map(p => p.axisValueLabel));
+        const label = new Set(args.map(p => p.name));
         const content = `<div>${label ? `<span>${[...label].join(',')}</span></br>` : ''}${args
-          .map(({ value, name }) => `<span>${value[2] ?? name}: ${abbreviateNumber(value[1])}</span>`)
+          .map(({ value, seriesName }) => `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`)
           .join('</br>')}</div>`;
         return content;
       },
