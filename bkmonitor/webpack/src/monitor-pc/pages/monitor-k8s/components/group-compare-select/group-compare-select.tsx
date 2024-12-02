@@ -108,6 +108,13 @@ export default class GroupCompareSelect extends tsc<IProps> {
 
   localGroupOptions: IGroupOption[] = [];
 
+  groupByVariables = {
+    metric_cal_type: '',
+    limit_sort_method: '',
+    limit: 1,
+    group_by_limit_enabled: false,
+  };
+
   /** 接口数据 */
   get currentPanel() {
     if (this.panel) return this.panel;
@@ -154,6 +161,12 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
 
   created() {
+    this.groupByVariables = {
+      ...this.groupByVariables,
+      metric_cal_type: this.metricCalType,
+      limit_sort_method: this.limitSortMethod,
+      limit: this.limit,
+    };
     if (!this.hasGroupOptions) {
       this.handleGetOptionsData();
     }
@@ -190,33 +203,30 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
   handleLimitTypeChange(val) {
     this.$emit('metricCalTypeChange', val);
-    this.handleVariablesChange({ metric_cal_type: val });
+    this.groupByVariables.metric_cal_type = val;
+    this.handleVariablesChange();
   }
   handleMethodChange(val) {
     this.$emit('limitSortMethodChange', val);
-    this.handleVariablesChange({ limit_sort_method: val });
+    this.groupByVariables.limit_sort_method = val;
+    this.handleVariablesChange();
   }
   handleLimitChange(val) {
     this.$emit('limitChange', val);
-    this.handleVariablesChange({ limit: val });
+    this.groupByVariables.limit = val;
+    this.handleVariablesChange();
   }
   handleTimeValueChange(val) {
     this.$emit('timeCompareChange', val);
   }
   handleGroupByLimitEnabledChange(val) {
     this.groupByLimitEnabled = val;
-    this.handleVariablesChange({ group_by_limit_enabled: val });
+    this.groupByVariables.group_by_limit_enabled = val;
+    this.handleVariablesChange();
   }
 
-  handleVariablesChange(params = {}) {
-    const groupByVariables = {
-      metric_cal_type: this.metricCalType,
-      limit_sort_method: this.limitSortMethod,
-      limit: this.limit,
-      group_by_limit_enabled: this.groupByLimitEnabled,
-      ...params,
-    };
-    this.$emit('variablesChange', groupByVariables);
+  handleVariablesChange() {
+    this.$emit('variablesChange', this.groupByVariables);
   }
 
   render() {

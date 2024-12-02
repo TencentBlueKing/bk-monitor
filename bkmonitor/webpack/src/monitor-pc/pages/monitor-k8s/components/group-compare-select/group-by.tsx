@@ -103,6 +103,7 @@ export default class GroupBy extends tsc<IProps> {
       });
       this.groupBySelectedTags = groupByTags;
       this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+      this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
     }
   }
 
@@ -122,6 +123,7 @@ export default class GroupBy extends tsc<IProps> {
     });
     this.groupBySelectedTags = groupByTags;
     this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+    this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
   }
 
   @Watch('limit', { immediate: true })
@@ -143,7 +145,6 @@ export default class GroupBy extends tsc<IProps> {
     }
   }
 
-  @Emit('change')
   emitChange() {
     this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
     if (this.everyTopLimitEnable) {
@@ -157,7 +158,8 @@ export default class GroupBy extends tsc<IProps> {
       this.handleChangeLimitType('');
       this.handleChangeMethod('');
     }
-    return this.groupBySelectedKey;
+    this.$emit('change', this.groupBySelectedKey);
+    this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
   }
 
   @Emit('limitType')
@@ -183,7 +185,6 @@ export default class GroupBy extends tsc<IProps> {
         }
       }
     }
-    this.$emit('groupByLimitEnabledChange', everyTopLimitEnable);
     return everyTopLimitEnable;
   }
 
