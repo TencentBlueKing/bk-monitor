@@ -125,7 +125,7 @@ const getApmIndexSetList = async () => {
 const getIndexSetList = () => {
   if(!props.indexSetApi) return
   getApmIndexSetList().then(res => {
-    if(!res.length) return
+    if(!res?.length) return
     // 拉取完毕根据当前路由参数回填默认选中索引集
     store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
       store.dispatch('requestIndexSetFieldInfo').then(() => {
