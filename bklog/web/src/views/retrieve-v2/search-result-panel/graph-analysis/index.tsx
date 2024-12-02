@@ -72,7 +72,7 @@ enum GraphCategory {
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
   minAxiosOptionHeight = 148;
-  axiosOptionHeight = 148;
+  axiosOptionHeight = 400;
   rightOptionWidth = 360;
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.TABLE;
@@ -390,6 +390,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     if (this.isSqlMode) {
+      this.axiosOptionHeight = target;
       this.sqlEditorHeight = target;
       return;
     }
@@ -507,6 +508,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.$set(this, 'chartData', data);
     this.chartCounter++;
     this.isSqlValueChanged = false;
+    // 在这里给一个初始的指标维度
+    const nonStringFields = this.resultSchema.filter(item => item.field_type !== 'string');
+    if (nonStringFields.length) {
+      this.yFields = [nonStringFields[0].field_alias];
+      const xField = this.resultSchema.find(item => item.field_alias !== this.yFields[0]);
+      this.xFields = xField ? [xField.field_alias] : [];
+    }
   }
 
   updateChartData(axis, newValue) {
@@ -619,10 +627,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 class='graph-info-collapse'
                 v-model={this.activeSettings}
               >
-                <bk-collapse-item name='basic_info'>
+                {/* <bk-collapse-item name='basic_info'>
                   <span class='graph-info-collapse-title'>{this.$t('基础信息')}</span>
                   <div slot='content'>{this.renderBasicInfo()}</div>
-                </bk-collapse-item>
+                </bk-collapse-item> */}
                 <bk-collapse-item name='field_setting'>
                   <span class='graph-info-collapse-title'>{this.$t('字段设置')}</span>
                   {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
