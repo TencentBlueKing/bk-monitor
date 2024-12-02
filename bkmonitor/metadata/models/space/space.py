@@ -157,7 +157,7 @@ class SpaceStickyInfo(models.Model):
     username = models.CharField("用户名", max_length=64, db_index=True)
 
 
-class BkAppSpaceRecord(models.Model):
+class BkAppSpaceRecord(BaseModel):
     """
     蓝鲸应用-空间授权记录
     """
