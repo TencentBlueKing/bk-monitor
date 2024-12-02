@@ -19,10 +19,12 @@ from django.db.models import Count
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import AlgorithmModel, StrategyModel
+from bkmonitor.models.strategy import StrategyModel, ItemModel, AlgorithmModel, QueryConfigModel
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.models import CollectorPluginMeta
+from constants.strategy import TargetFieldType
+from bkmonitor.models.strategy import default_target
 
 target_biz_list = list(
     map(
@@ -51,6 +53,8 @@ class Command(BaseCommand):
         parse_uptime_check()
         print(parse_dataflow.__doc__)
         parse_dataflow()
+        print(parse_target_dimension_strategy.__doc__)
+        parse_target_dimension_strategy()
 
 
 def parse_strategy():
@@ -296,3 +300,37 @@ def clean_flow_name(flow_name, strategy_info):
     ret = re.search(r'^(\d+)\s指标推荐', flow_name, re.I | re.S)
     if ret:
         return ret.group(1)
+
+
+def parse_target_dimension_strategy():
+    """
+    获取当前配置了监控目标，但未配置对应目标类型维度的监控策略
+    """
+    # 监控目标类型映射
+    target_type_map = {
+        TargetFieldType.host_target_ip: "host",
+        TargetFieldType.host_ip: "host",
+        TargetFieldType.host_topo: "host",
+        TargetFieldType.service_topo: "topo",
+        TargetFieldType.service_service_template: "service_instance",
+        TargetFieldType.service_set_template: "service_instance",
+        TargetFieldType.host_service_template: "host",
+        TargetFieldType.host_set_template: "host",
+        TargetFieldType.dynamic_group: "host",
+    }
+
+    # step1: 获取没有配置聚合维度的监控项ID
+    query_configs = QueryConfigModel.objects.all().only("config", "item_id")
+    item_ids = [query_config.item_id for query_config in query_configs if not query_config.config["agg_dimension"]]
+
+    # step2: 获取配置了监控目标的监控项
+    items = ItemModel.objects.filter(id__in=item_ids).only("strategy_id", "target")
+    # 策略与监控目标类型映射
+    stra_target_type_map = {item.strategy_id: target_type_map.get(item.target[0][0]["field"]) for item in items
+                            if item.target != default_target()}
+
+    # step3: 获取目标策略
+    strategies = StrategyModel.objects.filter(id__in=stra_target_type_map.keys())
+    print("业务id， 策略id， 策略名称，目标类型， 配置的维度列表")
+    for strategy in strategies:
+        print(strategy.bk_biz_id, strategy.id, strategy.name, stra_target_type_map[strategy.id], [])
