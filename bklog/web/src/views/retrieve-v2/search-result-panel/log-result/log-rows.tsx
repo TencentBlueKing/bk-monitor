@@ -397,21 +397,21 @@ export default defineComponent({
       },
     };
 
-    const resetRowHeight = () => {
-      scrollToTop(visibleIndexs.value.endIndex < 100);
+    // const resetRowHeight = () => {
+    //   scrollToTop(visibleIndexs.value.endIndex < 100);
 
-      visibleIndexs.value.startIndex = 0;
-      visibleIndexs.value.endIndex = bufferCount;
+    //   visibleIndexs.value.startIndex = 0;
+    //   visibleIndexs.value.endIndex = bufferCount;
 
-      const { startIndex, endIndex } = visibleIndexs.value;
-      tableData.value.forEach(row => {
-        const index = row[ROW_INDEX];
+    //   const { startIndex, endIndex } = visibleIndexs.value;
+    //   tableData.value.forEach(row => {
+    //     const index = row[ROW_INDEX];
 
-        if (index < startIndex || index >= endIndex) {
-          row[ROW_CONFIG].value.minHeight = 40;
-        }
-      });
-    };
+    //     if (index < startIndex || index >= endIndex) {
+    //       row[ROW_CONFIG].value.minHeight = 40;
+    //     }
+    //   });
+    // };
 
     watch(
       () => [fieldRequestCounter.value, props.contentType],
@@ -419,7 +419,7 @@ export default defineComponent({
         columns.value = loadTableColumns();
         setTimeout(() => {
           computeRect();
-          resetRowHeight();
+          // resetRowHeight();
         });
       },
     );

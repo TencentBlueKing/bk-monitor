@@ -103,18 +103,14 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     offsetWidth.value = target?.offsetWidth ?? 0;
   };
 
-  useResizeObserve(getCurrentElement, entry => {
-    const target = entry.target as HTMLDivElement;
-    if (target) {
-      scrollWidth.value = target.offsetWidth;
-    }
+  const debounceComputeRect = debounce(computeRect, 120);
+
+  useResizeObserve(getCurrentElement, () => {
+    debounceComputeRect();
   });
 
-  useResizeObserve(getParentContainer, entry => {
-    const target = entry.target as HTMLDivElement;
-    if (target) {
-      offsetWidth.value = target.offsetWidth;
-    }
+  useResizeObserve(getParentContainer, () => {
+    debounceComputeRect();
   });
   onMounted(() => {
     getScrollElement()?.addEventListener('scroll', handleScrollEvent);

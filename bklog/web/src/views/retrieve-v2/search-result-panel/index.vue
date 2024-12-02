@@ -120,7 +120,7 @@
       scrollContainerHeight.value - searchInputHeight.value - subBarHeight.value - tabHeight.value + paddingTop.value;
 
     return {
-      height: isShowFieldStatistics.value ? `${height - 8}px` : 'auto',
+      height: isShowFieldStatistics.value ? `${height}px` : 'auto',
     };
   });
 

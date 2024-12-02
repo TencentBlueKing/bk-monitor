@@ -282,8 +282,6 @@
 
     &.has-overflow-x {
       .bklog-list-row {
-        padding-right: var(--padding-right);
-
         .bklog-row-cell {
           &.right {
             position: sticky;
