@@ -364,7 +364,7 @@ def parse_target_dimension_strategy():
                             if item.target and item.target != [[]]}
 
     # step3: 获取目标策略
-    strategies = StrategyModel.objects.filter(id__in=stra_target_type_map.keys())
+    strategies = StrategyModel.objects.filter(id__in=stra_target_type_map.keys()).only("id", "bk_biz_id", "name")
     print("业务id， 策略id， 策略名称，目标类型， 配置的维度列表")
     for strategy in strategies:
         print(strategy.bk_biz_id, strategy.id, strategy.name, stra_target_type_map[strategy.id], [])
