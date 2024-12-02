@@ -92,6 +92,13 @@ export default defineComponent({
 
     const requestId = 'graphAnalysis_searchSQL';
 
+    watch(
+      () => sqlContent.value,
+      value => {
+        store.commit('updateChartParams', { sql: value });
+      },
+    );
+
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
 
@@ -225,6 +232,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const renderHeadTools = () => {
       return (
         <div class='bk-monaco-tools'>

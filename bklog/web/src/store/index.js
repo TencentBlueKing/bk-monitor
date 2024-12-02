@@ -303,6 +303,15 @@ const store = new Vuex.Store({
       state.favoriteList = [];
       state.favoriteList.push(...(payload ?? []));
     },
+    updateChartParams(state, params) {
+      Object.keys(params).forEach(key => {
+        if (Array.isArray(state.indexItem.chart_params[key])) {
+          state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
+        } else {
+          state.indexItem.chart_params[key] = params[key];
+        }
+      });
+    },
     updateIndexItem(state, payload) {
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {

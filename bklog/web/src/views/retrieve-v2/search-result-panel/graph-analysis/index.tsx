@@ -265,6 +265,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
     this.activeGraphCategory = category;
     this.chartCounter++;
+    this.$store.commit('updateChartParams', {
+      activeGraphCategory: this.activeGraphCategory,
+      chartActiveType: this.chartActiveType,
+    });
   }
 
   handleAdvanceSettingClick() {
@@ -381,6 +385,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleCanvasTypeChange(t?: GraphCategory) {
     this.chartActiveType = t;
     this.chartCounter++;
+    this.$store.commit('updateChartParams', { chartActiveType: t });
   }
 
   handleHorizionMoveEnd({ offsetY }) {
@@ -412,6 +417,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       this.activeGraphCategory === GraphCategory.PIE
         ? this.$t('至少需要一个指标，一个维度')
         : this.$t('至少需要一个指标，一个维度/时间维度');
+
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -520,6 +526,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   updateChartData(axis, newValue) {
     this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
     this.chartCounter++;
+
+    this.$store.commit('updateChartParams', { [axis]: this[axis] });
   }
 
   createResizeObserve() {
@@ -528,7 +536,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       this.resizeObserver = new ResizeObserver(entries => {
-        console.log('entries', entries);
         for (let entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
