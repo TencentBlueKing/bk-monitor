@@ -1,3 +1,4 @@
+import base64
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List
@@ -683,26 +684,6 @@ class TrpcAttributes:
     TRPC_STATUS_CODE = "trpc.status_code"
 
 
-# 用于存放k8s、node的predicate_key等字段
-class TopoServiceAttributes:
-    # 用于获取sdk的predicate_key字段
-    TELEMETRY_SDK_NAME = "telemetry.sdk.name"  #
-    # 用于获取k8s的predicate_key字段
-    K8S_ATTRIBUTES = ["resource.k8s.bcs.cluster.id", "resource.k8s.pod.name", "resource.k8s.namespace.name"]
-    # 用于获取node的predicate_key字段
-    SYSTEM_ATTRIBUTES = "net.host.ip"
-    RESOURCE_TARGET = "target"
-    K8S = 'k8s'
-    NODE = 'node'
-
-
-class TopoServiceType(TextChoices):
-    CATEGORY = "category"
-    FRAMEWORK = "framework"
-    PLATFORM = "platform"
-    SDK = "sdk"
-
-
 class TRPCMetricTag:
     # 通用
     REGION = "region"
@@ -1050,3 +1031,11 @@ class MetricTemporality:
     @classmethod
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
+
+
+class Vendor:
+    G = "Z2FsaWxlbw=="
+
+    @classmethod
+    def equal(cls, e, v):
+        return base64.b64encode(v.encode()).decode() == e

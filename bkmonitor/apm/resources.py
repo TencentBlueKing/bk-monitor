@@ -604,7 +604,19 @@ class QueryTopoNodeResource(Resource):
         if data.get("topo_key"):
             filter_params["topo_key"] = data["topo_key"]
 
-        return TopoNode.objects.filter(**filter_params)
+        res = []
+        nodes = TopoNode.objects.filter(**filter_params)
+        for n in nodes:
+            extra = n.extra_data
+            if (
+                extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
+                and extra.get("category") != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+            ):
+                # 过滤掉非 http 类型的自定义服务(目前还没有支持)
+                continue
+
+            res.append(n)
+        return res
 
 
 class QueryTopoRelationResource(Resource):

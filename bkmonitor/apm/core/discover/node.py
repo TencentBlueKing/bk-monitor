@@ -8,12 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import datetime
 
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm.constants import DiscoverRuleType
 from apm.core.discover.base import (
     DiscoverBase,
     exists_field,
@@ -21,21 +22,22 @@ from apm.core.discover.base import (
     get_topo_instance_key,
 )
 from apm.models import ApmTopoDiscoverRule, TopoNode
+from apm.utils.base import divide_biscuit
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import OtlpKey, TopoServiceAttributes
+from constants.apm import OtlpKey, Vendor
 
 
 class NodeDiscover(DiscoverBase):
     MAX_COUNT = 100000
     model = TopoNode
-    MAX_CONCURRENCY_NUMBER = 5  # 线程池的线程数量
-    BATCH_NUM = 100  # 多线程处理span的数量
+    # 批量处理 span 时 每批次的数量
+    HANDLE_SPANS_BATCH_SIZE = 10000
 
     @property
     def extra_data_factory(self):
         return defaultdict(
             lambda: {
-                "extra_data": {"category": "", "kind": "", "predicate_value": "", "service_language": "", "type": ""},
+                "extra_data": {"category": "", "kind": "", "predicate_value": "", "service_language": ""},
                 "framework": [],
                 "platform": {},
                 "sdk": [],
@@ -43,53 +45,42 @@ class NodeDiscover(DiscoverBase):
         )
 
     def discover(self, origin_data):
-        rules_map = {}
+        rules_map = defaultdict(list)
 
-        rules, other_rule = self.get_rules()
-        for rule in rules:
-            if rule.type not in rules_map:
-                rules_map[rule.type] = []
+        all_rules, other_rule = self.get_rules(_type="all")
+        for rule in all_rules:
             rules_map[rule.type].append(rule)
+        category_rules = (rules_map.pop(DiscoverRuleType.CATEGORY.value), other_rule)
+        rules = [(k, v) for k, v in rules_map.items()]
 
-        sort_order = ["category", "framework", "platform", "sdk"]
-        # 创建有序字典
-        sorted_rules_map = OrderedDict()
-        for key in sort_order:
-            if key in rules_map:
-                sorted_rules_map[key] = rules_map[key]
+        pool = ThreadPool()
+        results = pool.map_ignore_exception(
+            self.batch_execute,
+            [(spans, category_rules, rules) for spans in divide_biscuit(origin_data, self.HANDLE_SPANS_BATCH_SIZE)],
+        )
 
+        # 结合发现的数据和已有数据判断 创建/更新
         exists_instances = self.list_exists()
+        create_instances = {}
+        update_instances = {}
 
-        create_topo_instances = {}
-        update_topo_instances = {}
-        further_instances = {}
+        for instances_mapping in results:
+            if not instances_mapping:
+                continue
 
-        # 设置线程数量
-        pool = ThreadPool(self.MAX_CONCURRENCY_NUMBER)
-        # 将 origin_data 列表分成批次
-        for i in range(0, len(origin_data), self.BATCH_NUM):
-            batch_list = origin_data[i : i + self.BATCH_NUM]
-            # 提交每一批次到线程池
-            pool.apply_async(
-                self.batch_execute,
-                args=(
-                    batch_list,
-                    sorted_rules_map,
-                    other_rule,
-                    further_instances,
-                    exists_instances,
-                    update_topo_instances,
-                    create_topo_instances,
-                ),
-            )
-
-        for k, v in further_instances.items():
-            if k not in update_topo_instances and k not in create_topo_instances and k not in exists_instances.keys():
-                # avoid the problem that the service of the fixed-format component span is not found
-                create_topo_instances.update({k: v})
+            for k, v in instances_mapping.items():
+                if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
+                    if all(True for i in [update_instances, create_instances, exists_instances] if k not in i):
+                        # 如果目前没有发现这个符合 other 规则的服务 才把他添加进列表中 (不然如果更新的话会导致数据被覆盖为空)
+                        create_instances.update({k: v})
+                else:
+                    if k not in exists_instances:
+                        create_instances.update({k: v})
+                    else:
+                        update_instances.update({k: v})
 
         # update
-        for topo_key, topo_value in update_topo_instances.items():
+        for topo_key, topo_value in update_instances.items():
             TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key).update(
                 **topo_value, updated_at=datetime.now()
             )
@@ -97,75 +88,81 @@ class NodeDiscover(DiscoverBase):
         # create
         create_instances = [
             TopoNode(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key, **topo_value)
-            for topo_key, topo_value in create_topo_instances.items()
+            for topo_key, topo_value in create_instances.items()
         ]
         TopoNode.objects.bulk_create(create_instances)
 
         self.clear_if_overflow()
         self.clear_expired()
 
-    def batch_execute(
-        self,
-        batch_list,
-        sorted_rules_map,
-        other_rule,
-        further_instances,
-        exists_instances,
-        update_topo_instances,
-        create_topo_instances,
-    ):
-        for span in batch_list:
-            find_instances = self.extra_data_factory
+    def batch_execute(self, origin_data, category_rules, rules):
+        instance_mapping = self.extra_data_factory
+        for span in origin_data:
             topo_key = None
-            for topo_type, rule_list in sorted_rules_map.items():
-                if topo_type == ApmTopoDiscoverRule.APM_TOPO_TYPE_CATEGORY:
-                    match_rule = self.get_match_rule(span, rule_list, other_rule)
+
+            # 先进行 category 类型的规则发现
+            # 类型为: category | 作用: 推断出 span 的服务、组件、自定义服务
+            match_rule = self.get_match_rule(span, category_rules[0], category_rules[1])
+            if match_rule:
+                topo_key = self.find_category(instance_mapping, match_rule, category_rules[1], span)
+
+            if not topo_key:
+                # 如果 category 类型没有匹配规则 直接获取 other 规则的 topo_key 用于下面补充数据
+                # (因为可能存在不符合规则的但是可以发现 platform 等其他信息)
+                topo_key = get_topo_instance_key(
+                    category_rules[1].instance_keys,
+                    category_rules[1].topo_kind,
+                    category_rules[1].category_id,
+                    span,
+                )
+                instance_mapping[topo_key]["extra_data"]["category"] = category_rules[1].category_id
+                instance_mapping[topo_key]["extra_data"]["kind"] = category_rules[1].topo_kind
+
+            if not topo_key:
+                continue
+
+            # 后续的规则基于上一步发现的 topo_key 来补充数据
+            for item in rules:
+                item_rule_type = item[0]
+                item_rules = item[1]
+
+                if item_rule_type == DiscoverRuleType.FRAMEWORK.value:
+                    match_rule = self.get_match_rule(span, item_rules)
                     if match_rule:
-                        topo_key = self.get_topo_key(match_rule, span)
-                        self.find_category(match_rule, other_rule, span, find_instances, further_instances, topo_key)
+                        self.find_framework(instance_mapping, match_rule, span, topo_key)
 
-                if topo_type == ApmTopoDiscoverRule.APM_TOPO_TYPE_FRAMEWORK:
-                    match_rule = self.get_match_rule(span, rule_list, other_rule)
+                elif item_rule_type == DiscoverRuleType.PLATFORM.value:
+                    match_rule = self.get_match_rule(span, item_rules)
                     if match_rule:
-                        self.find_framework(match_rule, span, find_instances, topo_key)
+                        self.find_platform(instance_mapping, match_rule, span, topo_key)
 
-                if topo_type == ApmTopoDiscoverRule.APM_TOPO_TYPE_PLATFORM:
-                    match_rule = self.get_match_rule(span, rule_list, other_rule)
+                elif item_rule_type == DiscoverRuleType.SDK.value:
+                    match_rule = self.get_match_rule(span, item_rules)
                     if match_rule:
-                        self.find_platform(match_rule, span, find_instances, topo_key)
+                        self.find_sdk(instance_mapping, match_rule, span, topo_key)
 
-                if topo_type == ApmTopoDiscoverRule.APM_TOPO_SDK_SDK:
-                    match_rule = self.get_match_rule(span, rule_list, other_rule)
-                    if match_rule:
-                        self.find_sdk(match_rule, span, find_instances, topo_key)
+        return instance_mapping
 
-            update_keys = find_instances.keys() & exists_instances.keys()
-            create_keys = find_instances.keys() - update_keys
+    def find_category(self, instance_mapping, match_rule, other_rule, span):
+        self.find_remote_service(span, match_rule, instance_mapping)
 
-            update_topo_instances.update({k: find_instances[k] for k in update_keys})
-            create_topo_instances.update({k: find_instances[k] for k in create_keys})
-
-    def get_topo_key(self, match_rule, span):
         topo_key = get_topo_instance_key(
             match_rule.instance_keys,
             match_rule.topo_kind,
             match_rule.category_id,
             span,
-            component_predicate_keys=match_rule.predicate_key,
+            component_predicate_key=match_rule.predicate_key,
         )
         if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
             # 组件类型的节点名称需要添加上服务名称的前缀 (不考虑拼接后与用户定义的服务重名情况需要引导用户进行更改)
             topo_key = f"{self.get_service_name(span)}-{topo_key}"
-        return topo_key
 
-    def find_category(self, match_rule, other_rule, span, find_instances, further_instances, topo_key):
-        self.find_remote_service(span, match_rule, find_instances)
-
-        find_instances[topo_key]["extra_data"]["category"] = match_rule.category_id
-        find_instances[topo_key]["extra_data"]["kind"] = match_rule.topo_kind
-        find_instances[topo_key]["extra_data"]["type"] = match_rule.type
-        find_instances[topo_key]["extra_data"]["predicate_value"] = extract_field_value(match_rule.predicate_key, span)
-        find_instances[topo_key]["extra_data"]["service_language"] = extract_field_value(
+        instance_mapping[topo_key]["extra_data"]["category"] = match_rule.category_id
+        instance_mapping[topo_key]["extra_data"]["kind"] = match_rule.topo_kind
+        instance_mapping[topo_key]["extra_data"]["predicate_value"] = extract_field_value(
+            match_rule.predicate_key, span
+        )
+        instance_mapping[topo_key]["extra_data"]["service_language"] = extract_field_value(
             (OtlpKey.RESOURCE, ResourceAttributes.TELEMETRY_SDK_LANGUAGE), span
         )
         if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
@@ -175,9 +172,7 @@ class NodeDiscover(DiscoverBase):
                 other_rule.category_id,
                 span,
             )
-            if other_rule_topo_key not in further_instances:
-                further_instances[other_rule_topo_key] = {}
-            further_instances[other_rule_topo_key]["extra_data"] = {
+            instance_mapping[other_rule_topo_key]["extra_data"] = {
                 "category": other_rule.category_id,
                 "kind": other_rule.topo_kind,
                 "predicate_value": extract_field_value(other_rule.predicate_key, span),
@@ -185,57 +180,45 @@ class NodeDiscover(DiscoverBase):
                     (OtlpKey.RESOURCE, ResourceAttributes.TELEMETRY_SDK_LANGUAGE), span
                 ),
             }
+        # 返回匹配规则的节点名称(非组件类)
+        if match_rule.topo_kind != ApmTopoDiscoverRule.TOPO_COMPONENT:
+            return topo_key
 
-    def find_framework(self, match_rule, span, find_instances, topo_key):
-        find_instances[topo_key]["framework"].append(
+        return None
+
+    def find_framework(self, instance_mapping, match_rule, span, topo_key):
+        extra_data = {}
+        for i in match_rule.instance_keys:
+            extra_data[self.join_keys(i)] = extract_field_value(i, span)
+        instance_mapping[topo_key]["framework"].append({"name": match_rule.category_id, "extra_data": extra_data})
+
+    def find_platform(self, instance_mapping, match_rule, span, topo_key):
+        extra_data = {}
+        for i in match_rule.instance_keys:
+            extra_data[self.join_keys(i)] = extract_field_value(i, span)
+        instance_mapping[topo_key]["platform"] = {"name": match_rule.category_id, "extra_data": extra_data}
+
+    def find_sdk(self, instance_mapping, match_rule, span, topo_key):
+        # SDK 规则中无分类 id 直接将 predicate_value 作为名称
+        predicate_value = extract_field_value(match_rule.predicate_key, span)
+        extra_data = {self.join_keys(match_rule.predicate_key): predicate_value}
+        if Vendor.equal(Vendor.G, predicate_value):
+            for i in match_rule.instance_keys:
+                extra_data[self.join_keys(i)] = extract_field_value(i, span)
+        instance_mapping[topo_key]["sdk"].append(
             {
-                "name": match_rule.category_id,
-                "extra_data": {''.join(match_rule.predicate_key): extract_field_value(match_rule.predicate_key, span)}
-                if extract_field_value(match_rule.predicate_key, span)  # 当predicate_key为('','')时，"extra_data"的值为{}
-                else {},
+                "name": predicate_value,
+                "extra_data": extra_data,
             }
         )
 
-    def find_platform(self, match_rule, span, find_instances, topo_key):
-        if match_rule.category_id == TopoServiceAttributes.K8S:
-            # 如果span内的resource.telemetry.sdk值为"gelileo"，则将resource.target值通过.分割，取第一部分
-            if (
-                extract_field_value((OtlpKey.RESOURCE, TopoServiceAttributes.TELEMETRY_SDK_NAME), span)
-                == ApmTopoDiscoverRule.APM_TOPO_GELILEO
-            ):
-                resource_target = extract_field_value((OtlpKey.RESOURCE, TopoServiceAttributes.RESOURCE_TARGET), span)
-                if resource_target:
-                    resource_target = resource_target.split('.', 1)[0]
-                find_instances[topo_key]["platform"] = {
-                    "name": match_rule.category_id,
-                    # 以resource.target为key，以被.分割并取第一部分的resource.target的值作为value
-                    "extra_data": {OtlpKey.get_resource_key(TopoServiceAttributes.RESOURCE_TARGET): resource_target}
-                    if resource_target
-                    else {},
-                }
-
-            else:
-                find_instances[topo_key]["platform"] = {"name": TopoServiceAttributes.K8S}
-        elif match_rule.category_id == TopoServiceAttributes.NODE:
-            find_instances[topo_key]["platform"] = {"name": TopoServiceAttributes.NODE}
-
-    def find_sdk(self, match_rule, span, find_instances, topo_key):
-        find_instances[topo_key]["sdk"].append(
-            {"name": extract_field_value(match_rule.predicate_key, span), "extra_data": {}}
-        )
-
     def list_exists(self):
-        res = {}
-        topo_nodes = TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        for node in topo_nodes:
-            if node.topo_key not in res:
-                res[node.topo_key] = {}
-            res[node.topo_key]["extra_data"] = node.extra_data
-            res[node.topo_key]["framework"] = node.framework
-            res[node.topo_key]["platform"] = node.platform
-            res[node.topo_key]["sdk"] = node.sdk
-
-        return res
+        return {
+            i["topo_key"]: i
+            for i in TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).values(
+                "topo_key", "extra_data", "framework", "platform", "sdk"
+            )
+        }
 
     def find_remote_service(self, span, rule, instance_map):
         predicate_key = (OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE)

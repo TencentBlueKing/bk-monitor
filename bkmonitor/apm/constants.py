@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.conf import settings
+from django.db.models import TextChoices
 from django.utils.translation import ugettext as _
 
 from constants.apm import SpanKind
@@ -586,3 +587,17 @@ class ApmBmwTaskStatus:
     RUNNING = "running"
     # 未开启
     UNOPENED = "unopened"
+
+
+class DiscoverRuleType(TextChoices):
+    """拓扑发现规则类型"""
+
+    CATEGORY = "category", _("分类规则")
+    FRAMEWORK = "framework", _("框架规则")
+    PLATFORM = "platform", _("平台规则")
+    SDK = "sdk", _("SDK 规则")
+
+    @classmethod
+    def list_discover_sorts(cls):
+        """获取服务节点发现时的规则顺序"""
+        return [cls.CATEGORY.value, cls.FRAMEWORK.value, cls.PLATFORM.value, cls.SDK.value]
