@@ -280,6 +280,9 @@ const store = new Vuex.Store({
     getApiError: state => apiName => {
       return state.apiErrorInfo[apiName];
     },
+    resultTableStaticWidth: state => {
+      return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
+    },
   },
   // 公共 mutations
   mutations: {
@@ -593,8 +596,9 @@ const store = new Vuex.Store({
       state.visibleFields = val;
       state.indexFieldInfo.request_counter += 1;
     },
-    updateVisibleFieldMinWidth(state, tableList) {
-      setDefaultTableWidth(state.visibleFields, tableList);
+    updateVisibleFieldMinWidth(state, tableList, fieldList) {
+      const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
+      setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -709,10 +713,12 @@ const store = new Vuex.Store({
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
         state.isSetDefaultTableColumn = setDefaultTableWidth(
           state.visibleFields,
           state.indexSetQueryResult.list,
           catchFieldsWidthObj,
+          staticWidth,
         );
 
         state.indexFieldInfo.request_counter += 1;

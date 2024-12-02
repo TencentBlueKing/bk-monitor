@@ -985,7 +985,7 @@ export const calculateTableColsWidth = (field, list) => {
     if (fieldValueLen > 800) return [800, minWidth];
 
     // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
-    if (fieldValueLen < fieldNameLen + 80) return [fieldValueLen + 80, minWidth];
+    if (fieldValueLen < minWidth) return [minWidth, minWidth];
 
     // 默认计算长度 40为padding
     return [fieldValueLen + 40, minWidth];
@@ -1066,12 +1066,12 @@ export const utcFormatDate = val => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach(field => {
         const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
-        let width = fieldWidth;
+        let width = fieldWidth < minWidth ? minWidth : fieldWidth;
         if (catchFieldsWidthObj) {
           const catchWidth = catchFieldsWidthObj[field.field_name];
           width = catchWidth ?? fieldWidth;
@@ -1083,15 +1083,16 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
       // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-      if (tableElem && columnsWidth && columnsWidth < tableElem.clientWidth - 110) {
+      const availableWidth = tableElem.clientWidth - staticWidth;
+      if (tableElem && columnsWidth && columnsWidth < availableWidth) {
         const longFiels = visibleFields.filter(item => item.width > 800);
         if (longFiels.length) {
-          const addWidth = (tableElem.clientWidth - columnsWidth - 110) / longFiels.length;
+          const addWidth = (availableWidth - columnsWidth) / longFiels.length;
           longFiels.forEach(item => {
             item.width = item.width + addWidth;
           });
         } else {
-          const addWidth = (tableElem.clientWidth - columnsWidth - 110) / visibleFields.length;
+          const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
           visibleFields.forEach(field => {
             field.width = field.width + addWidth;
           });

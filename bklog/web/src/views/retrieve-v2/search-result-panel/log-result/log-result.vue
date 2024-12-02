@@ -65,18 +65,8 @@
 </template>
 
 <script>
-  import { h } from 'vue';
-
-  import {
-    parseTableRowData,
-    formatDateNanos,
-    formatDate,
-    copyMessage,
-    TABLE_LOG_FIELDS_SORT_REGULAR,
-    setDefaultTableWidth,
-  } from '@/common/util';
+  import { parseTableRowData } from '@/common/util';
   import RetrieveLoader from '@/skeleton/retrieve-loader';
-  import { mapState, mapGetters } from 'vuex';
 
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
