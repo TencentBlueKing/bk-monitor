@@ -755,6 +755,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             this.groupByVariables = JSON.parse(decodeURIComponent(val as string));
           } catch (err) {
             console.log(err);
+            this.groupByVariables = {
+              metric_cal_type: '',
+              limit_sort_method: '',
+              limit: 1,
+              group_by_limit_enabled: false,
+            };
           }
         } else {
           this[key] = val;
