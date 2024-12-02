@@ -54,7 +54,7 @@ export default class GroupBy extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) methods: IListItem[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: String, default: '' }) method: string;
-  @Prop({ type: Number, default: 0 }) limit: number;
+  @Prop({ type: Number, default: 1 }) limit: number;
   @Prop({ type: String, default: '' }) limitType: string;
 
   @Ref('dimension-select') dimensionSelectRef: any;
@@ -68,7 +68,7 @@ export default class GroupBy extends tsc<IProps> {
   groupByList: IGroupOption[] = [];
   /* 是否显示选择器 */
   isShowPicker = false;
-  localLimit = 0;
+  localLimit = 1;
   localMethod = '';
   localLimitType = '';
 
@@ -146,6 +146,17 @@ export default class GroupBy extends tsc<IProps> {
   @Emit('change')
   emitChange() {
     this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+    if (this.everyTopLimitEnable) {
+      if (this.limitTypes.length && !this.localLimitType) {
+        this.handleChangeLimitType(this.limitTypes[0].id);
+      }
+      if (this.methods.length && !this.localMethod) {
+        this.handleChangeMethod(this.methods[0].value);
+      }
+    } else {
+      this.handleChangeLimitType('');
+      this.handleChangeMethod('');
+    }
     return this.groupBySelectedKey;
   }
 

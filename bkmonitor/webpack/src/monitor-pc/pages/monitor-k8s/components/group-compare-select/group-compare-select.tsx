@@ -84,7 +84,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
   // 当前激活的tab
   @Prop({ type: String, default: '' }) active: ETypeSelect;
   @Prop({ type: String, default: '' }) limitSortMethod: string;
-  @Prop({ type: Number, default: 0 }) limit: number;
+  @Prop({ type: Number, default: 1 }) limit: number;
   @Prop({ type: String, default: '' }) metricCalType: string;
   @Prop({ type: Array, default: () => [] }) metricCalTypes: IListItem[];
   /* group by 是否默认开启limit */
@@ -178,10 +178,11 @@ export default class GroupCompareSelect extends tsc<IProps> {
       ...this.viewOptions.filters,
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
-    console.log(structuredClone(this.viewOptions.filters), structuredClone(params));
     this.handleGetApi(api)?.(params).then(data => {
-      console.log(data);
-      this.localGroupOptions = data;
+      this.localGroupOptions = data.map(item => ({
+        ...item,
+        top_limit_enable: true,
+      }));
     });
   }
 

@@ -291,7 +291,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* limit_sort_method */
   limitSortMethod = '';
   /* $limit */
-  limit = 0;
+  limit = 1;
   /* $group_by_limit_enabled */
   groupByLimitEnabled = false;
 

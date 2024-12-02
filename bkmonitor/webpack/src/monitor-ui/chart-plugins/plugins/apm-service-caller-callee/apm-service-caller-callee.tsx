@@ -31,11 +31,10 @@ import dayjs from 'dayjs';
 import GroupCompareSelect from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/group-compare-select';
 import { ETypeSelect as EGroupCompareType } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
-// import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
-import TabBtnGroup from './components/common-comp/tab-btn-group';
+import TabBtnGroup from './components/tab-btn-group';
 import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
 import { CALLER_CALLEE_TYPE, getRecordCallOptionKind, setRecordCallOptionKind } from './utils';
 

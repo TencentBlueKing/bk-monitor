@@ -37,8 +37,8 @@ import { replaceRegexWhere } from '../../../utils/method';
 import { VariablesService } from '../../../utils/variable';
 import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type {
