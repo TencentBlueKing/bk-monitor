@@ -62,10 +62,6 @@ class ApmTopoDiscoverRule(models.Model):
     APM_TOPO_PLATFORM_NODE = "node"
     # rule = sdk 枚举值 ↓
     APM_TOPO_SDK_SDK = "sdk"
-    # APM_TOPO_TYPE_FRAMEWORK = "framework"
-    # APM_TOPO_TYPE_CATEGORY = "category"
-    # APM_TOPO_TYPE_PLATFORM = "platform"
-    # APM_TOPO_GELILEO = "gelileo"
 
     APM_TOPO_CATEGORY_CHOICES = (
         (APM_TOPO_CATEGORY_HTTP, "http"),
