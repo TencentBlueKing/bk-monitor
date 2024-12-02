@@ -167,9 +167,9 @@ class BkAppSpaceRecord(models.Model):
     space_uid = models.CharField(verbose_name="空间UID", max_length=255, null=False)
     is_enable = models.BooleanField(verbose_name="是否启用", default=True)
     creator = models.CharField(verbose_name="创建人", max_length=255, null=True, blank=True)
-    create_time = models.DateTimeField(verbose_name="创建时间", null=True, blank=True)
+    create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
     updater = models.CharField(verbose_name="更新人", max_length=255, null=True, blank=True)
-    update_time = models.DateTimeField(verbose_name="更新时间", null=True, blank=True)
+    update_time = models.DateTimeField(verbose_name="更新时间", auto_now_add=True)
 
     class Meta:
         verbose_name = "蓝鲸应用空间授权记录"
