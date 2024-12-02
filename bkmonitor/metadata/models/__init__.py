@@ -68,6 +68,7 @@ from .ping_server import PingServerSubscriptionConfig
 from .record_rule import RecordRule, ResultTableFlow
 from .result_table import (
     CMDBLevelRecord,
+    ESFieldQueryAliasOption,
     ResultTable,
     ResultTableField,
     ResultTableFieldOption,
@@ -105,6 +106,7 @@ __all__ = [
     "CMDBLevelRecord",
     "ResultTableOption",
     "ResultTableFieldOption",
+    "ESFieldQueryAliasOption",
     # storage
     "ClusterInfo",
     "KafkaTopicInfo",

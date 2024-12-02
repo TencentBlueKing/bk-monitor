@@ -135,8 +135,8 @@ class QueryDataLinkInfoResource(Resource):
             "数据源来源": ds.created_from,
             "消息队列集群ID": ds.mq_cluster_id,
             'Consul路径': ds.consul_config_path,
-            "Transfer集群ID": ds.transfer_cluster_id if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else None,
-            "链路版本": "V4链路" if ds.created_from == 'bkdata' else 'V3链路',
+            "Transfer集群ID": ds.transfer_cluster_id,
+            "链路版本": "V4链路" if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else 'V3链路',
         }
 
     def _get_etl_details(self, ds):
