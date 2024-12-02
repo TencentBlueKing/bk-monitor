@@ -92,8 +92,6 @@ export default class GroupCompareSelect extends tsc<IProps> {
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
-  groupByLimitEnabled = false;
-
   typeSelects = {
     [ETypeSelect.compare]: {
       name: window.i18n.tc('对比'),
@@ -220,7 +218,6 @@ export default class GroupCompareSelect extends tsc<IProps> {
     this.$emit('timeCompareChange', val);
   }
   handleGroupByLimitEnabledChange(val) {
-    this.groupByLimitEnabled = val;
     this.groupByVariables.group_by_limit_enabled = val;
     this.handleVariablesChange();
   }
