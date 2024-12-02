@@ -35,6 +35,7 @@ import {
 
 import type { IMenuItem } from '.';
 import type { SceneType } from '../components/common-page-new';
+import type { IGroupByVariables } from '../components/group-compare-select/utils';
 import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
@@ -260,9 +261,21 @@ export class BookMarkModel implements IBookMark {
   get hasRequiredVariable() {
     return !!this.variables?.some(item => !!item.options?.variables?.required);
   }
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return this.options?.group_panel?.type === 'compare_or_group';
+  }
   // 是否显示状态统计组件
   get isStatusFilter() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
+  }
+  /* group by limit_sort_methods */
+  get limitSortMethods() {
+    return this.options?.group_panel?.options?.limit_sort_methods || [];
+  }
+  /* group by metric_cal_types */
+  get metricCalTypes() {
+    return this.options?.group_panel?.options?.metric_cal_types || [];
   }
   // 是否可配置视图
   get orderEditable() {
@@ -354,14 +367,17 @@ export class BookMarkModel implements IBookMark {
   get statusMapping() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.status_mapping || [];
   }
+
   // 是否可配置变量
   get variableEditable() {
     return !!this.options?.variable_editable;
   }
+
   // 是否可配置页签
   get viewEditable() {
     return !!this.options?.view_editable;
   }
+
   getAllVariables() {
     let str = JSON.stringify(this.bookmark);
     const variableList = new Set<string>();
@@ -466,6 +482,7 @@ export interface IViewOptions {
   strategy_id?: number | string;
   app_name?: string;
   service_name?: string;
+  groupByVariables?: IGroupByVariables;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

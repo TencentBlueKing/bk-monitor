@@ -36,7 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
@@ -218,7 +218,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   @Watch('tableListData', { immediate: true })
-  handleListData(val: IListItem[]) {
+  handleListData(_val: IListItem[]) {
     this.filterOpt = {};
     // console.log(val, 'tableListData');
   }
@@ -575,7 +575,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }));
   }
   @Watch('filterOpt', { deep: true })
-  handleFilterOpt(val) {
+  handleFilterOpt(_val) {
     // console.log(val, 'val');
   }
   fieldFilterMethod(value, row, column) {
