@@ -1066,7 +1066,7 @@ export const utcFormatDate = val => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach(field => {
@@ -1083,15 +1083,16 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
       // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-      if (tableElem && columnsWidth && columnsWidth < tableElem.clientWidth) {
+      const availableWidth = tableElem.clientWidth - staticWidth;
+      if (tableElem && columnsWidth && columnsWidth < availableWidth) {
         const longFiels = visibleFields.filter(item => item.width > 800);
         if (longFiels.length) {
-          const addWidth = (tableElem.clientWidth - columnsWidth) / longFiels.length;
+          const addWidth = (availableWidth - columnsWidth) / longFiels.length;
           longFiels.forEach(item => {
             item.width = item.width + addWidth;
           });
         } else {
-          const addWidth = (tableElem.clientWidth - columnsWidth) / visibleFields.length;
+          const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
           visibleFields.forEach(field => {
             field.width = field.width + addWidth;
           });
