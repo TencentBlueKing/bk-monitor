@@ -509,7 +509,9 @@ class DataSource(metaclass=ABCMeta):
 
         q = DataQueryHandler(cls.data_source_label, cls.data_type_label)
         if where:
-            q = q.where(dict_to_q(where))
+            where_node = dict_to_q(where)
+            if where_node:
+                q = q.where(where_node)
 
         if time_filter:
             q = q.where(**time_filter)
