@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Optional
+
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
@@ -17,6 +19,12 @@ from monitor_web.k8s.core.filters import load_resource_filter
 
 
 class FilterCollection(object):
+    """
+    过滤查询集合
+
+    内部过滤条件是一个字典， 可以通过 add、remove来添加过滤条件
+    """
+
     def __init__(self, meta):
         self.filters = dict()
         self.meta = meta
@@ -65,6 +73,10 @@ class FilterCollection(object):
 
 
 class K8sResourceMeta(object):
+    """
+    k8s资源基类
+    """
+
     filter = None
     resource_field = ""
     resource_class = None
@@ -72,11 +84,19 @@ class K8sResourceMeta(object):
     only_fields = []
 
     def __init__(self, bk_biz_id, bcs_cluster_id):
+        """
+        初始化时还会实例化一个 FilterCollection()
+        附带有 集群id和业务id信息
+        """
         self.bk_biz_id = bk_biz_id
         self.bcs_cluster_id = bcs_cluster_id
         self.setup_filter()
 
     def setup_filter(self):
+        """
+        启动过滤查询条件
+        默认添加 集群id 和业务id 两个过滤信息
+        """
         if self.filter is not None:
             return
         self.filter = FilterCollection(self)
@@ -85,9 +105,19 @@ class K8sResourceMeta(object):
         self.filter.add(load_resource_filter("bk_biz_id", self.bk_biz_id))
 
     def get_from_meta(self):
+        """
+        数据获取来源
+
+        从 meta 获取数据
+        """
         return self.filter.filter_queryset
 
     def get_from_promql(self, start_time, end_time):
+        """
+        数据获取来源
+
+        从 promql 获取数据
+        """
         query_params = {
             "bk_biz_id": self.bk_biz_id,
             "query_configs": [
@@ -140,6 +170,7 @@ class K8sPodMeta(K8sResourceMeta):
     resource_field = "pod_name"
     resource_class = BCSPod
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
+    only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
     @property
     def meta_prom(self):
@@ -221,7 +252,9 @@ class K8sContainerMeta(K8sResourceMeta):
     resource_field = "container_name"
     resource_class = BCSContainer
     column_mapping = {"workload_kind": "workload_type", "container_name": "name"}
+    only_fields = ["name", "namespace", "pod_name", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    @property
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
@@ -229,7 +262,7 @@ class K8sContainerMeta(K8sResourceMeta):
         )
 
 
-def load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id):
+def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: int) -> Optional[K8sResourceMeta]:
     resource_meta_map = {
         'node': K8sNodeMeta,
         'container': K8sContainerMeta,
