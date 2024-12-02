@@ -322,7 +322,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     const hasGroup = this.groupFilters.includes(column.id);
     return (
       <i
-        class={['icon-monitor', 'icon-xiazuan', { 'is-active': this.groupFilters.includes(column.id) }]}
+        class={['icon-monitor', 'icon-xiazuan', { 'is-active': hasGroup }]}
         v-bk-tooltips={{
           content: this.$t(`${hasGroup ? '移除' : ''}下钻`),
           interactive: false,

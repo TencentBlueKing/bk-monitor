@@ -37,7 +37,10 @@
 
         .title-btn {
           margin-right: 8px;
-          color: #4d4f56;
+
+          &.is-default {
+            color: #4d4f56;
+          }
 
           .icon-monitor {
             margin-right: 6px;
