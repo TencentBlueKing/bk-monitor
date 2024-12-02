@@ -98,7 +98,8 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
 
   const computeRect = () => {
     const target = getParentContainer();
-    scrollWidth.value = target?.scrollWidth ?? 0;
+    const current = getCurrentElement();
+    scrollWidth.value = current?.offsetWidth ?? 0;
     offsetWidth.value = target?.offsetWidth ?? 0;
   };
 
@@ -115,7 +116,6 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
       offsetWidth.value = target.offsetWidth;
     }
   });
-
   onMounted(() => {
     getScrollElement()?.addEventListener('scroll', handleScrollEvent);
     calculateOffsetTop();

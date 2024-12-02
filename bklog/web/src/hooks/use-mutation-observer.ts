@@ -1,7 +1,7 @@
 import { onMounted, Ref, onUnmounted } from 'vue';
 import { debounce } from 'lodash';
 
-export default (target: Ref<HTMLElement>, callbackFn) => {
+export default (target: Ref<HTMLElement>, callbackFn, options?) => {
   const debounceCallback = debounce(() => {
     callbackFn?.();
   }, 120);
@@ -16,7 +16,7 @@ export default (target: Ref<HTMLElement>, callbackFn) => {
         debounceCallback();
       });
 
-      resizeObserver?.observe(cellElement, { subtree: true, childList: true, attributes: false });
+      resizeObserver?.observe(cellElement, { subtree: true, childList: true, attributes: false, ...(options ?? {}) });
     }
   };
 

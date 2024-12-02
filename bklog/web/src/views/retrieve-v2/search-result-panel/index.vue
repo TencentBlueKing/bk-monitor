@@ -8,6 +8,9 @@
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
   import LogResult from './log-result/index';
+  import useResizeObserve from '../../../hooks/use-resize-observe';
+  import { SECTION_SEARCH_INPUT, GLOBAL_SCROLL_SELECTOR } from './log-result/log-row-attributes';
+  import useScroll from '../../../hooks/use-scroll';
 
   const DEFAULT_FIELDS_WIDTH = 220;
 
@@ -59,9 +62,69 @@
   const rightContentStyle = computed(() => {
     return {
       width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
-      // paddingLeft: `${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px`,
     };
   });
+
+  /**** 根据滚动条滚动位置动态计算左侧字段列表高度 *****/
+  // 搜索框高度，搜索框高度会改变
+  const searchInputHeight = ref(0);
+  // 滚动容器高度
+  const scrollContainerHeight = ref(0);
+  // 自定操作时顶部填充高度，根据滚动位置动态计算
+  const paddingTop = ref(0);
+  // 顶部二级导航高度，这个高度是固定的
+  const subBarHeight = ref(64);
+  // 原始日志，日志聚类这一层级的Tab高度，高度固定
+  const tabHeight = ref(50);
+
+  useResizeObserve(SECTION_SEARCH_INPUT, entry => {
+    searchInputHeight.value = entry.target.offsetHeight;
+  });
+
+  useResizeObserve(GLOBAL_SCROLL_SELECTOR, entry => {
+    scrollContainerHeight.value = entry.target.offsetHeight;
+  });
+
+  const getPaddingTop = scrollTop => {
+    // 如果滚动位置小于二级导航高度，直接返回滚动位置
+    if (scrollTop <= subBarHeight.value) {
+      return scrollTop;
+    }
+
+    // 如果滚动位置大于二级导航高度，小于搜索框高度，直接返回二级导航高度
+    // 搜索框吸顶，不占高度
+    if (scrollTop > subBarHeight.value && scrollTop <= subBarHeight.value + searchInputHeight.value) {
+      return subBarHeight.value;
+    }
+
+    // 如果滚动位置大于搜索框 + 二级导航高度，直接计算当前滚动位置 - 搜索框高度
+    // 搜索框吸顶，不占高度，这里只需要计算二级导航高度 + Tab框高度
+    const top = scrollTop - searchInputHeight.value;
+
+    // 如果滚动位置大于搜索框 + 二级导航高度 + Tab框高度，直接返回Tab框高度 + 二级导航高度
+    if (top > tabHeight.value + subBarHeight.value) {
+      return tabHeight.value + subBarHeight.value;
+    }
+
+    return top;
+  };
+
+  useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+    const scrollTop = event.target.scrollTop;
+    paddingTop.value = getPaddingTop(scrollTop);
+  });
+
+  const fieldListStyle = computed(() => {
+    // 高度计算：滚动容器高度 - 搜索框高度 - 二级导航高度 - Tab框高度 + 有效滚动填充
+    const height =
+      scrollContainerHeight.value - searchInputHeight.value - subBarHeight.value - tabHeight.value + paddingTop.value;
+
+    return {
+      height: isShowFieldStatistics.value ? `${height - 8}px` : 'auto',
+    };
+  });
+
+  /***** 计算结束 ******/
 </script>
 
 <template>
@@ -69,7 +132,10 @@
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
-      <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
+      <div
+        :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]"
+        :style="fieldListStyle"
+      >
         <FieldFilter
           v-model="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"

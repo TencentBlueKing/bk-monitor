@@ -426,6 +426,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
         apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
 
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+
     @classmethod
     def get_metrics(cls, params: Dict):
         resource_id = params["id"]

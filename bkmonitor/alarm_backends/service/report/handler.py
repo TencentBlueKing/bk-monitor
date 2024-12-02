@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from typing import Tuple
+from typing import Dict, Tuple
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -26,10 +26,9 @@ from alarm_backends.core.cache.mail_report import MailReportCacheManager
 from alarm_backends.service.report.tasks import render_mails
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
-from bkmonitor.utils.common_utils import replce_special_val
 from bkmonitor.utils.grafana import fetch_panel_title_ids
 from bkmonitor.utils.send import Sender
-from constants.report import LOGO, BuildInBizType, StaffChoice, return_replace_val_dict
+from constants.report import GRAPH_ID_REGEX, LOGO, BuildInBizType, StaffChoice
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 
@@ -58,13 +57,19 @@ def get_or_create_eventloop():
 def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
     """
     分割图表ID
+    分为三段，由减号分隔
+    第一段是逗号分隔的业务ID，或是内置业务类型。业务ID是数字可以是负数，内置业务类型是非数字字符串
+    第二段是仪表盘UID，可能包含减号
+    第三段是图表ID，图表ID应该是数字，有一种特殊情况是*，表示整个仪表盘
     """
-    bk_biz_id, *dashboard_uid, panel_id = graph_id.split("-")
-    if not dashboard_uid:
-        raise CustomException("dashboard_uid is empty")
+    if not graph_id:
+        return "", "", ""
 
-    dashboard_uid = "-".join(dashboard_uid)
-    return bk_biz_id, dashboard_uid, panel_id
+    result = GRAPH_ID_REGEX.match(graph_id)
+    if not result:
+        return "", "", ""
+
+    return result.group(1, 4, 5)
 
 
 def chunk_list(list_need_to_chunk: list, per_list_max_length: int):
@@ -529,17 +534,6 @@ class ReportHandler:
             total_graphs, need_title=bool(channel_name == ReportItems.Channel.WXBOT)
         )
 
-        # 获取所有图表映射
-        panel_biz_uid = {f"{panel['bk_biz_id']}-{panel['uid']}" for panel in total_graphs}
-
-        # 获取所有图表标题
-        panel_titles = {}
-        for item in panel_biz_uid:
-            item_ = replce_special_val(item, return_replace_val_dict(settings.MAIL_REPORT_BIZ))
-            panel_biz_id, panel_uid = item_.split("-", 1)
-            for panel in fetch_panel_title_ids(int(panel_biz_id), panel_uid):
-                panel_titles[f"{panel_uid}-{panel['id']}"] = panel["title"]
-
         # 渲染邮件模板
         render_args = {}
         render_args["is_link_enabled"] = is_link_enabled
@@ -566,6 +560,10 @@ class ReportHandler:
                 "content": LOGO,
             }
         ]
+
+        # 记录图表标题的中间变量
+        panel_names: Dict[Tuple[int, str], Dict[str, str]] = {}
+
         for content in contents:
             graphs = []
             for graph in content["graphs"]:
@@ -592,7 +590,25 @@ class ReportHandler:
                         }
                     )
                 image_url = images_files.get(graph, {}).get("url", "")
-                pannel_title = panel_titles.get(f"{graph_uid}-{graph_panel_id}")
+
+                # 获取实际业务ID
+                if len(var_bk_biz_ids) > 1:
+                    # 说明是内置图表，只取订阅报表默认业务
+                    bk_biz_id = int(settings.MAIL_REPORT_BIZ)
+                else:
+                    try:
+                        bk_biz_id = int(graph_biz_id)
+                    except ValueError:
+                        # 业务id不是数字，说明是内置业务，只取订阅报表默认业务
+                        bk_biz_id = int(settings.MAIL_REPORT_BIZ)
+
+                # 获取图表标题
+                if (bk_biz_id, graph_uid) not in panel_names:
+                    panel_names[(bk_biz_id, graph_uid)] = {}
+                    for panel in fetch_panel_title_ids(bk_biz_id, graph_uid):
+                        panel_names[(bk_biz_id, graph_uid)][str(panel["id"])] = panel["title"]
+                panel_name = panel_names[(bk_biz_id, graph_uid)].get(graph_panel_id, "")
+
                 graph_url = ""
                 if is_link_enabled and settings.REPORT_DASHBOARD_UID not in image_url:
                     graph_url = image_url.replace(f"http://{bind}", settings.BK_MONITOR_HOST.rstrip("/"))
@@ -601,7 +617,7 @@ class ReportHandler:
                         "graph_tag": graph,
                         "url": graph_url,
                         "cid_tag": f"{graph}.png",
-                        "title": pannel_title,
+                        "title": panel_name,
                         "source": source,
                         "content": images_files.get(graph, {}).get("base64"),
                     }

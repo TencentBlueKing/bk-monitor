@@ -103,7 +103,7 @@
             >
               <template #default="props">
                 <div
-                  v-if="!props.row.is_edit && isPreviewMode"
+                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog'"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >

@@ -1,0 +1,183 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, defineComponent, ref, watch } from 'vue';
+
+import { formatDateTimeField } from '@/common/util';
+import { debounce } from 'lodash';
+
+import ChartRoot from './chart-root';
+import useChartRender from './use-chart-render';
+
+import './index.scss';
+
+export default defineComponent({
+  props: {
+    chartOptions: {
+      type: Object,
+      default: () => ({}),
+    },
+    // 用于触发更新，避免直接监听chartData性能问题
+    chartCounter: {
+      type: Number,
+      default: 0,
+    },
+  },
+  setup(props, { slots }) {
+    const refRootElement = ref();
+    const refRootContent = ref();
+    const { setChartOptions, destroyInstance, chartInstance } = useChartRender({
+      target: refRootElement,
+      type: props.chartOptions.type,
+    });
+
+    const showTable = computed(() => props.chartOptions.type === 'table');
+
+    const formatListData = computed(() => {
+      const {
+        list = [],
+        result_schema = [],
+        select_fields_order = [],
+        total_records = 0,
+      } = props.chartOptions.data ?? {};
+      const timeFields = result_schema.filter(item => /^date/.test(item.field_type));
+      return {
+        list: list.map(item => {
+          return Object.assign(
+            {},
+            item,
+            timeFields.reduce((acc, cur) => {
+              return Object.assign(acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
+            }, {}),
+          );
+        }),
+        result_schema,
+        select_fields_order,
+        total_records,
+      };
+    });
+
+    let updateTimer = null;
+    const debounceUpdateChartOptions = (xFields, yFields, dimensions, type) => {
+      updateTimer && clearTimeout(updateTimer);
+      updateTimer = setTimeout(() => {
+        setChartOptions(xFields, yFields, dimensions, formatListData.value, type);
+      });
+    };
+
+    watch(
+      () => props.chartCounter,
+      () => {
+        const { xFields, yFields, dimensions, type } = props.chartOptions;
+        if (!showTable.value) {
+          debounceUpdateChartOptions(xFields, yFields, dimensions, type);
+        } else {
+          destroyInstance();
+        }
+      },
+    );
+    watch(() => formatListData.value?.total_records, (newTotal) => {
+      pagination.value.count = newTotal;
+    });
+    const tableData = computed(() => {
+      const list = formatListData.value?.list ?? [];
+      const start = (pagination.value.current - 1) * pagination.value.limit;
+      const end = start + pagination.value.limit;
+      return list.slice(start, end);
+    });
+    const pagination = ref({ 
+      current: 1,
+      count: formatListData.value?.total_records,
+      limit: 20
+    })
+
+    const handlePageChange = (newPage) => {
+      pagination.value.current = newPage;
+    }
+    const handlePageLimitChange = (limit) => {
+      pagination.value.current = 1;
+      pagination.value.limit = limit;
+    }
+    const columns = computed(() => {
+      if (props.chartOptions.category === 'table') {
+        return (props.chartOptions.data?.select_fields_order ?? []).filter(
+          col => !(props.chartOptions.hiddenFields ?? []).includes(col),
+        );
+      }
+
+      return props.chartOptions.data?.select_fields_order ?? [];
+    });
+    const handleChartRootResize = debounce(() => {
+      chartInstance?.resize();
+    });
+
+    const rendChildNode = () => {
+      if (showTable.value && tableData.value.length) {
+        return (
+          <bk-table 
+            data={tableData.value}   
+            pagination={pagination.value} 
+            on-page-change={handlePageChange}
+            on-page-limit-change={handlePageLimitChange}
+            >
+            {columns.value.map(col => (
+              <bk-table-column
+                key={col}
+                label={col}
+                prop={col}
+              ></bk-table-column>
+            ))}
+          </bk-table>
+        );
+      }
+
+      return (
+        <ChartRoot
+          ref={refRootElement}
+          class='chart-canvas'
+          onResize={handleChartRootResize}
+        ></ChartRoot>
+      );
+    };
+
+    const renderContext = () => {
+      return (
+        <div
+          ref={refRootContent}
+          class='bklog-chart-container'
+        >
+          {rendChildNode()}
+          {slots.default?.()}
+        </div>
+      );
+    };
+    return {
+      renderContext,
+    };
+  },
+  render() {
+    return this.renderContext();
+  },
+});

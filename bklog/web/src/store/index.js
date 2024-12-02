@@ -340,6 +340,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
+      state.indexItem.chart_params = {};
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -958,10 +959,14 @@ const store = new Vuex.Store({
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
+          chart_params: {},
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-
+        if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
+          payload.keyword = payload.items[0].query_string;
+          payload.search_mode = 'sql';
+        }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
@@ -1081,14 +1086,6 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = otherPrams.addition.map(a => {
-      //   if (['is true', 'is false'].includes(a.operator)) {
-      //     a.value = [''];
-      //   }
-
-      //   return a;
-      // });
-
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
@@ -1147,6 +1144,7 @@ const store = new Vuex.Store({
               rsolvedData.origin_log_list = payload.isPagination
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
                 : originLogList;
+
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
               state.tookTime = payload.isPagination
                 ? state.tookTime + Number(data?.took || 0)
@@ -1155,9 +1153,12 @@ const store = new Vuex.Store({
               commit('updateSqlQueryFieldList', logList);
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
-              commit('updateIsSetDefaultTableColumn');
 
-              if (!payload?.isPagination) dispatch('requestSearchTotal');
+              if (!payload?.isPagination) {
+                commit('updateIsSetDefaultTableColumn');
+                dispatch('requestSearchTotal');
+              }
+
               return {
                 data,
                 message,

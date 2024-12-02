@@ -114,9 +114,9 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const tableRowStore = new Map<string, RowConfig>();
-    const getOperatorToolsWidth = () => {
+    const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
-    };
+    });
 
     const renderColumns = computed(() => {
       return [
@@ -165,7 +165,7 @@ export default defineComponent({
           field: ROW_F_ORIGIN_OPT,
           key: ROW_F_ORIGIN_OPT,
           title: $t('操作'),
-          width: getOperatorToolsWidth(),
+          width: operatorToolsWidth.value,
           fixed: 'right',
           resize: false,
           renderBodyCell: ({ row }) => {
@@ -264,7 +264,7 @@ export default defineComponent({
               key: field.field_name,
               title: field.field_name,
               width: field.width,
-              minWidth: field.width,
+              minWidth: field.min_width,
               align: 'top',
               resize: true,
               renderBodyCell: ({ row }) => {
@@ -359,7 +359,17 @@ export default defineComponent({
       );
     };
 
+    const clearRowConfigCache = (length: number) => {
+      tableRowStore.keys().forEach(key => {
+        const index = Number(key.split('_')[1]);
+        if (index >= length) {
+          tableRowStore.delete(key);
+        }
+      });
+    };
+
     const loadTableData = () => {
+      clearRowConfigCache(tableData.value.length);
       return (indexSetQueryResult.value.list || []).map((row, index) => {
         const rowKey = `${ROW_KEY}_${index}`;
 
@@ -432,7 +442,7 @@ export default defineComponent({
       const width = w > 4 ? w : 40;
       const { fieldsWidth } = userSettingConfig.value;
       const newFieldsWidthObj = Object.assign(fieldsWidth, {
-        [col.field_name]: Math.ceil(width),
+        [col.field]: Math.ceil(width),
       });
 
       col.width = width;
@@ -489,9 +499,19 @@ export default defineComponent({
         }
       }
 
+      const containerHeihgt = (event.target as HTMLElement).clientHeight;
+      let endIndex = startIndex + bufferCount;
+      const visibleHeight = tableData.value.slice(startIndex, endIndex).reduce((acc, row) => {
+        return acc + row[ROW_CONFIG].value.minHeight;
+      }, 0);
+
+      if (visibleHeight < containerHeihgt) {
+        endIndex = endIndex + bufferCount / 2;
+      }
+
       scrollRowOffsetHeight.value = useScrollHeight - startPosition;
       visibleIndexs.value.startIndex = startIndex;
-      visibleIndexs.value.endIndex = startIndex + bufferCount;
+      visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
     };
 
@@ -519,7 +539,7 @@ export default defineComponent({
 
     const scrollXOffsetLeft = ref(0);
     const operatorFixRightWidth = computed(() => {
-      const operatorWidth = getOperatorToolsWidth();
+      const operatorWidth = operatorToolsWidth.value;
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
       return diff > operatorWidth ? 0 : operatorWidth - diff;
     });
@@ -527,7 +547,7 @@ export default defineComponent({
     const scrollXTransformStyle = computed(() => {
       return {
         '--scroll-left': `-${scrollXOffsetLeft.value}px`,
-        '--padding-right': `${getOperatorToolsWidth()}px`,
+        '--padding-right': `${operatorToolsWidth.value}px`,
         '--fix-right-width': `${operatorFixRightWidth.value}px`,
       };
     });
@@ -622,6 +642,12 @@ export default defineComponent({
       }, 0);
     });
 
+    const preEmptyStyle = computed(() => {
+      return {
+        minHeight: `${preHiddenHeight.value}px`,
+      };
+    });
+
     const renderRows = computed(() => tableData.value.slice(visibleIndexs.value.startIndex));
 
     const renderRowVNode = () => {
@@ -629,16 +655,14 @@ export default defineComponent({
       const { startIndex, endIndex } = visibleIndexs.value;
       return [{}, ...renderRows.value].map((row, index) => {
         if (index === 0) {
-          const emptyRowStyle = {
-            minHeight: `${preHiddenHeight.value}px`,
-          };
           return (
             <div
-              style={emptyRowStyle}
+              style={preEmptyStyle.value}
               class={['preloading-placeholder', { 'has-animation': preHiddenHeight.value > 300 }]}
             ></div>
           );
         }
+
         const rowIndex = row[ROW_INDEX];
         const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
         rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
@@ -688,7 +712,7 @@ export default defineComponent({
     const renderScrollXBar = () => {
       return (
         <ScrollXBar
-          innerWidth={scrollWidth.value + getOperatorToolsWidth()}
+          innerWidth={scrollWidth.value}
           outerWidth={offsetWidth.value}
           onScroll-change={handleScrollXChanged}
         ></ScrollXBar>
