@@ -59,6 +59,8 @@ if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
+  window.bk_biz_id = window.cc_biz_id;
+  window.cc_biz_id = window.bk_biz_id;
   store.commit('app/SET_APP_STATE', {
     userName: window.user_name,
     bizId: window.cc_biz_id,
