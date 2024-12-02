@@ -190,8 +190,8 @@ export default class GroupBy extends tsc<IProps> {
   @Debounce(300)
   handleChangeLimit(val) {
     if (val && val >= 1 && val <= 30) {
-      this.localLimit = val;
-      this.$emit('limitChange', val);
+      this.localLimit = +val;
+      this.$emit('limitChange', +val);
     }
   }
 

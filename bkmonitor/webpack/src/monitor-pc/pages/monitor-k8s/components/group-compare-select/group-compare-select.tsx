@@ -179,10 +179,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
     this.handleGetApi(api)?.(params).then(data => {
-      this.localGroupOptions = data.map(item => ({
-        ...item,
-        top_limit_enable: true,
-      }));
+      this.localGroupOptions = data;
     });
   }
 
