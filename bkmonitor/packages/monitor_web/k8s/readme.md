@@ -83,17 +83,17 @@ rest/v2/k8s/resources/list_k8s_resources/
 
 ### 请求参数
 
-| 字段              | 类型      | 必选   | 描述                                                              |     |
-| --------------- | ------- | ---- | --------------------------------------------------------------- | --- |
-| bk_biz_id       | id      | 是    | 业务 id                                                           |     |
-| bcs_cluster_id  | string  | 是    | 集群 id                                                           |     |
-| resource_type   | string  | 是    | 资源类型，可选值为 ”pod", "node“, "workload", "namespace", "container"   |     |
-| query_string    | string  | 否    | 名字过滤                                                            |     |
-| filter_dict     | dict    | 否    | 精确过滤                                                            |     |
-| start_time      | int     | 是    | 开始时间                                                            |     |
-| end_time        | int     | 是    | 结束时间                                                            |     |
-| sernario        | str     | 是    | 场景，可选值为 ”performance“                                           |     |
-| with_history    | bool    | 否    | 历史出现过的资源                                                        |     |
+| 字段              | 类型      | 必选   | 描述                                                              |
+| --------------- | ------- | ---- | --------------------------------------------------------------- |
+| bk_biz_id       | id      | 是    | 业务 id                                                           |
+| bcs_cluster_id  | string  | 是    | 集群 id                                                           |
+| resource_type   | string  | 是    | 资源类型，可选值为 ”pod", "node“, "workload", "namespace", "container"   |
+| query_string    | string  | 否    | 名字过滤                                                            |
+| filter_dict     | dict    | 否    | 精确过滤                                                            |
+| start_time      | int     | 是    | 开始时间                                                            |
+| end_time        | int     | 是    | 结束时间                                                            |
+| sernario        | str     | 是    | 场景，可选值为 ”performance“                                           |
+| with_history    | bool    | 否    | 历史出现过的资源                                                        |
 
 ### 返回示例
 
