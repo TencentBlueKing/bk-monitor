@@ -1438,7 +1438,7 @@ class ResultTable(models.Model):
         query_alias_settings = None
         if self.default_storage == ClusterInfo.TYPE_ES:
             query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
-        return {
+        data = {
             "table_id": self.table_id,
             "table_name_zh": _(self.table_name_zh),
             "is_custom_table": self.is_custom_table,
@@ -1458,8 +1458,11 @@ class ResultTable(models.Model):
             "bk_data_id": self.data_source.bk_data_id,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
-            "query_alias_settings": query_alias_settings,
         }
+
+        if query_alias_settings:
+            data["query_alias_settings"] = query_alias_settings
+        return data
 
     def to_json_self_only(self):
         """
@@ -2712,20 +2715,6 @@ class ESFieldQueryAliasOption(BaseModel):
     field_path = models.CharField("原始字段路径", max_length=256)
     query_alias = models.CharField("查询别名", max_length=256)
     is_deleted = models.BooleanField("是否已删除", default=False)
-
-    @classmethod
-    def get_field_es_query_alias(cls, table_id, field_path):
-        """
-        寻找ES字段关联别名，若有对应Option记录，回写至IndexBody.Properties中
-        :param table_id: 结果表ID
-        :param field_path: 原始字段路径
-        :return: dict {alias_name:{"type":alias,"path":origin_field_name}}
-        """
-        field_alias = cls.objects.filter(table_id=table_id, field_path=field_path)
-        query_alias_config = {}
-        for alias in field_alias:
-            query_alias_config[alias.query_alias] = {"type": "alias", "path": alias.field_path}
-        return query_alias_config
 
     @classmethod
     def generate_query_alias_settings(cls, table_id):
