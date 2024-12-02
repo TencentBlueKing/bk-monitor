@@ -397,29 +397,12 @@ export default defineComponent({
       },
     };
 
-    // const resetRowHeight = () => {
-    //   scrollToTop(visibleIndexs.value.endIndex < 100);
-
-    //   visibleIndexs.value.startIndex = 0;
-    //   visibleIndexs.value.endIndex = bufferCount;
-
-    //   const { startIndex, endIndex } = visibleIndexs.value;
-    //   tableData.value.forEach(row => {
-    //     const index = row[ROW_INDEX];
-
-    //     if (index < startIndex || index >= endIndex) {
-    //       row[ROW_CONFIG].value.minHeight = 40;
-    //     }
-    //   });
-    // };
-
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
         columns.value = loadTableColumns();
         setTimeout(() => {
           computeRect();
-          // resetRowHeight();
         });
       },
     );
@@ -695,6 +678,7 @@ export default defineComponent({
             style={rowStyle}
             class={[
               'bklog-row-container',
+              'is-pending',
               {
                 'has-overflow-x': hasScrollX.value,
               },
