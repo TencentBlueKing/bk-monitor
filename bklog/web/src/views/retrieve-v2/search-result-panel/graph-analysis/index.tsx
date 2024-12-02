@@ -175,8 +175,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   get canvasStyle() {
+    if (this.chartActiveType === GraphCategory.TABLE) {
+      return {
+        minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
+      };
+    }
+
     return {
       height: `calc(100% - ${this.bottomHeight + 16}px)`,
+      minHight: '400px',
     };
   }
 

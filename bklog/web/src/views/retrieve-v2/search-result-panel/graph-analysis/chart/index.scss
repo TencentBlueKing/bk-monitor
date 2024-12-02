@@ -4,10 +4,19 @@
   min-height: 300px;
   padding: 16px 0;
 
+  &.is-table {
+    padding-top: 0;
+  }
+
   .bklog-chart-result-table {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
-    margin-bottom: 8px;
+    width: 100%;
+    padding: 8px 0;
+    background-color: #fff;
 
     .top-pagination {
       display: flex;

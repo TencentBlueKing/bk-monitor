@@ -146,7 +146,10 @@ export default defineComponent({
     };
 
     const rendChildNode = () => {
-      if (showTable.value && tableData.value.length) {
+      if (showTable.value) {
+        if (!tableData.value.length) {
+          return '';
+        }
         return [
           <div class='bklog-chart-result-table'>
             <bk-input
@@ -201,7 +204,7 @@ export default defineComponent({
       return (
         <div
           ref={refRootContent}
-          class='bklog-chart-container'
+          class={['bklog-chart-container', { 'is-table': showTable.value }]}
         >
           {rendChildNode()}
           {slots.default?.()}
