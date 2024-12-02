@@ -52,7 +52,11 @@
   };
 
   const xAxisFilterList = computed(() => {
-    return filterFields(item => true, [...selectedYAxis.value, timeAxis.value]);
+    const fields = [...selectedYAxis.value];
+    if (props.activeGraphCategory !== "pie") {
+      fields.push(timeAxis.value);
+    }
+    return filterFields(item => true, fields);
   });
 
   const yAxisFilterList = computed(() => {
@@ -77,6 +81,14 @@
       selectedYAxis.value = newValue;
     },
   );
+  watch(
+    () => props.activeGraphCategory,
+    newValue => {
+     if(newValue !== 'pie'){
+      selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
+     }
+    },
+  );
   function change(axis, newValue) {
     emit('update', axis, newValue);
   }
@@ -94,7 +106,7 @@
       >
         <bk-option
           v-for="option in yAxisFilterList"
-          :key="option.field_index"
+          :key="option.field_alias + option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
         >
@@ -112,7 +124,7 @@
       >
         <bk-option
           v-for="option in xAxisFilterList"
-          :key="option.field_index"
+          :key="option.field_alias + option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
         >
@@ -128,7 +140,7 @@
       >
         <bk-option
           v-for="option in timeFilterList"
-          :key="option.field_index"
+          :key="option.field_alias + option.field_index"
           :id="option.field_alias"
           :name="option.field_alias"
         >
