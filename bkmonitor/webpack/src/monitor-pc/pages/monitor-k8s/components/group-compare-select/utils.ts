@@ -25,6 +25,13 @@ import dayjs from 'dayjs';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export interface IGroupByVariables {
+  metric_cal_type: string;
+  limit_sort_method: string;
+  limit: number;
+  group_by_limit_enabled: boolean;
+}
+
 export enum ETypeSelect {
   compare = 'compare',
   group = 'group',

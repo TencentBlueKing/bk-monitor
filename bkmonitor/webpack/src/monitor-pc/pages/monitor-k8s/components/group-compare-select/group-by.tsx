@@ -245,7 +245,12 @@ export default class GroupBy extends tsc<IProps> {
   }
   /** 删除标签 */
   closeGroupBy(val) {
-    this.chooseSelect(val);
+    for (const item of this.groupByList) {
+      if (item.id === val.id) {
+        item.checked = false;
+      }
+    }
+    this.handleChange();
     this.emitChange();
   }
 

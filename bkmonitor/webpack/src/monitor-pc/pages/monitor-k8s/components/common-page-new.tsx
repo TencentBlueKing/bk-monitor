@@ -86,7 +86,7 @@ import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
 import GroupCompareSelect from './group-compare-select/group-compare-select';
-import { ETypeSelect as EGroupCompareType } from './group-compare-select/utils';
+import { ETypeSelect as EGroupCompareType, type IGroupByVariables } from './group-compare-select/utils';
 import GroupSelect from './group-select/group-select';
 import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
@@ -283,17 +283,16 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // getSceneViewList 是否报错了
   isSceneDataError = false;
 
+  /* groupBy/对比变量 */
   /* 当前是否选择了group by 选项 */
   isGroupByLimit = false;
   /* 以下四个皆为group by 相关变量 */
-  /* $metric_cal_type */
-  metricCalType = '';
-  /* limit_sort_method */
-  limitSortMethod = '';
-  /* $limit */
-  limit = 1;
-  /* $group_by_limit_enabled */
-  groupByLimitEnabled = false;
+  groupByVariables: IGroupByVariables = {
+    metric_cal_type: '',
+    limit_sort_method: '',
+    limit: 1,
+    group_by_limit_enabled: false,
+  };
 
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
@@ -751,10 +750,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           }
         } else if (customRouterQueryKeys.includes(key)) {
           this.customRouteQuery[key] = val;
-        } else if (key === 'limit') {
-          this[key] = +val;
-        } else if (key === 'groupByLimitEnabled') {
-          this[key] = val === 'true';
+        } else if (key === 'groupByVariables') {
+          try {
+            this.groupByVariables = JSON.parse(decodeURIComponent(val as string));
+          } catch (err) {
+            console.log(err);
+          }
         } else {
           this[key] = val;
         }
@@ -1229,39 +1230,29 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   /* group by / 时间对比 */
   handleGroupCompareTypeChange(type: EGroupCompareType) {
-    if (type === EGroupCompareType.compare) {
-      this.isGroupByLimit = false;
-      this.limit = 0;
-      this.metricCalType = '';
-      this.limitSortMethod = '';
-      this.groups = [];
-      this.compareType = 'time';
-    } else {
-      this.isGroupByLimit = true;
+    this.isGroupByLimit = type !== EGroupCompareType.compare;
+    if (this.isGroupByLimit) {
       this.compareType = 'none';
       this.timeOffset = [];
+    } else {
+      this.groups = [];
+      this.compareType = 'time';
     }
-    this.groupByLimitEnabled = false;
+    this.groupByVariables = {
+      metric_cal_type: '',
+      limit_sort_method: '',
+      limit: 1,
+      group_by_limit_enabled: false,
+    };
     this.handleUpdateViewOptions();
   }
-  handleLimitChange(limit: number) {
-    this.limit = limit;
+
+  /* group by 变量 */
+  handleGroupByVariablesChange(params: IGroupByVariables) {
+    this.groupByVariables = params;
     this.handleUpdateViewOptions();
   }
-  handleMetricCalTypeChange(type: string) {
-    this.metricCalType = type;
-    this.handleUpdateViewOptions();
-  }
-  handleLimitSortMethodChange(type: string) {
-    this.limitSortMethod = type;
-    this.handleUpdateViewOptions();
-  }
-  handleGroupByLimitEnabledChange(val: boolean) {
-    if (this.groupByLimitEnabled !== val) {
-      this.groupByLimitEnabled = val;
-      this.handleUpdateViewOptions();
-    }
-  }
+
   /** 目标对比值更新 */
   handleCompareTargetChange(viewOptions?: IViewOptions) {
     this.compares = viewOptions?.compares || { targets: [] };
@@ -1357,24 +1348,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
       this.filters = filters;
     }
-    let groupLimitVariables = {};
-    if (this.isGroupCompareType) {
-      groupLimitVariables = {
-        metric_cal_type: this.metricCalType,
-        limit_sort_method: this.limitSortMethod,
-        limit: this.limit,
-        group_by_limit_enabled: this.groupByLimitEnabled,
-      };
-    }
     this.viewOptions = {
       // filter_dict: filterDict,
       ...filters,
       ...variables,
-      ...groupLimitVariables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
+      groupByVariables: this.groupByVariables,
       filters: this.filters,
       variables: this.variables,
     };
@@ -1413,13 +1395,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
-    let groupLimitVariables = {};
+    let groupByVariables = {};
     if (this.isGroupCompareType) {
-      groupLimitVariables = {
-        metricCalType: this.metricCalType,
-        limitSortMethod: this.limitSortMethod,
-        limit: this.limit,
-        groupByLimitEnabled: this.groupByLimitEnabled ? 'true' : 'false',
+      groupByVariables = {
+        groupByVariables: JSON.stringify(this.groupByVariables),
       };
     }
     this.$router.replace({
@@ -1427,7 +1406,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       query: {
         ...filters,
         ...this.customRouteQuery,
-        ...groupLimitVariables,
+        ...groupByVariables,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,
@@ -1953,23 +1932,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                   <GroupCompareSelect
                                     active={this.isGroupByLimit ? EGroupCompareType.group : EGroupCompareType.compare}
                                     groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
-                                    limit={this.limit}
-                                    limitSortMethod={this.limitSortMethod}
+                                    limit={this.groupByVariables.limit}
+                                    limitSortMethod={this.groupByVariables.limit_sort_method}
                                     limitSortMethods={this.limitSortMethods}
-                                    metricCalType={this.metricCalType}
+                                    metricCalType={this.groupByVariables.metric_cal_type}
                                     metricCalTypes={this.metricCalTypes}
                                     pageId={this.dashboardId}
                                     panel={this.sceneData.groupPanel}
                                     sceneId={this.sceneId}
                                     sceneType={this.localSceneType}
                                     timeValue={this.timeOffset}
-                                    onGroupByLimitEnabledChange={this.handleGroupByLimitEnabledChange}
                                     onGroupChange={this.handleGroupsChange}
-                                    onLimitChange={this.handleLimitChange}
-                                    onLimitSortMethodChange={this.handleLimitSortMethodChange}
-                                    onMetricCalTypeChange={this.handleMetricCalTypeChange}
                                     onTimeCompareChange={this.handleGroupCompareTimeChange}
                                     onTypeChange={this.handleGroupCompareTypeChange}
+                                    onVariablesChange={this.handleGroupByVariablesChange}
                                   />
                                 ) : (
                                   <GroupSelect

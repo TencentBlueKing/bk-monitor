@@ -35,6 +35,7 @@ import {
 
 import type { IMenuItem } from '.';
 import type { SceneType } from '../components/common-page-new';
+import type { IGroupByVariables } from '../components/group-compare-select/utils';
 import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
@@ -481,11 +482,7 @@ export interface IViewOptions {
   strategy_id?: number | string;
   app_name?: string;
   service_name?: string;
-  // 是否开启分组限制
-  group_by_limit_enabled?: boolean;
-  limit?: number;
-  limit_sort_method?: string;
-  metric_cal_type?: string;
+  groupByVariables?: IGroupByVariables;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

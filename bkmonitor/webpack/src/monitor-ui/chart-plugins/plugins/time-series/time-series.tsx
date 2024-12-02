@@ -398,6 +398,7 @@ export class LineChart
       const variablesService = new VariablesService({
         ...this.viewOptions,
         interval,
+        ...(this.viewOptions?.groupByVariables || {}),
         ...this.customScopedVars,
       });
       for (const time_shift of timeShiftList) {
@@ -411,6 +412,7 @@ export class LineChart
                 ...(this.viewOptions.filters?.current_target || {}),
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
+                ...(this.viewOptions?.groupByVariables || {}),
                 time_shift,
                 interval,
                 ...this.customScopedVars,
@@ -431,7 +433,7 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
-          if (!this.viewOptions?.group_by_limit_enabled && newPrarams.group_by_limit) {
+          if (!this.viewOptions?.groupByVariables?.group_by_limit_enabled) {
             newPrarams.group_by_limit = undefined;
           }
           const primaryKey = item?.primary_key;

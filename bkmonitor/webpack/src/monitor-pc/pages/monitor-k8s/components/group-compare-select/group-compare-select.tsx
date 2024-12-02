@@ -60,7 +60,7 @@ interface IProps {
   onLimitChange?: (val: number) => void;
   onMetricCalTypeChange?: (val: string) => void;
   onTypeChange?: (val: ETypeSelect) => void;
-  onGroupByLimitEnabledChange?: (val: boolean) => void;
+  onVariablesChange?: (val: object) => void;
 }
 
 @Component
@@ -91,6 +91,8 @@ export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) groupOptionsLimitEnabled: boolean;
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+
+  groupByLimitEnabled = false;
 
   typeSelects = {
     [ETypeSelect.compare]: {
@@ -188,18 +190,33 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
   handleLimitTypeChange(val) {
     this.$emit('metricCalTypeChange', val);
+    this.handleVariablesChange({ metric_cal_type: val });
   }
   handleMethodChange(val) {
     this.$emit('limitSortMethodChange', val);
+    this.handleVariablesChange({ limit_sort_method: val });
   }
   handleLimitChange(val) {
     this.$emit('limitChange', val);
+    this.handleVariablesChange({ limit: val });
   }
   handleTimeValueChange(val) {
     this.$emit('timeCompareChange', val);
   }
   handleGroupByLimitEnabledChange(val) {
-    this.$emit('groupByLimitEnabledChange', val);
+    this.groupByLimitEnabled = val;
+    this.handleVariablesChange({ group_by_limit_enabled: val });
+  }
+
+  handleVariablesChange(params = {}) {
+    const groupByVariables = {
+      metric_cal_type: this.metricCalType,
+      limit_sort_method: this.limitSortMethod,
+      limit: this.limit,
+      group_by_limit_enabled: this.groupByLimitEnabled,
+      ...params,
+    };
+    this.$emit('variablesChange', groupByVariables);
   }
 
   render() {
