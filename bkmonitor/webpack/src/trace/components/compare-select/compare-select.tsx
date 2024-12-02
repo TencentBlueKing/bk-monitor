@@ -391,7 +391,7 @@ export default defineComponent({
                       </span>
                     ),
                   }}
-                  placeholder='请输入Trace ID'
+                  placeholder={this.$t('请输入Trace ID')}
                   showOverflowTooltips={false}
                   onChange={this.handleMouseEnterHeader}
                   onEnter={this.handleCompare}
