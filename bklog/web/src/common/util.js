@@ -1100,6 +1100,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       }
     }
 
+    debugger;
     return true;
   } catch (error) {
     return false;
