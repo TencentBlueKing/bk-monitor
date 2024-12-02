@@ -90,7 +90,8 @@
 
     .body-left {
       width: calc(100% - 360px);
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: #f5f7fa;
       border-right: solid 1px #dcdee5;
 
@@ -171,7 +172,6 @@
         padding: 12px 16px;
         margin: 16px 0;
         margin-bottom: 0;
-        overflow-y: auto;
         background: #ffffff;
         border-radius: 2px;
         box-shadow:
@@ -238,11 +238,13 @@
 
           .bk-exception-img {
             height: 60%;
-            img{
+
+            img {
               height: 100%;
               max-height: 200px;
             }
           }
+
           .bk-exception-title {
             max-height: 72px;
             padding: 0 40px;
@@ -358,7 +360,8 @@
 
   .basic-info-row {
     margin-bottom: 20px;
-    .title{
+
+    .title {
       font-size: 12px;
       color: #63656e;
     }

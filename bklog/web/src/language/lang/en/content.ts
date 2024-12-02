@@ -983,7 +983,8 @@ export default {
   副标题: 'Subhead',
   收藏至仪表盘: 'Favorite to dashboard',
   同名视图替换: 'Replace the same name view',
-  '此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作':'This operation will overwrite the current SQL query statement according to the current log query conditions, please operate with caution',
+  '此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作':
+    'This operation will overwrite the current SQL query statement according to the current log query conditions, please operate with caution',
   SQL查询: 'SQL Query',
   '至少需要一个指标，一个维度': 'At least one metric, one dimension',
   '至少需要一个指标，一个维度/时间维度': 'At least one metric, one dimension/time dimension',
