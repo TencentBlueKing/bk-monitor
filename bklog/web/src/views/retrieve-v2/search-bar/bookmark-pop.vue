@@ -329,6 +329,9 @@
 <template>
   <bk-popover
     ref="popoverContentRef"
+    :style="{
+      lineHeight: 1,
+    }"
     width="400"
     ext-cls="collection-favorite-popover"
     :on-hide="handlePopoverHide"

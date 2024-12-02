@@ -10,9 +10,19 @@
   // #code const BookmarkPop = () => null;
   // #endif
 
+  import { ConditionOperator } from '@/store/condition-operator';
+
+  import $http from '../../../api';
+  import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import { ConditionOperator } from '@/store/condition-operator';
+  const props = defineProps({
+    activeFavorite: {
+      default: null,
+      type: Object,
+    },
+  });
+
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
@@ -61,22 +71,22 @@
   watch(clearSearchValueNum, () => {
     handleClearBtnClick();
   });
+  const formatAddition = addition => {
+    return addition.map(v => {
+      const value = {
+        ...v,
+        field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
+      };
 
+      const instance = new ConditionOperator(value);
+      return { ...value, ...instance.getShowCondition() };
+    });
+  };
   watch(
     addition,
     () => {
       uiQueryValue.value.splice(0);
-      uiQueryValue.value.push(
-        ...addition.value.map(v => {
-          const value = {
-            ...v,
-            field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
-          };
-
-          const instance = new ConditionOperator(value);
-          return { ...value, ...instance.getShowCondition() };
-        }),
-      );
+      uiQueryValue.value.push(...formatAddition(addition.value));
     },
     { immediate: true, deep: true },
   );
@@ -144,6 +154,91 @@
   const handleQueryTypeChange = () => {
     activeIndex.value = activeIndex.value === 0 ? 1 : 0;
   };
+  const sourceSQLStr = ref('');
+  const sourceUISQLAddition = ref([]);
+  const initSourceSQLStr = (params, search_mode) => {
+    if (search_mode === 'ui') {
+      sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
+    } else {
+      sourceSQLStr.value = params.keyword;
+    }
+  };
+  watch(
+    () => props.activeFavorite?.id,
+    () => {
+      if (!props.activeFavorite) return;
+      initSourceSQLStr(props.activeFavorite.params, props.activeFavorite.search_mode);
+    },
+    { immediate: true },
+  );
+
+  const matchSQLStr = computed(() => {
+    if (activeIndex.value === 0) {
+      console.log(uiQueryValue, sourceUISQLAddition.value.length, uiQueryValue.value.length);
+      if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
+        return false;
+      }
+      const differerntUISQL = sourceUISQLAddition.value.find((item, index) => {
+        return (
+          item.field + item.operator + item.value !==
+          uiQueryValue.value[index].field + uiQueryValue.value[index].operator + uiQueryValue.value[index].value
+        );
+      });
+      return !differerntUISQL;
+    } else {
+      return sqlQueryValue.value === sourceSQLStr.value;
+    }
+  });
+  const saveCurrentActiveFavorite = async () => {
+    const {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      index_set_name,
+      index_set_names,
+      index_set_type,
+      index_set_ids,
+      index_set_id,
+    } = props.activeFavorite;
+    const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
+    const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
+    const searchParams =
+      searchMode === 'sql'
+        ? { keyword: sqlQueryValue.value, addition: [] }
+        : {
+            addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
+            keyword: '*',
+          };
+
+    const data = {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      search_mode: searchMode,
+      ip_chooser: reqFormatAddition.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+      index_set_id,
+      index_set_ids,
+      index_set_name,
+      index_set_type,
+      index_set_names,
+      ...searchParams,
+    };
+    try {
+      const res = await $http.request('favorite/updateFavorite', {
+        params: { id: props.activeFavorite?.id },
+        data,
+      });
+      if (res.result) {
+        window.mainComponent.messageSuccess($t('保存成功'));
+        initSourceSQLStr(res.data.params, res.data.search_mode);
+        handleRefresh(true);
+      }
+    } catch (error) {}
+  };
 </script>
 <template>
   <div class="search-bar-container">
@@ -176,12 +271,28 @@
           @click.stop="handleClearBtnClick"
         ></div>
         <BookmarkPop
+          v-if="!props.activeFavorite"
           :addition="uiQueryValue"
           :class="{ disabled: isInputLoading }"
           :search-mode="queryParams[activeIndex]"
           :sql="sqlQueryValue"
           @refresh="handleRefresh"
         ></BookmarkPop>
+        <template v-else>
+          <div
+            v-if="matchSQLStr"
+            class="bklog-icon bklog-star-line disabled"
+            v-bk-tooltips="'已收藏'"
+            :data-boolean="matchSQLStr"
+          ></div>
+          <div
+            v-else
+            style="color: #63656e"
+            class="icon bk-icon icon-save"
+            @click="saveCurrentActiveFavorite"
+          ></div>
+        </template>
+
         <!-- <span class="disabled bklog-icon bklog-set-icon"></span> -->
       </div>
       <div

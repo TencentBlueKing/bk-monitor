@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 """
 TimeSeriesForecasting：时序预测算法，基于计算平台的预测结果进行静态阈值检测
 """
+import copy
 import json
 import logging
 import operator
@@ -24,6 +25,8 @@ from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection
 from alarm_backends.templatetags.unit import unit_convert_min, unit_suffix
 from bkmonitor.strategy.serializers import TimeSeriesForecastingSerializer
 from bkmonitor.utils.time_tools import hms_string
+from constants.aiops import SDKDetectStatus
+from core.drf_resource import api
 from core.unit import load_unit
 
 logger = logging.getLogger("detect")
@@ -55,6 +58,44 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
     desc_tpl = "{method_desc} {threshold}{unit_suffix}"
 
     def detect(self, data_point):
+        if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            # 历史依赖准备就绪才开始检测
+            if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                raise Exception("Strategy history dependency data not ready")
+
+            return self.detect_by_sdk(data_point)
+        else:
+            return self.detect_by_bkdata(data_point)
+
+    def detect_by_sdk(self, data_point):
+        dimensions = copy.deepcopy(data_point.dimensions)
+        dimensions["strategy_id"] = data_point.item.strategy.id
+        predict_params = {
+            "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
+            "dimensions": dimensions,
+            "predict_args": {
+                "granularity": "T",
+                "range_level": self.validated_config["args"].get("$range_level"),
+                "forecast_mode": self.validated_config["args"].get("$forecast_mode"),
+                "mode": "serving",
+            },
+        }
+
+        predict_result = api.aiops_sdk.tf_predict(**predict_params)
+
+        return self.detect_by_bkdata(
+            DataPoint(
+                accessed_data={
+                    "record_id": data_point.record_id,
+                    "value": data_point.value,
+                    "values": predict_result[0],
+                    "time": predict_result[0]["timestamp"],
+                },
+                item=data_point.item,
+            )
+        )
+
+    def detect_by_bkdata(self, data_point):
         bound_type = self.validated_config.get("bound_type", TimeSeriesForecastingSerializer.BoundType.MIDDLE)
 
         if bound_type == TimeSeriesForecastingSerializer.BoundType.UPPER:

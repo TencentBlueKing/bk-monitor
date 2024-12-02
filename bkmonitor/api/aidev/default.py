@@ -35,6 +35,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
         knowledge_base_id = serializers.ListField(required=True, child=serializers.IntegerField())
         polish = serializers.BooleanField(required=False, default=True)
         stream = serializers.BooleanField(required=False, default=True)
+        topk = serializers.IntegerField(required=False, default=20)
 
     action = "/aidev/resource/knowledgebase/query/"
     method = "POST"
