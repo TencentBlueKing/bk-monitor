@@ -48,6 +48,14 @@ class Strategy(object):
 
         return self.config["items"][0].get("query_md5", "")
 
+    @property
+    def use_api_sdk(self):
+        for query_config in self.config["items"][0]["query_configs"]:
+            if "intelligent_detect" in query_config:
+                return bool(query_config["intelligent_detect"].get("use_sdk"))
+
+        return False
+
     def get_interval(self) -> int:
         """
         获取策略周期

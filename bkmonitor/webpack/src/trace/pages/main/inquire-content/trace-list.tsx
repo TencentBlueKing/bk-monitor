@@ -55,7 +55,7 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
-import { SPAN_KIND_MAPS } from '../../../store/constant';
+import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
@@ -154,6 +154,7 @@ export default defineComponent({
   ],
   setup(props, { emit }) {
     /** 取消请求方法 */
+    let listOptionCancelFn = () => {};
     let searchCancelFn = () => {};
     const route = useRoute();
     const store = useTraceStore();
@@ -784,6 +785,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       echartsDisconnect(searchStore.dashboardId);
+      listOptionCancelFn();
     });
 
     watch(
@@ -873,8 +875,11 @@ export default defineComponent({
         (store.traceViewFilters.length > 1 ||
           (store.traceViewFilters.length === 1 && !store.traceViewFilters.includes('duration')))
       ) {
-        const selects = store.traceViewFilters.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = store.traceViewFilters.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用追踪 选项
         params.displays = ['source_category_opentelemetry'].concat(selects);
+      }
+      if (traceDetailElem.value?.activePanel === 'timeline') {
+        params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
       await traceDetail(params, {
         cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
@@ -943,7 +948,11 @@ export default defineComponent({
         end_time: endTime,
         mode: modeMapping[selectedListType.value],
       };
-      listOptionValues(params).then(res => {
+      listOptionValues(params, {
+        cancelToken: new CancelToken((c: any) => {
+          listOptionCancelFn = c;
+        }),
+      }).then(res => {
         Object.keys(res).forEach(key => {
           // 该列表是全量获取的，每次添加时需要重置一下 filter 。
           if (traceListFilter[key]?.length) traceListFilter[key].length = 0;
