@@ -24,7 +24,6 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.models import CollectorPluginMeta
 from constants.strategy import TargetFieldType
-from bkmonitor.models.strategy import default_target
 
 target_biz_list = list(
     map(
@@ -362,7 +361,7 @@ def parse_target_dimension_strategy():
     items = ItemModel.objects.filter(id__in=item_ids).only("strategy_id", "target")
     # 策略与监控目标类型映射
     stra_target_type_map = {item.strategy_id: target_type_map.get(item.target[0][0]["field"]) for item in items
-                            if item.target != default_target()}
+                            if item.target and item.target != [[]]}
 
     # step3: 获取目标策略
     strategies = StrategyModel.objects.filter(id__in=stra_target_type_map.keys())
