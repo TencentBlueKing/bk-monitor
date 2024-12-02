@@ -109,6 +109,11 @@ export default class MonitorK8sNew extends tsc<object> {
   hideMetrics = JSON.parse(localStorage.getItem(HIDE_METRICS_KEY) || '[]');
   // 表格数据
   k8sTableData: any[] = [];
+  // table 点击选中数据项
+  k8sTableChooseItem: { row: any; column: K8sTableColumn } = {
+    row: null,
+    column: null,
+  };
   // 是否展示取消下钻
   showCancelDrill = false;
 
@@ -239,6 +244,19 @@ export default class MonitorK8sNew extends tsc<object> {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
 
+  setGroupOption<T extends keyof IGroupOption>(option: IGroupOption, key: T, value: IGroupOption[T]) {
+    this.$set(option, key, value);
+  }
+
+  setGroupFilters(filters: Array<number | string>) {
+    this.$set(this, 'groupFilters', filters);
+  }
+
+  setK8sTableChooseItem(item: K8sTableClickEvent) {
+    this.$set(this.k8sTableChooseItem, 'column', item?.column || null);
+    this.$set(this.k8sTableChooseItem, 'row', item?.row || null);
+  }
+
   created() {
     this.getK8sList();
   }
@@ -335,10 +353,6 @@ export default class MonitorK8sNew extends tsc<object> {
     setData(0);
   }
 
-  setGroupFilters(filters: Array<number | string>) {
-    this.$set(this, 'groupFilters', filters);
-  }
-
   handleImmediateRefresh() {
     this.immediateRefresh = random(8);
   }
@@ -397,10 +411,6 @@ export default class MonitorK8sNew extends tsc<object> {
     this.cluster = cluster;
   }
 
-  setGroupOption<T extends keyof IGroupOption>(option: IGroupOption, key: T, value: IGroupOption[T]) {
-    this.$set(option, key, value);
-  }
-
   async handleTabChange(v: K8sNewTabEnum) {
     this.activeTab = v;
     this.getK8sList();
@@ -447,12 +457,15 @@ export default class MonitorK8sNew extends tsc<object> {
    * @param {K8sTableClickEvent} item
    */
   handleTextClick(item: K8sTableClickEvent) {
-    console.log('handleTextClick 待完善', item);
+    this.setK8sTableChooseItem(item);
     this.handleSliderChange(true);
   }
 
   handleSliderChange(v: boolean) {
     this.sliderShow = v;
+    if (!v) {
+      this.setK8sTableChooseItem(null);
+    }
   }
 
   tabContentRender() {
@@ -588,7 +601,10 @@ export default class MonitorK8sNew extends tsc<object> {
           </div>
         </div>
         <K8sDetailSlider
+          activeItem={this.k8sTableChooseItem}
+          groupFilters={this.groupFilters}
           isShow={this.sliderShow}
+          onGroupChange={this.handleTableGroupChange}
           onShowChange={this.handleSliderChange}
         />
       </div>
