@@ -52,6 +52,8 @@ interface IProps {
   timeValue?: string[];
   active?: ETypeSelect;
   limitSortMethods?: IListItem[];
+  hasGroupOptions?: boolean;
+  groupOptionsLimitEnabled?: boolean;
   onTimeCompareChange?: (val: string[]) => void;
   onGroupChange?: (val: string[]) => void;
   onLimitSortMethodChange?: (val: string) => void;
@@ -85,6 +87,8 @@ export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Number, default: 0 }) limit: number;
   @Prop({ type: String, default: '' }) metricCalType: string;
   @Prop({ type: Array, default: () => [] }) metricCalTypes: IListItem[];
+  /* group by 是否默认开启limit */
+  @Prop({ type: Boolean, default: false }) groupOptionsLimitEnabled: boolean;
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
@@ -124,7 +128,20 @@ export default class GroupCompareSelect extends tsc<IProps> {
   }
 
   get getGroupOptions() {
-    return this.hasGroupOptions ? this.groupOptions : this.localGroupOptions;
+    return this.hasGroupOptions
+      ? this.groupOptions.map(item => ({
+          id: item?.id || item?.value || '',
+          name: item?.name || item?.text || '',
+          top_limit_enable: item?.top_limit_enable || this.groupOptionsLimitEnabled,
+        }))
+      : this.localGroupOptions;
+  }
+
+  get getMetricCalTypes() {
+    return this.metricCalTypes.map(item => ({
+      id: item?.id || item?.value || '',
+      name: item?.name || item?.text || '',
+    }));
   }
 
   @Watch('active', { immediate: true })
@@ -214,7 +231,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
               groupOptions={this.getGroupOptions}
               limit={this.limit}
               limitType={this.metricCalType}
-              limitTypes={this.metricCalTypes}
+              limitTypes={this.getMetricCalTypes}
               method={this.limitSortMethod}
               methods={this.limitSortMethods}
               onChange={this.handleGroupsChange}

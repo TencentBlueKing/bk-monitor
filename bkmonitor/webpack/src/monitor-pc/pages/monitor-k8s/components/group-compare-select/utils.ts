@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -47,4 +49,39 @@ export interface IListItem {
   text?: string;
   value?: string;
   top_limit_enable?: boolean;
+}
+
+const preDateTypeList = [
+  {
+    label: window.i18n.t('昨天'),
+    value: EPreDateType.yesterday,
+  },
+  {
+    label: window.i18n.t('上周'),
+    value: EPreDateType.lastWeek,
+  },
+];
+
+/**
+ * @description 将 1d 10d 转换为 实际日期
+ * @param t
+ * @returns
+ */
+export function timeOffsetDateFormat(t: string) {
+  if (preDateTypeList.map(item => item.value).includes(t as any)) {
+    if (t === EPreDateType.yesterday) {
+      return window.i18n.t('昨天');
+    }
+    if (t === EPreDateType.lastWeek) {
+      return window.i18n.t('上周');
+    }
+  }
+  const regex = /^(\d+)d$/; // 匹配类似 '1d', '10d' 的格式
+  const match = t.match(regex);
+  if (match) {
+    const days = Number.parseInt(match[1], 10); // 提取天数
+    const targetDate = dayjs().subtract(days, 'day'); // 当前日期减去天数
+    return targetDate.format('YYYY-MM-DD'); // 格式化为 YYYY-MM-DD
+  }
+  return t;
 }
