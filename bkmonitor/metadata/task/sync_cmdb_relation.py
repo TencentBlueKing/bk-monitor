@@ -52,20 +52,32 @@ def sync_relation_redis_data():
     existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
     for field, value in redis_data.items():
         try:
-            value_dict = json.loads(value)  # 获取对应的field与value
-            key = field.decode('utf-8')
-            space_type, space_id = key.split('__')  # 分割出space_type和space_id
-            # 转义出对应的业务ID，容器等非业务类型ID为负数
-            biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
-            # {biz_id}_{space_type}_built_in_time_series.__default__
-            data_name = "{}_{}_built_in_time_series".format(biz_id, space_type)
-            table_id = "{}_{}_built_in_time_series.__default__".format(biz_id, space_type)  # table_id有限制，必须以业务ID数字开头
-            token = value_dict.get('token')  # Redis缓存中的Token数据
-            modify_time = value_dict.get('modifyTime')  # noqa
-            logger.info("sync_relation_redis_data start sync builtin redis data, field={}".format(key))
+            # 将json解析放在try中，确保value是有效的JSON字符串
+            value_dict = json.loads(value)
+            if not isinstance(value_dict, dict):
+                raise ValueError(
+                    "sync_relation_redis_data: Value->[%s] of field->[%s] is not a valid dictionary", value, field
+                )
+
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception("sync_relation_redis_data: get redis data error, field->[%s],error->[%s]", field, e)
-            continue
+            logger.error(
+                "sync_relation_redis_data: error occurred, field->[%s], error->[%s]. Using default value_dict.",
+                field,
+                e,
+            )
+            value_dict = {"token": None, "modifyTime": None}  # 预期中的默认字典
+
+        # 解码并解析field
+        key = field.decode('utf-8')
+        space_type, space_id = key.split('__')
+
+        # 转义业务ID，非业务类型ID为负数
+        biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
+        data_name = f"{biz_id}_{space_type}_built_in_time_series"
+        table_id = f"{biz_id}_{space_type}_built_in_time_series.__default__"  # table_id有限制，必须以业务ID数字开头
+        token = value_dict.get('token')  # Redis缓存中的Token数据
+
+        logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
 
         rt = existing_rts_dict.get(table_id)
         if rt:
