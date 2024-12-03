@@ -27,141 +27,155 @@
   import { ref, defineProps, watch, computed, defineEmits } from 'vue';
 
   const props = defineProps({
-    xAxis: {
-      type: Array,
-    },
-    yAxis: {
-      type: Array,
+    options: {
+      type: Object,
+      default: () => ({
+        xFields: [],
+        yFields: [],
+        dimensions: [],
+        hiddenFields: [],
+        category: '',
+      }),
     },
 
-    activeGraphCategory: {
-      type: String,
-    },
     result_schema: {
       type: Array,
     },
   });
+
   const emit = defineEmits(['update']);
-  const selectedXAxis = ref(props.xAxis);
-  const selectedYAxis = ref(props.yAxis);
-  const timeAxis = ref('');
-  const hiddenField = ref([]);
   const list = computed(() => props.result_schema.map(item => item.field_alias));
-  const filterFields = (typeCheck, excludeList) => {
-    return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
-  };
 
-  const xAxisFilterList = computed(() => {
-    const fields = [...selectedYAxis.value];
-    if (props.activeGraphCategory !== "pie") {
-      fields.push(timeAxis.value);
-    }
-    return filterFields(item => true, fields);
-  });
-
-  const yAxisFilterList = computed(() => {
-    return filterFields(item => item.field_type !== 'string', [...selectedXAxis.value, timeAxis.value]);
-  });
-
-  const timeFilterList = computed(() => {
-    return filterFields(item => item.field_type == 'long', [...selectedYAxis.value, ...selectedXAxis.value]);
-  });
-  // 监听 props.xAxis 的变化并更新 selectedXAxis
-  watch(
-    () => props.xAxis,
-    newValue => {
-      selectedXAxis.value = newValue;
-    },
+  const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
+  const xFieldOptions = computed(() =>
+    props.result_schema
+      .filter(item => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
+      .map(item => {
+        return {
+          item: item.field_alias,
+          disabled: false,
+        };
+      }),
   );
 
-  // 同样操作 yAxis，如果需要的话
-  watch(
-    () => props.yAxis,
-    newValue => {
-      selectedYAxis.value = newValue;
-    },
+  const yFieldOptions = computed(() =>
+    props.result_schema
+      .filter(
+        item =>
+          /long|number|int|float|bigint|double/.test(item.field_type) &&
+          (!excludeList.value.includes(item.field_alias) || props.options.yFields.includes(item.field_alias)),
+      )
+      .map(item => {
+        return {
+          item: item.field_alias,
+          disabled: false,
+        };
+      }),
   );
-  watch(
-    () => props.activeGraphCategory,
-    newValue => {
-     if(newValue !== 'pie'){
-      selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
-     }
-    },
+
+  const dimensionsOptions = computed(() =>
+    props.result_schema
+      .filter(
+        item => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
+      )
+      .map(item => {
+        return {
+          item: item.field_alias,
+          disabled: false,
+        };
+      }),
   );
+
   function change(axis, newValue) {
     emit('update', axis, newValue);
   }
 </script>
 <template>
   <div class="bklog-chart-field">
-    <div v-show="activeGraphCategory !== 'table'">
+    <div v-show="options.category !== 'table'">
       <div class="title">{{ this.$t('指标') }}</div>
       <bk-select
-        v-model="selectedYAxis"
+        :value="options.yFields"
         searchable
         @change="change('yFields', $event)"
         :clearable="false"
         multiple
       >
         <bk-option
-          v-for="option in yAxisFilterList"
-          :key="option.field_alias + option.field_index"
-          :id="option.field_alias"
-          :name="option.field_alias"
+          v-for="option in yFieldOptions"
+          :key="option.item"
+          :id="option.item"
+          :name="option.item"
+          :disabled="option.disabled"
         >
         </bk-option>
       </bk-select>
     </div>
-    <div v-show="activeGraphCategory !== 'table'">
+    <div v-show="options.category !== 'table'">
       <div class="title">{{ this.$t('维度') }}</div>
       <bk-select
-        v-model="selectedXAxis"
+        :value="options.xFields"
         searchable
         @change="change('xFields', $event)"
         :clearable="false"
         multiple
       >
         <bk-option
-          v-for="option in xAxisFilterList"
-          :key="option.field_alias + option.field_index"
-          :id="option.field_alias"
-          :name="option.field_alias"
+          v-for="option in xFieldOptions"
+          :key="option.item"
+          :id="option.item"
+          :name="option.item"
+          :disabled="option.disabled"
         >
         </bk-option>
       </bk-select>
     </div>
-    <div v-show="activeGraphCategory == 'bar' || activeGraphCategory == 'line'">
+    <div v-show="options.category == 'bar' || options.category == 'line'">
       <div class="title">{{ this.$t('时间维度') }}</div>
       <bk-select
-        v-model="timeAxis"
+        :value="options.dimensions"
         @change="change('dimensions', $event)"
         searchable
       >
         <bk-option
-          v-for="option in timeFilterList"
-          :key="option.field_alias + option.field_index"
-          :id="option.field_alias"
-          :name="option.field_alias"
+          v-for="option in dimensionsOptions"
+          :key="option.item"
+          :id="option.item"
+          :name="option.item"
+          :disabled="option.disabled"
         >
         </bk-option>
       </bk-select>
     </div>
-    <div v-show="activeGraphCategory == 'table'">
+    <div v-show="options.category == 'table'">
       <div class="title">{{ this.$t('隐藏字段') }}</div>
       <bk-select
-        v-model="hiddenField"
+        :value="options.hiddenFields"
         :clearable="false"
         multiple
         @change="change('hiddenFields', $event)"
         searchable
       >
         <bk-option
-          v-for="(option, index) in list"
-          :key="index"
+          v-for="option in list"
+          :key="option"
           :id="option"
           :name="option"
+          :disabled="
+            list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option.field_alias)
+          "
         >
+          <div
+            v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option.field_alias)"
+          >
+            {{ option }}
+          </div>
+          <div
+            v-else
+            v-bk-tooltips="{ content: $t('至少需要一个字段'), placements: ['top-start'] }"
+          >
+            {{ option }}
+          </div>
         </bk-option>
       </bk-select>
     </div>
