@@ -551,7 +551,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     });
 
     // 重置默认字段
-    if (this.xFields.length === 0) {
+    if (this.xFields.length === 0 && this.dimensions.length === 0) {
       const defValue = (list.find(item => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
       if (defValue) {
         this.xFields.push(defValue);
