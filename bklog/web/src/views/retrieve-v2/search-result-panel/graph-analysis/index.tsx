@@ -82,6 +82,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
   hiddenFields = [];
+  tableSHowFields = [];
   dimensions = [];
   uiQueryValue = [];
   sqlQueryValue = '';
@@ -278,6 +279,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleGraphCategoryClick(category: GraphCategory) {
     if (category !== GraphCategory.TABLE) {
       this.chartActiveType = GraphCategory.CHART;
+    }else{
+      this.chartActiveType = GraphCategory.TABLE;
+      this.hiddenFields = []
     }
     this.activeGraphCategory = category;
     this.chartCounter++;
@@ -400,7 +404,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleCanvasTypeChange(t?: GraphCategory) {
     this.chartActiveType = t;
+    // this.activeGraphCategory = t;
     this.chartCounter++;
+    this.tableSHowFields = [...this.xFields,...this.yFields,...this.dimensions]
     this.$store.commit('updateChartParams', { chartActiveType: t });
   }
 
@@ -674,10 +680,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
                   <FieldSettings
                     slot='content'
-                    activeGraphCategory={this.activeGraphCategory}
+                    activeGraphCategory={this.chartActiveType}
                     result_schema={this.resultSchema}
                     xAxis={this.xFields}
                     yAxis={this.yFields}
+                    tableSHowFields={this.tableSHowFields}
                     on-update={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>

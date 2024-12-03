@@ -25,6 +25,7 @@
 -->
 <script setup>
   import { ref, defineProps, watch, computed, defineEmits } from 'vue';
+import { type } from '../../../../../services/meta';
 
   const props = defineProps({
     xAxis: {
@@ -40,13 +41,16 @@
     result_schema: {
       type: Array,
     },
+    tableSHowFields:{
+      type: Array,
+    }
   });
   const emit = defineEmits(['update']);
   const selectedXAxis = ref(props.xAxis);
   const selectedYAxis = ref(props.yAxis);
   const timeAxis = ref('');
   const hiddenField = ref([]);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
+  const list = computed(() => props.result_schema);
   const filterFields = (typeCheck, excludeList) => {
     return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
   };
@@ -87,6 +91,18 @@
      if(newValue !== 'pie'){
       selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
      }
+    },
+  );
+  watch(
+    () => props.result_schema,
+    newValue => {
+     timeAxis.value=''
+    },
+  );
+  watch(
+    () => props.tableSHowFields,
+    newValue => {
+     hiddenField.value = list.value.filter(item => !newValue.includes(item.field_alias)).map(item => item.field_alias)
     },
   );
   function change(axis, newValue) {
@@ -157,11 +173,15 @@
         searchable
       >
         <bk-option
-          v-for="(option, index) in list"
-          :key="index"
-          :id="option"
-          :name="option"
-        >
+          v-for="option in list"
+          :key="option.field_alias + option.field_index"
+          :id="option.field_alias"
+          :name="option.field_alias"
+          :disabled="list.length - hiddenField.length === 1 && !hiddenField.includes(option.field_alias)"
+          >
+          <div v-if="list.length - hiddenField.length !== 1 || hiddenField.includes(option.field_alias)">{{option.field_alias}}</div>
+          <div v-else 
+          v-bk-tooltips="{ content: $t('至少需要一个字段'), placements: ['top-start'] }">{{option.field_alias}}</div>
         </bk-option>
       </bk-select>
     </div>
