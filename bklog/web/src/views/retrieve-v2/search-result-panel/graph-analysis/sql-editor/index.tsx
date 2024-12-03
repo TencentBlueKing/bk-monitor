@@ -72,7 +72,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const storedParams = computed(() => store.state.indexItem.chart_params ?? {});
+    const storedSql = computed(() => store.state.indexItem.chart_params.sql);
 
     const chartParams = computed(() => {
       const target = props.extendParams ?? {};
@@ -179,9 +179,9 @@ export default defineComponent({
       editorInstance.value.focus();
     };
 
-    const formatMonacoSqlCode = () => {
-      const val = format(editorInstance.value.getValue(), { language: 'mysql' });
-      editorInstance.value.setValue([val].join('\n'));
+    const formatMonacoSqlCode = (value?: string) => {
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      editorInstance.value?.setValue([val].join('\n'));
     };
 
     const renderTools = () => {
@@ -270,6 +270,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const handleUpdateIsContentShow = val => {
       isPreviewSqlShow.value = val;
     };
@@ -279,11 +280,12 @@ export default defineComponent({
     // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
     // 这里会回填收藏的查询
     watch(
-      () => storedParams.value.sql,
+      () => [storedSql.value],
       async () => {
-        if (sqlContent.value !== storedParams.value.sql) {
-          if (storedParams.value.sql) {
-            sqlContent.value = storedParams.value.sql;
+        if (sqlContent.value !== storedSql.value) {
+          if (storedSql.value) {
+            sqlContent.value = storedSql.value;
+            formatMonacoSqlCode(sqlContent.value);
           } else {
             await handleSyncAdditionToSQL(true);
           }
@@ -293,7 +295,6 @@ export default defineComponent({
       },
       {
         immediate: true,
-        deep: true,
       },
     );
 

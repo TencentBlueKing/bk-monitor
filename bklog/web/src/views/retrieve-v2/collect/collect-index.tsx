@@ -302,8 +302,9 @@ export default class CollectIndex extends tsc<IProps> {
       items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
       search_mode: cloneValue.search_mode,
-      chart_params: cloneValue.params.chart_params,
     });
+
+    this.$store.commit('updateChartParams', cloneValue.params.chart_params);
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
