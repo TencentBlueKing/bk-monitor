@@ -512,6 +512,9 @@ export default defineComponent({
       tableRowStore.clear();
     });
 
+    const scrollXOffsetLeft = ref(0);
+    const refScrollXBar = ref();
+
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
     const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
@@ -523,12 +526,14 @@ export default defineComponent({
 
     useWheel({
       target: refRootElement,
-      callback: (e: WheelEvent) => {
-        console.log('Wheel', e);
+      callback: (event: WheelEvent) => {
+        if (event.deltaX !== 0 && hasScrollX.value) {
+          scrollXOffsetLeft.value += event.deltaX;
+          refScrollXBar.value?.scrollLeft(scrollXOffsetLeft.value);
+        }
       },
     });
 
-    const scrollXOffsetLeft = ref(0);
     const operatorFixRightWidth = computed(() => {
       const operatorWidth = operatorToolsWidth.value;
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
@@ -711,6 +716,7 @@ export default defineComponent({
     const renderScrollXBar = () => {
       return (
         <ScrollXBar
+          ref={refScrollXBar}
           innerWidth={scrollWidth.value}
           outerWidth={offsetWidth.value}
           onScroll-change={handleScrollXChanged}
