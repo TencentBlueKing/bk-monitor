@@ -26,6 +26,12 @@ SEARCH_PARAMS = {
         {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
         {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
         {"field": "name", "operator": "=", "value": ["he'll'o", "world'"]},
+        {"field": "*", "operator": "=", "value": ["error"]},
+        {"field": "query_string", "operator": "=", "value": ["error"]},
+        {"field": "__ext.bcs_id", "operator": "=", "value": ["BCS-1", "BCS-2"]},
+        {"field": "__ext.bcs_id", "operator": "!=", "value": ["BCS-3", "BCS-4"]},
+        {"field": "__ext.label.component", "operator": "contains", "value": ["ds", "py"]},
+        {"field": "__ext.label.component", "operator": "not contains", "value": ["a"]},
     ],
 }
 
@@ -70,6 +76,14 @@ SQL_RESULT = (
     "(theme NOT LIKE 'pg%' AND theme NOT LIKE '_h_')"
     " AND "
     "(name = 'he''ll''o' OR name = 'world''')"
+    " AND "
+    "(JSON_EXTRACT(__ext,'$.bcs_id') = '\"BCS-1\"' OR JSON_EXTRACT(__ext,'$.bcs_id') = '\"BCS-2\"')"
+    " AND "
+    "(JSON_EXTRACT(__ext,'$.bcs_id') != '\"BCS-3\"' OR JSON_EXTRACT(__ext,'$.bcs_id') != '\"BCS-4\"')"
+    " AND "
+    "(JSON_EXTRACT(__ext,'$.label.component') LIKE '%ds%' OR JSON_EXTRACT(__ext,'$.label.component') LIKE '%py%')"
+    " AND "
+    "JSON_EXTRACT(__ext,'$.label.component') NOT LIKE '%a%'"
     f" {SQL_SUFFIX}"
 )
 
