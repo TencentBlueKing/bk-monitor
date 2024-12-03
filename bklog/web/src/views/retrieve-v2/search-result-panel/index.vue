@@ -48,22 +48,34 @@
     isTrendChartShow.value = isShow;
     heightNum.value = height + 4;
   };
+
   const handleFieldsShowChange = status => {
     if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
     isShowFieldStatistics.value = status;
   };
+
   const handleFilterWidthChange = width => {
     fieldFilterWidth.value = width;
   };
+
   const handleUpdateActiveTab = active => {
     emit('update:active-tab', active);
   };
 
   const rightContentStyle = computed(() => {
+    if (isOriginShow.value) {
+      return {
+        width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
+      };
+    }
+
     return {
-      width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
+      width: '100%',
+      padding: '8px 16px',
     };
   });
+
+  const rightClassName = computed(() => {});
 
   /**** 根据滚动条滚动位置动态计算左侧字段列表高度 *****/
   // 搜索框高度，搜索框高度会改变

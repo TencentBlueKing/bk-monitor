@@ -1,7 +1,7 @@
 .search-bar-container {
   position: sticky;
   top: 8px;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   padding: 0 8px 8px 8px;
   background-color: #fff;
@@ -203,7 +203,7 @@
     left: 0;
     height: 50px;
     content: '';
-    background-color: #fff;
+    background-color: #f4f7fa;
     transform: translateY(-100%);
   }
 
