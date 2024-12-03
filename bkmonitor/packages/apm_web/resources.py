@@ -11,13 +11,19 @@ specific language governing permissions and limitations under the License.
 import copy
 from abc import ABC
 from datetime import datetime
-
+import logging
 from django.utils.translation import ugettext_lazy as _
-
+from rest_framework import serializers
 from apm_web.icon import get_icon
+from apm_web.meta.views import ListApplicationInfoResource  # noqa
+from apm_web.trace.views import GetFieldOptionValuesResource  # noqa
+from apm_web.trace.views import ListTraceResource
+from apm_web.trace.views import TraceDetailResource
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import OverviewDataTableFormat
+from constants.apm import TraceListQueryMode
+logger = logging.getLogger(__name__)
 
 
 class SidebarPageListResource(PageListResource):
@@ -263,3 +269,52 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
                 }
             )
         return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(origin_data, params, column_type)
+
+
+class GrafanaListTraceResource(ListTraceResource):
+    class RequestSerializer(ListTraceResource.RequestSerializer):
+        min_duration = serializers.CharField(label="trace查询最小duration", default="0ns", required=False)
+        max_duration = serializers.CharField(label="trace查询最小duration", default="2h", required=False)
+
+    def perform_request(self, validated_request_data):
+        from monitor_web.grafana.utils import convert_to_microseconds
+
+        try:
+            min_duration = convert_to_microseconds(validated_request_data["min_duration"])
+            max_duration = convert_to_microseconds(validated_request_data["max_duration"])
+            if min_duration > max_duration:
+                raise serializers.ValidationError("trace查询参数错误: 最小duration不能大于最大duration")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"trace查询参数解析失败: {e}")
+            return {"type": TraceListQueryMode.PRE_CALCULATION, "total": 0, "data": []}
+        validated_request_data["filters"].append(
+            {"key": "duration", "operator": "between", "value": [min_duration, max_duration]}
+        )
+        res_data = super().perform_request(validated_request_data)
+        trace_list = [
+            {
+                "trace_id": trace_summary["trace_id"],
+                "trace_name": trace_summary.get("root_span_service"),
+                "start_time": trace_summary.get("min_start_time"),
+                "trace_duration": trace_summary.get("trace_duration"),
+            }
+            for trace_summary in res_data.get("data", [])
+        ]
+        res_data["data"] = trace_list
+        return res_data
+
+
+class GrafanaTraceDetailResource(TraceDetailResource):
+    """
+    获取统计数据
+    """
+
+    def perform_request(self, validated_request_data):
+        trace_info = super().perform_request(validated_request_data)
+        return self.transform_to_jager(trace_info)
+
+    @classmethod
+    def transform_to_jager(cls, data):
+        formatted_data = data.get("trace_tree", {})
+        formatted_data["warnings"] = None
+        return [formatted_data]
