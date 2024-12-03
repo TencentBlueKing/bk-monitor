@@ -105,8 +105,8 @@ class ChartHandler(object):
 
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
             if "." in field_name:
-                field_list = field_name.split(".")
-                field_name = f"JSON_EXTRACT({field_list[0]},'$.{'.'.join(field_list[1:])}')"
+                field_list = field_name.split(".", 1)
+                field_name = f"JSON_EXTRACT({field_list[0]},'$.{field_list[-1]}')"
 
             # 组内条件的与或关系
             condition_type = "OR"
