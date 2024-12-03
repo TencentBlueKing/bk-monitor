@@ -171,12 +171,15 @@ export default class HostList extends tsc<IProps, IEvents> {
   /** 状态筛选数据 */
   get statusList() {
     const statusList = this.panel.options?.status_tab_list || [];
-    return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => ({
-      id: item.type,
-      name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
-      tips: item.tips,
-      status: item.status,
-    }));
+    return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => {
+      const id = item?.id || item.type;
+      return {
+        id,
+        name: item.name || (this.hostStatusData[id]?.count ?? 0),
+        tips: item.tips,
+        status: item.status,
+      };
+    });
   }
 
   /** 接口数据 */
