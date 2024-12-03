@@ -3,6 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { useRoute } from 'vue-router/composables';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -16,6 +17,7 @@
   import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
+  // import route from '../../../language/lang/en/route';
   const props = defineProps({
     activeFavorite: {
       default: null,
@@ -30,6 +32,7 @@
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
   const activeIndex = ref(0);
+  const route = useRoute();
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -41,6 +44,7 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
+  const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -241,7 +245,7 @@
   };
 </script>
 <template>
-  <div class="search-bar-container">
+  <div :class="['search-bar-container', { readonly: isChartMode }]">
     <div
       class="search-options"
       @click="handleQueryTypeChange"

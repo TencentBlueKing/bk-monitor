@@ -127,7 +127,7 @@ export const lineOrBarOptions = {
     show: true,
     trigger: 'item',
     axisPointer: {
-      type: 'line',
+      type: 'cross',
       label: {
         backgroundColor: '#6a7985',
       },
@@ -181,7 +181,7 @@ export const lineOrBarOptions = {
       color: '#979BA5',
       showMinLabel: true,
       showMaxLabel: true,
-      align: 'left',
+      align: 'center',
     },
     splitLine: {
       show: false,

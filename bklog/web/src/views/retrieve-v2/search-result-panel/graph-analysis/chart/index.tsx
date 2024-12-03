@@ -25,7 +25,8 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField } from '@/common/util';
+import { formatDateTimeField, getRegExp } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
@@ -48,6 +49,9 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRootElement = ref();
     const refRootContent = ref();
+    const searchValue = ref('');
+    const { $t } = useLocale();
+
     const { setChartOptions, destroyInstance, chartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
@@ -98,28 +102,21 @@ export default defineComponent({
         }
       },
     );
-    watch(() => formatListData.value?.total_records, (newTotal) => {
-      pagination.value.count = newTotal;
-    });
-    const tableData = computed(() => {
-      const list = formatListData.value?.list ?? [];
-      const start = (pagination.value.current - 1) * pagination.value.limit;
-      const end = start + pagination.value.limit;
-      return list.slice(start, end);
-    });
-    const pagination = ref({ 
-      current: 1,
-      count: formatListData.value?.total_records,
-      limit: 20
-    })
 
-    const handlePageChange = (newPage) => {
+    const pagination = ref({
+      current: 1,
+      limit: 20,
+    });
+
+    const handlePageChange = newPage => {
       pagination.value.current = newPage;
-    }
-    const handlePageLimitChange = (limit) => {
+    };
+
+    const handlePageLimitChange = limit => {
       pagination.value.current = 1;
       pagination.value.limit = limit;
-    }
+    };
+
     const columns = computed(() => {
       if (props.chartOptions.category === 'table') {
         return (props.chartOptions.data?.select_fields_order ?? []).filter(
@@ -129,28 +126,69 @@ export default defineComponent({
 
       return props.chartOptions.data?.select_fields_order ?? [];
     });
+
+    const tableData = computed(() => formatListData.value?.list ?? []);
+
+    const filterTableData = computed(() => {
+      const reg = getRegExp(searchValue.value);
+      const startIndex = (pagination.value.current - 1) * pagination.value.limit;
+      const endIndex = startIndex + pagination.value.limit;
+
+      return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
+    });
+
     const handleChartRootResize = debounce(() => {
       chartInstance?.resize();
     });
 
+    const handleSearchClick = value => {
+      searchValue.value = value;
+    };
+
     const rendChildNode = () => {
-      if (showTable.value && tableData.value.length) {
-        return (
-          <bk-table 
-            data={tableData.value}   
-            pagination={pagination.value} 
-            on-page-change={handlePageChange}
-            on-page-limit-change={handlePageLimitChange}
-            >
+      if (showTable.value) {
+        if (!tableData.value.length) {
+          return '';
+        }
+        return [
+          <div class='bklog-chart-result-table'>
+            <bk-input
+              style='width: 500px;'
+              clearable={true}
+              placeholder={$t('搜索')}
+              right-icon='bk-icon icon-search'
+              value={searchValue.value}
+              onChange={handleSearchClick}
+            ></bk-input>
+            <bk-pagination
+              style='display: inline-flex'
+              class='top-pagination'
+              count={tableData.value.length}
+              current={pagination.value.current}
+              limit={pagination.value.limit}
+              location='right'
+              show-total-count={true}
+              size='small'
+              onChange={handlePageChange}
+              onLimit-change={handlePageLimitChange}
+            ></bk-pagination>
+          </div>,
+          <bk-table data={filterTableData.value}>
+            <bk-table-column
+              width='60'
+              label={$t('行号')}
+              type='index'
+            ></bk-table-column>
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
                 label={col}
                 prop={col}
+                sortable={true}
               ></bk-table-column>
             ))}
-          </bk-table>
-        );
+          </bk-table>,
+        ];
       }
 
       return (
@@ -166,7 +204,7 @@ export default defineComponent({
       return (
         <div
           ref={refRootContent}
-          class='bklog-chart-container'
+          class={['bklog-chart-container', { 'is-table': showTable.value }]}
         >
           {rendChildNode()}
           {slots.default?.()}
