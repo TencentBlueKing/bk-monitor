@@ -185,6 +185,8 @@ export default {
   选择索引集: 'Select Indices',
   '选择{0}调试主机': 'Select {0} debug host',
   请选择空间: 'Please select a space',
+  请选择目标目录: 'Please select the target directory',
+  请选择所属目录: 'Please select the directory',
 
   // 请选择文件
 
