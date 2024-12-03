@@ -89,6 +89,7 @@
     height: calc(100vh - 220px);
 
     .body-left {
+      position: relative;
       width: calc(100% - 360px);
       overflow-x: hidden;
       overflow-y: auto;
