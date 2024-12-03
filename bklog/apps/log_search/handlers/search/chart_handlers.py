@@ -104,9 +104,9 @@ class ChartHandler(object):
                 continue
 
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            json_match = re.search(r"(?P<field_name>\w+)(?P<key>(\.\w+)+)", field_name)
-            if json_match:
-                field_name = f"JSON_EXTRACT({json_match.group('field_name')},'${json_match.group('key')}')"
+            if "." in field_name:
+                field_list = field_name.split(".")
+                field_name = f"JSON_EXTRACT({field_list[0]},'$.{'.'.join(field_list[1:])}')"
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -127,7 +127,7 @@ class ChartHandler(object):
                     tmp_sql += f" {condition_type} "
                 if isinstance(value, str):
                     value = value.replace("'", "''")
-                    value = f"\'\"{value}\"\'" if json_match and operator in ["=", "!="] else f"\'{value}\'"
+                    value = f"\'\"{value}\"\'" if "." in field_name and operator in ["=", "!="] else f"\'{value}\'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
