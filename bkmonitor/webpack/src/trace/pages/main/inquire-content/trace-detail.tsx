@@ -41,7 +41,7 @@ import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
-import { copyText, typeTools } from 'monitor-common/utils/utils';
+import { typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -70,6 +70,7 @@ import {
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
 import NodeTopo from './node-topo';
+import TraceDetailHeader from './trace-detail-header';
 
 import type { Span } from '../../../components/trace-view/typings';
 
@@ -237,35 +238,6 @@ export default defineComponent({
     /* 节点拓扑类型 时间/服务 */
     const topoType = ref<ETopoType>(ETopoType.time);
 
-    // 复制操作
-    const handleCopy = (content: string) => {
-      let text = '';
-      const { trace_id: traceId } = traceData.value;
-      if (content === 'text') {
-        text = traceId;
-      } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
-          props.appName
-        }&search_type=accurate&trace_id=${traceId}`;
-        text = location.href.replace(location.hash, hash);
-      }
-      copyText(
-        text,
-        (msg: string) => {
-          Message({
-            message: msg,
-            theme: 'error',
-          });
-          return;
-        },
-        props.isInTable ? '.trace-content-table-wrap' : ''
-      );
-      Message({
-        message: t('复制成功'),
-        theme: 'success',
-        width: 200,
-      });
-    };
     /**
      * @description: 选择过滤条件
      * @param {ISpanClassifyItem} classify
@@ -777,7 +749,6 @@ export default defineComponent({
       traceMainElem,
       statisticsElem,
       searchBarElem,
-      handleCopy,
       handleSelectFilters,
       handleTabChange,
       trackFilter,
@@ -846,29 +817,10 @@ export default defineComponent({
           </div>
         )} */}
         {!this.isInTable && (
-          <div class='header'>
-            <span class='trace-id'>{traceId}</span>
-            <Popover
-              content={this.$t('复制 TraceID')}
-              placement='right'
-              theme='light'
-            >
-              <span
-                class='icon-monitor icon-mc-copy'
-                onClick={() => this.handleCopy('text')}
-              />
-            </Popover>
-            <Popover
-              content={this.$t('复制链接')}
-              placement='right'
-              theme='light'
-            >
-              <span
-                class='icon-monitor icon-copy-link'
-                onClick={() => this.handleCopy('link')}
-              />
-            </Popover>
-          </div>
+          <TraceDetailHeader
+            appName={appName}
+            traceId={traceId}
+          />
         )}
 
         <div
