@@ -107,6 +107,7 @@ export default defineComponent({
       }
 
       isRequesting.value = true;
+      emit('change', undefined, isRequesting.value);
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
@@ -135,6 +136,7 @@ export default defineComponent({
         })
         .finally(() => {
           isRequesting.value = false;
+          emit('change', undefined, isRequesting.value);
         });
     };
 

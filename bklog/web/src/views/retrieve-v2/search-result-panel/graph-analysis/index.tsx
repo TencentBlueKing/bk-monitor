@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { isElement, debounce } from 'lodash';
+import { isElement, debounce, throttle } from 'lodash';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -105,6 +105,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   canvasBodyStyle = {
     with: 300,
     height: 400,
+    scrollTop: 0,
   };
 
   debounceCallback = debounce(entry => {
@@ -112,12 +113,20 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
+  throttleScrollCallback = throttle(event => {
+    Object.assign(this.canvasBodyStyle, { scrollTop: (event.target as HTMLElement).scrollTop });
+  });
+
   resizeObserver = null;
+  isRequesting = false;
 
   get exceptionStyle() {
+    const scrollHeight =
+      this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
+
     return {
       '--exception-width': `${this.canvasBodyStyle.with}px`,
-      '--exception-height': `${this.canvasBodyStyle.height}px`,
+      '--exception-height': `${this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight}px`,
       '--exception-right': `${this.rightOptionWidth + 10}px`,
     };
   }
@@ -360,8 +369,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         <SqlEditor
           ref='sqlEditor'
           extendParams={this.extendParams}
-          onChange={this.handleSqlQueryResultChange}
-          onError={this.handleSqlQueryError}
+          on-change={this.handleSqlQueryResultChange}
+          on-error={this.handleSqlQueryError}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
       ];
@@ -424,6 +433,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       this.activeGraphCategory === GraphCategory.PIE
         ? this.$t('至少需要一个指标，一个维度')
         : this.$t('至少需要一个指标，一个维度/时间维度');
+
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -438,6 +448,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   getExceptionMessage() {
+    if (this.isRequesting) {
+      return { showException: true, message: '请求中...', showQuery: false };
+    }
+
     if (!this.errorResponse.result && this.errorResponse.message) {
       return { showException: true, message: this.errorResponse.message, showQuery: true };
     }
@@ -514,7 +528,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.isSqlMode = !this.isSqlMode;
   }
 
-  handleSqlQueryResultChange(data) {
+  handleSqlQueryResultChange(data, isRequesting) {
+    // 如果data为空，这里只处理请求状态
+    if (!data) {
+      this.isRequesting = isRequesting;
+      return;
+    }
+
     this.resultSchema = data.data?.result_schema ?? [];
     this.chartData = data;
     this.$set(this, 'chartData', data);
@@ -537,7 +557,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   createResizeObserve() {
-    const cellElement = this.$refs.refCanvasBody;
+    const cellElement = this.$refs.refGraphAnalysisBodyLeft;
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
@@ -553,7 +573,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   destoyResizeObserve() {
-    const cellElement = this.$refs.refCanvasBody;
+    const cellElement = this.$refs.refGraphAnalysisBodyLeft;
 
     if (isElement(cellElement)) {
       this.resizeObserver?.unobserve(cellElement);
@@ -564,10 +584,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   mounted() {
     this.createResizeObserve();
+    (this.$refs.refGraphAnalysisBodyLeft as HTMLElement).addEventListener('scroll', this.throttleScrollCallback);
   }
 
   unmount() {
     this.destoyResizeObserve();
+    (this.$refs.refGraphAnalysisBodyLeft as HTMLElement).removeEventListener('scroll', this.throttleScrollCallback);
   }
 
   render() {
@@ -579,7 +601,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         ></div>
 
         <div class='graph-analysis-body'>
-          <div class='body-left'>
+          <div
+            ref='refGraphAnalysisBodyLeft'
+            class='body-left'
+          >
             <div
               style={this.axiosStyle}
               class={['graph-axios-options', this.isSqlMode ? 'sql-mode' : '']}
@@ -653,7 +678,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     result_schema={this.resultSchema}
                     xAxis={this.xFields}
                     yAxis={this.yFields}
-                    onUpdate={this.updateChartData}
+                    on-update={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>
               </bk-collapse>
