@@ -39,9 +39,6 @@
     },
     result_schema: {
       type: Array,
-    },
-    tableSHowFields:{
-      type: Array,
     }
   });
   const emit = defineEmits(['update']);
@@ -92,16 +89,11 @@
      }
     },
   );
+  // 当sql重新查询后，重置时间维度
   watch(
     () => props.result_schema,
     newValue => {
      timeAxis.value=''
-    },
-  );
-  watch(
-    () => props.tableSHowFields,
-    newValue => {
-     hiddenField.value = list.value.filter(item => !newValue.includes(item.field_alias)).map(item => item.field_alias)
     },
   );
   function change(axis, newValue) {

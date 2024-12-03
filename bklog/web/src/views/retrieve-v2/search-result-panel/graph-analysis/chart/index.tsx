@@ -118,11 +118,11 @@ export default defineComponent({
     };
 
     const columns = computed(() => {
-      // if (props.chartOptions.category === 'table') {
+      if (props.chartOptions.category === 'table') {
         return (props.chartOptions.data?.select_fields_order ?? []).filter(
           col => !(props.chartOptions.hiddenFields ?? []).includes(col),
         );
-      // }
+      }
 
       return props.chartOptions.data?.select_fields_order ?? [];
     });
