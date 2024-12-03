@@ -85,7 +85,6 @@ class ChartHandler(object):
         addition = params["addition"]
 
         for condition in addition:
-            sql += " AND "
             field_name = condition["field"]
             operator = condition["operator"]
             values = condition["value"]
@@ -94,6 +93,7 @@ class ChartHandler(object):
             # 异常情况,跳过
             if not sql_operator or field_name in ["*", "query_string"]:
                 continue
+            sql += " AND "
             # IS TRUE和IS FALSE的逻辑
             if operator in ["is true", "is false"]:
                 sql += f"{field_name} {sql_operator}"
@@ -102,6 +102,11 @@ class ChartHandler(object):
             # values 不为空时才走后面的逻辑
             if not values:
                 continue
+
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            json_match = re.search(r"(?P<field_name>\w+)(?P<key>(\.\w+)+)", field_name)
+            if json_match:
+                field_name = f"JSON_EXTRACT({json_match.group('field_name')},'${json_match.group('key')}')"
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -122,7 +127,7 @@ class ChartHandler(object):
                     tmp_sql += f" {condition_type} "
                 if isinstance(value, str):
                     value = value.replace("'", "''")
-                    value = f"\'{value}\'"
+                    value = f"\'\"{value}\"\'" if json_match and operator in ["=", "!="] else f"\'{value}\'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
