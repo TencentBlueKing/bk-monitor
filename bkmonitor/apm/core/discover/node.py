@@ -38,9 +38,11 @@ class NodeDiscover(DiscoverBase):
         return defaultdict(
             lambda: {
                 "extra_data": {"category": "", "kind": "", "predicate_value": "", "service_language": ""},
-                "framework": [],
                 "platform": {},
-                "sdk": [],
+                # framework: multiple
+                "framework": {},
+                # sdk: multiple
+                "sdk": {},
             }
         )
 
@@ -69,6 +71,8 @@ class NodeDiscover(DiscoverBase):
                 continue
 
             for k, v in instances_mapping.items():
+                v["framework"] = list(v["framework"].values())
+                v["sdk"] = list(v["sdk"].values())
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
                     if all(True for i in [update_instances, create_instances, exists_instances] if k not in i):
                         # 如果目前没有发现这个符合 other 规则的服务 才把他添加进列表中 (不然如果更新的话会导致数据被覆盖为空)
@@ -190,7 +194,10 @@ class NodeDiscover(DiscoverBase):
         extra_data = {}
         for i in match_rule.instance_keys:
             extra_data[self.join_keys(i)] = extract_field_value(i, span)
-        instance_mapping[topo_key]["framework"].append({"name": match_rule.category_id, "extra_data": extra_data})
+        instance_mapping[topo_key]["framework"][match_rule.category_id] = {
+            "name": match_rule.category_id,
+            "extra_data": extra_data,
+        }
 
     def find_platform(self, instance_mapping, match_rule, span, topo_key):
         extra_data = {}
@@ -205,12 +212,10 @@ class NodeDiscover(DiscoverBase):
         if Vendor.equal(Vendor.G, predicate_value):
             for i in match_rule.instance_keys:
                 extra_data[self.join_keys(i)] = extract_field_value(i, span)
-        instance_mapping[topo_key]["sdk"].append(
-            {
-                "name": predicate_value,
-                "extra_data": extra_data,
-            }
-        )
+        instance_mapping[topo_key]["sdk"][predicate_value] = {
+            "name": predicate_value,
+            "extra_data": extra_data,
+        }
 
     def list_exists(self):
         return {
