@@ -380,13 +380,12 @@ export default class QueryStatement extends tsc<object> {
       isUnionIndex: !this.isAloneType,
       sort_list: [],
     };
-
-    if (payload.items.length === 1) {
-      if (!payload.keyword && payload.items[0].query_string) {
+    if (payload.items.length === 1 && !payload.addition.length && !payload.keyword) {
+      if (payload.items[0].query_string) {
         payload.keyword = payload.items[0].query_string;
         payload.search_mode = 'sql';
         payload.addition = [];
-      } else if (!payload.addition?.length && payload.items[0].addition) {
+      } else if (payload.items[0].addition) {
         payload.addition = payload.items[0].addition;
         payload.search_mode = 'ui';
         payload.keyword = '';
