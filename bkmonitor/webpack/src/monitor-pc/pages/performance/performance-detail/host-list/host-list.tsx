@@ -301,7 +301,7 @@ export default class HostList extends tsc<IProps, IEvents> {
     if (!this.enableOverview && this.selectId === 'overview') {
       const firstItem = this.hostListData[0];
       firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
-    } else {
+    } else if (this.selectId !== 'overview') {
       /* 如果已选中了某条数据则判断列表是否存在这个条数据 */
       const listHasSelectId = this.hostListData.some(item => item.id === this.selectId);
       if (!listHasSelectId) {
