@@ -557,14 +557,14 @@ export default defineComponent({
             {this.compareTarget.trim?.().length ? (
               [
                 <span
-                  key={this.compareTarget}
+                  key={`compare-target-text-${this.compareTarget}`}
                   class='target-text'
                   title={this.compareTarget}
                 >
                   {this.compareTarget}
                 </span>,
                 <i
-                  key={this.compareTarget}
+                  key={`compare-target-icon-${this.compareTarget}`}
                   class='icon-monitor icon-mc-close-fill'
                   onClick={this.handleCancelCompare}
                 />,
