@@ -355,7 +355,18 @@ def parse_target_dimension_strategy():
 
     # step1: 获取没有配置聚合维度的监控项ID
     query_configs = QueryConfigModel.objects.all().only("config", "item_id")
-    item_ids = [query_config.item_id for query_config in query_configs if not query_config.config["agg_dimension"]]
+
+    unexpected_item_ids = set()
+    item_ids = set()
+
+    # ItemModel和QueryConfigModel是一对多关系，这里是过滤出所有query_config都没有配置聚合维度的item_id
+    for query_config in query_configs:
+        if not query_config.config["agg_dimension"]:
+            item_ids.add(query_config.item_id)
+        else:
+            unexpected_item_ids.add(query_config.item_id)
+
+    item_ids = item_ids - unexpected_item_ids
 
     # step2: 获取配置了监控目标的监控项
     items = ItemModel.objects.filter(id__in=item_ids).only("strategy_id", "target")
