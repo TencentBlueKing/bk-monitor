@@ -2,9 +2,14 @@
 
 from django.db import migrations, models
 
+from apm.models import ApmTopoDiscoverRule
+
+
+def update_discover_rules(apps, schema_editor):
+    ApmTopoDiscoverRule.init_builtin_config()
+
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("apm", "0044_bcsclusterdefaultapplicationrelation"),
     ]
@@ -60,4 +65,5 @@ class Migration(migrations.Migration):
             name="topo_kind",
             field=models.CharField(max_length=50, null=True, verbose_name="topo发现类型"),
         ),
+        migrations.RunPython(update_discover_rules),
     ]
