@@ -25,7 +25,6 @@
 -->
 <script setup>
   import { ref, defineProps, watch, computed, defineEmits } from 'vue';
-import { type } from '../../../../../services/meta';
 
   const props = defineProps({
     xAxis: {
