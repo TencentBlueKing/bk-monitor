@@ -32,6 +32,7 @@ import useStore from '@/hooks/use-store';
 import { uniqueId, debounce } from 'lodash';
 
 import useResizeObserve from '../../../../hooks/use-resize-observe';
+import useWheel from '../../../../hooks/use-wheel';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -518,6 +519,13 @@ export default defineComponent({
       scrollCallbackFn: handleScrollEvent,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
+    });
+
+    useWheel({
+      target: refRootElement,
+      callback: (e: WheelEvent) => {
+        console.log('Wheel', e);
+      },
     });
 
     const scrollXOffsetLeft = ref(0);
