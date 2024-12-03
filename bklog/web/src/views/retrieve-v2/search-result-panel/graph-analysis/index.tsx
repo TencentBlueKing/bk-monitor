@@ -278,9 +278,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleGraphCategoryClick(category: GraphCategory) {
     if (category !== GraphCategory.TABLE) {
       this.chartActiveType = GraphCategory.CHART;
-    }else{
-      this.chartActiveType = GraphCategory.TABLE;
-      this.hiddenFields = []
     }
     this.activeGraphCategory = category;
     this.chartCounter++;
@@ -678,7 +675,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
                   <FieldSettings
                     slot='content'
-                    activeGraphCategory={this.chartActiveType}
+                    activeGraphCategory={this.activeGraphCategory}
                     result_schema={this.resultSchema}
                     xAxis={this.xFields}
                     yAxis={this.yFields}
