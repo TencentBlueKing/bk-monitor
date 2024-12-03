@@ -286,6 +286,7 @@ export default defineComponent({
 
         if (!sqlContent.value) {
           await handleSyncAdditionToSQL(true);
+          needQuery = true;
         }
 
         if (needQuery) {
