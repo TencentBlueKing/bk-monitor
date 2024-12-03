@@ -36,6 +36,7 @@ import {
   renameFolder,
   starDashboard,
   unstarDashboard,
+  copyDashboardToFolder,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -77,6 +78,7 @@ interface IFormData {
 }
 
 export enum MoreType {
+  copy = 9 /** 复制到 */,
   dashboard = 0 /** 仪表盘 */,
   delete = 4 /** 删除 */,
   dir = 1 /** 目录 */,
@@ -87,7 +89,7 @@ export enum MoreType {
   rename = 8 /** 重命名 */,
   unfav = 6 /** 取消收藏 */,
 }
-type FormType = MoreType.dashboard | MoreType.dir;
+type FormType = MoreType.copy | MoreType.dashboard | MoreType.dir;
 @Component
 export default class DashboardAside extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) bizIdList: ISpaceItem[];
@@ -203,6 +205,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     return this.curFormType === MoreType.dashboard;
   }
 
+  get isCopyDashboard() {
+    return this.curFormType === MoreType.copy;
+  }
+
   /** 目录列表 */
   get dirList() {
     return this.grafanaList.reduce((total, item) => {
@@ -267,7 +273,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
-      this.checked = this.$route.params?.url || '';
+      const list = (this.$route.params?.url || '').split('/') || [];
+      this.checked = list[0] || '';
     } else {
       this.checked = random(10);
     }
@@ -299,12 +306,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleGrafanaTreeData(list: Array<any>): ITreeMenuItem[] {
     return list.map(item => {
-      const { id, title, dashboards = [], uid = '', isStarred = false } = item;
+      const { id, title, dashboards = [], uid = '', isStarred = false, url } = item;
       return {
         id,
         title,
         uid,
         isStarred,
+        url,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
         editable: item.editable ?? true,
         children: this.handleGrafanaTreeData(dashboards),
@@ -330,6 +338,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           id: item.id,
           name: item.name,
           uid: item.uid,
+          url: item.url,
         });
       return total;
     }, []);
@@ -376,6 +385,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     switch (data.option.id) {
       case MoreType.dashboard:
       case MoreType.dir:
+      case MoreType.copy:
         this.handleShowAddFrom(data);
         break;
       case MoreType.delete:
@@ -508,6 +518,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
+    this.formData.name = (this.isCopyDashboard && item?.title) || '';
   }
 
   /** 表单校验 */
@@ -519,13 +530,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
 
   /**
-   * 新增他提交
+   * 新增提交
    */
   async handleConfirm() {
     this.loading = true;
     const isPass = await this.handleValidate();
     if (isPass) {
-      const api = this.isDashboard ? this.handleAddDashboard : this.handleAddFolder;
+      const api = this.isDashboard
+        ? this.handleAddDashboard
+        : this.isCopyDashboard
+          ? this.handleCopyDashboard
+          : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
       if (isSuccess) {
         this.showAddForm = false;
@@ -544,8 +559,32 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       type: 'dashboard',
     };
     return createDashboardOrFolder(params)
-      .then(() => true)
+      .then(res => {
+        this.$bkMessage({ message: `${this.$t('创建成功')}：${res?.title}`, theme: 'success' });
+        return true;
+      })
       .catch(() => false);
+  }
+  /**
+   * 复制仪表盘
+   */
+  handleCopyDashboard() {
+    const params = {
+      dashboard_uid: this.checked,
+      folder_id: this.formData.dir,
+    };
+    return copyDashboardToFolder(params)
+      .then(res => {
+        const url = res?.imported_url
+          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
+          : '';
+        url && window.open(url, '_blank');
+        return true;
+      })
+      .catch(rs => {
+        rs?.message && this.$bkMessage({ message: `${rs?.message}`, theme: 'error' });
+        return false;
+      });
   }
   /**
    * 新增目录
@@ -760,7 +799,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           ext-cls='dashboard-add-dialog'
           v-model={this.showAddForm}
           header-position='left'
-          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
+          title={this.$t(this.isDashboard ? '新建仪表盘' : this.isCopyDashboard ? '复制仪表盘' : '新增目录')}
           show-footer
           onCancel={this.handleCancel}
         >
@@ -774,16 +813,21 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             ref='dashboardForm'
             formType='vertical'
           >
-            <bk-form-item
-              label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
-              property='name'
-              required
-            >
-              <bk-input v-model={this.formData.name} />
-            </bk-form-item>
-            {this.isDashboard && (
+            {
               <bk-form-item
-                label={this.$t('所属目录')}
+                label={this.$t(this.isDashboard || this.isCopyDashboard ? '仪表盘名称' : '目录名称')}
+                property='name'
+                required
+              >
+                <bk-input
+                  v-model={this.formData.name}
+                  readonly={this.isCopyDashboard}
+                />
+              </bk-form-item>
+            }
+            {(this.isDashboard || this.isCopyDashboard) && (
+              <bk-form-item
+                label={this.$t(this.isCopyDashboard ? '目标目录' : '所属目录')}
                 property='dir'
                 required
               >

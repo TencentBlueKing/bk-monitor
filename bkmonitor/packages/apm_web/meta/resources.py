@@ -272,7 +272,10 @@ class ListApplicationInfoResource(Resource):
             fields = "__all__"
 
     def perform_request(self, validated_request_data):
-        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
+        return Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).filter(
+            Application.q_filter_create_finished()
+        )
 
 
 class ApplicationInfoResource(Resource):
@@ -448,10 +451,13 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         return data
 
 
+class OperateDataSourceSerializer(serializers.Serializer):
+    application_id = serializers.IntegerField(label="应用id")
+    type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
+
+
 class StartResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(label="需要开启的数据源", choices=TelemetryDataType.values())
+    RequestSerializer = OperateDataSourceSerializer
 
     @classmethod
     def translate_data_status_when_start(cls, data_status):
@@ -459,7 +465,10 @@ class StartResource(Resource):
 
     @atomic
     def perform_request(self, validated_data):
-        application = Application.objects.get(application_id=validated_data["application_id"])
+        try:
+            application = Application.objects.get(application_id=validated_data["application_id"])
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = True
@@ -498,13 +507,14 @@ class StartResource(Resource):
 
 
 class StopResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(label="暂停类型", choices=TelemetryDataType.values())
+    RequestSerializer = OperateDataSourceSerializer
 
     @atomic
     def perform_request(self, validated_data):
-        application = Application.objects.get(application_id=validated_data["application_id"])
+        try:
+            application = Application.objects.get(application_id=validated_data["application_id"])
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = False
@@ -842,6 +852,11 @@ class ListApplicationResource(PageListResource):
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
 
     class ApplicationSerializer(serializers.ModelSerializer):
+        is_create_finished = serializers.SerializerMethodField()
+
+        def get_is_create_finished(self, instance):
+            return instance.is_create_finished
+
         class Meta:
             model = Application
             fields = [
@@ -858,6 +873,7 @@ class ListApplicationResource(PageListResource):
                 "service_count",
                 "trace_result_table_id",
                 "metric_result_table_id",
+                "is_create_finished",
             ]
 
     def get_filter_fields(self):

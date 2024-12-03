@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -35,11 +35,12 @@ import {
   i18n,
 } from '@blueking/monitor-retrieve/main';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/mainb987113.css';
+import '@blueking/monitor-retrieve/css/main03b9907.css';
 import './monitor-retrieve.scss';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
@@ -53,6 +54,7 @@ export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 当前使用的业务id
   @InjectReactive('bkBizId') readonly bkBizId: number | string;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
 
   isInit = false;
   empty = true;
@@ -93,6 +95,7 @@ export default class MonitorRetrieve extends tsc<void> {
               timeRange: this.timeRange,
               timezone: this.timezone,
               refleshImmediate: this.refleshImmediate,
+              handleChartDataZoom: this.handleChartDataZoom,
             },
           }),
       });
@@ -105,17 +108,23 @@ export default class MonitorRetrieve extends tsc<void> {
 
   async indexSetApi() {
     const { app_name, service_name } = this.viewOptions.filters;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const data = await serviceRelationList({
       app_name,
       service_name,
+      start_time: startTime,
+      end_time: endTime,
     }).catch(() => []);
     return data;
   }
 
   async getServiceLogInfo() {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const data = await serviceLogInfo({
       app_name: this.viewOptions.filters.app_name,
       service_name: this.viewOptions.filters.service_name,
+      start_time: startTime,
+      end_time: endTime,
     })
       .then(data => {
         return !!data;

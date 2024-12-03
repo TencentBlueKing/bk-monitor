@@ -55,6 +55,7 @@ import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import {
   DEFAULT_TRACE_DATA,
+  QUERY_TRACE_RELATION_APP,
   SOURCE_CATEGORY_EBPF,
   TRACE_INFO_TOOL_FILTERS,
   VIRTUAL_SPAN,
@@ -388,9 +389,12 @@ export default defineComponent({
         } else {
           // 时序图和火焰图需要过滤【耗时选项】
           const { waterFallAndTopo } = cacheFilterToolsValues;
-          const newArr = ['flame', 'sequence'].includes(v)
+          let newArr = ['flame', 'sequence'].includes(v)
             ? waterFallAndTopo.filter(val => val !== 'duration')
             : waterFallAndTopo;
+          if (v !== 'timeline') {
+            newArr = newArr.filter(val => val !== QUERY_TRACE_RELATION_APP);
+          }
           store.updateTraceViewFilters(newArr);
         }
       });
@@ -542,7 +546,7 @@ export default defineComponent({
         cacheFilterToolsValues.statistics = val;
       } else {
         searchCancelFn();
-        const selects = val.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = val.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用 选项
         const displays = ['source_category_opentelemetry'].concat(selects);
         const { trace_id: traceId } = traceData.value;
         contentLoading.value = true;
@@ -554,6 +558,10 @@ export default defineComponent({
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
         };
+        clearCrossApp();
+        if (state.activePanel === 'timeline') {
+          params[QUERY_TRACE_RELATION_APP] = val.includes(QUERY_TRACE_RELATION_APP);
+        }
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {
@@ -624,6 +632,7 @@ export default defineComponent({
       () => props.traceID,
       () => {
         clearCompareParams();
+        clearCrossApp();
       }
     );
     watch(
@@ -702,6 +711,18 @@ export default defineComponent({
       updateCompareStatus(false);
       state.compareSpanList = [];
       state.compareTraceID = '';
+    };
+
+    /** 从非timeline视图切换Trace ID，过滤跨应用checkbox */
+    const clearCrossApp = () => {
+      if (
+        state.activePanel !== 'timeline' &&
+        cacheFilterToolsValues.waterFallAndTopo.includes(QUERY_TRACE_RELATION_APP)
+      ) {
+        cacheFilterToolsValues.waterFallAndTopo = cacheFilterToolsValues.waterFallAndTopo.filter(
+          item => item !== QUERY_TRACE_RELATION_APP
+        );
+      }
     };
     /** 更新对比状态 */
     const updateCompareStatus = (isCompare = true) => {
@@ -873,11 +894,11 @@ export default defineComponent({
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <label>{this.$t('产生时间')}</label>
+            <label for=''>{this.$t('产生时间')}</label>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('总耗时')}</label>
+            <label for=''>{this.$t('总耗时')}</label>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -911,19 +932,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <label>{this.$t('时间区间')}</label>
+            <label for=''>{this.$t('耗时分布')}</label>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('服务数')}</label>
+            <label for=''>{this.$t('服务数')}</label>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('层级数')}</label>
+            <label for=''>{this.$t('层级数')}</label>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('span总数')}</label>
+            <label for=''>{this.$t('span总数')}</label>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>

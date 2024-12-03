@@ -12,11 +12,15 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.core.cache import caches
+
 from alarm_backends.core.cache import key
+from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.handlers import base
-from alarm_backends.service.detect.tasks import run_detect
+from alarm_backends.service.detect.tasks import run_detect, run_detect_with_sdk
 
 logger = logging.getLogger("detect")
+mem_cache = caches["locmem"]
 
 
 class DetectHandler(base.BaseHandler):
@@ -26,7 +30,6 @@ class DetectHandler(base.BaseHandler):
         self.data_signal_key = key.DATA_SIGNAL_KEY.get_key()
 
     def handle(self):
-
         ret = self.client.brpop(self.data_signal_key, 5)
         if ret is None:
             logger.debug("未拉取到待处理的策略项")
@@ -36,7 +39,6 @@ class DetectHandler(base.BaseHandler):
 
 
 class DetectCeleryHandler(DetectHandler):
-
     max_input_count = 100
 
     def handle(self):
@@ -60,7 +62,26 @@ class DetectCeleryHandler(DetectHandler):
 
             break
 
+        aiops_strategy_ids = set()
+        # 根据策略检测算法及是否启用sdk检测，决定推送不同的处理队列
         for strategy_id in strategy_ids:
+            if self.use_aiops_sdk(strategy_id):
+                run_detect_with_sdk.apply_async(args=(strategy_id,))
+                aiops_strategy_ids.add(strategy_id)
+                continue
             run_detect.apply_async(args=(strategy_id,))
 
-        logger.info("[detect] published {} strategy_ids: {}".format(len(strategy_ids), strategy_ids))
+        logger.info("[detect] total published {} strategy_ids: {}".format(len(strategy_ids), strategy_ids))
+        logger.info("[detect] published aiops_strategy_ids: {}".format(aiops_strategy_ids))
+
+    @classmethod
+    def use_aiops_sdk(cls, strategy_id):
+        # 内存
+        use_api_sdk = mem_cache.get(str(strategy_id))
+        if use_api_sdk is None:
+            # 内存过期或没命中，从redis获取
+            strategy = Strategy(strategy_id)
+            use_api_sdk = strategy.use_api_sdk
+            # 10分钟缓存
+            mem_cache.set(str(strategy_id), use_api_sdk, 10 * 60)
+        return use_api_sdk

@@ -67,6 +67,10 @@ const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
   method: 'post',
 };
+const quickDownload = {
+  url: '/search/index_set/:index_set_id/quick_export/',
+  method: 'post',
+};
 const unionDownloadLog = {
   url: '/search/index_set/union_search/export/',
   method: 'post',
@@ -221,6 +225,7 @@ export {
   downloadLog,
   unionDownloadLog,
   exportAsync,
+  quickDownload,
   getRealTimeLog,
   getContentLog,
   saveTitleInfo,

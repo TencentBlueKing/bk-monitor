@@ -28,8 +28,12 @@ from metadata.config import (
     KAFKA_SASL_PROTOCOL,
     PERIODIC_TASK_DEFAULT_TTL,
 )
-from metadata.models.constants import EsSourceType
-from metadata.task.tasks import manage_es_storage
+from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
+from metadata.task.tasks import (
+    bulk_check_and_delete_ds_consul_config,
+    bulk_refresh_data_link_status,
+    manage_es_storage,
+)
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
@@ -349,21 +353,14 @@ def refresh_es_storage():
             cluster_id = cluster['storage_cluster_id']
             cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
             count = cluster_storages.count()
-            logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
+            logger.info(
+                "refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]，now try to rotate",
+                cluster_id,
+                count,
+            )
 
-            if cluster_id in enable_v2_rotation_es_cluster_ids:
-                # 此处由于是新的白名单方式，所以可以考虑将所有的索引传入到任务中，在任务中进行串行处理
-                logger.info(
-                    "refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", cluster_id, count
-                )
-                manage_es_storage.delay(cluster_storages, cluster_id)
-            else:
-                # 5.1 为每个集群创建批量任务
-                for s in range(start, count, step):
-                    try:
-                        manage_es_storage.delay(cluster_storages[s : s + step], cluster_id)
-                    except Exception as e:  # pylint: disable=broad-except
-                        logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
+            # 默认使用新方式轮转
+            manage_es_storage.delay(cluster_storages, cluster_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
             continue
@@ -397,6 +394,16 @@ def refresh_bcs_info():
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_info", process_target=None).observe(cost_time)
     metrics.report_all()
     logger.info("refresh bcs info into consul success,use ->[%s] seconds", cost_time)
+
+
+@share_lock(identify="metadata_check_and_delete_ds_consul_config")
+def check_and_delete_ds_consul_config():
+    """
+    针对V4数据源，检查Consul是否存在，若存在则进行删除操作
+    """
+    logger.info("check_and_delete_ds_consul_config: start to check and delete ds consul config")
+    data_sources = models.DataSource.objects.filter(created_from=DataIdCreatedFromSystem.BKDATA.value)
+    bulk_check_and_delete_ds_consul_config.delay(data_sources)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")

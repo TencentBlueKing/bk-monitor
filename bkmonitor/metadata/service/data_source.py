@@ -155,6 +155,7 @@ def modify_data_id_source(data_id_list: List[int], source_type: str) -> bool:
     if diff_data_ids:
         logger.error("modify_data_id_source:data_ids: %s not found", json.dumps(diff_data_ids))
         raise ValueError(f"data_ids: {json.dumps(diff_data_ids)} not found")
+
     # 如果source_type为bkdata，则表示链路迁移，需要删除 consul 中配置
     if source_type == DataIdCreatedFromSystem.BKDATA.value:
         datasources.update(created_from=source_type)

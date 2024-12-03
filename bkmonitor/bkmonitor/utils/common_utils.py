@@ -767,18 +767,6 @@ def to_dict(obj):
         return obj
 
 
-def replce_special_val(s, replace_dict):
-    """
-    替换特殊变量
-    :param s: 待替换字符串
-    :param replace_dict: 替换映射
-    :return: 替换结果
-    """
-    for key, value in replace_dict.items():
-        s = s.replace(key, value)
-    return s
-
-
 def chunks(data, n):
     """分隔数组 ."""
     return (data[i : i + n] for i in range(0, len(data), n))
