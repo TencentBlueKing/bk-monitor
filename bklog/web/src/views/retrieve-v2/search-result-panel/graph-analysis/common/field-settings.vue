@@ -162,11 +162,11 @@
           :id="option"
           :name="option"
           :disabled="
-            list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option.field_alias)
+            list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)
           "
         >
           <div
-            v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option.field_alias)"
+            v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option)"
           >
             {{ option }}
           </div>
