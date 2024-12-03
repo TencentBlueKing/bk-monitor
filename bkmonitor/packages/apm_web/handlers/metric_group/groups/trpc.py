@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 from django.db.models import Q
 
 from apm_web.metric.constants import SeriesAliasType
-from bkmonitor.data_source import dict_to_q
+from bkmonitor.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.apm import MetricTemporality, TRPCMetricTag
 
@@ -282,22 +282,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
                     "field": TRPCMetricTag.APP,
-                    "filter_dict": {f"{TRPCMetricTag.CALLER_SERVER}__eq": server},
+                    "filter_dict": q_to_dict(
+                        Q(**{f"{TRPCMetricTag.CALLER_SERVER}__eq": server})
+                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                    ),
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
                     "field": TRPCMetricTag.APP,
-                    "filter_dict": {f"{TRPCMetricTag.CALLEE_SERVER}__eq": server},
-                },
-                {
-                    "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
-                    "filter_dict": {f"{TRPCMetricTag.SERVICE_NAME}__eq": server},
-                },
-                {
-                    "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
-                    "filter_dict": {f"{TRPCMetricTag.SERVICE_NAME}__eq": server},
+                    "filter_dict": q_to_dict(
+                        Q(**{f"{TRPCMetricTag.CALLEE_SERVER}__eq": server})
+                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                    ),
                 },
             ],
             start_time=start_time,

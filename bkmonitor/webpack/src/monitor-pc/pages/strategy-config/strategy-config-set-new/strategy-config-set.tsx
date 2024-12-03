@@ -1520,6 +1520,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const targetMetricItem = new MetricDetail(list[0]);
     targetMetricItem.setMetricType(this.metricSelector.type);
     this.$set(this.metricData, targetMetricIndex, targetMetricItem);
+    // 切换指标且单位不同时 清空检测算法单位
+    if (this.detectionConfig.unit && this.metricData[0].unit !== this.detectionConfig.unitType) {
+      this.detectionConfig.unit = '';
+    }
     if (this.metricData.length >= 1 && !!this.metricData[0].metric_id) {
       this.baseConfig.scenario = this.metricData[0].result_table_label;
     }

@@ -391,6 +391,7 @@ export default defineComponent({
                       </span>
                     ),
                   }}
+                  placeholder={this.$t('请输入Trace ID')}
                   showOverflowTooltips={false}
                   onChange={this.handleMouseEnterHeader}
                   onEnter={this.handleCompare}
@@ -430,6 +431,7 @@ export default defineComponent({
                     </div>
                     {this.temporaryList.map(item => (
                       <div
+                        key={item}
                         class='id-list-item'
                         onMouseenter={() => this.handleMouseEnter(item)}
                         onMouseleave={() => this.handleMouseleave()}
@@ -471,6 +473,7 @@ export default defineComponent({
                     </div>
                     {this.commonUsedList.map(item => (
                       <div
+                        key={item.trace_id}
                         class='id-list-item'
                         onClick={() => this.handleSelectCommonUsed(item)}
                         onMouseenter={() => this.handleMouseEnter(item, true)}
@@ -554,12 +557,14 @@ export default defineComponent({
             {this.compareTarget.trim?.().length ? (
               [
                 <span
+                  key='compare-target-text'
                   class='target-text'
                   title={this.compareTarget}
                 >
                   {this.compareTarget}
                 </span>,
                 <i
+                  key='compare-target-icon'
                   class='icon-monitor icon-mc-close-fill'
                   onClick={this.handleCancelCompare}
                 />,

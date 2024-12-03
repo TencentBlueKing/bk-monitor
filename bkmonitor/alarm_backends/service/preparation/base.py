@@ -8,9 +8,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from .apm import *  # noqa
-from .event import *  # noqa
-from .log import *  # noqa
-from .manage import *  # noqa
-from .time_series import *  # noqa
-from .unify_query import *  # noqa
+import abc
+import logging
+
+logger = logging.getLogger("preparation")
+
+
+####################################
+#           Base Process           #
+####################################
+class BasePreparationProcess(metaclass=abc.ABCMeta):
+    """
+    策略数据准备基类
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(BasePreparationProcess, self).__init__()
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    @abc.abstractmethod
+    def process(self):
+        raise NotImplementedError()

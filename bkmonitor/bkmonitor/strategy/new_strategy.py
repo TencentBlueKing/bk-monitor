@@ -90,6 +90,7 @@ from bkmonitor.strategy.serializers import (
 from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
+from constants.aiops import SDKDetectStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
     DATALINK_SOURCE,
@@ -2409,20 +2410,18 @@ class Strategy(AbstractConfig):
         if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
             return
 
-        # 4.2 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
-        if not query_config.result_table_id:
-            raise Exception(_("当前指标暂不支持智能监控策略"))
-
-        # 4.3 标记是否需要接入智能检测算法，默认False表示不接入
+        # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
         need_access = False
-        # 4.3.1 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
-        if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
-            for condition in query_config.agg_condition:
-                if condition["method"] in AdvanceConditionMethod:
-                    raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
-            need_access = True
+        # 4.3.1 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
+        if query_config.result_table_id:
+            # 4.3.2 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
+            if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
+                for condition in query_config.agg_condition:
+                    if condition["method"] in AdvanceConditionMethod:
+                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
+                need_access = True
 
-        # 4.3.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
+        # 4.3.3 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
         if query_config.data_source_label == DataSourceLabel.BK_DATA:
             # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
             if algorithm in (set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)):
@@ -2436,9 +2435,9 @@ class Strategy(AbstractConfig):
                 )
 
         # 4.4 接入智能检测算法
+        intelligent_detect = getattr(query_config, "intelligent_detect", {})
         if need_access:
             # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
-            intelligent_detect = getattr(query_config, "intelligent_detect", {})
             intelligent_detect["status"] = AccessStatus.PENDING
             intelligent_detect["retries"] = 0
             intelligent_detect["message"] = ""
@@ -2449,9 +2448,12 @@ class Strategy(AbstractConfig):
                 access_func = get_aiops_access_func(algorithm)
                 task = access_func.delay(self.id)
                 intelligent_detect["task_id"] = task.id
+        else:
+            intelligent_detect["use_sdk"] = True
+            intelligent_detect["status"] = SDKDetectStatus.PREPARING
 
-            query_config.intelligent_detect = intelligent_detect
-            query_config.save()
+        query_config.intelligent_detect = intelligent_detect
+        query_config.save()
 
     @classmethod
     def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):
