@@ -265,6 +265,10 @@
         &.is-hidden {
           display: none;
         }
+
+        &.hidden-field {
+          visibility: hidden;
+        }
       }
     }
 

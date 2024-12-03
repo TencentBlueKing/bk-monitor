@@ -182,6 +182,9 @@ dependencies:
   vue-class-component:
     specifier: 7.2.6
     version: 7.2.6(vue@2.7.16)
+  vue-easytable:
+    specifier: ^2.27.1
+    version: 2.27.1(lodash@4.17.21)(vue@2.7.16)
   vue-i18n:
     specifier: 8.11.2
     version: 8.11.2(vue@2.7.16)
@@ -203,6 +206,9 @@ dependencies:
   vue-text-highlight:
     specifier: ^2.0.10
     version: 2.0.10(vue@2.7.16)
+  vue-virtual-scroller:
+    specifier: ^1.1.2
+    version: 1.1.2(vue@2.7.16)
   vuedraggable:
     specifier: 2.24.3
     version: 2.24.3
@@ -1690,7 +1696,6 @@ packages:
       lodash.throttle: 4.1.1
       tippy.js: 6.3.7
     dev: false
-    bundledDependencies: false
 
   /@codemirror/autocomplete@6.18.3(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.35.0)(@lezer/common@1.2.3):
     resolution: {integrity: sha512-1dNIOmiM0z4BIBwxmxEfA1yoxh1MF/6KPBbh20a5vphGV0ictKlgQsbJs6D6SkR6iJpGbpwRsa6PFMNlg9T9pQ==}
@@ -5424,6 +5429,10 @@ packages:
 
   /dayjs@1.11.13:
     resolution: {integrity: sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg==}
+    dev: false
+
+  /de-indent@1.0.2:
+    resolution: {integrity: sha512-e/1zu3xH5MQryN2zdVaF0OrdNLUbvWxzMbi+iNA6Bky7l1RoP8a2fIbRocyHclXt/arDrrR6lL3TqFD9pMQTsg==}
     dev: false
 
   /debounce@1.2.1:
@@ -10266,6 +10275,10 @@ packages:
     resolution: {integrity: sha512-R/tCuvuOHQ8o2boRP6vgx8hXCCy87H1eY9V5imBYeVNyNVpuL9ciReSccLj2gDcax9+2weXy3bc8Vv+NRXeEvQ==}
     dev: false
 
+  /resize-observer-polyfill@1.5.1:
+    resolution: {integrity: sha512-LwZrotdHOo12nQuZlHEmtuXdqGoOD0OhaxopaNFxWzInpEgaLWoVuAMbTzixuosCx2nEG58ngzW3vxdWoxIgdg==}
+    dev: false
+
   /resolve-cwd@3.0.0:
     resolution: {integrity: sha512-OrZaX2Mb+rJCpH/6CpSqt9xFVpN++x01XnN2ie9g6P5/3xelLAkXWVADpdz1IHD/KFfEXyE6V0U01OQ3UO2rEg==}
     engines: {node: '>=8'}
@@ -10439,6 +10452,10 @@ packages:
   /screenfull@6.0.2:
     resolution: {integrity: sha512-AQdy8s4WhNvUZ6P8F6PB21tSPIYKniic+Ogx0AacBMjKP1GUHN2E9URxQHtCusiwxudnCKkdy4GrHXPPJSkCCw==}
     engines: {node: ^14.13.1 || >=16.0.0}
+    dev: false
+
+  /scrollparent@2.1.0:
+    resolution: {integrity: sha512-bnnvJL28/Rtz/kz2+4wpBjHzWoEzXhVg/TE8BeVGJHUqE8THNIRnDxDWMktwM+qahvlRdvlLdsQfYe+cuqfZeA==}
     dev: false
 
   /select-hose@2.0.0:
@@ -11852,6 +11869,18 @@ packages:
       vue: 2.7.16
     dev: false
 
+  /vue-easytable@2.27.1(lodash@4.17.21)(vue@2.7.16):
+    resolution: {integrity: sha512-Rs2cqaPYamH8zXQo/f90AyM/ROGMsB5Njb74GpooWacAKEXbHU0wXYvEjSBZ7CcS6TVqliA/ZbgVqOoA/o9bHQ==}
+    peerDependencies:
+      lodash: ^4.17.20
+      vue: '>= 2.6.0'
+    dependencies:
+      lodash: 4.17.21
+      resize-observer-polyfill: 1.5.1
+      vue: 2.7.16
+      vue-template-compiler: 2.7.16
+    dev: false
+
   /vue-eslint-parser@9.4.3(eslint@9.15.0):
     resolution: {integrity: sha512-2rYRLWlIpaiN8xbPiDyXZXRgLGOtWxERV7ND5fFAv5qo1D2N9Fu9MNajBNc6o13lZ+24DAWCkQCvj4klgmcITg==}
     engines: {node: ^14.17.0 || >=16.0.0}
@@ -11970,6 +11999,10 @@ packages:
       - whiskers
     dev: false
 
+  /vue-observe-visibility@0.4.6:
+    resolution: {integrity: sha512-xo0CEVdkjSjhJoDdLSvoZoQrw/H2BlzB5jrCBKGZNXN2zdZgMuZ9BKrxXDjNP2AxlcCoKc8OahI3F3r3JGLv2Q==}
+    dev: false
+
   /vue-property-decorator@9.1.2(vue-class-component@7.2.6)(vue@2.7.16):
     resolution: {integrity: sha512-xYA8MkZynPBGd/w5QFJ2d/NM0z/YeegMqYTphy7NJQXbZcuU6FC6AOdUAcy4SXP+YnkerC6AfH+ldg7PDk9ESQ==}
     peerDependencies:
@@ -11978,6 +12011,14 @@ packages:
     dependencies:
       vue: 2.7.16
       vue-class-component: 7.2.6(vue@2.7.16)
+    dev: false
+
+  /vue-resize@0.4.5(vue@2.7.16):
+    resolution: {integrity: sha512-bhP7MlgJQ8TIkZJXAfDf78uJO+mEI3CaLABLjv0WNzr4CcGRGPIAItyWYnP6LsPA4Oq0WE+suidNs6dgpO4RHg==}
+    peerDependencies:
+      vue: ^2.3.0
+    dependencies:
+      vue: 2.7.16
     dev: false
 
   /vue-router@3.6.5(vue@2.7.16):
@@ -11993,6 +12034,13 @@ packages:
     dependencies:
       hash-sum: 1.0.2
       loader-utils: 1.4.2
+    dev: false
+
+  /vue-template-compiler@2.7.16:
+    resolution: {integrity: sha512-AYbUWAJHLGGQM7+cNTELw+KsOG9nl2CnSv467WobS5Cv9uk3wFcnr1Etsz2sEIHEZvw1U+o9mRlEO6QbZvUPGQ==}
+    dependencies:
+      de-indent: 1.0.2
+      he: 1.2.0
     dev: false
 
   /vue-template-es2015-compiler@1.9.1:
@@ -12028,6 +12076,17 @@ packages:
     dependencies:
       is-plain-object: 5.0.0
       vue: 2.7.16
+    dev: false
+
+  /vue-virtual-scroller@1.1.2(vue@2.7.16):
+    resolution: {integrity: sha512-SkUyc7QHCJFB5h1Fya7LxVizlVzOZZuFVipBGHYoTK8dwLs08bIz/tclvRApYhksaJIm/nn51inzO2UjpGJPMQ==}
+    peerDependencies:
+      vue: ^2.6.11
+    dependencies:
+      scrollparent: 2.1.0
+      vue: 2.7.16
+      vue-observe-visibility: 0.4.6
+      vue-resize: 0.4.5(vue@2.7.16)
     dev: false
 
   /vue@2.7.16:
