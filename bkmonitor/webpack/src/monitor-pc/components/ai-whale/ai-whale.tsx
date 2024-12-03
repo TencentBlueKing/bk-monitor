@@ -150,12 +150,7 @@ export default class AiWhale extends tsc<{
   lastRecordTime = 0;
 
   /* AI Blueking */
-  messages: IMessage[] = [
-    {
-      content: window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。'),
-      role: RoleType.Assistant,
-    },
-  ];
+  messages: IMessage[] = [];
   prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
   loading = false;
   background = '#f5f7fa';
@@ -193,6 +188,7 @@ export default class AiWhale extends tsc<{
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
     this.resizeFn = throttle(50, this.handleWindowResize);
+    this.messages = this.getDefaultMessage();
     window.addEventListener('resize', this.resizeFn);
   }
 
@@ -211,6 +207,14 @@ export default class AiWhale extends tsc<{
     window.clearInterval(this.timeInstance);
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
+  }
+  getDefaultMessage() {
+    return [
+      {
+        content: window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。'),
+        role: RoleType.Assistant,
+      },
+    ];
   }
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
@@ -499,7 +503,7 @@ export default class AiWhale extends tsc<{
     );
   }
   handleAiBluekingClear() {
-    this.messages = [];
+    this.messages = this.getDefaultMessage();
   }
   handleAiBluekingSend(message: ISendData) {
     // 记录当前消息记录
@@ -790,6 +794,7 @@ export default class AiWhale extends tsc<{
         isShow={this.showAIBlueking}
         loading={this.loading}
         messages={this.messages}
+        placeholder={this.$t('您可以键入“/”查看更多提问示例')}
         position-limit={this.positionLimit}
         prompts={this.prompts}
         size-limit={this.sizeLimit}
