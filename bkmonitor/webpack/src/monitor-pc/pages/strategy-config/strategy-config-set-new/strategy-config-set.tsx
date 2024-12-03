@@ -58,7 +58,7 @@ import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
-import IntelligentModelsStore from '../../../store/modules/intelligent-models';
+import IntelligentModelsStore, { type IntelligentModelsType } from '../../../store/modules/intelligent-models';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
@@ -401,6 +401,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否可编辑 */
   editAllowed = true;
   stickyObserver: IntersectionObserver | null = null;
+  /** 所有列表智能模型 Map */
+  intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>> = new Map();
+
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
@@ -532,7 +535,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
     // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
-    if (window.enable_aiops) IntelligentModelsStore.initAllListIntelligentModels();
+    if (window.enable_aiops) {
+      IntelligentModelsStore.initAllListIntelligentModels().then(models => {
+        this.$set(this, 'intelligentDetect', models);
+      });
+    }
   }
   activated() {
     this.stickyObserver = new IntersectionObserver(
@@ -2669,6 +2676,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   backfillData={this.detectionDataBackfill}
                   connector={this.detectionConfig.connector}
                   dataMode={this.dataMode}
+                  intelligentDetect={this.intelligentDetect}
                   isEdit={this.isEdit}
                   metricData={this.selectMetricData}
                   needShowUnit={this.needShowUnit}
