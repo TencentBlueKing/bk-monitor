@@ -170,7 +170,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
   /** 状态筛选数据 */
   get statusList() {
-    const statusList = this.panel.options?.status_tab_list || [];
+    const statusList = this.panel.options?.target_list?.status_tab_list || [];
     return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => {
       const id = item?.id || item.type;
       return {
@@ -226,7 +226,7 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
 
   get timeRangeChangeRefresh() {
-    return !!this.panel.options?.time_range_change_refresh;
+    return !!this.panel.options?.target_list?.time_range_change_refresh;
   }
 
   async created() {
