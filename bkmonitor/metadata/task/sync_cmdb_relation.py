@@ -51,17 +51,21 @@ def sync_relation_redis_data():
     existing_rts = ResultTable.objects.filter(is_builtin=True)
     existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
     for field, value in redis_data.items():
-        value_dict = json.loads(value)  # 获取对应的field与value
-        key = field.decode('utf-8')
-        space_type, space_id = key.split('__')  # 分割出space_type和space_id
-        # 转义出对应的业务ID，容器等非业务类型ID为负数
-        biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
-        # {biz_id}_{space_type}_built_in_time_series.__default__
-        data_name = "{}_{}_built_in_time_series".format(biz_id, space_type)
-        table_id = "{}_{}_built_in_time_series.__default__".format(biz_id, space_type)  # table_id有限制，必须以业务ID数字开头
-        token = value_dict.get('token')  # Redis缓存中的Token数据
-        modify_time = value_dict.get('modifyTime')  # noqa
-        logger.info("sync_relation_redis_data start sync builtin redis data, field={}".format(key))
+        try:
+            value_dict = json.loads(value)  # 获取对应的field与value
+            key = field.decode('utf-8')
+            space_type, space_id = key.split('__')  # 分割出space_type和space_id
+            # 转义出对应的业务ID，容器等非业务类型ID为负数
+            biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
+            # {biz_id}_{space_type}_built_in_time_series.__default__
+            data_name = "{}_{}_built_in_time_series".format(biz_id, space_type)
+            table_id = "{}_{}_built_in_time_series.__default__".format(biz_id, space_type)  # table_id有限制，必须以业务ID数字开头
+            token = value_dict.get('token')  # Redis缓存中的Token数据
+            modify_time = value_dict.get('modifyTime')  # noqa
+            logger.info("sync_relation_redis_data start sync builtin redis data, field={}".format(key))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("sync_relation_redis_data: get redis data error, field->[%s],error->[%s]", field, e)
+            continue
 
         rt = existing_rts_dict.get(table_id)
         if rt:
