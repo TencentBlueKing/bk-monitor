@@ -170,7 +170,8 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
   /** 状态筛选数据 */
   get statusList() {
-    return DEFAULT_TAB_LIST.map(item => ({
+    const statusList = this.panel.options?.status_tab_list || [];
+    return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => ({
       id: item.type,
       name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
       tips: item.tips,
@@ -221,6 +222,10 @@ export default class HostList extends tsc<IProps, IEvents> {
     );
   }
 
+  get timeRangeChangeRefresh() {
+    return !!this.panel.options?.time_range_change_refresh;
+  }
+
   async created() {
     this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     await this.handleGetDataList();
@@ -241,6 +246,13 @@ export default class HostList extends tsc<IProps, IEvents> {
   @Watch('compareTargets', { immediate: true })
   compareTargetsChange() {
     this.localCompareTargets = deepClone(this.viewOptions?.compares?.targets || []);
+  }
+
+  @Watch('timeRange')
+  handleWatchTimeRange() {
+    if (this.timeRangeChangeRefresh) {
+      this.handleGetDataList();
+    }
   }
 
   /** 处理选中回显 */

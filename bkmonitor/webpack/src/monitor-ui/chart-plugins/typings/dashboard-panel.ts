@@ -123,6 +123,13 @@ export interface ITargetListOption {
     show_status_bar?: boolean;
     placeholder?: string;
   };
+  status_tab_list?: {
+    id: string;
+    name: string;
+    status: string;
+    tips: string;
+  }[];
+  time_range_change_refresh?: boolean; // 时间范围变化是否刷新列表数据
 }
 export interface ITableChartOption {
   table_chart?: {
