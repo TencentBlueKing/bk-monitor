@@ -31,7 +31,7 @@ import { isElement, debounce, throttle } from 'lodash';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
-import FieldSettings from './common/FieldSettings.vue';
+import FieldSettings from './common/field-settings.vue';
 import DashboardDialog from './dashboardDialog.vue';
 import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
@@ -529,6 +529,32 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.isSqlMode = !this.isSqlMode;
   }
 
+  setDefaultFieldSettings(list: any[]) {
+    if (this.xFields.length === 0) {
+      const defValue = (list.find(item => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
+      if (defValue) {
+        this.xFields.push(defValue);
+      }
+    }
+
+    if (this.yFields.length === 0) {
+      const filterList = list.filter(
+        item => !/date|time/.test(item.field_alias) && !this.xFields.includes(item.field_alias),
+      );
+
+      const defValue = (
+        (filterList.length ? filterList : list).find(
+          item =>
+            /long|number|int|float|bigint|double/.test(item.field_type) && !this.xFields.includes(item.field_alias),
+        ) ?? list[0]
+      )?.field_alias;
+
+      if (defValue && !this.xFields.includes(defValue)) {
+        this.yFields.push(defValue);
+      }
+    }
+  }
+
   handleSqlQueryResultChange(data, isRequesting) {
     // 如果data为空，这里只处理请求状态
     if (!data) {
@@ -537,17 +563,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     this.resultSchema = data.data?.result_schema ?? [];
+    this.setDefaultFieldSettings(this.resultSchema);
     this.chartData = data;
     this.$set(this, 'chartData', data);
     this.chartCounter++;
     this.isSqlValueChanged = false;
-    // 在这里给一个初始的指标维度
-    const nonStringFields = this.resultSchema.filter(item => item.field_type !== 'string');
-    if (nonStringFields.length) {
-      this.yFields = [nonStringFields[0].field_alias];
-      const xField = this.resultSchema.find(item => item.field_alias !== this.yFields[0]);
-      this.xFields = xField ? [xField.field_alias] : [];
-    }
   }
 
   updateChartData(axis, newValue) {
@@ -666,19 +686,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 class='graph-info-collapse'
                 v-model={this.activeSettings}
               >
-                {/* <bk-collapse-item name='basic_info'>
-                  <span class='graph-info-collapse-title'>{this.$t('基础信息')}</span>
-                  <div slot='content'>{this.renderBasicInfo()}</div>
-                </bk-collapse-item> */}
                 <bk-collapse-item name='field_setting'>
                   <span class='graph-info-collapse-title'>{this.$t('字段设置')}</span>
-                  {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
                   <FieldSettings
                     slot='content'
-                    activeGraphCategory={this.activeGraphCategory}
+                    options={this.chartOptions}
                     result_schema={this.resultSchema}
-                    xAxis={this.xFields}
-                    yAxis={this.yFields}
                     on-update={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>
