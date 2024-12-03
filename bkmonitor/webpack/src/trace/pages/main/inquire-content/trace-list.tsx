@@ -1646,7 +1646,7 @@ export default defineComponent({
 
     const sidesliderTitle = () => (
       <div class='header'>
-        <span class='trace-id'>{`TraceID：${this.curTraceId}`}</span>
+        <span class='trace-id'>{`Trace ID：${this.curTraceId}`}</span>
         <Popover
           content={this.$t('复制 TraceID')}
           placement='right'
