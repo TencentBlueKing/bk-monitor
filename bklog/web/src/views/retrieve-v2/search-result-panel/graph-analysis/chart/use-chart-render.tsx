@@ -357,9 +357,13 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     chartInstance = null;
   };
 
+  const getChartInstance = () => {
+    return chartInstance;
+  };
+
   return {
     setChartOptions,
     destroyInstance,
-    chartInstance,
+    getChartInstance,
   };
 };

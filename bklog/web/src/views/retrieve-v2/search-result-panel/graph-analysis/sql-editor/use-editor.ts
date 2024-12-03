@@ -51,11 +51,11 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
       value: sqlContent.value,
       language: 'dorisSQL',
       theme: 'vs-dark',
-      padding: { top: 10, bottom: 10 },
+      padding: { top: 10, bottom: 40 },
       automaticLayout: true,
       minimap: { enabled: false },
       scrollBeyondLastLine: false, // 避免空白行
-      contextmenu: false  // 禁用右键菜单
+      contextmenu: false, // 禁用右键菜单
     });
 
     // 监听编辑器的键盘事件

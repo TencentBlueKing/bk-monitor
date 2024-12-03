@@ -424,6 +424,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     this.axiosOptionHeight = target;
   }
+
   handleVerticalMoveEnd({ offsetX }) {
     let target = this.rightOptionWidth - offsetX;
     if (this.minRightOptionWidth > target) {
