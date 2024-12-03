@@ -530,6 +530,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   setDefaultFieldSettings(list: any[]) {
+    const fieldList = list.map(item => item.field_alias);
+    // 重置字段列表
+    [this.xFields, this.yFields, this.dimensions, this.hiddenFields].forEach(data => {
+      const filterList = data.filter(item => fieldList.includes(item));
+      data.splice(0, data.length, ...filterList);
+    });
+
+    // 重置默认字段
     if (this.xFields.length === 0) {
       const defValue = (list.find(item => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
       if (defValue) {
