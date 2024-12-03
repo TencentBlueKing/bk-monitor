@@ -8,10 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
+from django.conf import settings
 
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from metadata import models
@@ -57,12 +57,48 @@ def create_and_delete_records(mocker):
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_sync_relation_redis_data(create_and_delete_records):
+    """
+    测试验证 CMDB Relation同步任务能否正确工作
+    1. Token和DB中不一致，更新并回写
+    2. 不存在对应内置RT和数据源，创建之
+    """
     with patch('metadata.utils.redis_tools.RedisTools.hgetall', return_value=mock_redis_hgetall_return_value), patch(
         'metadata.utils.redis_tools.RedisTools.hset_to_redis', return_value=0
-    ), patch('metadata.models.TimeSeriesGroup.create_time_series_group', return_value=1):
+    ) as mock_hset_to_redis, patch("metadata.models.DataSource.apply_for_data_id_from_gse", return_value=50011), patch(
+        "time.time", return_value=1733198214
+    ), patch(
+        "metadata.models.TimeSeriesGroup.create_time_series_group", return_value=models.TimeSeriesGroup.objects.first()
+    ):
         sync_relation_redis_data()
+
         bkcc_2_expected_token = transform_data_id_to_token(
             metric_data_id=50010, bk_biz_id=2, app_name="2_bkcc_built_in_time_series"
         )
         bkcc_2_builtin_ds = models.DataSource.objects.get(bk_data_id=50010)
         assert bkcc_2_expected_token == bkcc_2_builtin_ds.token
+
+        bkcc_3_expected_token = transform_data_id_to_token(
+            metric_data_id=50011, bk_biz_id=3, app_name="3_bkcc_built_in_time_series"
+        )
+        bkcc_3_builtin_ds = models.DataSource.objects.get(bk_data_id=50011)
+        assert bkcc_3_expected_token == bkcc_3_builtin_ds.token
+
+        # 应调用两次hset
+        assert mock_hset_to_redis.call_count == 2
+
+        # 预期参数
+        expected_bkcc_3_timestamp = int(models.TimeSeriesGroup.objects.first().last_modify_time.timestamp())
+
+        expected_calls = [
+            call(
+                f'{settings.BUILTIN_DATA_RT_REDIS_KEY}',
+                'bkcc__2',
+                f'{{"token":"{bkcc_2_expected_token}","modifyTime":"1733198214"}}',
+            ),
+            call(
+                f'{settings.BUILTIN_DATA_RT_REDIS_KEY}',
+                'bkcc__3',
+                f'{{"token":"{bkcc_3_expected_token}","modifyTime":{expected_bkcc_3_timestamp}}}',
+            ),
+        ]
+        assert mock_hset_to_redis.call_args_list == expected_calls
