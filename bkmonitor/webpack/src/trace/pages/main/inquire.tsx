@@ -621,7 +621,7 @@ export default defineComponent({
       if (selectedListType.value === 'trace') {
         store.setTraceLoading(true);
         try {
-          const listData = await listTrace(params, { cancelToken: cancelTokenSource.value.token }).catch(() => []);
+          const listData = await listTrace(params, { cancelToken: cancelTokenSource.value?.token }).catch(() => []);
           const { total, data, type = 'pre_calculation' } = listData;
           store.setTraceListMode(type);
           store.setTraceTotalCount(total);
