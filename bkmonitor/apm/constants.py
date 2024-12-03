@@ -593,11 +593,11 @@ class DiscoverRuleType(TextChoices):
     """拓扑发现规则类型"""
 
     CATEGORY = "category", _("分类规则")
-    FRAMEWORK = "framework", _("框架规则")
+    SYSTEM = "system", _("系统类型规则")
     PLATFORM = "platform", _("平台规则")
     SDK = "sdk", _("SDK 规则")
 
     @classmethod
     def list_discover_sorts(cls):
         """获取服务节点发现时的规则顺序"""
-        return [cls.CATEGORY.value, cls.FRAMEWORK.value, cls.PLATFORM.value, cls.SDK.value]
+        return [cls.CATEGORY.value, cls.SYSTEM.value, cls.PLATFORM.value, cls.SDK.value]

@@ -39,8 +39,8 @@ class NodeDiscover(DiscoverBase):
             lambda: {
                 "extra_data": {"category": "", "kind": "", "predicate_value": "", "service_language": ""},
                 "platform": {},
-                # framework: multiple
-                "framework": {},
+                # system: multiple
+                "system": {},
                 # sdk: multiple
                 "sdk": {},
             }
@@ -71,10 +71,10 @@ class NodeDiscover(DiscoverBase):
                 continue
 
             for k, v in instances_mapping.items():
-                v["framework"] = list(v["framework"].values())
+                v["system"] = list(v["system"].values())
                 v["sdk"] = list(v["sdk"].values())
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-                    if all(True for i in [update_instances, create_instances, exists_instances] if k not in i):
+                    if all(k not in i for i in [update_instances, create_instances, exists_instances]):
                         # 如果目前没有发现这个符合 other 规则的服务 才把他添加进列表中 (不然如果更新的话会导致数据被覆盖为空)
                         create_instances.update({k: v})
                 else:
@@ -130,10 +130,10 @@ class NodeDiscover(DiscoverBase):
                 item_rule_type = item[0]
                 item_rules = item[1]
 
-                if item_rule_type == DiscoverRuleType.FRAMEWORK.value:
+                if item_rule_type == DiscoverRuleType.SYSTEM.value:
                     match_rule = self.get_match_rule(span, item_rules)
                     if match_rule:
-                        self.find_framework(instance_mapping, match_rule, span, topo_key)
+                        self.find_system(instance_mapping, match_rule, span, topo_key)
 
                 elif item_rule_type == DiscoverRuleType.PLATFORM.value:
                     match_rule = self.get_match_rule(span, item_rules)
@@ -190,11 +190,11 @@ class NodeDiscover(DiscoverBase):
 
         return None
 
-    def find_framework(self, instance_mapping, match_rule, span, topo_key):
+    def find_system(self, instance_mapping, match_rule, span, topo_key):
         extra_data = {}
         for i in match_rule.instance_keys:
             extra_data[self.join_keys(i)] = extract_field_value(i, span)
-        instance_mapping[topo_key]["framework"][match_rule.category_id] = {
+        instance_mapping[topo_key]["system"][match_rule.category_id] = {
             "name": match_rule.category_id,
             "extra_data": extra_data,
         }
@@ -221,7 +221,7 @@ class NodeDiscover(DiscoverBase):
         return {
             i["topo_key"]: i
             for i in TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).values(
-                "topo_key", "extra_data", "framework", "platform", "sdk"
+                "topo_key", "extra_data", "system", "platform", "sdk"
             )
         }
 

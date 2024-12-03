@@ -166,7 +166,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": TRPC_PREDICATE_KEY,
             "sort": 0,
-            "type": DiscoverRuleType.FRAMEWORK.value,
+            "type": DiscoverRuleType.SYSTEM.value,
         },
         {
             "category_id": APM_TOPO_FRAMEWORK_GRPC,
@@ -175,7 +175,7 @@ class ApmTopoDiscoverRule(models.Model):
             "topo_kind": TOPO_SERVICE,
             "predicate_key": RPC_PREDICATE_KEY,
             "sort": 1,
-            "type": DiscoverRuleType.FRAMEWORK.value,
+            "type": DiscoverRuleType.SYSTEM.value,
         },
         {
             "category_id": APM_TOPO_PLATFORM_K8S,
