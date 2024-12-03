@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, Ref, ref } from 'vue';
 
 import { throttle } from 'lodash';
 
@@ -39,7 +39,7 @@ export default defineComponent({
     },
   },
   emits: ['scroll-change'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const scrollXElementStyle = computed(() => {
       return {
         width: `${props.outerWidth}px`,
@@ -51,7 +51,7 @@ export default defineComponent({
         width: `${props.innerWidth}px`,
       };
     });
-    const refSrollRoot = ref();
+    const refSrollRoot: Ref<HTMLElement> = ref();
 
     const renderScrollXBar = () => {
       return (
@@ -78,6 +78,17 @@ export default defineComponent({
 
     onUnmounted(() => {
       refSrollRoot.value?.removeEventListener('scroll', handleScrollEvent);
+    });
+
+    expose({
+      scrollLeft: (left: number) => {
+        const scrollTop = refSrollRoot.value.scrollTop;
+        refSrollRoot.value.scrollTo({
+          left,
+          top: scrollTop,
+          behavior: 'smooth',
+        });
+      },
     });
 
     return {

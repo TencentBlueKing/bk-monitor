@@ -32,6 +32,7 @@ import useStore from '@/hooks/use-store';
 import { uniqueId, debounce } from 'lodash';
 
 import useResizeObserve from '../../../../hooks/use-resize-observe';
+import useWheel from '../../../../hooks/use-wheel';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -511,6 +512,9 @@ export default defineComponent({
       tableRowStore.clear();
     });
 
+    const scrollXOffsetLeft = ref(0);
+    const refScrollXBar = ref();
+
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
     const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
@@ -520,7 +524,16 @@ export default defineComponent({
       rootElement: refRootElement,
     });
 
-    const scrollXOffsetLeft = ref(0);
+    useWheel({
+      target: refRootElement,
+      callback: (event: WheelEvent) => {
+        if (event.deltaX !== 0 && hasScrollX.value) {
+          scrollXOffsetLeft.value += event.deltaX;
+          refScrollXBar.value?.scrollLeft(scrollXOffsetLeft.value);
+        }
+      },
+    });
+
     const operatorFixRightWidth = computed(() => {
       const operatorWidth = operatorToolsWidth.value;
       const diff = scrollWidth.value - scrollXOffsetLeft.value - offsetWidth.value;
@@ -703,6 +716,7 @@ export default defineComponent({
     const renderScrollXBar = () => {
       return (
         <ScrollXBar
+          ref={refScrollXBar}
           innerWidth={scrollWidth.value}
           outerWidth={offsetWidth.value}
           onScroll-change={handleScrollXChanged}
