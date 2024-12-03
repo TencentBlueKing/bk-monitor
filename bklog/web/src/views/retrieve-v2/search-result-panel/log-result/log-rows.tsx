@@ -607,11 +607,13 @@ export default defineComponent({
               {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
             </LogCell>
           ))}
-          <LogCell
-            width={operatorToolsWidth.value}
-            class='hidden-field bklog-row-cell'
-            minWidth={operatorToolsWidth.value ?? 'auto'}
-          ></LogCell>
+          {hasScrollX.value ? null : (
+            <LogCell
+              width={operatorToolsWidth.value}
+              class='hidden-field bklog-row-cell'
+              minWidth={operatorToolsWidth.value ?? 'auto'}
+            ></LogCell>
+          )}
         </div>,
         expand ? expandOption.render({ row }) : '',
       ];

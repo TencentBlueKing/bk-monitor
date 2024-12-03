@@ -91,6 +91,14 @@ export default defineComponent({
     });
 
     const requestId = 'graphAnalysis_searchSQL';
+
+    watch(
+      () => sqlContent.value,
+      value => {
+        store.commit('updateChartParams', { sql: value });
+      },
+    );
+
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
 
@@ -99,6 +107,7 @@ export default defineComponent({
       }
 
       isRequesting.value = true;
+      emit('change', undefined, isRequesting.value);
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
@@ -127,6 +136,7 @@ export default defineComponent({
         })
         .finally(() => {
           isRequesting.value = false;
+          emit('change', undefined, isRequesting.value);
         });
     };
 
@@ -168,10 +178,12 @@ export default defineComponent({
       isFullscreen.value = !isFullscreen.value;
       editorInstance.value.focus();
     };
+
     const formatMonacoSqlCode = () => {
       const val = format(editorInstance.value.getValue(), { language: 'mysql' });
       editorInstance.value.setValue([val].join('\n'));
     };
+
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
@@ -189,6 +201,7 @@ export default defineComponent({
           <bk-button
             class='sql-editor-view-button'
             v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
+            disabled={!isRequesting.value}
             size='small'
             onClick={handleStopBtnClick}
           >
@@ -197,7 +210,7 @@ export default defineComponent({
           </bk-button>
           <bk-popconfirm
             width='288'
-            content={$t('此操作会覆盖当前SQL，请谨慎操作')}
+            content={$t('此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作')}
             trigger='click'
             onConfirm={handleSyncAdditionToSQL}
           >
@@ -213,14 +226,15 @@ export default defineComponent({
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
-            addition={[]}
+            addition={retrieveParams.value.addition ?? []}
             extendParams={chartParams.value}
             search-mode='sqlChart'
-            sql=''
+            sql={retrieveParams.value.keyword}
           ></BookmarkPop>
         </div>
       );
     };
+
     const renderHeadTools = () => {
       return (
         <div class='bk-monaco-tools'>

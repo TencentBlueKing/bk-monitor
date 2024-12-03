@@ -206,4 +206,17 @@
     background-color: #fff;
     transform: translateY(-100%);
   }
+
+  &.readonly {
+    &::after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      cursor: not-allowed;
+      content: '';
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
 }

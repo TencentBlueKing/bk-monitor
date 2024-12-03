@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { isElement, debounce } from 'lodash';
+import { isElement, debounce, throttle } from 'lodash';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -72,7 +72,7 @@ enum GraphCategory {
 export default class GraphAnalysisIndex extends tsc<IProps> {
   activeItem = OptionList.Analysis;
   minAxiosOptionHeight = 148;
-  axiosOptionHeight = 148;
+  axiosOptionHeight = 400;
   rightOptionWidth = 360;
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.TABLE;
@@ -105,6 +105,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   canvasBodyStyle = {
     with: 300,
     height: 400,
+    scrollTop: 0,
   };
 
   debounceCallback = debounce(entry => {
@@ -112,12 +113,20 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
+  throttleScrollCallback = throttle(event => {
+    Object.assign(this.canvasBodyStyle, { scrollTop: (event.target as HTMLElement).scrollTop });
+  });
+
   resizeObserver = null;
+  isRequesting = false;
 
   get exceptionStyle() {
+    const scrollHeight =
+      this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
+
     return {
       '--exception-width': `${this.canvasBodyStyle.with}px`,
-      '--exception-height': `${this.canvasBodyStyle.height}px`,
+      '--exception-height': `${this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight}px`,
       '--exception-right': `${this.rightOptionWidth + 10}px`,
     };
   }
@@ -175,8 +184,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   get canvasStyle() {
+    if (this.chartActiveType === GraphCategory.TABLE) {
+      return {
+        minHeight: `calc(100% - ${this.bottomHeight + 16}px)`,
+      };
+    }
+
     return {
       height: `calc(100% - ${this.bottomHeight + 16}px)`,
+      minHight: '400px',
     };
   }
 
@@ -265,6 +281,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
     this.activeGraphCategory = category;
     this.chartCounter++;
+    this.$store.commit('updateChartParams', {
+      activeGraphCategory: this.activeGraphCategory,
+      chartActiveType: this.chartActiveType,
+    });
   }
 
   handleAdvanceSettingClick() {
@@ -296,11 +316,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return [
       <div class='basic-info-row'>
         <div class='title'> {this.$t('标题')}</div>
-          <bk-input
-            style='margin-top: 8px;'
-            v-model={this.basicInfoTitle.title}
-            placeholder={this.$t('请输入标题')}
-          ></bk-input>
+        <bk-input
+          style='margin-top: 8px;'
+          v-model={this.basicInfoTitle.title}
+          placeholder={this.$t('请输入标题')}
+        ></bk-input>
       </div>,
     ];
   }
@@ -349,8 +369,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         <SqlEditor
           ref='sqlEditor'
           extendParams={this.extendParams}
-          onChange={this.handleSqlQueryResultChange}
-          onError={this.handleSqlQueryError}
+          on-change={this.handleSqlQueryResultChange}
+          on-error={this.handleSqlQueryError}
           onSql-change={this.handleSqlValueChange}
         ></SqlEditor>,
       ];
@@ -381,6 +401,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   handleCanvasTypeChange(t?: GraphCategory) {
     this.chartActiveType = t;
     this.chartCounter++;
+    this.$store.commit('updateChartParams', { chartActiveType: t });
   }
 
   handleHorizionMoveEnd({ offsetY }) {
@@ -390,6 +411,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     if (this.isSqlMode) {
+      this.axiosOptionHeight = target;
       this.sqlEditorHeight = target;
       return;
     }
@@ -407,7 +429,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   getChartConfigValidate() {
     let showException = false;
-    const message = this.activeGraphCategory === GraphCategory.PIE? this.$t('至少需要一个指标，一个维度') : this.$t('至少需要一个指标，一个维度/时间维度');
+    const message =
+      this.activeGraphCategory === GraphCategory.PIE
+        ? this.$t('至少需要一个指标，一个维度')
+        : this.$t('至少需要一个指标，一个维度/时间维度');
+
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -422,6 +448,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   getExceptionMessage() {
+    if (this.isRequesting) {
+      return { showException: true, message: '请求中...', showQuery: false };
+    }
+
     if (!this.errorResponse.result && this.errorResponse.message) {
       return { showException: true, message: this.errorResponse.message, showQuery: true };
     }
@@ -454,7 +484,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     type='submit'
                     onClick={this.handleEditorSearchClick}
                   >
-                   {this.$t('查询')}
+                    {this.$t('查询')}
                   </bk-button>
                   <bk-button
                     class='mr10'
@@ -463,7 +493,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                       this.isSqlValueChanged = false;
                     }}
                   >
-                   {this.$t('我知道了')} 
+                    {this.$t('我知道了')}
                   </bk-button>
                 </div>,
               ]
@@ -498,26 +528,40 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.isSqlMode = !this.isSqlMode;
   }
 
-  handleSqlQueryResultChange(data) {
+  handleSqlQueryResultChange(data, isRequesting) {
+    // 如果data为空，这里只处理请求状态
+    if (!data) {
+      this.isRequesting = isRequesting;
+      return;
+    }
+
     this.resultSchema = data.data?.result_schema ?? [];
     this.chartData = data;
     this.$set(this, 'chartData', data);
     this.chartCounter++;
     this.isSqlValueChanged = false;
+    // 在这里给一个初始的指标维度
+    const nonStringFields = this.resultSchema.filter(item => item.field_type !== 'string');
+    if (nonStringFields.length) {
+      this.yFields = [nonStringFields[0].field_alias];
+      const xField = this.resultSchema.find(item => item.field_alias !== this.yFields[0]);
+      this.xFields = xField ? [xField.field_alias] : [];
+    }
   }
 
   updateChartData(axis, newValue) {
     this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
     this.chartCounter++;
+
+    this.$store.commit('updateChartParams', { [axis]: this[axis] });
   }
 
   createResizeObserve() {
-    const cellElement = this.$refs.refCanvasBody;
+    const cellElement = this.$refs.refGraphAnalysisBodyLeft;
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       this.resizeObserver = new ResizeObserver(entries => {
-        console.log('entries', entries);
         for (let entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
@@ -529,7 +573,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   destoyResizeObserve() {
-    const cellElement = this.$refs.refCanvasBody;
+    const cellElement = this.$refs.refGraphAnalysisBodyLeft;
 
     if (isElement(cellElement)) {
       this.resizeObserver?.unobserve(cellElement);
@@ -540,10 +584,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   mounted() {
     this.createResizeObserve();
+    (this.$refs.refGraphAnalysisBodyLeft as HTMLElement).addEventListener('scroll', this.throttleScrollCallback);
   }
 
   unmount() {
     this.destoyResizeObserve();
+    (this.$refs.refGraphAnalysisBodyLeft as HTMLElement).removeEventListener('scroll', this.throttleScrollCallback);
   }
 
   render() {
@@ -555,7 +601,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         ></div>
 
         <div class='graph-analysis-body'>
-          <div class='body-left'>
+          <div
+            ref='refGraphAnalysisBodyLeft'
+            class='body-left'
+          >
             <div
               style={this.axiosStyle}
               class={['graph-axios-options', this.isSqlMode ? 'sql-mode' : '']}
@@ -576,10 +625,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
             >
               <div class='canvas-head'>
                 {this.basicInfoTitle.title ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
-                <span class='icons'>
+                <span
+                  class='icons'
+                  v-show={this.activeGraphCategory !== GraphCategory.TABLE}
+                >
                   <span
                     class={{ active: this.chartActiveType !== GraphCategory.TABLE }}
-                    v-show={this.activeGraphCategory !== GraphCategory.TABLE}
                     onClick={() => this.handleCanvasTypeChange(GraphCategory.CHART)}
                   >
                     <i class='bklog-icon bklog-bar'></i>
@@ -614,10 +665,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 class='graph-info-collapse'
                 v-model={this.activeSettings}
               >
-                <bk-collapse-item name='basic_info'>
+                {/* <bk-collapse-item name='basic_info'>
                   <span class='graph-info-collapse-title'>{this.$t('基础信息')}</span>
                   <div slot='content'>{this.renderBasicInfo()}</div>
-                </bk-collapse-item>
+                </bk-collapse-item> */}
                 <bk-collapse-item name='field_setting'>
                   <span class='graph-info-collapse-title'>{this.$t('字段设置')}</span>
                   {/* <div slot='content'>{this.renderFieldsSetting()}</div> */}
@@ -627,7 +678,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     result_schema={this.resultSchema}
                     xAxis={this.xFields}
                     yAxis={this.yFields}
-                    onUpdate={this.updateChartData}
+                    on-update={this.updateChartData}
                   ></FieldSettings>
                 </bk-collapse-item>
               </bk-collapse>

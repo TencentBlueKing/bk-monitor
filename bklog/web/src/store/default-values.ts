@@ -62,7 +62,14 @@ export const IndexSetQueryResult = {
   origin_log_list: [],
   aggs: {},
   fields: [],
-  chart_params: {},
+  chart_params: {
+    activeGraphCategory: 'table',
+    chartActiveType: 'table',
+    dimensions: [],
+    sql: '',
+    xFields: [],
+    yFields: [],
+  },
 };
 
 export const IndexFieldInfo = {

@@ -69,17 +69,18 @@
     { deep: true, immediate: true },
   );
 
-  // after边框
-  const isAfter = item => {
-    const afterListMap = {
-      origin: ['chartAnalysis'],
-      clustering: ['origin'],
-      chartAnalysis: ['origin', 'clustering'],
-    };
+  const tabClassList = computed(() => {
+    return renderPanelList.value.map((item, index) => {
+      const isActive = props.value === item.name;
+      const isPreItemActive = renderPanelList.value[index - 1]?.name === props.value;
 
-    const afterList = afterListMap[item.name] || ['chartAnalysis'];
-    return afterList.includes(props.value);
-  };
+      if (isActive || index === 0 || isPreItemActive) {
+        return [];
+      }
+
+      return ['border-left'];
+    });
+  });
 
   const handleActive = panel => {
     emit('input', panel);
@@ -88,9 +89,9 @@
 <template>
   <div class="retrieve-tab">
     <span
-      v-for="item in renderPanelList"
+      v-for="(item, index) in renderPanelList"
       :key="item.label"
-      :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
+      :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
