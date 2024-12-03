@@ -311,21 +311,14 @@ def parse_histogram_quantile_strategy():
     """
 
     # step1 查询关联了静态阈值算法的策略和监控项
-    algorithms = AlgorithmModel.objects.filter(type="Threshold").values_list("strategy_id", "item_id")
-    if not algorithms:
-        print("没有配置静态阈值算法的策略")
-        return
-
-    strategy_ids, item_ids = zip(*algorithms)
+    item_ids = AlgorithmModel.objects.filter(type="Threshold").values_list("item_id", flat=True)
 
     # step2 查询promql中使用了百分位函数histogram_quantile的监控项，及其关联的策略
-    item_related_strategy_ids = ItemModel.objects.filter(origin_sql__contains="histogram_quantile",
-                                                         strategy_id__in=strategy_ids,
-                                                         id__in=item_ids).values_list("strategy_id", flat=True)
+    related_strategy_ids = ItemModel.objects.filter(origin_sql__contains="histogram_quantile",
+                                                    id__in=item_ids).values_list("strategy_id", flat=True)
 
     # 获取关联的检测配置模型
-    detects = DetectModel.objects.filter(strategy_id__in=item_related_strategy_ids).only("strategy_id",
-                                                                                         "trigger_config")
+    detects = DetectModel.objects.filter(strategy_id__in=related_strategy_ids).only("strategy_id", "trigger_config")
     # step3: 过滤出使用了count=1的检测配置
     strategy_ids = [detect.strategy_id for detect in detects if detect.trigger_config.get("count") in ["1", 1]]
 
