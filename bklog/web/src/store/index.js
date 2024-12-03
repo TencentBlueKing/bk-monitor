@@ -964,7 +964,7 @@ const store = new Vuex.Store({
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
-          chart_params: {},
+          chart_params: deepClone(IndexItem.chart_params),
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
