@@ -236,20 +236,25 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const getLineBarChartOption = () => {
-    const options = cloneDeep(lineOrBarOptions);
-    Object.assign(options.tooltip, getTooltipFormatter());
+    const option = cloneDeep(lineOrBarOptions);
+    Object.assign(option.tooltip, getTooltipFormatter());
 
-    return options;
+    return option;
   };
 
   const getPieChartOption = () => {
-    const options = cloneDeep(pieOptions);
-    return options;
+    return cloneDeep(pieOptions);
+  };
+
+  const getLineDefaultOption = () => {
+    const option = getLineBarChartOption();
+    Object.assign(option.tooltip, { trigger: 'axis' });
+    return option;
   };
 
   const setDefaultOption = t => {
     const optionMap = {
-      line: getLineBarChartOption,
+      line: getLineDefaultOption,
       bar: getLineBarChartOption,
       pie: getPieChartOption,
     };
@@ -310,9 +315,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     chartInstance.setOption(options);
   };
 
-  // 数字 & 线性图
-  // const updateLineAndBarOption = (xFields?: string[], yFields?: string[], data?: any, type?: string) => {};
-
   const updateChartOptions = (
     xFields?: string[],
     yFields?: string[],
@@ -324,7 +326,6 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       pie: updatePieOption,
       line: updateLineBarOption,
       bar: updateLineBarOption,
-      // line_bar: updateLineAndBarOption,
     };
 
     actionMap[type]?.(xFields, yFields, dimensions, data, type);

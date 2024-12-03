@@ -92,13 +92,6 @@ export default defineComponent({
 
     const requestId = 'graphAnalysis_searchSQL';
 
-    watch(
-      () => sqlContent.value,
-      value => {
-        store.commit('updateChartParams', { sql: value });
-      },
-    );
-
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
 
@@ -244,7 +237,7 @@ export default defineComponent({
               <div
                 class='sqlFormat header-tool-right-icon'
                 v-bk-tooltips={{ content: $t('格式化') }}
-                onClick={formatMonacoSqlCode}
+                onClick={() => formatMonacoSqlCode()}
               >
                 <span class='bk-icon icon-script-file'></span>
               </div>
@@ -282,19 +275,32 @@ export default defineComponent({
     watch(
       () => [storedSql.value],
       async () => {
+        let needQuery = false;
         if (sqlContent.value !== storedSql.value) {
+          needQuery = true;
           if (storedSql.value) {
             sqlContent.value = storedSql.value;
             formatMonacoSqlCode(sqlContent.value);
-          } else {
-            await handleSyncAdditionToSQL(true);
           }
+        }
 
+        if (!sqlContent.value) {
+          await handleSyncAdditionToSQL(true);
+        }
+
+        if (needQuery) {
           debounceQuery(false);
         }
       },
       {
         immediate: true,
+      },
+    );
+
+    watch(
+      () => sqlContent.value,
+      value => {
+        store.commit('updateChartParams', { sql: value });
       },
     );
 
