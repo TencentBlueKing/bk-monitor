@@ -404,7 +404,6 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleCanvasTypeChange(t?: GraphCategory) {
     this.chartActiveType = t;
-    // this.activeGraphCategory = t;
     this.chartCounter++;
     this.tableSHowFields = [...this.xFields,...this.yFields,...this.dimensions]
     this.$store.commit('updateChartParams', { chartActiveType: t });
