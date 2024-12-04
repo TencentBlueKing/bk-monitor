@@ -277,11 +277,13 @@ export default defineComponent({
       async (val, oldVal) => {
         if (!val[0] && !oldVal?.[0]) {
           await handleSyncAdditionToSQL();
-          debounceQuery(false);
+          debounceQuery();
+          return;
         }
 
         if (val[0] !== (editorInstance.value?.getValue() ?? '')) {
           editorInstance.value?.setValue(sqlContent.value);
+          debounceQuery();
         }
       },
       {
