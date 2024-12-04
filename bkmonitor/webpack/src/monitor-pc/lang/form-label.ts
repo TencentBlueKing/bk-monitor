@@ -56,6 +56,7 @@ export default {
   索引切分大小: 'Split Size',
   存储索引名: 'Storage Index Name',
   时间区间: 'Time Range',
+  耗时分布: 'Time distribution',
   服务数: 'Services',
   层级数: 'Layers',
   span总数: 'Spans',

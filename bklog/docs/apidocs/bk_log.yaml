@@ -144,6 +144,17 @@
   dest_http_method: POST
   is_hidden: True
 
+- path: /v2/bk_log/search_index_set/{index_set_id}/search/original/
+  name: search_original_log
+  label: 日志平台-检索-原始日志内容
+  label_en: search_original_log
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/search/index_set/{index_set_id}/search/original/
+  dest_http_method: POST
+  is_hidden: True
+
 - path: /v2/bk_log/index_set/
   name: index_set
   label: 日志平台-索引集列表

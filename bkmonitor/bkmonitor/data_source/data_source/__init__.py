@@ -509,7 +509,9 @@ class DataSource(metaclass=ABCMeta):
 
         q = DataQueryHandler(cls.data_source_label, cls.data_type_label)
         if where:
-            q = q.where(dict_to_q(where))
+            where_node = dict_to_q(where)
+            if where_node:
+                q = q.where(where_node)
 
         if time_filter:
             q = q.where(**time_filter)
@@ -1157,6 +1159,9 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
     def switch_unify_query(self, bk_biz_id):
         def _check(bk_biz_id):
             # __init__ 之前的会有该判定被调用， 此时属性还未被赋值
+            # 0. web服务统一走unify-query
+            if settings.ROLE == "web":
+                return True
             # 1. 如果使用了查询函数，会走统一查询模块
             if getattr(self, "functions", []):
                 return True

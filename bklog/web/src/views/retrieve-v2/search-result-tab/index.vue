@@ -15,7 +15,7 @@
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
 
-  const indexSetList = computed(() => store.state.indexItem.ids ?? []);
+  const chartParams = computed(() => store.state.indexItem.chart_params);
 
   const isAiopsToggle = computed(() => {
     return (
@@ -24,11 +24,14 @@
     );
   });
 
+  const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
+
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: indexSetList.value.length > 1 && !isAiopsToggle.value },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
+      { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
     ];
   });
 
@@ -44,17 +47,40 @@
     { immediate: true },
   );
 
-  // after边框
-  const isAfter = item => {
-    const afterListMap = {
-      origin: ['chartAnalysis'],
-      clustering: ['origin'],
-      chartAnalysis: ['origin', 'clustering'],
-    };
+  watch(
+    () => isChartEnable.value,
+    () => {
+      if (!isChartEnable.value && props.value === 'graphAnalysis') {
+        emit('input', 'origin');
+      }
+    },
+    {
+      immediate: true,
+    },
+  );
 
-    const afterList = afterListMap[item.name] || ['chartAnalysis'];
-    return afterList.includes(props.value);
-  };
+  watch(
+    () => chartParams.value,
+    () => {
+      if (isChartEnable.value && props.value !== 'graphAnalysis' && chartParams.value.sql?.length > 0) {
+        emit('input', 'graphAnalysis');
+      }
+    },
+    { deep: true, immediate: true },
+  );
+
+  const tabClassList = computed(() => {
+    return renderPanelList.value.map((item, index) => {
+      const isActive = props.value === item.name;
+      const isPreItemActive = renderPanelList.value[index - 1]?.name === props.value;
+
+      if (isActive || index === 0 || isPreItemActive) {
+        return [];
+      }
+
+      return ['border-left'];
+    });
+  });
 
   const handleActive = panel => {
     emit('input', panel);
@@ -63,9 +89,9 @@
 <template>
   <div class="retrieve-tab">
     <span
-      v-for="item in renderPanelList"
+      v-for="(item, index) in renderPanelList"
       :key="item.label"
-      :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
+      :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
