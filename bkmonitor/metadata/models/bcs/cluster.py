@@ -106,6 +106,9 @@ class BCSClusterInfo(models.Model):
     last_modify_user = models.CharField("最后更新者", max_length=32)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
 
+    # 是否允许查看历史数据（针对已下线集群）
+    is_deleted_allow_view = models.BooleanField("已下线集群是否允许查看数据", default=False)
+
     @cached_property
     def api_client(self) -> k8s_client.ApiClient:
         """
@@ -351,7 +354,7 @@ class BCSClusterInfo(models.Model):
         self.server_address_path = server_address_path
         self.save()
 
-    def make_config(self, item, is_fed_cluster) -> dict:
+    def make_config(self, item, is_fed_cluster: bool = False) -> dict:
         # 获取全局的replace配置
         replace_config = ReplaceConfig.get_common_replace_config()
         cluster_replace_config = ReplaceConfig.get_cluster_replace_config(cluster_id=self.cluster_id)
@@ -391,7 +394,7 @@ class BCSClusterInfo(models.Model):
             # 针对联邦集群，跳过 k8s 内置指标的 data_id 下发
             if is_fed_cluster and usage != self.DATA_TYPE_CUSTOM_METRIC:
                 continue
-            dataid_config = self.make_config(register_info)
+            dataid_config = self.make_config(register_info, is_fed_cluster=is_fed_cluster)
             name = self.compose_dataid_resource_name(
                 register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
             )
