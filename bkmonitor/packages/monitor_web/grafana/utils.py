@@ -194,3 +194,24 @@ def remove_all_conditions(where_list: list) -> list:
         where_list[0].pop("condition", None)
 
     return where_list
+
+
+def convert_to_microseconds(time_str: str) -> int:
+    # 定义单位转换关系
+    time_multipliers = {
+        'ns': 1e-3,  # 纳秒到微秒
+        'us': 1,  # 微秒到微秒
+        'µs': 1,  # 微秒到微秒 (有些地方会用µs表示)
+        'ms': 1e3,  # 毫秒到微秒
+        's': 1e6,  # 秒到微秒
+        'm': 60 * 1e6,  # 分钟到微秒
+        'h': 3600 * 1e6,  # 小时到微秒
+    }
+
+    # 提取数字部分和单位部分
+    for unit in time_multipliers:
+        if time_str.lower().endswith(unit):
+            time_value = float(time_str[: -len(unit)])
+            return int(time_value * time_multipliers[unit])
+
+    raise ValueError("Unsupported time format")
