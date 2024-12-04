@@ -30,6 +30,41 @@ export enum EGroupBy {
   workload = 'workload',
 }
 
+export interface IFilterByItem {
+  key: string;
+  value: string[];
+  method?: string;
+}
+
+interface IValue {
+  id: string;
+  name: string;
+}
+
+export interface ITagListItem {
+  key: string;
+  id: string;
+  name: string;
+  values: IValue[];
+}
+
+export interface IGroupOptionsItem {
+  id: string;
+  name: string;
+  count: number;
+}
+export interface IValueItem {
+  id: string;
+  name: string;
+  checked: boolean;
+  count?: number;
+  list?: {
+    id: string;
+    name: string;
+    checked: boolean;
+  }[];
+}
+
 export const GROUP_OPTIONS = [
   {
     id: EGroupBy.namespace,

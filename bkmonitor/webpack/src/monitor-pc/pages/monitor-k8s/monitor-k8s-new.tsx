@@ -31,7 +31,7 @@ import { random } from 'monitor-common/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import { GROUP_OPTIONS } from './components/filter-by-condition/utils';
+import { GROUP_OPTIONS, type IFilterByItem } from './components/filter-by-condition/utils';
 import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
@@ -468,6 +468,11 @@ export default class MonitorK8sNew extends tsc<object> {
     }
   }
 
+  handleFilterByChange(v: IFilterByItem[]) {
+    console.log(v);
+    this.filterBy = v;
+  }
+
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
@@ -534,7 +539,11 @@ export default class MonitorK8sNew extends tsc<object> {
             <div class='filter-by-wrap __filter-by__'>
               <div class='filter-by-title'>Filter by</div>
               <div class='filter-by-content'>
-                <FilterByCondition />
+                <FilterByCondition
+                  filterBy={this.filterBy}
+                  groupList={this.groupList}
+                  onChange={this.handleFilterByChange}
+                />
               </div>
             </div>
             <div class='filter-by-wrap __group-by__'>
