@@ -226,13 +226,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   get extendParams() {
     return {
       favorite_type: 'chart',
-      chart_params: {
-        xFields: this.xFields,
-        yFields: this.yFields,
-        activeGraphCategory: this.activeGraphCategory,
-        chartActiveType: this.chartActiveType,
-        dimensions: this.dimensions,
-      },
+      chart_params: this.storedChartParams,
       search_mode: 'sql',
     };
   }
