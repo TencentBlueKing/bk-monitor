@@ -188,7 +188,7 @@ class HostScenario(BaseScenario):
                     )
         # 动态分组
         elif target_data["field"] == "dynamic_group":
-            bk_host_ids = AssignCacheManager.parse_dynamic_group(target_data["value"])
+            bk_host_ids = AssignCacheManager.parse_dynamic_group(target_data["value"][0])
             hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
             target_instances = [
                 {"bk_target_ip": host.bk_host_innerip, "bk_target_cloud_id": host.bk_cloud_id}
