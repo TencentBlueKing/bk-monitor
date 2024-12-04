@@ -65,6 +65,7 @@ from apps.log_search.handlers.index_set import (
     UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
@@ -73,6 +74,7 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
@@ -84,6 +86,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetDeleteConfigSerializer,
     SearchUserIndexSetOptionHistoryDeleteSerializer,
     SearchUserIndexSetOptionHistorySerializer,
+    UISearchSerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -116,7 +119,17 @@ class SearchViewSet(APIViewSet):
         if self.action in ["operators", "user_search_history"]:
             return []
 
-        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "history"]:
+        if self.action in [
+            "bizs",
+            "search",
+            "context",
+            "tailf",
+            "export",
+            "fields",
+            "history",
+            "chart",
+            "generate_sql",
+        ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         if self.action in ["union_search", "config"]:
@@ -586,6 +599,56 @@ class SearchViewSet(APIViewSet):
 
         return response
 
+    @detail_route(methods=["POST"], url_path="quick_export")
+    def quick_export(self, request, index_set_id=None):
+        """
+        @api /search/index_set/$index_set_id/quick_export/ 15-搜索-快速导出日志
+        @apiDescription 快速下载检索日志
+        @apiName quick_export
+        @apiGroup 11_Search
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam host_scopes [Dict] 检索模块ip等信息
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam interval [String] 匹配规则
+        @apiParamExample {Json} 请求参数
+        {
+            "bk_biz_id":"215",
+            "keyword":"*",
+            "time_range":"5m",
+            "start_time":"2021-06-08 11:02:21",
+            "end_time":"2021-06-08 11:07:21",
+            "host_scopes":{
+                "modules":[
+
+                ],
+                "ips":""
+            },
+            "addition":[
+
+            ],
+            "begin":0,
+            "size":188,
+            "interval":"auto",
+            "isTrusted":true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "task_id": 1,
+                "prompt": "任务提交成功，系统处理后将通过邮件通知，请留意！"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return self._export(request, index_set_id, is_quick_export=True)
+
     @detail_route(methods=["POST"], url_path="async_export")
     def async_export(self, request, index_set_id=None):
         """
@@ -634,6 +697,9 @@ class SearchViewSet(APIViewSet):
             "message": ""
         }
         """
+        return self._export(request, index_set_id, is_quick_export=False)
+
+    def _export(self, request, index_set_id, is_quick_export):
         data = self.params_valid(SearchExportSerializer)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
@@ -647,7 +713,8 @@ class SearchViewSet(APIViewSet):
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
             export_fields=data["export_fields"],
-        ).async_export()
+            export_file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
@@ -1628,3 +1695,84 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+          "result": true,
+          "data": {
+            "total_records": 2,
+            "time_taken": 0.092,
+            "list": [
+              {
+                "aa": "aa",
+                "number": 16.3
+                "time": 1731260184
+              },
+              {
+                "aa": "bb",
+                "number": 20.56
+                "time": 1731260184
+              }
+            ],
+            "select_fields_order": [
+              "aa",
+              "number",
+              "time"
+            ],
+            "result_schema": [
+            {
+                "field_type": "string",
+                "field_name": "aa",
+                "field_alias": "aa",
+                "field_index": 0
+            },
+            {
+                "field_type": "double",
+                "field_name": "number",
+                "field_alias": "number",
+                "field_index": 1
+            },
+            {
+                "field_type": "long",
+                "field_name": "time",
+                "field_alias": "time",
+                "field_index": 2
+            }
+            ]
+          },
+          "code": 0,
+          "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+        result = instance.get_chart_data(params)
+        return Response(result)
+
+    @detail_route(methods=["POST"], url_path="generate_sql")
+    def generate_sql(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/generate_sql/
+        @apiDescription 生成sql条件
+        @apiName generate_sql
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "sql": "dtEventTimeStamp>=1732220441000 and dtEventTimeStamp<=1732220443000"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(UISearchSerializer)
+        sql = ChartHandler.generate_sql(params)
+        return Response({"sql": sql})

@@ -4,18 +4,18 @@
       class="field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting"></span>{{ t('字段配置') }}
+      <span class="bklog-icon bklog-setting"></span>{{ t('索引集配置') }}
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
       :quick-close="true"
-      :title="$t('字段配置')"
+      :title="$t('索引集配置')"
       :width="640"
       @animation-end="closeSlider"
     >
       <template #header>
         <div>
-          {{ t('字段配置') }}
+          {{ t('索引集配置') }}
           <bk-button
             v-if="!isEdit"
             class="mt10 fr"
@@ -169,6 +169,7 @@
             <setting-table
               v-if="formData.etl_params.retain_original_text"
               ref="originfieldTable"
+              :original-text-tokenize-on-chars="defaultParticipleStr"
               :extract-method="cleanType"
               :fields="originBuiltFields"
               :is-preview-mode="!isEdit"
@@ -180,7 +181,7 @@
               class="setting-desc"
               @click="batchAddField"
             >
-              {{ $t('暂未保留原始日志') }}<span style=" margin-left: 8px;color: #3a84ff">{{ $t('前往配置') }}</span
+              {{ $t('暂未保留原始日志') }}<span style="margin-left: 8px; color: #3a84ff">{{ $t('前往配置') }}</span
               ><span
                 style="color: #3a84ff"
                 class="bklog-icon bklog-jump"
@@ -190,6 +191,7 @@
             <div class="setting-title">{{ $t('索引字段配置') }}</div>
             <setting-table
               ref="indexfieldTable"
+              :original-text-tokenize-on-chars="defaultParticipleStr"
               :built-fields="indexBuiltField"
               :collector-config-id="collectorConfigId"
               :extract-method="cleanType"
@@ -257,6 +259,7 @@
   const tableField = ref([]);
   const cleanType = ref('');
   const collectorConfigId = ref('');
+  const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
 
   const formData = ref({
     data_link_id: '',
@@ -308,7 +311,16 @@
   const batchAddField = () => {
     console.log(collectorConfigId.value, 'collectorConfigId');
     if (!collectorConfigId.value) return;
-    router.replace({
+    // router.replace({
+    //   name: 'clean-edit',
+    //   params: {
+    //     collectorId: collectorConfigId.value,
+    //   },
+    //   query: {
+    //     spaceUid: store.state.spaceUid,
+    //   },
+    // });
+    const newURL = router.resolve({
       name: 'clean-edit',
       params: {
         collectorId: collectorConfigId.value,
@@ -317,6 +329,7 @@
         spaceUid: store.state.spaceUid,
       },
     });
+    window.open(newURL.href, '_blank');
   };
   const maxRetention = ref(0);
 
@@ -419,8 +432,8 @@
   const initFormData = async () => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
-    if (!currentIndexSet.collector_config_id) return;
+    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+    if (!currentIndexSet?.collector_config_id) return;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await http
       .request('collect/details', {
@@ -444,6 +457,7 @@
       })
       .then(res => {
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text
       });
     sliderLoading.value = false;
   };
@@ -576,7 +590,6 @@
     .setting-title {
       padding-top: 10px;
       font-size: 12px;
-      font-weight: 600;
       color: #63656e;
     }
 

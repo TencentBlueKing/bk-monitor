@@ -541,7 +541,7 @@ class StrategyCacheManager(CacheManager):
                     return False
 
             # 智能异常检测算法，结果表是存在intelligent_detect中，需要用这个配置
-            if query_config.get("intelligent_detect"):
+            if query_config.get("intelligent_detect") and not query_config["intelligent_detect"].get("use_sdk", False):
                 raw_query_config = query_config.copy()
                 raw_query_config.pop("intelligent_detect")
                 query_config["raw_query_config"] = raw_query_config
