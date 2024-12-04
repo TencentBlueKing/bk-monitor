@@ -232,12 +232,13 @@ class ResultTableFlow(BaseModelWithTime):
         }
 
     @classmethod
-    def compose_vm_storage(cls, table_id: str, process_id: int, expires: int = 30) -> Dict:
+    def compose_vm_storage(cls, table_id: str, process_id: int, expires: int = 30, schemaless: bool = True) -> Dict:
         """
         组装存储配置
         :param table_id: 结果表ID
         :param process_id: 计算节点ID
         :param expires: 过期时间（天）
+        :param schemaless: 是否是标准四元祖数据
         :return: 存储配置
         """
         from metadata.models.vm import utils as vm_utils
@@ -254,16 +255,18 @@ class ResultTableFlow(BaseModelWithTime):
             "cluster": vm_info["cluster_name"],
             "from_result_table_ids": [rt_name],
             "expires": expires,
+            "schemaless": schemaless,
             "from_nodes": [{"id": process_id, "from_result_table_ids": [rt_name]}],
         }
 
     @classmethod
-    def create_flow(cls, table_id: str, waiting_time: int = 30, expires: int = 30) -> bool:
+    def create_flow(cls, table_id: str, waiting_time: int = 30, expires: int = 30, schemaless: bool = True) -> bool:
         """
         创建计算平台flow
         :param table_id: 结果表ID
         :param waiting_time: 等待时间（秒）
         :param expires: 过期时间（天）
+        :param schemaless: 是否是标准四元祖数据
         :return: bool 是否接入成功
         """
         # 组装参数
@@ -288,7 +291,9 @@ class ResultTableFlow(BaseModelWithTime):
         nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids, waiting_time))
         node_len = len(nodes)
         # 添加存储节点
-        nodes.append(cls.compose_vm_storage(table_id, node_len, expires))
+        nodes.append(
+            cls.compose_vm_storage(table_id=table_id, process_id=node_len, expires=expires, schemaless=schemaless)
+        )
         req_data["nodes"] = nodes
         logger.info("create_flow: try to create flow for table_id->[%s] with params->[%s]", table_id, req_data)
         # 调用接口，然后保存数据
