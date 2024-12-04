@@ -303,6 +303,15 @@ const store = new Vuex.Store({
       state.favoriteList = [];
       state.favoriteList.push(...(payload ?? []));
     },
+    updateChartParams(state, params) {
+      Object.keys(params).forEach(key => {
+        if (Array.isArray(state.indexItem.chart_params[key])) {
+          state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
+        } else {
+          state.indexItem.chart_params[key] = params[key];
+        }
+      });
+    },
     updateIndexItem(state, payload) {
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
@@ -340,6 +349,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
+      state.indexItem.chart_params = {};
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -953,6 +963,7 @@ const store = new Vuex.Store({
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
+          chart_params: deepClone(IndexItem.chart_params),
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
