@@ -96,7 +96,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
   render() {
     return (
       <div class='k8s-nav-bar'>
-        <div class='nav-title'>
+        <div class='k8s-nav-title'>
           <span class='title'>Kubernetes</span>
           <bk-select
             class='nav-select'
@@ -115,10 +115,10 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
               </bk-option>
             ))}
           </bk-select>
-          <i class='icon-monitor icon-mc-target-link' />
+          <i class='icon-monitor icon-copy-link' />
         </div>
         {this.$slots.default}
-        <div class='nav-tools'>
+        <div class='k8s-nav-tools'>
           <DashboardTools
             isSplitPanel={false}
             menuList={[]}

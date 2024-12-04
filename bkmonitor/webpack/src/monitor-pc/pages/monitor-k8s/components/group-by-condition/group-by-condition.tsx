@@ -40,7 +40,6 @@ export interface IGroupOption extends IOption {
   [key: string]: any;
 }
 export interface IGroupByChangeEvent {
-  title: string;
   id: number | string;
   option: IGroupOption;
   ids: Array<number | string>;
@@ -107,7 +106,6 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
 
   /** 删除操作 */
   handleDeleteItem(item: IGroupOption) {
-    // TODO: 删除逻辑
     const ids = this.groupFilters.filter(v => v !== item.id);
     this.handleValueChange(item.id, item, ids, false);
     this.customSelectRef?.handleShowDropDown?.();

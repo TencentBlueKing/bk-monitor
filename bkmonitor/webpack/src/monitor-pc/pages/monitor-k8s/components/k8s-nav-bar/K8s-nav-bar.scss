@@ -9,7 +9,7 @@
     0 1px 0 0 #dcdee5,
     0 3px 4px 0 #4070cb0f;
 
-  .nav-title {
+  .k8s-nav-title {
     display: flex;
     align-items: center;
     padding-left: 24px;
@@ -34,14 +34,14 @@
       }
     }
 
-    .icon-mc-target-link {
+    .icon-copy-link {
       font-size: 14px;
       color: #3a84ff;
       cursor: pointer;
     }
   }
 
-  .nav-tools {
+  .k8s-nav-tools {
     .dashboard-tools {
       padding-right: 25px;
 
