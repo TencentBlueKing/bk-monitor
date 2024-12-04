@@ -35,6 +35,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -750,6 +751,11 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
+        alias_list = list()
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_list = data.get("query_alias_settings", [])
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -768,18 +774,29 @@ class MappingHandlers(object):
                     if field_option:
                         # 加入元数据标识
                         metadata_type = field_option.get("metadata_type")
+                        # 获取别名配置
+                        query_alias = field_option.get("query_alias")
                         if metadata_type:
                             _field.update({"metadata_type": metadata_type})
+                        if query_alias:
+                            _field.update({"query_alias": query_alias})
                 else:
                     _field.update({"description": None})
 
                 # 为指定日志时间字段添加标识,时区和格式
                 if a_field_name == field_time_format_dict.get("field_name"):
-                    _field.update({
-                        "is_time": True,
-                        "field_time_zone": field_time_format_dict.get("field_time_zone"),
-                        "field_time_format": field_time_format_dict.get("field_time_format"),
-                    })
+                    _field.update(
+                        {
+                            "is_time": True,
+                            "field_time_zone": field_time_format_dict.get("field_time_zone"),
+                            "field_time_format": field_time_format_dict.get("field_time_format"),
+                        }
+                    )
+
+                # 添加别名信息
+                for item in alias_list:
+                    if a_field_name == item["field_name"]:
+                        _field["query_alias"] = item["query_alias"]
 
         return fields_list
 
