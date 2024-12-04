@@ -494,29 +494,39 @@ class MigrateOldPanels(Resource):
             }
 
         # 2. 遍历 panels 进行转换更新面板配置
+        is_migrate = False
         for panel in dashboard.get("panels", []):
             # 2.1 面板为 graph 时，进行转换为 timeseries 面板
             if panel.get("type") == "graph":
                 self.graph_to_timeseries(panel)
+                is_migrate = True
             else:
                 continue
 
         # 3. 更新仪表盘
-        result = api.grafana.create_or_update_dashboard_by_uid(
-            org_id=org_id, dashboard=dashboard, overwrite=True, folderId=params["folder_id"]
-        )
+        if is_migrate:
+            result = api.grafana.create_or_update_dashboard_by_uid(
+                org_id=org_id, dashboard=dashboard, overwrite=True, folderId=params["folder_id"]
+            )
 
-        if not result["result"]:
+            if not result["result"]:
+                return {
+                    "result": False,
+                    "message": f"Dashboard_uid: {params['dashboard_uid']} Migrate failed. {result['message']}",
+                    "code": result["code"],
+                    "data": {},
+                }
+
             return {
-                "result": False,
-                "message": f"Dashboard_uid: {params['dashboard_uid']} Migrate failed. {result['message']}",
+                "result": True,
+                "message": "Migrate success.",
                 "code": result["code"],
+                "data": {"url": result["data"].get("url", "")},
+            }
+        else:
+            return {
+                "result": True,
+                "message": "Nothing to Migrate.",
+                "code": 200,
                 "data": {},
             }
-
-        return {
-            "result": True,
-            "message": "Migrate success.",
-            "code": result["code"],
-            "data": {"url": result["data"].get("url", "")},
-        }
