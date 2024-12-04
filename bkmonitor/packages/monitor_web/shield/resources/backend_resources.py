@@ -165,6 +165,7 @@ class ShieldListResource(Resource):
                     "description": shield.description,
                     "source": shield.source,
                     "update_user": shield.update_user,
+                    "label": shield.label,
                 }
             )
 
@@ -350,6 +351,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
             description=data.get("description", ""),
             is_quick=data["is_quick"],
             source=data.get("source", ""),
+            label=data.get("label"),
         )
         return {"id": shield_obj.id}
 
