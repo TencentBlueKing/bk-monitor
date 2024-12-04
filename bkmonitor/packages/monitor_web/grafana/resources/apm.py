@@ -60,7 +60,13 @@ class TraceDetailResource(ApmTraceDetailResource):
     获取统计数据
     """
 
+    class RequestSerializer(ApmTraceDetailResource.RequestSerializer):
+        app_name = serializers.CharField(label="应用名称", blank=True, required=False, default="")
+        trace_id = serializers.CharField(label="Trace ID", blank=True, required=False, default="")
+
     def perform_request(self, validated_request_data):
+        if not all([validated_request_data.get("app_name"), validated_request_data.get("trace_id")]):
+            return []
         trace_info = super().perform_request(validated_request_data)
         return self.transform_to_jager(trace_info)
 
