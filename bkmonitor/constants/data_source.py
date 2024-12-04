@@ -22,7 +22,6 @@ class LabelType(object):
 class DataSourceLabel(object):
     BK_MONITOR_COLLECTOR = "bk_monitor"
     BK_DATA = "bk_data"
-    BKDATA = "bkdata"
     CUSTOM = "custom"
     BK_LOG_SEARCH = "bk_log_search"
     BK_FTA = "bk_fta"

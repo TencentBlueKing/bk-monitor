@@ -969,18 +969,24 @@ const store = new Vuex.Store({
       if (ids.length) {
         delete result.unionList;
         delete result.clusterParams;
-
         const payload = {
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
-          chart_params: {},
+          chart_params: deepClone(IndexItem.chart_params),
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-        if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
-          payload.keyword = payload.items[0].query_string;
-          payload.search_mode = 'sql';
+        if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
+          if (payload.items[0].query_string) {
+            payload.keyword = payload.items[0].query_string;
+            payload.search_mode = 'sql';
+            payload.addition = [];
+          } else if (payload.items[0].addition) {
+            payload.addition = payload.items[0].addition;
+            payload.search_mode = 'ui';
+            payload.keyword = '';
+          }
         }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);

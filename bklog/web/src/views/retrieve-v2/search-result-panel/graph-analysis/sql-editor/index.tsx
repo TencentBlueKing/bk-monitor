@@ -55,11 +55,12 @@ export default defineComponent({
     const isRequesting = ref(false);
     const isSyncSqlRequesting = ref(false);
     const isPreviewSqlShow = ref(false);
-    const sqlContent = ref('');
+    const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
+
     const isFullscreen = ref(false);
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
-        sqlContent.value = value;
+        store.commit('updateChartParams', { sql: value });
         emit('sql-change', value);
       }
     };
@@ -72,7 +73,6 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const storedParams = computed(() => store.state.indexItem.chart_params ?? {});
 
     const chartParams = computed(() => {
       const target = props.extendParams ?? {};
@@ -91,13 +91,6 @@ export default defineComponent({
     });
 
     const requestId = 'graphAnalysis_searchSQL';
-
-    watch(
-      () => sqlContent.value,
-      value => {
-        store.commit('updateChartParams', { sql: value });
-      },
-    );
 
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
@@ -145,7 +138,7 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
-    const handleSyncAdditionToSQL = (storeResult = true) => {
+    const handleSyncAdditionToSQL = () => {
       const { addition, start_time, end_time } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
@@ -161,11 +154,11 @@ export default defineComponent({
         })
         .then(resp => {
           editorInstance.value.setValue(resp.data.sql);
-          formatMonacoSqlCode();
           editorInstance.value.focus();
-          if (storeResult) {
-            onValueChange(resp.data.sql);
-          }
+          onValueChange(resp.data.sql);
+          setTimeout(() => {
+            formatMonacoSqlCode();
+          });
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
@@ -179,9 +172,9 @@ export default defineComponent({
       editorInstance.value.focus();
     };
 
-    const formatMonacoSqlCode = () => {
-      const val = format(editorInstance.value.getValue(), { language: 'mysql' });
-      editorInstance.value.setValue([val].join('\n'));
+    const formatMonacoSqlCode = (value?: string) => {
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      editorInstance.value?.setValue([val].join('\n'));
     };
 
     const renderTools = () => {
@@ -244,7 +237,7 @@ export default defineComponent({
               <div
                 class='sqlFormat header-tool-right-icon'
                 v-bk-tooltips={{ content: $t('格式化') }}
-                onClick={formatMonacoSqlCode}
+                onClick={() => formatMonacoSqlCode()}
               >
                 <span class='bk-icon icon-script-file'></span>
               </div>
@@ -279,21 +272,21 @@ export default defineComponent({
     // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
     // 这里会回填收藏的查询
     watch(
-      () => storedParams.value.sql,
-      async () => {
-        if (sqlContent.value !== storedParams.value.sql) {
-          if (storedParams.value.sql) {
-            sqlContent.value = storedParams.value.sql;
-          } else {
-            await handleSyncAdditionToSQL(true);
-          }
+      () => [sqlContent.value],
+      async (val, oldVal) => {
+        if (!val[0] && !oldVal?.[0]) {
+          await handleSyncAdditionToSQL();
+          debounceQuery();
+          return;
+        }
 
-          debounceQuery(false);
+        if (val[0] !== (editorInstance.value?.getValue() ?? '')) {
+          editorInstance.value?.setValue(sqlContent.value);
+          debounceQuery();
         }
       },
       {
         immediate: true,
-        deep: true,
       },
     );
 

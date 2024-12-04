@@ -305,6 +305,8 @@ export default class CollectIndex extends tsc<IProps> {
       chart_params: cloneValue.params.chart_params,
     });
 
+    this.$store.commit('updateChartParams', cloneValue.params.chart_params);
+
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
     });

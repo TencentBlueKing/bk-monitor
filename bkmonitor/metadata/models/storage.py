@@ -1979,7 +1979,7 @@ class ESStorage(models.Model, StorageResultTable):
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ResultTableField
+        from metadata.models import ESFieldQueryAliasOption, ResultTableField
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -1992,12 +1992,6 @@ class ESStorage(models.Model, StorageResultTable):
                 properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
                     table_id=self.table_id, field_name=field.field_name
                 )
-                alias_settings = ResultTableFieldOption.get_field_es_read_alias(
-                    table_id=self.table_id, field_name=field.field_name
-                )
-
-                if alias_settings:  # 当别名配置不为空时，将别名添加至索引body中
-                    properties.update(alias_settings)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "index_body: error occurs for table_id->[%s],field->[%s],error->[%s]",
@@ -2005,6 +1999,15 @@ class ESStorage(models.Model, StorageResultTable):
                     field.field_name,
                     e,
                 )
+
+        try:
+            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
+            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
+            if alias_config:
+                properties.update(alias_config)
+        except Exception as e:
+            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
 
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
@@ -2017,21 +2020,15 @@ class ESStorage(models.Model, StorageResultTable):
         组装采集项的别名配置
         :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
         """
-        properties = {}
+        from metadata.models import ESFieldQueryAliasOption
+
         logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        for field in ResultTableField.objects.filter(table_id=self.table_id):
-            try:
-                properties.update(
-                    ResultTableFieldOption.get_field_es_read_alias(table_id=self.table_id, field_name=field.field_name)
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "compose_field_alias_settings: unexpected error occurs for table_id->[%s],field_name->[%s],"
-                    "error->[%s]",
-                    self.table_id,
-                    field.field_name,
-                    e,
-                )
+        properties = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        logger.info(
+            "compose_field_alias_settings: compose alias mapping for->[%s] success,alias_settings->[%s]",
+            self.table_id,
+            properties,
+        )
         return {"properties": properties}
 
     def put_field_alias_mapping_to_es(self):

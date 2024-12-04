@@ -52,7 +52,7 @@ export default defineComponent({
     const searchValue = ref('');
     const { $t } = useLocale();
 
-    const { setChartOptions, destroyInstance, chartInstance } = useChartRender({
+    const { setChartOptions, destroyInstance, getChartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
     });
@@ -138,7 +138,8 @@ export default defineComponent({
     });
 
     const handleChartRootResize = debounce(() => {
-      chartInstance?.resize();
+      console.log('resize');
+      getChartInstance()?.resize();
     });
 
     const handleSearchClick = value => {
@@ -195,7 +196,7 @@ export default defineComponent({
         <ChartRoot
           ref={refRootElement}
           class='chart-canvas'
-          onResize={handleChartRootResize}
+          on-resize={handleChartRootResize}
         ></ChartRoot>
       );
     };
