@@ -84,10 +84,29 @@ class NodeDiscover(DiscoverBase):
                         update_instances.update({k: v})
 
         # update
+        update_combine_instances = []
         for topo_key, topo_value in update_instances.items():
-            TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key).update(
-                **topo_value, updated_at=datetime.now()
+
+            # 合并数组字段: platform | system
+            exist_instance = exists_instances.get(topo_key)
+            if not exist_instance:
+                continue
+
+            update_combine_instances.append(
+                TopoNode(
+                    id=exist_instance["id"],
+                    topo_key=topo_key,
+                    extra_data=topo_value["extra_data"],
+                    platform=topo_value["platform"],
+                    system=self.combine_list(exist_instance["system"], topo_value["system"]),
+                    sdk=self.combine_list(exist_instance["sdk"], topo_value["sdk"]),
+                    updated_at=datetime.now(),
+                )
             )
+
+        TopoNode.objects.bulk_update(
+            update_combine_instances, fields=["extra_data", "platform", "system", "sdk", "updated_at"]
+        )
 
         # create
         create_instances = [
@@ -98,6 +117,37 @@ class NodeDiscover(DiscoverBase):
 
         self.clear_if_overflow()
         self.clear_expired()
+
+    @classmethod
+    def combine_list(cls, target, source):
+        """
+        合并两个列表
+        相同 name 的进行 extra_data 合并
+        不同 name 的追加在数组中
+        """
+        if not target and not source:
+            return []
+        if not target:
+            return source
+        if not source:
+            return target
+
+        merged_dict = {}
+
+        for item in target:
+            name = item["name"]
+            extra_data = item["extra_data"]
+            merged_dict[name] = extra_data
+
+        for item in source:
+            name = item["name"]
+            extra_data = item["extra_data"]
+            if name in merged_dict:
+                merged_dict[name].update(extra_data)
+            else:
+                merged_dict[name] = extra_data
+
+        return [{"name": name, "extra_data": data} for name, data in merged_dict.items()]
 
     def batch_execute(self, origin_data, category_rules, rules):
         instance_mapping = self.extra_data_factory
@@ -221,7 +271,7 @@ class NodeDiscover(DiscoverBase):
         return {
             i["topo_key"]: i
             for i in TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).values(
-                "topo_key", "extra_data", "system", "platform", "sdk"
+                "topo_key", "extra_data", "system", "platform", "sdk", "id"
             )
         }
 

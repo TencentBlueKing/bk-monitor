@@ -55,11 +55,15 @@ class ApmTopoDiscoverRule(models.Model):
     APM_TOPO_CATEGORY_MESSAGING = "messaging"
     APM_TOPO_CATEGORY_ASYNC_BACKEND = "async_backend"
     APM_TOPO_CATEGORY_OTHER = "other"
-    # rule = framework 枚举值 ↓
+
+    # rule = system 枚举值 ↓
     APM_TOPO_FRAMEWORK_TRPC = "trpc"
     APM_TOPO_FRAMEWORK_GRPC = "grpc"
+
+    # rule = platform 枚举值 ↓
     APM_TOPO_PLATFORM_K8S = "k8s"
     APM_TOPO_PLATFORM_NODE = "node"
+
     # rule = sdk 枚举值 ↓
     APM_TOPO_SDK_SDK = "sdk"
 
