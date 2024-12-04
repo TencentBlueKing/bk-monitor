@@ -434,18 +434,30 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       this.activeGraphCategory === GraphCategory.PIE
         ? this.$t('至少需要一个指标，一个维度')
         : this.$t('至少需要一个指标，一个维度/时间维度');
-
+    let tips;
+    const isGraphCategoryPie = this.activeGraphCategory === GraphCategory.PIE;
+    if (!this.xFields.length && !this.yFields.length && !this.dimensions.length) {
+      tips = isGraphCategoryPie
+        ? this.$t('当前缺少指标和维度')
+        : this.$t('当前缺少指标和维度/时间维度');
+    } else if (this.yFields.length && !(this.xFields.length || this.dimensions.length)) {
+      tips = isGraphCategoryPie
+        ? this.$t('当前缺少维度')
+        : this.$t('当前缺少维度/时间维度');
+    } else if (!this.yFields.length && (this.xFields.length || this.dimensions.length)) {
+      tips = this.$t('当前缺少指标');
+    }
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
-      return { showException, message, showQuery };
+      return { showException, message, showQuery, tips  };
     }
 
     if (this.activeGraphCategory !== GraphCategory.TABLE) {
       showException = !((this.dimensions.length || this.xFields.length) && this.yFields.length);
     }
 
-    return { showException, message, showQuery };
+    return { showException, message, showQuery, tips  };
   }
 
   getExceptionMessage() {
@@ -465,7 +477,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   getExceptionRender() {
-    const { showException, message, showQuery } = this.getExceptionMessage();
+    const { showException, message, showQuery, tips = '' } = this.getExceptionMessage();
     if (showException) {
       return (
         <bk-exception
@@ -473,31 +485,32 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           class='bklog-chart-exception'
           type='500'
         >
+          <div class='bk-exception-title'>{tips}</div>
           <div class='bk-exception-title'>{message}</div>
           {showQuery
             ? [
-                <div class='bk-exception-description'>{this.$t('请重新发起查询')}</div>,
-                <div class='bk-exception-footer'>
-                  <bk-button
-                    class='mr10'
-                    size='small'
-                    theme='primary'
-                    type='submit'
-                    onClick={this.handleEditorSearchClick}
-                  >
-                    {this.$t('查询')}
-                  </bk-button>
-                  <bk-button
-                    class='mr10'
-                    size='small'
-                    onClick={() => {
-                      this.isSqlValueChanged = false;
-                    }}
-                  >
-                    {this.$t('我知道了')}
-                  </bk-button>
-                </div>,
-              ]
+              <div class='bk-exception-description'>{this.$t('请重新发起查询')}</div>,
+              <div class='bk-exception-footer'>
+                <bk-button
+                  class='mr10'
+                  size='small'
+                  theme='primary'
+                  type='submit'
+                  onClick={this.handleEditorSearchClick}
+                >
+                  {this.$t('查询')}
+                </bk-button>
+                <bk-button
+                  class='mr10'
+                  size='small'
+                  onClick={() => {
+                    this.isSqlValueChanged = false;
+                  }}
+                >
+                  {this.$t('我知道了')}
+                </bk-button>
+              </div>,
+            ]
             : ''}
         </bk-exception>
       );
@@ -538,7 +551,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     });
 
     // 重置默认字段
-    if (this.xFields.length === 0) {
+    if (this.xFields.length === 0 && this.dimensions.length === 0) {
       const defValue = (list.find(item => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
       if (defValue) {
         this.xFields.push(defValue);
