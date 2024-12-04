@@ -183,6 +183,7 @@ export default class UseJsonFormatter {
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
       mrkNode.innerHTML = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.classList.add('valid-text');
       return mrkNode;
     }
 

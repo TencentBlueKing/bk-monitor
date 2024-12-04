@@ -305,22 +305,22 @@ class PlatformConfig(BkCollectorConfig):
 
     @classmethod
     def get_dataids_config_from_application(cls, application):
-        data_ids = {}
+        data_ids = {"fixed_token": application.get_bk_data_token()}
         metric_data_source = application.metric_datasource
         if application.is_enabled_metric and metric_data_source:
-            data_ids["metrics_dataid"] = metric_data_source.bk_data_id
+            data_ids["metric_data_id"] = metric_data_source.bk_data_id
 
         log_data_source = application.log_datasource
         if application.is_enabled_log and log_data_source:
-            data_ids["logs_dataid"] = log_data_source.bk_data_id
+            data_ids["log_data_id"] = log_data_source.bk_data_id
 
         trace_data_source = application.trace_datasource
         if application.is_enabled_trace and trace_data_source:
-            data_ids["traces_dataid"] = trace_data_source.bk_data_id
+            data_ids["trace_data_id"] = trace_data_source.bk_data_id
 
         profile_data_source = application.profile_datasource
         if application.is_enabled_profiling and profile_data_source:
-            data_ids["profiles_dataid"] = profile_data_source.bk_data_id
+            data_ids["profile_data_id"] = profile_data_source.bk_data_id
         return data_ids
 
     @classmethod
@@ -360,7 +360,12 @@ class PlatformConfig(BkCollectorConfig):
             "from_cache": {
                 "key": "resource.net.host.ip",
                 "dimensions": ["k8s.namespace.name", "k8s.pod.name", "k8s.pod.ip", "k8s.bcs.cluster.id"],
-                "cache": {"key": "k8s.pod.ip", "url": f"http://{operator_service_name}:8080/pods"},
+                "cache": {
+                    "key": "k8s.pod.ip",
+                    "url": f"http://{operator_service_name}:8080/pods",
+                    "timeout": "60s",
+                    "interval": "10s",
+                },
             },
         }
 

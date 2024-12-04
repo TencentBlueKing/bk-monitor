@@ -121,6 +121,14 @@ class UseSegmentProp {
           iconName: 'bklog-icon bklog-jump',
         },
       },
+      {
+        onClick: () => taskEventManager.executeFn('trace-view', true),
+        iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
+        text: this.$t('关联Trace检索'),
+        link: {
+          iconName: 'bklog-icon bklog-jump',
+        },
+      },
     ];
 
     return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [

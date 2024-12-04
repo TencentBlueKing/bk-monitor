@@ -2025,8 +2025,9 @@ class StrategySnapshotResource(Resource):
                 changed_status = self.ConfigChangedStatus.UPDATED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
-            # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
-            strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
+            if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):
+                # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
+                strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
 
         strategy_config.update(strategy_status=changed_status)
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
