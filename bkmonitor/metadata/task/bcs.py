@@ -567,7 +567,8 @@ def sync_federation_clusters(fed_clusters):
             "sync_federation_clusters:Start Creating federation data links for sub-clusters->[%s] " "asynchronously",
             need_process_clusters,
         )
-        bulk_create_fed_data_link.delay(set(need_process_clusters))
+        # bulk_create_fed_data_link(need_process_clusters)
+        bulk_create_fed_data_link.delay(set(need_process_clusters))  # 异步创建联邦汇聚链路
 
         logger.info("sync_federation_clusters:sync_federation_clusters finished successfully.")
 
