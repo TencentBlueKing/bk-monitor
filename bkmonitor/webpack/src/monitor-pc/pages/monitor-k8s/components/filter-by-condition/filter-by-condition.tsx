@@ -23,47 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
 
 import KvTag from './kv-tag';
-import { EGroupBy, GROUP_OPTIONS } from './utils';
+import { EGroupBy, type IGroupOptionsItem, type ITagListItem, type IValueItem, type IFilterByItem } from './utils';
+
+import type { GroupListItem } from '../../typings/k8s-new';
 
 import './filter-by-condition.scss';
 
-interface IValue {
-  id: string;
-  name: string;
-}
-
-interface ITagListItem {
-  key: string;
-  id: string;
-  name: string;
-  values: IValue[];
-}
-
-interface IGroupOptionsItem {
-  id: string;
-  name: string;
-  count: number;
-}
-interface IValueItem {
-  id: string;
-  name: string;
-  checked: boolean;
-  count?: number;
-  list?: {
-    id: string;
-    name: string;
-    checked: boolean;
-  }[];
+interface IProps {
+  groupList?: GroupListItem[];
+  filterBy?: IFilterByItem[];
+  onChange?: (v: IFilterByItem[]) => void;
 }
 
 @Component
-export default class FilterByCondition extends tsc<object> {
+export default class FilterByCondition extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) groupList: GroupListItem[];
+  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
   @Ref('selector') selectorRef: HTMLDivElement;
   // tags
   tagList: ITagListItem[] = [];
@@ -89,11 +70,106 @@ export default class FilterByCondition extends tsc<object> {
   overflowIndex = 0;
   // 展开tagList
   isExpand = false;
+  localFilterBy = [];
+  allOptions = [];
+  allOptionsMap = new Map();
 
   get hasAdd() {
-    const ids = GROUP_OPTIONS.map(item => item.id);
+    const ids = this.allOptions.map(item => item.id);
     const tags = new Set(this.tagList.map(item => item.id));
     return !ids.every(id => tags.has(id));
+  }
+
+  @Watch('groupList', { immediate: true })
+  handleWatchGroupList() {
+    this.allOptions = this.getGroupList();
+  }
+
+  @Watch('filterBy')
+  handleWatchFilterBy() {
+    const filterByStr = JSON.stringify(this.filterBy);
+    const localFilterByStr = JSON.stringify(this.localFilterBy);
+    if (filterByStr !== localFilterByStr) {
+      this.localFilterBy = [...this.filterBy];
+      this.filterByToTags();
+      this.overflowCountRender();
+    }
+  }
+
+  /**
+   * @description change
+   */
+  handleChange() {
+    const filterBy = [];
+    for (const item of this.tagList) {
+      filterBy.push({
+        key: item.id,
+        value: item.values.map(v => v.id),
+      });
+    }
+    this.localFilterBy = JSON.parse(JSON.stringify(filterBy));
+    this.$emit('change', filterBy);
+  }
+
+  /**
+   * @description filterBy => Tags
+   */
+  filterByToTags() {
+    const tagList = [];
+    for (const item of this.localFilterBy) {
+      const groupMap = this.allOptionsMap.get(item.key);
+      if (item.value.length) {
+        tagList.push({
+          id: item.key,
+          name: groupMap?.name || '--',
+          key: random(8),
+          values: item.value.map(v => ({
+            id: v,
+            name: groupMap?.itemsMap.get(v) || '--',
+          })),
+        });
+      }
+    }
+    this.tagList = tagList;
+    this.updateActive = '';
+    this.groupSelected = '';
+  }
+
+  /**
+   * @description 从上层获取所有选项
+   * @returns
+   */
+  getGroupList() {
+    return this.groupList.map(item => {
+      const itemsMap = new Map();
+      const result = {
+        id: item.id,
+        name: item.title,
+        count: item.count,
+        list: item.children.map(child => {
+          if (item.id !== EGroupBy.workload) {
+            itemsMap.set(child.id, child.title);
+          }
+          return {
+            id: child.id,
+            name: child.title,
+            count: child?.count,
+            list: child?.children?.map(c => {
+              itemsMap.set(c.id, c.title);
+              return {
+                id: c.id,
+                name: c.title,
+              };
+            }),
+          };
+        }),
+      };
+      this.allOptionsMap.set(item.id, {
+        itemsMap: itemsMap,
+        name: item.title,
+      });
+      return result;
+    });
   }
 
   async handleAdd(event: MouseEvent) {
@@ -125,6 +201,10 @@ export default class FilterByCondition extends tsc<object> {
     this.popoverInstance = null;
   }
 
+  /**
+   * @description 选择某项group
+   * @param id
+   */
   handleSelectGroup(id: string) {
     if (this.groupSelected !== id) {
       this.groupSelected = id;
@@ -138,7 +218,7 @@ export default class FilterByCondition extends tsc<object> {
         }
       }
       if (this.groupSelected === EGroupBy.workload) {
-        const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
+        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
         this.valueCategoryOptions = groupValues.map(item => ({
           ...item,
           checked: false,
@@ -157,7 +237,7 @@ export default class FilterByCondition extends tsc<object> {
         }
       } else {
         this.valueCategoryOptions = [];
-        const groupValues = GROUP_OPTIONS.find(item => item.id === this.groupSelected)?.list || [];
+        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
       this.handleSearchChange('');
@@ -169,6 +249,11 @@ export default class FilterByCondition extends tsc<object> {
     this.handleSearchChange(value);
   }
 
+  /**
+   * @description 搜索
+   * @param value
+   * @returns
+   */
   handleSearchChange(value: string) {
     this.searchValue = value;
     const searchValue = value.toLocaleLowerCase();
@@ -191,19 +276,39 @@ export default class FilterByCondition extends tsc<object> {
     });
   }
 
+  /**
+   * @description 选择value选项
+   * @param item
+   */
   handleCheck(item: IValueItem) {
     item.checked = !item.checked;
     if (this.groupSelected === EGroupBy.workload) {
+      let isBreak = false;
       for (const option of this.valueCategoryOptions) {
         for (const l of option.list) {
           if (l.id === item.id) {
             l.checked = item.checked;
+            isBreak = true;
+            break;
           }
+        }
+        if (isBreak) {
+          break;
+        }
+      }
+    } else {
+      for (const v of this.valueOptions) {
+        if (v.id === item.id) {
+          v.checked = item.checked;
+          break;
         }
       }
     }
   }
 
+  /**
+   * @description 整理tags
+   */
   setTagList() {
     const curSelected = [];
     if (this.groupSelected === EGroupBy.workload) {
@@ -252,14 +357,23 @@ export default class FilterByCondition extends tsc<object> {
         this.tagList.push(obj);
       }
     }
+    this.handleChange();
     this.overflowCountRender();
   }
 
+  /**
+   * @description 点击添加按钮
+   * @param event
+   */
   async handleAddTag(event: MouseEvent) {
     this.setGroupOptions();
     this.handleAdd(event);
   }
-
+  /**
+   * @description 点击了某条tag准备进行更新操作
+   * @param target
+   * @param item
+   */
   async handleUpdateTag(target: any, item: ITagListItem) {
     this.updateActive = item.key;
     this.setGroupOptions();
@@ -300,10 +414,16 @@ export default class FilterByCondition extends tsc<object> {
     }, 100);
   }
 
+  /**
+   * @description 展开收起
+   */
   handleExpand() {
     this.isExpand = !this.isExpand;
   }
 
+  /**
+   * @description 获取当前剩余group选项
+   */
   setGroupOptions() {
     const groupsSet = new Set();
     let updateActiveId = '';
@@ -314,7 +434,7 @@ export default class FilterByCondition extends tsc<object> {
       }
     }
     const groupOptions = [];
-    for (const item of GROUP_OPTIONS) {
+    for (const item of this.allOptions) {
       if (!groupsSet.has(item.id) || updateActiveId === item.id) {
         groupOptions.push({
           ...item,
@@ -326,8 +446,15 @@ export default class FilterByCondition extends tsc<object> {
     this.handleSelectGroup(updateActiveId || groupOptions?.[0]?.id);
   }
 
+  /**
+   * @description 删除tag
+   * @param item
+   */
   handleDeleteTag(item: ITagListItem) {
     this.tagList = this.tagList.filter(tag => tag.key !== item.key);
+    this.updateActive = '';
+    this.groupSelected = '';
+    this.handleChange();
     this.overflowCountRender();
   }
 
