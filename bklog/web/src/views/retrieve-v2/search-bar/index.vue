@@ -17,7 +17,6 @@
   import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  // import route from '../../../language/lang/en/route';
   const props = defineProps({
     activeFavorite: {
       default: null,

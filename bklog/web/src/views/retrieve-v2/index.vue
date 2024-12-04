@@ -37,6 +37,7 @@
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
   import GraphAnalysis from './search-result-panel/graph-analysis';
+
   import SubBar from './sub-bar/index.vue';
   const store = useStore();
   const router = useRouter();
