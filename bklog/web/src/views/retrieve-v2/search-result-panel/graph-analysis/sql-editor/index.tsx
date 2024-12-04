@@ -274,17 +274,17 @@ export default defineComponent({
     // 这里会回填收藏的查询
     watch(
       () => [storedSql.value],
-      async () => {
+      async (val, oldVal) => {
         let needQuery = false;
         if (sqlContent.value !== storedSql.value) {
           needQuery = true;
           if (storedSql.value) {
             sqlContent.value = storedSql.value;
-            formatMonacoSqlCode(sqlContent.value);
+            editorInstance.value?.setValue(sqlContent.value);
           }
         }
 
-        if (!sqlContent.value) {
+        if (!sqlContent.value && !oldVal?.[0]) {
           await handleSyncAdditionToSQL(true);
           needQuery = true;
         }
