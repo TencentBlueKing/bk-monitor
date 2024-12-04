@@ -59,6 +59,7 @@ interface ICallerCalleeTableChartProps {
   filterData?: IFilterCondition[];
   searchList?: IServiceConfig[];
   panel: PanelModel;
+  timeStrShow?: IDataItem;
 }
 interface ICallerCalleeTableChartEvent {
   onCloseTag?: (val: IFilterCondition) => void;
@@ -86,6 +87,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   @Prop({ type: Object, default: () => {} }) chartPointOption: IChartOption;
   @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
 
   @InjectReactive('callOptions') readonly callOptions!: CallOptions;
   @InjectReactive('filterTags') filterTags: IFilterData;
@@ -588,6 +590,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 tableColData={this.tableColData}
                 tableFilterData={this.tableTabData}
                 tableListData={this.tableListData}
+                timeStrShow={this.timeStrShow}
                 totalList={this.totalListData}
                 onDimensionKeyChange={this.dimensionKeyChange}
                 onDrill={this.handleDrill}

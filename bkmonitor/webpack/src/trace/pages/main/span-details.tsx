@@ -299,7 +299,7 @@ export default defineComponent({
             title: SPAN_KIND_MAPS[kind],
           },
           {
-            label: t('版本'),
+            label: t('SDK 版本'),
             content: resource['telemetry.sdk.version'] || '--',
             title: resource['telemetry.sdk.version'] || '',
           },
@@ -324,7 +324,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Tags',
+          title: 'Attributes',
           [EListItemType.tags]: {
             list:
               attributes.map(
@@ -476,7 +476,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Process',
+          title: 'Resource',
           [EListItemType.tags]: {
             list:
               process?.tags.map(
@@ -718,6 +718,9 @@ export default defineComponent({
 
     /* kv 结构数据展示 */
     const tagsTemplate = (data: ITagsItem['list']) => {
+      data.sort(({ label: labelA }, { label: labelB }) => {
+        return labelA.toUpperCase() >= labelB.toUpperCase() ? 1 : -1;
+      });
       return (
         <div class='tags-template'>
           {data.map((item, index) => (

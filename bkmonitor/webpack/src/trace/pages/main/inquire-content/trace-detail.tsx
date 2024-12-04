@@ -41,7 +41,7 @@ import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
-import { copyText, typeTools } from 'monitor-common/utils/utils';
+import { typeTools } from 'monitor-common/utils/utils';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -55,6 +55,7 @@ import SequenceGraph from '../../../plugins/charts/sequence-graph/sequence-graph
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import {
   DEFAULT_TRACE_DATA,
+  QUERY_TRACE_RELATION_APP,
   SOURCE_CATEGORY_EBPF,
   TRACE_INFO_TOOL_FILTERS,
   VIRTUAL_SPAN,
@@ -70,6 +71,7 @@ import {
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
 import NodeTopo from './node-topo';
+import TraceDetailHeader from './trace-detail-header';
 
 import type { Span } from '../../../components/trace-view/typings';
 
@@ -237,35 +239,6 @@ export default defineComponent({
     /* 节点拓扑类型 时间/服务 */
     const topoType = ref<ETopoType>(ETopoType.time);
 
-    // 复制操作
-    const handleCopy = (content: string) => {
-      let text = '';
-      const { trace_id: traceId } = traceData.value;
-      if (content === 'text') {
-        text = traceId;
-      } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
-          props.appName
-        }&search_type=accurate&trace_id=${traceId}`;
-        text = location.href.replace(location.hash, hash);
-      }
-      copyText(
-        text,
-        (msg: string) => {
-          Message({
-            message: msg,
-            theme: 'error',
-          });
-          return;
-        },
-        props.isInTable ? '.trace-content-table-wrap' : ''
-      );
-      Message({
-        message: t('复制成功'),
-        theme: 'success',
-        width: 200,
-      });
-    };
     /**
      * @description: 选择过滤条件
      * @param {ISpanClassifyItem} classify
@@ -388,9 +361,12 @@ export default defineComponent({
         } else {
           // 时序图和火焰图需要过滤【耗时选项】
           const { waterFallAndTopo } = cacheFilterToolsValues;
-          const newArr = ['flame', 'sequence'].includes(v)
+          let newArr = ['flame', 'sequence'].includes(v)
             ? waterFallAndTopo.filter(val => val !== 'duration')
             : waterFallAndTopo;
+          if (v !== 'timeline') {
+            newArr = newArr.filter(val => val !== QUERY_TRACE_RELATION_APP);
+          }
           store.updateTraceViewFilters(newArr);
         }
       });
@@ -542,7 +518,7 @@ export default defineComponent({
         cacheFilterToolsValues.statistics = val;
       } else {
         searchCancelFn();
-        const selects = val.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = val.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用 选项
         const displays = ['source_category_opentelemetry'].concat(selects);
         const { trace_id: traceId } = traceData.value;
         contentLoading.value = true;
@@ -554,6 +530,10 @@ export default defineComponent({
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
         };
+        clearCrossApp();
+        if (state.activePanel === 'timeline') {
+          params[QUERY_TRACE_RELATION_APP] = val.includes(QUERY_TRACE_RELATION_APP);
+        }
         await traceDetail(params, {
           cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
         }).then(async data => {
@@ -624,6 +604,7 @@ export default defineComponent({
       () => props.traceID,
       () => {
         clearCompareParams();
+        clearCrossApp();
       }
     );
     watch(
@@ -703,6 +684,18 @@ export default defineComponent({
       state.compareSpanList = [];
       state.compareTraceID = '';
     };
+
+    /** 从非timeline视图切换Trace ID，过滤跨应用checkbox */
+    const clearCrossApp = () => {
+      if (
+        state.activePanel !== 'timeline' &&
+        cacheFilterToolsValues.waterFallAndTopo.includes(QUERY_TRACE_RELATION_APP)
+      ) {
+        cacheFilterToolsValues.waterFallAndTopo = cacheFilterToolsValues.waterFallAndTopo.filter(
+          item => item !== QUERY_TRACE_RELATION_APP
+        );
+      }
+    };
     /** 更新对比状态 */
     const updateCompareStatus = (isCompare = true) => {
       state.isCompareView = isCompare;
@@ -777,7 +770,6 @@ export default defineComponent({
       traceMainElem,
       statisticsElem,
       searchBarElem,
-      handleCopy,
       handleSelectFilters,
       handleTabChange,
       trackFilter,
@@ -836,7 +828,7 @@ export default defineComponent({
         loading={this.isLoading}
         zIndex={99999}
       >
-        {this.isInTable && (
+        {/* {this.isInTable && (
           <div
             class='fullscreen-btn toggle-full-screen'
             onClick={() => this.$emit('close')}
@@ -844,40 +836,24 @@ export default defineComponent({
             <div class='circle' />
             <span class='icon-monitor icon-mc-close icon-page-close' />
           </div>
+        )} */}
+        {!this.isInTable && (
+          <TraceDetailHeader
+            appName={appName}
+            traceId={traceId}
+          />
         )}
-        <div class='header'>
-          <span class='trace-id'>{traceId}</span>
-          <Popover
-            content={this.$t('复制 TraceID')}
-            placement='right'
-            theme='light'
-          >
-            <span
-              class='icon-monitor icon-mc-copy'
-              onClick={() => this.handleCopy('text')}
-            />
-          </Popover>
-          <Popover
-            content={this.$t('复制链接')}
-            placement='right'
-            theme='light'
-          >
-            <span
-              class='icon-monitor icon-copy-link'
-              onClick={() => this.handleCopy('link')}
-            />
-          </Popover>
-        </div>
+
         <div
           ref='baseMessage'
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <label>{this.$t('产生时间')}</label>
+            <span>{this.$t('产生时间')}</span>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('总耗时')}</label>
+            <span>{this.$t('总耗时')}</span>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -911,19 +887,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <label>{this.$t('时间区间')}</label>
+            <span>{this.$t('耗时分布')}</span>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('服务数')}</label>
+            <span>{this.$t('服务数')}</span>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('层级数')}</label>
+            <span>{this.$t('层级数')}</span>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <label>{this.$t('span总数')}</label>
+            <span>{this.$t('span总数')}</span>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>

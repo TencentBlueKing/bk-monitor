@@ -454,6 +454,10 @@ export class LineChart
                     }`,
                   }))
                 );
+              // 用于获取原始query_config
+              if (res.query_config) {
+                this.panel.setRawQueryConfigs(item, res.query_config);
+              }
               this.clearErrorMsg();
               return true;
             })

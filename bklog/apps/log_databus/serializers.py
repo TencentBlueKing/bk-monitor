@@ -455,7 +455,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
 
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     collector_scenario_id = serializers.ChoiceField(
         label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
@@ -477,7 +477,7 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX
+        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
     )
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True

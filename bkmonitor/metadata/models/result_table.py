@@ -19,7 +19,7 @@ import traceback
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
 from django.utils.translation import ugettext as _
@@ -30,7 +30,7 @@ from metadata import config
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.utils.basic import getitems
 
-from .common import Label, OptionBase
+from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource
@@ -1435,7 +1435,10 @@ class ResultTable(models.Model):
         return True
 
     def to_json(self):
-        return {
+        query_alias_settings = None
+        if self.default_storage == ClusterInfo.TYPE_ES:
+            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        data = {
             "table_id": self.table_id,
             "table_name_zh": _(self.table_name_zh),
             "is_custom_table": self.is_custom_table,
@@ -1456,6 +1459,10 @@ class ResultTable(models.Model):
             "is_enable": self.is_enable,
             "data_label": self.data_label,
         }
+
+        if query_alias_settings:
+            data["query_alias_settings"] = query_alias_settings
+        return data
 
     def to_json_self_only(self):
         """
@@ -2698,17 +2705,101 @@ class ResultTableFieldOption(OptionBase):
 
         return es_config
 
+
+class ESFieldQueryAliasOption(BaseModel):
+    """
+    ES字段关联别名配置
+    """
+
+    table_id = models.CharField("结果表名", max_length=128)
+    field_path = models.CharField("原始字段路径", max_length=256)
+    query_alias = models.CharField("查询别名", max_length=256)
+    is_deleted = models.BooleanField("是否已删除", default=False)
+
     @classmethod
-    def get_field_es_read_alias(cls, table_id, field_name):
+    def generate_query_alias_settings(cls, table_id):
         """
-        寻找ES字段关联别名，若有对应Option记录，回写至IndexBody.Properties中
+        生成指定 table_id 的别名配置
         :param table_id: 结果表ID
-        :param field_name: 字段名（原始字段名，非别名）
-        :return: dict {alias_name:{"type":alias,"path":origin_field_name}}
+        :return: dict -> {query_alias: {"type": "alias", "path": field_path}}
         """
-        origin_option = cls.get_field_option(table_id=table_id, field_name=field_name)
-        es_config = {}
-        for config_name, config_value in list(origin_option.items()):
-            if config_name == 'query_alias':
-                es_config[config_value] = {"type": "alias", "path": field_name}
-        return es_config
+        logger.info("Generating alias configuration for table_id=[%s]", table_id)
+        try:
+            # 获取未软删除的所有记录
+            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False)
+
+            # 构建结果字典
+            alias_config = {
+                record.query_alias: {
+                    "type": "alias",
+                    "path": record.field_path,
+                }
+                for record in alias_records
+            }
+
+            logger.info("Alias configuration generated for table_id=[%s]: %s", table_id, alias_config)
+            return alias_config
+
+        except Exception as e:
+            logger.error("Error generating alias configuration for table_id=[%s]: %s", table_id, str(e), exc_info=True)
+            raise
+
+    @staticmethod
+    @transaction.atomic
+    def manage_query_alias_settings(table_id, query_alias_settings, operator):
+        """
+        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）
+        :param table_id: 结果表ID
+        :param query_alias_settings: 用户传入的query_alias_settings列表
+        :param operator: 操作者
+        """
+        logger.info(
+            "manage_query_alias_settings: try to manage alias settings for table_id->[%s],"
+            "query_alias_settings->[%s]",
+            table_id,
+            query_alias_settings,
+        )
+        # 获取当前数据库中的记录（包括软删除记录）
+        existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
+        existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
+
+        # 提取用户传入的数据组合，对于一个采集项而言，field_path+query_alias为一个组合
+        incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
+
+        try:
+            # 新增或更新记录
+            for item in query_alias_settings:
+                field_path = item["field_name"]
+                query_alias = item["query_alias"]
+
+                if (field_path, query_alias) in existing_map:
+                    # 更新记录
+                    record = existing_map[(field_path, query_alias)]
+                    record.is_deleted = False  # 重置软删除标记
+                    record.updater = operator
+                    record.save()
+                else:
+                    # 新增记录
+                    ESFieldQueryAliasOption.objects.create(
+                        table_id=table_id,
+                        field_path=field_path,
+                        query_alias=query_alias,
+                        creator=operator,
+                        is_deleted=False,
+                    )
+
+            # 标记未提供的记录为软删除
+            for (field_path, query_alias), record in existing_map.items():
+                if (field_path, query_alias) not in incoming_combinations and not record.is_deleted:
+                    record.is_deleted = True
+                    record.updater = operator
+                    record.save()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "manage_query_alias_settings: failed to manage alias settings for table_id->[%s], "
+                "query_alias_settings->[%s], error->[%s]",
+                table_id,
+                query_alias_settings,
+                e,
+            )
+            raise e

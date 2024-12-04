@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 
+# 注: 此序列化器的参数在 apm_web.k8s.resources.ListServicePodsResource 也使用到
 class KubernetesListRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     keyword = serializers.CharField(required=False, allow_null=True, label="查询关键词", allow_blank=True)

@@ -146,4 +146,9 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
         ),
+        # Trace panel
+        ResourceRoute("POST", resource.grafana.list_application_info, endpoint="apm/list_application_info"),
+        ResourceRoute("POST", resource.grafana.get_field_option_values, endpoint="apm/get_field_option_values"),
+        ResourceRoute("POST", resource.grafana.list_trace, endpoint="apm/list_trace"),
+        ResourceRoute("POST", resource.grafana.trace_detail, endpoint="apm/trace_detail"),
     ]
