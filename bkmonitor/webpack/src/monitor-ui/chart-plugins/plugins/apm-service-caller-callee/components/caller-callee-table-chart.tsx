@@ -31,13 +31,14 @@ import dayjs from 'dayjs';
 import { calculateByRange } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
 import { replaceRegexWhere } from '../../../utils/method';
 import { VariablesService } from '../../../utils/variable';
 import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type {
@@ -71,14 +72,6 @@ const TimeDimension: DimensionItem = {
   text: '时间',
   active: false,
 };
-
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
-}
 
 @Component
 class CallerCalleeTableChart extends CommonSimpleChart {
@@ -206,7 +199,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
 
   getCallTimeShift() {
-    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    const callTimeShift = this.callOptions.time_shift;
     return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   getPageList() {
@@ -225,8 +218,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
     this.unregisterOberver();
     this.tableColData = this.callOptions.time_shift.map(item => ({
-      value: timeShiftFormat(item.alias),
-      text: item.alias,
+      value: item,
+      text: timeOffsetDateFormat(item),
     }));
     this.getPageList();
   }
@@ -249,7 +242,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...{ kind: this.activeKey },
     });
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
+    const timeShift = this.getCallTimeShift();
     const timeParams = {
       start_time: this.pointTime?.startTime || startTime,
       end_time: this.pointTime?.endTime || endTime,
