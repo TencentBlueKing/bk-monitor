@@ -565,15 +565,14 @@ class EtlStorage(object):
 
         # 别名配置
         if alias_settings:
+            query_alias_settings = []
             for item in alias_settings:
-                new_field = {
+                field_alias = {
                     "field_name": item["field_name"],
-                    "field_type": "keyword",
-                    "tag": "metric",
-                    "description": "",
-                    "option": {"query_alias": item["query_alias"]},
+                    "query_alias": item["query_alias"],
                 }
-                params["field_list"].append(new_field)
+                query_alias_settings.append(field_alias)
+            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:
