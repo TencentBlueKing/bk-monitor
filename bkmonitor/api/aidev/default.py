@@ -35,6 +35,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
         knowledge_base_id = serializers.ListField(required=True, child=serializers.IntegerField())
         polish = serializers.BooleanField(required=False, default=True)
         stream = serializers.BooleanField(required=False, default=True)
+        topk = serializers.IntegerField(required=False, default=20)
 
     action = "/aidev/resource/knowledgebase/query/"
     method = "POST"
@@ -73,7 +74,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
 
         def add_guide(res_data):
             link_tmp = """<a href="{doc_link}" target="_blank">【BK助手】</a>"""
-            res_data["content"] = " 您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
+            res_data["content"] = "\n如果以上回答不能解决您的问题，您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
             res_data["event"] = "text"
             return "data: " + json.dumps(res_data) + "\n\n"
 

@@ -135,9 +135,10 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 "field_type": "float",
                 "tag": "metric",
                 "description": "",
-                "option": {"field_index": 1, "es_type": "text", "query_alias": "new_field1"},
+                "option": {"field_index": 1, "es_type": "text"},
             }
         ],
+        query_alias_settings=[{"field_name": "test_field1", "query_alias": "new_field1"}],
         default_storage_config={
             "mapping_settings": {
                 "dynamic_templates": [
@@ -174,11 +175,11 @@ def test_create_and_modify_result_table_resource_for_es_storage(
         }
     )
 
-    # 是否创建了对应的Option  原字段:test_field1 读别名: new_field1
-    field1_option = models.ResultTableFieldOption.objects.get(
-        table_id="2_bklog.rt_create", field_name='test_field1', name='query_alias'
+    # 是否创建了对应的别名配置记录  原字段:test_field1 读别名: new_field1
+    field1_alias = models.ESFieldQueryAliasOption.objects.get(
+        field_path="test_field1", query_alias="new_field1", table_id="2_bklog.rt_create"
     )
-    assert field1_option.value == 'new_field1'
+    assert field1_alias.is_deleted is False
 
     # 测试别名配置能否正确组装
     field_alias_mappings = es_rt.compose_field_alias_settings()
@@ -246,9 +247,10 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 "field_type": "float",
                 "tag": "metric",
                 "description": "",
-                "option": {"field_index": 1, "es_type": "text", "query_alias": "new_field2"},
+                "option": {"field_index": 1, "es_type": "text"},
             }
         ],
+        query_alias_settings=[{"field_name": "test_field2", "query_alias": "new_field2"}],
         default_storage_config={
             "mapping_settings": {
                 "dynamic_templates": [
@@ -268,16 +270,17 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     mocker.patch('metadata.models.ESStorage.update_index_and_aliases', return_value=None)
     ModifyResultTableResource().request(**modify_params)
 
-    # 是否创建了对应的Option  原字段:test_field1 读别名: new_field1
-    field2_option = models.ResultTableFieldOption.objects.get(
-        table_id="2_bklog.rt_create", field_name='test_field2', name='query_alias'
-    )
-    assert field2_option.value == 'new_field2'
+    # 是否创建了对应的字段别名配置  原字段:test_field1 读别名: new_field1
 
-    field1_option = models.ResultTableFieldOption.objects.filter(
-        table_id="2_bklog.rt_create", field_name='test_field1', name='query_alias'
+    field1_alias = models.ESFieldQueryAliasOption.objects.get(
+        field_path="test_field1", query_alias="new_field1", table_id="2_bklog.rt_create"
     )
-    assert not field1_option.exists()
+    assert field1_alias.is_deleted is True
+
+    field2_alias = models.ESFieldQueryAliasOption.objects.get(
+        field_path="test_field2", query_alias="new_field2", table_id="2_bklog.rt_create"
+    )
+    assert field2_alias.is_deleted is False
 
     # 测试别名配置能否正确组装
     field_alias_mappings = es_rt.compose_field_alias_settings()

@@ -223,6 +223,7 @@ export default {
     'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
     'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
+  '如需使用该功能，请联系管理员': 'To use this feature, please contact the administrator',
 
   // 故障
   影响空间: 'Affected space',

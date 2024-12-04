@@ -55,12 +55,10 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRanceInject } from '../../../plugins/hooks';
-import { SPAN_KIND_MAPS } from '../../../store/constant';
+import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
-import InterfaceStatistics from './interface-statistics';
-import ServiceStatistics from './service-statistics';
 // import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
 import TraceDetailHeader from './trace-detail-header';
@@ -93,16 +91,6 @@ enum SpanFilter {
   RootSpan = 'root_span',
   // 第二期：后端未提供该参数，先占个位。
   ThirdPart = '3',
-}
-
-enum InterfaceStatisticsFilter {
-  RootServiceSpan = 'root_service_span',
-  RootSpan = 'root_span',
-  StatusCode = 'status.code',
-}
-
-enum ServiceStatisticsFilter {
-  Error = 'error',
 }
 
 export type TraceListType = {
@@ -155,6 +143,7 @@ export default defineComponent({
   ],
   setup(props, { emit }) {
     /** 取消请求方法 */
+    let listOptionCancelFn = () => {};
     let searchCancelFn = () => {};
     const route = useRoute();
     const store = useTraceStore();
@@ -186,70 +175,6 @@ export default defineComponent({
     const columnFilters = ref<Record<string, string[]>>({});
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
-
-    const selectedInterfaceStatisticsType = ref([]);
-    const selectedInterfaceTypeInInterfaceStatistics = ref([]);
-    const interfaceTypeListInInterfaceStatistics = ref([
-      {
-        label: '同步',
-        value: t('同步'),
-      },
-      {
-        label: '异步',
-        value: t('异步'),
-      },
-      {
-        label: '内部调用',
-        value: t('内部调用'),
-      },
-      {
-        label: '未知',
-        value: t('未知'),
-      },
-    ]);
-    const selectedSourceTypeInInterfaceStatistics = ref([]);
-    const sourceTypeListInInterfaceStatistics = ref([
-      {
-        label: 'OTel',
-        value: 'OTel',
-      },
-      {
-        label: 'eBPF',
-        value: 'eBPF',
-      },
-    ]);
-
-    const selectedServiceStatisticsType = ref([]);
-    const selectedInterfaceTypeInServiceStatistics = ref([]);
-    const interfaceTypeListInServiceStatistics = ref([
-      {
-        label: t('同步'),
-        value: 'sync',
-      },
-      {
-        label: t('异步'),
-        value: 'async',
-      },
-      {
-        label: t('内部调用'),
-        value: 'internal',
-      },
-      {
-        label: t('未知'),
-        value: 'unknown',
-      },
-    ]);
-    const selectedSourceTypeInServiceStatistics = ref([]);
-    const sourceTypeListInServiceStatistics = ref([
-      {
-        label: 'OTel',
-        value: 'OTel',
-      },
-      {
-        label: 'eBPF',
-        value: 'eBPF',
-      },
-    ]);
 
     const timeRange = useTimeRanceInject();
     provide('isFullscreen', isFullscreen);
@@ -785,26 +710,19 @@ export default defineComponent({
 
     onUnmounted(() => {
       echartsDisconnect(searchStore.dashboardId);
+      listOptionCancelFn();
     });
 
     watch(
       () => route.query,
       () => {
         const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
-        const selectedInterfaceType = JSON.parse((route.query.selectedInterfaceType as string) || '[]');
         switch (store.listType) {
           case 'trace':
             selectedTraceType.value = selectedType;
             break;
           case 'span':
             selectedSpanType.value = selectedType;
-            break;
-          case 'interfaceStatistics':
-            selectedInterfaceStatisticsType.value = selectedType;
-            break;
-          case 'serviceStatistics':
-            selectedServiceStatisticsType.value = selectedType;
-            selectedInterfaceTypeInServiceStatistics.value = selectedInterfaceType;
             break;
         }
       },
@@ -874,8 +792,11 @@ export default defineComponent({
         (store.traceViewFilters.length > 1 ||
           (store.traceViewFilters.length === 1 && !store.traceViewFilters.includes('duration')))
       ) {
-        const selects = store.traceViewFilters.filter(item => item !== 'duration'); // 排除 耗时 选贤
+        const selects = store.traceViewFilters.filter(item => item !== 'duration' && item !== QUERY_TRACE_RELATION_APP); // 排除 耗时、跨应用追踪 选项
         params.displays = ['source_category_opentelemetry'].concat(selects);
+      }
+      if (traceDetailElem.value?.activePanel === 'timeline') {
+        params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
       await traceDetail(params, {
         cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
@@ -932,8 +853,6 @@ export default defineComponent({
       const modeMapping = {
         trace: 'trace',
         span: 'span',
-        interfaceStatistics: 'span',
-        serviceStatistics: 'span',
       };
       const params = {
         bk_biz_id: window.bk_biz_id,
@@ -942,7 +861,11 @@ export default defineComponent({
         end_time: endTime,
         mode: modeMapping[selectedListType.value],
       };
-      listOptionValues(params).then(res => {
+      listOptionValues(params, {
+        cancelToken: new CancelToken((c: any) => {
+          listOptionCancelFn = c;
+        }),
+      }).then(res => {
         Object.keys(res).forEach(key => {
           // 该列表是全量获取的，每次添加时需要重置一下 filter 。
           if (traceListFilter[key]?.length) traceListFilter[key].length = 0;
@@ -995,8 +918,6 @@ export default defineComponent({
       selectedTraceType.value.length = 0;
       // span 类型重置
       selectedSpanType.value.length = 0;
-      selectedInterfaceStatisticsType.value.length = 0;
-      selectedServiceStatisticsType.value.length = 0;
       // 表头筛选重置
       const filters = (props.traceColumnFilters[v] || []).filter(item => item.value?.length > 0) || [];
       const columnFiltersValue = filters.reduce((acc, item) => {
@@ -1016,44 +937,6 @@ export default defineComponent({
 
     function handleSpanTypeChange(v: string[]) {
       emit('spanTypeChange', v);
-    }
-
-    /**
-     * 将 接口统计 下的 复选、两个多选的 onChange 事件的多合一
-     */
-    function handleInterfaceStatisticsChange() {
-      emit('interfaceStatisticsChange', selectedInterfaceStatisticsType.value);
-    }
-
-    /**
-     * 将 服务统计 下的 复选、下拉多选的 onChange 事件的多合一
-     * 最后打包成一个
-     */
-    function handleServiceStatisticsChange() {
-      // console.log('selectedInterfaceTypeInServiceStatistics', selectedInterfaceTypeInServiceStatistics.value);
-      // const typeMapping = {
-      //   error: {
-      //     key: 'status.code',
-      //     operator: 'not_equal',
-      //     value: ['0']
-      //   }
-      // };
-      // const filters = [];
-      // selectedServiceStatisticsType.value.forEach(type => {
-      //   filters.push(typeMapping[type]);
-      // });
-      // // 当 接口类型 全选时就会触发该判断，全选 就不传 接口类型 即可。
-      if (selectedInterfaceTypeInServiceStatistics.value.length === interfaceTypeListInServiceStatistics.value.length) {
-        emit('serviceStatisticsChange', {
-          contain: selectedServiceStatisticsType.value,
-          interfaceType: [],
-        });
-        return;
-      }
-      emit('serviceStatisticsChange', {
-        contain: selectedServiceStatisticsType.value,
-        interfaceType: selectedInterfaceTypeInServiceStatistics.value,
-      });
     }
 
     watch(
@@ -1479,18 +1362,6 @@ export default defineComponent({
       spanDetails,
       handleTraceColumnSort,
       handleDialogClose,
-      selectedInterfaceStatisticsType,
-      selectedInterfaceTypeInInterfaceStatistics,
-      interfaceTypeListInInterfaceStatistics,
-      selectedSourceTypeInInterfaceStatistics,
-      sourceTypeListInInterfaceStatistics,
-      handleInterfaceStatisticsChange,
-      selectedServiceStatisticsType,
-      selectedInterfaceTypeInServiceStatistics,
-      interfaceTypeListInServiceStatistics,
-      selectedSourceTypeInServiceStatistics,
-      sourceTypeListInServiceStatistics,
-      handleServiceStatisticsChange,
       traceListFilter,
       selectedTraceType,
       handleTraceTypeChange,
@@ -1603,47 +1474,6 @@ export default defineComponent({
         </KeepAlive>
       </div>
     );
-    const interfaceStatisticsTableContent = () => (
-      <div class='trace-content-table-wrap'>
-        <KeepAlive>
-          {this.store.isTraceLoading && !this.tableLoading ? (
-            <TableSkeleton />
-          ) : (
-            <InterfaceStatistics
-              filterList={this.traceListFilter}
-              interfaceTypeList={this.selectedInterfaceTypeInInterfaceStatistics}
-              scroll-loading={this.tableLoading}
-              sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
-              onColumnFilter={this.handleSpanFilter}
-              // @ts-ignore
-              onScrollBottom={this.handleScrollBottom}
-              // onColumnSort={this.handleTraceColumnSort}
-            />
-          )}
-        </KeepAlive>
-      </div>
-    );
-
-    const serviceStatisticsTableContent = () => (
-      <div class='trace-content-table-wrap'>
-        <KeepAlive>
-          {this.store.isTraceLoading && !this.tableLoading ? (
-            <TableSkeleton />
-          ) : (
-            <ServiceStatistics
-              filterList={this.traceListFilter}
-              interfaceTypeList={this.selectedInterfaceTypeInServiceStatistics}
-              scroll-loading={this.tableLoading}
-              sourceTypeList={this.selectedSourceTypeInServiceStatistics}
-              onColumnFilter={this.handleSpanFilter}
-              // @ts-ignore
-              onScrollBottom={this.handleScrollBottom}
-              // onColumnSort={this.handleTraceColumnSort}
-            />
-          )}
-        </KeepAlive>
-      </div>
-    );
 
     return (
       <div
@@ -1691,8 +1521,6 @@ export default defineComponent({
               >
                 <Radio.Button label='trace'>{this.$t('Trace 视角')}</Radio.Button>
                 <Radio.Button label='span'>{this.$t('Span 视角')}</Radio.Button>
-                <Radio.Button label='interfaceStatistics'>{this.$t('接口统计')}</Radio.Button>
-                <Radio.Button label='serviceStatistics'>{this.$t('服务统计')}</Radio.Button>
               </Radio.Group>
 
               {/* 20230816 列表的每一个子项都添加 key ，解决切换列表时可能会渲染异常的问题，这里用静态 key ，因为触发 checkbox.group 时会重新执行动态 key ，避免再一次重新渲染。  */}
@@ -1747,104 +1575,9 @@ export default defineComponent({
                   </Checkbox.Group>
                 </div>
               )}
-
-              {this.selectedListType === 'interfaceStatistics' && (
-                <div
-                  key='interface-statistics-filter'
-                  class='interface-statistics-filter'
-                >
-                  <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
-                  <Checkbox.Group
-                    v-model={this.selectedInterfaceStatisticsType}
-                    onChange={this.handleInterfaceStatisticsChange}
-                  >
-                    <Popover
-                      content={this.$t('整个Trace的第一个Span')}
-                      placement='top'
-                      theme='light'
-                    >
-                      <Checkbox label={InterfaceStatisticsFilter.RootSpan}>{this.$t('根Span')}</Checkbox>
-                    </Popover>
-                    <Popover
-                      content={this.$t('每个Service的第一个Span')}
-                      placement='top'
-                      theme='light'
-                    >
-                      <Checkbox label={InterfaceStatisticsFilter.RootServiceSpan}>{this.$t('服务入口Span')}</Checkbox>
-                    </Popover>
-                    <Checkbox label={InterfaceStatisticsFilter.StatusCode}>{this.$t('错误')}</Checkbox>
-                  </Checkbox.Group>
-
-                  {/* <span style='margin-left: 20px'>{this.$t('接口类型')}：</span>
-                  <Select v-model={this.selectedInterfaceTypeInInterfaceStatistics}
-                    size="small"
-                    behavior="simplicity"
-                    multiple
-                    filterable
-                    show-select-all
-                    onChange={this.handleInterfaceStatisticsChange}>
-                    { this.interfaceTypeListInInterfaceStatistics
-                      .map(item => <Select.Option label={item.label} value={item.value}></Select.Option>) }
-                  </Select>
-
-                  <span style='margin-left: 20px'>{this.$t('来源类型')}：</span>
-                  <Select v-model={this.selectedSourceTypeInInterfaceStatistics}
-                    size="small"
-                    behavior="simplicity"
-                    multiple
-                    filterable
-                    show-select-all
-                    onChange={this.handleInterfaceStatisticsChange}>
-                    { this.sourceTypeListInInterfaceStatistics
-                      .map(item => <Select.Option label={item.label} value={item.value}></Select.Option>) }
-                  </Select> */}
-                </div>
-              )}
-
-              {this.selectedListType === 'serviceStatistics' && (
-                <div
-                  key='span-service-statistics-filter'
-                  class='span-service-statistics-filter'
-                >
-                  <span style='margin-right: 6px;'>{this.$t('包含')}：</span>
-                  <Checkbox.Group
-                    v-model={this.selectedServiceStatisticsType}
-                    onChange={this.handleServiceStatisticsChange}
-                  >
-                    <Checkbox label={ServiceStatisticsFilter.Error}>{this.$t('错误')}</Checkbox>
-                  </Checkbox.Group>
-
-                  {/* 勿删 20230607 */}
-                  {/* <span style='margin-left: 20px'>{this.$t('接口类型')}：</span>
-                  <Select v-model={this.selectedInterfaceTypeInServiceStatistics}
-                    size="small"
-                    behavior="simplicity"
-                    multiple
-                    filterable
-                    show-select-all
-                    onBlur={this.handleServiceStatisticsChange}
-                    onClear={this.handleServiceStatisticsChange}>
-                    { this.interfaceTypeListInServiceStatistics
-                      .map(item => <Select.Option label={item.label} value={item.value}></Select.Option>) }
-                  </Select> */}
-
-                  {/* <span style='margin-left: 20px'>{this.$t('来源类型')}：</span>
-                  <Select v-model={this.selectedSourceTypeInServiceStatistics}
-                    size="small"
-                    behavior="simplicity"
-                    multiple
-                    filterable
-                    show-select-all>
-                    { this.sourceTypeListInServiceStatistics
-                      .map(item => <Select.Option label={item.label} value={item.value}></Select.Option>) }
-                  </Select> */}
-                </div>
-              )}
             </div>
             {this.selectedListType === 'trace' && traceTableContent()}
             {this.selectedListType === 'span' && spanTableContent()}
-            {this.selectedListType === 'interfaceStatistics' && interfaceStatisticsTableContent()}
-            {this.selectedListType === 'serviceStatistics' && serviceStatisticsTableContent()}
           </Loading>
         </div>
 

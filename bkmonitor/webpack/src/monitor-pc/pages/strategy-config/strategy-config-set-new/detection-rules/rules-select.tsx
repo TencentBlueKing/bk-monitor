@@ -188,8 +188,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
         )}
         <FuctionalDependency
           functionalDesc={this.$t('支持单指标异常检测、时序预测、离群检测等智能检测算法')}
-          guideDescList={[this.$t('1. 基础计算平台：将 AI 相关的模型导入到该环境运行')]}
-          guideTitle={this.$t('如需使用该功能，需要部署：')}
+          guideDescList={[this.$t('如需使用该功能，请联系管理员')]}
           mode='dialog'
           showDialog={this.showFunctionalDepsDialog}
           title={this.$t('暂无 AI 功能')}
