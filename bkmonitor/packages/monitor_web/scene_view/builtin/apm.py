@@ -349,24 +349,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             )
             metric_count = metric_queryset.count()
 
-            # 根据dimension_keys判断metric的监控项维度名和服务维度名
-            dimension_keys = set()
-            for metric in metric_queryset:
-                for dimension in metric.dimensions:
-                    if dimension.get("id"):
-                        dimension_keys.add(dimension["id"])
-            candidate_queue = []
             target_key = f"{bk_biz_id}-{app_name}.{service_name}"
             if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
                 metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
             else:
-                if "scope_name" in dimension_keys:
-                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
-                if "monitor_name" in dimension_keys:
-                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
-                metric_config = (
-                    candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
-                )
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
 
             view_variables = {}
             if not view_switches.get("only_dimension", False):
@@ -396,10 +383,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     count=metric_count,
                     start_time=params.get("start_time"),
                     end_time=params.get("end_time"),
-                    dimension_keys={
-                        "monitor_name_key": metric_config["monitor_name_key"],
-                        "service_name_key": metric_config["service_name_key"],
-                    },
+                    **metric_config,
                 )
 
                 for idx, i in enumerate(metric_queryset):
@@ -418,8 +402,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "readable_name": i.readable_name,
                         "data_source_label": i.data_source_label,
                         "data_type_label": i.data_type_label,
-                        "filter_key_name": metric_info["filter_service_name"],
-                        "filter_key_value": metric_info["filter_service_value"],
+                        "filter_key_name": metric_config["service_name_key"],
+                        "filter_key_value": service_name,
                     }
                     metric_panel = copy.deepcopy(metric_panel_template)
                     if view_variables:
@@ -447,8 +431,28 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def get_monitor_info(
-        cls, bk_biz_id, result_table_id, service_name, dimension_keys, count: int = 1000, start_time=None, end_time=None
+        cls,
+        bk_biz_id,
+        result_table_id,
+        service_name,
+        monitor_name_key,
+        service_name_key,
+        count: int = 1000,
+        start_time=None,
+        end_time=None,
     ) -> dict:
+        """
+        获取自定义指标的监控信息
+        :param bk_biz_id: 业务ID
+        :param result_table_id: 结果表ID
+        :param service_name: 服务名
+        :param monitor_name_key: 监控项维度名
+        :param service_name_key: 服务维度名
+        :param count: 查询数量
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        """
+
         if not start_time or not end_time:
             end_time = int(arrow.now().timestamp)
             start_time = int(end_time - 3600)
@@ -474,12 +478,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         metric_table_id = result_table_id.replace('.', ':')
         monitor_info_mapping = {}
         try:
-            # 查询具体的监控项名称和service_name
-            monitor_name_key = dimension_keys["monitor_name_key"]
-            service_name_key = dimension_keys["service_name_key"]
             promql = (
-                f"count by ({monitor_name_key}, {service_name_key}, __name__) "
-                f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=~\"{service_name}$\"}})"
+                f"count by ({monitor_name_key}, __name__) "
+                f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=\"{service_name}\"}})"
             )
             request_params["query_configs"][0]["promql"] = promql
             series = resource.grafana.graph_unify_query(request_params)["series"]
@@ -488,8 +489,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if metric_field:
                     monitor_info_mapping[metric_field] = {
                         "monitor_name": metric["dimensions"].get(monitor_name_key),
-                        "filter_service_name": service_name_key,
-                        "filter_service_value": metric["dimensions"].get(service_name_key),
                     }
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
