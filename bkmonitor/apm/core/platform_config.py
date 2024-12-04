@@ -305,7 +305,11 @@ class PlatformConfig(BkCollectorConfig):
 
     @classmethod
     def get_dataids_config_from_application(cls, application):
-        data_ids = {"fixed_token": application.get_bk_data_token()}
+        data_ids = {
+            "bk_biz_id": application.bk_biz_id,
+            "app_name": application.app_name,
+            "fixed_token": application.get_bk_data_token(),
+        }
         metric_data_source = application.metric_datasource
         if application.is_enabled_metric and metric_data_source:
             data_ids["metric_data_id"] = metric_data_source.bk_data_id
