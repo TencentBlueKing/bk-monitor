@@ -92,6 +92,8 @@ CREATE_SUCCESS = {
         "result_window": 10000,
         "max_analyzed_offset": 0,
         "max_async_count": 0,
+        "doris_table_id": None,
+        "support_doris": False,
     },
     "code": 0,
     "message": "",
@@ -164,6 +166,8 @@ UPDATE_INDEX_SET = {
     "result_window": 10000,
     "max_analyzed_offset": 0,
     "max_async_count": 0,
+    "doris_table_id": None,
+    "support_doris": False,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -251,6 +255,8 @@ INDEX_SET_LISTS = {
             "storage_cluster_port": 123,
             "max_analyzed_offset": 0,
             "max_async_count": 0,
+            "doris_table_id": None,
+            "support_doris": False,
         }
     ],
 }
@@ -384,6 +390,8 @@ RETRIEVE_LIST = {
     "result_window": 10000,
     "max_analyzed_offset": 0,
     "max_async_count": 0,
+    "doris_table_id": None,
+    "support_doris": False,
 }
 
 

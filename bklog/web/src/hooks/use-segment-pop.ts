@@ -106,6 +106,14 @@ class UseSegmentProp {
         },
       },
       {
+        onClick: () => taskEventManager.executeFn('trace-view', true),
+        iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
+        text: this.$t('trace检索'),
+        link: {
+          iconName: 'bklog-icon bklog-jump',
+        },
+      },
+      {
         onClick: () => taskEventManager.executeFn('new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('新建检索'),

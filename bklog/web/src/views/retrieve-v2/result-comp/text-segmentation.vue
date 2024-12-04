@@ -25,6 +25,7 @@
   const maxWidth = ref(0);
   const isIntersecting = ref(false);
   const isSegmentTagInit = ref(false);
+
   const textTruncateOption = computed(() => ({
     fontSize: 12,
     text: props.content,
@@ -47,7 +48,6 @@
     jsonValue: props.content,
     onSegmentClick: handleMenuClick,
   });
-
 
   const renderText = computed(() => {
     if (showAll.value || isLimitExpandView.value) {
@@ -103,6 +103,7 @@
             },
           }
         : undefined;
+
     instance.initStringAsValue(renderText.value, appendText);
   });
 
@@ -122,7 +123,6 @@
   const debounceUpdateSegmentTag = debounce(() => {
     const cellElement = getCellElement();
     if (cellElement) {
-      const offsetWidth = cellElement.offsetWidth;
       const elementMaxWidth = cellElement.offsetWidth * 3;
       maxWidth.value = elementMaxWidth;
       nextTick(() => debounceSetSegmentTag());
@@ -131,34 +131,24 @@
 
   const createResizeObserve = () => {
     const cellElement = getCellElement();
-    const offsetWidth = cellElement.offsetWidth;
     const elementMaxWidth = cellElement.offsetWidth * 3;
     maxWidth.value = elementMaxWidth;
 
     // 创建一个 ResizeObserver 实例
-    resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        // 获取元素的新高度
-        debounceUpdateSegmentTag();
-      }
+    resizeObserver = new ResizeObserver(() => {
+      // 获取元素的新高度
+      debounceUpdateSegmentTag();
     });
-  };
 
-  let setObserveTimer = null;
+    // 开始监听元素
+    resizeObserver.observe(getCellElement());
+  };
 
   useIntersectionObserver(refContent, entry => {
     isIntersecting.value = entry.isIntersecting;
     if (entry.isIntersecting) {
-      // 开始监听元素
-      resizeObserver.observe(getCellElement());
       // 进入可视区域重新计算宽度
       debounceUpdateSegmentTag();
-    } else {
-      if (refFieldValue.value) {
-        refFieldValue.value.innerText = renderText.value;
-      }
-
-      resizeObserver?.unobserve?.(getCellElement());
     }
   });
 

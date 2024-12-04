@@ -29,13 +29,15 @@
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
+  import { isEqual, debounce } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
+  import GraphAnalysis from './search-result-panel/graph-analysis';
+
   import SubBar from './sub-bar/index.vue';
   const store = useStore();
   const router = useRouter();
@@ -106,7 +108,6 @@
   };
 
   handleSpaceIdChange();
-  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   watch(
     routeQueryParams,
@@ -182,6 +183,26 @@
       }
     },
   );
+
+  const debounceUpdateTabValue = debounce(() => {
+    router.replace({
+      params: { ...(route.params ?? {}) },
+      query: {
+        ...(route.query ?? {}),
+        tab: activeTab.value,
+      },
+    });
+  }, 60);
+
+  watch(
+    () => activeTab.value,
+    () => {
+      debounceUpdateTabValue();
+    },
+    { immediate: true },
+  );
+
+  const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
   const activeFavorite = ref();
   const updateActiveFavorite = value => {
     activeFavorite.value = value;
@@ -245,7 +266,12 @@
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          <template v-if="showAnalysisTab">
+            <GraphAnalysis></GraphAnalysis>
+          </template>
+          <template v-else>
+            <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          </template>
         </div>
       </div>
     </div>
