@@ -23,6 +23,9 @@
       type: String,
       required: true,
     },
+    extendParams: {
+      type: Object,
+    },
   });
   const emit = defineEmits(['refresh']);
   const { $t } = useLocale();
@@ -208,8 +211,12 @@
   });
 
   const sqlString = computed(() => {
-    if (props.searchMode === 'sql') {
+    if (['sql'].includes(props.searchMode)) {
       return props.sql;
+    }
+
+    if ('sqlChart' === props.searchMode) {
+      return props.extendParams.chart_params.sql;
     }
 
     return additionString.value;
@@ -219,10 +226,9 @@
   const handleCreateRequest = async () => {
     const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
-    const searchParams =
-      props.searchMode === 'sql'
-        ? { keyword: props.sql, addition: [] }
-        : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+    const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
+      ? { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) }
+      : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
 
     const data = {
       name,
@@ -344,6 +350,7 @@
       }"
       class="bklog-icon bklog-star-line"
       @click="handleCollection"
+      ><slot></slot
     ></span>
     <template #content>
       <div>

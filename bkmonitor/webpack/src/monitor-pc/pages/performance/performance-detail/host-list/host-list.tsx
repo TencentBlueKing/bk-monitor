@@ -170,12 +170,16 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
   /** 状态筛选数据 */
   get statusList() {
-    return DEFAULT_TAB_LIST.map(item => ({
-      id: item.type,
-      name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
-      tips: item.tips,
-      status: item.status,
-    }));
+    const statusList = this.panel.options?.target_list?.status_tab_list || [];
+    return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => {
+      const id = item?.id || item.type;
+      return {
+        id,
+        name: item.name || (this.hostStatusData[id]?.count ?? 0),
+        tips: item.tips,
+        status: item.status,
+      };
+    });
   }
 
   /** 接口数据 */
@@ -221,6 +225,10 @@ export default class HostList extends tsc<IProps, IEvents> {
     );
   }
 
+  get timeRangeChangeRefresh() {
+    return !!this.panel.options?.target_list?.time_range_change_refresh;
+  }
+
   async created() {
     this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     await this.handleGetDataList();
@@ -241,6 +249,13 @@ export default class HostList extends tsc<IProps, IEvents> {
   @Watch('compareTargets', { immediate: true })
   compareTargetsChange() {
     this.localCompareTargets = deepClone(this.viewOptions?.compares?.targets || []);
+  }
+
+  @Watch('timeRange')
+  handleWatchTimeRange() {
+    if (this.timeRangeChangeRefresh) {
+      this.handleGetDataList();
+    }
   }
 
   /** 处理选中回显 */
@@ -283,12 +298,24 @@ export default class HostList extends tsc<IProps, IEvents> {
       return [];
     });
     this.loading = false;
-    this.hostListData = res.reduce((total, cur) => total.concat(cur), []);
+    const hostListData = res.reduce((total, cur) => total.concat(cur), []);
     // 如果没有配置overview 而且没有初始回填的数据 则默认选中第一条
-    this.hostListData = this.handleListChange(this.hostListData);
+    this.hostListData = this.handleListChange(hostListData);
     if (!this.enableOverview && this.selectId === 'overview') {
       const firstItem = this.hostListData[0];
       firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
+    } else if (this.selectId !== 'overview') {
+      /* 如果已选中了某条数据则判断列表是否存在这个条数据 */
+      const listHasSelectId = this.hostListData.some(item => item.id === this.selectId);
+      if (!listHasSelectId) {
+        if (this.enableOverview) {
+          this.selectId = 'overview';
+          this.handleClickOverview();
+        } else {
+          const firstItem = this.hostListData[0];
+          firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
+        }
+      }
     }
     this.hoastListDataCache = deepClone(this.hostListData);
     this.updataHostStatus();

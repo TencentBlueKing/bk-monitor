@@ -295,6 +295,16 @@ class TrpcMetricGroup(base.BaseMetricGroup):
                         | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
                     ),
                 },
+                {
+                    "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.APP,
+                    "filter_dict": {f"{TRPCMetricTag.SERVICE_NAME}__eq": server},
+                },
+                {
+                    "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.APP,
+                    "filter_dict": {f"{TRPCMetricTag.SERVICE_NAME}__eq": server},
+                },
             ],
             start_time=start_time,
             end_time=end_time,

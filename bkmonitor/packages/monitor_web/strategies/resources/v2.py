@@ -3038,7 +3038,7 @@ class PromqlToQueryConfig(Resource):
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
+            if len(table_id.split(".")) == 1 and query["data_source"] != "bkdata":
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -3046,7 +3046,7 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
-            elif query["data_source"] == DataSourceLabel.BKDATA:
+            elif query["data_source"] == "bkdata":
                 data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
