@@ -478,7 +478,7 @@ class EditShieldResource(Resource):
         shield_notice = serializers.BooleanField(required=True, label="是否有屏蔽通知")
         notice_config = serializers.DictField(required=False, label="通知配置")
         description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
-        label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
+        label = serializers.CharField(required=False, label="标签", default=None, allow_blank=True)
 
     def perform_request(self, data):
         try:
@@ -506,7 +506,7 @@ class EditShieldResource(Resource):
             shield.notice_config = {}
 
         # 如果没有传入label，则使用原来的label
-        if data.get("label") != "":
+        if data.get("label") is not None:
             shield.label = data["label"]
 
         shield.cycle_config = data["cycle_config"]
