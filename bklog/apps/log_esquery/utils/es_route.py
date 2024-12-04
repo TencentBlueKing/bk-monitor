@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import re
+
 from apps.api import BkLogApi
 from apps.log_search.models import Scenario
 
@@ -36,6 +38,14 @@ class EsRoute:
         target_index = self._get_index_target(self._indices)
         url = f"_cat/indices/{target_index}?bytes=b"
         result = self._query(url)
+        if self._scenario_id == Scenario.LOG:
+            # 根据索引集创建规则进行过滤
+            pattern = re.compile(f".*?" + target_index + r"_\d{8}_\d{1,2}$")
+            result_list = []
+            for item in result:
+                if re.match(pattern, item["index"]):
+                    result_list.append(item)
+            result = result_list
         return result
 
     def _get_bkdata_indices(self):
