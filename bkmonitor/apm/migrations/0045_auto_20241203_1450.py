@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="toponode",
             name="system",
-            field=models.JSONField(null=True, verbose_name="服务框架"),
+            field=models.JSONField(null=True, verbose_name="系统类型"),
         ),
         migrations.AlterField(
             model_name="apmtopodiscoverrule",
