@@ -206,6 +206,7 @@ class ShieldDetailResource(Resource):
             "update_time": utc2biz_str(shield.update_time),
             "create_user": shield.create_user,
             "update_user": shield.update_user,
+            "label": shield.label,
         }
         return shield_detail
 
@@ -455,6 +456,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     description=data.get("description", ""),
                     is_quick=data["is_quick"],
                     source=source,
+                    label=data.get("label"),
                 )
             )
         Shield.objects.bulk_create(shields)
@@ -476,6 +478,7 @@ class EditShieldResource(Resource):
         shield_notice = serializers.BooleanField(required=True, label="是否有屏蔽通知")
         notice_config = serializers.DictField(required=False, label="通知配置")
         description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
+        label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
 
     def perform_request(self, data):
         try:
@@ -501,6 +504,11 @@ class EditShieldResource(Resource):
             shield.notice_config = data["notice_config"]
         else:
             shield.notice_config = {}
+
+        # 如果没有传入label，则使用原来的label
+        if data.get("label") != "":
+            shield.label = data["label"]
+
         shield.cycle_config = data["cycle_config"]
         shield.description = data.get("description")
         shield.save()
