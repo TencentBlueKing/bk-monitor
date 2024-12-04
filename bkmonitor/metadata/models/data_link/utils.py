@@ -52,7 +52,7 @@ def get_bkdata_table_id(table_id: str) -> str:
 
 def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     """
-    获取计算平台结果表ID,计算平台元数据长度限制为40，不可超出
+    获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
     @param table_id: 监控平台结果表ID
     @param strategy: 链路策略
     """
@@ -75,17 +75,20 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     while '__' in table_id:
         table_id = table_id.replace('__', '_')
 
-    # 计算哈希值,采用hash方式确保table_id唯一
+    # 计算哈希值, 采用 hash 方式确保 table_id 唯一
     hash_suffix = hashlib.md5(table_id.encode()).hexdigest()[:5]
 
-    if len(table_id) > 40:
-        table_id = f'{table_id[:34]}_{hash_suffix}'
-
-    if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
-        if len(table_id) > 36:  # 若长度接近阈值，再次缩短
-            table_id = table_id[:35]
+    # 添加 `_fed` 后缀（如果 strategy 为 `bcs_federal_subset_time_series`）
+    if strategy == 'bcs_federal_subset_time_series':
         table_id = table_id + '_fed'
-    # 确保长度不超过40
+
+    # 如果长度超过 40，截断并确保末尾包含 `_fed` 后缀
+    if len(table_id) > 40:
+        if strategy == 'bcs_federal_subset_time_series':
+            table_id = f'{table_id[:33]}_{hash_suffix}_fed'
+        else:
+            table_id = f'{table_id[:34]}_{hash_suffix}'
+
     return table_id
 
 
