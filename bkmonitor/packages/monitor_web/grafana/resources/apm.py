@@ -61,8 +61,8 @@ class TraceDetailResource(ApmTraceDetailResource):
     """
 
     class RequestSerializer(ApmTraceDetailResource.RequestSerializer):
-        app_name = serializers.CharField(label="应用名称", default="")
-        trace_id = serializers.CharField(label="Trace ID", default="")
+        app_name = serializers.CharField(label="应用名称", allow_blank=True, default="")
+        trace_id = serializers.CharField(label="Trace ID", allow_blank=True, default="")
 
     def perform_request(self, validated_request_data):
         if not all([validated_request_data.get("app_name"), validated_request_data.get("trace_id")]):
