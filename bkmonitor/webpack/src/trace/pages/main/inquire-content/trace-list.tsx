@@ -42,7 +42,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
+import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
@@ -59,8 +59,9 @@ import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constan
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
-import SimpleList from './simple-list/simple-list';
+// import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
+import TraceDetailHeader from './trace-detail-header';
 
 import type { PanelModel } from '../../../plugins/typings';
 import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
@@ -164,7 +165,7 @@ export default defineComponent({
     const traceTableElem = ref<HTMLDivElement>();
     const traceTableContainer = ref<HTMLDivElement>();
     const traceDetailElem = ref(TraceDetail);
-    const simpleListElem = ref(SimpleList);
+    // const simpleListElem = ref(SimpleList);
     const isFullscreen = ref(false);
     const height = ref<number>(0);
     const curTraceId = ref<string>('');
@@ -828,9 +829,7 @@ export default defineComponent({
       curTraceIndex.value = -1;
 
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
-      setTimeout(() => {
-        store.setTraceDetail(false);
-      }, 100);
+      store.setTraceDetail(false);
     };
     const traceListFilter = reactive<TraceListType>({
       // 属于 Trace 列表的
@@ -1334,7 +1333,7 @@ export default defineComponent({
       traceTableMain,
       traceTableElem,
       traceDetailElem,
-      simpleListElem,
+      // simpleListElem,
       traceTableContainer,
       statusList,
       handleSpanFilter,
@@ -1590,7 +1589,7 @@ export default defineComponent({
           onShow={v => (this.isShowSpanDetail = v)}
         />
 
-        <Dialog
+        {/* <Dialog
           class='trace-info-fullscreen-dialog'
           esc-close={false}
           is-show={this.isFullscreen}
@@ -1617,16 +1616,44 @@ export default defineComponent({
               />
             </div>
           </div>
-        </Dialog>
-
-        <div class={`monitor-trace-alert ${this.isFullscreen ? 'fadeout' : ''}`}>
-          <i18n-t
-            class='alert-text'
-            keypath='按{0}即可关闭全屏弹窗'
-          >
-            <span class='keyboard-button'>esc</span>
-          </i18n-t>
-        </div>
+        </Dialog> */}
+        <Sideslider
+          width='80%'
+          class='trace-info-sideslider'
+          v-slots={{
+            header: () => (
+              <TraceDetailHeader
+                appName={appName}
+                traceId={this.curTraceId}
+                isInTable
+              />
+            ),
+          }}
+          esc-close={false}
+          is-show={this.isFullscreen}
+          scrollable={false}
+          multi-instance
+          transfer
+          onClosed={this.handleDialogClose}
+        >
+          {/* <SimpleList
+            ref='simpleListElem'`
+            data={this.simpleTraceList}
+            loading={this.tableLoading}
+            selectedId={this.curTraceId}
+            onChange={this.handleTraceDetail}
+            onLoadMore={() => this.$emit('scrollBottom')}
+          /> */}
+          <div class='detail-box'>
+            <TraceDetail
+              ref='traceDetailElem'
+              appName={appName}
+              traceID={this.curTraceId}
+              isInTable
+              onClose={this.handleColseDetail}
+            />
+          </div>
+        </Sideslider>
       </div>
     );
   },

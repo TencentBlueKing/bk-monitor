@@ -1393,7 +1393,7 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@0.3.4':
+  /@blueking/ai-blueking@0.3.4(dayjs@1.11.11)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2):
     resolution: {integrity: sha512-IrfxJ9SstF+IxlFwDd7e6xBLIYjC38ANual38sFjiWqUyBISPTtMUdMGYNkXBNjNWHzet3W35PLQpf+ZV5EG5w==}
     peerDependencies:
       dayjs: ^1.10.7

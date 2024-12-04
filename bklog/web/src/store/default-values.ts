@@ -85,6 +85,14 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
+  chart_params: {
+    activeGraphCategory: 'table',
+    chartActiveType: 'table',
+    dimensions: [],
+    sql: '',
+    xFields: [],
+    yFields: [],
+  },
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };
