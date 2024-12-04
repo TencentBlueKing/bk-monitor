@@ -40,7 +40,7 @@ class EsRoute:
         result = self._query(url)
         if self._scenario_id == Scenario.LOG:
             # 根据索引集创建规则进行过滤
-            pattern = re.compile(f".*?" + target_index + r"_\d{8}_\d{1,2}$")
+            pattern = re.compile(f".*?" + target_index + r"_\d{8}_\d+$")
             result_list = []
             for item in result:
                 if re.match(pattern, item["index"]):
