@@ -51,7 +51,32 @@
       "options": {
         "target_list": {
           "show_status_bar": true,
-          "show_overview": false
+          "show_overview": false,
+          "time_range_change_refresh": true,
+          "status_tab_list": [
+            {
+              "id": "all",
+              "name": "全部"
+            },
+            {
+              "id": "success",
+              "name": "",
+              "tips": "正常",
+              "status": "success"
+            },
+            {
+              "id": "failed",
+              "name": "",
+              "tips": "异常",
+              "status": "failed"
+            },
+            {
+              "id": "nodata",
+              "name": "",
+              "tips": "无数据",
+              "status": "disabled"
+            }
+          ]
         }
       }
     },
