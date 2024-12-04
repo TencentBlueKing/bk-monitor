@@ -880,6 +880,11 @@ class AssessmentConfig(serializers.Serializer):
     approvals = serializers.ListField(label=_("审批人"), child=serializers.CharField(), required=True)
 
 
+class AliasSettingSerializer(serializers.Serializer):
+    field_name = serializers.CharField(label=_("原字段名"), required=True)
+    query_alias = serializers.CharField(label=_("别名"), required=True)
+
+
 class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     table_id = serializers.CharField(label=_("结果表ID"), required=True)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
@@ -893,6 +898,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1582,6 +1588,7 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

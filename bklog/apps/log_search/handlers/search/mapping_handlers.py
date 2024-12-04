@@ -768,18 +768,24 @@ class MappingHandlers(object):
                     if field_option:
                         # 加入元数据标识
                         metadata_type = field_option.get("metadata_type")
+                        # 获取别名配置
+                        query_alias = field_option.get("query_alias")
                         if metadata_type:
                             _field.update({"metadata_type": metadata_type})
+                        if query_alias:
+                            _field.update({"query_alias": query_alias})
                 else:
                     _field.update({"description": None})
 
                 # 为指定日志时间字段添加标识,时区和格式
                 if a_field_name == field_time_format_dict.get("field_name"):
-                    _field.update({
-                        "is_time": True,
-                        "field_time_zone": field_time_format_dict.get("field_time_zone"),
-                        "field_time_format": field_time_format_dict.get("field_time_format"),
-                    })
+                    _field.update(
+                        {
+                            "is_time": True,
+                            "field_time_zone": field_time_format_dict.get("field_time_zone"),
+                            "field_time_format": field_time_format_dict.get("field_time_format"),
+                        }
+                    )
 
         return fields_list
 
