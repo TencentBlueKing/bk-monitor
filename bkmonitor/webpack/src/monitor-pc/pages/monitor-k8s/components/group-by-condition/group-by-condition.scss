@@ -31,11 +31,14 @@
       display: inline-block;
       height: 22px;
       padding: 0 10px;
-      padding-right: 22px;
       margin-right: 4px;
       line-height: 22px;
       background-color: #f0f1f5;
       border-radius: 2px;
+
+      &.can-delete {
+        padding-right: 22px;
+      }
 
       .icon-mc-close {
         position: absolute;

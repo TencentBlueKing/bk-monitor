@@ -44,6 +44,7 @@ import K8sTableNew, {
   K8sTableColumnKeysEnum,
   type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
+  type K8sTableRow,
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
@@ -71,6 +72,7 @@ const tabList = [
     icon: 'icon-mingxi',
   },
 ];
+const defaultFixedFilter = [K8sTableColumnKeysEnum.NAMESPACE];
 @Component
 export default class MonitorK8sNew extends tsc<object> {
   @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
@@ -78,9 +80,12 @@ export default class MonitorK8sNew extends tsc<object> {
 
   tableConfig = {
     loading: false,
+    scrollLoading: false,
+    /** 当切换 tab 时进行刷新以达到清楚table中 sort 的状态 */
+    refreshKey: random(10),
     sortContainer: {
       prop: null,
-      order: null,
+      sort: null,
     },
   };
   sliderShow = false;
@@ -100,15 +105,15 @@ export default class MonitorK8sNew extends tsc<object> {
   clusterList = [];
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
-  filterBy = [];
+  filterBy: IFilterByItem[] = [];
   // Group By 选择器的值
-  groupFilters: Array<number | string> = [];
+  groupFilters: Array<number | string> = [...defaultFixedFilter];
   // 指标隐藏项
   hideMetrics = JSON.parse(localStorage.getItem(HIDE_METRICS_KEY) || '[]');
   // 表格数据
   k8sTableData: any[] = [];
   // table 点击选中数据项
-  k8sTableChooseItem: { row: any; column: K8sTableColumn } = {
+  k8sTableChooseItem: { row: K8sTableRow; column: K8sTableColumn } = {
     row: null,
     column: null,
   };
@@ -260,10 +265,20 @@ export default class MonitorK8sNew extends tsc<object> {
   }
 
   /**
-   * @description 获取k8s列表
+   * @description 重新渲染表格组件（主要是为了处理 table column 的 sort 状态）
    */
-  getK8sList() {
-    this.tableConfig.loading = true;
+  refreshTable() {
+    this.tableConfig.refreshKey = random(10);
+  }
+
+  /**
+   * @description 获取k8s列表
+   * @param {boolean} config.needRefresh 是否需要刷新表格状态
+   * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
+   */
+  getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
+    const loadingKey = config.needIncrement ? 'scrollLoading' : 'loading';
+    this.tableConfig[loadingKey] = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     getK8sTableDataMock(Math.floor(Math.random() * 101))
       .then(res => {
@@ -279,7 +294,10 @@ export default class MonitorK8sNew extends tsc<object> {
         this.loadAsyncData(startTime, endTime, asyncColumns);
       })
       .finally(() => {
-        this.tableConfig.loading = false;
+        if (config.needRefresh) {
+          this.refreshTable();
+        }
+        this.tableConfig[loadingKey] = false;
       });
   }
   /**
@@ -409,14 +427,20 @@ export default class MonitorK8sNew extends tsc<object> {
     this.cluster = cluster;
   }
 
+  /**
+   * @description tab切换回调
+   * @param {K8sNewTabEnum} v
+   */
   async handleTabChange(v: K8sNewTabEnum) {
     this.activeTab = v;
-    this.getK8sList();
+    if (v !== K8sNewTabEnum.CHART) {
+      // 重新渲染，从而刷新 table sort 状态
+      this.getK8sList({ needRefresh: true });
+    }
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
     this.setGroupFilters([...item.ids]);
-    this.setGroupOption(item.option, 'checked', item.checked);
   }
 
   /**
@@ -447,7 +471,8 @@ export default class MonitorK8sNew extends tsc<object> {
    * @param {K8sTableFilterByEvent} item
    */
   handleFilterChange(item: K8sTableFilterByEvent) {
-    console.log('handleFilterChange 待完善', item);
+    const { column, ids } = item;
+    this.filterByChange({ groupId: column.id, ids });
   }
 
   /**
@@ -459,11 +484,43 @@ export default class MonitorK8sNew extends tsc<object> {
     this.handleSliderChange(true);
   }
 
+  /**
+   * @description 表格滚动到底部回调
+   */
+  handleTableScrollEnd() {
+    console.log('table scroll end callback');
+  }
+
+  handleTableClearSearch() {
+    console.log('table clear search callback');
+  }
+
+  /**
+   * @description 抽屉页显示隐藏切换
+   * @param v {boolean}
+   */
   handleSliderChange(v: boolean) {
     this.sliderShow = v;
     if (!v) {
       this.setK8sTableChooseItem(null);
     }
+  }
+
+  /**
+   * @description 抽屉页 下钻 按钮点击回调
+   */
+  handleSliderGroupChange(item: K8sTableGroupByEvent) {
+    this.handleTableGroupChange(item);
+    this.handleSliderChange(false);
+  }
+
+  /**
+   * @description 抽屉页 添加筛选/移除筛选 按钮点击回调
+   * @param {K8sTableFilterByEvent} item
+   */
+  handleSliderFilterChange(item: K8sTableFilterByEvent) {
+    this.handleFilterChange(item);
+    this.handleSliderChange(false);
   }
 
   handleFilterByChange(v: IFilterByItem[]) {
@@ -478,13 +535,18 @@ export default class MonitorK8sNew extends tsc<object> {
       default:
         return (
           <K8sTableNew
+            key={this.tableConfig.refreshKey}
             ref='k8sTableRef'
             activeTab={this.activeTab}
+            filterBy={this.filterBy}
             groupFilters={this.groupFilters}
             loading={this.tableConfig.loading}
+            scrollLoading={this.tableConfig.scrollLoading}
             tableData={this.k8sTableData}
+            onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}
+            onScrollEnd={this.handleTableScrollEnd}
             onSortChange={this.handleTableSortChange}
             onTextClick={this.handleTextClick}
           />
@@ -547,6 +609,7 @@ export default class MonitorK8sNew extends tsc<object> {
             <div class='filter-by-wrap __group-by__'>
               <GroupByCondition
                 ref='k8sGroupByRef'
+                defaultFixedFilter={defaultFixedFilter}
                 dimensionOptions={this.groupList}
                 groupFilters={this.groupFilters}
                 title='Group by'
@@ -609,9 +672,11 @@ export default class MonitorK8sNew extends tsc<object> {
         </div>
         <K8sDetailSlider
           activeItem={this.k8sTableChooseItem}
+          filterBy={this.filterBy}
           groupFilters={this.groupFilters}
           isShow={this.sliderShow}
-          onGroupChange={this.handleTableGroupChange}
+          onFilterChange={this.handleSliderFilterChange}
+          onGroupChange={this.handleSliderGroupChange}
           onShowChange={this.handleSliderChange}
         />
       </div>

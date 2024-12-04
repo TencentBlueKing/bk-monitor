@@ -27,8 +27,10 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CommonDetail from '../common-detail';
+import K8sTableNew from '../k8s-table-new/k8s-table-new';
 
-import type { K8sTableClickEvent, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
+import type { IFilterByItem } from '../filter-by-condition/utils';
+import type { K8sTableClickEvent, K8sTableFilterByEvent, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
 import './k8s-detail-slider.scss';
 
@@ -36,10 +38,12 @@ interface IEventDetailSlider {
   isShow?: boolean;
   activeItem: K8sTableClickEvent;
   groupFilters: Array<number | string>;
+  filterBy: IFilterByItem[];
 }
 interface IEvent {
   onShowChange?: boolean;
   onGroupChange: (item: K8sTableGroupByEvent) => void;
+  onFilterChange: (item: K8sTableFilterByEvent) => void;
 }
 
 // 事件详情 | 处理记录详情
@@ -50,19 +54,67 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: Object, default: () => ({ row: null, column: null }) }) activeItem: K8sTableClickEvent;
   @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
+  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
 
   loading = false;
 
   get activeTag() {
-    return this.activeItem?.column?.id || '--';
+    return this.activeItem?.column?.id;
   }
 
   get activeValue() {
-    return this.activeItem.row?.[this.activeTag] || '--';
+    return K8sTableNew.getScopedSlotRowText(this.activeItem.row, this.activeTag) || '--';
   }
 
-  get hasGroup() {
-    return this.groupFilters.includes(this.activeTag);
+  get groupParam() {
+    const hasGroup = this.groupFilters.includes(this.activeTag);
+    const param = hasGroup
+      ? {
+          btnText: '移除下钻',
+          btnTheme: 'primary',
+          textColorClass: '',
+        }
+      : {
+          btnText: '下钻',
+          btnTheme: 'default',
+          textColorClass: 'is-default',
+        };
+    return {
+      hasGroup,
+      btnText: param.btnText,
+      btnTheme: param.btnTheme,
+      textColorClass: param.textColorClass,
+    };
+  }
+
+  get filterParams() {
+    const id = K8sTableNew.getScopedSlotRowId(this.activeItem.row, this.activeTag);
+    const groupItem = this.filterBy?.find?.(v => v.key === this.activeTag);
+    const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== id)) || [];
+    const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
+    const param = hasFilter
+      ? {
+          icon: 'icon-sousuo-',
+          ids: filterIds,
+          btnText: '移除该筛选项',
+          btnTheme: 'primary',
+          textColorClass: '',
+        }
+      : {
+          icon: 'icon-a-sousuo',
+          ids: [...filterIds, id],
+          btnText: '添加为筛选项',
+          btnTheme: 'default',
+          textColorClass: 'is-default',
+        };
+    return {
+      hasFilter,
+      ids: param.ids,
+      icon: param.icon,
+      btnText: param.btnText,
+      btnTheme: param.btnTheme,
+      textColorClass: param.textColorClass,
+    };
   }
 
   @Emit('showChange')
@@ -71,8 +123,18 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   }
 
   @Emit('groupChange')
-  groupChange(item: K8sTableGroupByEvent) {
-    return item;
+  groupChange() {
+    return { id: this.activeTag, checked: !this.groupParam.hasGroup };
+  }
+
+  @Emit('filterChange')
+  filterChange() {
+    return {
+      column: this.activeItem.column,
+      row: this.activeItem.row,
+      checked: !this.filterParams.hasFilter,
+      ids: this.filterParams.ids,
+    };
   }
 
   // 隐藏详情
@@ -93,17 +155,21 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           />
         </div>
         <div class='title-right'>
-          <bk-button class='title-btn'>
-            <span class='icon-monitor icon-a-sousuo ' />
-            <span class='title-btn-label'>{this.$t('添加为筛选项')}</span>
+          <bk-button
+            class={['title-btn', this.filterParams.textColorClass]}
+            theme={this.filterParams.btnTheme}
+            onClick={this.filterChange}
+          >
+            <span class={['icon-monitor', this.filterParams.icon]} />
+            <span class='title-btn-label'>{this.$t(this.filterParams.btnText)}</span>
           </bk-button>
           <bk-button
-            class={['title-btn', { 'is-default': !this.hasGroup }]}
-            theme={this.hasGroup ? 'primary' : 'default'}
-            onClick={() => this.groupChange({ id: this.activeTag, checked: !this.hasGroup })}
+            class={['title-btn', this.groupParam.textColorClass]}
+            theme={this.groupParam.btnTheme}
+            onClick={this.groupChange}
           >
-            <span class={['icon-monitor', 'icon-xiazuan', { 'is-active': this.hasGroup }]} />
-            <span class='title-btn-label'>{this.$t(`${this.hasGroup ? '移除' : ''}下钻`)}</span>
+            <span class='icon-monitor icon-xiazuan' />
+            <span class='title-btn-label'>{this.$t(this.groupParam.btnText)}</span>
           </bk-button>
         </div>
       </div>

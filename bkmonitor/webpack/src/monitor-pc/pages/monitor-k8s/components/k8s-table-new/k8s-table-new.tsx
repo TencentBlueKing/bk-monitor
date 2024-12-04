@@ -32,6 +32,7 @@ import { K8sNewTabEnum } from '../../typings/k8s-new';
 import CommonTable from '../common-table';
 
 import type { ITableColumn, TableRow } from '../../typings/table';
+import type { IFilterByItem } from '../filter-by-condition/utils';
 import type { IGroupByChangeEvent } from '../group-by-condition/group-by-condition';
 
 import './k8s-table-new.scss';
@@ -42,31 +43,35 @@ export interface K8sTableColumn extends ITableColumn {
   k8s_group?: boolean;
 }
 
+export type K8sTableRow = TableRow & Record<string, { id: number | string; name: string }>;
+
 export interface K8sTableSort {
   prop: K8sTableColumnKeysEnum.CPU | K8sTableColumnKeysEnum.INTERNAL_MEMORY | null;
-  order: 'ascending' | 'descending' | null;
+  sort: 'ascending' | 'descending' | null;
 }
 
 export interface K8sTableClickEvent {
   column: K8sTableColumn;
-  row: TableRow;
+  row: K8sTableRow;
 }
 
-export type K8sTableFilterByEvent = K8sTableClickEvent & { checked: boolean };
+export type K8sTableFilterByEvent = K8sTableClickEvent & { checked: boolean; ids: Array<number | string> };
 export type K8sTableGroupByEvent = Pick<IGroupByChangeEvent, 'checked' | 'id'>;
 
 interface K8sTableNewProps {
   activeTab: K8sNewTabEnum;
   tableData: any[];
   groupFilters: Array<number | string>;
-  filterBy: Array<{ key: K8sTableColumnKeysEnum; value: Array<number | string>; method: 'eq' }>;
+  filterBy: IFilterByItem[];
   loading: boolean;
+  scrollLoading: boolean;
 }
 interface K8sTableNewEvent {
   onTextClick: (item: K8sTableClickEvent) => void;
   onFilterChange: (item: K8sTableFilterByEvent) => void;
   onGroupChange: (item: K8sTableGroupByEvent) => void;
   onSortChange: (sort: K8sTableSort) => void;
+  onScrollEnd: () => void;
   onClearSearch: () => void;
 }
 
@@ -130,11 +135,26 @@ const tabToTableColumnsMap = {
 
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
-  @Prop({ type: String }) activeTab: K8sNewTabEnum;
+  static getScopedSlotRowId(row: K8sTableRow, columnKey: K8sTableColumnKeysEnum) {
+    return row?.[columnKey]?.id;
+  }
+
+  static getScopedSlotRowText(row: K8sTableRow, columnKey: K8sTableColumnKeysEnum) {
+    return row?.[columnKey]?.name;
+  }
+
+  /** 当前页面 tab */
+  @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
+  /** 表格数据 */
   @Prop({ type: Array }) tableData: any[];
+  /** GroupBy 选择器选中数据 */
   @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
-  @Prop({ type: Array }) filterBy: Array<{ key: K8sTableColumnKeysEnum; value: Array<number | string>; method: 'eq' }>;
+  /** FilterBu 选择器选中数据 */
+  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  /** 表格骨架屏 loading  */
   @Prop({ type: Boolean, default: false }) loading: boolean;
+  /** 表格触底加载更多 loading  */
+  @Prop({ type: Boolean, default: false }) scrollLoading: boolean;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -157,13 +177,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   @Emit('textClick')
-  labelClick(column: K8sTableColumn, row: TableRow) {
+  labelClick(column: K8sTableColumn, row: K8sTableRow) {
     return { column, row };
   }
 
   @Emit('filterChange')
-  filterChange(column: K8sTableColumn, row: TableRow, checked: boolean) {
-    return { column, row, checked };
+  filterChange(column: K8sTableColumn, row: K8sTableRow, checked: boolean, filterIds: Array<number | string>) {
+    return { column, row, checked, ids: filterIds };
   }
 
   @Emit('groupChange')
@@ -175,6 +195,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   sortChange(sort: K8sTableSort) {
     return sort;
   }
+
+  @Emit('scrollEnd')
+  scrollEnd() {}
 
   @Emit('clearSearch')
   clearSearch() {
@@ -283,39 +306,41 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 表格列 filter icon 渲染配置方法
-   * @param {TableRow} row
+   * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  filterIconFormatter(row: TableRow, column: K8sTableColumn) {
+  filterIconFormatter(row: K8sTableRow, column: K8sTableColumn) {
     if (!column.k8s_filter) {
       return null;
     }
-    // TODO: 其他事项插入，后续需处理
-    // const groupItem = this.filterBy?.find?.(v => v.key === column.id);
-    // const hasFilter = groupItem?.value?.length && groupItem?.value.includes(row[column.id]);
-
-    const hasFilter = true;
-    return hasFilter ? (
-      <i
-        class='icon-monitor icon-sousuo-'
-        v-bk-tooltips={{ content: this.$t('移除该筛选项'), interactive: false }}
-        onClick={() => this.filterChange(column, row, false)}
-      />
-    ) : (
-      <i
-        class='icon-monitor icon-a-sousuo'
-        v-bk-tooltips={{ content: this.$t('添加为筛选项'), interactive: false }}
-        onClick={() => this.filterChange(column, row, true)}
-      />
-    );
+    const id = K8sTableNew.getScopedSlotRowId(row, column.id);
+    if (id) {
+      const groupItem = this.filterBy?.find?.(v => v.key === column.id);
+      const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== id)) || [];
+      const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
+      return hasFilter ? (
+        <i
+          class='icon-monitor icon-sousuo- is-active'
+          v-bk-tooltips={{ content: this.$t('移除该筛选项'), interactive: false }}
+          onClick={() => this.filterChange(column, row, false, filterIds)}
+        />
+      ) : (
+        <i
+          class='icon-monitor icon-a-sousuo'
+          v-bk-tooltips={{ content: this.$t('添加为筛选项'), interactive: false }}
+          onClick={() => this.filterChange(column, row, true, [...filterIds, id])}
+        />
+      );
+    }
+    return null;
   }
 
   /**
    * @description 表格列 group icon 渲染配置方法
-   * @param {TableRow} row
+   * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  groupIconFormatter(row: TableRow, column: K8sTableColumn) {
+  groupIconFormatter(row: K8sTableRow, column: K8sTableColumn) {
     if (!column.k8s_group) {
       return null;
     }
@@ -337,8 +362,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableColumnKeysEnum} columnKey
    */
   scopedSlotFormatter(columnKey: K8sTableColumnKeysEnum) {
-    return (row: TableRow, column: K8sTableColumn) => {
-      if (!row[columnKey]) {
+    return (row: K8sTableRow, column: K8sTableColumn) => {
+      const text = K8sTableNew.getScopedSlotRowText(row, columnKey);
+      if (!text) {
         return '--';
       }
       return (
@@ -348,7 +374,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             v-bk-overflow-tips={{ interactive: false }}
             onClick={() => this.labelClick(column, row)}
           >
-            {row[columnKey]}
+            {text}
           </span>
           <div class='col-item-operate'>
             {this.filterIconFormatter(row, column)}
@@ -362,35 +388,35 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   render() {
     return (
       <div class='k8s-table-new'>
-        {!this.loading ? (
-          <CommonTable
-            style={{ display: !this.loading ? 'block' : 'none' }}
-            height='100%'
-            checkable={false}
-            columns={this.tableColumns}
-            data={this.tableData}
-            defaultSize='small'
-            hasColumnSetting={false}
-            pagination={null}
-            scopedSlots={this.tableScopedSlots}
-            scrollLoading={false}
-            onSortChange={val => this.handleSortChange(val as K8sTableSort)}
-          >
-            <EmptyStatus
-              slot='empty'
-              textMap={{
-                empty: this.$t('暂无数据'),
-              }}
-              type={this.groupFilters?.length || this.filterBy?.length ? 'search-empty' : 'empty'}
-              onOperation={() => this.handleClearSearch()}
-            />
-          </CommonTable>
-        ) : (
+        <CommonTable
+          style={{ display: !this.loading ? 'block' : 'none' }}
+          height='100%'
+          checkable={false}
+          columns={this.tableColumns}
+          data={this.tableData}
+          defaultSize='small'
+          hasColumnSetting={false}
+          pagination={null}
+          scopedSlots={this.tableScopedSlots}
+          scrollLoading={this.scrollLoading}
+          onScrollEnd={this.scrollEnd}
+          onSortChange={val => this.handleSortChange(val as K8sTableSort)}
+        >
+          <EmptyStatus
+            slot='empty'
+            textMap={{
+              empty: this.$t('暂无数据'),
+            }}
+            type={this.groupFilters?.length || this.filterBy?.length ? 'search-empty' : 'empty'}
+            onOperation={() => this.handleClearSearch()}
+          />
+        </CommonTable>
+        {this.loading ? (
           <TableSkeleton
             class='table-skeleton'
             type={5}
           />
-        )}
+        ) : null}
       </div>
     );
   }

@@ -35,9 +35,8 @@ import './group-by-condition.scss';
 
 export interface IGroupOption extends IOption {
   checked?: boolean;
-  count: number;
-  list: IGroupOption[];
-  [key: string]: any;
+  count?: number;
+  children?: IGroupOption[];
 }
 export interface IGroupByChangeEvent {
   id: number | string;
@@ -50,6 +49,7 @@ export interface GroupByConditionProps {
   title: string;
   groupFilters: Array<number | string>;
   dimensionOptions?: IGroupOption[];
+  defaultFixedFilter: Array<number | string>;
 }
 
 export interface GroupByConditionEvents {
@@ -63,6 +63,8 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
   /** 外部传入选项options数组 */
   @Prop({ type: Array }) dimensionOptions: IGroupOption[];
+  /** 默认必须得有的选项元素 */
+  @Prop({ type: Array, default: () => [] }) defaultFixedFilter: Array<number | string>;
 
   @Ref() customSelectRef: any;
 
@@ -81,6 +83,11 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
     return this.dimensionOptions?.filter(v => !set.has(v.id)) || [];
   }
 
+  /** 默认必须得有的选项元素 -- 数组结构转换为 Set */
+  get defaultFilterSet() {
+    return new Set(this.defaultFixedFilter);
+  }
+
   /** 添加、删除 */
   @Emit('change')
   handleValueChange(id, option, ids, checked) {
@@ -88,14 +95,8 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   }
 
   handleSelect(ids) {
-    if (ids?.length === this.groupFilters?.length) return;
-    let changeId = null;
-    if (ids?.length > this.groupFilters?.length) {
-      changeId = ids[ids.length - 1];
-    } else {
-      changeId = this.groupFilters.filter(v => !ids.includes(v))?.[0];
-    }
-    const changeItem = this.dimensionOptionsMap[changeId];
+    const changeId = ids[ids.length - 1];
+    const changeItem = this.dimensionOptionsMap?.[changeId];
     this.handleValueChange(changeId, changeItem, ids, !changeItem?.checked);
     nextTick(() => {
       if (!this.options?.length) {
@@ -119,13 +120,15 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
           {this.groupFilters.map(id => (
             <span
               key={id}
-              class='group-by-item'
+              class={['group-by-item', !this.defaultFilterSet.has(id) ? 'can-delete' : '']}
             >
-              {this.dimensionOptionsMap[id].name}
-              <i
-                class='icon-monitor icon-mc-close'
-                onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
-              />
+              {this.dimensionOptionsMap[id]?.name || '--'}
+              {!this.defaultFilterSet.has(id) ? (
+                <i
+                  class='icon-monitor icon-mc-close'
+                  onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
+                />
+              ) : null}
             </span>
           ))}
           <CustomSelect
