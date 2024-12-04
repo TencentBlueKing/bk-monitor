@@ -68,6 +68,11 @@ class FieldSerializer(serializers.Serializer):
     is_reserved_check = serializers.BooleanField(required=False, label="是否进行保留字检查", default=True)
 
 
+class QueryAliasSettingSerializer(serializers.Serializer):
+    field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
+    query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
+
+
 class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
@@ -143,6 +148,9 @@ class CreateResultTableResource(Resource):
         default_storage = serializers.CharField(required=True, label="默认存储方案")
         default_storage_config = serializers.DictField(required=False, label="默认存储参数")
         field_list = FieldSerializer(many=True, required=False, label="字段列表")
+        query_alias_settings = QueryAliasSettingSerializer(
+            many=True, required=False, label="查询别名设置", help_text="字段查询别名的配置"
+        )
         bk_biz_id = serializers.IntegerField(required=False, label="结果表所属ID", default=0)
         label = serializers.CharField(required=False, label="结果表标签", default=models.Label.RESULT_TABLE_LABEL_OTHER)
         external_storage = serializers.JSONField(required=False, label="额外存储配置", default=None)
@@ -154,6 +162,32 @@ class CreateResultTableResource(Resource):
         data_label = serializers.CharField(required=False, label="数据标签", default="")
 
     def perform_request(self, request_data):
+        query_alias_settings = request_data.pop("query_alias_settings", [])
+        table_id = request_data.get("table_id", None)
+        operator = request_data.get("operator", None)
+
+        if query_alias_settings:
+            try:
+                logger.info(
+                    "CreateResultTableResource: try to manage alias_settings,table_id->[%s],"
+                    "query_alias_settings->[%s]",
+                    table_id,
+                    query_alias_settings,
+                )
+                models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                    table_id=table_id,
+                    query_alias_settings=query_alias_settings,
+                    operator=operator,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "CreateResultTableResource: manage alias_settings failed,table_id->[%s],query_alias_settings->["
+                    "%s],error->[%s]",
+                    table_id,
+                    query_alias_settings,
+                    e,
+                )
+
         new_result_table = models.ResultTable.create_result_table(**request_data)
 
         return {"table_id": new_result_table.table_id}
@@ -233,6 +267,9 @@ class ModifyResultTableResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         operator = serializers.CharField(required=True, label="操作者")
         field_list = FieldSerializer(many=True, required=False, label="字段列表", default=None)
+        query_alias_settings = QueryAliasSettingSerializer(
+            many=True, required=False, label="查询别名设置", help_text="字段查询别名的配置"
+        )
         table_name_zh = serializers.CharField(required=False, label="结果表中文名")
         default_storage = serializers.CharField(required=False, label="默认存储方案")
         label = serializers.CharField(required=False, label="结果表标签", default=None)
@@ -246,6 +283,30 @@ class ModifyResultTableResource(Resource):
 
     def perform_request(self, request_data):
         table_id = request_data.pop("table_id")
+        query_alias_settings = request_data.pop("query_alias_settings", [])
+        operator = request_data.get("operator", None)
+
+        if query_alias_settings:
+            try:
+                logger.info(
+                    "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],"
+                    "query_alias_settings->[%s]",
+                    table_id,
+                    query_alias_settings,
+                )
+                models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                    table_id=table_id,
+                    query_alias_settings=query_alias_settings,
+                    operator=operator,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "ModifyResultTableResource: manage alias_settings failed,table_id->[%s],query_alias_settings->["
+                    "%s],error->[%s]",
+                    table_id,
+                    query_alias_settings,
+                    e,
+                )
 
         result_table = models.ResultTable.objects.get(table_id=table_id)
         result_table.modify(**request_data)

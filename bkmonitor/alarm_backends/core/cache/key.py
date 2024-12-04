@@ -474,6 +474,16 @@ SERVICE_LOCK_PULL_TRIGGER = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_PREPARATION = register_key_with_config(
+    {
+        "label": "preparation.lock.strategy_{strategy_id}",
+        "key_type": "string",
+        "key_tpl": "preparation.lock.{strategy_id}",
+        "ttl": CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
 ACCESS_END_TIME_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取的结束时间",

@@ -72,7 +72,8 @@ class DetectCeleryHandler(DetectHandler):
             run_detect.apply_async(args=(strategy_id,))
 
         logger.info("[detect] total published {} strategy_ids: {}".format(len(strategy_ids), strategy_ids))
-        logger.info("[detect] published aiops_strategy_ids: {}".format(aiops_strategy_ids))
+        if aiops_strategy_ids:
+            logger.info("[detect] published aiops_strategy_ids: {}".format(aiops_strategy_ids))
 
     @classmethod
     def use_aiops_sdk(cls, strategy_id):
