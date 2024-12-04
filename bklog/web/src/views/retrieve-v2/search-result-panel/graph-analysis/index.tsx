@@ -227,7 +227,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     return {
       favorite_type: 'chart',
       chart_params: this.storedChartParams,
-      search_mode: 'sql',
+      search_mode: this.$store.state.indexItem.search_mode,
     };
   }
 
