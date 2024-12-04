@@ -13,8 +13,10 @@
   const emit = defineEmits(['input']);
   const isUserAction = ref(false);
 
+  const indexSetId = computed(() => store.state.indexId);
+
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
+    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
   const chartParams = computed(() => store.state.indexItem.chart_params);
@@ -38,6 +40,13 @@
   });
 
   const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
+  watch(
+    () => indexSetId,
+    () => {
+      isUserAction.value = false;
+    },
+  );
 
   watch(
     () => isAiopsToggle.value,
