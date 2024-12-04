@@ -107,7 +107,7 @@ class BCSClusterInfo(models.Model):
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
 
     # 是否允许查看历史数据（针对已下线集群）
-    is_allow_view_history = models.BooleanField("是否允许查看历史数据", default=False)
+    is_deleted_allow_view = models.BooleanField("已下线集群是否允许查看数据", default=False)
 
     @cached_property
     def api_client(self) -> k8s_client.ApiClient:
