@@ -437,27 +437,23 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     let tips;
     const isGraphCategoryPie = this.activeGraphCategory === GraphCategory.PIE;
     if (!this.xFields.length && !this.yFields.length && !this.dimensions.length) {
-      tips = isGraphCategoryPie
-        ? this.$t('当前缺少指标和维度')
-        : this.$t('当前缺少指标和维度/时间维度');
+      tips = isGraphCategoryPie ? this.$t('当前缺少指标和维度') : this.$t('当前缺少指标和维度/时间维度');
     } else if (this.yFields.length && !(this.xFields.length || this.dimensions.length)) {
-      tips = isGraphCategoryPie
-        ? this.$t('当前缺少维度')
-        : this.$t('当前缺少维度/时间维度');
+      tips = isGraphCategoryPie ? this.$t('当前缺少维度') : this.$t('当前缺少维度/时间维度');
     } else if (!this.yFields.length && (this.xFields.length || this.dimensions.length)) {
       tips = this.$t('当前缺少指标');
     }
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
-      return { showException, message, showQuery, tips  };
+      return { showException, message, showQuery, tips };
     }
 
     if (this.activeGraphCategory !== GraphCategory.TABLE) {
       showException = !((this.dimensions.length || this.xFields.length) && this.yFields.length);
     }
 
-    return { showException, message, showQuery, tips  };
+    return { showException, message, showQuery, tips };
   }
 
   getExceptionMessage() {
@@ -489,28 +485,28 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           <div class='bk-exception-title'>{message}</div>
           {showQuery
             ? [
-              <div class='bk-exception-description'>{this.$t('请重新发起查询')}</div>,
-              <div class='bk-exception-footer'>
-                <bk-button
-                  class='mr10'
-                  size='small'
-                  theme='primary'
-                  type='submit'
-                  onClick={this.handleEditorSearchClick}
-                >
-                  {this.$t('查询')}
-                </bk-button>
-                <bk-button
-                  class='mr10'
-                  size='small'
-                  onClick={() => {
-                    this.isSqlValueChanged = false;
-                  }}
-                >
-                  {this.$t('我知道了')}
-                </bk-button>
-              </div>,
-            ]
+                <div class='bk-exception-description'>{this.$t('请重新发起查询')}</div>,
+                <div class='bk-exception-footer'>
+                  <bk-button
+                    class='mr10'
+                    size='small'
+                    theme='primary'
+                    type='submit'
+                    onClick={this.handleEditorSearchClick}
+                  >
+                    {this.$t('查询')}
+                  </bk-button>
+                  <bk-button
+                    class='mr10'
+                    size='small'
+                    onClick={() => {
+                      this.isSqlValueChanged = false;
+                    }}
+                  >
+                    {this.$t('我知道了')}
+                  </bk-button>
+                </div>,
+              ]
             : ''}
         </bk-exception>
       );
@@ -560,17 +556,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (this.yFields.length === 0) {
       const filterList = list.filter(
-        item => !/date|time/.test(item.field_alias) && !this.xFields.includes(item.field_alias),
+        item =>
+          !/date|time/.test(item.field_alias) &&
+          !this.xFields.includes(item.field_alias) &&
+          !this.dimensions.includes(item.field_alias),
       );
 
-      const defValue = (
-        (filterList.length ? filterList : list).find(
-          item =>
-            /long|number|int|float|bigint|double/.test(item.field_type) && !this.xFields.includes(item.field_alias),
-        ) ?? list[0]
+      const defValue = filterList?.find(
+        item => /long|number|int|float|bigint|double/.test(item.field_type) && !this.xFields.includes(item.field_alias),
       )?.field_alias;
 
-      if (defValue && !this.xFields.includes(defValue)) {
+      if (defValue) {
         this.yFields.push(defValue);
       }
     }
