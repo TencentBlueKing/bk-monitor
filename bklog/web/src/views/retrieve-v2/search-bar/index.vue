@@ -14,7 +14,7 @@
   import { ConditionOperator } from '@/store/condition-operator';
 
   import $http from '../../../api';
-  import { deepClone, copyMessage } from '../../../common/util';
+  import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
 
@@ -254,11 +254,11 @@
     } catch (error) {}
   };
 
-  const handleCopyQueryValue = () => {
-    const { search_mode, keyword, addition } = store.getters.retrieveParams;
-    const copyValue = search_mode === 'sql' ? keyword : addition;
-    copyMessage(JSON.stringify(copyValue), '复制成功');
-  };
+  // const handleCopyQueryValue = () => {
+  //   const { search_mode, keyword, addition } = store.getters.retrieveParams;
+  //   const copyValue = search_mode === 'sql' ? keyword : addition;
+  //   copyMessage(JSON.stringify(copyValue), '复制成功');
+  // };
 </script>
 <template>
   <div :class="['search-bar-container', { readonly: isChartMode }]">
@@ -286,11 +286,11 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <div
+        <!-- <div
           v-bk-tooltips="'复制当前查询'"
           :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
           @click.stop="handleCopyQueryValue"
-        ></div>
+        ></div> -->
         <div
           v-bk-tooltips="'清理当前查询'"
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"

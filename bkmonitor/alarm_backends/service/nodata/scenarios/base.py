@@ -12,6 +12,7 @@ import itertools
 from itertools import chain
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.detect_result import CheckResult
@@ -179,12 +180,21 @@ class HostScenario(BaseScenario):
             target_instances = []
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
             hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
-            for host_info in list(hosts.values()):
-                host_topo = set({node.id for node in chain(*list(host_info.topo_link.values()))})
+            for host_info in hosts.values():
+                host_topo = {node.id for node in chain(*list(host_info.topo_link.values()))}
                 if host_topo & target_topo:
                     target_instances.append(
                         {"bk_target_ip": host_info.bk_host_innerip, "bk_target_cloud_id": host_info.bk_cloud_id}
                     )
+        # 动态分组
+        elif target_data["field"] == "dynamic_group":
+            bk_host_ids = AssignCacheManager.parse_dynamic_group(target_data["value"])
+            hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
+            target_instances = [
+                {"bk_target_ip": host.bk_host_innerip, "bk_target_cloud_id": host.bk_cloud_id}
+                for host in hosts.values()
+                if host.bk_host_id in bk_host_ids
+            ]
         else:
             target_instances = None
         return self.format_dicts_value_to_str(target_instances)
