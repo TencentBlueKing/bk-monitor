@@ -25,16 +25,23 @@
  */
 import { Component, Watch } from 'vue-property-decorator';
 
+import dayjs from 'dayjs';
 import { start } from 'monitor-api/modules/apm_meta';
 import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, deepClone } from 'monitor-common/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
+import { handleRelateAlert } from '../../utils/menu';
+import { reviewInterval } from '../../utils/utils';
+import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
 import StatusTab from './status-tab';
+
+import type { IMenuItem, IPanelModel } from '../../typings';
 
 import './apm-custom-graph.scss';
 const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'] as const;
@@ -104,7 +111,88 @@ export default class CustomChart extends TimeSeries {
         });
     }
   }
+  /**
+   * @description: 图表头部工具栏事件
+   * @param {IMenuItem} menuItem
+   * @return {*}
+   */
+  handleMenuToolsSelect(menuItem: IMenuItem) {
+    const variablesService = new VariablesService({ ...this.viewOptions, ...this.customScopedVars });
+    switch (menuItem.id) {
+      case 'save': // 保存到仪表盘
+        this.handleCollectChart();
+        break;
+      case 'screenshot': // 保存到本地
+        setTimeout(() => {
+          this.handleStoreImage(this.panel.title || '测试');
+        }, 300);
+        break;
+      case 'fullscreen': {
+        // 大图检索
+        let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
 
+        const variablesService = new VariablesService({
+          ...this.viewOptions.filters,
+          ...(this.viewOptions.filters?.current_target || {}),
+          ...this.viewOptions,
+          ...this.viewOptions.variables,
+          interval: reviewInterval(
+            this.viewOptions.interval,
+            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+            this.panel.collect_interval
+          ),
+          ...this.customScopedVars,
+        });
+        copyPanel = variablesService.transformVariables(copyPanel);
+        copyPanel.targets.forEach((t, tIndex) => {
+          const queryConfigs = this.panel.targets[tIndex].data.query_configs;
+          t.data.query_configs.forEach((q, qIndex) => {
+            q.functions = JSON.parse(JSON.stringify(queryConfigs[qIndex].functions));
+          });
+        });
+        this.handleFullScreen(copyPanel as any);
+        break;
+      }
+      case 'explore': // 跳转数据检索
+        {
+          const data = this.panel.toDataRetrieval();
+          const url = `${location.origin}${location.pathname.toString()}?bizId=${
+            this.panel.targets?.[0]?.data?.bk_biz_id || this.panel.bk_biz_id || this.$store.getters.bizId
+          }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(data))}&from=${
+            this.toolTimeRange[0]
+          }&to=${this.toolTimeRange[1]}&timezone=${(this as any).timezone || window.timezone}`;
+          window.open(url);
+        }
+        break;
+      case 'strategy': // 新增策略
+        {
+          const data = this.panel.toStrategy();
+          const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+            this.panel.targets?.[0]?.data?.bk_biz_id || this.panel.bk_biz_id || this.$store.getters.bizId
+          }#/strategy-config/add/?${data?.query_configs?.length ? `data=${JSON.stringify(data)}&` : ''}from=${this.toolTimeRange[0]}&to=${
+            this.toolTimeRange[1]
+          }&timezone=${(this as any).timezone || window.timezone}`;
+          window.open(url);
+        }
+        break;
+      case 'drill-down': // 下钻 默认主机
+        this.handleDrillDown(menuItem.childValue);
+        break;
+      case 'relate-alert':
+        for (const target of this.panel?.targets || []) {
+          if (target.data?.query_configs?.length) {
+            let queryConfig = deepClone(target.data.query_configs);
+            queryConfig = variablesService.transformVariables(queryConfig);
+            target.data.query_configs = queryConfig;
+          }
+        }
+        handleRelateAlert(this.panel, this.timeRange);
+        break;
+      default:
+        break;
+    }
+  }
   render() {
     const { legend } = this.panel?.options || ({ legend: {} } as any);
     return (
