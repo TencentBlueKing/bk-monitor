@@ -458,15 +458,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   getExceptionMessage() {
     if (this.isRequesting) {
-      return { showException: true, message: '请求中...', showQuery: false };
+      return { showException: true, message: '请求中...', showQuery: false, tips: '' };
     }
 
     if (!this.errorResponse.result && this.errorResponse.message) {
-      return { showException: true, message: this.errorResponse.message, showQuery: true };
+      return { showException: true, message: this.errorResponse.message, showQuery: true, tips: '' };
     }
 
     if (this.isSqlValueChanged) {
-      return { showException: true, message: this.$t('图表查询配置已变更'), showQuery: true };
+      return { showException: true, message: this.$t('图表查询配置已变更'), showQuery: true, tips: '' };
     }
 
     return this.getChartConfigValidate();
@@ -515,6 +515,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (!this.chartOptions.data?.list?.length) {
       return (
         <bk-exception
+          style={this.exceptionStyle}
           class='bklog-chart-exception'
           scene='part'
           type='empty'

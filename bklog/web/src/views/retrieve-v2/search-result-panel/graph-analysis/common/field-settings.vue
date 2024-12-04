@@ -151,7 +151,7 @@
       <div class="title">{{ this.$t('隐藏字段') }}</div>
       <bk-select
         :value="options.hiddenFields"
-        :clearable="false"
+        :clearable="true"
         multiple
         @change="change('hiddenFields', $event)"
         searchable
