@@ -1,5 +1,5 @@
 <script setup>
-  import { defineEmits, defineProps, computed, watch } from 'vue';
+  import { defineEmits, defineProps, computed, watch, ref } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   const { $t } = useLocale();
@@ -11,6 +11,8 @@
     },
   });
   const emit = defineEmits(['input']);
+  const isUserAction = ref(false);
+
   const indexSetItem = computed(() =>
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${store.state.indexId}`),
   );
@@ -62,7 +64,18 @@
   watch(
     () => chartParams.value,
     () => {
-      if (isChartEnable.value && props.value !== 'graphAnalysis' && chartParams.value.sql?.length > 0) {
+      if (chartParams.value.fromCollectionActiveTab === 'unused') {
+        isUserAction.value = false;
+        store.commit('updateChartParams', { fromCollectionActiveTab: 'used' });
+      }
+
+      if (
+        // isUserAction 判定用于避免图表分析页面延迟更新 chartParams 导致触发这里的Tab切换
+        !isUserAction.value &&
+        isChartEnable.value &&
+        props.value !== 'graphAnalysis' &&
+        chartParams.value.sql?.length > 0
+      ) {
         emit('input', 'graphAnalysis');
       }
     },
@@ -83,6 +96,8 @@
   });
 
   const handleActive = panel => {
+    console.log('handleActive', panel);
+    isUserAction.value = true;
     emit('input', panel);
   };
 </script>

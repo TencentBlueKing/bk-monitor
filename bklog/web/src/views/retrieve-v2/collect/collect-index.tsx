@@ -291,8 +291,6 @@ export default class CollectIndex extends tsc<IProps> {
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
 
-    console.log('handleClickFavoriteItem', cloneValue.params.chart_params);
-
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
@@ -304,7 +302,7 @@ export default class CollectIndex extends tsc<IProps> {
       search_mode: cloneValue.search_mode,
     });
 
-    this.$store.commit('updateChartParams', cloneValue.params.chart_params);
+    this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
