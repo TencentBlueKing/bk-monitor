@@ -90,7 +90,7 @@ export default class FilterByCondition extends tsc<IProps> {
     const filterByStr = JSON.stringify(this.filterBy);
     const localFilterByStr = JSON.stringify(this.localFilterBy);
     if (filterByStr !== localFilterByStr) {
-      this.localFilterBy = [...this.filterBy];
+      this.localFilterBy = JSON.parse(JSON.stringify(this.filterBy));
       this.filterByToTags();
       this.overflowCountRender();
     }
