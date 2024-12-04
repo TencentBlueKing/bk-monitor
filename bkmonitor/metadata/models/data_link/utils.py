@@ -154,7 +154,7 @@ def get_bkbase_raw_data_id_name(data_source, table_id):
     @param table_id: 监控平台结果表ID
     """
     try:
-        bkbase_data_id = models.AccessVMRecord.objects.get(result_table_id=table_id).bk_base_data_id
+        bkbase_data_id = models.AccessVMRecord.objects.filter(result_table_id=table_id).first().bk_base_data_id
         raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get('raw_data_name')
     except Exception as e:  # pylint: disable=broad-except
         logger.info(
