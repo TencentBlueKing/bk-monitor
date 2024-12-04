@@ -31,6 +31,7 @@ const dorisKeywords = [
   'UNION',
   'ALL',
   'DISTINCT',
+  'DESC'
 ];
 
 const dorisFunctions = [
