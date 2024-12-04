@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    _SERVICE_TYPE_ = ""  # access/detect/trigger/event/action/recovery .etc
+    _SERVICE_TYPE_ = ""  # access/detect/trigger/event/action/recovery/preparation .etc
     _HANDLER_TYPE_ = ""  # process/celery
 
     def add_arguments(self, parser):

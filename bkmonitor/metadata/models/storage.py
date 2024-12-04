@@ -1789,6 +1789,7 @@ class ESStorage(models.Model, StorageResultTable):
     index_set = models.TextField("索引集", blank=True, null=True)
     # 新增标记位，用于标识是否需要创建索引
     need_create_index = models.BooleanField("是否需要创建索引", default=True)
+    archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1978,21 +1979,92 @@ class ESStorage(models.Model, StorageResultTable):
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
+        from metadata.models import ESFieldQueryAliasOption, ResultTableField
+
+        logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
 
         # 构建mapping内容
         # 将所有properties先去掉，防止用户注入了自行的字段内容
         properties = body["mappings"]["properties"] = {}
         for field in ResultTableField.objects.filter(table_id=self.table_id):
-            # 直接注入这个字段的配置
-            properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
-                table_id=self.table_id, field_name=field.field_name
-            )
+            try:
+                properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
+                    table_id=self.table_id, field_name=field.field_name
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "index_body: error occurs for table_id->[%s],field->[%s],error->[%s]",
+                    self.table_id,
+                    field.field_name,
+                    e,
+                )
+
+        try:
+            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
+            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
+            if alias_config:
+                properties.update(alias_config)
+        except Exception as e:
+            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
 
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
             body["mappings"] = {self.table_id: body["mappings"]}
+        logger.info("index_body: compose index_body for->[%s] success,body->[%s]", self.table_id, body)
         return body
+
+    def compose_field_alias_settings(self):
+        """
+        组装采集项的别名配置
+        :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
+        """
+        from metadata.models import ESFieldQueryAliasOption
+
+        logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
+        properties = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        logger.info(
+            "compose_field_alias_settings: compose alias mapping for->[%s] success,alias_settings->[%s]",
+            self.table_id,
+            properties,
+        )
+        return {"properties": properties}
+
+    def put_field_alias_mapping_to_es(self):
+        """
+        推送别名配置至ES
+        """
+        # 组装字段别名配置
+        properties = self.compose_field_alias_settings()
+        # 获取使用中的索引列表
+        activate_index_list = self.get_activate_index_list()
+        if not activate_index_list:
+            logger.info("put_field_alias_mapping_to_es: table_id->[%s],got no activate index,return", self.table_id)
+            return
+        logger.info("put_field_alias_mapping_to_es: try to put->[%s] for->[%s]", properties, activate_index_list)
+
+        # 循环遍历激活的索引列表，推送别名配置
+        for index in activate_index_list:
+            logger.info("put_field_alias_mapping_to_es: try to put alias->[%s] for index->[%s]", properties, index)
+            try:
+                response = self.es_client.indices.put_mapping(body=properties, index=index)
+                logger.info(
+                    "put_field_alias_mapping_to_es: put alias for index->[%s] success,response->[%s]", index, response
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "put_field_alias_mapping_to_es: failed to put alias->[%s] for index->[%s],error->[%s]",
+                    properties,
+                    index,
+                    e,
+                )
+                continue
+        logger.info(
+            "put_field_alias_mapping_to_es: put alias->[%s] for index_list->[%s] successfully",
+            properties,
+            activate_index_list,
+        )
 
     @property
     def index_re_v1(self):
@@ -2660,6 +2732,14 @@ class ESStorage(models.Model, StorageResultTable):
         self.create_or_update_aliases(ahead_time)
 
     def update_index_and_aliases(self, ahead_time=1440):
+        try:
+            # 0. 更新mapping配置
+            self.put_field_alias_mapping_to_es()
+            logger.info("update_index_and_aliases:put alias to es for table_id->[%s] success", self.table_id)
+        except Exception as e:
+            logger.error(
+                "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
+            )
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
@@ -2738,6 +2818,8 @@ class ESStorage(models.Model, StorageResultTable):
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
         :return: True | raise Exception
         """
+        # 0. 轮转前，刷新以获取最新值
+        self.refresh_from_db()
         # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
             logger.info("update_index_v2: table_id->[%s] is not enabled, will not update index", self.table_id)
@@ -2791,59 +2873,10 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        # 5. 判断index是否需要分割，三个判断条件
-        # 如果是小于分割大小的，不必进行处理
-        should_create = False
-        # 5.1 如果index大小大于分割大小，需要创建新的index
-        if index_size_in_byte / 1024.0 / 1024.0 / 1024.0 > self.slice_size:
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], "
-                "create new index slice",
-                self.table_id,
-                last_index_name,
-                index_size_in_byte,
-                self.slice_size,
-            )
-            should_create = True
+        should_create = self._should_create_index()
+        logger.info("update_index_v2: table_id->[%s] should_create->[%s]", self.table_id, should_create)
 
-        # 5.2 mapping 不一样了，也需要创建新的index
-        if not self.is_mapping_same(last_index_name):
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] mapping is not the same, will create the new",
-                self.table_id,
-                last_index_name,
-            )
-            should_create = True
-
-        # 5.3 达到保存期限进行分裂
-        expired_time_point = self.now - datetime.timedelta(days=self.retention)
-        if current_index_info["datetime_object"] < expired_time_point:
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] has arrive retention date, will create the new",
-                self.table_id,
-                last_index_name,
-            )
-            should_create = True
-
-        # 5.4 暖数据等待天数大于0且当前索引未过期，需要创建新的index
-        # arrive warm_phase_days date to split index
-        # avoid index always not split, it not be allocate to cold node
-        if self.warm_phase_days > 0:
-            expired_time_point = self.now - datetime.timedelta(days=self.warm_phase_days)
-            if current_index_info["datetime_object"] < expired_time_point:
-                logger.info(
-                    "update_index_v2: table_id->[%s] index->[%s] has arrive warm_phase_days date, will create the new",
-                    self.table_id,
-                    last_index_name,
-                )
-                should_create = True
-
-        # 5.5 根据参数决定是否强制轮转
-        if force_rotate:
-            logger.info("update_index_v2:table_id->[%s],enable force rotate", self.table_id)
-            should_create = True
-
-        # 6. 若should_create为True，执行创建/更新 索引逻辑
+        # 5. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
                 "update_index_v2: table_id->[%s] index->[%s] everything is ok,nothing to do",
@@ -2856,7 +2889,7 @@ class ESStorage(models.Model, StorageResultTable):
             "update_index_v2: table_id->[%s] index->[%s] need to create new index", self.table_id, last_index_name
         )
         new_index = 0
-        # 7. 判断日期是否是当前日期
+        # 6. 判断日期是否是当前日期
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
@@ -2897,11 +2930,11 @@ class ESStorage(models.Model, StorageResultTable):
                     new_index,
                 )
 
-        # 8. 但凡涉及到index新增，都使用v2版本的格式
+        # 7. 但凡涉及到index新增，都使用v2版本的格式
         new_index_name = self.make_index_name(now_datetime_object, new_index, "v2")
         logger.info("update_index_v2: table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
-        # 9. 创建新的index,添加重试机制
+        # 8. 创建新的index,添加重试机制
         response = self._create_index_with_retry(new_index_name)
         logger.info(
             "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
@@ -2910,6 +2943,95 @@ class ESStorage(models.Model, StorageResultTable):
             response,
         )
         return True
+
+    def _should_create_index(self, force_rotate: bool = False):
+        """
+        是否需要创建新索引
+        :param force_rotate: 是否强制创建新索引
+        :return: True | False
+        """
+        try:
+            current_index_info = self.current_index_info()
+            last_index_name = self.make_index_name(
+                current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
+            )
+            index_size_in_byte = current_index_info["size"]
+
+            logger.info(
+                "_should_create_index:table_id->[%s],current index info:last_index->[%s],index_size_in_byte->[%s]",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+            )
+        except Exception as e:
+            logger.error(
+                "_should_create_index: table_id->[%s] get current index info failed, error->[%s]", self.table_id, e
+            )
+            return False
+
+        # 1.如果index大小大于分割大小，需要创建新的index
+        if index_size_in_byte / 1024.0 / 1024.0 / 1024.0 > self.slice_size:
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], "
+                "create new index slice",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+                self.slice_size,
+            )
+            return True
+
+        # 2. mapping 不一样了，也需要创建新的index
+        if not self.is_mapping_same(last_index_name):
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] mapping is not the same, will create the new",
+                self.table_id,
+                last_index_name,
+            )
+            return True
+
+        # 3. 达到保存期限进行分裂
+        expired_time_point = self.now - datetime.timedelta(days=self.retention)
+        if current_index_info["datetime_object"] < expired_time_point:
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] has arrive retention date, will create the new",
+                self.table_id,
+                last_index_name,
+            )
+            return True
+
+        # 4. 若配置了归档时间，且当前索引在归档日期之前，需要创建新的index
+        if self.archive_index_days > 0:
+            archive_time_point = self.now - datetime.timedelta(days=self.archive_index_days)
+            if current_index_info["datetime_object"] < archive_time_point:
+                logger.info(
+                    "_should_create_index: table_id->[%s] index->[%s] has arrive archive date, will create new "
+                    "index",
+                    self.table_id,
+                    last_index_name,
+                )
+                return True
+
+        # 5. 暖数据等待天数大于0且当前索引未过期，需要创建新的index
+        # arrive warm_phase_days date to split index
+        # avoid index always not split, it not be allocate to cold node
+        if self.warm_phase_days > 0:
+            expired_time_point = self.now - datetime.timedelta(days=self.warm_phase_days)
+            if current_index_info["datetime_object"] < expired_time_point:
+                logger.info(
+                    "_should_create_index: table_id->[%s] index->[%s] has arrive warm_phase_days date, will create "
+                    "the new",
+                    self.table_id,
+                    last_index_name,
+                )
+                return True
+
+        # 6. 根据参数决定是否强制轮转
+        if force_rotate:
+            logger.info("_should_create_index:table_id->[%s],enable force rotate", self.table_id)
+            return True
+
+        return False
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def _update_aliases_with_retry(self, actions, new_index_name, force_rotate: bool = False):
@@ -3201,9 +3323,8 @@ class ESStorage(models.Model, StorageResultTable):
                     "will delete it and recreate."
                 )
                 return False
-
             # 判断具体的内容是否一致，只要判断具体的四个内容
-            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer"]:
+            for field_config in ["type", "include_in_all", "doc_values", "format", "analyzer", "path"]:
                 database_value = database_config.get(field_config, None)
                 current_value = current_config.get(field_config, None)
 
@@ -3571,6 +3692,35 @@ class ESStorage(models.Model, StorageResultTable):
             if self.es_client.count(index=expired_index).get("count", 0) != 0:
                 ret.append(expired_index)
         return ret
+
+    def get_activate_index_list(self):
+        """
+        获取该采集项的未过期索引列表
+        """
+        logger.info("get_activated_index_list:try to get activate index list for table_id->[%s]", self.table_id)
+        try:
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "get_activate_index_list:table_id->[%s],failed to get alias_list,error->[%s] ,try again later",
+                self.table_id,
+                e,
+            )
+            return None
+        index_info = self.group_expired_alias(alias_list, self.retention)  # 获取索引-别名映射关系
+        index_list = []
+
+        for index, info in index_info.items():
+            try:
+                if info["not_expired_alias"]:
+                    if self.es_client.count(index=index).get("count", 0) != 0:
+                        index_list.append(index)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("get_activate_index_list：error occurs for table_id->[%s],error->[%s]", self.table_id, e)
+                continue
+
+        logger.info("get_activated_index_list: table_id->[%s],got activate index list->[%s]", self.table_id, index_list)
+        return index_list
 
     def current_snapshot_info(self):
         try:

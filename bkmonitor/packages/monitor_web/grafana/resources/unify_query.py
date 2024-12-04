@@ -807,7 +807,8 @@ class UnifyQueryRawResource(ApiAuthResource):
 
             # 先获取指定数量的topk维度组合条件，后续将基于这些维度组合条件进行查询
             # 目前只支持ui数据源的指标，如果有多个指标，只获取第一个指标的topk数量的维度组合条件，并将这些条件拼接回第一个指标的查询条件中
-            if query_config_index == 0:
+            # 计算平台数据不参与
+            if query_config_index == 0 and query_config["data_source_label"] != DataSourceLabel.BK_DATA:
                 self.get_dimension_combination(data_source, params)
 
             data_sources.append(data_source)
@@ -1176,6 +1177,7 @@ class GraphPromqlQueryResource(Resource):
         step = serializers.CharField(default="1m")
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
+        down_sample_range = serializers.CharField(label="降采样周期", default="", allow_blank=True)
 
         def validate(self, attrs):
             if attrs["step"] == "auto":
@@ -1239,6 +1241,7 @@ class GraphPromqlQueryResource(Resource):
             step=params["step"],
             bk_biz_ids=[params["bk_biz_id"]],
             timezone=timezone.get_current_timezone_name(),
+            down_sample_range=params["down_sample_range"],
         )
 
         result = api.unify_query.query_data_by_promql(**request_params)["series"] or []
@@ -1257,6 +1260,8 @@ class DimensionPromqlQueryResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         promql = serializers.CharField(label="PromQL")
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField(required=False)
 
     @classmethod
     def get_query_result(cls, bk_biz_id: int, promql: str) -> List[str]:
@@ -1285,7 +1290,7 @@ class DimensionPromqlQueryResource(Resource):
         return result
 
     @classmethod
-    def get_label_values(cls, bk_biz_id: int, promql: str) -> List[str]:
+    def get_label_values(cls, bk_biz_id: int, promql: str, start_time: str, end_time: str) -> List[str]:
         """
         查询label_values函数
         """
@@ -1298,7 +1303,18 @@ class DimensionPromqlQueryResource(Resource):
             match_promql = [promql]
             if cookies_filter:
                 match_promql.append(cookies_filter)
-            result = api.unify_query.get_promql_label_values(match=match_promql, label=label, bk_biz_ids=[bk_biz_id])
+
+            params = {
+                "bk_biz_ids": [bk_biz_id],
+                "match": match_promql,
+                "label": label,
+            }
+
+            if start_time and end_time:
+                params["start_time"] = start_time
+                params["end_time"] = end_time
+
+            result = api.unify_query.get_promql_label_values(params)
             return result["values"].get(label, [])
         except Exception as e:
             logger.exception(e)
@@ -1336,7 +1352,7 @@ class DimensionPromqlQueryResource(Resource):
         promql = params["promql"].strip()
 
         if self.re_label_value.match(promql):
-            return self.get_label_values(params["bk_biz_id"], promql)
+            return self.get_label_values(params["bk_biz_id"], promql, params.get("start_time"), params.get("end_time"))
         elif self.re_query_result.match(promql):
             return self.get_query_result(params["bk_biz_id"], promql)
         elif self.re_label_names.match(promql):

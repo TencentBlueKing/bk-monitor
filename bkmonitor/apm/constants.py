@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.conf import settings
+from django.db.models import TextChoices
 from django.utils.translation import ugettext as _
 
 from constants.apm import SpanKind
@@ -586,3 +587,12 @@ class ApmBmwTaskStatus:
     RUNNING = "running"
     # 未开启
     UNOPENED = "unopened"
+
+
+class DiscoverRuleType(TextChoices):
+    """拓扑发现规则类型"""
+
+    CATEGORY = "category", _("分类规则")
+    SYSTEM = "system", _("系统类型规则")
+    PLATFORM = "platform", _("平台规则")
+    SDK = "sdk", _("SDK 规则")
