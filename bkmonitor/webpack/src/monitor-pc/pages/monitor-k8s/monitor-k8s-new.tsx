@@ -31,7 +31,6 @@ import { random } from 'monitor-common/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import { GROUP_OPTIONS, type IFilterByItem } from './components/filter-by-condition/utils';
 import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
@@ -51,6 +50,7 @@ import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-
 import { K8sNewTabEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { IFilterByItem } from './components/filter-by-condition/utils';
 
 import './monitor-k8s-new.scss';
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
@@ -103,8 +103,6 @@ export default class MonitorK8sNew extends tsc<object> {
   filterBy = [];
   // Group By 选择器的值
   groupFilters: Array<number | string> = [];
-  // Group By 选择器选项
-  groupOptions = [...GROUP_OPTIONS];
   // 指标隐藏项
   hideMetrics = JSON.parse(localStorage.getItem(HIDE_METRICS_KEY) || '[]');
   // 表格数据
@@ -119,89 +117,89 @@ export default class MonitorK8sNew extends tsc<object> {
 
   groupList = [
     {
-      title: 'namespace',
+      name: 'namespace',
       id: 'namespace',
       count: 4,
       children: [
         {
           id: '监控测试集群(BCS-K8S-26286)',
-          title: '监控测试集群(BCS-K8S-26286)',
+          name: '监控测试集群(BCS-K8S-26286)',
         },
         {
           id: '监控测试集群(BCS-K8S-26286)__222',
-          title: '监控测试集群(BCS-K8S-26286)__222',
+          name: '监控测试集群(BCS-K8S-26286)__222',
         },
         {
           id: '监控测试集群(BCS-K8S-26286)_3',
-          title: '监控测试集群(BCS-K8S-26286)_3',
+          name: '监控测试集群(BCS-K8S-26286)_3',
         },
         {
           id: '监控测试集群(BCS-K8S-26286)_4',
-          title: '监控测试集群(BCS-K8S-26286)_4',
+          name: '监控测试集群(BCS-K8S-26286)_4',
         },
         {
           id: '监控测试集群(BCS-K8S-26286)_5',
-          title: '监控测试集群(BCS-K8S-26286)_5',
+          name: '监控测试集群(BCS-K8S-26286)_5',
         },
         {
           id: '监控测试集群(BCS-K8S-26286)_6',
-          title: '监控测试集群(BCS-K8S-26286)_6',
+          name: '监控测试集群(BCS-K8S-26286)_6',
         },
       ],
     },
     {
-      title: 'workload',
+      name: 'workload',
       id: 'workload',
       count: 4,
       children: [
         {
-          title: 'Deployments',
+          name: 'Deployments',
           id: 'Deployments',
           count: 1,
           children: [
             {
               id: 'monitor-test1',
-              title: 'monitor-test1',
+              name: 'monitor-test1',
             },
           ],
         },
         {
-          title: 'StatefulSets',
+          name: 'StatefulSets',
           count: 1,
           id: 'StatefulSets',
           children: [
             {
               id: 'monitor-test2',
-              title: 'monitor-test2',
+              name: 'monitor-test2',
             },
           ],
         },
       ],
     },
     {
-      title: 'pod',
+      name: 'pod',
       id: 'pod',
       count: 5,
       children: [
         {
           id: 'bkbase-puller-datanode-inland…',
-          title: 'bkbase-puller-datanode-inland…',
+          name: 'bkbase-puller-datanode-inland…',
         },
         {
           id: 'sql-f76a1c37c9ae48f1a9daf0843534535345',
-          title: 'sql-f76a1c37c9ae48f1a9daf081213123',
+          name: 'sql-f76a1c37c9ae48f1a9daf081213123',
         },
         {
           id: 'pf-d1fba8d425e24f268bbed3b13123123',
-          title: 'pf-d1fba8d425e24f268bbed3b13123123',
+          name: 'pf-d1fba8d425e24f268bbed3b13123123',
         },
         {
           id: 'pf-d1fba8d425e24f268bbed3b56456465466111',
-          title: 'pf-d1fba8d425e24f268bbed3b56456465466111',
+          name: 'pf-d1fba8d425e24f268bbed3b56456465466111',
         },
         {
           id: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
-          title: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
+          name: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
         },
       ],
     },
@@ -209,32 +207,32 @@ export default class MonitorK8sNew extends tsc<object> {
 
   metricList = [
     {
-      title: 'CPU',
+      name: 'CPU',
       id: 'CPU',
       count: 3,
       children: [
         {
           id: 'CPU使用量',
-          title: 'CPU使用量',
+          name: 'CPU使用量',
         },
         {
           id: 'CPU limit 使用率',
-          title: 'CPU limit 使用率',
+          name: 'CPU limit 使用率',
         },
         {
           id: 'CPU request 使用率',
-          title: 'CPU request 使用率',
+          name: 'CPU request 使用率',
         },
       ],
     },
     {
-      title: '内存',
+      name: '内存',
       id: '内存',
       count: 4,
       children: [
         {
           id: '内存使用量(rss)',
-          title: '内存使用量(rss)',
+          name: '内存使用量(rss)',
         },
       ],
     },
@@ -549,7 +547,7 @@ export default class MonitorK8sNew extends tsc<object> {
             <div class='filter-by-wrap __group-by__'>
               <GroupByCondition
                 ref='k8sGroupByRef'
-                dimensionOptions={this.groupOptions}
+                dimensionOptions={this.groupList}
                 groupFilters={this.groupFilters}
                 title='Group by'
                 onChange={this.handleGroupChecked}

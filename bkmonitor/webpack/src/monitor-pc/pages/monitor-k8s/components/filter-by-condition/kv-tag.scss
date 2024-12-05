@@ -14,7 +14,7 @@
   border: 1px solid #F0F1F5;
   border-radius: 2px;
 
-  .tag-content, .tag-content-visible {
+  .tag-content, .tag-content-hidden {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -29,6 +29,8 @@
     }
 
     .values {
+      white-space: nowrap;
+
       .split {
         margin-right: 6px;
       }
@@ -58,10 +60,10 @@
     }
   }
 
-  .tag-content-visible {
+  .tag-content-hidden {
     position: fixed;
     top: -9999px;
     left: -9999px;
-    overflow: visible;
+    visibility: hidden;
   }
 }

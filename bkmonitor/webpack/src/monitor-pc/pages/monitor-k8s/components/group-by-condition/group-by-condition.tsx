@@ -156,7 +156,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
               >
                 <div class='group-by-option-item'>
                   <span class='item-label'>{opt.name}</span>
-                  <span class='item-count'>{opt.list?.length || 0}</span>
+                  <span class='item-count'>{opt.children?.length || 0}</span>
                 </div>
               </bk-option>
             ))}

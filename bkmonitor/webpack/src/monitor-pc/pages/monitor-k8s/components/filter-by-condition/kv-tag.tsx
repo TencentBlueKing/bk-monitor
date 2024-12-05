@@ -52,14 +52,14 @@ export default class KvTag extends tsc<IProps> {
   @Prop({ default: false, type: Boolean }) active: boolean;
 
   valuesText = [];
-  valuesTextVisible = [];
+  valuesTextHidden = [];
   delCount = 0;
   overflowLoading = false;
 
   @Watch('value', { immediate: true, deep: true })
   handleWatchVale() {
     if (this.value) {
-      const valuesTextVisible = this.value.values.map(item => {
+      const valuesTextHidden = this.value.values.map(item => {
         let name = item.name;
         if (item.name.length > 20) {
           name = `${name.slice(0, 20)}...`;
@@ -69,8 +69,8 @@ export default class KvTag extends tsc<IProps> {
           name,
         };
       });
-      if (JSON.stringify(valuesTextVisible) !== JSON.stringify(this.valuesTextVisible)) {
-        this.valuesTextVisible = valuesTextVisible;
+      if (JSON.stringify(valuesTextHidden) !== JSON.stringify(this.valuesTextHidden)) {
+        this.valuesTextHidden = valuesTextHidden;
         this.handleOverflowCount();
       }
     }
@@ -93,17 +93,16 @@ export default class KvTag extends tsc<IProps> {
 
   async handleOverflowCount() {
     await this.$nextTick();
-    const visibleWrap = this.$el.querySelector('.tag-content-visible');
-    const wrapWidth = visibleWrap.clientWidth;
+    const hiddenWrap = this.$el.querySelector('.tag-content-hidden');
+    const wrapWidth = hiddenWrap.clientWidth;
     let delCount = 0;
     if (wrapWidth > 400) {
-      const textWrap = visibleWrap.querySelector('.values');
+      const textWrap = hiddenWrap.querySelector('.values');
       const textListEl = Array.from(textWrap.children);
       let tempW = wrapWidth;
       for (let i = textListEl.length - 1; i >= 0; i--) {
         const textEl = textListEl[i];
         tempW -= textEl.clientWidth;
-        console.log(tempW, textEl.clientWidth);
         delCount += 1;
         if (tempW < 400) {
           break;
@@ -111,7 +110,7 @@ export default class KvTag extends tsc<IProps> {
       }
     }
     this.delCount = delCount;
-    this.valuesText = this.valuesTextVisible.slice(0, this.valuesTextVisible.length - this.delCount);
+    this.valuesText = this.valuesTextHidden.slice(0, this.valuesTextHidden.length - this.delCount);
   }
 
   render() {
@@ -143,11 +142,11 @@ export default class KvTag extends tsc<IProps> {
           />
         </div>
 
-        <div class='tag-content-visible'>
+        <div class='tag-content-hidden'>
           <span>{this.value.name}</span>
           <span class='method'>=</span>
           <span class='values'>
-            {this.valuesTextVisible.map((item, index) => (
+            {this.valuesTextHidden.map((item, index) => (
               <span key={`${item.id}_index`}>
                 {index > 0 && <span class='split'>, </span>}
                 <span

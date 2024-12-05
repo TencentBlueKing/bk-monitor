@@ -91,11 +91,11 @@
     @include tag-list-wrap();
   }
 
-  .tag-list-wrap-visible {
+  .tag-list-wrap-hidden {
     position: fixed;
     top: -9999px;
     left: -9999px;
-    overflow: visible;
+    visibility: hidden;
     @include tag-list-wrap();
   }
 

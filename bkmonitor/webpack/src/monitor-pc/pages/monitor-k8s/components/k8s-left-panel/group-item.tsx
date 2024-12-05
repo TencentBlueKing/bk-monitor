@@ -162,7 +162,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             onClick={() => this.collapseChange(item.id)}
           >
             <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[item.id] ? 'expand' : ''}`} />
-            <span class='group-name'>{item.title}</span>
+            <span class='group-name'>{item.name}</span>
             <div class='group-count'>{item.count}</div>
           </div>
 
@@ -180,7 +180,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           class='content-name'
           v-bk-overflow-tips
         >
-          {item.title}
+          {item.name}
         </span>
         <div class='tools'>
           {this.tools.includes('search') && (
@@ -222,7 +222,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
         >
           <div class='group-header-left'>
             <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[this.list.id] ? 'expand' : ''}`} />
-            <span class='group-name'>{this.list.title}</span>
+            <span class='group-name'>{this.list.name}</span>
             <div class='group-count'>{this.list.count}</div>
             {this.value.length > 0 && this.tools.includes('clear') && (
               <div
