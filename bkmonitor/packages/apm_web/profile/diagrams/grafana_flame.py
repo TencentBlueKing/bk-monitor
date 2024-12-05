@@ -9,10 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
+
+from django.utils.translation import ugettext_lazy as _
 
 from apm_web.profile.diagrams.base import FunctionNode
-from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
+from apm_web.profile.diagrams.diff import DiffNode
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
@@ -41,27 +43,45 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 
 @dataclass
 class GrafanaFlameDiagrammer:
+    def convert(
+        self,
+        node: FunctionNode,
+        level: int = 0,
+        levels: List[int] = None,
+        labels: List[str] = None,
+        selfs: List[int] = None,
+        values: List[int] = None,
+    ):
+
+        if levels is None:
+            levels = []
+        if labels is None:
+            labels = []
+        if selfs is None:
+            selfs = []
+        if values is None:
+            values = []
+
+        levels.append(level)
+        labels.append(node.id)
+        values.append(node.value)
+        selfs.append(node.self_time)
+
+        for c in node.children:
+            self.convert(c, level + 1, levels, labels, selfs, values)
+
+        return levels, labels, selfs, values
+
     def draw(self, c: TreeConverter, **_) -> dict:
-        level = 0
-        root = {"id": 0, "name": "total", "value": c.tree.root.value, 'level': level, "children": []}
-        for r in c.tree.root.children:
-            root["children"].append(function_node_to_element(r, level + 1))
-
-        return {"flame_data": root}
-
-    def diff(self, base_tree_c: TreeConverter, diff_tree_c: TreeConverter, **_) -> dict:
-        diff_tree = ProfileDiffer.from_raw(base_tree_c, diff_tree_c).diff_tree()
-
-        flame_data = [
-            {
-                **root.default.to_dict(),
-                "diff_info": root.diff_info,
-                "children": [diff_node_to_element(child) for child in root.children],
+        levels, labels, selfs, values = self.convert(c.tree.root)
+        return {
+            "flame_data": {
+                "levels": levels,
+                "labels": labels,
+                "selfs": selfs,
+                "values": values,
             }
-            for root in diff_tree.roots
-        ]
+        }
 
-        if not flame_data:
-            logger.info("flame graph no data")
-            return {"flame_data": {}}
-        return {"flame_data": flame_data[0]}
+    def diff(self, base_tree_c: TreeConverter, diff_tree_c: TreeConverter, **kwargs) -> dict:
+        raise ValueError(_("Grafana 模式下不支持对比 Profiling 视图"))

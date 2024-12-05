@@ -312,7 +312,11 @@ class QueryProfileBarGraphResource(Resource):
 class GrafanaQueryProfileResource(Resource):
     """Grafana 查询 Profile 数据"""
 
-    RequestSerializer = ProfileQuerySerializer
+    class RequestSerializer(ProfileQuerySerializer):
+        def validate(self, attrs):
+            # 使用 grafana 转换器
+            attrs["diagram_types"] = ["grafana_flame"]
+            return attrs
 
     def perform_request(self, data):
         from apm_web.profile.views import ProfileQueryViewSet
