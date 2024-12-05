@@ -32,8 +32,6 @@ import EventDetailSlider from 'fta-solutions/pages/event/event-detail/event-deta
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 
-import type { IShowDetail } from 'fta-solutions/pages/event/event-table';
-
 import './apm.scss';
 
 Component.registerHooks(['beforeRouteLeave']);

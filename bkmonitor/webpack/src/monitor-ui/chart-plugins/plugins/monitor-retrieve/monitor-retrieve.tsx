@@ -41,7 +41,7 @@ import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './monitor-retrieve.scss';
-import '@blueking/monitor-retrieve/css/main0214526.css';
+import '@blueking/monitor-retrieve/css/main.css';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 @Component

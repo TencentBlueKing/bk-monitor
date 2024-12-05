@@ -32,6 +32,8 @@ import useStore from '@/hooks/use-store';
 import i18n from '@/language/i18n';
 
 import MonitorRetrieve from './monitor.vue';
+
+import '../../../static/style.css';
 const logStore = useStore();
 const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);
