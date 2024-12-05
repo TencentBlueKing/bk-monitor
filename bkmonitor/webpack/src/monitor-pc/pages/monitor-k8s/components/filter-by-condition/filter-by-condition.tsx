@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
+import { debounce } from 'throttle-debounce';
 
 import KvTag from './kv-tag';
 import { EGroupBy, type IGroupOptionsItem, type ITagListItem, type IValueItem, type IFilterByItem } from './utils';
@@ -74,10 +75,23 @@ export default class FilterByCondition extends tsc<IProps> {
   allOptions = [];
   allOptionsMap = new Map();
 
+  resizeObserver = null;
+  overflowCountRenderDebounce = null;
+
   get hasAdd() {
     const ids = this.allOptions.map(item => item.id);
     const tags = new Set(this.tagList.map(item => item.id));
     return !ids.every(id => tags.has(id));
+  }
+
+  mounted() {
+    this.overflowCountRenderDebounce = debounce(300, this.overflowCountRender);
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const _entry of entries) {
+        this.overflowCountRenderDebounce();
+      }
+    });
+    this.resizeObserver.observe(this.$el);
   }
 
   @Watch('groupList', { immediate: true })
@@ -391,13 +405,13 @@ export default class FilterByCondition extends tsc<IProps> {
   // 计算溢出个数
   async overflowCountRender() {
     setTimeout(() => {
-      const wrapWidth = this.$el.clientWidth - 32;
-      const visibleWrap = this.$el.querySelector('.tag-list-wrap-visible');
+      const wrapWidth = this.$el.clientWidth - 70;
+      const hiddenWrap = this.$el.querySelector('.tag-list-wrap-hidden');
       let index = 0;
       let w = 0;
       let count = 0;
-      for (const item of Array.from(visibleWrap.children)) {
-        w += item.clientWidth;
+      for (const item of Array.from(hiddenWrap.children)) {
+        w += item.offsetWidth + 4;
         if (w > wrapWidth) {
           break;
         }
@@ -475,8 +489,8 @@ export default class FilterByCondition extends tsc<IProps> {
     );
   }
 
-  tagsWrap(isVisible = false) {
-    if (isVisible) {
+  tagsWrap(ishidden = false) {
+    if (ishidden) {
       return this.tagList.map((item, index) => {
         return [
           index >= 1 && (
@@ -569,7 +583,7 @@ export default class FilterByCondition extends tsc<IProps> {
     return (
       <div class={['filter-by-condition-component', { 'expand-tags': this.isExpand }]}>
         <div class='tag-list-wrap'>{this.tagsWrap()}</div>
-        <div class='tag-list-wrap-visible'>{this.tagsWrap(true)}</div>
+        <div class='tag-list-wrap-hidden'>{this.tagsWrap(true)}</div>
         <div
           style={{
             display: 'none',
