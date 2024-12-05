@@ -116,6 +116,12 @@ const serviceTargetFieldType = {
   SET_TEMPLATE: 'service_set_template',
   DYNAMIC_GROUP: 'dynamic_group',
 };
+
+const targetMessageTemp = {
+  HOST: '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标',
+  SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
+};
+
 interface IStrategyConfigSetProps {
   fromRouteName: string;
   id: number | string;
@@ -1655,8 +1661,28 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     document.addEventListener('mouseup', handleMouseUp);
   }
 
+  hasRelevantDimension() {
+    if (!this.target.length) return false;
+    if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
+    let hasRelevantDimension = false;
+    hasRelevantDimension = this.metricData.every(item => {
+      const [hostMetric, nodeMetric = []] = item.targetMetricList;
+      const metricSet = this.targetType === 'TOPO' ? new Set([...hostMetric, ...nodeMetric]) : new Set(hostMetric);
+      return item.agg_dimension.some(d => metricSet.has(d));
+    });
+    return !hasRelevantDimension;
+  }
+
   async handleValidateStrategyConfig() {
     let validate = true;
+    if (this.hasRelevantDimension()) {
+      this.$bkMessage({
+        message: this.$t(targetMessageTemp[this.metricData[0].objectType]),
+        theme: 'error',
+        delay: 3000,
+      });
+      validate = false;
+    }
     if (this.monitorDataEditMode === 'Source') {
       if (!this.sourceData.sourceCode) {
         this.$bkMessage({

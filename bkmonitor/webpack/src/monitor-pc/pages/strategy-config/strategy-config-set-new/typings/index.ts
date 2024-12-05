@@ -108,6 +108,23 @@ export enum MetricType {
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
   TimeSeries = 'time_series',
 }
+
+const metricPrefixes = [
+  'dbm_system',
+  'system',
+  'devx_system',
+  'perforce_system',
+  'exporter_',
+  'datadog_',
+  'jmx_',
+  'pushgateway_',
+  'script_',
+];
+const metricTemp = {
+  host: ['bk_target_ip', 'bk_target_cloud_id', 'bk_host_id', 'bk_target_host_id'],
+  service: ['bk_target_service_instance_id'],
+  node: ['bk_obj_id', 'bk_inst_id'],
+};
 export class MetricDetail {
   _agg_condition = [];
   agg_dimension: string[] = [];
@@ -404,29 +421,12 @@ export class MetricDetail {
     );
   }
   get targetMetricList() {
-    const prefixes = [
-      'dbm_system',
-      'system',
-      'devx_system',
-      'perforce_system',
-      'exporter_',
-      'datadog_',
-      'jmx_',
-      'pushgateway_',
-      'script_',
-    ];
-    const temp = {
-      host: ['bk_target_ip', 'bk_target_cloud_id', 'bk_host_id', 'bk_target_host_id'],
-      service: ['bk_target_service_instance_id'],
-    };
     const dataTarget = this.data_target.replace('_target', '');
-
     // 检查是否有前缀匹配
-    const startsWithAnyPrefix = prefixes.some(prefix => this.result_table_id.startsWith(prefix));
-
-    const res = [temp[dataTarget] || []];
+    const startsWithAnyPrefix = metricPrefixes.some(prefix => this.result_table_id.startsWith(prefix));
+    const res = [metricTemp[dataTarget] || []];
     if (startsWithAnyPrefix && dataTarget === 'host') {
-      res.push(['bk_obj_id', 'bk_inst_id']);
+      res.push(metricTemp.node);
     }
     return res;
   }

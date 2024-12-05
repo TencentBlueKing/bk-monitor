@@ -91,10 +91,6 @@ interface IMonitorDataEvent {
   onShowTargetTipChange?: boolean;
 }
 
-const targetMessageTemp = {
-  HOST: '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标',
-  SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
-};
 @Component({
   name: 'monitor-data',
   components: {
@@ -156,33 +152,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
 
   /* 指标选择器 */
   metricSelectorShow = false;
-  targetMessageTip = '';
-
-  /* 是否展示未选择ip及云区域的提示 */
-  get showTargetMessageTip() {
-    if (!this.targetList?.length) return false;
-    if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
-    this.targetMessageTip = targetMessageTemp[this.metricObjectType];
-    if (!this.targetMessageTip) return false;
-    let hasRelevantDimension = false;
-    if (this.editMode === 'Source') {
-      const str = this.source;
-      const [metric, extraMetric = []] = this.metricData[0].targetMetricList;
-      this.metricObjectType === 'TOPO' && metric.concat(extraMetric);
-      const regex = /\(([^)]*)\)/g; // 匹配括号内的内容
-      const strList = str.match(regex);
-      hasRelevantDimension = !!strList?.length && strList.some(str => metric.some(s => new RegExp(s).test(str)));
-    } else {
-      hasRelevantDimension = this.metricData.every(item => {
-        const [hostMetric, nodeMetric = []] = item.targetMetricList;
-        const metricSet =
-          this.target.targetType === 'TOPO' ? new Set([...hostMetric, ...nodeMetric]) : new Set(hostMetric);
-        return item.agg_dimension.some(d => metricSet.has(d));
-      });
-    }
-    this.$emit('showTargetTipChange', !hasRelevantDimension);
-    return !hasRelevantDimension;
-  }
 
   // promqlError = false
   // 指标标示名称
@@ -792,12 +761,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                             onClick={this.handleAddTarget}
                           />
                         )),
-                      this.showTargetMessageTip && this.targetMessageTip && (
-                        <span class='ip-dimension-tip'>
-                          <span class='icon-monitor icon-remind' />
-                          <span>{this.$t(this.targetMessageTip)}</span>
-                        </span>
-                      ),
                     ]}
               </div>
             )}
