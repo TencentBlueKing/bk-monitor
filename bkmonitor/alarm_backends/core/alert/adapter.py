@@ -52,7 +52,7 @@ class MonitorEventAdapter:
         # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
         kafka_queue = KafkaQueue.get_alert_kafka_queue()
         kafka_queue.set_topic(topic)
-        return kafka_queue.put(value=messages)
+        kafka_queue.put(value=messages)
 
     def __init__(self, record: dict, strategy: dict):
         """
