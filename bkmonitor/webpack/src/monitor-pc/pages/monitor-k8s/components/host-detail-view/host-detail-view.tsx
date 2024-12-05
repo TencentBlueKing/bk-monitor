@@ -263,6 +263,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           class={['common-progress-color', `color-${val.status}`]}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
           showText={false}
+          size='small'
         />
       </div>
     );
@@ -427,7 +428,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           v-model={this.activeCollapseName}
         >
           {this.labelListData.map(item => (
-            <div>
+            <div key={item.name}>
               <bk-collapse-item
                 hide-arrow={!item?.children?.length}
                 name={item.name}
@@ -451,7 +452,10 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                     slot='content'
                   >
                     {item?.children?.map?.(child => (
-                      <div class='row'>
+                      <div
+                        key={child.name}
+                        class='row'
+                      >
                         <div class='label-container'>
                           <span class='label'>{child.name}</span>
                           <span>&nbsp;:</span>
@@ -460,7 +464,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                           {child.type === 'string' && <div class='value'>{child.value}</div>}
                           {child.type === 'list' &&
                             Array.isArray(child?.value) &&
-                            child?.value?.map?.(s => <div class='value'>{s}</div>)}
+                            child?.value?.map?.(s => (
+                              <div
+                                key={s}
+                                class='value'
+                              >
+                                {s}
+                              </div>
+                            ))}
                         </div>
                       </div>
                     ))}
