@@ -33,6 +33,7 @@ import AiBlueking, {
   ChatHelper,
   MessageStatus,
   type ISendData,
+  type IShortCut,
 } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText, getCookie, random } from 'monitor-common/utils/utils';
@@ -111,6 +112,21 @@ const questions = [
   '主机监控场景包含哪些指标？',
   '如何接入第三方告警源？',
   '智能检测目前能支持哪些场景？',
+];
+export const DEFAULT_SHORTCUTS: IShortCut[] = [
+  {
+    label: '翻译',
+    prompt: `You are a highly skilled AI trained in language translation. I would like you to translate the text delimited by triple quotes into Chinese language, ensuring that the translation is colloquial and authentic.
+    Only give me the output and nothing else. Do not wrap responses in quotes
+    '''
+      {{ SELECTED_TEXT }}
+    '''
+    `,
+  },
+  {
+    label: '解释',
+    prompt: `You are a professional explainer. Please provide a detailed explanation of "{{ SELECTED_TEXT }}". Your explanation should include: 1) basic meaning and conceptual explanation; 2) practical applications or use cases; 3) if it's a technical term, please provide relevant technical background; 4) where appropriate, provide specific examples to aid understanding. Use clear and accessible language to ensure non-experts can understand. If the word/phrase has multiple meanings, please list the main definitions. Keep your response concise and clear while ensuring completeness and accuracy of information.`,
+  },
 ];
 
 @Component
@@ -460,11 +476,10 @@ export default class AiWhale extends tsc<{
     // 接收消息
     const handleReceiveMessage = (message: string) => {
       const currentMessage = this.messages.at(-1);
-      if (currentMessage.status === 'loading') {
+      if (currentMessage.content === this.$tc('内容正在生成中...')) {
         // 如果是loading状态，直接覆盖
         currentMessage.content = message;
-        currentMessage.status = MessageStatus.Success;
-      } else if (currentMessage.status === 'success') {
+      } else if (currentMessage.status === 'loading') {
         // 如果是后续消息，就追加消息
         currentMessage.content += message;
       }
@@ -474,10 +489,12 @@ export default class AiWhale extends tsc<{
       this.loading = false;
       const currentMessage = this.messages.at(-1);
       // loading 情况下终止
-      if (currentMessage.status === MessageStatus.Loading) {
+      if (currentMessage.content === this.$tc('内容正在生成中...')) {
         currentMessage.content = '聊天内容已中断';
         currentMessage.status = MessageStatus.Error;
+        return;
       }
+      currentMessage.status = MessageStatus.Success;
     };
     // 错误处理
     const handleError = (message: string) => {
@@ -797,6 +814,7 @@ export default class AiWhale extends tsc<{
         placeholder={this.$t('您可以键入“/”查看更多提问示例')}
         position-limit={this.positionLimit}
         prompts={this.prompts}
+        shortcuts={DEFAULT_SHORTCUTS}
         size-limit={this.sizeLimit}
         start-position={this.startPosition}
         onChoose-prompt={this.handleAiBluekingChoosePrompt}
