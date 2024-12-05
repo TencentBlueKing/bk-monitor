@@ -62,12 +62,18 @@ export function getK8sTableDataMock(count: number): Promise<any[]> {
     const arr: any[] = [];
     for (let index = 0; index < count; index++) {
       arr.push({
-        cluster: `ckuster${index}`,
-        pod: `bkTest-teesst-datanode-tessst-test-${index}`,
-        workload: `StatefulSet:bkTest-teesst-ttttestt-tessst-test-${index}`,
-        namespace: `bkTessst${index}`,
-        workload_type: `Tesst${index}`,
-        container: `Kube-testtestt${index}`,
+        cluster: { id: `ckuster${index}`, name: `ckuster${index}` },
+        pod: {
+          id: `bkTest-teesst-datanode-tessst-test-${index}`,
+          name: `bkTest-teesst-datanode-tessst-test-${index}`,
+        },
+        workload: {
+          id: `StatefulSet:bkTest-teesst-ttttestt-tessst-test-${index}`,
+          name: `StatefulSet:bkTest-teesst-ttttestt-tessst-test-${index}`,
+        },
+        namespace: { id: `bkTessst${index}`, name: `bkTessst${index}` },
+        workload_type: { id: `Tesst${index}`, name: `Tesst${index}` },
+        container: { id: `Kube-testtestt${index}`, name: `Kube-testtestt${index}` },
         cpu: {
           datapoints: null,
           unit: null,
