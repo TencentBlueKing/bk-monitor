@@ -2761,7 +2761,7 @@ class ESFieldQueryAliasOption(BaseModel):
                 for record in alias_records
             }
             return path_type_map
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("Error generating alias path type configuration for table_id->[%s],error->[%s]", table_id, e)
             raise
 
