@@ -183,3 +183,62 @@ rest/v2/k8s/resources/list_k8s_resources/
     ]
 }
 ```
+
+## GetResourceDetail
+
+获取资源详情
+
+### 请求 url
+
+rest/v2/k8s/resources/get_resource_detail
+
+### 请求参数
+
+| 字段            | 类型  | 必填  | 描述                                                |
+| -------------- | --- | --- | ------------------------------------------------- |
+| bcs_cluster_id | str | 是   | 集群 id                                             |
+| bk_biz_id      | int | 是   | 业务 id                                             |
+| namespace      | str | 是   | 命名空间                                              |
+| resource_type  | str | 是   | 资源类型，可选值为 “pod”,"workload","container"            |
+| pod_name       | str | 否   | pod 名称，当 resource_type 为 "pod" \| "container" 时必填 |
+| container_name | str | 否   | 容器名称，当 resource_type 为 “container" 时必填            |
+| workload_name  | str | 否   | 工作负载名称， 当 resource_type 为 ”workload" 时必填          |
+| workload_type  | str | 否   | 工作负载类型， 当 resource_type 为 ”workload" 时必填          |
+
+### 返回示例
+
+和 `rest/v2/scene_view/get_kubernetes_workload/`, `rest/v2/scene_view/get_kubernetes_pod`, `rest/v2/scene_view/get_kubernetes_container` 接口返回数据格式一致
+
+```json
+{
+    "result": true,
+    "code": 200,
+    "message": "OK",
+    "data": [
+        {
+            "key": "name",
+            "name": "工作负载名称",
+            "type": "string",
+            "value": "pf-f991b578413c4ce48d7d92d53f2021f9"
+        },
+        {
+            "key": "bcs_cluster_id",
+            "name": "集群ID",
+            "type": "string",
+            "value": "BCS-K8S-00000",
+        },
+        {
+            "key": "bk_cluster_name",
+            "name": "集群名称",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "namespace",
+            "name": "NameSpace",
+            "type": "string",
+            "value": "bkmonitor"
+        },
+    ]
+}
+```
