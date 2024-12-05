@@ -23,13 +23,28 @@
       width: 160px;
       height: 32px;
       margin: 0 18px;
-      line-height: 32px;
       background: #f0f1f5;
-      border: none;
+      border-color: transparent;
       border-radius: 2px;
 
+      &.is-focus {
+        background-color: #fff;
+        border: 1px solid #3a84ff;
+        box-shadow: none;
+      }
+
+      .bk-select-prefix-icon {
+        top: calc(50% - 10px);
+        left: 8px;
+        font-size: 20px;
+        line-height: normal;
+        color: #a3c5fd;
+      }
+
       .bk-select-name {
+        padding-left: 36px;
         font-size: 14px;
+        line-height: 32px;
         color: #313238;
       }
     }
@@ -51,5 +66,21 @@
         }
       }
     }
+  }
+}
+
+.new-k8s-nav-select-popover {
+  .bk-option-content {
+    padding-left: 12px;
+  }
+
+  .icon-monitor {
+    margin-right: 4px;
+    font-size: 16px;
+    vertical-align: middle;
+  }
+
+  .label {
+    vertical-align: middle;
   }
 }

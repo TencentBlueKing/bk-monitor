@@ -257,6 +257,7 @@ export default class MonitorK8sNew extends tsc<object> {
 
   created() {
     this.getK8sList();
+    this.getScenarioMetricList();
   }
 
   /**
@@ -282,6 +283,12 @@ export default class MonitorK8sNew extends tsc<object> {
         this.tableConfig.loading = false;
       });
   }
+
+  /**
+   * @description 获取场景指标列表
+   */
+  getScenarioMetricList() {}
+
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
@@ -349,6 +356,10 @@ export default class MonitorK8sNew extends tsc<object> {
     const item = asyncColumns.find(col => col.id === field);
     item.asyncable = false;
     setData(0);
+  }
+
+  handleSceneChange(value) {
+    this.scene = value;
   }
 
   handleImmediateRefresh() {
@@ -502,6 +513,7 @@ export default class MonitorK8sNew extends tsc<object> {
             value={this.scene}
             onImmediateRefresh={this.handleImmediateRefresh}
             onRefreshChange={this.handleRefreshChange}
+            onSelected={this.handleSceneChange}
             onTimeRangeChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           >

@@ -41,6 +41,7 @@ interface K8sNavBarProps {
 }
 
 interface K8sNavBarEvent {
+  onSelected(val: string): void;
   onTimezoneChange(val: string): void;
   onTimeRangeChange(val: TimeRangeType): void;
   onImmediateRefresh(): void;
@@ -61,17 +62,26 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
   curTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
 
   k8sList = [
-    { label: '性能', value: 'performance', icon: '' },
-    { label: '网络', value: 'network', icon: '' },
-    { label: '存储', value: 'storage', icon: '' },
-    { label: '容量', value: 'capacity', icon: '' },
-    { label: '事件', value: 'event', icon: '' },
-    { label: '成本', value: 'cost', icon: '' },
+    { label: window.i18n.tc('性能'), value: 'performance', icon: 'icon-xingneng1', disabled: false },
+    { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: true },
+    { label: window.i18n.tc('存储'), value: 'storage', icon: 'icon-cunchu', disabled: true },
+    { label: window.i18n.tc('容量'), value: 'capacity', icon: 'icon-rongliang', disabled: true },
+    { label: window.i18n.tc('事件'), value: 'event', icon: 'icon-shijian2', disabled: true },
+    { label: window.i18n.tc('成本'), value: 'cost', icon: 'icon-chengben', disabled: true },
   ];
+
+  get selectItem() {
+    return this.k8sList.find(item => item.value === this.value);
+  }
 
   @Watch('timeRange', { immediate: true })
   onTimeRangeChange(v: TimeRangeType) {
     this.curTimeRange = v;
+  }
+
+  @Emit('selected')
+  handleSelected(value: string) {
+    return value;
   }
 
   @Emit('timeRangeChange')
@@ -101,17 +111,21 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
           <bk-select
             class='nav-select'
             clearable={false}
+            ext-popover-cls='new-k8s-nav-select-popover'
+            prefix-icon={`icon-monitor ${this.selectItem.icon}`}
             searchable={false}
             value={this.value}
+            onSelected={this.handleSelected}
           >
             {this.k8sList.map(item => (
               <bk-option
                 id={item.value}
                 key={item.value}
+                disabled={item.disabled}
                 name={item.label}
               >
                 {item.icon && <i class={`icon-monitor ${item.icon}`} />}
-                <span>{item.label}</span>
+                <span class='label'>{item.label}</span>
               </bk-option>
             ))}
           </bk-select>
