@@ -82,7 +82,7 @@
       }
 
       .json-text-style {
-        @extend %json-style
+        @extend %json-style;
       }
     }
 
@@ -231,7 +231,9 @@
       border: 1px solid #dcdee5 !important;
 
       &:hover {
-        box-shadow: 0 2px 4px 0 rgba(25,25,41,.05), 0 2px 4px 0 rgba(0,0,0,.1);
+        box-shadow:
+          0 2px 4px 0 rgba(25, 25, 41, 0.05),
+          0 2px 4px 0 rgba(0, 0, 0, 0.1);
       }
 
       .chart-legend {
@@ -257,7 +259,7 @@
 
       .icon-mc-triangle-down {
         font-size: 24px;
-        transition: transform .3s;
+        transition: transform 0.3s;
         transform: rotate(-90deg);
 
         &.active {
@@ -348,7 +350,7 @@
                 width: 13px;
                 height: 13px;
                 margin-right: 6px;
-                background: rgba(234, 54, 54, .16);
+                background: rgba(234, 54, 54, 0.16);
                 border-radius: 50%;
 
                 .red-point {
@@ -530,7 +532,7 @@
 
       .icon-arrow-down {
         font-size: 20px;
-        transition: transform .3s;
+        transition: transform 0.3s;
         transform: rotate(-90deg);
 
         &.active {
@@ -545,6 +547,13 @@
         font-size: 12px;
         font-weight: Bold;
         color: #63656e;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .expan-item-small-subtitle {
+        padding: 0 24px 0 16px;
+        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
@@ -568,7 +577,7 @@
 
   .json-text-style {
     margin-top: 12px;
-    @extend %json-style
+    @extend %json-style;
   }
 }
 
@@ -581,9 +590,10 @@
       position: relative;
       display: flex;
       align-items: flex-start;
-      min-height: 20px;
-      padding: 2px 0;
-      line-height: 20px;
+      min-height: 24px;
+      max-height: 484px;
+      overflow-y: auto;
+      line-height: 24px;
 
       &:hover {
         .format-button {
@@ -755,5 +765,5 @@
   .graph-tools {
     /* stylelint-disable-next-line declaration-no-important */
     left: 60px !important;
-  } 
+  }
 }
