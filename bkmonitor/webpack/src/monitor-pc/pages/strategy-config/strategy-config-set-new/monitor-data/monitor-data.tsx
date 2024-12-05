@@ -29,7 +29,7 @@
  * @Description:
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
@@ -88,7 +88,13 @@ interface IMonitorDataEvent {
   onShowExpress: boolean;
   onSouceStepChange: number;
   onclearErr?: boolean;
+  onShowTargetTipChange?: boolean;
 }
+
+const targetMessageTemp = {
+  HOST: '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标',
+  SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
+};
 @Component({
   name: 'monitor-data',
   components: {
@@ -150,9 +156,33 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
 
   /* 指标选择器 */
   metricSelectorShow = false;
+  targetMessageTip = '';
 
   /* 是否展示未选择ip及云区域的提示 */
-  showTargetMessageTip = false;
+  get showTargetMessageTip() {
+    if (!this.targetList?.length) return false;
+    if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
+    this.targetMessageTip = targetMessageTemp[this.metricObjectType];
+    if (!this.targetMessageTip) return false;
+    let hasRelevantDimension = false;
+    if (this.editMode === 'Source') {
+      const str = this.source;
+      const [metric, extraMetric = []] = this.metricData[0].targetMetricList;
+      this.metricObjectType === 'TOPO' && metric.concat(extraMetric);
+      const regex = /\(([^)]*)\)/g; // 匹配括号内的内容
+      const strList = str.match(regex);
+      hasRelevantDimension = !!strList?.length && strList.some(str => metric.some(s => new RegExp(s).test(str)));
+    } else {
+      hasRelevantDimension = this.metricData.every(item => {
+        const [hostMetric, nodeMetric = []] = item.targetMetricList;
+        const metricSet =
+          this.target.targetType === 'TOPO' ? new Set([...hostMetric, ...nodeMetric]) : new Set(hostMetric);
+        return item.agg_dimension.some(d => metricSet.has(d));
+      });
+    }
+    this.$emit('showTargetTipChange', !hasRelevantDimension);
+    return !hasRelevantDimension;
+  }
 
   // promqlError = false
   // 指标标示名称
@@ -186,9 +216,21 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
   // 指标基础数据
   get metricObjectType() {
-    const [{ data_target: dataTarget }] = this.metricData;
-    return dataTarget ? dataTarget.replace('_target', '').toLocaleUpperCase() : 'HOST';
+    const dataTarget = this.metricData?.[0]?.data_target;
+    return dataTarget ? dataTarget.replace('_target', '').toLocaleUpperCase() : '';
   }
+
+  get canSetTarget() {
+    return new Set(this.metricData.map(item => item.data_target).filter(dataTarget => dataTarget)).size <= 1;
+  }
+
+  @Watch('metricObjectType')
+  handleMetricObjectTypeChange(v) {
+    if ((v === 'SERVICE' && this.target?.targetType === 'INSTANCE') || v === 'NONE') {
+      this.targetList = [];
+    }
+  }
+
   get canActiveRealtime() {
     return this.metricData.length < 2 && this.metricData.every(item => item.canSetRealTimeSearch);
   }
@@ -236,7 +278,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return true;
   }
   get targetDesc() {
-    return this.handleSetTargetDesc(this.targetList, this.metricData?.[0]?.targetType);
+    return this.handleSetTargetDesc(this.targetList, this.target?.targetType);
   }
   created() {
     this.modeList = [
@@ -268,6 +310,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       alert: DOCS_LINK_MAP.Monitor.alert,
     };
     this.targetList = this.defaultCheckedTarget?.target_detail || [];
+    this.target.targetType = this.defaultCheckedTarget?.node_type || '';
+    this.handleSetTargetDesc(this.targetList, this.target?.targetType);
     // 初始化时监控目标显示
     // this.handleSetTargetDesc(
     //   this.targetList,
@@ -315,36 +359,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     // this.handleSetTargetDesc(this.targetList, this.metricData[0].targetType);
   }
 
-  /**
-   * @description 判断是否展示监控目标提示
-   */
-  getShowTargetMessageTipChange() {
-    if (!this.targetList?.length) return false;
-    if (this.target.targetType !== 'INSTANCE') return false;
-    const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-    const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
-    let hasIpDimension = false;
-    if (this.editMode === 'Source') {
-      const str = this.source;
-      const regex = /\(([^)]*)\)/g; // 匹配括号内的内容
-      const strList = str.match(regex);
-      hasIpDimension =
-        !!strList?.length &&
-        strList.some(str => ipMap.some(s => new RegExp(s).test(str)) && cloudIdMap.some(s => new RegExp(s).test(str)));
-    } else {
-      hasIpDimension = this.metricData.some(
-        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
-      );
-    }
-    return !hasIpDimension;
-  }
-
   handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
     this.targetList = transformValueToMonitor(data.value, data.nodeType);
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);
     this.handleTargetSave();
-    this.showTargetMessageTip = this.getShowTargetMessageTipChange();
   }
 
   // 编辑时设置监控目标描述
@@ -444,12 +463,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return val;
   }
   ipSelect() {
-    const [{ targetType, objectType }] = this.metricData;
+    const [{ objectType }] = this.metricData;
     if (!this.readonly) {
       return (
         <StrategyIpv6
           checkedNodes={this.targetList || []}
-          nodeType={targetType as INodeType}
+          nodeType={this.target.targetType as INodeType}
           objectType={objectType as TargetObjectType}
           showDialog={this.showTopoSelector}
           onChange={this.handleTopoCheckedChange}
@@ -475,7 +494,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         <strategy-target-table
           objType={objectType}
           tableData={tableData}
-          targetType={targetType}
+          targetType={this.target.targetType}
         />
       </monitor-dialog>
     );
@@ -721,72 +740,67 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             </div>
           )}
           {this.supportSource && !!this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
-          {((this.targetList.length && this.targetDesc.message.length && this.editMode === 'Edit') ||
-            this.metricData.some(item => item.canSetTarget)) && (
-            <div class='ip-wrapper'>
-              {!this.targetList.length && !this.targetDesc.message.length
-                ? [
-                    !this.readonly ? (
-                      <div
-                        key={1}
-                        class='ip-wrapper-title'
-                        on-click={this.handleAddTarget}
-                      >
-                        <i class='icon-monitor icon-mc-plus-fill' />
-                        {this.$t('添加监控目标')}
-                      </div>
-                    ) : (
-                      <span key={2}>{this.$t('未添加监控目标')}</span>
-                    ),
-                    <span
-                      key={3}
-                      class='subtitle ml5'
-                    >{`(${this.$t('默认为本业务')})`}</span>,
-                  ]
-                : [
-                    <i
-                      key={4}
-                      class='icon-monitor icon-mc-tv'
-                    />,
-                    <span
-                      key={5}
-                      style='color: #63656e;'
-                      class='subtitle'
-                    >
-                      {this.targetDesc.message}
-                      {this.targetDesc.subMessage}
-                    </span>,
-                    this.metricData.some(item => item.canSetTarget) &&
-                      (this.readonly ? (
-                        <span
-                          key={6}
+          {this.canSetTarget &&
+            ((this.targetList.length && this.targetDesc.message.length && this.editMode === 'Edit') ||
+              this.metricData.some(item => item.canSetTarget)) && (
+              <div class='ip-wrapper'>
+                {!this.targetList.length && !this.targetDesc.message.length
+                  ? [
+                      !this.readonly ? (
+                        <div
+                          key={1}
                           class='ip-wrapper-title'
-                          onClick={this.handleAddTarget}
+                          on-click={this.handleAddTarget}
                         >
-                          {this.$t('查看监控目标')}
-                        </span>
+                          <i class='icon-monitor icon-mc-plus-fill' />
+                          {this.$t('添加监控目标')}
+                        </div>
                       ) : (
-                        <span
-                          key={7}
-                          class='icon-monitor icon-bianji'
-                          onClick={this.handleAddTarget}
-                        />
-                      )),
-                    this.showTargetMessageTip && (
-                      <span class='ip-dimension-tip'>
-                        <span class='icon-monitor icon-remind' />
-                        <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
-                        <span
-                          class='icon-monitor icon-mc-close'
-                          onClick={() => {
-                            this.showTargetMessageTip = false;
-                          }}
-                        />
-                      </span>
-                    ),
-                  ]}
-            </div>
-          )}
+                        <span key={2}>{this.$t('未添加监控目标')}</span>
+                      ),
+                      <span
+                        key={3}
+                        class='subtitle ml5'
+                      >{`(${this.$t('默认为本业务')})`}</span>,
+                    ]
+                  : [
+                      <i
+                        key={4}
+                        class='icon-monitor icon-mc-tv'
+                      />,
+                      <span
+                        key={5}
+                        style='color: #63656e;'
+                        class='subtitle'
+                      >
+                        {this.targetDesc.message}
+                        {this.targetDesc.subMessage}
+                      </span>,
+                      this.metricData.some(item => item.canSetTarget) &&
+                        (this.readonly ? (
+                          <span
+                            key={6}
+                            class='ip-wrapper-title'
+                            onClick={this.handleAddTarget}
+                          >
+                            {this.$t('查看监控目标')}
+                          </span>
+                        ) : (
+                          <span
+                            key={7}
+                            class='icon-monitor icon-bianji'
+                            onClick={this.handleAddTarget}
+                          />
+                        )),
+                      this.showTargetMessageTip && this.targetMessageTip && (
+                        <span class='ip-dimension-tip'>
+                          <span class='icon-monitor icon-remind' />
+                          <span>{this.$t(this.targetMessageTip)}</span>
+                        </span>
+                      ),
+                    ]}
+              </div>
+            )}
         </div>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
         {this.metricData.slice(0, 1).map(

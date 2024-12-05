@@ -322,6 +322,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
+  showTargetTipFlag = false;
   monitorDataEditMode: EditModeType = 'Edit';
   // 将切换至ui模式
   switchToUI = false;
@@ -1737,6 +1738,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
 
   async handleSubmitStrategyConfig() {
+    if (this.showTargetTipFlag) return;
     // 验证
     const validate = await this.handleValidateStrategyConfig();
     if (validate) {
@@ -2557,6 +2559,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           this.sourceData.errorMsg = '';
         }}
         onShowExpress={this.handleShowExpress}
+        onShowTargetTipChange={v => (this.showTargetTipFlag = v)}
         onSouceStepChange={this.handleSourceStepChange}
         onSourceChange={this.handleSourceChange}
         onTargetChange={this.handleTargetChange}
