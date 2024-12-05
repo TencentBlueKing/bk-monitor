@@ -26,5 +26,5 @@ class ResourcesViewSet(ResourceViewSet):
         # 获取指定集群下资源列表
         ResourceRoute("GET", resource.k8s.list_k8s_resources, endpoint="list_resources"),
         # 获取指定资源的详情
-        ResourceRoute("GET", resource.k8s.get_resource_detail, endpoint="get_reource_detail"),
+        ResourceRoute("GET", resource.k8s.get_resource_detail, endpoint="get_resource_detail"),
     ]
