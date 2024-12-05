@@ -146,6 +146,9 @@ declare global {
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
   }
+  interface HTMLElement {
+    ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
+  }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
     type ElementClass = base.ElementClass;
