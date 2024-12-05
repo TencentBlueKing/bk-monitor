@@ -1442,4 +1442,8 @@ def sync_aiops_strategy_signal(strategy_id, signal, update_time):
     delete: 已删除的策略（不论是否是aiops策略）, 修改后的策略不包含aiops算法
     modify: 新增的，修改后的 策略包含了aiops算法
     """
+    from alarm_backends.service.preparation.tasks import refresh_aiops_sdk_depend_data
+
     logger.info(f"sync_aiops_strategy_signal: {strategy_id}, {signal}, {update_time}")
+    if signal == "modify":
+        refresh_aiops_sdk_depend_data.deplay(strategy_id, update_time)
