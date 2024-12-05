@@ -45,7 +45,6 @@ const createMonitorConfig = config => {
   const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
   const imgLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.png'));
   const urlLoaderOptions = fileLoaders.use.find(item => item.loader === 'url-loader').options;
-  console.info(imgLoaders);
   imgLoaders.options.publicPath = '../img';
   urlLoaderOptions.publicPath = '../fonts';
   return {

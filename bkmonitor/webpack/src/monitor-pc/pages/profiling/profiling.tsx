@@ -54,7 +54,7 @@ export default class Profiling extends tsc<object> {
     }, 300);
   }
   beforeRouteLeave(to, from, next) {
-    (document.body as any).___zrEVENTSAVED = null;
+    document.body.___zrEVENTSAVED = null;
     next();
   }
   render() {

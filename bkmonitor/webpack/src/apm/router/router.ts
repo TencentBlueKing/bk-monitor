@@ -94,6 +94,10 @@ const isAuthority = async (page: string | string[]) => {
   return !!data.length && data.some(item => item.isAllowed);
 };
 router.beforeEach(async (to, from, next) => {
+  if (document.body.___zrEVENTSAVED) {
+    /* 图表tip异常问题解决办法 */
+    document.body.___zrEVENTSAVED = null;
+  }
   Store.commit('app/SET_NAV_ID', to.meta.navId || to.name);
   const { fromUrl, actionId } = to.query;
   if (to.name === 'error-exception' && actionId) {

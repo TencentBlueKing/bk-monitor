@@ -115,9 +115,9 @@ router.beforeEach(async (to, from, next) => {
   ) {
     return next({ name: 'no-business' });
   }
-  if ((document.body as any).___zrEVENTSAVED) {
+  if (document.body.___zrEVENTSAVED) {
     /* 图表tip异常问题解决办法 */
-    (document.body as any).___zrEVENTSAVED = null;
+    document.body.___zrEVENTSAVED = null;
   }
   // 设置本地缓存常用访问列表
   if (isInCommonRoute(to.name)) {
