@@ -31,7 +31,6 @@ import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 
 import './field-item.scss';
-
 @Component
 export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
@@ -49,7 +48,8 @@ export default class FieldItem extends tsc<object> {
   analysisActive = false;
   operationInstance = null;
   fieldAnalysisInstance = null;
-
+  ifShowMore = false;
+  fieldData = null;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -114,10 +114,17 @@ export default class FieldItem extends tsc<object> {
       fieldItem: this.fieldItem,
     });
   }
+  showMore(fieldData) {
+    this.ifShowMore = true;
+    this.fieldData = fieldData;
+  }
+  closeSlider() {
+    this.ifShowMore = false;
+  }
   handleClickAnalysisItem() {
     this.instanceDestroy();
     this.analysisActive = true;
-    this.fieldAnalysisInstance = new FieldAnalysis().$mount();
+    this.fieldAnalysisInstance = new FieldAnalysis();
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -126,9 +133,13 @@ export default class FieldItem extends tsc<object> {
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
       agg_field: this.fieldItem.field_name,
+      statisticalFieldData: this.statisticalFieldData,
+      isFrontStatisticsL: this.isFrontStatistics,
     };
+    this.fieldAnalysisInstance.$mount();
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
+    this.fieldAnalysisInstance?.$on('showMore', this.showMore);
     this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
       content: this.fieldAnalysisInstance.$el,
       arrow: true,
@@ -276,6 +287,43 @@ export default class FieldItem extends tsc<object> {
             statistical-field-data={this.statisticalFieldData}
           />
         )}
+        <bk-sideslider
+          width={600}
+          is-show={this.ifShowMore}
+          quick-close={true}
+          transfer
+          onAnimation-end={this.closeSlider}
+        >
+          <template slot='header'>
+            <div class='aggSidesHeader'>
+              <div class='distinctNum'>
+                <span>去重后字段统计</span>
+                <span class='distinct-count-num'>{this.fieldData?.distinct_count}</span>
+              </div>
+              <div class='fnBtn'>
+                <bk-button
+                  style='margin-right:8px'
+                  size='small'
+                >
+                  下载
+                </bk-button>
+                <bk-button size='small'>查看仪表盘</bk-button>
+              </div>
+            </div>
+          </template>
+          <template slot='content'>
+            <div class='aggSidesContent'>
+              <AggChart
+                field-name={this.fieldItem.field_name}
+                field-type={this.fieldItem.field_type}
+                is-front-statistics={this.isFrontStatistics}
+                parent-expand={this.isExpand}
+                retrieve-params={this.retrieveParams}
+                statistical-field-data={this.statisticalFieldData}
+              />
+            </div>
+          </template>
+        </bk-sideslider>
       </li>
     );
   }

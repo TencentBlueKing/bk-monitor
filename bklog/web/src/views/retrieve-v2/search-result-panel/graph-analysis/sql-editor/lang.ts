@@ -37,7 +37,6 @@ type DorisField = {
   description: string;
 };
 
-
 monaco.languages.register({ id: 'dorisSQL' });
 
 monaco.languages.setMonarchTokensProvider('dorisSQL', {

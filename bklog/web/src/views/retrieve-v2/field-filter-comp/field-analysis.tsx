@@ -33,9 +33,11 @@ import $http from '../../../api';
 import { deepClone, formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
+import AggChart from './agg-chart';
 import store from '@/store';
 
 import './field-analysis.scss';
+
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
@@ -55,15 +57,15 @@ const timeSeriesBase = {
 };
 
 /** 柱状图基础高度 */
-const PILLAR_CHART_BASE_HEIGHT = 236;
+const PILLAR_CHART_BASE_HEIGHT = 140;
 /** 柱状图英文情况下的基础高度 */
-const PILLAR_CHART_EN_BASE_HEIGHT = 220;
+const PILLAR_CHART_EN_BASE_HEIGHT = 130;
 /** 折线图图基础高度 */
-const LINE_CHART_BASE_HEIGHT = 270;
+const LINE_CHART_BASE_HEIGHT = 140;
 /** 柱状图图高度盒子 保证图表出来后popover总高度不变 */
 const PILLAR_CHART_BOX_HEIGHT = 264;
 /** 折线图高度盒子 保证图表出来后popover总高度不变 */
-const LINE_CHART_BOX_HEIGHT = 348;
+const LINE_CHART_BOX_HEIGHT = 460;
 /** 折线图分页的高度 */
 const LEGEND_BOX_HEIGHT = 40;
 let formatStr = 'HH:mm';
@@ -115,7 +117,7 @@ export default class FieldAnalysis extends Vue {
   get isPillarChart() {
     return ['integer', 'long', 'double'].includes(this.queryParams?.field_type);
   }
-
+  ifShowMore = false;
   /** 获取数值类型查询时间段 */
   get getPillarQueryTime() {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
@@ -519,9 +521,14 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
+  showMore() {
+    this.ifShowMore = true;
+    this.$emit('showMore', this.fieldData);
+  }
+
   render() {
     return (
-      <div class='field-analysis-container'>
+      <div class='retrieve_v2 field-analysis-container'>
         <div v-bkloading={{ isLoading: this.infoLoading }}>
           <div class='total-num-container'>
             <span class='total-num'>
@@ -533,8 +540,15 @@ export default class FieldAnalysis extends Vue {
             >
               {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(this.fieldData.field_count)}
             </span>
+            <span
+              class='appear-num'
+              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
+            >
+              {window.mainComponent.$t('日志条数')} : {this.fieldData.field_percent * 100}
+              <span class='log-unit'>%</span>
+            </span>
           </div>
-          <div class='log-num-container'>
+          {/* <div class='log-num-container'>
             <div
               class='num-box'
               v-bk-tooltips={{
@@ -554,7 +568,7 @@ export default class FieldAnalysis extends Vue {
               </span>
               <span class='log-str'>{window.mainComponent.$t('去重后条数')}</span>
             </div>
-          </div>
+          </div> */}
           {this.isPillarChart && (
             <div class='number-num-container'>
               <div class='num-box'>
@@ -578,7 +592,7 @@ export default class FieldAnalysis extends Vue {
         </div>
         <div
           style={{
-            height: this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
+            'max-height': this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
             alignItems: 'center',
           }}
           v-bkloading={{ isLoading: this.chartLoading }}
@@ -651,6 +665,39 @@ export default class FieldAnalysis extends Vue {
                     </div>
                   )}
                 </div>
+              )}
+              <div class='distinctCountNum'>
+                <div class='countNum'>
+                  <span>去重后字段统计</span>
+                  <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
+                  <span
+                    class='moreDistinct'
+                    onClick={this.showMore.bind(this)}
+                  >
+                    更多
+                  </span>
+                </div>
+                <div class='moreFn'>
+                  <span
+                    class='fnBtn bk-icon icon-upload'
+                    v-bk-tooltips='下载'
+                  ></span>
+
+                  <span
+                    class='fnBtn bk-icon icon-apps'
+                    v-bk-tooltips='查看仪表盘'
+                  ></span>
+                </div>
+              </div>
+              {this.queryParams.agg_field && (
+                <AggChart
+                  field-name={this.queryParams.agg_field}
+                  field-type={this.queryParams.field_type}
+                  is-front-statistics={this.queryParams.isFrontStatistics}
+                  parent-expand={true}
+                  retrieve-params={this.queryParams}
+                  statistical-field-data={this.queryParams.statisticalFieldData}
+                />
               )}
             </div>
           ) : (
