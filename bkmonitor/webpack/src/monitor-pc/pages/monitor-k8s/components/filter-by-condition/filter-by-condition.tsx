@@ -158,21 +158,21 @@ export default class FilterByCondition extends tsc<IProps> {
       const itemsMap = new Map();
       const result = {
         id: item.id,
-        name: item.title,
+        name: item.name,
         count: item.count,
         list: item.children.map(child => {
           if (item.id !== EGroupBy.workload) {
-            itemsMap.set(child.id, child.title);
+            itemsMap.set(child.id, child.name);
           }
           return {
             id: child.id,
-            name: child.title,
+            name: child.name,
             count: child?.count,
             list: child?.children?.map(c => {
-              itemsMap.set(c.id, c.title);
+              itemsMap.set(c.id, c.name);
               return {
                 id: c.id,
-                name: c.title,
+                name: c.name,
               };
             }),
           };
@@ -180,7 +180,7 @@ export default class FilterByCondition extends tsc<IProps> {
       };
       this.allOptionsMap.set(item.id, {
         itemsMap: itemsMap,
-        name: item.title,
+        name: item.name,
       });
       return result;
     });

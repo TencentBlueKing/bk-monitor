@@ -44,7 +44,7 @@ export enum K8sNewTabEnum {
 
 export interface GroupListItem {
   id: string;
-  title: string;
+  name: string;
   count?: number;
   children?: GroupListItem[];
 }
