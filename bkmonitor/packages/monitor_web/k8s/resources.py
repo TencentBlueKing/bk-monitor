@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict
+from typing import Dict, List
 
 from rest_framework import serializers
 
@@ -59,6 +59,92 @@ class MetricGraphQueryConfig(Resource):
 
     def perform_request(self, validated_request_data):
         pass
+
+
+class GetResourceDetail(Resource):
+    class RequestSerializer(serializers.Serializer):
+        # 公共参数
+        bcs_cluster_id: str = serializers.CharField(required=True)
+        bk_biz_id: int = serializers.IntegerField(required=True)
+        namespace: str = serializers.CharField(required=True)
+        resource_type: str = serializers.ChoiceField(
+            required=True, choices=["pod", "workload", "container"], label="资源类型"
+        )
+        # 私有参数
+        pod_name: str = serializers.CharField(required=False, allow_null=True)
+        container_name: str = serializers.CharField(required=False, allow_null=True)
+        workload_name: str = serializers.CharField(required=False, allow_null=True)
+        workload_type: str = serializers.CharField(required=False, allow_null=True)
+
+    def validate_request_data(self, request_data: Dict):
+        resource_type = request_data["resource_type"]
+        if resource_type == "pod":
+            fields = ["pod_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+
+        elif resource_type == "workload":
+            fields = ["workload_name", "workload_type"]
+            self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "container":
+            fields = ["pod_name", "container_name"]
+            self.validate_field_exist(resource_type, fields, request_data)
+
+        return super().validate_request_data(request_data)
+
+    @classmethod
+    def validate_field_exist(self, resource_type: str, fields: List[str], request_data: Dict) -> None:
+        for field in fields:
+            if not request_data.get(field):
+                raise serializers.ValidationError(
+                    f"{field} cannot be null or empty when resource_type is '{resource_type}'."
+                )
+
+    @classmethod
+    def link_to_string(cls, item: Dict):
+        """
+        当返回的资源详情中 type == "link" 时,
+
+        转化 type = "string", 且 value = value.value
+
+        """
+        if item.get("type") == "link":
+            item["type"] = "string"
+            item["value"] = item["value"]["value"]
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        bcs_cluster_id = validated_request_data["bcs_cluster_id"]
+        namespace = validated_request_data["namespace"]
+
+        resource_type = validated_request_data["resource_type"]
+        if resource_type == "pod":
+            items: List[Dict] = resource.scene_view.get_kubernetes_pod(
+                bk_biz_id=bk_biz_id,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                pod_name=validated_request_data["pod_name"],
+            )
+        elif resource_type == "workload":
+            items: List[Dict] = resource.scene_view.get_kubernetes_workload(
+                bk_biz_id=bk_biz_id,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                workload_name=validated_request_data["workload_name"],
+                workload_type=validated_request_data["workload_type"],
+            )
+        elif resource_type == "container":
+            items: List[Dict] = resource.scene_view.get_kubernetes_container(
+                bk_biz_id=bk_biz_id,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                pod_name=validated_request_data["pod_name"],
+                container_name=validated_request_data["container_name"],
+            )
+
+        for item in items:
+            self.link_to_string(item)
+
+        return items
 
 
 class ListK8SResources(Resource):
