@@ -323,7 +323,9 @@ class GrafanaQueryProfileResource(Resource):
 
         validate_data, essentials, extra_params = ProfileQueryViewSet.get_query_params(data)
         tree_converter = ProfileQueryViewSet.converter_query(essentials, validate_data, extra_params)
-        return ProfileQueryViewSet.converter_to_data(validate_data, tree_converter)
+        res = ProfileQueryViewSet.converter_to_data(validate_data, tree_converter)
+        # 返回符合 grafana flame graph 的格式(要求是一个数组)
+        return [res.get("frame_data", {})]
 
 
 class GrafanaQueryProfileLabelResource(Resource):

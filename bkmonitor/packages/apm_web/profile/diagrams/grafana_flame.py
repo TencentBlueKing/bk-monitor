@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -43,6 +44,12 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 
 @dataclass
 class GrafanaFlameDiagrammer:
+    default_unit = "int64"
+    grafana_unit_mapping = {
+        "nanoseconds": "ns",
+        "bytes": "bytes",
+    }
+
     def convert(
         self,
         node: FunctionNode,
@@ -72,14 +79,50 @@ class GrafanaFlameDiagrammer:
 
         return levels, labels, selfs, values
 
+    @classmethod
+    def convert_to_string_table(cls, labels):
+        """将列表转为 stringTable 格式"""
+        values = OrderedDict()
+        indices = []
+        for s in labels:
+            if s not in values:
+                values[s] = len(values)
+            indices.append(values[s])
+        return indices, list(values.keys())
+
     def draw(self, c: TreeConverter, **_) -> dict:
         levels, labels, selfs, values = self.convert(c.tree.root)
+        label_indices, label_enums = self.convert_to_string_table(labels)
+
+        unit = c.get_sample_type().get("unit")
+        unit = self.grafana_unit_mapping.get(unit, self.default_unit)
+
         return {
-            "flame_data": {
-                "levels": levels,
-                "labels": labels,
-                "selfs": selfs,
-                "values": values,
+            "frame_data": {
+                "schema": {
+                    "name": "response",
+                    "refId": "profile",
+                    "meta": {"typeVersion": [0, 0], "preferredVisualisationType": "flamegraph"},
+                    "fields": [
+                        {"name": "level", "type": "number", "typeInfo": {"frame": "int64"}},
+                        {"name": "value", "type": "number", "typeInfo": {"frame": "int64"}, "config": {"unit": unit}},
+                        {"name": "self", "type": "number", "typeInfo": {"frame": "int64"}, "config": {"unit": unit}},
+                        {
+                            "name": "label",
+                            "type": "enum",
+                            "typeInfo": {"frame": "enum"},
+                            "config": {"type": {"enum": {"text": label_enums}}},
+                        },
+                    ],
+                },
+                "data": {
+                    "values": [
+                        levels,
+                        values,
+                        selfs,
+                        label_indices,
+                    ]
+                },
             }
         }
 
