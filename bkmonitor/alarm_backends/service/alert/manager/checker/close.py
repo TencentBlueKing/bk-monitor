@@ -247,7 +247,9 @@ class CloseStatusChecker(BaseChecker):
         window_unit = Strategy.get_check_window_unit(latest_item, self.DEFAULT_CHECK_WINDOW_UNIT)
 
         # TODO：智能异常检测，目前只支持单指标
-        if query_configs[0].get("intelligent_detect", {}):
+        if query_configs[0].get("intelligent_detect", {}) and not query_configs[0]["intelligent_detect"].get(
+            "use_sdk", False
+        ):
             # 智能异常检测在计算平台会经过几层dataflow，会有一定的周期延时，所以这里需要再加上这个延时窗口
             trigger_window_size = trigger_window_size + settings.BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW
 

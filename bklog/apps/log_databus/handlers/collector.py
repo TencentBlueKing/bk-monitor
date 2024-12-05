@@ -765,7 +765,7 @@ class CollectorHandler(object):
             bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=instance.bk_data_id,
                 data_link_id=instance.data_link_id,
-                data_name=build_bk_data_name(instance.get_bk_biz_id(), instance.get_name()),
+                data_name=build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
             )
@@ -2449,7 +2449,7 @@ class CollectorHandler(object):
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(bkdata_biz_id, collector_config_name),
+                data_name=build_bk_data_name(bkdata_biz_id, collector_config_name_en),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -2819,7 +2819,7 @@ class CollectorHandler(object):
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name"]),
+                data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -3402,7 +3402,7 @@ class CollectorHandler(object):
         self.data.bk_data_id = collector_scenario.update_or_create_data_id(
             bk_data_id=self.data.bk_data_id,
             data_link_id=self.data.data_link_id,
-            data_name=build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name"]),
+            data_name=build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name_en"]),
             description=collector_config_params["description"]
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],

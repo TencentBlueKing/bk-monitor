@@ -236,11 +236,19 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value }) => ({
-          field,
-          operator,
-          value,
-        }));
+        .map(({ field, operator, value }) => {
+          const addition = {
+            field,
+            operator,
+            value,
+          };
+
+          if (['is true', 'is false'].includes(addition.operator)) {
+            addition.value = [''];
+          }
+
+          return addition;
+        });
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -295,6 +303,16 @@ const store = new Vuex.Store({
       state.favoriteList = [];
       state.favoriteList.push(...(payload ?? []));
     },
+    updateChartParams(state, params) {
+      Object.keys(params).forEach(key => {
+        if (Array.isArray(state.indexItem.chart_params[key])) {
+          state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
+        } else {
+          set(state.indexItem.chart_params, key, params[key]);
+          // state.indexItem.chart_params[key] = params[key];
+        }
+      });
+    },
     updateIndexItem(state, payload) {
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
@@ -332,6 +350,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
+      state.indexItem.chart_params = {};
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -941,15 +960,25 @@ const store = new Vuex.Store({
       if (ids.length) {
         delete result.unionList;
         delete result.clusterParams;
-
         const payload = {
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
+          chart_params: deepClone(IndexItem.chart_params),
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-
+        if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
+          if (payload.items[0].query_string) {
+            payload.keyword = payload.items[0].query_string;
+            payload.search_mode = 'sql';
+            payload.addition = [];
+          } else if (payload.items[0].addition) {
+            payload.addition = payload.items[0].addition;
+            payload.search_mode = 'ui';
+            payload.keyword = '';
+          }
+        }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
@@ -1070,13 +1099,13 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      const addition = otherPrams.addition.map(a => {
-        if (['is true', 'is false'].includes(a.operator)) {
-          a.value = [''];
-        }
+      // const addition = otherPrams.addition.map(a => {
+      //   if (['is true', 'is false'].includes(a.operator)) {
+      //     a.value = [''];
+      //   }
 
-        return a;
-      });
+      //   return a;
+      // });
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1084,7 +1113,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition,
+        // addition,
       };
 
       // 更新联合查询的begin
@@ -1308,7 +1337,7 @@ const store = new Vuex.Store({
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
       };
-      const getAdditionMappingOperator = ({ operator, field }) => {
+      const getAdditionMappingOperator = ({ operator, field, value }) => {
         let mappingKey = {
           // is is not 值映射
           is: '=',
@@ -1327,9 +1356,21 @@ const store = new Vuex.Store({
           'is not': 'not contains',
         };
 
+        const boolMapping = {
+          is: `is ${value[0]}`,
+          'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
+        };
+
         const textType = getFieldType(field);
         if (textType === 'text') {
           mappingKey = textMappingKey;
+        }
+
+        if (textType === 'boolean') {
+          mappingKey = boolMapping;
+          if (value.length) {
+            value.splice(0, value.length);
+          }
         }
 
         if (depth > 1 && textType === 'keyword') {
@@ -1396,7 +1437,7 @@ const store = new Vuex.Store({
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
-            const mapOperator = getAdditionMappingOperator({ field, operator });
+            const mapOperator = getAdditionMappingOperator({ field, operator, value });
             newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {

@@ -195,14 +195,36 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     }).catch(() => []);
     this.isLoading = false;
   }
+
+  /* 初始化维度信息 */
+  initDimensionData(needCondition = true) {
+    const additionalCondition = needCondition ? { condition: 'and' } : {};
+
+    this.conditionList = this.detail.dimensions
+      .filter(item => item.display_value) // 过滤掉没有display_value的项
+      .map(item => {
+        if (this.dimensionList.findIndex(dimension => dimension.id === item.display_key) === -1) {
+          this.dimensionList.push({ id: item.display_key, name: item.display_key });
+        }
+        return {
+          key: item.display_key,
+          value: [item.display_value],
+          method: 'eq',
+          ...additionalCondition,
+        };
+      });
+  }
+
   /* 点击添加按钮 */
   handleAdd() {
-    const hasMetric = this.experienceList.some(item => item.type === EType.METRIC);
-    this.curBind = hasMetric ? EType.DIMENSION : EType.METRIC;
+    // 检查是否有维度信息
+    const showDimension = this.detail?.dimensions?.filter(item => item.display_value).length;
+    this.curBind = showDimension ? EType.DIMENSION : EType.METRIC;
     this.curDescription = '';
-    if (hasMetric) {
+    if (showDimension) {
       this.errConditions = '';
       this.conditionList = [];
+      this.initDimensionData();
       this.curUpdateInfo = '';
       this.dimensionDataChange();
     } else {
@@ -222,6 +244,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         this.metricDataChange();
       } else if (v === EType.DIMENSION) {
         this.conditionList = [];
+        this.initDimensionData();
         this.curDescription = '';
         this.curUpdateInfo = '';
         this.dimensionDataChange();
@@ -415,7 +438,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
   /* 输入md文档 */
   handleInputContent(v: string) {
-    this.errMsg = !!v ? '' : this.$tc('注意: 必填字段不能为空');
+    this.errMsg = v ? '' : this.$tc('注意: 必填字段不能为空');
     this.curDescription = v;
   }
 

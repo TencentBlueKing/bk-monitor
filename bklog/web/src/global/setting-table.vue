@@ -4,8 +4,8 @@
     v-bkloading="{ isLoading: isExtracting }"
   >
     <div
-      class="field-header"
       v-if="tableType === 'indexLog'"
+      class="field-header"
     >
       <div
         class="field-add-btn"
@@ -13,21 +13,21 @@
       >
         {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
       </div>
-      <div style="display: flex; align-items: flex-end">
+      <div style="display: flex; align-items: center">
         <bk-checkbox
-          size="small"
-          theme="primary"
           class="visible-built-btn"
           v-model="builtFieldVisible"
+          size="small"
+          theme="primary"
         >
           {{ $t('显示内置字段') }}
         </bk-checkbox>
 
         <bk-input
-          class="field-header-search"
           style="width: 220px"
-          :placeholder="$t('请输入字段名/别名')"
+          class="field-header-search"
           v-model="keyword"
+          :placeholder="$t('请输入字段名/别名')"
           right-icon="bk-icon icon-search"
         >
         </bk-input>
@@ -43,10 +43,10 @@
           class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
-          row-key="field_index"
-          col-border
-          size="small"
           :max-height="isPreviewMode ? 300 : 320"
+          row-key="field_index"
+          size="small"
+          col-border
         >
           <template>
             <!-- <bk-table-column
@@ -62,31 +62,25 @@
             </bk-table-column> -->
             <!-- 字段名 -->
             <bk-table-column
-              :label="$t('字段名')"
-              :render-header="$renderHeader"
+              :render-header="renderHeaderFieldName"
               :resizable="false"
-              min-width="80"
-              align="left"
+              min-width="100"
             >
               <template #default="props">
-              
-                <bk-popover :content="$t('字段名不支持快速修改')">
                 <div
                   v-if="!props.row.is_edit"
-                  class="first-overflow-tips"
+                  class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_name }} </span>
-                
+                  <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
-              </bk-popover>
                 <bk-form-item
-                   v-if="props.row.is_edit"
+                  v-else
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
                   <bk-input
-                    v-model.trim="props.row.field_name"
                     class="participle-disabled-input"
+                    v-model.trim="props.row.field_name"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
@@ -106,11 +100,10 @@
               :render-header="renderHeaderAliasName"
               :resizable="false"
               min-width="100"
-              align="left"
             >
               <template #default="props">
                 <div
-                  v-if="isPreviewMode && !props.row.is_edit"
+                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog'"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -138,24 +131,21 @@
             </bk-table-column>
             <!-- 类型 -->
             <bk-table-column
-              :label="$t('数据类型')"
-              :render-header="$renderHeader"
+              :render-header="renderHeaderDataType"
               :resizable="false"
-              min-width="100"
               align="center"
+              min-width="100"
             >
               <template #default="props">
-                <bk-popover :content="$t('数据类型不支持快速修改')">
                 <div
                   v-if="!props.row.is_edit"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.field_type }}</span>
+                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
-              </bk-popover>
                 <bk-form-item
-                    v-if="props.row.is_edit"
+                  v-else
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
                   <bk-select
@@ -191,8 +181,8 @@
             <bk-table-column
               :render-header="renderHeaderParticipleName"
               :resizable="false"
-              min-width="200"
               align="left"
+              min-width="200"
             >
               <template #default="props">
                 <!-- 预览模式-->
@@ -200,8 +190,8 @@
                   v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
                 >
                   <div
-                    style="width: 85%; margin-left: 15px"
                     v-if="props.row.is_analyzed"
+                    style="width: 85%; margin-left: 15px"
                   >
                     <div>
                       {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -209,8 +199,8 @@
                     <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                   </div>
                   <div
-                    style="width: 85%; margin-left: 15px"
                     v-else
+                    style="width: 85%; margin-left: 15px"
                   >
                     {{ $t('不分词') }}
                   </div>
@@ -218,74 +208,76 @@
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
                     <bk-popconfirm
-                      trigger="click"
-                      :is-show="isShowParticiple"
                       class="participle-popconfirm"
+                      :is-show="isShowParticiple"
+                      trigger="click"
                       @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
-                      <div slot="content">
+                      <template #content>
                         <div>
-                          <bk-form
-                            class="participle-form"
-                            :label-width="95"
-                            :model="formData"
-                          >
-                            <bk-form-item
-                              :label="$t('分词')"
-                              :property="'source_name'"
+                          <div>
+                            <bk-form
+                              class="participle-form"
+                              :label-width="95"
+                              :model="formData"
                             >
-                              <bk-switcher
-                                v-model="currentIsAnalyzed"
-                                theme="primary"
-                                :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                @change="() => handelChangeAnalyzed()"
-                              ></bk-switcher>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('分词符')"
-                              :property="'participle'"
-                            >
-                              <div class="bk-button-group">
-                                <bk-button
-                                  v-for="option in participleList"
-                                  class="participle-btn"
-                                  :class="currentParticipleState === option.id ? 'is-selected' : ''"
-                                  :key="option.id"
-                                  :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
-                                  :disabled="getCustomizeDisabled(props.row)"
-                                  @click="handleChangeParticipleState(option.id, props.$index)"
-                                >
-                                  {{ option.name }}
-                                </bk-button>
-                              </div>
-                              <bk-input
-                                style="margin-top: 10px"
-                                v-if="currentParticipleState === 'custom'"
-                                v-model="currentTokenizeOnChars"
-                                :disabled="getCustomizeDisabled(props.row)"
+                              <bk-form-item
+                                :label="$t('分词')"
+                                :property="'source_name'"
                               >
-                              </bk-input>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('大小写敏感')"
-                              :property="'is_case_sensitive'"
-                            >
-                              <bk-switcher
-                                v-model="currentIsCaseSensitive"
-                                theme="primary"
-                                :disabled="getCustomizeDisabled(props.row)"
-                              ></bk-switcher>
-                            </bk-form-item>
-                          </bk-form>
+                                <bk-switcher
+                                  v-model="currentIsAnalyzed"
+                                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                                  theme="primary"
+                                  @change="() => handelChangeAnalyzed()"
+                                ></bk-switcher>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('分词符')"
+                                :property="'participle'"
+                              >
+                                <div class="bk-button-group">
+                                  <bk-button
+                                    v-for="option in participleList"
+                                    class="participle-btn"
+                                    :class="currentParticipleState === option.id ? 'is-selected' : ''"
+                                    :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
+                                    :disabled="getCustomizeDisabled(props.row)"
+                                    :key="option.id"
+                                    @click="handleChangeParticipleState(option.id, props.$index)"
+                                  >
+                                    {{ option.name }}
+                                  </bk-button>
+                                </div>
+                                <bk-input
+                                  v-if="currentParticipleState === 'custom'"
+                                  style="margin-top: 10px"
+                                  v-model="currentTokenizeOnChars"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                >
+                                </bk-input>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('大小写敏感')"
+                                :property="'is_case_sensitive'"
+                              >
+                                <bk-switcher
+                                  v-model="currentIsCaseSensitive"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                  theme="primary"
+                                ></bk-switcher>
+                              </bk-form-item>
+                            </bk-form>
+                          </div>
                         </div>
-                      </div>
+                      </template>
                       <div
                         class="participle-cell-wrap"
                         @click="handlePopover(props.row, props.$index)"
                       >
                         <div
-                          style="width: 85%"
                           v-if="props.row.is_analyzed"
+                          style="width: 85%"
                         >
                           <div>
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
@@ -293,8 +285,8 @@
                           <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                         </div>
                         <div
-                          style="width: 85%"
                           v-else
+                          style="width: 85%"
                         >
                           {{ $t('不分词') }}
                         </div>
@@ -305,8 +297,8 @@
                   <div v-else>
                     <bk-input
                       class="participle-disabled-input"
-                      disabled
                       :placeholder="$t('无需设置')"
+                      disabled
                     >
                     </bk-input>
                   </div>
@@ -329,7 +321,7 @@
   import { mapGetters } from 'vuex';
 
   export default {
-    name: 'settingTable',
+    name: 'SettingTable',
     props: {
       isEditJson: {
         type: Boolean,
@@ -552,9 +544,10 @@
         this.$emit('reset');
       },
       batchAddField() {
+        console.log(this.collectorConfigId, 'collectorConfigId');
         if (!this.collectorConfigId) return;
-        this.$router.push({
-          name: 'collectField',
+        const newURL = this.$router.resolve({
+          name: 'clean-edit',
           params: {
             collectorId: this.collectorConfigId,
           },
@@ -562,6 +555,7 @@
             spaceUid: this.$store.state.spaceUid,
           },
         });
+        window.open(newURL.href, '_blank');
       },
       // 当前字段类型是否禁用
       isTypeDisabled(row, option) {
@@ -636,7 +630,7 @@
         this.currentTokenizeOnChars = row.tokenize_on_chars;
         this.currentIsAnalyzed = row.is_analyzed;
       },
-      handleConfirmParticiple(row, $index) {
+      handleConfirmParticiple(row) {
         this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
         this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
@@ -649,7 +643,7 @@
           this.currentParticipleState = 'default';
         }
       },
-      handleChangeParticipleState(state, $index) {
+      handleChangeParticipleState(state) {
         this.currentParticipleState = state;
         this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
@@ -765,7 +759,6 @@
         if (isDelete) {
           return true;
         }
-
         if (aliasName) {
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
@@ -773,12 +766,12 @@
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
             return false;
           }
-          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
+          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
             // 别名不能与内置字段名相同
             row.aliasErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
           // 字段名与内置字段冲突，必须设置别名
           row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
           return false;
@@ -824,31 +817,53 @@
       handleKeepField(value) {
         this.$emit('handle-keep-field', value);
       },
-      renderHeaderAliasName(h) {
+      renderHeaderFieldName(h) {
         return h(
           'div',
           {
             class: 'render-header',
           },
+          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
+        );
+      },
+      renderHeaderAliasName(h) {
+        return h(
+          'div',
+          {
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+              },
+            ],
+            class: 'render-header decoration-header-cell',
+          },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
+            h(
+              'span',
+              {
+                class: 'title-overflow',
+              },
+              [this.$t('别名')],
+            ),
             h('span', this.$t('(选填)')),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
-                },
-              ],
-            }),
           ],
+        );
+      },
+      renderHeaderDataType(h) {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])],
         );
       },
       renderHeaderParticipleName(h) {
         return h(
           'span',
           {
+            class: 'render-header decoration-header-cell',
             directives: [
               {
                 name: 'bk-tooltips',
@@ -902,7 +917,7 @@
           !atLastAnalyzed ||
           this.isSetDisabled
         );
-      }
+      },
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
@@ -916,15 +931,13 @@
   /* stylelint-disable no-descending-specificity */
   .field-table-container {
     position: relative;
-    margin-bottom: 10px;
-    // margin-top: 10px;
+    margin-top: 10px;
 
     .field-header {
       display: flex;
       align-items: center;
-      align-items: flex-end;
       justify-content: space-between;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
 
       .field-add-btn {
         font-size: 12px;
@@ -937,7 +950,7 @@
       }
     }
 
-    .add-field-table {
+    .field-table.add-field-table {
       .bk-table-body {
         .cell {
           display: contents;
@@ -950,12 +963,8 @@
             top: 16px;
           }
 
-          .first-overflow-tips{
-            padding: 10px;
-          }
-
           .overflow-tips {
-            padding: 15px;
+            padding: 10px 15px;
           }
         }
       }
@@ -990,6 +999,15 @@
         }
       }
 
+      .is-center {
+        .bk-select {
+          .bk-select-name {
+            height: 50px;
+            padding: 7px 24px 0 24px;
+          }
+        }
+      }
+
       .participle-select-icon {
         font-size: 20px;
         font-weight: 500;
@@ -1000,8 +1018,8 @@
     .field-table {
       .bk-table-body {
         .cell {
-          padding-right: 5px;
-          padding-left: 5px;
+          padding-right: 15px;
+          padding-left: 15px;
         }
       }
 
@@ -1030,6 +1048,13 @@
           font-size: 14px;
           outline: none;
         }
+
+        &.decoration-header-cell {
+          color: inherit;
+          text-decoration: underline;
+          text-decoration-style: dashed;
+          text-underline-position: under;
+        }
       }
 
       .bk-table-empty-text {
@@ -1055,6 +1080,12 @@
           display: flex;
           align-items: center;
           margin-left: 10px;
+        }
+      }
+
+      &.bk-table-border th:first-child {
+        .cell {
+          padding: 0 15px;
         }
       }
     }

@@ -94,9 +94,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -223,9 +225,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -305,9 +309,11 @@
           "fields":"",
           "values":false
         },
-        "textMode":"auto"
+        "showPercentChange":false,
+        "textMode":"auto",
+        "wideLayout":true
       },
-      "pluginVersion":"9.1.0",
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -380,20 +386,32 @@
       "type":"stat"
     },
     {
-      "aliasColors":{
-
-      },
-      "breakPoint":"50%",
-      "combine":{
-        "label":"Others",
-        "threshold":0
-      },
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fontSize":"80%",
-      "format":"none",
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            }
+          },
+          "decimals":0,
+          "mappings":[
+
+          ],
+          "unit":"none"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":6,
         "w":6,
@@ -401,18 +419,32 @@
         "y":1
       },
       "id":13,
-      "legend":{
-        "show":true,
-        "values":true
-      },
-      "legendType":"Right side",
-      "links":[
+      "options":{
+        "legend":{
+          "calcs":[
 
-      ],
-      "nullPointMode":"connected",
-      "pieType":"pie",
+          ],
+          "displayMode":"table",
+          "placement":"right",
+          "showLegend":true,
+          "values":[
+            "value"
+          ]
+        },
+        "pieType":"pie",
+        "reduceOptions":{
+          "calcs":[
+            "lastNotNull"
+          ],
+          "fields":"",
+          "values":false
+        },
+        "tooltip":{
+          "mode":"single",
+          "sort":"none"
+        }
+      },
       "pluginVersion":"7.2.0",
-      "strokeWidth":1,
       "targets":[
         {
           "cluster":[
@@ -444,8 +476,7 @@
         }
       ],
       "title":"HTTP Method",
-      "type":"grafana-piechart-panel",
-      "valueName":"current"
+      "type":"piechart"
     },
     {
       "datasource":{
@@ -459,6 +490,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -472,6 +504,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -612,53 +645,92 @@
       "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
       "description":"",
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"short"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":8,
         "w":12,
         "x":12,
         "y":7
       },
-      "hiddenSeries":false,
       "id":2,
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -689,100 +761,95 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"HTTP 请求数",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:692",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:693",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
       "fieldConfig":{
         "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
           "unit":"s"
         },
         "overrides":[
 
         ]
       },
-      "fill":1,
-      "fillGradient":0,
       "gridPos":{
         "h":8,
         "w":12,
         "x":0,
         "y":15
       },
-      "hiddenSeries":false,
       "id":16,
-      "legend":{
-        "avg":false,
-        "current":false,
-        "hideEmpty":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -925,91 +992,95 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"HTTP 请求耗时",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:89",
-          "format":"s",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:90",
-          "format":"bytes",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
-      "fill":1,
-      "fillGradient":0,
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"short"
+        },
+        "overrides":[
+
+        ]
+      },
       "gridPos":{
         "h":8,
         "w":12,
         "x":12,
         "y":15
       },
-      "hiddenSeries":false,
       "id":6,
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -1078,43 +1149,8 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"独立访客数（UV）",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:777",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:778",
-          "format":"short",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
       "datasource":{
@@ -1127,6 +1163,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1140,6 +1177,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -1185,9 +1223,6 @@
         "y":23
       },
       "id":10,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -1285,6 +1320,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1298,6 +1334,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -1394,60 +1431,91 @@
       "type":"timeseries"
     },
     {
-      "aliasColors":{
-
-      },
-      "bars":false,
-      "dashLength":10,
-      "dashes":false,
       "datasource":{
         "type":"bkmonitor-timeseries-datasource",
         "uid":"${DS_蓝鲸监控_-_指标数据}"
       },
       "fieldConfig":{
         "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
           "unit":"Bps"
         },
         "overrides":[
 
         ]
       },
-      "fill":1,
-      "fillGradient":0,
       "gridPos":{
         "h":8,
         "w":12,
         "x":0,
         "y":32
       },
-      "hiddenSeries":false,
       "id":12,
-      "legend":{
-        "avg":false,
-        "current":false,
-        "max":false,
-        "min":false,
-        "show":true,
-        "total":false,
-        "values":false
-      },
-      "lines":true,
-      "linewidth":1,
-      "nullPointMode":"null",
       "options":{
-        "alertThreshold":true
-      },
-      "percentage":false,
-      "pluginVersion":"9.1.0",
-      "pointradius":2,
-      "points":false,
-      "renderer":"flot",
-      "seriesOverrides":[
+        "legend":{
+          "calcs":[
 
-      ],
-      "spaceLength":10,
-      "stack":false,
-      "steppedLine":false,
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"10.4.10",
       "targets":[
         {
           "cluster":[
@@ -1506,43 +1574,8 @@
           "type":"range"
         }
       ],
-      "thresholds":[
-
-      ],
-      "timeRegions":[
-
-      ],
       "title":"Traffic In-Out",
-      "tooltip":{
-        "shared":true,
-        "sort":0,
-        "value_type":"individual"
-      },
-      "type":"graph",
-      "xaxis":{
-        "mode":"time",
-        "show":true,
-        "values":[
-
-        ]
-      },
-      "yaxes":[
-        {
-          "$$hashKey":"object:607",
-          "format":"Bps",
-          "logBase":1,
-          "show":true
-        },
-        {
-          "$$hashKey":"object:608",
-          "format":"bytes",
-          "logBase":1,
-          "show":true
-        }
-      ],
-      "yaxis":{
-        "align":false
-      }
+      "type":"timeseries"
     },
     {
       "datasource":{
@@ -1555,6 +1588,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1568,6 +1602,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -1636,9 +1671,6 @@
         "y":32
       },
       "id":19,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -1699,6 +1731,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1712,6 +1745,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -1756,9 +1790,6 @@
         "y":40
       },
       "id":14,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -1848,6 +1879,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -1861,6 +1893,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -1905,9 +1938,6 @@
         "y":40
       },
       "id":65,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2011,6 +2041,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2024,6 +2055,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2080,9 +2112,6 @@
         "y":50
       },
       "id":43,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2170,6 +2199,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2183,6 +2213,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2228,9 +2259,6 @@
         "y":50
       },
       "id":45,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2364,6 +2392,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2377,6 +2406,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2433,9 +2463,6 @@
         "y":62
       },
       "id":49,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2578,6 +2605,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2591,6 +2619,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2647,9 +2676,6 @@
         "y":62
       },
       "id":51,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2792,6 +2818,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2805,6 +2832,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2850,9 +2878,6 @@
         "y":73
       },
       "id":53,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -2913,6 +2938,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -2926,6 +2952,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -2971,9 +2998,6 @@
         "y":73
       },
       "id":55,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -3034,6 +3058,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -3047,6 +3072,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -3092,9 +3118,6 @@
         "y":86
       },
       "id":57,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -3155,6 +3178,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -3168,6 +3192,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":2,
             "pointSize":5,
@@ -3213,9 +3238,6 @@
         "y":86
       },
       "id":59,
-      "links":[
-
-      ],
       "options":{
         "legend":{
           "calcs":[
@@ -3291,6 +3313,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -3304,6 +3327,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -3475,7 +3499,7 @@
           "type":"range"
         }
       ],
-      "title":"CPU limit 使用率",
+      "title":"CPU 使用率",
       "type":"timeseries"
     },
     {
@@ -3489,6 +3513,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -3502,203 +3527,7 @@
               "tooltip":false,
               "viz":false
             },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"never",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          },
-          "unit":"percent"
-        },
-        "overrides":[
-
-        ]
-      },
-      "gridPos":{
-        "h":13,
-        "w":8,
-        "x":8,
-        "y":100
-      },
-      "id":27,
-      "interval":"1m",
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"multi",
-          "sort":"none"
-        }
-      },
-      "pluginVersion":"9.1.0",
-      "targets":[
-        {
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "expressionList":[
-            {
-              "active":true,
-              "alias":"",
-              "expression":"(a / b) * 100",
-              "functions":[
-
-              ]
-            }
-          ],
-          "format":"time_series",
-          "hide":false,
-          "host":[
-
-          ],
-          "mode":"code",
-          "module":[
-
-          ],
-          "promqlAlias":"",
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
-              },
-              "functions":[
-                {
-                  "id":"rate",
-                  "params":[
-                    {
-                      "id":"window",
-                      "value":"2m"
-                    }
-                  ]
-                }
-              ],
-              "group_by":[
-                "pod_name"
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"SUM",
-              "metric_field":"container_cpu_usage_seconds_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"time",
-              "where":[
-                {
-                  "key":"namespace",
-                  "method":"eq",
-                  "value":[
-                    "$namespace"
-                  ]
-                }
-              ]
-            },
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-                "pod_name"
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"sum_without_time",
-              "metric_field":"kube_pod_container_resource_requests_cpu_cores",
-              "refId":"b",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"time",
-              "where":[
-                {
-                  "key":"namespace",
-                  "method":"eq",
-                  "value":[
-                    "$namespace"
-                  ]
-                }
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"(sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\"}[2m])) by (pod_name) / sum(kube_pod_container_resource_requests_cpu_cores{namespace=\"$namespace\"}) by (pod_name)) * 100",
-          "step":"",
-          "type":"range"
-        }
-      ],
-      "title":"CPU request 使用率",
-      "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":10,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -3742,7 +3571,7 @@
       "gridPos":{
         "h":13,
         "w":8,
-        "x":16,
+        "x":8,
         "y":100
       },
       "id":29,
@@ -3893,6 +3722,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -3906,6 +3736,150 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
+            "lineInterpolation":"linear",
+            "lineWidth":1,
+            "pointSize":5,
+            "scaleDistribution":{
+              "type":"linear"
+            },
+            "showPoints":"never",
+            "spanNulls":false,
+            "stacking":{
+              "group":"A",
+              "mode":"none"
+            },
+            "thresholdsStyle":{
+              "mode":"off"
+            }
+          },
+          "mappings":[
+
+          ],
+          "min":0,
+          "thresholds":{
+            "mode":"absolute",
+            "steps":[
+              {
+                "color":"green",
+                "value":null
+              },
+              {
+                "color":"red",
+                "value":80
+              }
+            ]
+          },
+          "unit":"decbytes"
+        },
+        "overrides":[
+
+        ]
+      },
+      "gridPos":{
+        "h":13,
+        "w":8,
+        "x":16,
+        "y":100
+      },
+      "id":35,
+      "interval":"1m",
+      "options":{
+        "legend":{
+          "calcs":[
+
+          ],
+          "displayMode":"list",
+          "placement":"bottom",
+          "showLegend":true
+        },
+        "tooltip":{
+          "mode":"multi",
+          "sort":"none"
+        }
+      },
+      "pluginVersion":"9.1.0",
+      "targets":[
+        {
+          "alias":"",
+          "cluster":[
+
+          ],
+          "datasource":{
+            "type":"bkmonitor-timeseries-datasource",
+            "uid":"${DS_蓝鲸监控_-_指标数据}"
+          },
+          "display":false,
+          "expression":"",
+          "hide":false,
+          "host":[
+
+          ],
+          "module":[
+
+          ],
+          "only_promql":true,
+          "query_configs":[
+            {
+              "alias":"",
+              "data_source_label":"bk_monitor",
+              "data_type_label":"time_series",
+              "display":true,
+              "filter_dict":{
+
+              },
+              "functions":[
+
+              ],
+              "group_by":[
+
+              ],
+              "interval":60,
+              "interval_unit":"s",
+              "method":"AVG",
+              "metric_field":"container_cpu_usage_seconds_total",
+              "refId":"a",
+              "result_table_id":"",
+              "result_table_label":"kubernetes",
+              "time_field":"",
+              "where":[
+
+              ]
+            }
+          ],
+          "refId":"A",
+          "source":"sum(rate(container_network_transmit_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
+        }
+      ],
+      "title":"网络发送",
+      "type":"timeseries"
+    },
+    {
+      "datasource":{
+        "type":"bkmonitor-timeseries-datasource",
+        "uid":"${DS_蓝鲸监控_-_指标数据}"
+      },
+      "fieldConfig":{
+        "defaults":{
+          "color":{
+            "mode":"palette-classic"
+          },
+          "custom":{
+            "axisBorderShow":false,
+            "axisCenteredZero":false,
+            "axisColorMode":"text",
+            "axisLabel":"",
+            "axisPlacement":"auto",
+            "barAlignment":0,
+            "drawStyle":"line",
+            "fillOpacity":10,
+            "gradientMode":"none",
+            "hideFrom":{
+              "legend":false,
+              "tooltip":false,
+              "viz":false
+            },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -4038,6 +4012,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -4051,6 +4026,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -4178,6 +4154,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -4191,6 +4168,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -4236,7 +4214,7 @@
         "x":16,
         "y":113
       },
-      "id":35,
+      "id":41,
       "interval":"1m",
       "options":{
         "legend":{
@@ -4302,10 +4280,10 @@
             }
           ],
           "refId":"A",
-          "source":"sum(rate(container_network_transmit_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
+          "source":"sum(rate(container_network_receive_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
         }
       ],
-      "title":"网络发送",
+      "title":"网络接收",
       "type":"timeseries"
     },
     {
@@ -4319,6 +4297,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -4332,6 +4311,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -4460,6 +4440,7 @@
             "mode":"palette-classic"
           },
           "custom":{
+            "axisBorderShow":false,
             "axisCenteredZero":false,
             "axisColorMode":"text",
             "axisLabel":"",
@@ -4473,6 +4454,7 @@
               "tooltip":false,
               "viz":false
             },
+            "insertNulls":false,
             "lineInterpolation":"linear",
             "lineWidth":1,
             "pointSize":5,
@@ -4589,152 +4571,10 @@
       ],
       "title":"磁盘写",
       "type":"timeseries"
-    },
-    {
-      "datasource":{
-        "type":"bkmonitor-timeseries-datasource",
-        "uid":"${DS_蓝鲸监控_-_指标数据}"
-      },
-      "fieldConfig":{
-        "defaults":{
-          "color":{
-            "mode":"palette-classic"
-          },
-          "custom":{
-            "axisCenteredZero":false,
-            "axisColorMode":"text",
-            "axisLabel":"",
-            "axisPlacement":"auto",
-            "barAlignment":0,
-            "drawStyle":"line",
-            "fillOpacity":10,
-            "gradientMode":"none",
-            "hideFrom":{
-              "legend":false,
-              "tooltip":false,
-              "viz":false
-            },
-            "lineInterpolation":"linear",
-            "lineWidth":1,
-            "pointSize":5,
-            "scaleDistribution":{
-              "type":"linear"
-            },
-            "showPoints":"never",
-            "spanNulls":false,
-            "stacking":{
-              "group":"A",
-              "mode":"none"
-            },
-            "thresholdsStyle":{
-              "mode":"off"
-            }
-          },
-          "mappings":[
-
-          ],
-          "min":0,
-          "thresholds":{
-            "mode":"absolute",
-            "steps":[
-              {
-                "color":"green",
-                "value":null
-              },
-              {
-                "color":"red",
-                "value":80
-              }
-            ]
-          },
-          "unit":"decbytes"
-        },
-        "overrides":[
-
-        ]
-      },
-      "gridPos":{
-        "h":9,
-        "w":8,
-        "x":16,
-        "y":124
-      },
-      "id":41,
-      "interval":"1m",
-      "options":{
-        "legend":{
-          "calcs":[
-
-          ],
-          "displayMode":"list",
-          "placement":"bottom",
-          "showLegend":true
-        },
-        "tooltip":{
-          "mode":"multi",
-          "sort":"none"
-        }
-      },
-      "pluginVersion":"9.1.0",
-      "targets":[
-        {
-          "alias":"",
-          "cluster":[
-
-          ],
-          "datasource":{
-            "type":"bkmonitor-timeseries-datasource",
-            "uid":"${DS_蓝鲸监控_-_指标数据}"
-          },
-          "display":false,
-          "expression":"",
-          "hide":false,
-          "host":[
-
-          ],
-          "module":[
-
-          ],
-          "only_promql":true,
-          "query_configs":[
-            {
-              "alias":"",
-              "data_source_label":"bk_monitor",
-              "data_type_label":"time_series",
-              "display":true,
-              "filter_dict":{
-
-              },
-              "functions":[
-
-              ],
-              "group_by":[
-
-              ],
-              "interval":60,
-              "interval_unit":"s",
-              "method":"AVG",
-              "metric_field":"container_cpu_usage_seconds_total",
-              "refId":"a",
-              "result_table_id":"",
-              "result_table_label":"kubernetes",
-              "time_field":"",
-              "where":[
-
-              ]
-            }
-          ],
-          "refId":"A",
-          "source":"sum(rate(container_network_receive_bytes_total{namespace=\"$namespace\"}[2m])) by (pod_name)\n"
-        }
-      ],
-      "title":"网络接收",
-      "type":"timeseries"
     }
   ],
   "refresh":"5s",
-  "schemaVersion":37,
-  "style":"dark",
+  "schemaVersion":39,
   "tags":[
 
   ],
@@ -4818,9 +4658,9 @@
         ],
         "query":"1m,2m,5m,10m",
         "queryValue":"",
+        "refresh":1,
         "skipUrlSync":false,
-        "type":"custom",
-        "refresh":1
+        "type":"custom"
       }
     ]
   },
@@ -4833,7 +4673,7 @@
   },
   "timezone":"default",
   "title":"bksaas/framework-go",
-  "version":50,
+  "version":52,
   "weekStart":"",
   "__inputs":[
     {

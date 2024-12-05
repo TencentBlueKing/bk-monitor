@@ -163,7 +163,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     return !this.showTitleIcon ? { top: '32px' } : {};
   }
   get showMetricAlarm() {
-    return !this.readonly && this.metrics?.length === 1;
+    const metrics = new Set(this.metrics?.map(item => item.metric_id) || []);
+    return !this.readonly && Array.from(metrics).length === 1;
   }
   get metricTitleData() {
     return this.metrics[0];

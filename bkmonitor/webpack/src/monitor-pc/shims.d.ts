@@ -118,6 +118,7 @@ declare global {
     bk_bcs_url: string;
     __BK_WEWEB_DATA__: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
+    rawWindow: Window;
     token?: string;
     enable_create_chat_group: boolean;
     __bk_zIndex_manager: {
@@ -136,6 +137,8 @@ declare global {
     bk_shared_res_url: string;
     footer_version: string;
     __AuthMap__: Map<string, Map<string, boolean>>;
+    csrf_token: string;
+    enable_ai_assistant?: boolean;
     graph_watermark?: boolean;
     // 以下为日志全局变量配置
     mainComponent: any;

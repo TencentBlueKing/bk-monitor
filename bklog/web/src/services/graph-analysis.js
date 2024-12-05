@@ -23,31 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+// 使用次数趋势
+const searchSQL = {
+  url: '/search/index_set/:index_set_id/chart/',
+  method: 'post',
+};
 
-import { DocLinkType } from '../typings';
-import { rstrip } from './utils';
+const generateSql = {
+  url: '/search/index_set/:index_set_id/generate_sql/',
+  method: 'post',
+};
 
-function linkJump(type: DocLinkType, path: string) {
-  const url = type === DocLinkType.Splice ? `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}` : path;
-  window.open(url, '_blank');
-}
-
-/**
- * @deprecated 已弃用(20240925)，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此方法，出于兼容性考虑保留此方法 --- 新方案详情路径：monitor-common/utils/docs.ts
- * @desc 文档跳转统一方案处理
- * @param { string } id
- * @param { Record<string, string> } localMap
- * @param { Record<string, IDocLinkData> } remoteMap
- */
-export function jumpToDocsLink(id, localMap, remoteMap) {
-  // 先匹配接口返回文档链接
-  if (remoteMap[id]) {
-    const { type, value } = remoteMap[id];
-    linkJump(type, value);
-  } else {
-    const path = localMap[id] || id;
-    if (path) {
-      linkJump(DocLinkType.Splice, path);
-    }
-  }
-}
+export { searchSQL, generateSql };

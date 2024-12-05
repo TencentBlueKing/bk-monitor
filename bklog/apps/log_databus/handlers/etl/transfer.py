@@ -73,7 +73,7 @@ class TransferEtlHandler(EtlHandler):
             etl_params["record_parse_failure"] = True
 
         if self.data.is_clustering:
-            clustering_handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
+            handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
             update_clustering_clean.delay(
                 collector_config_id=self.data.collector_config_id,
                 fields=fields,
@@ -81,7 +81,7 @@ class TransferEtlHandler(EtlHandler):
                 etl_params=etl_params,
             )
 
-            if clustering_handler.data.bkdata_data_id != self.data.bk_data_id:
+            if handler.data.bkdata_data_id and handler.data.bkdata_data_id != self.data.bk_data_id:
                 # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
                 etl_params["etl_flat"] = True
                 etl_params["separator_node_action"] = ""

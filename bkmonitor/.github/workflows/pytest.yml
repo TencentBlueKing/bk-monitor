@@ -13,8 +13,7 @@ jobs:
   build:
 
     # runs-on: ubuntu-18.04
-    runs-on:
-      group: cvm-liunx-x64
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:

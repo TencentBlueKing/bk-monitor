@@ -1,12 +1,13 @@
 <script setup>
   import { ref, computed } from 'vue';
 
+  import FieldSetting from '@/global/field-setting.vue';
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import FieldSetting from '@/global/field-setting.vue';
   import { isEqual } from 'lodash';
   import { useRoute } from 'vue-router/composables';
+
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
@@ -29,7 +30,7 @@
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
-    return  currentIndexSet && currentIndexSet.collector_config_id
+    return currentIndexSet?.collector_config_id;
   });
   const FieldSettingShow = ref(true);
   const handleIndexSetSelected = payload => {
@@ -67,12 +68,12 @@
   };
   // 监听单选还是多选,多选不展示字段配置
   const updateBtnSelect = payload => {
-    if(payload === 'single'){
-      FieldSettingShow.value = true
-    }else{
-      FieldSettingShow.value = false
+    if (payload === 'single') {
+      FieldSettingShow.value = true;
+    } else {
+      FieldSettingShow.value = false;
     }
-  }
+  };
 </script>
 <template>
   <div class="subbar-container">
@@ -83,8 +84,8 @@
       <SelectIndexSet
         style="min-width: 500px"
         :popover-options="{ offset: '-6,10' }"
-        @selected="handleIndexSetSelected"
         @change="updateBtnSelect"
+        @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>

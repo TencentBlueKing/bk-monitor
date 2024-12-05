@@ -53,6 +53,18 @@ class SceneSet(object):
     HOST = "host"
 
 
+class SDKDetectStatus(object):
+    # 就绪
+    READY = "ready"
+
+    # 准备历史依赖中
+    PREPARING = "preparing"
+
+
+DEPEND_DATA_MAX_FETCH_COUNT = 1000000
+DEPEND_DATA_MAX_FETCH_TIME_RANGE = 30  # 单位分钟
+DEPEND_DATA_MIN_FETCH_TIME_RANGE = 5  # 单位分钟
+
 SCENE_NAME_MAPPING = {SceneSet.HOST: _("主机场景")}
 
 SCENE_METRIC_MAP = {SceneSet.HOST: MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_METRIC_LIST}
