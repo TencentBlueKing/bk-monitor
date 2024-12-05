@@ -9,10 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from datetime import datetime
 
 import mock
 from django.test import TestCase
 from django.utils import timezone
+from humanize import naturaldelta
 
 from monitor_web.k8s.core.filters import (
     ContainerFilter,
@@ -33,7 +35,7 @@ from monitor_web.k8s.core.meta import (
     NameSpace,
     load_resource_meta,
 )
-from monitor_web.k8s.resources import ListK8SResources
+from monitor_web.k8s.resources import GetResourceDetail, ListK8SResources
 
 
 class TestFilter(TestCase):
@@ -49,7 +51,8 @@ class TestFilter(TestCase):
             'workload_kind="Deployment",workload_name="bk-monitor-web"',
         )
         self.assertEqual(
-            ContainerFilter("bk-monitor-web").filter_string(), 'container_name="bk-monitor-web",container_name!="POD"'
+            ContainerFilter("bk-monitor-web").filter_string(),
+            'container_name="bk-monitor-web",container_name!="POD"',
         )
 
     def test_filter_with_resource_ns(self):
@@ -66,7 +69,8 @@ class TestFilter(TestCase):
         fc.remove(WorkloadFilter("monitor-web", fuzzy=1))
         fc.add(WorkloadFilter("Deployment: bk-monitor-web"))
         self.assertEqual(
-            fc.filter_string(), 'namespace="blueking",workload_kind="Deployment",workload_name="bk-monitor-web"'
+            fc.filter_string(),
+            'namespace="blueking",workload_kind="Deployment",workload_name="bk-monitor-web"',
         )
 
     def test_filter_with_resource_pod(self):
@@ -75,7 +79,14 @@ class TestFilter(TestCase):
         fc.add(PodFilter("monitor-web", fuzzy=1)).add(NamespaceFilter("blueking"))
         self.assertEqual(fc.filter_string(), 'pod_name=~"(monitor-web)",namespace="blueking"')
         fc.remove(PodFilter("monitor-web")).add(NamespaceFilter("blueking"))
-        fc.add(PodFilter(["bk-monitor-web-5dc76bbfd7-8w9c6", "bk-monitor-web-query-api-5c6d68c5dc-jcn74"]))
+        fc.add(
+            PodFilter(
+                [
+                    "bk-monitor-web-5dc76bbfd7-8w9c6",
+                    "bk-monitor-web-query-api-5c6d68c5dc-jcn74",
+                ]
+            )
+        )
         self.assertEqual(
             fc.filter_string(),
             'namespace="blueking",'
@@ -95,8 +106,396 @@ class TestFilter(TestCase):
         )
 
 
+class TestGetResourcesDetail(TestCase):
+    databases = {"default", "monitor_api"}
+
+    def setUp(self):
+        BCSPod(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+            namespace="bkmonitor",
+            node_name="node-127-0-0-1",
+            node_ip="127.0.0.1",
+            workload_type="Deployment",
+            workload_name="pf-f991b578413c4ce48d7d92d53f2021f9",
+            total_container_count=1,
+            ready_container_count=0,
+            pod_ip="127.0.0.1",
+            images="",
+            restarts=0,
+            monitor_status="success",
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+            request_cpu_usage_ratio=96.5,
+            limit_cpu_usage_ratio=96.5,
+            request_memory_usage_ratio=54.98,
+            limit_memory_usage_ratio=54.98,
+            status="Running",
+        ).save()
+        BCSWorkload(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            type="Deployment",
+            name="pf-f991b578413c4ce48d7d92d53f2021f9",
+            namespace="bkmonitor",
+            images="",
+            pod_count=1,
+            container_count=1,
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+            monitor_status="success",
+            status="success",
+        ).save()
+        BCSContainer(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="monitor-main-container",
+            namespace="bkmonitor",
+            pod_name="pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+            workload_name="pf-f991b578413c4ce48d7d92d53f2021f9",
+            workload_type="Deployment",
+            node_name="node-127-0-0-1",
+            node_ip="127.0.0.1",
+            image="",
+            monitor_status="success",
+            status="running",
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+        ).save()
+
+    def test_link_to_string(self):
+        items = [
+            {"type": "link", "value": {"value": "baidu.com", "name": "baidu"}},
+            {"type": "string", "value": "qq.com"},
+        ]
+        for item in items:
+            GetResourceDetail.link_to_string(item)
+
+        self.assertEqual(
+            items,
+            [
+                {"type": "string", "value": "baidu.com"},
+                {"type": "string", "value": "qq.com"},
+            ],
+        )
+
+    def test_with_pod(self):
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "namespace": "bkmonitor",
+            "resource_type": "pod",
+            "pod_name": "pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+        }
+        age = naturaldelta(
+            datetime.utcnow().replace(tzinfo=timezone.utc) - datetime.utcnow().replace(tzinfo=timezone.utc)
+        )
+        result = GetResourceDetail()(validated_request_data)
+        except_data = [
+            {
+                "key": "name",
+                "name": "Pod名称",
+                "type": "string",
+                "value": "pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+            },
+            {"key": "status", "name": "运行状态", "type": "string", "value": "Running"},
+            {
+                "key": "ready",
+                "name": "是否就绪(实例运行数/期望数)",
+                "type": "string",
+                "value": "0/1",
+            },
+            {
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "string",
+                "value": "BCS-K8S-00000",
+            },
+            {
+                "key": "bk_cluster_name",
+                "name": "集群名称",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "namespace",
+                "name": "NameSpace",
+                "type": "string",
+                "value": "bkmonitor",
+            },
+            {
+                "key": "total_container_count",
+                "name": "容器数量",
+                "type": "string",
+                "value": 1,
+            },
+            {"key": "restarts", "name": "重启次数", "type": "number", "value": 0},
+            {
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"type": "success", "text": "正常"},
+            },
+            {"key": "age", "name": "存活时间", "type": "string", "value": age},
+            {
+                "key": "request_cpu_usage_ratio",
+                "name": "CPU使用率(request)",
+                "type": "progress",
+                "value": {"value": 96.5, "label": "96.5%", "status": "SUCCESS"},
+            },
+            {
+                "key": "limit_cpu_usage_ratio",
+                "name": "CPU使用率(limit)",
+                "type": "progress",
+                "value": {"value": 96.5, "label": "96.5%", "status": "SUCCESS"},
+            },
+            {
+                "key": "request_memory_usage_ratio",
+                "name": "内存使用率(request)",
+                "type": "progress",
+                "value": {"value": 54.98, "label": "54.98%", "status": "SUCCESS"},
+            },
+            {
+                "key": "limit_memory_usage_ratio",
+                "name": "内存使用率(limit) ",
+                "type": "progress",
+                "value": {"value": 54.98, "label": "54.98%", "status": "SUCCESS"},
+            },
+            {
+                "key": "resource_usage_cpu",
+                "name": "CPU使用量",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_usage_memory",
+                "name": "内存使用量",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_usage_disk",
+                "name": "磁盘使用量",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_requests_cpu",
+                "name": "cpu request",
+                "type": "string",
+                "value": "0",
+            },
+            {
+                "key": "resource_limits_cpu",
+                "name": "cpu limit",
+                "type": "string",
+                "value": "0",
+            },
+            {
+                "key": "resource_requests_memory",
+                "name": "memory request",
+                "type": "string",
+                "value": "0",
+            },
+            {
+                "key": "resource_limits_memory",
+                "name": "memory limit",
+                "type": "string",
+                "value": "0",
+            },
+            {"key": "pod_ip", "name": "Pod IP", "type": "string", "value": "127.0.0.1"},
+            {
+                "key": "node_ip",
+                "name": "节点IP",
+                "type": "string",
+                "value": "127.0.0.1",
+            },
+            {
+                "key": "node_name",
+                "name": "节点名称",
+                "type": "string",
+                "value": "node-127-0-0-1",
+            },
+            {
+                "key": "workload",
+                "name": "工作负载",
+                "type": "string",
+                "value": "Deployment:pf-f991b578413c4ce48d7d92d53f2021f9",
+            },
+            {"key": "label_list", "name": "标签", "type": "kv", "value": []},
+            {"key": "images", "name": "镜像", "type": "list", "value": [""]},
+        ]
+
+        self.assertEqual(result, except_data)
+
+    def test_with_workload(self):
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "namespace": "bkmonitor",
+            "resource_type": "workload",
+            "workload_name": "pf-f991b578413c4ce48d7d92d53f2021f9",
+            "workload_type": "Deployment",
+        }
+        age = naturaldelta(
+            datetime.utcnow().replace(tzinfo=timezone.utc) - datetime.utcnow().replace(tzinfo=timezone.utc)
+        )
+        result = GetResourceDetail()(validated_request_data)
+
+        except_data = [
+            {
+                "key": "name",
+                "name": "工作负载名称",
+                "type": "string",
+                "value": "pf-f991b578413c4ce48d7d92d53f2021f9",
+            },
+            {
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "string",
+                "value": "BCS-K8S-00000",
+            },
+            {
+                "key": "bk_cluster_name",
+                "name": "集群名称",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "namespace",
+                "name": "NameSpace",
+                "type": "string",
+                "value": "bkmonitor",
+            },
+            {"key": "status", "name": "运行状态", "type": "string", "value": "success"},
+            {
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"type": "success", "text": "正常"},
+            },
+            {"key": "type", "name": "类型", "type": "string", "value": "Deployment"},
+            {"key": "images", "name": "镜像", "type": "string", "value": ""},
+            {"key": "label_list", "name": "标签", "type": "kv", "value": []},
+            {
+                "key": "pod_count",
+                "name": "Pod数量",
+                "type": "string",
+                "value": 1,
+            },
+            {
+                "key": "container_count",
+                "name": "容器数量",
+                "type": "string",
+                "value": 1,
+            },
+            {"key": "resources", "name": "资源", "type": "kv", "value": []},
+            {"key": "age", "name": "存活时间", "type": "string", "value": age},
+        ]
+        self.assertEqual(result, except_data)
+
+    def test_with_container(self):
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "namespace": "bkmonitor",
+            "resource_type": "container",
+            "pod_name": "pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+            "container_name": "monitor-main-container",
+        }
+        age = naturaldelta(
+            datetime.utcnow().replace(tzinfo=timezone.utc) - datetime.utcnow().replace(tzinfo=timezone.utc)
+        )
+        result = GetResourceDetail()(validated_request_data)
+
+        except_data = [
+            {
+                "key": "name",
+                "name": "容器名称",
+                "type": "string",
+                "value": "monitor-main-container",
+            },
+            {
+                "key": "bcs_cluster_id",
+                "name": "集群ID",
+                "type": "string",
+                "value": "BCS-K8S-00000",
+            },
+            {
+                "key": "bk_cluster_name",
+                "name": "集群名称",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "namespace",
+                "name": "NameSpace",
+                "type": "string",
+                "value": "bkmonitor",
+            },
+            {"key": "status", "name": "运行状态", "type": "string", "value": "running"},
+            {
+                "key": "monitor_status",
+                "name": "采集状态",
+                "type": "status",
+                "value": {"type": "success", "text": "正常"},
+            },
+            {
+                "key": "pod_name",
+                "name": "Pod名称",
+                "type": "string",
+                "value": "pf-f991b578413c4ce48d7d92d53f2021f9-6c9757758b-4qmxp",
+            },
+            {
+                "key": "workload",
+                "name": "工作负载",
+                "type": "string",
+                "value": "Deployment:pf-f991b578413c4ce48d7d92d53f2021f9",
+            },
+            {
+                "key": "node_name",
+                "name": "节点名称",
+                "type": "string",
+                "value": "node-127-0-0-1",
+            },
+            {
+                "key": "node_ip",
+                "name": "节点IP",
+                "type": "string",
+                "value": "127.0.0.1",
+            },
+            {
+                "key": "image",
+                "name": "镜像",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_usage_cpu",
+                "name": "CPU使用量",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_usage_memory",
+                "name": "内存使用量",
+                "type": "string",
+                "value": "",
+            },
+            {
+                "key": "resource_usage_disk",
+                "name": "磁盘使用量",
+                "type": "string",
+                "value": "",
+            },
+            {"key": "age", "name": "存活时间", "type": "string", "value": age},
+        ]
+        self.assertEqual(result, except_data)
+
+
 class TestK8sListResources(TestCase):
-    databases = {'default', 'monitor_api'}
+    databases = {"default", "monitor_api"}
 
     def setUp(self):
         self.create_workloads()
@@ -251,64 +650,99 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             str(query_set.query),
             (
-                'SELECT `bkmonitor_bcsworkload`.`bk_biz_id`, '
-                '`bkmonitor_bcsworkload`.`bcs_cluster_id`, '
-                '`bkmonitor_bcsworkload`.`namespace` FROM `bkmonitor_bcsworkload` WHERE '
-                '(`bkmonitor_bcsworkload`.`bcs_cluster_id` = BCS-K8S-00000 AND '
-                '`bkmonitor_bcsworkload`.`bk_biz_id` = 2)'
+                "SELECT `bkmonitor_bcsworkload`.`bk_biz_id`, "
+                "`bkmonitor_bcsworkload`.`bcs_cluster_id`, "
+                "`bkmonitor_bcsworkload`.`namespace` FROM `bkmonitor_bcsworkload` WHERE "
+                "(`bkmonitor_bcsworkload`.`bcs_cluster_id` = BCS-K8S-00000 AND "
+                "`bkmonitor_bcsworkload`.`bk_biz_id` = 2)"
             ),
         )
         # 因为用的workload表查询namespace信息， 因此需要验证去重
         orm_resource = [
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking"}),
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "default"}),
+            NameSpace(
+                **{
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": "blueking",
+                }
+            ),
+            NameSpace(
+                **{
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": "default",
+                }
+            ),
         ]
         self.assertEqual(meta.get_from_meta(), orm_resource)
 
         # 验证promql 生成
         self.assertEqual(
             meta.meta_prom,
-            'sum by (bk_biz_id,bcs_cluster_id,namespace) '
+            "sum by (bk_biz_id,bcs_cluster_id,namespace) "
             '(kube_namespace_labels{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
         )
 
         # 验证基于promql 获取 namespace对象
         query_result = [
             {
-                'dimensions': {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': '2', 'namespace': 'apm-demo'},
-                'target': '{bcs_cluster_id=BCS-K8S-00000, bk_biz_id=2, namespace=apm-demo}',
-                'metric_field': '_result_',
-                'datapoints': [
+                "dimensions": {
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "bk_biz_id": "2",
+                    "namespace": "apm-demo",
+                },
+                "target": "{bcs_cluster_id=BCS-K8S-00000, bk_biz_id=2, namespace=apm-demo}",
+                "metric_field": "_result_",
+                "datapoints": [
                     [1, 1732243560000],
                 ],
-                'alias': '_result_',
-                'type': 'line',
-                'dimensions_translation': {},
-                'unit': '',
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
             },
             {
-                'dimensions': {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': '2', 'namespace': 'default'},
-                'target': '{bcs_cluster_id=BCS-K8S-00000, bk_biz_id=2, namespace=default}',
-                'metric_field': '_result_',
-                'datapoints': [
+                "dimensions": {
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "bk_biz_id": "2",
+                    "namespace": "default",
+                },
+                "target": "{bcs_cluster_id=BCS-K8S-00000, bk_biz_id=2, namespace=default}",
+                "metric_field": "_result_",
+                "datapoints": [
                     [1, 1732243560000],
                 ],
-                'alias': '_result_',
-                'type': 'line',
-                'dimensions_translation': {},
-                'unit': '',
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
             },
         ]
 
         # apm-demo 为promql查询结果特有的 namespace
         promql_resource = [
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "apm-demo"}),
-            NameSpace(**{"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "default"}),
+            NameSpace(
+                **{
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": "apm-demo",
+                }
+            ),
+            NameSpace(
+                **{
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": "BCS-K8S-00000",
+                    "namespace": "default",
+                }
+            ),
         ]
         with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             self.assertEqual(
-                meta.get_from_promql(validated_request_data["start_time"], validated_request_data["end_time"]),
+                meta.get_from_promql(
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                ),
                 promql_resource,
             )
 
@@ -317,7 +751,10 @@ class TestK8sListResources(TestCase):
 
             # 带上历史数据, 去重 default
             validated_request_data["with_history"] = True
-            self.assertEqual(ListK8SResources()(validated_request_data), orm_resource + promql_resource[:1])
+            self.assertEqual(
+                ListK8SResources()(validated_request_data),
+                orm_resource + promql_resource[:1],
+            )
 
             # 资源名过滤
             validated_request_data["with_history"] = False
@@ -327,25 +764,27 @@ class TestK8sListResources(TestCase):
             meta = load_resource_meta(validated_request_data["resource_type"], 2, "BCS-K8S-00000")
             meta.filter.add(
                 load_resource_filter(
-                    validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                    validated_request_data["resource_type"],
+                    validated_request_data["query_string"],
+                    fuzzy=True,
                 )
             )
             self.assertEqual(
                 str(meta.filter.filter_queryset.query),
                 (
-                    'SELECT `bkmonitor_bcsworkload`.`bk_biz_id`, '
-                    '`bkmonitor_bcsworkload`.`bcs_cluster_id`, '
-                    '`bkmonitor_bcsworkload`.`namespace` FROM `bkmonitor_bcsworkload` WHERE '
-                    '(`bkmonitor_bcsworkload`.`bcs_cluster_id` = BCS-K8S-00000 AND '
-                    '`bkmonitor_bcsworkload`.`bk_biz_id` = 2 AND '
-                    '`bkmonitor_bcsworkload`.`namespace` LIKE %blue%)'
+                    "SELECT `bkmonitor_bcsworkload`.`bk_biz_id`, "
+                    "`bkmonitor_bcsworkload`.`bcs_cluster_id`, "
+                    "`bkmonitor_bcsworkload`.`namespace` FROM `bkmonitor_bcsworkload` WHERE "
+                    "(`bkmonitor_bcsworkload`.`bcs_cluster_id` = BCS-K8S-00000 AND "
+                    "`bkmonitor_bcsworkload`.`bk_biz_id` = 2 AND "
+                    "`bkmonitor_bcsworkload`.`namespace` LIKE %blue%)"
                 ),
             )
             # 验证 带 query_string 条件的 promql
             self.assertEqual(
                 meta.meta_prom,
                 (
-                    'sum by (bk_biz_id,bcs_cluster_id,namespace) '
+                    "sum by (bk_biz_id,bcs_cluster_id,namespace) "
                     '(kube_namespace_labels{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",namespace=~"(blue)"})'
                 ),
             )
@@ -375,17 +814,17 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             str(query_set.query),
             (
-                'SELECT `bkmonitor_bcsworkload`.`id`, `bkmonitor_bcsworkload`.`bk_biz_id`, '
-                '`bkmonitor_bcsworkload`.`bcs_cluster_id`, `bkmonitor_bcsworkload`.`type`, '
-                '`bkmonitor_bcsworkload`.`name`, `bkmonitor_bcsworkload`.`namespace` FROM '
-                '`bkmonitor_bcsworkload` WHERE (`bkmonitor_bcsworkload`.`bcs_cluster_id` = '
-                'BCS-K8S-00000 AND `bkmonitor_bcsworkload`.`bk_biz_id` = 2)'
+                "SELECT `bkmonitor_bcsworkload`.`id`, `bkmonitor_bcsworkload`.`bk_biz_id`, "
+                "`bkmonitor_bcsworkload`.`bcs_cluster_id`, `bkmonitor_bcsworkload`.`type`, "
+                "`bkmonitor_bcsworkload`.`name`, `bkmonitor_bcsworkload`.`namespace` FROM "
+                "`bkmonitor_bcsworkload` WHERE (`bkmonitor_bcsworkload`.`bcs_cluster_id` = "
+                "BCS-K8S-00000 AND `bkmonitor_bcsworkload`.`bk_biz_id` = 2)"
             ),
         )
         # 验证promql
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace) '
+            "sum by (workload_kind, workload_name, namespace) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
         )
         orm_resource = (
@@ -401,12 +840,14 @@ class TestK8sListResources(TestCase):
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
         meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace) '
+            "sum by (workload_kind, workload_name, namespace) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
             'bk_biz_id="2",namespace="blueking",workload_name=~"monitor"})',
         )
@@ -455,7 +896,13 @@ class TestK8sListResources(TestCase):
                 (
                     [obj.to_meta_dict() for obj in orm_resource]
                     # 充当历史数据，
-                    + [BCSWorkload(namespace="blueking", type="Deployment", name="bk-monitor-web-beat").to_meta_dict()]
+                    + [
+                        BCSWorkload(
+                            namespace="blueking",
+                            type="Deployment",
+                            name="bk-monitor-web-beat",
+                        ).to_meta_dict()
+                    ]
                 ),
             )
 
@@ -482,22 +929,22 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             str(query_set.query),
             (
-                'SELECT `bkmonitor_bcspod`.`id`, '
-                '`bkmonitor_bcspod`.`bk_biz_id`, '
-                '`bkmonitor_bcspod`.`bcs_cluster_id`, '
-                '`bkmonitor_bcspod`.`name`, '
-                '`bkmonitor_bcspod`.`namespace`, '
-                '`bkmonitor_bcspod`.`workload_type`, '
-                '`bkmonitor_bcspod`.`workload_name` '
-                'FROM `bkmonitor_bcspod` WHERE '
-                '(`bkmonitor_bcspod`.`bcs_cluster_id` = BCS-K8S-00000 AND '
-                '`bkmonitor_bcspod`.`bk_biz_id` = 2)'
+                "SELECT `bkmonitor_bcspod`.`id`, "
+                "`bkmonitor_bcspod`.`bk_biz_id`, "
+                "`bkmonitor_bcspod`.`bcs_cluster_id`, "
+                "`bkmonitor_bcspod`.`name`, "
+                "`bkmonitor_bcspod`.`namespace`, "
+                "`bkmonitor_bcspod`.`workload_type`, "
+                "`bkmonitor_bcspod`.`workload_name` "
+                "FROM `bkmonitor_bcspod` WHERE "
+                "(`bkmonitor_bcspod`.`bcs_cluster_id` = BCS-K8S-00000 AND "
+                "`bkmonitor_bcspod`.`bk_biz_id` = 2)"
             ),
         )
         # 验证 promql
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace, pod_name) '
+            "sum by (workload_kind, workload_name, namespace, pod_name) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
         )
 
@@ -514,12 +961,14 @@ class TestK8sListResources(TestCase):
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
         meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace, pod_name) '
+            "sum by (workload_kind, workload_name, namespace, pod_name) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
             'bk_biz_id="2",namespace="blueking",pod_name=~"(monitor)"})',
         )
@@ -578,7 +1027,10 @@ class TestK8sListResources(TestCase):
             # 近一小时
             "start_time": 1732240257,
             "end_time": 1732243857,
-            "filter_dict": {"namespace": "blueking", "workload": "bk-monitor-web"},  # 查询是否有相同命名空间的数据
+            "filter_dict": {
+                "namespace": "blueking",
+                "workload": "bk-monitor-web",
+            },  # 查询是否有相同命名空间的数据
             "scenario": "performance",
             "with_history": False,
         }
@@ -591,22 +1043,22 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             str(query_set.query),
             (
-                'SELECT `bkmonitor_bcscontainer`.`id`, '
-                '`bkmonitor_bcscontainer`.`bk_biz_id`, '
-                '`bkmonitor_bcscontainer`.`bcs_cluster_id`, '
-                '`bkmonitor_bcscontainer`.`name`, '
-                '`bkmonitor_bcscontainer`.`namespace`, '
-                '`bkmonitor_bcscontainer`.`pod_name`, '
-                '`bkmonitor_bcscontainer`.`workload_type`, '
-                '`bkmonitor_bcscontainer`.`workload_name` FROM `bkmonitor_bcscontainer` WHERE '
-                '(`bkmonitor_bcscontainer`.`bcs_cluster_id` = BCS-K8S-00000 AND '
-                '`bkmonitor_bcscontainer`.`bk_biz_id` = 2)'
+                "SELECT `bkmonitor_bcscontainer`.`id`, "
+                "`bkmonitor_bcscontainer`.`bk_biz_id`, "
+                "`bkmonitor_bcscontainer`.`bcs_cluster_id`, "
+                "`bkmonitor_bcscontainer`.`name`, "
+                "`bkmonitor_bcscontainer`.`namespace`, "
+                "`bkmonitor_bcscontainer`.`pod_name`, "
+                "`bkmonitor_bcscontainer`.`workload_type`, "
+                "`bkmonitor_bcscontainer`.`workload_name` FROM `bkmonitor_bcscontainer` WHERE "
+                "(`bkmonitor_bcscontainer`.`bcs_cluster_id` = BCS-K8S-00000 AND "
+                "`bkmonitor_bcscontainer`.`bk_biz_id` = 2)"
             ),
         )
         # 验证 promql
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+            "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
         )
 
@@ -624,12 +1076,14 @@ class TestK8sListResources(TestCase):
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
         meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         self.assertEqual(
             meta.meta_prom,
-            'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+            "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
             '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
             'bk_biz_id="2",namespace="blueking",workload_name="bk-monitor-web",'
             'container_name=~"(monitor)",container_name!="POD"})',
