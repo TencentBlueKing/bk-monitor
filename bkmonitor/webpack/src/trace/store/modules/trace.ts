@@ -294,7 +294,7 @@ export const useTraceStore = defineStore('trace', () => {
 
   // TODO：这里是东凑西凑出来的数据，代码并不严谨，后期需要调整。
   function setSpanDetailData(v: ISpanDetail) {
-    traceData.value.original_data.length = 0;
+    traceData.value.original_data = [];
     traceData.value.original_data.push(v.origin_data);
     traceData.value.appName = v?.trace_tree?.spans?.[0]?.app_name;
   }

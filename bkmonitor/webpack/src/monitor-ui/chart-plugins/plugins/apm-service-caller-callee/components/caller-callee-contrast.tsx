@@ -27,7 +27,7 @@
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EParamsMode, type IListItem, type IServiceConfig } from '../type';
+import { EParamsMode, type IListItem, type IServiceConfig, type IDataItem } from '../type';
 import ContrastView from './common-comp/contrast-view';
 import GroupByView from './common-comp/group-by-view';
 
@@ -42,6 +42,7 @@ interface ICallerCalleeContrastProps {
   limit?: number;
   metricCalType?: string;
   paramsMode?: EParamsMode;
+  timeStrShow?: IDataItem;
 }
 interface ICallerCalleeContrastEvent {
   onContrastDatesChange?: (val: string[]) => void;
@@ -66,6 +67,7 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
   @Prop({ type: Number, default: 0 }) limit: number;
   @Prop({ type: String, default: '' }) metricCalType: string;
   @Prop({ type: String, default: EParamsMode.contrast }) paramsMode: EParamsMode;
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
   active = EParamsMode.contrast;
   config = [
     {
@@ -133,6 +135,7 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
         <div class='contrast-right'>
           {this.active === 'contrast' ? (
             <ContrastView
+              timeStrShow={this.timeStrShow}
               value={this.contrastDates}
               onChange={this.handleContrastDatesChange}
             />

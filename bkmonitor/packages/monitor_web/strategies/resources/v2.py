@@ -3038,7 +3038,7 @@ class PromqlToQueryConfig(Resource):
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
+            if len(table_id.split(".")) == 1 and query["data_source"] != "bkdata":
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -3046,7 +3046,7 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
-            elif query["data_source"] == DataSourceLabel.BKDATA:
+            elif query["data_source"] == "bkdata":
                 data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
@@ -3302,13 +3302,16 @@ class GetIntelligentDetectAccessStatusResource(Resource):
         intelligent_detect_config = None
 
         for query_config in chain(*[item.query_configs for item in strategy_obj.items]):
-            if (
-                query_config.data_source_label not in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA]
-                or query_config.data_type_label != DataTypeLabel.TIME_SERIES
-            ):
+            if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
 
             intelligent_detect_config = getattr(query_config, "intelligent_detect", None)
+
+        # 使用SDK检测的策略状态默认是运行中
+        if intelligent_detect_config.get("use_sdk", False):
+            result["status"] = AccessStatus.RUNNING
+            result["status_detail"] = None
+            return result
 
         algorithm_name = None
         for algorithm in chain(*[item.algorithms for item in strategy_obj.items]):

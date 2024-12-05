@@ -943,6 +943,7 @@ ESQUERY_WHITE_LIST = [
     "data",
     "dataweb",
     "bk_bcs",
+    "bk_bcs_app",
     "bk-dbm",
     "bk_dbm",
     "bk-audit",

@@ -70,6 +70,7 @@ export const SPAN_STATUS_CODE = {
 
 export const SOURCE_CATEGORY_EBPF = 'source_category_ebpf';
 export const VIRTUAL_SPAN = 'virtual_span';
+export const QUERY_TRACE_RELATION_APP = 'query_trace_relation_app';
 export const TRACE_INFO_TOOL_FILTERS = [
   { id: 'duration', label: window.i18n.t('耗时'), show: true, effect: ['timeline', 'topo'] },
   // { id: 'async', label: window.i18n.t('异步调用'), effect: ['timeline', 'topo'] },
@@ -88,6 +89,7 @@ export const TRACE_INFO_TOOL_FILTERS = [
     effect: ['timeline', 'topo', 'sequence', 'flame'],
     desc: window.i18n.t('通过Span信息推断出DB、中间件、第三方等服务'),
   },
+  { id: QUERY_TRACE_RELATION_APP, label: window.i18n.t('跨应用追踪'), show: true, effect: ['timeline'] },
   { id: 'endpoint', label: window.i18n.t('接口'), show: true, effect: ['statistics'] },
   { id: 'service', label: window.i18n.t('服务'), show: true, effect: ['statistics'] },
   { id: 'source', label: window.i18n.t('数据来源'), show: true, effect: ['statistics'] },

@@ -76,6 +76,10 @@ export const addCustomMetric = request('POST', 'rest/v2/grafana/add_custom_metri
 export const queryAlarmEventGraph = request('POST', 'rest/v2/grafana/query_alarm_event_graph/');
 export const getAlarmEventField = request('GET', 'rest/v2/grafana/get_alarm_event_field/');
 export const getAlarmEventDimensionValue = request('GET', 'rest/v2/grafana/get_alarm_event_dimension_value/');
+export const listApplicationInfo = request('POST', 'rest/v2/grafana/apm/list_application_info/');
+export const getFieldOptionValues = request('POST', 'rest/v2/grafana/apm/get_field_option_values/');
+export const listTrace = request('POST', 'rest/v2/grafana/apm/list_trace/');
+export const traceDetail = request('POST', 'rest/v2/grafana/apm/trace_detail/');
 
 export default {
   test,
@@ -126,4 +130,8 @@ export default {
   queryAlarmEventGraph,
   getAlarmEventField,
   getAlarmEventDimensionValue,
+  listApplicationInfo,
+  getFieldOptionValues,
+  listTrace,
+  traceDetail,
 };

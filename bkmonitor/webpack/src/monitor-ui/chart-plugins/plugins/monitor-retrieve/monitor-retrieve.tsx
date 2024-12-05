@@ -40,8 +40,8 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/main03b9907.css';
 import './monitor-retrieve.scss';
+import '@blueking/monitor-retrieve/css/main0214526.css';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 @Component

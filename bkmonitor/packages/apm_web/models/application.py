@@ -658,7 +658,10 @@ class Application(AbstractRecordModel):
         """
         获取过滤应用未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
         """
-        return Q(trace_result_table_id__isnull=False, metric_result_table_id__isnull=False)
+        return Q(
+            trace_result_table_id__isnull=False,
+            metric_result_table_id__isnull=False,
+        ) & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
 
     @staticmethod
     @task()
@@ -906,7 +909,7 @@ class ApmMetaConfig(models.Model):
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=528)
+    level_key = models.CharField("配置目标key", max_length=512)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 

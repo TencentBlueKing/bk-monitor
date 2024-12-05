@@ -36,6 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
+import { formatDateRange } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
@@ -55,6 +56,7 @@ interface IMultiViewTableProps {
   totalList?: IDataItem[];
   activeTabKey?: string;
   resizeStatus?: boolean;
+  timeStrShow?: IDataItem;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -78,6 +80,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
 
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
@@ -85,6 +88,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @ProvideReactive('curDimensionKey') curDimensionKey: string;
   @InjectReactive('viewOptions') viewOptions;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -783,9 +787,18 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   renderHeader(h, { column }: any, item: any) {
+    const { pointTime } = this.dimensionParam;
+    let tips = this.timeStrShow[item.prop.slice(-2)];
+    if (pointTime?.startTime) {
+      tips = formatDateRange(pointTime?.startTime * 1000, pointTime?.endTime * 1000);
+    }
     const showKeys = ['growth_rates', 'proportions', 'p50_duration', 'p95_duration', 'p99_duration'];
+    const tipsKey = ['1d', '1w'];
     const hasPrefix = (fieldName: string) => {
       return showKeys.some(pre => fieldName.startsWith(pre));
+    };
+    const hasTips = (fieldName: string) => {
+      return tipsKey.some(pre => fieldName.endsWith(pre));
     };
     return (
       <span class='custom-header-main'>
@@ -793,7 +806,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           class={[{ 'item-txt': !hasPrefix(item.prop) }, { 'item-txt-no': hasPrefix(item.prop) }]}
           v-bk-overflow-tips
         >
-          {item.label}
+          <span
+            class={{ 'custom-header-tips': !hasPrefix(item.prop) && hasTips(item.prop) }}
+            v-bk-tooltips={!hasPrefix(item.prop) && hasTips(item.prop) ? { content: tips } : {}}
+          >
+            {item.label}
+          </span>
         </span>
         {!hasPrefix(item.prop) && (
           <i
@@ -809,10 +827,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   // 渲染tab表格的列
   handleMultiTabColumn() {
+    const { pointTime } = this.dimensionParam;
     const curColumn = this.panels.find(item => item.id === this.active);
     return (curColumn.columns || []).map(item => (
       <bk-table-column
-        key={item.prop}
+        key={`${item.prop}_${pointTime?.startTime}`}
         scopedSlots={{
           default: ({ row }) => {
             const txt = this.formatTableValShow(row[item.prop], item.prop);
