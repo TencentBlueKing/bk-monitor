@@ -190,7 +190,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
 
   get canSetTarget() {
-    return new Set(this.metricData.map(item => item.data_target).filter(dataTarget => dataTarget)).size <= 1;
+    const set = new Set();
+    for (const { data_target: dataTarget } of this.metricData) {
+      if (dataTarget && !set.has(dataTarget)) {
+        set.add(dataTarget);
+      }
+      if (set.size > 1) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Watch('metricObjectType')
