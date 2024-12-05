@@ -147,7 +147,6 @@ export default class CollectIndex extends tsc<IProps> {
     interactive: true,
     theme: 'light',
   };
-  favoriteList = [];
   groupList: IGroupItem[] = []; // 分组列表
   collectList: IGroupItem[] = []; // 收藏列表
   filterCollectList: IGroupItem[] = []; // 搜索的收藏列表
@@ -166,6 +165,19 @@ export default class CollectIndex extends tsc<IProps> {
 
   get activeFavoriteID() {
     return this.activeFavorite?.id || -1;
+  }
+
+  get favoriteList() {
+    const data = this.$store.state.favoriteList;
+    if (!data.length) {
+      return [];
+    }
+
+    const provideFavorite = data[0];
+    const publicFavorite = data[data.length - 1];
+    const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
+    const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
+    return sortAfterList;
   }
 
   get allFavoriteNumber() {
@@ -193,6 +205,7 @@ export default class CollectIndex extends tsc<IProps> {
     } else {
       this.collectList = [];
       this.filterCollectList = [];
+      this.activeFavorite = null;
       this.groupList = [];
       this.searchVal = '';
     }
@@ -212,26 +225,26 @@ export default class CollectIndex extends tsc<IProps> {
   watchFavoriteData(value) {
     this.handleInitFavoriteList(value);
   }
-
+  @Watch('activeFavorite', { deep: true })
+  changeActiveFavorite(val) {
+    this.updateActiveFavorite(val);
+  }
   @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
     return value;
   }
-
+  @Emit('update-active-favorite')
+  updateActiveFavorite(value) {
+    return value;
+  }
   /** 获取收藏列表 */
   async getFavoriteList() {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
     try {
       this.favoriteLoading = true;
-      const { data } = await this.$store.dispatch('requestFavoriteList');
-      const provideFavorite = data[0];
-      const publicFavorite = data[data.length - 1];
-      const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
-      const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-      this.favoriteList = sortAfterList;
+      await this.$store.dispatch('requestFavoriteList');
     } catch (err) {
       this.favoriteLoading = false;
-      this.favoriteList = [];
     } finally {
       // 获取收藏列表后 若当前不是新检索 则判断当前收藏是否已删除 若删除则变为新检索
       if (this.activeFavoriteID !== -1) {
@@ -251,6 +264,7 @@ export default class CollectIndex extends tsc<IProps> {
 
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
+    console.log('handleClickFavoriteItem', value);
     if (!value) {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
@@ -259,7 +273,7 @@ export default class CollectIndex extends tsc<IProps> {
       return;
     }
     const cloneValue = deepClone(value);
-    this.activeFavorite = cloneValue;
+    this.activeFavorite = deepClone(value);
     this.$store.commit('resetIndexsetItemParams');
     this.$store.commit('updateIndexId', cloneValue.index_set_id);
     this.$store.commit('updateIsSetDefaultTableColumn', false);
@@ -282,6 +296,7 @@ export default class CollectIndex extends tsc<IProps> {
       });
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
@@ -292,6 +307,8 @@ export default class CollectIndex extends tsc<IProps> {
       isUnionIndex,
       search_mode: cloneValue.search_mode,
     });
+
+    this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');

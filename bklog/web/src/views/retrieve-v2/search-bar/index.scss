@@ -1,4 +1,5 @@
 .search-bar-container {
+  position: relative;
   display: flex;
   box-shadow: 0 2px 4px 0 #1919290d;
 
@@ -12,14 +13,14 @@
     padding-left: 4px;
     cursor: pointer;
     background: #ffffff;
-    border-right: solid 1px #DCDEE5;
+    border-right: solid 1px #dcdee5;
 
     .mode-text {
       display: inline-flex;
       width: 48px;
       margin-right: 6px;
       font-size: 12px;
-      color: #63656E;
+      color: #63656e;
     }
 
     .bklog-icon {
@@ -31,7 +32,7 @@
       height: 16px;
       font-size: 8px;
       color: #fff;
-      background: #A3C5FD;
+      background: #a3c5fd;
       border-radius: 50%;
     }
   }
@@ -53,7 +54,7 @@
         bottom: 0;
         left: 0;
         cursor: not-allowed;
-        content: "";
+        content: '';
         background-color: transparent;
       }
     }
@@ -80,7 +81,6 @@
         width: 80px;
         padding-right: 4px;
 
-
         > div {
           display: flex;
           align-items: center;
@@ -93,7 +93,7 @@
           border-radius: 2px;
 
           &:hover {
-            background: #E1ECFF;
+            background: #e1ecff;
           }
 
           .bklog-star-line {
@@ -133,7 +133,7 @@
       left: 0;
       width: 1px;
       height: 14px;
-      content: "";
+      content: '';
       background-color: #dcdee5;
     }
   }
@@ -180,7 +180,7 @@
       left: 0;
       width: 1px;
       height: 14px;
-      content: "";
+      content: '';
       background-color: #dcdee5;
     }
   }
@@ -190,5 +190,18 @@
     flex: 1;
     align-items: center;
     justify-content: end;
+  }
+
+  &.readonly {
+    &::after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      cursor: not-allowed;
+      content: '';
+      background-color: rgba(255, 255, 255, 0.2);
+    }
   }
 }

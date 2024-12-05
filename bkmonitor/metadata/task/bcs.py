@@ -199,11 +199,11 @@ def discover_bcs_clusters():
 
     # BCS 接口仅返回非 DELETED 状态的集群信息
     start_time = time.time()
-    logger.info("start to discover bcs clusters")
+    logger.info("discover_bcs_clusters: start to discover bcs clusters")
     try:
         bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("get bcs clusters failed, error:{}".format(e))
+        logger.error("discover_bcs_clusters: get bcs clusters failed, error:{}".format(e))
         return
     cluster_list = []
     # 获取所有联邦集群 ID
@@ -213,14 +213,14 @@ def discover_bcs_clusters():
         fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
-        logger.error("get federation clusters failed, error:{}".format(e))
+        logger.warning("discover_bcs_clusters: get federation clusters failed, error:{}".format(e))
 
     # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
     bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
 
     # bcs 集群中的正常状态
     for bcs_cluster in bcs_clusters:
-        logger.info("get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
+        logger.info("discover_bcs_clusters: get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
         project_id = bcs_cluster["project_id"]
         bk_biz_id = bcs_cluster["bk_biz_id"]
         cluster_id = bcs_cluster["cluster_id"]
@@ -290,9 +290,9 @@ def discover_bcs_clusters():
             try:
                 sync_federation_clusters(fed_clusters)
             except Exception as e:  # pylint: disable=broad-except
-                logger.error("sync_federation_clusters failed, error:{}".format(e))
+                logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
         logger.info(
-            "cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
+            "discover_bcs_clusters: cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
                 cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
             )
         )
@@ -310,7 +310,7 @@ def discover_bcs_clusters():
                     cluster.cluster_id, cluster.project_id, cluster.bk_biz_id, e
                 )
             )
-            return
+            continue
 
         # 更新云区域ID
         update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
@@ -328,10 +328,11 @@ def discover_bcs_clusters():
         )
 
     # 统计耗时，并上报指标
+    cost_time = time.time() - start_time
+    logger.info("discover_bcs_clusters finished, cost time->[%s]", cost_time)
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="discover_bcs_clusters", status=TASK_FINISHED_SUCCESS, process_target=None
     ).inc()
-    cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_monitor_info", process_target=None).observe(
         cost_time
     )
@@ -501,7 +502,7 @@ def sync_federation_clusters(fed_clusters):
                 updated_namespaces = list(set(namespaces))
 
                 # 如果数据库中的记录与更新的数据一致，跳过更新
-                if updated_namespaces == current_namespaces:
+                if set(updated_namespaces) == set(current_namespaces):
                     logger.info(
                         "sync_federation_clusters:Sub-cluster->[%s] in federation->[%s] is already up-to-date,skipping",
                         sub_cluster_id,
@@ -515,6 +516,7 @@ def sync_federation_clusters(fed_clusters):
                     sub_cluster_id,
                     fed_cluster_id,
                 )
+
                 models.BcsFederalClusterInfo.objects.update_or_create(
                     fed_cluster_id=fed_cluster_id,
                     host_cluster_id=host_cluster_id,
@@ -565,9 +567,11 @@ def sync_federation_clusters(fed_clusters):
             "sync_federation_clusters:Start Creating federation data links for sub-clusters->[%s] " "asynchronously",
             need_process_clusters,
         )
-        bulk_create_fed_data_link.delay(set(need_process_clusters))
+        # bulk_create_fed_data_link(need_process_clusters)
+        bulk_create_fed_data_link.delay(set(need_process_clusters))  # 异步创建联邦汇聚链路
 
         logger.info("sync_federation_clusters:sync_federation_clusters finished successfully.")
 
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("sync_federation_clusters:sync_federation_clusters failed, error->[%s]", e)
+        logger.exception(e)
+        logger.warning("sync_federation_clusters:sync_federation_clusters failed, error->[%s]", e)

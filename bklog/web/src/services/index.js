@@ -37,6 +37,7 @@ import * as example from './example';
 import * as extract from './extract';
 import * as extractManage from './extract-manage';
 import * as favorite from './favorite';
+import * as graphAnalysis from './graph-analysis';
 import * as indexSet from './indexSet';
 import * as ipChooser from './ip-chooser';
 import * as linkConfiguration from './link-configuration';
@@ -107,4 +108,5 @@ export default {
   masking,
   unionSearch,
   newReport,
+  graphAnalysis,
 };

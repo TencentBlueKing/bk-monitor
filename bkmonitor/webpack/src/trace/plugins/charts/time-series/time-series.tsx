@@ -33,6 +33,7 @@ import {
   onBeforeUnmount,
   ref,
   watch,
+  onUnmounted,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -206,6 +207,14 @@ export default defineComponent({
     const apmMetric = computed(() => props.panel?.options?.apm_time_series?.metric || '');
     /* 同时hover显示多个tooltip */
     const hoverAllTooltips = computed(() => props.panel?.options?.time_series?.hoverAllTooltips);
+
+    onUnmounted(() => {
+      for (const cb of cancelTokens) {
+        cb?.();
+      }
+      cancelTokens = [];
+    });
+
     /* 粒度计算 */
     function downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
       if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {

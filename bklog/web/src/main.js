@@ -37,20 +37,19 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 // 接入OTLP
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { debounce } from 'lodash';
 
 import App from './App';
 import http from './api';
 import { bus } from './common/bus';
 import { renderHeader } from './common/util';
 import './directives/index';
-// import ShadowWrapper from './global/shadow-wrapper.vue';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
 import router from './router';
 import store from './store';
 
 import './static/style.css';
-// import 'vue-json-pretty/lib/styles.css';
 
 const provider = new WebTracerProvider();
 provider.register({
@@ -96,7 +95,6 @@ router.onError(err => {
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
-// Vue.component('ShadowWrapper', ShadowWrapper);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 
@@ -137,3 +135,11 @@ if (process.env.NODE_ENV === 'development') {
   });
   Vue.config.devtools = true;
 }
+
+const _ResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+  constructor(callback) {
+    callback = debounce(callback, 61);
+    super(callback);
+  }
+};
