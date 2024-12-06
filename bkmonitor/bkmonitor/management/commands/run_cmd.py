@@ -19,7 +19,7 @@ from django.db.models import Count
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import AlgorithmModel, StrategyModel
+from bkmonitor.models.strategy import StrategyModel, ItemModel, DetectModel, AlgorithmModel
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.models import CollectorPluginMeta
@@ -51,6 +51,8 @@ class Command(BaseCommand):
         parse_uptime_check()
         print(parse_dataflow.__doc__)
         parse_dataflow()
+        print(parse_histogram_quantile_strategy.__doc__)
+        parse_histogram_quantile_strategy()
 
 
 def parse_strategy():
@@ -296,3 +298,36 @@ def clean_flow_name(flow_name, strategy_info):
     ret = re.search(r'^(\d+)\s指标推荐', flow_name, re.I | re.S)
     if ret:
         return ret.group(1)
+
+
+def parse_histogram_quantile_strategy():
+    """
+    统计promql中使用了百分位函数histogram_quantile的策略信息
+
+    查询条件：
+        1. 策略只配置了静态阈值算法
+        2. 配置了promql 并且使用了百分位分析函数：histogram_quantile
+        3. 策略的触发条件是x个周期1次。
+    """
+
+    # step1 查询关联了静态阈值算法的策略和监控项
+    item_ids = AlgorithmModel.objects.filter(type="Threshold").values_list("item_id", flat=True)
+
+    # step2 查询promql中使用了百分位函数histogram_quantile的监控项，及其关联的策略
+    related_strategy_ids = ItemModel.objects.filter(origin_sql__contains="histogram_quantile",
+                                                    id__in=item_ids).values_list("strategy_id", flat=True)
+
+    # 获取关联的检测配置模型
+    detects = DetectModel.objects.filter(strategy_id__in=related_strategy_ids).only("strategy_id", "trigger_config")
+    # step3: 过滤出使用了count=1的检测配置
+    strategy_ids = [detect.strategy_id for detect in detects if detect.trigger_config.get("count") in ["1", 1]]
+
+    # step4: 获取策略模型
+    strategies = StrategyModel.objects.filter(id__in=strategy_ids).only("id", "bk_biz_id", "name")
+
+    #  获取业务信息
+    biz_info = {biz.bk_biz_id: biz for biz in api.cmdb.get_business()}
+
+    print("业务id、业务名、策略id、策略名:")
+    for strategy in strategies:
+        print(f"{strategy.bk_biz_id}、{biz_info.get(strategy.bk_biz_id)}、{strategy.id}、{strategy.name}")
