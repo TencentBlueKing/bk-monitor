@@ -27,10 +27,13 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
+import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { CP_METHOD_LIST, METHOD_LIST, PANEL_INTERVAL_LIST } from '../../constant/constant';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
+import FilterVarSelectSimple from './components/filter-var-select/filter-var-select-simple';
 import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
@@ -48,6 +51,7 @@ import K8sTableNew, {
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
+import TimeCompareSelect from './components/panel-tools/time-compare-select';
 import { K8sNewTabEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -119,6 +123,13 @@ export default class MonitorK8sNew extends tsc<object> {
   };
   // 是否展示取消下钻
   showCancelDrill = false;
+
+  // 汇聚周期
+  interval: number | string = 'auto';
+  // 汇聚方法
+  method = DEFAULT_METHOD;
+  showTimeCompare = false;
+  timeOffset = [];
 
   groupList = [
     {
@@ -539,6 +550,25 @@ export default class MonitorK8sNew extends tsc<object> {
     this.filterBy = v;
   }
 
+  // 刷新间隔设置
+  handleIntervalChange(v: string) {
+    this.interval = v;
+  }
+  // 汇聚方法改变时触发
+  handleMethodChange(v: string) {
+    this.method = v;
+  }
+  /** 时间对比值变更 */
+  handleCompareTimeChange(timeList: string[]) {
+    this.timeOffset = timeList;
+  }
+
+  handleShowTimeCompare(v) {
+    if (!v) {
+      this.timeOffset = [];
+    }
+  }
+
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
@@ -675,7 +705,36 @@ export default class MonitorK8sNew extends tsc<object> {
             {this.isChart && (
               <div class='content-converge-wrap'>
                 <div class='content-converge'>
-                  <span>汇聚周期</span>
+                  <FilterVarSelectSimple
+                    field={'interval'}
+                    label={this.$t('汇聚周期')}
+                    options={PANEL_INTERVAL_LIST}
+                    value={this.interval}
+                    onChange={this.handleIntervalChange}
+                  />
+                  <FilterVarSelectSimple
+                    class='ml-36'
+                    field={'method'}
+                    label={this.$t('汇聚方法')}
+                    options={METHOD_LIST.concat(...CP_METHOD_LIST)}
+                    value={this.method}
+                    onChange={this.handleMethodChange}
+                  />
+                  <span class='ml-36 mr-8'>{this.$t('时间对比')}</span>
+                  <bk-switcher
+                    v-model={this.showTimeCompare}
+                    size='small'
+                    theme='primary'
+                    onChange={this.handleShowTimeCompare}
+                  />
+
+                  {this.showTimeCompare && (
+                    <TimeCompareSelect
+                      class='ml-18'
+                      timeValue={this.timeOffset}
+                      onTimeChange={this.handleCompareTimeChange}
+                    />
+                  )}
                 </div>
               </div>
             )}
