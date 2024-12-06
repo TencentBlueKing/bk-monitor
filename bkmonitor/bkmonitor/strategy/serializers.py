@@ -385,6 +385,13 @@ class PrometheusTimeSeriesSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
 
 
+class GrafanaTimeSeriesSerializer(QueryConfigSerializer):
+    dashboard_uid = serializers.CharField(label="dashboard uid")
+    panel_id = serializers.IntegerField(label="panel id")
+    ref_id = serializers.CharField(label="ref id")
+    variables = serializers.DictField(label="变量", default={})
+
+
 class NoticeGroupSerializer(serializers.Serializer):
     class NoticeReceiverSerializer(serializers.Serializer):
         id = serializers.CharField(required=True, label="通知对象ID")
