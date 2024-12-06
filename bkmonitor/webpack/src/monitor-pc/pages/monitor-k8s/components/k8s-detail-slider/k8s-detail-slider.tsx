@@ -207,7 +207,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         ext-cls='k8s-detail-slider'
         isShow={this.isShow}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
-        width={1280}
+        width={'80vw'}
         quick-close={true}
         onHidden={this.handleHiddenSlider}
       >
