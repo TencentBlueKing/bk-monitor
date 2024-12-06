@@ -1649,7 +1649,7 @@ class Strategy(AbstractConfig):
         for obj in chain(self.actions, self.items, self.detects, [self.notice]):
             obj.strategy_id = value
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, convert_dashboard: bool = True) -> Dict:
         """
         转换为JSON字典
         """
@@ -1699,8 +1699,8 @@ class Strategy(AbstractConfig):
 
         # grafana来源策略适配
         query_config = self.items[0].query_configs[0]
-        if query_config.data_source_label == DataSourceLabel.GRAFANA:
-            config["grafana"] = {
+        if query_config.data_source_label == DataSourceLabel.GRAFANA and convert_dashboard:
+            config["from_dashboard"] = {
                 "dashboard_uid": query_config.dashboard_uid,
                 "panel_id": query_config.panel_id,
                 "ref_id": query_config.ref_id,
@@ -1712,16 +1712,16 @@ class Strategy(AbstractConfig):
                 self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
             )
             if not panel_query:
-                config["grafana"]["valid"] = False
-                config["grafana"]["message"] = _("无法获取到Grafana图表查询配置")
+                config["from_dashboard"]["valid"] = False
+                config["from_dashboard"]["message"] = _("无法获取到Grafana图表查询配置")
                 return config
 
             try:
                 converted_config = grafana_panel_to_config(panel_query, query_config.variables)
             except Exception as e:
                 logger.exception(e)
-                config["grafana"]["valid"] = False
-                config["grafana"]["message"] = _("Grafana图表查询配置转换失败")
+                config["from_dashboard"]["valid"] = False
+                config["from_dashboard"]["message"] = _("Grafana图表查询配置转换失败")
                 return config
 
             item = config["items"][0]

@@ -216,7 +216,7 @@ class ExportConfigResource(Resource):
         rule_objs = Strategy.from_models(rules)
         for strategy_obj in rule_objs:
             strategy_obj.restore()
-        strategy_configs = [s.to_dict() for s in rule_objs]
+        strategy_configs = [s.to_dict(convert_dashboard=False) for s in rule_objs]
 
         # 转换为AsCode配置
         parser = StrategyConfigParser(
