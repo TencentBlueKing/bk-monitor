@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -1414,7 +1414,7 @@ class SearchHandler(object):
                         search_type="default",
                         index_set_type=IndexSetType.SINGLE.value,
                     )
-                    .order_by("-rank", "-created_at")[:10]
+                    .order_by("-rank", "-created_at")
                     .values("id", "params", "search_mode")
                 )
             else:
@@ -1436,7 +1436,7 @@ class SearchHandler(object):
                     index_set_ids=index_set_ids,
                     index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("-rank", "-created_at")[:10]
+                .order_by("-rank", "-created_at")
                 .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
@@ -1482,7 +1482,7 @@ class SearchHandler(object):
         # 使用 iterator() 逐行处理记录
         for _history_obj in history_obj.iterator():
             _not_repeat(_history_obj)
-            if len(not_repeat_history) >= 10:
+            if len(not_repeat_history) >= 30:
                 break
         return not_repeat_history
 
@@ -2163,6 +2163,19 @@ class SearchHandler(object):
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 
+        if log_list:
+            collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+            if collector_config:
+                data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+                alias_list = data.get("query_alias_settings")
+                if alias_list:
+                    for log in log_list:
+                        ext_data = log.get("__ext")
+                        if ext_data:
+                            for item in alias_list:
+                                field_name = item["field_name"].split(".")[1]
+                                if field_name in ext_data:
+                                    log[item["query_alias"]] = ext_data[item["field_name"]]
         result.update(
             {
                 "total": result_dict["hits"]["total"],

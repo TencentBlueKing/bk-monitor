@@ -25,12 +25,12 @@
 -->
 <template>
   <bk-dialog
-    :value="show"
-    :show-footer="false"
-    :mask-close="false"
-    ext-cls="plugin-dialog-multiple"
-    header-position="left"
     width="640"
+    ext-cls="plugin-dialog-multiple"
+    :mask-close="false"
+    :show-footer="false"
+    :value="show"
+    header-position="left"
     @cancel="handleDialogClose"
   >
     <template slot="header">
@@ -41,16 +41,16 @@
     <div class="dilog-container">
       <div
         v-for="(item, index) in files"
-        :key="index"
         ref="content"
         class="dialog-content"
+        :key="index"
       >
         <span class="icon-monitor icon-CPU dialog-content-icon" />
         <div class="dialog-content-desc">
           <div class="desc-name">
             <div
-              v-bk-overflow-tips
               class="item-name"
+              v-bk-overflow-tips
             >
               {{ item.name }}
             </div>
@@ -61,10 +61,10 @@
               （{{ $t('版本') }}{{ item.verson }}）
             </div>
             <div
-              class="item-status"
               :style="{ color: statusMap[item.status] }"
-              @mouseleave="handleMouseLeave"
+              class="item-status"
               @mouseenter="handleMouseEnter($event, item.text)"
+              @mouseleave="handleMouseLeave"
             >
               {{ item.status }}
             </div>
@@ -74,15 +74,15 @@
             class="desc-process"
             :percent="item.percent"
             :show-text="false"
-            size="small"
             color="#3A84FF"
+            size="small"
           />
         </div>
       </div>
       <div class="dialog-footer">
         <bk-button
-          v-show="isSuccess"
           class="dialog-footer-btn"
+          v-show="isSuccess"
           theme="primary"
           @click="handleDialogClose"
         >

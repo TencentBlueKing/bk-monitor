@@ -20,12 +20,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import datetime
 import functools
 import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
 import arrow
+import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
@@ -35,6 +37,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -52,12 +55,14 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
+    MultiFieldsErrorException,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
@@ -69,6 +74,8 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
@@ -465,10 +472,33 @@ class MappingHandlers(object):
             only_search=self.only_search,
         )
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+    def _direct_latest_mapping(self, params):
         from apps.log_esquery.esquery.esquery import EsQuery
         from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
+
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
+            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+            latest_mapping = EsQuery(data).mapping()
+        else:
+            latest_mapping = BkLogApi.mapping(params)
+        return latest_mapping
+
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+        storage_cluster_record_objs = StorageClusterRecord.objects.none()
+
+        if self.start_time:
+            try:
+                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+                if type(self.start_time) in [int, float]:
+                    start_datetime = arrow.get(self.start_time).to(tz=tz_info).datetime
+                else:
+                    start_datetime = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
+                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+                    index_set_id=int(self.index_set_id), created_at__gt=(start_datetime - datetime.timedelta(hours=1))
+                ).exclude(storage_cluster_id=self.storage_cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"[_multi_mappings] parse time error -> e: {e}")
 
         params = {
             "indices": self.indices,
@@ -479,12 +509,41 @@ class MappingHandlers(object):
             "end_time": end_time,
             "add_settings_details": False if only_search else True,
         }
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
-            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
-            latest_mapping = EsQuery(data).mapping()
-        else:
-            latest_mapping = BkLogApi.mapping(params)
-        return latest_mapping
+        if not storage_cluster_record_objs.exists():
+            return self._direct_latest_mapping(params)
+
+        multi_execute_func = MultiExecuteFunc()
+        multi_num = 1
+        storage_cluster_ids = {self.storage_cluster_id}
+
+        # 获取当前使用的存储集群数据
+        multi_execute_func.append(
+            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
+        )
+
+        # 获取历史使用的存储集群数据
+        for storage_cluster_record_obj in storage_cluster_record_objs:
+            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                multi_params = copy.deepcopy(params)
+                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                multi_num += 1
+                multi_execute_func.append(
+                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                )
+                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+
+        multi_result = multi_execute_func.run()
+
+        # 合并多个集群的检索结果
+        merge_result = list()
+        try:
+            for _key, _result in multi_result.items():
+                merge_result.extend(_result)
+        except Exception as e:
+            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
+            raise MultiFieldsErrorException()
+
+        return merge_result
 
     @staticmethod
     def _get_context_fields(final_fields_list):
@@ -750,6 +809,11 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
+        alias_list = list()
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_list = data.get("query_alias_settings", [])
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -786,6 +850,11 @@ class MappingHandlers(object):
                             "field_time_format": field_time_format_dict.get("field_time_format"),
                         }
                     )
+
+                # 添加别名信息
+                for item in alias_list:
+                    if a_field_name == item["field_name"]:
+                        _field["query_alias"] = item["query_alias"]
 
         return fields_list
 

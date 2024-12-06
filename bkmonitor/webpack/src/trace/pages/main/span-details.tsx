@@ -982,6 +982,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
+      if (!originalData.value) return;
       const halfHour = 18 * 10 ** 8;
       const profilingRerieveStartTime = originalData.value.start_time - halfHour;
       const profilingRerieveEndTime = originalData.value.start_time + halfHour;

@@ -1293,6 +1293,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Object[]} alias_settings 别名配置
         @apiParam {String} alias_settings.field_name 原字段名
         @apiParam {String} alias_settings.query_alias 别名
+        @apiParam {String} alias_settings.path_type 字段类型
         @apiParamExample {json} 请求样例:
         {
             "table_id": "xxx",
@@ -2393,6 +2394,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Object[]} alias_settings 别名配置
         @apiParam {String} alias_settings.field_name 原字段名
         @apiParam {String} alias_settings.query_alias 别名
+        @apiParam {String} alias_settings.path_type 字段类型
         @apiParamExample {json} 请求样例:
         {
             "collector_config_name": "xxx",

@@ -134,6 +134,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
                   <bk-progress
                     percent={val.percent / 100}
                     show-text={false}
+                    size='small'
                     stroke-width={6}
                     theme='success'
                   />
