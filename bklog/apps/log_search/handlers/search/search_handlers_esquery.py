@@ -2176,6 +2176,7 @@ class SearchHandler(object):
                                 field_name = info.get("path").split(".")[1]
                                 if field_name in ext_data:
                                     log[alias_name] = ext_data[field_name]
+
         result.update(
             {
                 "total": result_dict["hits"]["total"],
