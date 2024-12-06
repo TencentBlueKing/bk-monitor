@@ -103,7 +103,7 @@ export default class AddAppForm extends tsc<IProps> {
 
   /** 检查 应用名 是否重名 */
   async handleCheckDuplicateName(val: string) {
-    const pass = await checkDuplicateName({ app_name: val })
+    const pass = await checkDuplicateName({ app_name: val, bk_biz_id: this.$store.getters.bizId })
       .then(data => !data.exists)
       .catch(() => false);
     return pass;
@@ -180,6 +180,7 @@ export default class AddAppForm extends tsc<IProps> {
       enabled_metric: this.formData[ETelemetryDataType.metric],
       enabled_log: this.formData[ETelemetryDataType.log],
       es_storage_config: null,
+      bk_biz_id: this.$store.getters.bizId,
     };
     const res = await createApplication(params)
       .then(() => true)

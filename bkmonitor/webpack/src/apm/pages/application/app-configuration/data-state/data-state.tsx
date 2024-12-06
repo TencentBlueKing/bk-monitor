@@ -113,6 +113,7 @@ export default class DataStatus extends tsc<object> {
     const data = await dataStatus(this.appInfo.application_id, {
       start_time: startTime,
       end_time: endTime,
+      bk_biz_id: this.$store.getters.bizId,
     }).catch(() => this.dataStatusMap);
     this.dataStatusMap = data;
     for (const tab of this.tabList) {

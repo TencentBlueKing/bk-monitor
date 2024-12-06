@@ -81,13 +81,14 @@ class Authority extends VuexModule {
   }
   @Action // 获取系统所有权限对应表
   public async getAuthorityMeta() {
-    const data = await getAuthorityMeta().catch(() => []);
+    const data = await getAuthorityMeta({ bk_biz_id: store.getters.bizId || window.cc_biz_id }).catch(() => []);
     this.setAuthorityMeta(transformDataKey(data));
   }
   @Action
   public async handleGetAuthDetail(actionId: string | string[]) {
     const res = await getAuthorityDetail({
       action_ids: Array.isArray(actionId) ? actionId : [actionId],
+      bk_biz_id: store.getters.bizId || window.cc_biz_id,
     }).catch(() => ({ applyUrl: '', authorityList: {} }));
     return res;
   }

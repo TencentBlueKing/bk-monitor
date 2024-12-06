@@ -173,6 +173,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       this.loading = this.firstLoad;
       const res = await applicationInfoByAppName({
         app_name: this.appName,
+        bk_biz_id: this.$store.getters.bizId,
       }).catch(() => {});
       // 特殊处理。应该后端的 bug 。
       if ((res as IAppInfo).application_db_config.length === 0) {
@@ -205,7 +206,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
    * @desc 获取es集群列表
    */
   async getEsCluster() {
-    const list = await listEsClusterGroups().catch(() => []);
+    const list = await listEsClusterGroups({ bk_biz_id: this.$store.getters.bizId }).catch(() => []);
     this.clusterList = list;
   }
   /**
@@ -214,7 +215,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
    */
   async getPluginDesc(pluginId: string) {
     if (pluginId) {
-      const data = await metaConfigInfo().catch(() => null);
+      const data = await metaConfigInfo({ bk_biz_id: this.$store.getters.bizId }).catch(() => null);
       const pluginList = data?.plugins;
       const target = pluginList.find(plugin => plugin.id === pluginId);
       this.pluginDesc = target?.access_md || '';

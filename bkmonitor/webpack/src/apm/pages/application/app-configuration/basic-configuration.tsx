@@ -420,7 +420,10 @@ export default class BasicInfo extends tsc<IProps> {
    * @desc 获取实例配置选项
    */
   async getInstanceOptions() {
-    const data = await instanceDiscoverKeys({ app_name: this.appInfo.app_name }).catch(() => []);
+    const data = await instanceDiscoverKeys({
+      app_name: this.appInfo.app_name,
+      bk_biz_id: this.$store.getters.bizId,
+    }).catch(() => []);
     this.instanceOptionList = data;
   }
   /**
@@ -434,7 +437,9 @@ export default class BasicInfo extends tsc<IProps> {
       return false;
     }
 
-    this.secureKey = await queryBkDataToken(this.appInfo.application_id).catch(() => '');
+    this.secureKey = await queryBkDataToken(this.appInfo.application_id, {
+      bk_biz_id: this.$store.getters.bizId,
+    }).catch(() => '');
     return true;
   }
   /**
@@ -456,7 +461,11 @@ export default class BasicInfo extends tsc<IProps> {
 
         confirmFn: async () => {
           const api = val ? stop : start;
-          const isPass = await api({ application_id: applicationId, type: eventType })
+          const isPass = await api({
+            application_id: applicationId,
+            type: eventType,
+            bk_biz_id: this.$store.getters.bizId,
+          })
             .then(() => {
               this.handleBaseInfoChange();
               return true;
@@ -577,6 +586,7 @@ export default class BasicInfo extends tsc<IProps> {
     Object.keys(apdexConfig).map(val => (apdexConfig[val] = Number(apdexConfig[val])));
     const instanceList = this.localInstanceList.map(item => item.name);
     const params: Record<string, any> = {
+      bk_biz_id: this.$store.getters.bizId,
       application_id: this.appInfo.application_id,
       is_enabled: this.appInfo.is_enabled,
       app_alias: appAlias,
@@ -712,7 +722,7 @@ export default class BasicInfo extends tsc<IProps> {
    */
   async fetchEncodingList() {
     this.isFetchingEncodingList = true;
-    const encodingList = await getDataEncoding()
+    const encodingList = await getDataEncoding({ bk_biz_id: this.$store.getters.bizId })
       .catch(console.log)
       .finally(() => (this.isFetchingEncodingList = false));
     if (Array.isArray(encodingList)) this.logAsciiList = encodingList;
@@ -754,7 +764,7 @@ export default class BasicInfo extends tsc<IProps> {
 
   /** 获取采样配置常量 */
   async getSamplingOptions() {
-    await samplingOptions().then(data => {
+    await samplingOptions({ bk_biz_id: this.$store.getters.bizId }).then(data => {
       this.samplingTypeList = this.samplingTypeList.filter(item => (data?.sampler_types || []).includes(item.id));
       this.samplingRuleOptions = (data?.tail_sampling_options || []).map(item => {
         return {
@@ -771,7 +781,7 @@ export default class BasicInfo extends tsc<IProps> {
       app_name: this.appInfo.app_name,
       start_time: dayjs().add(-1, 'h').unix(),
       end_time: dayjs().unix(),
-      bk_biz_id: window.bk_biz_id,
+      bk_biz_id: this.$store.getters.bizId,
       fields: [keyId],
       // mode: 'span' // TODO
     };

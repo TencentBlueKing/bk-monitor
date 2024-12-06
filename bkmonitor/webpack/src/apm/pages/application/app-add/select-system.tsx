@@ -321,7 +321,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           resolve(true);
         } else {
           this.clickSubmit = false;
-          const { exists } = await checkDuplicateName({ app_name: this.formData.name });
+          const { exists } = await checkDuplicateName({
+            app_name: this.formData.name,
+            bk_biz_id: this.$store.getters.bizId,
+          });
           this.existedName = exists;
           if (exists) {
             this.addForm.validateField('name');
@@ -351,7 +354,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     // 第一次选择 Logs to Traces 的插件时，需要加载 日志字符集 列表。
     this.$once('selectLogTrace', async () => {
       this.isFetchingEncodingList = true;
-      const encodingList = await getDataEncoding()
+      const encodingList = await getDataEncoding({ bk_biz_id: this.$store.getters.bizId })
         .catch(console.log)
         .finally(() => (this.isFetchingEncodingList = false));
       if (Array.isArray(encodingList)) this.logAsciiList = encodingList;

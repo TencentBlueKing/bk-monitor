@@ -116,12 +116,12 @@ export default class NoDataGuide extends tsc<IProps> {
    * 通过app name来获取应用的信息
    */
   async getAppInfo() {
-    this.appInfo = await applicationInfoByAppName({ app_name: this.appName });
+    this.appInfo = await applicationInfoByAppName({ app_name: this.appName, bk_biz_id: this.$store.getters.bizId });
   }
 
   /** 获取环境 语言 md文档等信息 */
   async getMdData() {
-    const data = await metaConfigInfo().catch(() => null);
+    const data = await metaConfigInfo({ bk_biz_id: this.$store.getters.bizId }).catch(() => null);
     this.systemData = new SystemData(data);
     this.systemDataList = this.systemData.addAppSystemData;
     // 默认选中第一个插件
@@ -131,7 +131,7 @@ export default class NoDataGuide extends tsc<IProps> {
 
   /** 获取push url数据 */
   async getPushUrl() {
-    const data = await pushUrl().catch(() => []);
+    const data = await pushUrl({ bk_biz_id: this.$store.getters.bizId }).catch(() => []);
     this.pushUrl = data || [];
   }
 
@@ -143,7 +143,9 @@ export default class NoDataGuide extends tsc<IProps> {
   /** 获取 secureKey */
   async handleGetSecureKey() {
     this.secureKeyLoading = true;
-    this.secureKey = await queryBkDataToken(this.appInfo.application_id).catch(() => '');
+    this.secureKey = await queryBkDataToken(this.appInfo.application_id, {
+      bk_biz_id: this.$store.getters.bizId,
+    }).catch(() => '');
     this.secureKeyLoading = false;
   }
 

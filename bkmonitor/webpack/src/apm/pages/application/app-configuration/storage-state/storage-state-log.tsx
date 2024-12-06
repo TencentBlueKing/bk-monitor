@@ -90,6 +90,7 @@ export default class Log extends tsc<IProps> {
         application_id: this.appInfo.application_id,
         log_datasource_option: logsourceConfig,
         telemetry_data_type: this.telemetryDataType,
+        bk_biz_id: this.$store.getters.bizId,
       };
       await setup(params).then(() => {
         this.$emit('change', logsourceConfig);

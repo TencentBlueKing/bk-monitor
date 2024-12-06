@@ -98,7 +98,7 @@ export default class App extends tsc<object> {
   }
   /** 获取文档链接 */
   async getDocsLinkMapping() {
-    const data = await getLinkMapping().catch(() => {});
+    const data = await getLinkMapping({ bk_biz_id: this.$store.getters.bizId }).catch(() => {});
     window.docUrlMap = data;
   }
   // 设置是否需要menu

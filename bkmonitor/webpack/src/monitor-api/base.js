@@ -97,10 +97,12 @@ export const request = (method, url) => {
       addPendingRequest(method, url, config);
     }
     if (methodType === 'get') {
-      if (hasBizId && !('bk_biz_id' in data)) {
-        data.bk_biz_id = window.cc_biz_id;
-      } else if (window.space_uid) {
-        data.space_uid = window.space_uid;
+      if (!('bk_biz_id' in data)) {
+        if (hasBizId) {
+          data.bk_biz_id = window.cc_biz_id;
+        } else if (window.space_uid) {
+          data.space_uid = window.space_uid;
+        }
       }
       return axios({
         method: 'get',

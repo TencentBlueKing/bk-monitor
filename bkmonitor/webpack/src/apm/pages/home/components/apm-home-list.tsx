@@ -270,6 +270,7 @@ export default class ApmServiceList extends tsc<
       keyword: this.searchKeyWord,
       condition_list: [],
       view_mode: 'page_home',
+      bk_biz_id: this.$store.getters.bizId,
     };
     this.cancelTokenSource?.cancel?.();
     this.cancelTokenSource = axios.CancelToken.source();
@@ -323,6 +324,7 @@ export default class ApmServiceList extends tsc<
           end_time: endTime,
           column: field,
           service_names: services,
+          bk_biz_id: this.$store.getters.bizId,
         },
         { cancelToken: this.cancelTokenSource.token }
       ).then(serviceData => {
@@ -343,6 +345,7 @@ export default class ApmServiceList extends tsc<
       end_time: endTime,
       column: field,
       service_names: services,
+      bk_biz_id: this.$store.getters.bizId,
     })
       .then(serviceData => {
         this.mapAsyncData(serviceData, field, valueTitleList);

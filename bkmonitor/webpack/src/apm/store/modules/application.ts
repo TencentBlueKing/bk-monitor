@@ -69,7 +69,7 @@ class ApplicationStore extends VuexModule implements IApplicationState {
   @Action
   async getPluginList() {
     if (this.pluginsList) return;
-    const { plugins = [] } = await metaConfigInfo().catch(() => ({}));
+    const { plugins = [] } = await metaConfigInfo({ bk_biz_id: store.getters.bizId }).catch(() => ({}));
     const pluginsList = plugins.map(
       (item): IAppSelectOptItem => ({
         id: item.id,

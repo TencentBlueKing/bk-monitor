@@ -110,7 +110,7 @@ export default class ServiceApply extends tsc<
       return;
     }
     this.markdownLoading = true;
-    const data = await metaInstrumentGuides({ ...params }).catch(() => false);
+    const data = await metaInstrumentGuides({ ...params, bk_biz_id: this.$store.getters.bizId }).catch(() => false);
     if (data?.length) {
       this.markdownMap.set(key, data[0].content);
       this.markdownStr = this.getMarkdownStr(key);
@@ -130,7 +130,7 @@ export default class ServiceApply extends tsc<
   /** 获取应用列表 */
   async getAppList() {
     this.appLoading = true;
-    const data = await listApplication().catch(() => ({
+    const data = await listApplication({ bk_biz_id: this.$store.getters.bizId }).catch(() => ({
       data: [],
     }));
     let hasApp = false;
@@ -153,7 +153,7 @@ export default class ServiceApply extends tsc<
   /** 获取环境 语言 md文档等信息 */
   async getLanguageData() {
     this.languageLoading = true;
-    const data = await metaConfigInfo()
+    const data = await metaConfigInfo({ bk_biz_id: this.$store.getters.bizId })
       .then(data => {
         this.guideUrl = data?.setup?.guide_url?.access_url || '';
         this.$emit('updateGuideUrl', this.guideUrl);
@@ -179,6 +179,7 @@ export default class ServiceApply extends tsc<
     this.reportLoading = true;
     this.reportUrlList = await pushUrl({
       format_type: 'simple',
+      bk_biz_id: this.$store.getters.bizId,
     })
       .then(list => {
         return (list || []).map(item => ({
