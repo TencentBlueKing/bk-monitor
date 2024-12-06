@@ -526,9 +526,25 @@ export default class FieldAnalysis extends Vue {
     this.$emit('showMore', this.fieldData);
   }
 
+  async downloadFieldStatistics(){
+    console.log(this.queryParams);
+    try {
+      const res = await $http.request('retrieve/downloadFieldAnalysisList', {
+        data: {
+          ...this.queryParams,
+          limit:10
+        },
+      },);
+      if (res.code === 0) {
+       console.log(res);
+       
+      }
+    } catch (err) {
+    }
+  }
   render() {
     return (
-      <div class='retrieve_v2 field-analysis-container'>
+      <div class='retrieveV2 field-analysis-container'>
         <div v-bkloading={{ isLoading: this.infoLoading }}>
           <div class='total-num-container'>
             <span class='total-num'>
@@ -681,6 +697,7 @@ export default class FieldAnalysis extends Vue {
                   <span
                     class='fnBtn bk-icon icon-upload'
                     v-bk-tooltips='下载'
+                    onClick={this.downloadFieldStatistics.bind(this)}
                   ></span>
 
                   <span

@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, nextTick } from 'vue';
+  import { computed, nextTick, ref } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -10,6 +10,7 @@
   const props = defineProps({
     value: { type: Boolean, default: true },
   });
+  const FieldShowName = ref('field_name');
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -70,6 +71,8 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
+  const handlerChange = (value) => {
+  }
 </script>
 
 <template>
@@ -82,6 +85,24 @@
         @click="handleCloseFilterTitle(true)"
       >
         {{ $t('字段统计') }}
+        <bk-popconfirm
+          trigger="click"
+          width="260"
+          class="left-title-setting"
+          ext-popover-cls="field-filter-content"
+        >
+          <div slot="content">
+            <bk-radio-group v-model="FieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
+              <bk-radio-button value="field_name">
+                展示字段名
+              </bk-radio-button>
+              <bk-radio-button value="alias_name">
+                展示别名
+              </bk-radio-button>
+            </bk-radio-group>
+          </div>
+        <span class="bklog-icon bklog-log-setting"></span>
+      </bk-popconfirm>
       </div>
       <div
         class="close-total"

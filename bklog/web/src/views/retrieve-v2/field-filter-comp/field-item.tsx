@@ -290,9 +290,11 @@ export default class FieldItem extends tsc<object> {
         <bk-sideslider
           width={600}
           is-show={this.ifShowMore}
-          quick-close={true}
-          transfer
+          quick-close={false}
+          // transfer
+          show-mask={false}
           onAnimation-end={this.closeSlider}
+          class='sideslider'
         >
           <template slot='header'>
             <div class='aggSidesHeader'>
