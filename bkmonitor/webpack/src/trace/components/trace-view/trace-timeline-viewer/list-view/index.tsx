@@ -155,6 +155,9 @@ const TListViewProps = {
     type: Array,
     default: [],
   },
+  spansUpDown: {
+    type: Object,
+  },
 };
 
 export default defineComponent({
@@ -223,6 +226,23 @@ export default defineComponent({
           const elem = document.querySelector('.trace-detail-wrapper');
           elem?.scrollTo({ top: val * 28, behavior: 'smooth' });
         }
+      }
+    );
+    watch(
+      () => props.spansUpDown,
+      ({ span: nowSpanDetail, jumpFlag: indexVal }) => {
+        const spansList = spans.value;
+        const currentSpanIndex = spansList.findIndex(({ spanID }) => spanID === nowSpanDetail.spanID);
+        if (currentSpanIndex === -1) return;
+
+        const newIndexSpan = (currentSpanIndex + indexVal + spansList.length) % spansList.length;
+        const newSpan = spansList[newIndexSpan];
+        const lastSpan = spansList[currentSpanIndex];
+
+        lastSpan.hasChildren &&
+          Boolean(childrenHiddenStore?.childrenHiddenIds.value.has(lastSpan.spanID)) &&
+          childrenHiddenStore?.onChange(lastSpan?.spanID || '');
+        handleClick(newSpan);
       }
     );
 
