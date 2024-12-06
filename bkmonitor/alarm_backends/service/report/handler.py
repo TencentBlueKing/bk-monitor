@@ -205,7 +205,7 @@ async def fetch_images_by_puppeteer(element, browser):
             err_detail = f"[mail_report] error url: {element['url']}: target: {content_selector} not found"
             err_msg.append({"tag": element["tag"], "exception_msg": err_detail})
             raise CustomException(err_detail)
-        img = await target.screenshot()
+        img = await target.screenshot(type="jpeg", quality=80)
         element["base64"] = base64.b64encode(img).decode("utf-8")
         logger.info(f"fetch_images_by_puppeteer: render img length({len(img)})")
         await page.close()
@@ -582,10 +582,10 @@ class ReportHandler:
                 if images_files.get(graph):
                     render_args["attachments"].append(
                         {
-                            "filename": f"__INLINE__{graph}.png",
-                            "content_id": f"<__INLINE__{graph}.png>",
+                            "filename": f"__INLINE__{graph}.jpeg",
+                            "content_id": f"<__INLINE__{graph}.jpeg>",
                             "disposition": "inline",
-                            "type": "png",
+                            "type": "jpeg",
                             "content": images_files[graph].get("base64"),
                         }
                     )
@@ -616,7 +616,7 @@ class ReportHandler:
                     {
                         "graph_tag": graph,
                         "url": graph_url,
-                        "cid_tag": f"{graph}.png",
+                        "cid_tag": f"{graph}.jpeg",
                         "title": panel_name,
                         "source": source,
                         "content": images_files.get(graph, {}).get("base64"),
