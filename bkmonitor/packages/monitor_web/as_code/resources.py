@@ -165,7 +165,7 @@ class ExportConfigResource(Resource):
     @classmethod
     def export_rules(
         cls, bk_biz_id: int, rule_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
-    ) -> Dict[str, str]:
+    ) -> Iterable[Tuple[str, str, str]]:
         """
         导出策略配置
         """
@@ -357,7 +357,7 @@ class ExportConfigResource(Resource):
     @classmethod
     def export_assign_groups(
         cls, bk_biz_id: int, assign_group_ids: Optional[List[int]], with_id: bool = False, lock_filename: bool = False
-    ) -> Dict[str, str]:
+    ) -> Iterable[Tuple[str, str, str]]:
         """
         导出策略配置
         """
