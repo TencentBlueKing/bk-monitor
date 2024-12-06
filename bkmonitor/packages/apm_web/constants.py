@@ -940,3 +940,15 @@ class LogIndexSource:
             cls.RELATION: "关联配置",
             cls.CUSTOM_REPORT: "自定义上报",
         }.get(key, key)
+
+
+METRIC_COMMON_DIMENSION = [
+    "namespace",  # 环境
+    "env_name",  # 用户环境
+    "instance",  # 实例
+    "container_name",  # 容器
+    "version",  # 版本
+    "app",  # 应用
+    "server",  # 服务
+    "service_name",  # 服务名：service_name (组成逻辑app+server)
+]
