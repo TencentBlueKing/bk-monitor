@@ -54,9 +54,21 @@
     const { ids, isUnionIndex, search_mode } = store.state.indexItem;
     const unionList = store.state.unionIndexList;
     const clusterParams = store.state.clusterParams;
+    const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
+      store.getters.retrieveParams;
+
     return {
-      ...(store.getters.retrieveParams ?? {}),
+      addition,
+      start_time,
+      end_time,
+      begin,
+      size,
+      ip_chooser,
+      host_scopes,
+      interval,
+      bk_biz_id: store.state.bkBizId,
       search_mode,
+      sort_list,
       ids,
       isUnionIndex,
       unionList,

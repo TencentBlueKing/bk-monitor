@@ -31,9 +31,22 @@
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
-  const activeIndex = ref(Number(localStorage.getItem('bkLogQueryType') ?? 0));
   const route = useRoute();
   const router = useRouter();
+
+  const getDefaultActiveIndex = () => {
+    if (route.query.search_mode) {
+      return queryParams.findIndex(m => m === route.query.search_mode);
+    }
+
+    if (route.query.keyword?.length) {
+      return 1;
+    }
+
+    return localStorage.getItem('bkLogQueryType');
+  };
+
+  const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -45,6 +58,7 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
+
   const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
