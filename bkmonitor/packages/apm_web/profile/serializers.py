@@ -57,7 +57,7 @@ class QueryBaseSerializer(serializers.Serializer):
 class ProfileQuerySerializer(QueryBaseSerializer):
     """Query Samples"""
 
-    profile_id = serializers.CharField(label="profile ID", required=False, default="")
+    profile_id = serializers.CharField(label="profile ID", required=False, default="", allow_blank=True)
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
     diagram_types = serializers.ListField(
         child=serializers.CharField(), required=False, default=["flamegraph", "table"]
@@ -67,7 +67,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
 
     # only is_compared is true, the diff_* params is valid
     is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
-    diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="")
+    diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
 
