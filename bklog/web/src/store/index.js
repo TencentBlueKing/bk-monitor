@@ -910,7 +910,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit, state }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list = [] }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -979,6 +979,10 @@ const store = new Vuex.Store({
             payload.keyword = '';
           }
         }
+        // if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
+        //   payload.keyword = payload.items[0].query_string;
+        //   payload.search_mode = 'sql';
+        // }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
