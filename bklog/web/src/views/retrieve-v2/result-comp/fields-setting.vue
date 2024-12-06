@@ -377,14 +377,16 @@
             id: this.currentClickConfigData.id,
           };
           this.isConfirmSubmit = true;
+          this.isLoading = true;
           await this.handleUpdateConfig(confirmConfigData);
+          this.isLoading = false
           // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
-          if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
-            await this.submitFieldsSet(this.currentClickConfigData.id);
-          }
+          // if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
+          //   await this.submitFieldsSet(this.currentClickConfigData.id);
+          // }
           this.cancelModifyFields();
           this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
-          await this.$store.dispatch('requestIndexSetFieldInfo');
+          // await this.$store.dispatch('requestIndexSetFieldInfo');
         } catch (error) {
           console.warn(error);
         } finally {

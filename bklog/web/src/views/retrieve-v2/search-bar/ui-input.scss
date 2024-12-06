@@ -25,6 +25,11 @@ ul.search-items {
         padding-right: 48px;
         outline: none;
       }
+
+      &.is-focus-input{
+        flex: 1;
+        width: 0;
+      }
     }
 
     .tag-option-focus-input {
