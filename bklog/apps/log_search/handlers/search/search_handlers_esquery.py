@@ -2173,7 +2173,7 @@ class SearchHandler(object):
                         ext_data = log.get("__ext")
                         if ext_data:
                             for alias_name, info in alias_dict.items():
-                                field_name = info.get("path").split(".")[1]
+                                field_name = info["path"].split(".")[1]
                                 if field_name in ext_data:
                                     log[alias_name] = ext_data[field_name]
 

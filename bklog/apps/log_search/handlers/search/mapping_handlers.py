@@ -848,7 +848,7 @@ class MappingHandlers(object):
                     )
 
                 # 添加别名信息
-                for alias_name, info in alias_dict:
+                for alias_name, info in alias_dict.items():
                     if a_field_name == info.get("path"):
                         _field["query_alias"] = alias_name
 
