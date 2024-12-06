@@ -2167,15 +2167,16 @@ class SearchHandler(object):
             collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
             if collector_config:
                 data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-                alias_list = data.get("query_alias_settings")
-                if alias_list:
+                alias_dict = data.get("query_alias_settings")
+                if alias_dict:
                     for log in log_list:
                         ext_data = log.get("__ext")
                         if ext_data:
-                            for item in alias_list:
-                                field_name = item["field_name"].split(".")[1]
+                            for alias_name, info in alias_dict.items():
+                                field_name = info["path"].split(".")[1]
                                 if field_name in ext_data:
-                                    log[item["query_alias"]] = ext_data[item["field_name"]]
+                                    log[alias_name] = ext_data[field_name]
+
         result.update(
             {
                 "total": result_dict["hits"]["total"],
