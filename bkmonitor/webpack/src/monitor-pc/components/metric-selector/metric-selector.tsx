@@ -477,21 +477,31 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * @return {*}
    */
   handleMetricNameEnter(e: Event, item: MetricDetail) {
-    const target = Array.from(e.target.childNodes).find(c => c.className === 'tip-dom');
-    this.hoverTimer && window.clearTimeout(this.hoverTimer);
+    if (!this.show) return;
+    // @ts-ignore
+    const target = e.target.parentNode;
+    if (this.popoverInstance?.reference === target && this.popoverInstance?.state?.isShown) {
+      return;
+    }
+    this.handleTipsLeave();
     this.hoverTimer = setTimeout(() => {
       this.popoverInstance = this.$bkPopover(target, {
         content: this.handleGetMetricTipsContent(item),
-        trigger: 'manual',
         theme: 'tippy-metric',
         arrow: true,
         placement: 'right',
         boundary: 'window',
         allowHTML: true,
+        interactive: true,
+        interactiveBorder: 6,
       });
       this.popoverInstance?.show();
     }, 1000);
   }
+  handleMouseLeave() {
+    this.hoverTimer && window.clearTimeout(this.hoverTimer);
+  }
+
   // 移出指标
   handleMetricNameLeave() {
     this.handleTipsLeave();
@@ -500,8 +510,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   // 去除指标tip
   handleTipsLeave() {
     if (this.popoverInstance) {
-      this.popoverInstance.hide(0);
-      this.popoverInstance.destroy();
+      this.popoverInstance?.hide(0);
+      this.popoverInstance?.destroy();
       this.popoverInstance = null;
     }
   }
@@ -601,9 +611,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   /** 更新鼠标的hover状态 */
-  handleMousemove() {
-    this.isHoverItem = true;
-  }
+  handleMousemove() {}
 
   /** 更新hover的索引 */
   handleHoverItem(index: number) {
@@ -820,7 +828,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
       <div
         class={['metric-item-common', { 'multiple-style': this.multiple }]}
         on-mouseenter={event => this.handleMetricNameEnter(event, item)}
-        on-mouseleave={this.handleMetricNameLeave}
+        on-mouseleave={this.handleMouseLeave}
       >
         <div class='top'>
           <span class='title'>
@@ -952,6 +960,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
     return (
       <MetricPopover
         width={this.type === MetricType.TimeSeries ? 718 : 558}
+        coexistDomSelectors='.tippy-metric-theme'
         show={this.show}
         targetId={this.targetId}
         onShowChange={this.handleShowChange}

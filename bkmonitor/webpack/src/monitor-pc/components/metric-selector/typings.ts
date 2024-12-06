@@ -32,7 +32,7 @@ import type {
 
 export type TGetMetricData = (
   params: Record<string, any>
-) => { metricList: IMetricDetail[] } | Promise<{ metricList: IMetricDetail[] }> | any;
+) => { metricList: IMetricDetail[] } | any | Promise<{ metricList: IMetricDetail[] }>;
 
 export type MetricSelectorProps = {
   type?: MetricType;
@@ -55,6 +55,7 @@ export interface MetricPopoverProps {
   targetId: string;
   show?: boolean;
   width?: number;
+  coexistDomSelectors?: string;
 }
 export interface MetricPopoverEvents {
   onShowChange: boolean;
