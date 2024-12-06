@@ -50,9 +50,15 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-data.scss';
 
+const targetMessageTemp = {
+  HOST: '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标',
+  SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
+};
+
 interface IMonitorDataProps {
   metricData: MetricDetail[];
   source: string;
+  metricTipType: string;
   expression: string;
   defaultCheckedTarget: any;
   dataMode: dataModeType;
@@ -88,7 +94,6 @@ interface IMonitorDataEvent {
   onShowExpress: boolean;
   onSouceStepChange: number;
   onclearErr?: boolean;
-  onShowTargetTipChange?: boolean;
 }
 
 @Component({
@@ -120,6 +125,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   @Prop({ default: 'auto', type: [Number, String] }) sourceStep: number | string; /* source模式下的agg_interval */
   /* 当前的数据类型，用于判断应该弹出哪种指标选择器 */
   @Prop({ default: 'time_series', type: String }) dataTypeLabel: string;
+  @Prop({ default: '', type: String }) metricTipType: string;
   /* 报错信息 */
   @Prop({ default: '', type: String }) errMsg: string;
   /* 是否包含aiops算法(时序预测，智能异常, 离群) */
@@ -192,14 +198,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   get canSetTarget() {
     const set = new Set();
     for (const { data_target: dataTarget } of this.metricData) {
-      if (dataTarget && !set.has(dataTarget)) {
+      if (dataTarget) {
         set.add(dataTarget);
       }
       if (set.size > 1) {
-        return true;
+        this.targetList = [];
+        this.handleTargetSave();
+        return false;
       }
     }
-    return false;
+    return true;
   }
 
   @Watch('metricObjectType')
@@ -256,7 +264,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return true;
   }
   get targetDesc() {
-    return this.handleSetTargetDesc(this.targetList, this.target?.targetType);
+    return this.handleSetTargetDesc(this.targetList, this.target?.targetType || this.metricData?.[0]?.targetType);
   }
   created() {
     this.modeList = [
@@ -441,12 +449,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return val;
   }
   ipSelect() {
-    const [{ objectType }] = this.metricData;
+    const [{ targetType, objectType }] = this.metricData;
     if (!this.readonly) {
       return (
         <StrategyIpv6
           checkedNodes={this.targetList || []}
-          nodeType={this.target.targetType as INodeType}
+          nodeType={this.target?.targetType || (targetType as INodeType)}
           objectType={objectType as TargetObjectType}
           showDialog={this.showTopoSelector}
           onChange={this.handleTopoCheckedChange}
@@ -472,7 +480,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         <strategy-target-table
           objType={objectType}
           tableData={tableData}
-          targetType={this.target.targetType}
+          targetType={this.target?.targetType || targetType}
         />
       </monitor-dialog>
     );
@@ -728,7 +736,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         <div
                           key={1}
                           class='ip-wrapper-title'
-                          on-click={this.handleAddTarget}
+                          onClick={this.handleAddTarget}
                         >
                           <i class='icon-monitor icon-mc-plus-fill' />
                           {this.$t('添加监控目标')}
@@ -770,6 +778,12 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                             onClick={this.handleAddTarget}
                           />
                         )),
+                      this.metricTipType && (
+                        <span class='ip-dimension-tip'>
+                          <span class='icon-monitor icon-remind' />
+                          <span>{this.$t(targetMessageTemp[this.metricTipType])}</span>
+                        </span>
+                      ),
                     ]}
               </div>
             )}

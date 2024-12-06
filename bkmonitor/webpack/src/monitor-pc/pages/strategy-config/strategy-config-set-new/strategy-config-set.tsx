@@ -116,12 +116,6 @@ const serviceTargetFieldType = {
   SET_TEMPLATE: 'service_set_template',
   DYNAMIC_GROUP: 'dynamic_group',
 };
-
-const targetMessageTemp = {
-  HOST: '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标',
-  SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
-};
-
 interface IStrategyConfigSetProps {
   fromRouteName: string;
   id: number | string;
@@ -328,7 +322,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
-  showTargetTipFlag = false;
+  metricTipType = '';
   monitorDataEditMode: EditModeType = 'Edit';
   // 将切换至ui模式
   switchToUI = false;
@@ -1661,27 +1655,27 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     document.addEventListener('mouseup', handleMouseUp);
   }
 
-  hasRelevantDimension() {
+  showMerticMessageTip() {
+    this.metricTipType = '';
     if (!this.target.length) return false;
     if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
+    if (this.monitorDataEditMode !== 'Edit') return false;
     let hasRelevantDimension = false;
     hasRelevantDimension = this.metricData.every(item => {
       const [hostMetric, nodeMetric = []] = item.targetMetricList;
       const metricSet = this.targetType === 'TOPO' ? new Set([...hostMetric, ...nodeMetric]) : new Set(hostMetric);
       return item.agg_dimension.some(d => metricSet.has(d));
     });
+    if (!hasRelevantDimension) {
+      this.metricTipType = this.metricData[0].objectType;
+    }
     return !hasRelevantDimension;
   }
 
   async handleValidateStrategyConfig() {
     let validate = true;
-    if (this.hasRelevantDimension()) {
-      this.$bkMessage({
-        message: this.$t(targetMessageTemp[this.metricData[0].objectType]),
-        theme: 'error',
-        delay: 3000,
-      });
-      validate = false;
+    if (this.showMerticMessageTip()) {
+      return false;
     }
     if (this.monitorDataEditMode === 'Source') {
       if (!this.sourceData.sourceCode) {
@@ -1764,7 +1758,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
 
   async handleSubmitStrategyConfig() {
-    if (this.showTargetTipFlag) return;
     // 验证
     const validate = await this.handleValidateStrategyConfig();
     if (validate) {
@@ -2563,6 +2556,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         hasAiOpsDetect={this.hasAiOpsDetect}
         loading={this.monitorDataLoading}
         metricData={this.metricData}
+        metricTipType={this.metricTipType}
         promqlError={this.sourceData.promqlError}
         readonly={this.isDetailMode}
         source={this.sourceData.sourceCode}
@@ -2585,7 +2579,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           this.sourceData.errorMsg = '';
         }}
         onShowExpress={this.handleShowExpress}
-        onShowTargetTipChange={v => (this.showTargetTipFlag = v)}
         onSouceStepChange={this.handleSourceStepChange}
         onSourceChange={this.handleSourceChange}
         onTargetChange={this.handleTargetChange}
