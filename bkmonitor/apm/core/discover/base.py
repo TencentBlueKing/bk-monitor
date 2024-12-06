@@ -15,12 +15,13 @@ import itertools
 import logging
 import traceback
 from abc import ABC
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple, Union
 
 from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
+from apm.constants import DiscoverRuleType
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
@@ -46,6 +47,10 @@ def get_topo_instance_key(
     if item is None:
         return OtlpKey.UNKNOWN_SERVICE
 
+    if component_predicate_key and isinstance(component_predicate_key, list):
+        # 忽略 predicate_key 为多个的情况 直接取第一个
+        component_predicate_key = component_predicate_key[0]
+
     instance_keys = []
     if kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
         if simple_component_instance and component_predicate_key:
@@ -59,16 +64,27 @@ def get_topo_instance_key(
     return ":".join(instance_keys)
 
 
-def exists_field(predicate_key: Tuple[str, str], item) -> bool:
+def exists_field(predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]], item) -> bool:
     if item is None:
         return False
-    predicate_first_key, predicate_second_key = predicate_key
-    if item.get(predicate_first_key, item).get(predicate_second_key):
-        return True
-    return False
+
+    if isinstance(predicate_key, tuple):
+        predicate_key = [predicate_key]
+
+    all_exists = []
+    for i in predicate_key:
+        first, second = i
+
+        all_exists.append(bool(item.get(first, item).get(second)))
+
+    return all(all_exists)
 
 
-def extract_field_value(key: Tuple[str, str], item):
+def extract_field_value(key: Union[List[Tuple[str, str]], Tuple[str, str]], item):
+    if key and isinstance(key, list):
+        # 忽略 predicate_key 为多个的情况 直接取第一个
+        key = key[0]
+
     first_key, second_key = key
     return item.get(first_key, item).get(second_key)
 
@@ -77,8 +93,10 @@ class ApmTopoDiscoverRuleCls(NamedTuple):
     instance_keys: List[Tuple[str, str]]
     topo_kind: str
     category_id: str
-    predicate_key: Tuple[str, str]
-    endpoint_key: Tuple[str, str]
+    predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]]
+    endpoint_key: Union[Tuple[str, str], None]
+    type: str
+    sort: int
 
 
 class DiscoverBase(ABC):
@@ -110,25 +128,40 @@ class DiscoverBase(ABC):
             return "", pair[0]
         return pair[0], pair[1]
 
-    def get_rules(self):
-        rule_instances = ApmTopoDiscoverRule.get_application_rule(self.bk_biz_id, self.app_name)
+    @classmethod
+    def join_keys(cls, keys):
+        return ".".join(keys)
+
+    def get_rules(self, _type=DiscoverRuleType.CATEGORY.value):
+        rule_instances = ApmTopoDiscoverRule.get_application_rule(self.bk_biz_id, self.app_name, _type=_type)
 
         rules = []
         other_rules = []
 
         for rule in rule_instances:
+
+            # [!!!] predicate_key 可能为单个也可能为多个
+            # 注意这里类型可能是 string 或者 list
+            # 目前只有 k8s 规则存在多个
+            p_keys = rule.predicate_key.split(",")
+            if len(p_keys) <= 1:
+                p_keys = self._get_key_pair(p_keys[0]) if p_keys else ""
+            else:
+                p_keys = [self._get_key_pair(i) for i in p_keys]
+
             instance = ApmTopoDiscoverRuleCls(
                 topo_kind=rule.topo_kind,
                 category_id=rule.category_id,
-                endpoint_key=self._get_key_pair(rule.endpoint_key),
-                instance_keys=[self._get_key_pair(i) for i in rule.instance_key.split(",")],
-                predicate_key=self._get_key_pair(rule.predicate_key),
+                endpoint_key=self._get_key_pair(rule.endpoint_key) if rule.endpoint_key else None,
+                instance_keys=[self._get_key_pair(i) for i in rule.instance_key.split(",")]
+                if rule.instance_key
+                else [],
+                predicate_key=p_keys,
+                type=rule.type,
+                sort=rule.sort,
             )
-            if instance.category_id == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-                other_rules.append(instance)
 
             (rules, other_rules)[instance.category_id == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER].append(instance)
-
         return rules, other_rules[0]
 
     def filter_rules(self, rule_kind):
@@ -389,3 +422,4 @@ class TopoHandler:
             f"trace count: {trace_id_count} span count: {span_count} "
             f"elapsed: {(datetime.datetime.now() - start).seconds}s"
         )
+        return True

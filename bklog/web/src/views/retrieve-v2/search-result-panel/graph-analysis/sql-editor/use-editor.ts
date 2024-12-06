@@ -79,8 +79,46 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
         // 触发自动补全
         editorInstance.value.trigger('keyboard', 'editor.action.triggerSuggest', {});
       }
+      if (e.keyCode === monaco.KeyCode.Enter) {
+        // 阻止默认回车行为
+        e.preventDefault();
+        interface SuggestController extends monaco.editor.IEditorContribution {
+          model?: { state: number };
+        }
+        const suggestWidget = editorInstance.value.getContribution('editor.contrib.suggestController') as SuggestController;
+        const isSuggestVisible = suggestWidget?.model?.state === 2 || suggestWidget?.model?.state === 1;
+        
+        if (isSuggestVisible) {
+          // 如果建议列表可见，则接受当前的建议
+          editorInstance.value.trigger('keyboard', 'acceptSelectedSuggestion', {});
+          return
+        }
+        const position = editorInstance.value.getPosition();
+        const model = editorInstance.value.getModel();
+        const lineContent = model.getLineContent(position.lineNumber);
+    
+        // 插入新行并保持缩进
+        const indentLevel = lineContent.match(/^\s*/)[0]; // 获取当前行的缩进
+        const newText = '\n' + indentLevel; // 新行内容
+    
+        // 执行插入操作
+        editorInstance.value.executeEdits(null, [
+          {
+            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+            text: newText,
+            forceMoveMarkers: true,
+          },
+        ]);
+    
+        // 移动光标到新行
+        const newPosition = {
+          lineNumber: position.lineNumber + 1,
+          column: indentLevel.length + 1
+        };
+        editorInstance.value.setPosition(newPosition);
+      }
     });
-
+   
     editorInstance.value.onDidChangeModelContent(() => debounceUpdateSqlValue());
   };
 

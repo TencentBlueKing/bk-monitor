@@ -720,6 +720,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                     color={tableAvailableProcessColor(row.available, row.status)}
                     percent={Number((row.available * 0.01).toFixed(2)) || 0}
                     showText={false}
+                    size={'small'}
                   />
                 </div>
               ),

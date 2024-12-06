@@ -76,6 +76,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
                     "value": data_point.value,
                     "values": predict_result[0],
                     "time": predict_result[0]["timestamp"],
+                    "dimensions": data_point.dimensions,
                 },
                 item=data_point.item,
             )

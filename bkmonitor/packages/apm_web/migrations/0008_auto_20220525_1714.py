@@ -15,7 +15,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("apm_web", "0007_application_data_status"),
     ]
@@ -50,7 +49,7 @@ class Migration(migrations.Migration):
                 ("service_name", models.CharField(max_length=512, verbose_name="服务名称")),
                 ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
                 ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
-                ("uri", models.CharField(max_length=528, verbose_name="Uri")),
+                ("uri", models.CharField(max_length=512, verbose_name="Uri")),
                 ("rank", models.IntegerField(verbose_name="排序")),
             ],
             options={

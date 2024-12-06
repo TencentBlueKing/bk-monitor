@@ -211,12 +211,12 @@
   });
 
   const sqlString = computed(() => {
-    if (['sql'].includes(props.searchMode)) {
-      return props.sql;
-    }
-
     if ('sqlChart' === props.searchMode) {
       return props.extendParams.chart_params.sql;
+    }
+
+    if (['sql'].includes(props.searchMode)) {
+      return props.sql;
     }
 
     return additionString.value;

@@ -308,7 +308,8 @@ const store = new Vuex.Store({
         if (Array.isArray(state.indexItem.chart_params[key])) {
           state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
         } else {
-          state.indexItem.chart_params[key] = params[key];
+          set(state.indexItem.chart_params, key, params[key]);
+          // state.indexItem.chart_params[key] = params[key];
         }
       });
     },

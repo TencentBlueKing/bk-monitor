@@ -596,7 +596,8 @@ export default defineComponent({
       resizeObserver = new ResizeObserver(() => {
         handleResize();
       });
-      const elem = document.querySelector('.trace-detail-wrapper');
+      // const elem = document.querySelector('.trace-detail-wrapper');
+      const elem = traceDetailElem.value.$el;
       elem && resizeObserver.observe(elem);
     };
 

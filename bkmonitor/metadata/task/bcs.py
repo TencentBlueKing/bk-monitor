@@ -502,7 +502,7 @@ def sync_federation_clusters(fed_clusters):
                 updated_namespaces = list(set(namespaces))
 
                 # 如果数据库中的记录与更新的数据一致，跳过更新
-                if updated_namespaces == current_namespaces:
+                if set(updated_namespaces) == set(current_namespaces):
                     logger.info(
                         "sync_federation_clusters:Sub-cluster->[%s] in federation->[%s] is already up-to-date,skipping",
                         sub_cluster_id,
@@ -516,6 +516,7 @@ def sync_federation_clusters(fed_clusters):
                     sub_cluster_id,
                     fed_cluster_id,
                 )
+
                 models.BcsFederalClusterInfo.objects.update_or_create(
                     fed_cluster_id=fed_cluster_id,
                     host_cluster_id=host_cluster_id,
@@ -566,9 +567,11 @@ def sync_federation_clusters(fed_clusters):
             "sync_federation_clusters:Start Creating federation data links for sub-clusters->[%s] " "asynchronously",
             need_process_clusters,
         )
-        bulk_create_fed_data_link.delay(set(need_process_clusters))
+        # bulk_create_fed_data_link(need_process_clusters)
+        bulk_create_fed_data_link.delay(set(need_process_clusters))  # 异步创建联邦汇聚链路
 
         logger.info("sync_federation_clusters:sync_federation_clusters finished successfully.")
 
     except Exception as e:  # pylint: disable=broad-except
+        logger.exception(e)
         logger.warning("sync_federation_clusters:sync_federation_clusters failed, error->[%s]", e)

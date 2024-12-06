@@ -1414,7 +1414,7 @@ class SearchHandler(object):
                         search_type="default",
                         index_set_type=IndexSetType.SINGLE.value,
                     )
-                    .order_by("-rank", "-created_at")[:10]
+                    .order_by("-rank", "-created_at")
                     .values("id", "params", "search_mode")
                 )
             else:
@@ -1436,7 +1436,7 @@ class SearchHandler(object):
                     index_set_ids=index_set_ids,
                     index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("-rank", "-created_at")[:10]
+                .order_by("-rank", "-created_at")
                 .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
@@ -1482,7 +1482,7 @@ class SearchHandler(object):
         # 使用 iterator() 逐行处理记录
         for _history_obj in history_obj.iterator():
             _not_repeat(_history_obj)
-            if len(not_repeat_history) >= 10:
+            if len(not_repeat_history) >= 30:
                 break
         return not_repeat_history
 

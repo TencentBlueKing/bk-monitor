@@ -1,3 +1,4 @@
+import base64
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List
@@ -684,7 +685,6 @@ class TrpcAttributes:
 
 
 class TRPCMetricTag:
-
     # 通用
     REGION = "region"
     ENV_NAME = "env_name"
@@ -1031,3 +1031,11 @@ class MetricTemporality:
     @classmethod
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
+
+
+class Vendor:
+    G = "Z2FsaWxlbw=="
+
+    @classmethod
+    def equal(cls, e, v):
+        return base64.b64encode(v.encode()).decode() == e

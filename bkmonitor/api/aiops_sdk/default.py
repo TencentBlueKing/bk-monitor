@@ -47,6 +47,7 @@ class SdkInitDependResource(APIResource):
 
     class RequestSerializer(serializers.Serializer):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
+        replace = serializers.BooleanField(default=True)
 
     action = "/api/aiops/init_depend/"
     method = "POST"

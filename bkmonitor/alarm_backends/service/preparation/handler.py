@@ -22,6 +22,8 @@ from alarm_backends.service.preparation.aiops.processor import (
     TsDependEventPreparationProcess,
     TsDependPreparationProcess,
 )
+from bkmonitor.models.strategy import QueryConfigModel
+from bkmonitor.strategy.new_strategy import QueryConfig
 from constants.aiops import SDKDetectStatus
 from constants.data_source import DataTypeLabel
 
@@ -83,5 +85,7 @@ class PreparationHandler(base.BaseHandler):
                 # 历史依赖准备就绪才开始检测
                 if query_config["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                     processor.init_strategy_depend_data(strategy)
-                    query_config["intelligent_detect"]["status"] = SDKDetectStatus.READY
-                    strategy.save()
+                    query_config = QueryConfig.from_models(QueryConfigModel.objects.filter(id=query_config["id"]))[0]
+                    query_config.intelligent_detect["status"] = SDKDetectStatus.READY
+                    query_config.save()
+                    StrategyCacheManager.refresh_strategy_ids([{"id": strategy_id}])

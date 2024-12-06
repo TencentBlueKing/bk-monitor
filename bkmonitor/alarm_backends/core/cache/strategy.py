@@ -71,6 +71,8 @@ class StrategyCacheManager(CacheManager):
     REAL_TIME_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".real_time_strategy_ids"
     # no data 策略
     NO_DATA_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".no_data_strategy_ids"
+    # 启用 aiops sdk 策略
+    AIOPS_SDK_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".aiops_sdk_strategy_ids"
     # gse事件
     GSE_ALARM_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".gse_alarm_strategy_ids"
     # 自愈关联告警策略
@@ -651,6 +653,13 @@ class StrategyCacheManager(CacheManager):
         return json.loads(cls.cache.get(cls.NO_DATA_CACHE_KEY) or "[]")
 
     @classmethod
+    def get_aiops_sdk_strategy_ids(cls) -> List[int]:
+        """
+        获取启用AIOPS SDK 相关策略
+        """
+        return json.loads(cls.cache.get(cls.AIOPS_SDK_CACHE_KEY) or "[]")
+
+    @classmethod
     def get_fta_alert_strategy_ids(cls, strategy_id=None, alert_name=None) -> Dict:
         """
         获取自愈关联告警策略
@@ -781,6 +790,21 @@ class StrategyCacheManager(CacheManager):
                     continue
 
         cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(nodata_strategy_ids), cls.CACHE_TIMEOUT)
+
+    @classmethod
+    def refresh_aiops_sdk_strategy_ids(cls, strategies: List[Dict]):
+        """
+        刷新启用了aiops sdk模块的策略ID列表缓存
+        """
+        aiops_sdk_strategy_ids = []
+        for strategy in strategies:
+            for item in strategy["items"]:
+                query_config = item["query_configs"][0]
+                intelligent_detect = query_config.get("intelligent_detect") or {}
+                if intelligent_detect.get("use_sdk"):
+                    aiops_sdk_strategy_ids.append(strategy["id"])
+
+        cls.cache.set(cls.AIOPS_SDK_CACHE_KEY, json.dumps(aiops_sdk_strategy_ids), cls.CACHE_TIMEOUT)
 
     @classmethod
     def refresh_gse_alarm_strategy_ids(cls, strategies: List[Dict]):
@@ -1063,6 +1087,7 @@ class StrategyCacheManager(CacheManager):
             cls.refresh_gse_alarm_strategy_ids,  # 刷新gse事件策略ID列表缓存
             cls.refresh_fta_alert_strategy_ids,  # 刷新自愈策略列表缓存
             cls.refresh_nodata_strategy_ids,  # 刷新无数据策略ID列表缓存
+            cls.refresh_aiops_sdk_strategy_ids,  # 刷新AIOPS SDK策略ID列表缓存
         ]
 
         # 获取策略列表, 执行缓存策略刷新操作
@@ -1178,6 +1203,22 @@ class StrategyCacheManager(CacheManager):
                 _strategies, old_groups=[ids[1] for ids in to_be_deleted_strategy_ids if ids[1]]
             )
 
+        def refresh_aiops_sdk_strategy_ids(_strategies):
+            aiops_sdk_ids, none_aiops_sdk_ids = set(), set()
+            for strategy in strategies:
+                for item in strategy["items"]:
+                    no_data_config = item.get("no_data_config")
+                    if no_data_config and no_data_config.get("is_enabled"):
+                        aiops_sdk_ids.add(strategy["id"])
+                else:
+                    none_aiops_sdk_ids.add(strategy["id"])
+            old_aiops_sdk_ids = set(cls.get_aiops_sdk_strategy_ids())
+            old_aiops_sdk_ids.update(aiops_sdk_ids)
+            old_aiops_sdk_ids -= none_aiops_sdk_ids
+            old_aiops_sdk_ids -= {ids[0] for ids in to_be_deleted_strategy_ids}
+
+            cls.cache.set(cls.AIOPS_SDK_CACHE_KEY, json.dumps(list(old_aiops_sdk_ids)), cls.CACHE_TIMEOUT)
+
         def refresh_nodata_strategy_ids(_strategies):
             #
             nodata_strategy_ids, without_nodata_strategy_ids = set(), set()
@@ -1206,6 +1247,7 @@ class StrategyCacheManager(CacheManager):
             refresh_strategy_ids,
             refresh_bk_biz_ids,
             refresh_nodata_strategy_ids,
+            refresh_aiops_sdk_strategy_ids,
             refresh_strategy,
         ]
 
@@ -1223,6 +1265,20 @@ class StrategyCacheManager(CacheManager):
         # 更新监控指标
         metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(exc)).observe(duration)
         metrics.report_all()
+
+        # 推送aiops策略变更至 sdk 依赖的 历史数据维护服务
+        change_records = histories.values("operate", "strategy_id", "create_time")
+        for change_record in change_records:
+            changed_time = change_record["create_time"].timestamp()
+            if change_record["operate"] == "delete":
+                sync_aiops_strategy_signal("deleted", change_record["strategy_id"], changed_time)
+            else:
+                # check strategy use aiops
+                intelligent_detect = change_record["content"]["items"][0]["query_configs"][0].get(
+                    "intelligent_detect", {}
+                )
+                if intelligent_detect and intelligent_detect.get("use_sdk", False):
+                    sync_aiops_strategy_signal("modify", change_record["strategy_id"], changed_time)
 
 
 class TargetShieldProcessor:
@@ -1370,3 +1426,20 @@ def smart_refresh():
 
 def main():
     StrategyCacheManager.refresh()
+
+
+def sync_aiops_strategy_signal(strategy_id, signal, update_time):
+    """
+    推送策略变更信号至rabbitmq
+    {
+        "sync_type": "modify", # "delete"
+        "sync_time": 1700000000,
+        "strategy_id": 1,
+        "strategy_info": {}
+    }
+    signal: modify, delete
+
+    delete: 已删除的策略（不论是否是aiops策略）, 修改后的策略不包含aiops算法
+    modify: 新增的，修改后的 策略包含了aiops算法
+    """
+    logger.info(f"sync_aiops_strategy_signal: {strategy_id}, {signal}, {update_time}")

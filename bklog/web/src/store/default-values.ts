@@ -92,6 +92,9 @@ export const IndexItem = {
     sql: '',
     xFields: [],
     yFields: [],
+    // 这里的fromCollectionActiveTab用于标识当前来自收藏的点击操作是否已经激活图表分析Tab
+    // 这里每次的收藏选择应该只会激活一次
+    fromCollectionActiveTab: undefined,
   },
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,

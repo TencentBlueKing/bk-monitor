@@ -175,7 +175,11 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
             if edge["target_id"] in tree.function_node_map
             else "unknown"
         )
-        penwidth = int(min((edge["value"] * 5 / data["call_graph_all"]), 5))
+        penwidth = max(int(min((edge["value"] * 5 / data["call_graph_all"]), 5)), 1)
+        # 线条宽度 避免为零 至少为一
+        ratio = 0.00 if data["call_graph_all"] == 0 else edge["value"] / data["call_graph_all"]
+        background_color = dot_color(score=ratio, is_back_ground=False)
+
         dot.edge(
             str(edge["source_id"]),
             str(edge["target_id"]),

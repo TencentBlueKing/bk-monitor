@@ -991,4 +991,9 @@ export default {
   图表查询配置已变更: 'Chart query configuration has changed',
   请重新发起查询: 'Please initiate a query again',
   我知道了: 'I know',
+  当前缺少指标和维度: 'Current metrics and dimensions are missing',
+  '当前缺少指标和维度/时间维度': 'Current metrics and dimensions/time dimensions are missing',
+  当前缺少维度: 'Current dimensions are missing',
+  '当前缺少维度/时间维度': 'Current dimensions/time dimensions are missing',
+  '当前缺少指标': 'Current metrics are missing',
 };

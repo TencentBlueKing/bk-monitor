@@ -604,7 +604,9 @@
 
 .trace-info-sideslider {
   .bk-modal-content {
-    height: 100%;
+    // 组件库sideslider的bk-modal-content高度没有自动变化(组件库dialog的bk-modal-content高度是会变的)
+    // 52为sideslider的title高度
+    height: calc(100% - 52px)!important;
 
     & > div {
       height: 100%;
