@@ -54,6 +54,8 @@ from apps.log_clustering.exceptions import (
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import (
+    CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS,
+    CLUSTERING_DEFAULT_MODEL_OUTPUT_FIELDS,
     DEFAULT_CLUSTERING_FIELD,
     DEFAULT_FLINK_BATCH_SIZE,
     DEFAULT_FLINK_CPU,
@@ -670,6 +672,50 @@ class DataFlowHandler(BaseAiopsHandler):
         if not is_predict:
             return [field for field in output_fields if field["field_name"] not in ["is_new", "pattern"]]
         return output_fields
+
+    @classmethod
+    def get_model_fields(cls, rt_fields, model_fields):
+        """
+        获取模型字段列表
+        :param rt_fields: 输入结果表字段列表
+        :param model_fields: 输入或输出字段列表
+        :return:
+        """
+        default_fields = [field["field_name"] for field in model_fields]
+        rt_fields = [
+            field
+            for field in rt_fields
+            if field["field_name"] not in default_fields and field["field_name"] not in NOT_CONTAIN_SQL_FIELD_LIST
+        ]
+        rt_fields_length = len(rt_fields)
+
+        for field in rt_fields:
+            model_fields[-1]["components"].append(
+                {
+                    "disabled": False,
+                    "field": field["field_name"],
+                    "created_at": field["created_at"],
+                    "is_dimension": False,
+                    "created_by": field["created_by"],
+                    "type": field["field_type"] if field["field_type"] != "text" else "string",
+                    "origins": field["origins"],
+                    "updated_by": field["updated_by"],
+                    "displayName": f"{field['field_name']}({field['field_name']})",
+                    "tips": "",
+                    "description": field["description"],
+                    "rowRoles": ["passthrough", "dynamic", "feature"],
+                    "field_name": field["field_name"],
+                    "field_alias": field["field_alias"],
+                    "field_index": field["field_index"],
+                    "roles": field["roles"],
+                    "len": rt_fields_length,
+                    "output_mark": True,
+                    "field_type": field["field_type"] if field["field_type"] != "text" else "string",
+                    "updated_at": field["updated_at"],
+                    "id": field["id"],
+                },
+            )
+        return model_fields
 
     @classmethod
     def get_es_storage_fields(cls, result_table_id):
@@ -1561,6 +1607,8 @@ class DataFlowHandler(BaseAiopsHandler):
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
 
+        input_model_fields = copy.deepcopy(CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS)
+        output_model_fields = copy.deepcopy(CLUSTERING_DEFAULT_MODEL_OUTPUT_FIELDS)
         predict_flow = PredictDataFlowCls(
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
@@ -1578,8 +1626,8 @@ class DataFlowHandler(BaseAiopsHandler):
                 clustering_training_params=self.get_clustering_training_params(clustering_config=clustering_config),
                 model_release_id=model_release_id,
                 model_id=model_id,
-                input_fields=json.dumps(self.get_model_input_fields(exclude_message_fields)),
-                output_fields=json.dumps(self.get_model_output_fields(exclude_message_fields, is_predict=True)),
+                input_fields=json.dumps(self.get_model_fields(exclude_message_fields, input_model_fields)),
+                output_fields=json.dumps(self.get_model_fields(exclude_message_fields, output_model_fields)),
             ),
             # 签名字段打平
             format_signature=RealTimeCls(

@@ -31,7 +31,7 @@ import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-
+import { formatDate } from '@/common/util';
 import './index.scss';
 
 export default defineComponent({
@@ -141,6 +141,15 @@ export default defineComponent({
       console.log('resize');
       getChartInstance()?.resize();
     });
+    const getDateTimeFormatValue = (row, col) => {
+      let value = row[col]
+      if (!/data|time/i.test(col)) {
+        return value;
+      }
+      const timestamp = /^\d+$/.test(value) ? Number(value) : value;
+      const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
+      return timeValue || value;
+    };
 
     const handleSearchClick = value => {
       searchValue.value = value;
@@ -184,9 +193,15 @@ export default defineComponent({
               <bk-table-column
                 key={col}
                 label={col}
-                prop={col}
+                // prop={col}
+                scopedSlots={{
+                  default: ({ row }) => (
+                    <span>{getDateTimeFormatValue(row, col)}</span>
+                  ),
+                }}
                 sortable={true}
-              ></bk-table-column>
+              >
+              </bk-table-column>
             ))}
           </bk-table>,
         ];

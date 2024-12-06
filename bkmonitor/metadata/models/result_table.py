@@ -2713,6 +2713,7 @@ class ESFieldQueryAliasOption(BaseModel):
 
     table_id = models.CharField("结果表名", max_length=128)
     field_path = models.CharField("原始字段路径", max_length=256)
+    path_type = models.CharField("路径类型", max_length=128, default="keyword")
     query_alias = models.CharField("查询别名", max_length=256)
     is_deleted = models.BooleanField("是否已删除", default=False)
 
@@ -2744,6 +2745,26 @@ class ESFieldQueryAliasOption(BaseModel):
             logger.error("Error generating alias configuration for table_id=[%s]: %s", table_id, str(e), exc_info=True)
             raise
 
+    @classmethod
+    def generate_alias_path_type_settings(cls, table_id):
+        """
+        生成指定table_id的别名路径类型配置
+        :param table_id: 结果表ID
+        :return: dict -> {field_path: path_type}
+        """
+        try:
+            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False)
+            path_type_map = {
+                record.field_path: {
+                    "type": record.path_type,
+                }
+                for record in alias_records
+            }
+            return path_type_map
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("Error generating alias path type configuration for table_id->[%s],error->[%s]", table_id, e)
+            raise
+
     @staticmethod
     @transaction.atomic
     def manage_query_alias_settings(table_id, query_alias_settings, operator):
@@ -2763,7 +2784,7 @@ class ESFieldQueryAliasOption(BaseModel):
         existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
         existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
 
-        # 提取用户传入的数据组合，对于一个采集项而言，field_path+query_alias为一个组合
+        # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
         incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
 
         try:
@@ -2771,11 +2792,13 @@ class ESFieldQueryAliasOption(BaseModel):
             for item in query_alias_settings:
                 field_path = item["field_name"]
                 query_alias = item["query_alias"]
+                path_type = item.get("path_type", "keyword")
 
                 if (field_path, query_alias) in existing_map:
                     # 更新记录
                     record = existing_map[(field_path, query_alias)]
                     record.is_deleted = False  # 重置软删除标记
+                    record.path_type = path_type  # 更新 path_type
                     record.updater = operator
                     record.save()
                 else:
@@ -2784,6 +2807,7 @@ class ESFieldQueryAliasOption(BaseModel):
                         table_id=table_id,
                         field_path=field_path,
                         query_alias=query_alias,
+                        path_type=path_type,  # 设置 path_type
                         creator=operator,
                         is_deleted=False,
                     )

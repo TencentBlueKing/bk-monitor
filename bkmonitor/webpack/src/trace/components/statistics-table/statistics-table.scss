@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important  */
 .statistics-table-wrap {
   box-sizing: border-box;
   height: 100%;
@@ -57,16 +58,14 @@
     &.bk-table {
       .bk-table-body {
         // 样式被污染，这里重新修改会原先的样式。
-
-        /* stylelint-disable declaration-no-important  */
         overflow-x: auto !important;
-
-        /* stylelint-enable */
       }
     }
   }
 
   .bk-table-head {
+    overflow: initial !important;
+
     .column_fixed_right {
       .cell {
         background-color: #fafbfd;
@@ -138,17 +137,14 @@
   }
 
   td {
-    /* stylelint-disable-next-line declaration-no-important */
     height: 40px !important;
 
     .cell {
-      /* stylelint-disable-next-line declaration-no-important */
       line-height: 40px !important;
     }
   }
 
   thead .cell.has-filter {
-    /* stylelint-disable-next-line declaration-no-important */
     padding: 0 15px !important;
 
     .head-text {
@@ -157,7 +153,6 @@
   }
 
   .table-head-settings {
-    /* stylelint-disable-next-line declaration-no-important */
     width: 40px !important;
   }
 
@@ -170,11 +165,9 @@
 
     thead {
       .cell {
-        /* stylelint-disable-next-line declaration-no-important */
         padding: 0 !important;
 
         &.has-filter {
-          /* stylelint-disable-next-line declaration-no-important */
           padding: 0 15px !important;
         }
       }

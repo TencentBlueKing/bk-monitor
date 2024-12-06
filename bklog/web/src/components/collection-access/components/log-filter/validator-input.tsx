@@ -162,7 +162,7 @@ export default class LogFilter extends tsc<object> {
       </bk-form>
     );
     return (
-      <div class='form-input'>
+      <div class='bklog-log-filter form-input'>
         {!this.isShowSelect ? (
           this.inputType !== 'number' ? (
             formInput()
