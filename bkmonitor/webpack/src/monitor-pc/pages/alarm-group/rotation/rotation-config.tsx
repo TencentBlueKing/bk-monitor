@@ -28,10 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { listDutyRule } from 'monitor-api/modules/model';
 import { previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { EStatus, getEffectiveStatus, statusMap } from 'monitor-common/rotation-utils/common';
 import { Debounce, random } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
-import { EStatus, getEffectiveStatus, statusMap } from '../../../../trace/pages/rotation/typings/common';
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
 import DutyNoticeConfig, { initData as noticeData } from './duty-notice-config';
 import RotationDetail from './rotation-detail';
