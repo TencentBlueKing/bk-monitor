@@ -809,11 +809,11 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_list = list()
+        alias_dict = dict()
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
             data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-            alias_list = data.get("query_alias_settings", [])
+            alias_dict = data.get("query_alias_settings", dict())
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -832,12 +832,8 @@ class MappingHandlers(object):
                     if field_option:
                         # 加入元数据标识
                         metadata_type = field_option.get("metadata_type")
-                        # 获取别名配置
-                        query_alias = field_option.get("query_alias")
                         if metadata_type:
                             _field.update({"metadata_type": metadata_type})
-                        if query_alias:
-                            _field.update({"query_alias": query_alias})
                 else:
                     _field.update({"description": None})
 
@@ -852,9 +848,9 @@ class MappingHandlers(object):
                     )
 
                 # 添加别名信息
-                for item in alias_list:
-                    if a_field_name == item["field_name"]:
-                        _field["query_alias"] = item["query_alias"]
+                for alias_name, info in alias_dict:
+                    if a_field_name == info.get("path"):
+                        _field["query_alias"] = alias_name
 
         return fields_list
 
