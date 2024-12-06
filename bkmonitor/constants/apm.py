@@ -614,6 +614,7 @@ class PreCalculateSpecificField(TextChoices):
     CATEGORY_STATISTICS = "category_statistics"
     KIND_STATISTICS = "kind_statistics"
     COLLECTIONS = "collections"
+    SERVICE_DISTRIBUTION = "service_distribution"
 
     @classmethod
     def search_fields(cls):
