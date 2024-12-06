@@ -84,7 +84,7 @@ export default defineComponent({
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
   },
-  emits: ['show'],
+  emits: ['show', 'switchSpanDetails'],
   setup(props, { emit }) {
     const store = useTraceStore();
     const { t } = useI18n();
@@ -114,6 +114,18 @@ export default defineComponent({
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
     const bizId = computed(() => useAppStore().bizId || 0);
+
+    const spans = computed(() => store.spanGroupTree);
+
+    const isDisabled = computed(() => {
+      const curSpanIndex = spans.value?.findIndex(item => item.spanID === props.spanDetails.spanID);
+      const spanCount = spans.value?.length || 0;
+      return flag => {
+        if (curSpanIndex === -1) return false; // 如果索引无效，返回 false
+
+        return (flag === 'up' && curSpanIndex === 0) || (flag === 'down' && curSpanIndex === spanCount - 1);
+      };
+    });
 
     const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
@@ -175,9 +187,7 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        if (val && !props.withSideSlider) {
-          getDetails();
-        }
+        val && Object.keys(val).length && getDetails();
       },
       { immediate: true, deep: true }
     );
@@ -534,6 +544,12 @@ export default defineComponent({
     const handleHiddenChange = () => {
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /* 上一跳/下一跳 */
+    const switchSpanDetails = val => {
+      handleActiveTabChange();
+      emit('switchSpanDetails', val);
     };
 
     /* 展开收起 */
@@ -1288,7 +1304,31 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
-              <span>{info.title}</span>
+              <div>
+                <span>{info.title}</span>
+                <div
+                  class={['arrow-wrap', { disabled: isDisabled.value('up') }]}
+                  v-bk-tooltips={{ content: isDisabled.value('up') ? t('已经是第一个span') : t('上一跳') }}
+                  onClick={() => {
+                    if (!isDisabled.value('up')) {
+                      switchSpanDetails(-1);
+                    }
+                  }}
+                >
+                  <span class='icon-monitor icon-arrow-up' />
+                </div>
+                <div
+                  class={['arrow-wrap', { disabled: isDisabled.value('down') }]}
+                  v-bk-tooltips={{ content: isDisabled.value('down') ? t('已经是最后一个span') : t('下一跳') }}
+                  onClick={() => {
+                    if (!isDisabled.value('down')) {
+                      switchSpanDetails(1);
+                    }
+                  }}
+                >
+                  <span class='icon-monitor icon-arrow-down' />
+                </div>
+              </div>
               <div class='header-tool'>
                 <Switcher
                   class='switcher'

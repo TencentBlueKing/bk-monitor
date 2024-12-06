@@ -182,6 +182,7 @@ export default defineComponent({
     const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
+    const spansUpDown = ref(null);
     const spanDetails = ref<null | Span>(null);
 
     const childrenHiddenStore = useChildrenHiddenInject();
@@ -271,6 +272,7 @@ export default defineComponent({
       spanDetails,
       traceTree,
       spans,
+      spansUpDown,
       handleToggleCollapse,
     };
   },
@@ -291,6 +293,7 @@ export default defineComponent({
           // key={this.spans.length}
           itemsWrapperClassName='virtualized-trace-view-rows-wrapper'
           spanNameColumnWidth={spanNameColumnWidth}
+          spansUpDown={this.spansUpDown}
           viewBuffer={300}
           viewBufferMin={100}
           windowScroller
@@ -303,6 +306,12 @@ export default defineComponent({
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
           onShow={v => (this.showSpanDetails = v)}
+          onSwitchSpanDetails={flag => {
+            this.spansUpDown = {
+              jumpFlag: flag,
+              span: this.spanDetails,
+            };
+          }}
         />
       </div>
     );
