@@ -84,7 +84,8 @@
       "options": {
         "target_list": {
           "show_status_bar": true,
-          "show_overview": false
+          "show_overview": false,
+          "time_range_change_refresh": true
         }
       }
     }

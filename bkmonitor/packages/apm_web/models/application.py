@@ -909,7 +909,7 @@ class ApmMetaConfig(models.Model):
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=528)
+    level_key = models.CharField("配置目标key", max_length=512)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 

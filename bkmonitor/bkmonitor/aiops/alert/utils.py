@@ -13,17 +13,17 @@ import copy
 import json
 import logging
 import math
-import re
 import operator
+import re
 from collections import defaultdict
-from itertools import chain
 from functools import reduce
+from itertools import chain
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
 from django.db.models import Q as DQ
+from django.utils.translation import ugettext as _
 
 from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType
@@ -97,13 +97,18 @@ class AIOPSManager(abc.ABC):
 
     @classmethod
     def get_graph_panel(
-        cls, alert: AlertDocument, compare_function: Optional[Dict] = None, use_raw_query_config: bool = False
+        cls,
+        alert: AlertDocument,
+        compare_function: Optional[Dict] = None,
+        use_raw_query_config: bool = False,
+        with_anomaly: bool = True,
     ):
         """
         获取图表配置
         :param alert: 告警对象
         :param compare_function:
         :param use_raw_query_config: 是否使用原始查询配置（适用于AIOps接入后要获取原始数据源的场景）
+        :param with_anomaly: 是否需要在返回图表中包含is_anomaly字段
         """
         if compare_function is None:
             compare_function = {"time_compare": ["1d", "1w"]}
@@ -265,7 +270,7 @@ class AIOPSManager(abc.ABC):
                 extra_metrics = []
                 if not use_raw_query_config and intelligent_algorithm_list and intelligent_detect_accessed:
                     visual_type = intelligent_algorithm_list[0]["config"].get("visual_type")
-                    if visual_type != VisualType.FORECASTING:
+                    if visual_type != VisualType.FORECASTING and with_anomaly:
                         metrics.append(
                             {
                                 "field": "is_anomaly",
@@ -961,16 +966,17 @@ class RecommendMetricManager(AIOPSManager):
         filter_conditions_group = defaultdict(list)
 
         # 预定义定查询需要显示的字段集合
-        pre_field_set = {"bk_biz_id",
-                         "result_table_id",
-                         "dimensions",
-                         "metric_field",
-                         "metric_field_name",
-                         "data_type_label",
-                         "data_source_label",
-                         "result_table_label",
-                         "result_table_label_name",
-                         }
+        pre_field_set = {
+            "bk_biz_id",
+            "result_table_id",
+            "dimensions",
+            "metric_field",
+            "metric_field_name",
+            "data_type_label",
+            "data_source_label",
+            "result_table_label",
+            "result_table_label_name",
+        }
 
         # 总的查询需要显示的字段集合
         field_set = pre_field_set.copy()
@@ -988,24 +994,26 @@ class RecommendMetricManager(AIOPSManager):
 
             # 对过滤字段进行分组，并保存与当前metric_info相关的信息
             filter_conditions_group[tuple(sorted(metric_info.keys()))].append(
-                (metric_info, metric_name, dimensions, recommend_metric))
+                (metric_info, metric_name, dimensions, recommend_metric)
+            )
             # 更新查询需要显示的字段集合
             field_set.update(set(metric_info.keys()))
 
         # 生成过滤条件
-        filter_conditions = reduce(operator.or_, [DQ(**{key + "__in": field_values_map[key] for key in key_tuple})
-                                                  for key_tuple in filter_conditions_group.keys()])
+        filter_conditions = reduce(
+            operator.or_,
+            [
+                DQ(**{key + "__in": field_values_map[key] for key in key_tuple})
+                for key_tuple in filter_conditions_group.keys()
+            ],
+        )
 
         # 批量获取所有需要查询的指标
         metric_data_set = MetricListCache.objects.filter(filter_conditions).values(*field_set)
 
         for key_tuple, met_info_recommends in filter_conditions_group.items():
-
             # 根据key_tuple组成新的key，用于查询
-            metric_dic = {
-                tuple(data[key] for key in key_tuple): data
-                for data in metric_data_set
-            }
+            metric_dic = {tuple(data[key] for key in key_tuple): data for data in metric_data_set}
 
             for metric_info, metric_name, dimensions, recommend_metric in met_info_recommends:
                 base_graph_panel = copy.deepcopy(graph_panel)
@@ -1025,8 +1033,9 @@ class RecommendMetricManager(AIOPSManager):
                 }
 
                 # 维度中文名映射
-                dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if
-                                item.get("is_dimension", True)}
+                dim_mappings = {
+                    item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)
+                }
                 dimension_keys = sorted(dimensions.keys())
 
                 base_graph_panel["id"] = recommend_metric[0]

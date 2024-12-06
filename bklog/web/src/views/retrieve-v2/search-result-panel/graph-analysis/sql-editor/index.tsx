@@ -74,17 +74,17 @@ export default defineComponent({
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
 
-    const chartParams = computed(() => {
-      const target = props.extendParams ?? {};
+    // const chartParams = computed(() => {
+    //   const target = props.extendParams ?? {};
 
-      return {
-        ...target,
-        chart_params: {
-          ...target.chart_params,
-          sql: sqlContent.value,
-        },
-      };
-    });
+    //   return {
+    //     ...target,
+    //     chart_params: {
+    //       ...target.chart_params,
+    //       sql: sqlContent.value,
+    //     },
+    //   };
+    // });
 
     useResizeObserve(refRootElement, entry => {
       editorConfig.value.height = entry.target?.offsetHeight ?? 400;
@@ -220,7 +220,7 @@ export default defineComponent({
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
             addition={retrieveParams.value.addition ?? []}
-            extendParams={chartParams.value}
+            extendParams={props.extendParams}
             search-mode='sqlChart'
             sql={retrieveParams.value.keyword}
           ></BookmarkPop>
