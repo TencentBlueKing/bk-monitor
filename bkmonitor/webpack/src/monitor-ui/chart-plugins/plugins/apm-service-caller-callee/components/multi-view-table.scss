@@ -103,6 +103,10 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .custom-header-tips {
+        padding-bottom: 2px;
+        border-bottom: 1px dashed #979ba5;
+      }
       .item-txt-no {
         min-width: 46px;
         max-width: 99%;

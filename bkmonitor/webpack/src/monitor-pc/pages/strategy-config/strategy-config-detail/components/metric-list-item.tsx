@@ -44,7 +44,7 @@ interface IProps {
 interface IConfigsItem {
   key: 'function' | 'groupBy' | 'interval' | 'localQueryString' | 'logMetricName' | 'method' | 'metricName' | 'where';
   label: string;
-  value: VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[] | string;
+  value: string | VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[];
   format?: (val: any) => any;
   enabled: boolean;
 }

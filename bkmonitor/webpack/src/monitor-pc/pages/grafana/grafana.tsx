@@ -277,6 +277,7 @@ export default class MyComponent extends tsc<object> {
           ref='iframe'
           style={{
             'min-height': this.showAlert ? 'calc(100% - 32px)' : '100%',
+            height: this.showAlert ? 'calc(100% - 32px)' : '100%',
           }}
           class='grafana-wrap-frame'
           src={this.grafanaUrl}

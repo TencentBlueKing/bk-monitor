@@ -17,7 +17,7 @@ from rest_framework import serializers
 
 from bk_dataview.api import get_or_create_org
 from bk_dataview.permissions import GrafanaPermission, GrafanaRole
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
 from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.grafana.permissions import DashboardPermission
@@ -313,3 +313,61 @@ class QuickImportDashboard(Resource):
             raise ImportError(f"bk_biz_id[{bk_biz_id}], quick import dashboard[{dash_name}] failed")
 
         return
+
+
+class CopyDashboardToFolder(Resource):
+    """
+    将指定仪表盘复制到指定目录
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+        dashboard_uid = serializers.CharField(label="源仪表盘UID", required=True)
+        folder_id = serializers.IntegerField(label="目标目录ID", required=True)
+
+    def perform_request(self, params):
+        # 1. 获取源仪表盘信息
+        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        dashboard_info = api.grafana.get_dashboard_by_uid(org_id=org_id, uid=params["dashboard_uid"])
+        dashboard = dashboard_info.get("data", {}).get("dashboard")
+
+        # 没有获取到源仪表盘信息，直接返回
+        if not dashboard:
+            return {
+                "result": False,
+                "message": f"Copy failed. The dashboard information could not be found. "
+                f"dashboard_uid: {params['dashboard_uid']}",
+                "code": 200,
+                "data": {},
+            }
+
+        # 移除仪表盘信息中的唯一标识符uid和id
+        dashboard.pop("uid", None)
+        dashboard.pop("id", None)
+        # 不覆盖已存在的同名仪表盘，如果存在同名仪表盘，修改名称以避免覆盖
+        existed_dashboards = resource.grafana.get_dashboard_list(bk_biz_id=params["bk_biz_id"])
+        existed_titles = {dashboard["name"] for dashboard in existed_dashboards}
+        while dashboard["title"] in existed_titles:
+            dashboard["title"] = f"{dashboard['title']}_copy"
+
+        # 2. 复制仪表盘到目标目录
+        result = api.grafana.import_dashboard(
+            dashboard=dashboard,
+            folderId=params["folder_id"],
+            org_id=org_id,
+        )
+
+        if not result["result"]:
+            return {
+                "result": False,
+                "message": f"Dashboard_uid: {params['dashboard_uid']} Copy failed. {result['message']}",
+                "code": result["code"],
+                "data": {},
+            }
+
+        return {
+            "result": True,
+            "message": "Copy success.",
+            "code": result["code"],
+            "data": {"imported_url": result["data"].get("importedUrl", "")},
+        }

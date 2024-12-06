@@ -155,3 +155,19 @@ class SpaceStickyInfo(models.Model):
 
     space_uid_list = JsonField("置顶空间uid列表", default=[])
     username = models.CharField("用户名", max_length=64, db_index=True)
+
+
+class BkAppSpaceRecord(BaseModel):
+    """
+    蓝鲸应用-空间授权记录
+    """
+
+    record_id = models.BigAutoField(primary_key=True)
+    bk_app_code = models.CharField(verbose_name="蓝鲸应用app_code", max_length=255, null=False)
+    space_uid = models.CharField(verbose_name="空间UID", max_length=255, null=False)
+    is_enable = models.BooleanField(verbose_name="是否启用", default=True)
+
+    class Meta:
+        verbose_name = "蓝鲸应用空间授权记录"
+        verbose_name_plural = "蓝鲸应用空间授权记录"
+        unique_together = ("bk_app_code", "space_uid")

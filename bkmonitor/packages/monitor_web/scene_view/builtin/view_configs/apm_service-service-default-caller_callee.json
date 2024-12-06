@@ -1562,6 +1562,14 @@
               },
               "tags": [
                 {
+                  "value": "namespace",
+                  "text": "物理环境"
+                },
+                {
+                  "value": "env_name",
+                  "text": "用户环境"
+                },
+                {
                   "value": "caller_service",
                   "text": "主调 Service"
                 },
@@ -1609,14 +1617,6 @@
                 {
                   "value": "callee_con_setid",
                   "text": "被调 SetID"
-                },
-                {
-                  "value": "namespace",
-                  "text": "物理环境"
-                },
-                {
-                  "value": "env_name",
-                  "text": "用户环境"
                 },
                 {
                   "value": "code",
@@ -1740,6 +1740,14 @@
               },
               "tags": [
                 {
+                  "value": "namespace",
+                  "text": "物理环境"
+                },
+                {
+                  "value": "env_name",
+                  "text": "用户环境"
+                },
+                {
                   "value": "caller_server",
                   "text": "主调服务"
                 },
@@ -1787,14 +1795,6 @@
                 {
                   "value": "callee_con_setid",
                   "text": "被调 SetID"
-                },
-                {
-                  "value": "namespace",
-                  "text": "物理环境"
-                },
-                {
-                  "value": "env_name",
-                  "text": "用户环境"
                 },
                 {
                   "value": "code",
