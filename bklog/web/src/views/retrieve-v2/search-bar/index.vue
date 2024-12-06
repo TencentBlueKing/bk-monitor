@@ -3,6 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -10,16 +11,42 @@
   // #code const BookmarkPop = () => null;
   // #endif
 
+  import { ConditionOperator } from '@/store/condition-operator';
+
+  import $http from '../../../api';
+  import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import { ConditionOperator } from '@/store/condition-operator';
+
+  const props = defineProps({
+    activeFavorite: {
+      default: null,
+      type: Object,
+    },
+  });
+
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
-  const activeIndex = ref(0);
+  const route = useRoute();
+  const router = useRouter();
+
+  const getDefaultActiveIndex = () => {
+    if (route.query.search_mode) {
+      return queryParams.findIndex(m => m === route.query.search_mode);
+    }
+
+    if (route.query.keyword?.length) {
+      return 1;
+    }
+
+    return localStorage.getItem('bkLogQueryType');
+  };
+
+  const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -31,6 +58,8 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
+
+  const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -61,22 +90,22 @@
   watch(clearSearchValueNum, () => {
     handleClearBtnClick();
   });
+  const formatAddition = addition => {
+    return addition.map(v => {
+      const value = {
+        ...v,
+        field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
+      };
 
+      const instance = new ConditionOperator(value);
+      return { ...value, ...instance.getShowCondition() };
+    });
+  };
   watch(
     addition,
     () => {
       uiQueryValue.value.splice(0);
-      uiQueryValue.value.push(
-        ...addition.value.map(v => {
-          const value = {
-            ...v,
-            field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
-          };
-
-          const instance = new ConditionOperator(value);
-          return { ...value, ...instance.getShowCondition() };
-        }),
-      );
+      uiQueryValue.value.push(...formatAddition(addition.value));
     },
     { immediate: true, deep: true },
   );
@@ -93,6 +122,14 @@
     () => {
       store.commit('updateIndexItemParams', {
         search_mode: queryParams[activeIndex.value],
+      });
+
+      router.replace({
+        params: { ...route.params },
+        query: {
+          ...(route.query ?? {}),
+          search_mode: queryParams[activeIndex.value],
+        },
       });
     },
     { immediate: true },
@@ -143,10 +180,102 @@
 
   const handleQueryTypeChange = () => {
     activeIndex.value = activeIndex.value === 0 ? 1 : 0;
+    localStorage.setItem('bkLogQueryType', activeIndex.value);
   };
+  const sourceSQLStr = ref('');
+  const sourceUISQLAddition = ref([]);
+  const initSourceSQLStr = (params, search_mode) => {
+    if (search_mode === 'ui') {
+      sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
+    } else {
+      sourceSQLStr.value = params.keyword;
+    }
+  };
+  watch(
+    () => props.activeFavorite?.id,
+    () => {
+      if (!props.activeFavorite) return;
+      initSourceSQLStr(props.activeFavorite.params, props.activeFavorite.search_mode);
+    },
+    { immediate: true },
+  );
+
+  const matchSQLStr = computed(() => {
+    if (activeIndex.value === 0) {
+      if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
+        return false;
+      }
+      const differerntUISQL = sourceUISQLAddition.value.find((item, index) => {
+        return (
+          item.field + item.operator + item.value !==
+          uiQueryValue.value[index].field + uiQueryValue.value[index].operator + uiQueryValue.value[index].value
+        );
+      });
+      return !differerntUISQL;
+    } else {
+      return sqlQueryValue.value === sourceSQLStr.value;
+    }
+  });
+
+  const saveCurrentActiveFavorite = async () => {
+    const {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      index_set_name,
+      index_set_names,
+      index_set_type,
+      index_set_ids,
+      index_set_id,
+    } = props.activeFavorite;
+    const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
+    const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
+    const searchParams =
+      searchMode === 'sql'
+        ? { keyword: sqlQueryValue.value, addition: [] }
+        : {
+            addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
+            keyword: '*',
+          };
+
+    const data = {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      search_mode: searchMode,
+      ip_chooser: reqFormatAddition.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+      index_set_id,
+      index_set_ids,
+      index_set_name,
+      index_set_type,
+      index_set_names,
+      ...searchParams,
+    };
+    try {
+      const res = await $http.request('favorite/updateFavorite', {
+        params: { id: props.activeFavorite?.id },
+        data,
+      });
+      if (res.result) {
+        window.mainComponent.messageSuccess($t('保存成功'));
+        initSourceSQLStr(res.data.params, res.data.search_mode);
+        handleRefresh(true);
+      }
+    } catch (error) {}
+  };
+
+  // const handleCopyQueryValue = () => {
+  //   const { search_mode, keyword, addition } = store.getters.retrieveParams;
+  //   const copyValue = search_mode === 'sql' ? keyword : addition;
+  //   copyMessage(JSON.stringify(copyValue), '复制成功');
+  // };
 </script>
 <template>
-  <div class="search-bar-container">
+  <div :class="['search-bar-container', { readonly: isChartMode }]">
     <div
       class="search-options"
       @click="handleQueryTypeChange"
@@ -171,17 +300,41 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
+        <!-- <div
+          v-bk-tooltips="'复制当前查询'"
+          :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+          @click.stop="handleCopyQueryValue"
+        ></div> -->
         <div
+          v-bk-tooltips="'清理当前查询'"
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
           @click.stop="handleClearBtnClick"
         ></div>
         <BookmarkPop
+          v-if="!props.activeFavorite"
+          v-bk-tooltips="'收藏当前查询'"
           :addition="uiQueryValue"
           :class="{ disabled: isInputLoading }"
           :search-mode="queryParams[activeIndex]"
           :sql="sqlQueryValue"
           @refresh="handleRefresh"
         ></BookmarkPop>
+        <template v-else>
+          <div
+            v-if="matchSQLStr"
+            class="bklog-icon bklog-star-line disabled"
+            v-bk-tooltips="'已收藏'"
+            :data-boolean="matchSQLStr"
+          ></div>
+          <div
+            v-else
+            style="color: #63656e"
+            v-bk-tooltips="'收藏'"
+            class="icon bk-icon icon-save"
+            @click="saveCurrentActiveFavorite"
+          ></div>
+        </template>
+
         <!-- <span class="disabled bklog-icon bklog-set-icon"></span> -->
       </div>
       <div

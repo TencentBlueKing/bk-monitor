@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("apm_web", "0023_auto_20240926_1222"),
     ]
@@ -13,6 +12,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="apmmetaconfig",
             name="level_key",
-            field=models.CharField(max_length=528, verbose_name="配置目标key"),
+            field=models.CharField(max_length=512, verbose_name="配置目标key"),
         ),
     ]

@@ -294,8 +294,9 @@ class BaseQuery:
             logger.info("[add_query_string] filter_dict -> %s", filter_dict)
             if filter_dict:
                 return q.filter(dict_to_q(filter_dict))
-        except Exception:
-            logger.exception("[add_query_string] failed to parse dsl -> %s", dsl)
+        except Exception:  # pylint: disable=broad-except
+            # 可忽略异常，仅打印 warn 日志
+            logger.warning("[add_query_string] failed to parse dsl but skipped -> %s", dsl)
 
         query_string, nested_paths = cls._parse_query_string_from_dsl(dsl)
         logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)

@@ -304,4 +304,5 @@ export default {
   '存在表达式依赖，不能删除': 'Expression dependency exists, cannot be deleted',
   '存在表达式,暂不支持转换': 'Expression exists, conversion is not supported temporarily',
   中位数: 'median',
+  复制到: 'Copy to',
 };

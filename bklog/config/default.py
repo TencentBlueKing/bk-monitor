@@ -374,6 +374,7 @@ else:
 BKDATA_URL = BK_PAAS_HOST
 MONITOR_URL = ""
 BK_DOC_URL = "https://bk.tencent.com/docs/"
+BK_DOC_STATIC_URL = ""
 BK_DOC_QUERY_URL = "https://bk.tencent.com/docs/document/5.1/90/3822/"
 BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
 
@@ -942,6 +943,7 @@ ESQUERY_WHITE_LIST = [
     "data",
     "dataweb",
     "bk_bcs",
+    "bk_bcs_app",
     "bk-dbm",
     "bk_dbm",
     "bk-audit",

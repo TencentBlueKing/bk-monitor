@@ -2,11 +2,9 @@
 
 from django.db import migrations, models
 
-from apm.models import ApmTopoDiscoverRule
-
 
 def update_discover_rules(apps, schema_editor):
-    ApmTopoDiscoverRule.init_builtin_config()
+    pass
 
 
 class Migration(migrations.Migration):
