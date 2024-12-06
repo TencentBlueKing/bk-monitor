@@ -10,36 +10,14 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.profile.diagrams.base import FunctionNode
-from apm_web.profile.diagrams.diff import DiffNode
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
-
-
-def function_node_to_element(function_node: FunctionNode, level=0) -> dict:
-    return {
-        "id": function_node.id,
-        "name": function_node.name,
-        "value": function_node.value,
-        "self": function_node.self_time,
-        "level": level,
-        "children": [
-            function_node_to_element(child, level + 1) for child in function_node.children
-        ],  # 当function_node的children有两个child时，两个child都分别+1
-    }
-
-
-def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
-    return {
-        **diff_node.default.to_dict(),
-        "diff_info": diff_node.diff_info,
-        "children": [diff_node_to_element(child) for child in diff_node.children],
-    }
 
 
 @dataclass
