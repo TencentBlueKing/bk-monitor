@@ -552,6 +552,7 @@
       }
 
       .expan-item-small-subtitle {
+        flex: 1;
         padding: 0 24px 0 16px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -608,9 +609,16 @@
       .left {
         display: flex;
         align-items: flex-start;
-        min-width: 216px;
+        width: 216px;
         padding-left: 16px;
         color: #63656e;
+
+        .left-title {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         .operator {
           display: flex;

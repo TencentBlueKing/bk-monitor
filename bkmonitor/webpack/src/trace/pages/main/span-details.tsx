@@ -732,7 +732,12 @@ export default defineComponent({
               class={['tags-row', { grey: !(index % 2) }]}
             >
               <span class='left'>
-                {item.label}
+                <span
+                  class='left-title'
+                  v-bk-overflow-tips
+                >
+                  {item.label}
+                </span>
                 <div class='operator'>
                   <EnlargeLine
                     class='icon-add-query'
