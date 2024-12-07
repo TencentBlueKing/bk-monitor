@@ -467,4 +467,19 @@ export default {
   暂无更多数据: 'No more data',
   '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
   已成功下发采集配置: 'Successfully issued collection configuration',
+  // 调用分析
+  '仅展示前 30 条数据': 'Only the first 30 data are displayed',
+  查看关联调用链: 'View related call chains',
+  P50: 'P50',
+  P90: 'P90',
+  P95: 'P95',
+  P99: 'P99',
+  '近{n}天': 'In the last {n} days',
+  服务未接入: 'Service not connected',
+  '查看当前「{preText}」在{perAfterString}分析的数据':
+    'View the data for the current "{preText}" in {perAfterString} analysis',
+  '当前「{preText}」在{perAfterString}分析无调用记录':
+    'No call records for the current "{preText}" in {perAfterString} analysis',
+  '跳转到「{intersection}」拓扑页面': 'Jump to the "{intersection}" topology page',
+  '跳转到「{intersection}」调用分析页面': 'Jump to the "{intersection}" call analysis page',
 };
