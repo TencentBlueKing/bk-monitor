@@ -71,22 +71,6 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
-
-  // const scrollTop = ref(0);
-  // const handleScroll = (top, scrollElementOffset) => {
-  //   scrollTop.value = top > scrollElementOffset ? top - scrollElementOffset : 0;
-  // };
-
-  // const { searchBarHeight, containerId } = useScroll({ scrollCallbackFn: handleScroll });
-  // const bodyStyle = computed(() => {
-  //   if (scrollTop.value > 0) {
-  //     return {
-  //       '--fields-offset-top': `${scrollTop.value + searchBarHeight.value + 52}px`,
-  //     };
-  //   }
-
-  //   return {};
-  // });
 </script>
 
 <template>

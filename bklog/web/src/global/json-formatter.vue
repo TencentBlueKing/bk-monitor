@@ -77,7 +77,6 @@
         try {
           return JSON.parse(originValue);
         } catch (e) {
-          console.error(e);
           return val;
         }
       }

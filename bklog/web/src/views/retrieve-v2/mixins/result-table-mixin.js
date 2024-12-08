@@ -189,7 +189,7 @@ export default {
       }
 
       this.$store.commit('updateVisibleFieldMinWidth', this.tableList, sortFieldsList);
-      // setDefaultTableWidth(sortFieldsList, this.tableList);
+      setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
     },
     /** 是否展示数据来源 */

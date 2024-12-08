@@ -24,15 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, watch, computed } from 'vue';
+  import { ref, watch, computed, onMounted } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import useTruncateText from '@/hooks/use-truncate-text';
   import { debounce } from 'lodash';
   import useResizeObserve from '@/hooks/use-resize-observe';
-  import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
   const emit = defineEmits(['menu-click']);
 
@@ -50,6 +48,7 @@
   const isLimitExpandView = computed(() => store.state.isLimitExpandView);
   const showAll = ref(false);
   const maxWidth = ref(0);
+  const renderText = ref(props.content);
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -70,10 +69,75 @@
     showAll: isLimitExpandView.value || showAll.value,
   }));
 
-  const { showMore } = useTruncateText(textTruncateOption);
-  const renderText = computed(() => {
-    return props.content;
-  });
+  const getTextWidth = (text, font) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    context.font = font;
+    const metrics = context.measureText(text);
+    return metrics.width;
+  };
+
+  const truncateTextWithCanvas = () => {
+    const { text, maxWidth, font } = textTruncateOption.value;
+    if (maxWidth <= 0) {
+      return '';
+    }
+
+    if (typeof text !== 'string') {
+      return text;
+    }
+
+    const availableWidth = maxWidth;
+
+    // 移除 <mark> 标签
+    const groups = text.split(/<\/?mark>/g);
+
+    // 计算最大宽度字符串
+    let truncatedText = '';
+    let currentWidth = 0;
+    let temp = true;
+    const length = groups.length;
+    let groupIndex = 0;
+    groupLoop: for (const group of groups) {
+      groupIndex++;
+
+      for (const char of group) {
+        const charWidth = getTextWidth(char, font);
+        if (currentWidth + charWidth > availableWidth) {
+          break groupLoop;
+        }
+        truncatedText += char;
+        currentWidth += charWidth;
+      }
+
+      if (groupIndex < length) {
+        truncatedText += temp ? '<mark>' : '</mark>';
+        temp = !temp;
+      }
+    }
+
+    if (!temp) {
+      truncatedText += '</mark>';
+    }
+
+    const openingTagPattern = /<mark>/g;
+    const closingTagPattern = /<\/mark>/g;
+
+    // 计算截取文本中的 <mark> 和 </mark> 标签数量
+    const openCount = (truncatedText.match(openingTagPattern) || []).length;
+    const closeCount = (truncatedText.match(closingTagPattern) || []).length;
+
+    // 如果 <mark> 标签数量多于 </mark>，则追加一个 </mark>
+    if (openCount > closeCount) {
+      truncatedText += '</mark>';
+    }
+
+    if (!temp) {
+      truncatedText += '</mark>';
+    }
+
+    return truncatedText;
+  };
 
   const btnText = computed(() => {
     if (showAll.value) {
@@ -83,7 +147,9 @@
     return $t('更多');
   });
 
-  const debounceSetSegmentTag = debounce(() => {
+  const showMore = computed(() => renderText.value.length < props.content.length && maxWidth.value > 0);
+
+  const debounceSetSegmentTag = () => {
     instance.config.jsonValue = props.content;
     instance.destroy?.();
 
@@ -98,17 +164,7 @@
           }
         : undefined;
     instance.initStringAsValue(props.content, appendText);
-  });
-
-  watch(
-    () => [renderText.value],
-    () => {
-      debounceSetSegmentTag();
-    },
-    {
-      immediate: true,
-    },
-  );
+  };
 
   const handleClickMore = e => {
     e.stopPropagation();
@@ -122,33 +178,27 @@
     return refContent.value?.parentElement;
   };
 
-  const debounceUpdateSegmentTag = debounce(() => {
+  const setMaxWidth = () => {
     const cellElement = getCellElement();
 
     if (cellElement) {
       const elementMaxWidth = cellElement.offsetWidth * 3;
       maxWidth.value = elementMaxWidth;
     }
+  };
+
+  const debounceUpdateSegmentTag = debounce(() => {
+    setMaxWidth();
+    renderText.value = truncateTextWithCanvas();
+    debounceSetSegmentTag();
   });
 
   useResizeObserve(getCellElement, debounceUpdateSegmentTag);
 
-  const isIntersecting = ref(false);
-  const isResolved = ref(false);
-  useIntersectionObserver(refContent, entry => {
-    isIntersecting.value = entry.isIntersecting;
-
-    if (entry.isIntersecting && !isResolved.value) {
-      isResolved.value = true;
-      // 进入可视区域重新计算宽度
-      debounceSetSegmentTag();
-    } else {
-      isResolved.value = false;
-      if (refFieldValue.value) {
-        debounceSetSegmentTag.cancel();
-        refFieldValue.value.innerText = props.content;
-      }
-    }
+  onMounted(() => {
+    setMaxWidth();
+    renderText.value = truncateTextWithCanvas();
+    debounceSetSegmentTag();
   });
 </script>
 <template>

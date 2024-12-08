@@ -65,7 +65,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   const debounceCallback = () => {
     if (!isRunning.value) {
       isRunning.value = true;
-      loadMoreFn?.()?.then?.(() => {
+      loadMoreFn?.()?.finally?.(() => {
         isRunning.value = false;
       });
     }

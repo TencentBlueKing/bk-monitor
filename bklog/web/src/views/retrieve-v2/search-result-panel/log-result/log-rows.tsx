@@ -28,11 +28,11 @@ import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, Ref }
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
+import useWheel from '@/hooks/use-wheel';
 import { uniqueId, debounce } from 'lodash';
 
-import useResizeObserve from '../../../../hooks/use-resize-observe';
-import useWheel from '../../../../hooks/use-wheel';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -130,6 +130,7 @@ export default defineComponent({
           width: 50,
           align: 'center',
           resize: false,
+          fixed: 'left',
           renderBodyCell: ({ row }) => {
             const config: Ref<RowConfig> = row[ROW_CONFIG];
 
@@ -265,7 +266,7 @@ export default defineComponent({
               key: field.field_name,
               title: field.field_name,
               width: field.width,
-              minWidth: field.min_width,
+              minWidth: field.minWidth,
               align: 'top',
               resize: true,
               renderBodyCell: ({ row }) => {
@@ -382,7 +383,9 @@ export default defineComponent({
       clearRowConfigCache(endIndex - 1);
       const startIndex = endIndex - 1;
       for (let i = startIndex; i < tableData.value.length; i++) {
-        tableData.value[ROW_CONFIG].minHeight = 40;
+        if (tableData.value[ROW_CONFIG]?.minHeight) {
+          tableData.value[ROW_CONFIG].minHeight = 40;
+        }
       }
     };
 
@@ -443,8 +446,31 @@ export default defineComponent({
 
     const handleColumnWidthChange = (w, col) => {
       const width = w > 4 ? w : 40;
+      const longFiels = visibleFields.value.filter(
+        item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
+      );
+      const logField = longFiels.find(item => item.field_name === 'log');
+      const targetField = longFiels.length
+        ? longFiels
+        : visibleFields.value.filter(item => item.field_name !== col.field);
+
+      if (width < col.width && targetField.length) {
+        if (logField) {
+          logField.width = logField.width + width;
+        } else {
+          const avgWidth = (col.width - width) / targetField.length;
+          targetField.forEach(field => {
+            field.width = field.width + avgWidth;
+          });
+        }
+      }
+
+      const sourceObj = visibleFields.value.reduce(
+        (acc, field) => Object.assign(acc, { [field.field_name]: field.width }),
+        {},
+      );
       const { fieldsWidth } = userSettingConfig.value;
-      const newFieldsWidthObj = Object.assign(fieldsWidth, {
+      const newFieldsWidthObj = Object.assign(fieldsWidth, sourceObj, {
         [col.field]: Math.ceil(width),
       });
 
@@ -474,6 +500,8 @@ export default defineComponent({
             return true;
           });
       }
+
+      return Promise.resolve(false);
     };
 
     // 滚动不满一行数据时，第一行数据的偏移量
