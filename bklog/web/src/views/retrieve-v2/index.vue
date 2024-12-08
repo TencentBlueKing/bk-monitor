@@ -81,6 +81,10 @@
     };
   });
 
+  // 解析默认URL为前端参数
+  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
+  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+
   /**
    * 拉取索引集列表
    */
