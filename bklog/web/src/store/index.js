@@ -312,7 +312,6 @@ const store = new Vuex.Store({
           state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
         } else {
           set(state.indexItem.chart_params, key, params[key]);
-          // state.indexItem.chart_params[key] = params[key];
         }
       });
     },
@@ -355,7 +354,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
-      state.indexItem.chart_params = {};
+      state.indexItem.chart_params = deepClone(IndexItem.chart_params);
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(

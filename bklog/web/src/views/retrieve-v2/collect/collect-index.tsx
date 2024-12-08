@@ -344,7 +344,6 @@ export default class CollectIndex extends tsc<IProps> {
       });
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
-
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
@@ -354,7 +353,6 @@ export default class CollectIndex extends tsc<IProps> {
       items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
       search_mode: cloneValue.search_mode,
-      chart_params: cloneValue.params.chart_params,
     });
 
     this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
