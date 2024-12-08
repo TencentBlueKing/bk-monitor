@@ -360,6 +360,10 @@ export default defineComponent({
       );
     };
 
+    /**
+     * 当前table长度改变时清理缓存数据
+     * @param length
+     */
     const clearRowConfigCache = (length: number) => {
       tableRowStore.keys().forEach(key => {
         const index = Number(key.split('_')[1]);
@@ -367,6 +371,19 @@ export default defineComponent({
           tableRowStore.delete(key);
         }
       });
+    };
+
+    /**
+     * 当切换操作时，重新计算行高
+     * 原则上，此时滚动到最上方，可视区域开始的Index为0
+     */
+    const resetTableMinheight = () => {
+      const endIndex = visibleIndexs.value.endIndex;
+      clearRowConfigCache(endIndex - 1);
+      const startIndex = endIndex - 1;
+      for (let i = startIndex; i < tableData.value.length; i++) {
+        tableData.value[ROW_CONFIG].minHeight = 40;
+      }
     };
 
     const loadTableData = () => {
@@ -418,7 +435,9 @@ export default defineComponent({
     watch(
       () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
       () => {
-        setTimeout(() => {});
+        setTimeout(() => {
+          resetTableMinheight();
+        });
       },
     );
 
