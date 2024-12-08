@@ -1078,23 +1078,23 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
         }
 
         field.width = width;
-        field.min_width = minWidth;
+        field.minWidth = minWidth;
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
-      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
       const availableWidth = tableElem.clientWidth - staticWidth;
       if (tableElem && columnsWidth && columnsWidth < availableWidth) {
-        const longFiels = visibleFields.filter(item => item.width > 800);
+        const longFiels = visibleFields.filter(item => item.width >= 800);
         if (longFiels.length) {
           const addWidth = (availableWidth - columnsWidth) / longFiels.length;
           longFiels.forEach(item => {
-            item.width = item.width + addWidth;
+            item.width = item.width + Math.ceil(addWidth);
           });
         } else {
           const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
           visibleFields.forEach(field => {
-            field.width = field.width + addWidth;
+            field.width = field.width + Math.ceil(addWidth);
           });
         }
       }

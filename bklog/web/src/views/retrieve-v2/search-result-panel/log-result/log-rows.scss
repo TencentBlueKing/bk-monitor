@@ -131,8 +131,14 @@
 
           .handle-content {
             position: relative;
+            display: flex;
+            justify-content: space-around;
             height: 30px;
             padding: 0;
+
+            .handle-card {
+              margin-left: 0;
+            }
           }
 
           &::before {
@@ -274,6 +280,7 @@
 
     .expand-view-wrapper {
       width: 100%;
+      padding-right: var(--padding-right);
       border-bottom: 1px solid #dfe0e5;
     }
 

@@ -331,7 +331,9 @@ const store = new Vuex.Store({
     },
 
     updateIndexSetOperatorConfig(state, payload) {
-      Object.assign(state.indexSetOperatorConfig, payload ?? {});
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexSetOperatorConfig, key, payload[key]);
+      });
     },
 
     /**
@@ -723,14 +725,14 @@ const store = new Vuex.Store({
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
-        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
-        state.isSetDefaultTableColumn = setDefaultTableWidth(
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
+        setDefaultTableWidth(
           state.visibleFields,
           state.indexSetQueryResult.list,
           catchFieldsWidthObj,
-          staticWidth,
+          staticWidth + 60,
         );
-
+        // request_counter 用于触发查询结果表格的更新
         state.indexFieldInfo.request_counter += 1;
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
