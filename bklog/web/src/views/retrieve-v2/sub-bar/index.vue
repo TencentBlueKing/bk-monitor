@@ -6,7 +6,8 @@
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { isEqual } from 'lodash';
-  import { useRoute } from 'vue-router/composables';
+  import { useRoute, useRouter } from 'vue-router/composables';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
@@ -22,6 +23,7 @@
     },
   });
   const route = useRoute();
+  const router = useRouter();
   const store = useStore();
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
@@ -33,8 +35,54 @@
     return currentIndexSet?.collector_config_id;
   });
   const FieldSettingShow = ref(true);
+
+  const setRouteParams = (ids, isUnionIndex) => {
+    if (isUnionIndex) {
+      router.replace({
+        params: {
+          ...route.params,
+          indexId: undefined,
+        },
+        query: {
+          ...route.query,
+          unionList: JSON.stringify(ids),
+        },
+      });
+
+      return;
+    }
+
+    router.replace({
+      params: {
+        ...route.params,
+        indexId: ids[0],
+      },
+      query: route.query,
+    });
+  };
+
+  const setRouteQuery = () => {
+    const query = { ...route.query };
+    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    const resolver = new RetrieveUrlResolver({
+      keyword,
+      addition,
+      ip_chooser,
+      search_mode,
+      begin,
+      size,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
+
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+      setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
         store.commit('retrieve/updateChartKey');
@@ -62,6 +110,7 @@
       search_mode,
     });
 
+    setRouteQuery();
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
     });
