@@ -101,7 +101,7 @@ def topo_discover_cron():
 
 @app.task(ignore_result=True, queue="celery_cron")
 def datasource_discover_handler(metric_datasource, interval, start_time):
-    start = timezone.now()
+    cur = timezone.now()
     all_seconds = interval * 60
     split_seconds = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
     for start in range(0, all_seconds, split_seconds):
@@ -111,7 +111,7 @@ def datasource_discover_handler(metric_datasource, interval, start_time):
 
     logger.info(
         f"[datasource_discover_handler] finished datasource discover, "
-        f"({metric_datasource.bk_biz_id}){metric_datasource.app_name} elapsed: {(timezone.now() - start).seconds}s"
+        f"({metric_datasource.bk_biz_id}){metric_datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
     )
 
 
