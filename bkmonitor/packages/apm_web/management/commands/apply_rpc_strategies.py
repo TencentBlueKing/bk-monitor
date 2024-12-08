@@ -19,8 +19,8 @@ from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.strategy_group import (
     BaseStrategyGroup,
     GroupEnum,
+    RPCApplyType,
     StrategyGroupRegistry,
-    TRPCApplyType,
 )
 
 logging.basicConfig(format="%(levelname)s [%(asctime)s] %(name)s | %(message)s", level=logging.INFO)
@@ -37,8 +37,8 @@ class Command(BaseCommand):
             "--apply-types",
             nargs="+",
             type=str,
-            default=TRPCApplyType.options(),
-            choices=TRPCApplyType.options(),
+            default=[RPCApplyType.CALLEE.value, RPCApplyType.CALLER.value],
+            choices=RPCApplyType.options(),
             help=_("应用告警策略类型列表"),
         )
         parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, help=_("告警组 ID 列表"))
@@ -52,7 +52,7 @@ class Command(BaseCommand):
         notice_group_ids: List[int] = options["notice_group_ids"]
 
         logger.info(
-            "[apply_trpc_strategies] received params: \n"
+            "[apply_rpc_strategies] received params: \n"
             "bk_biz_id -> %s, \n"
             "app_name -> %s, \n"
             "apply_types -> %s, \n"
@@ -65,15 +65,15 @@ class Command(BaseCommand):
 
         metric_helper = MetricHelper(bk_biz_id, app_name)
         group: BaseStrategyGroup = StrategyGroupRegistry.get(
-            GroupEnum.TRPC,
+            GroupEnum.RPC,
             bk_biz_id,
             app_name,
             metric_helper=metric_helper,
             notice_group_ids=notice_group_ids,
             apply_types=apply_types,
             options={
-                TRPCApplyType.CALLEE.value: {"extra_group_by": list(options.get("callee_extra_group_by", []))},
-                TRPCApplyType.CALLER.value: {"extra_group_by": list(options.get("caller_extra_group_by", []))},
+                RPCApplyType.CALLEE.value: {"extra_group_by": list(options.get("callee_extra_group_by", []))},
+                RPCApplyType.CALLER.value: {"extra_group_by": list(options.get("caller_extra_group_by", []))},
             },
         )
         group.apply()

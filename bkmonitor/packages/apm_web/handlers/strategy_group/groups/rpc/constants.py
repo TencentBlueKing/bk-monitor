@@ -24,21 +24,22 @@ from monitor_web.strategies.default_settings.common import (
 )
 
 
-class TRPCApplyType(Enum):
+class RPCApplyType(Enum):
     CALLEE: str = SeriesAliasType.CALLEE.value
     CALLER: str = SeriesAliasType.CALLER.value
     PANIC: str = "panic"
+    RESOURCE: str = "resource"
 
     @classmethod
     def options(cls) -> List[str]:
-        return [cls.CALLER.value, cls.CALLEE.value, cls.PANIC.value]
+        return [cls.CALLER.value, cls.CALLEE.value, cls.PANIC.value, cls.RESOURCE]
 
 
-TRPC_LABEL: str = "BKAPM-tRPC"
+TRPC_LABEL: str = "BKAPM-RPC"
 
 
 def _name_tmpl(child_name: str):
-    return _("[tRPC] {child_name} {tmpl}").format(child_name=child_name, tmpl="[{app_name}/{scope}]")
+    return _("[RPC] {child_name} {tmpl}").format(child_name=child_name, tmpl="[{app_name}/{scope}]")
 
 
 CALLER_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
@@ -137,5 +138,65 @@ PANIC_STRATEGY_CONFIG: Dict[str, Any] = {
         }
     ],
     "name": _name_tmpl("Panic（进程异常退出）告警"),
+    "notice": DEFAULT_NOTICE,
+}
+
+
+MEMORY_USAGE_STRATEGY_CONFIG: Dict[str, Any] = {
+    "detects": fatal_detects_config(10, 15, 15),
+    "items": [
+        {
+            "algorithms": warning_algorithms_config("gt", 80) + fatal_algorithms_config("gt", 90),
+            "name": _("内存使用率（%）"),
+            "no_data_config": NO_DATA_CONFIG,
+            "target": [[]],
+        }
+    ],
+    "name": _name_tmpl("内存使用率过高"),
+    "notice": DEFAULT_NOTICE,
+}
+
+
+CPU_USAGE_STRATEGY_CONFIG: Dict[str, Any] = {
+    "detects": fatal_detects_config(10, 15, 15),
+    "items": [
+        {
+            "algorithms": warning_algorithms_config("gt", 80) + fatal_algorithms_config("gt", 90),
+            "name": _("CPU 使用率（%）"),
+            "no_data_config": NO_DATA_CONFIG,
+            "target": [[]],
+        }
+    ],
+    "name": _name_tmpl("CPU 使用率过高"),
+    "notice": DEFAULT_NOTICE,
+}
+
+
+OOM_KILLED_STRATEGY_CONFIG: Dict[str, Any] = {
+    "detects": fatal_detects_config(5, 1, 1),
+    "items": [
+        {
+            "algorithms": fatal_algorithms_config("gt", 0),
+            "name": _("OOMKilled 退出次数"),
+            "no_data_config": NO_DATA_CONFIG,
+            "target": [[]],
+        }
+    ],
+    "name": _name_tmpl("OOMKilled 退出"),
+    "notice": DEFAULT_NOTICE,
+}
+
+
+ABNORMAL_RESTART_STRATEGY_CONFIG: Dict[str, Any] = {
+    "detects": fatal_detects_config(5, 1, 1),
+    "items": [
+        {
+            "algorithms": fatal_algorithms_config("gt", 0),
+            "name": _("异常重启次数"),
+            "no_data_config": NO_DATA_CONFIG,
+            "target": [[]],
+        }
+    ],
+    "name": _name_tmpl("异常重启"),
     "notice": DEFAULT_NOTICE,
 }
