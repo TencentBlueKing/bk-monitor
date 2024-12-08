@@ -50,32 +50,6 @@
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
 
-  const routeQueryParams = computed(() => {
-    const { ids, isUnionIndex, search_mode } = store.state.indexItem;
-    const unionList = store.state.unionIndexList;
-    const clusterParams = store.state.clusterParams;
-    const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
-      store.getters.retrieveParams;
-
-    return {
-      addition,
-      start_time,
-      end_time,
-      begin,
-      size,
-      ip_chooser,
-      host_scopes,
-      interval,
-      bk_biz_id: store.state.bkBizId,
-      search_mode,
-      sort_list,
-      ids,
-      isUnionIndex,
-      unionList,
-      clusterParams,
-    };
-  });
-
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
   store.dispatch('updateIndexItemByRoute', { route, list: [] });
@@ -94,27 +68,6 @@
     });
   };
 
-  const setRouteParams = () => {
-    const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
-
-    const query = { ...route.query };
-    const resolver = new RetrieveUrlResolver({
-      ...routeQueryParams.value,
-      datePickerValue: store.state.indexItem.datePickerValue,
-    });
-
-    Object.assign(query, resolver.resolveParamsToUrl());
-    if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
-      router.replace({
-        params,
-        query,
-      });
-    }
-  };
-
   const handleSpaceIdChange = () => {
     store.commit('resetIndexsetItemParams');
     store.commit('updateIndexId', '');
@@ -124,14 +77,6 @@
   };
 
   handleSpaceIdChange();
-
-  watch(
-    routeQueryParams,
-    () => {
-      setRouteParams();
-    },
-    { deep: true },
-  );
 
   watch(spaceUid, () => {
     handleSpaceIdChange();
