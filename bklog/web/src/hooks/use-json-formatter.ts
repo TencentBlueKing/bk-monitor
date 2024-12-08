@@ -233,7 +233,7 @@ export default class UseJsonFormatter {
     // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
     target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = textValue ?? (element as HTMLDivElement).innerText;
+        const text = textValue ?? (element as HTMLDivElement).innerHTML;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
@@ -242,7 +242,7 @@ export default class UseJsonFormatter {
         element.append(this.creatSegmentNodes(vlaues));
         element.addEventListener('click', e => {
           if ((e.target as HTMLElement).classList.contains('valid-text')) {
-            this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
+            this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
           }
         });
 

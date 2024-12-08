@@ -3,7 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { useRoute } from 'vue-router/composables';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -17,7 +17,6 @@
   import { deepClone } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  // import route from '../../../language/lang/en/route';
   const props = defineProps({
     activeFavorite: {
       default: null,
@@ -31,8 +30,22 @@
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
-  const activeIndex = ref(0);
   const route = useRoute();
+  const router = useRouter();
+
+  const getDefaultActiveIndex = () => {
+    if (route.query.search_mode) {
+      return queryParams.findIndex(m => m === route.query.search_mode);
+    }
+
+    if (route.query.keyword?.length) {
+      return 1;
+    }
+
+    return localStorage.getItem('bkLogQueryType');
+  };
+
+  const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -44,6 +57,7 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
+
   const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -108,6 +122,14 @@
       store.commit('updateIndexItemParams', {
         search_mode: queryParams[activeIndex.value],
       });
+
+      router.replace({
+        params: { ...route.params },
+        query: {
+          ...(route.query ?? {}),
+          search_mode: queryParams[activeIndex.value],
+        },
+      });
     },
     { immediate: true },
   );
@@ -157,6 +179,7 @@
 
   const handleQueryTypeChange = () => {
     activeIndex.value = activeIndex.value === 0 ? 1 : 0;
+    localStorage.setItem('bkLogQueryType', activeIndex.value);
   };
   const sourceSQLStr = ref('');
   const sourceUISQLAddition = ref([]);
@@ -178,7 +201,6 @@
 
   const matchSQLStr = computed(() => {
     if (activeIndex.value === 0) {
-      console.log(uiQueryValue, sourceUISQLAddition.value.length, uiQueryValue.value.length);
       if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
         return false;
       }
@@ -193,6 +215,7 @@
       return sqlQueryValue.value === sourceSQLStr.value;
     }
   });
+
   const saveCurrentActiveFavorite = async () => {
     const {
       name,
@@ -243,6 +266,12 @@
       }
     } catch (error) {}
   };
+
+  // const handleCopyQueryValue = () => {
+  //   const { search_mode, keyword, addition } = store.getters.retrieveParams;
+  //   const copyValue = search_mode === 'sql' ? keyword : addition;
+  //   copyMessage(JSON.stringify(copyValue), '复制成功');
+  // };
 </script>
 <template>
   <div :class="['search-bar-container', { readonly: isChartMode }]">
@@ -270,12 +299,19 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
+        <!-- <div
+          v-bk-tooltips="'复制当前查询'"
+          :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+          @click.stop="handleCopyQueryValue"
+        ></div> -->
         <div
+          v-bk-tooltips="'清理当前查询'"
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
           @click.stop="handleClearBtnClick"
         ></div>
         <BookmarkPop
           v-if="!props.activeFavorite"
+          v-bk-tooltips="'收藏当前查询'"
           :addition="uiQueryValue"
           :class="{ disabled: isInputLoading }"
           :search-mode="queryParams[activeIndex]"
@@ -292,6 +328,7 @@
           <div
             v-else
             style="color: #63656e"
+            v-bk-tooltips="'收藏'"
             class="icon bk-icon icon-save"
             @click="saveCurrentActiveFavorite"
           ></div>
