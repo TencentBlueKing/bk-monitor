@@ -931,6 +931,16 @@ APM_TOPO_DISCOVER_LOCK = register_key_with_config(
     }
 )
 
+APM_DATASOURCE_DISCOVER_LOCK = register_key_with_config(
+    {
+        "label": "[apm]数据源自动发现周期锁",
+        "key_type": "string",
+        "key_tpl": "apm.tasks.topo.discover.{app_id}",
+        "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)
+
 APM_EBPF_DISCOVER_LOCK = register_key_with_config(
     {
         "label": "[apm_ebpf]自动发现周期锁",
