@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 
 
 class GroupEnum:
-    TRPC: str = "trpc"
+    RPC: str = "rpc"
 
     @classmethod
     def choices(cls):
-        return [(cls.TRPC, cls.TRPC)]
+        return [(cls.RPC, cls.RPC)]

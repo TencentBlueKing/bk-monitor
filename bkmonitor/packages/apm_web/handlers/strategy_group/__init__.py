@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 from .base import BaseStrategyGroup, StrategyGroupRegistry
 from .define import GroupEnum
-from .groups.trpc.constants import TRPCApplyType
-from .groups.trpc.trpc import TrpcStrategyGroup
+from .groups.rpc.constants import RPCApplyType
+from .groups.rpc.rpc import RPCStrategyGroup
 
-__all__ = [BaseStrategyGroup, StrategyGroupRegistry, GroupEnum, TrpcStrategyGroup, TRPCApplyType]
+__all__ = [BaseStrategyGroup, StrategyGroupRegistry, GroupEnum, RPCStrategyGroup, RPCApplyType]

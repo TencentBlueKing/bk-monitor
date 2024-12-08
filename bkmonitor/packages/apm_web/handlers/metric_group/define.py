@@ -14,10 +14,11 @@ from django.utils.translation import gettext_lazy as _
 
 class GroupEnum:
     TRPC: str = "trpc"
+    RESOURCE: str = "resource"
 
     @classmethod
     def choices(cls):
-        return [(cls.TRPC, cls.TRPC)]
+        return [(cls.TRPC, cls.TRPC), (cls.RESOURCE, cls.RESOURCE)]
 
 
 class CalculationType:
@@ -32,6 +33,12 @@ class CalculationType:
     PANIC = "panic"
     TOP_N = "top_n"
     BOTTOM_N = "bottom_n"
+
+    # Resource
+    KUBE_MEMORY_USAGE = "kube_memory_usage"
+    KUBE_CPU_USAGE = "kube_cpu_usage"
+    KUBE_OOM_KILLED = "kube_oom_killed"
+    KUBE_ABNORMAL_RESTART = "kube_abnormal_restart"
 
     @classmethod
     def choices(cls):
