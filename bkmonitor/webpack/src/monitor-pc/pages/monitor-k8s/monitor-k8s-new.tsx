@@ -162,6 +162,26 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           id: '监控测试集群(BCS-K8S-26286)_6',
           name: '监控测试集群(BCS-K8S-26286)_6',
         },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_7',
+          name: '监控测试集群(BCS-K8S-26286)_7',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_8',
+          name: '监控测试集群(BCS-K8S-26286)_8',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_9',
+          name: '监控测试集群(BCS-K8S-26286)_9',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_10',
+          name: '监控测试集群(BCS-K8S-26286)_10',
+        },
+        {
+          id: '监控测试集群(BCS-K8S-26286)_11',
+          name: '监控测试集群(BCS-K8S-26286)_11',
+        },
       ],
     },
     {
@@ -653,6 +673,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 <FilterByCondition
                   filterBy={this.filterBy}
                   groupList={this.groupList}
+                  scene={this.scene}
                   onChange={this.handleFilterByChange}
                 />
               </div>
