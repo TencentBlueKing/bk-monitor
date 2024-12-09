@@ -4,6 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -43,7 +44,7 @@
       return 1;
     }
 
-    return localStorage.getItem('bkLogQueryType');
+    return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
   const activeIndex = ref(getDefaultActiveIndex());
@@ -135,6 +136,21 @@
     { immediate: true },
   );
 
+  const setRouteParams = () => {
+    const query = { ...route.query };
+
+    const resolver = new RetrieveUrlResolver({
+      keyword: keyword.value,
+      addition: store.getters.retrieveParams.addition,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
+
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
       store.commit('updateIndexItemParams', {
@@ -144,6 +160,7 @@
       });
 
       store.dispatch('requestIndexSetQuery');
+      setRouteParams();
     }
   };
 
@@ -153,6 +170,7 @@
     });
 
     store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   const handleClearBtnClick = () => {
