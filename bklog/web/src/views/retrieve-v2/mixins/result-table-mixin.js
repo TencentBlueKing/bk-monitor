@@ -37,6 +37,7 @@ import {
 import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { mapState, mapGetters } from 'vuex';
 
 import OriginalLightHeight from '../result-comp/original-light-height.tsx';
@@ -395,6 +396,10 @@ export default {
       return ['exists', 'does not exists'].includes(operator);
     },
     handleAddCondition(field, operator, value, isLink = false, depth = undefined) {
+      const router = this.$router;
+      const route = this.$route;
+      const store = this.$store;
+
       this.$store
         .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
@@ -403,6 +408,19 @@ export default {
             console.log(openUrl);
             window.open(openUrl, '_blank');
           }
+
+          const query = { ...route.query };
+
+          const resolver = new RetrieveUrlResolver({
+            keyword: store.getters.retrieveParams.keyword,
+            addition: store.getters.retrieveParams.addition,
+          });
+
+          Object.assign(query, resolver.resolveParamsToUrl());
+
+          router.replace({
+            query,
+          });
         });
     },
     handleIconClick(type, content, field, row, isLink, depth) {
@@ -482,6 +500,12 @@ export default {
         sort_list: sortList,
       });
       this.$store.dispatch('requestIndexSetQuery');
+      this.$router.replace({
+        query: {
+          ...this.$route.query,
+          sort_list: JSON.stringify(sortList),
+        },
+      });
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称
