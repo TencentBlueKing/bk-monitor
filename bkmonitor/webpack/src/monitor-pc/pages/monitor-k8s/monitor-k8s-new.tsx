@@ -104,6 +104,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   cluster = '';
   // 集群列表
   clusterList = [];
+  // 集群加载状态
+  clusterLoading = true;
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
   filterBy: IFilterByItem[] = [];
@@ -211,38 +213,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     },
   ];
 
-  metricList = [
-    {
-      name: 'CPU',
-      id: 'CPU',
-      count: 3,
-      children: [
-        {
-          id: 'CPU使用量',
-          name: 'CPU使用量',
-        },
-        {
-          id: 'CPU limit 使用率',
-          name: 'CPU limit 使用率',
-        },
-        {
-          id: 'CPU request 使用率',
-          name: 'CPU request 使用率',
-        },
-      ],
-    },
-    {
-      name: '内存',
-      id: '内存',
-      count: 4,
-      children: [
-        {
-          id: '内存使用量(rss)',
-          name: '内存使用量(rss)',
-        },
-      ],
-    },
-  ];
+  metricList = [];
+
+  leftPanelLoading = {
+    dimensionLoading: true,
+    metricLoading: true,
+  };
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -263,8 +239,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   created() {
     this.getK8sList();
+    this.getClusterList();
     this.getScenarioMetricList();
-    this.handleGetUserConfig(HIDE_METRICS_KEY).then((res: string[]) => {
+    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
     const dimension = new K8sDimension({
@@ -279,6 +256,19 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    */
   refreshTable() {
     this.tableConfig.refreshKey = random(10);
+  }
+
+  async getClusterList() {
+    this.clusterLoading = true;
+    this.clusterList = await new Promise(resolve => {
+      setTimeout(() => {
+        resolve([{ id: 'BCS-K8S-00000', name: '蓝鲸7.0(BCS-K8S-00000)' }]);
+      }, 1000);
+    });
+    this.clusterLoading = false;
+    if (this.clusterList.length) {
+      this.cluster = this.clusterList[0].id;
+    }
   }
 
   /**
@@ -314,7 +304,42 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /**
    * @description 获取场景指标列表
    */
-  getScenarioMetricList() {}
+  async getScenarioMetricList() {
+    function mock(params) {
+      console.log(params);
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve([
+            {
+              id: 'CPU',
+              name: 'CPU',
+              children: [
+                { id: 'container_cpu_usage_seconds_total', name: 'CPU使用量' },
+                { id: 'kube_pod_cpu_requests_ratio', name: 'CPU request使用率' },
+                { id: 'kube_pod_cpu_limits_ratio', name: 'CPU limit使用率' },
+              ],
+            },
+            {
+              id: 'memory',
+              name: '内存',
+              children: [
+                { id: 'container_memory_rss', name: '内存使用量(rss)' },
+                { id: 'kube_pod_memory_requests_ratio', name: '内存 request使用率' },
+                { id: 'kube_pod_memory_limits_ratio', name: '内存 limit使用率' },
+              ],
+            },
+          ]);
+        }, 1000);
+      });
+    }
+    this.leftPanelLoading.metricLoading = true;
+    const data = await mock({ scenario: this.scene });
+    this.leftPanelLoading.metricLoading = false;
+    this.metricList = data.map(item => ({
+      ...item,
+      count: item.children.length,
+    }));
+  }
 
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
@@ -440,7 +465,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    this.handleSetUserConfig(HIDE_METRICS_KEY, JSON.stringify(hideMetrics));
+    this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(hideMetrics));
   }
 
   handleClusterChange(cluster: string) {
@@ -602,20 +627,25 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header'>
-          <bk-select
-            class='cluster-select'
-            clearable={false}
-            value={this.cluster}
-            onChange={this.handleClusterChange}
-          >
-            {this.clusterList.map(cluster => (
-              <bk-option
-                id={cluster.value}
-                key={cluster.value}
-                name={cluster.label}
-              />
-            ))}
-          </bk-select>
+          {this.clusterLoading ? (
+            <div class='skeleton-element cluster-skeleton' />
+          ) : (
+            <bk-select
+              class='cluster-select'
+              clearable={false}
+              value={this.cluster}
+              onChange={this.handleClusterChange}
+            >
+              {this.clusterList.map(cluster => (
+                <bk-option
+                  id={cluster.id}
+                  key={cluster.id}
+                  name={cluster.name}
+                />
+              ))}
+            </bk-select>
+          )}
+
           <div class='filter-header-wrap'>
             <div class='filter-by-wrap __filter-by__'>
               <div class='filter-by-title'>Filter by</div>
@@ -648,6 +678,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               groupBy={this.groupFilters}
               groupList={this.groupList}
               hideMetrics={this.hideMetrics}
+              loading={this.leftPanelLoading}
               metricList={this.metricList}
               onDrillDown={this.handleDrillDown}
               onFilterByChange={this.filterByChange}

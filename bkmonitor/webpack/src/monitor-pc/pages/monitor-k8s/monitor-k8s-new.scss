@@ -49,6 +49,11 @@
     position: relative;
     display: flex;
 
+    .cluster-skeleton {
+      width: 320px;
+      height: 48px;
+    }
+
     .cluster-select {
       width: 321px;
       height: 48px;

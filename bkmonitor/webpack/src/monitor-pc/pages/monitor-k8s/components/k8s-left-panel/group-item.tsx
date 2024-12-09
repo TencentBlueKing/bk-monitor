@@ -26,6 +26,8 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+
 import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
@@ -245,7 +247,12 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           style={{ display: this.expand[this.list.id] ? 'block' : 'none' }}
           class='group-content'
         >
-          {this.list.children.map(child => this.renderGroupContent(child))}
+          {this.list.children.length > 0 ? (
+            this.list.children.map(child => this.renderGroupContent(child))
+          ) : (
+            <EmptyStatus type='empty' />
+          )}
+
           {this.showMore && (
             <div class='show-more'>
               <span

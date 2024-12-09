@@ -40,6 +40,10 @@ interface K8sLeftPanelProps {
   filterBy: any;
   groupBy: string[];
   hideMetrics?: string[];
+  loading: {
+    dimensionLoading: boolean;
+    metricLoading: boolean;
+  };
 }
 
 interface K8sLeftPanelEvents {
@@ -56,6 +60,7 @@ export default class K8sLeftPanel extends tsc<K8sLeftPanelProps, K8sLeftPanelEve
   @Prop({ type: Array, default: () => [] }) filterBy: any;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
+  @Prop({ type: Object, default: () => ({}) }) loading: K8sLeftPanelProps['loading'];
 
   isShow = true;
   maxWidth = 600;
@@ -197,6 +202,17 @@ export default class K8sLeftPanel extends tsc<K8sLeftPanelProps, K8sLeftPanelEve
     this.width = this.isShow ? 320 : 0;
   }
 
+  renderGroupSkeleton() {
+    return (
+      <div class='skeleton-element-group'>
+        <div class='skeleton-element group-title' />
+        <div class='skeleton-element group-content' />
+        <div class='skeleton-element group-content' />
+        <div class='skeleton-element group-content' />
+      </div>
+    );
+  }
+
   render() {
     return (
       <div class='k8s-left-panel'>
@@ -235,16 +251,18 @@ export default class K8sLeftPanel extends tsc<K8sLeftPanelProps, K8sLeftPanelEve
           </div>
           <div class='k8s-metric'>
             <div class='panel-title'>{this.$t('指标')}</div>
-            {this.metricList.map(group => (
-              <GroupItem
-                key={group.id}
-                defaultExpand={true}
-                hiddenList={this.hideMetrics}
-                list={group}
-                tools={['view']}
-                onHandleHiddenChange={this.handleMetricHiddenChange}
-              />
-            ))}
+            {this.loading.metricLoading
+              ? [this.renderGroupSkeleton(), this.renderGroupSkeleton()]
+              : this.metricList.map(group => (
+                  <GroupItem
+                    key={group.id}
+                    defaultExpand={true}
+                    hiddenList={this.hideMetrics}
+                    list={group}
+                    tools={['view']}
+                    onHandleHiddenChange={this.handleMetricHiddenChange}
+                  />
+                ))}
           </div>
         </div>
 
