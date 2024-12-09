@@ -118,16 +118,6 @@ export default defineComponent({
 
     const spans = computed(() => store.spanGroupTree);
 
-    const isDisabled = computed(() => {
-      const curSpanIndex = spans.value?.findIndex(item => item.spanID === props.spanDetails.spanID);
-      const spanCount = spans.value?.length || 0;
-      return flag => {
-        if (curSpanIndex === -1) return false; // 如果索引无效，返回 false
-
-        return (flag === 'up' && curSpanIndex === 0) || (flag === 'down' && curSpanIndex === spanCount - 1);
-      };
-    });
-
     const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
 
@@ -551,6 +541,18 @@ export default defineComponent({
     const switchSpanDetails = val => {
       handleActiveTabChange();
       emit('switchSpanDetails', val);
+    };
+
+    /* 是否禁用上一跳/下一跳的按钮*/
+    const isDisabledUpOrDown = (flag: string) => {
+      if (!spans.value || !props.spanDetails) return false;
+
+      const curSpanIndex = spans.value.findIndex(item => item.spanID === props.spanDetails.spanID);
+      const spanCount = spans.value.length;
+
+      if (curSpanIndex === -1) return false;
+
+      return (flag === 'up' && curSpanIndex === 0) || (flag === 'down' && curSpanIndex === spanCount - 1);
     };
 
     /* 展开收起 */
@@ -1310,10 +1312,10 @@ export default defineComponent({
                 {props.isShowUpDown ? (
                   <>
                     <div
-                      class={['arrow-wrap', { disabled: isDisabled.value('up') }]}
-                      v-bk-tooltips={{ content: isDisabled.value('up') ? t('已经是第一个span') : t('上一跳') }}
+                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('up') }]}
+                      v-bk-tooltips={{ content: isDisabledUpOrDown('up') ? t('已经是第一个span') : t('上一跳') }}
                       onClick={() => {
-                        if (!isDisabled.value('up')) {
+                        if (!isDisabledUpOrDown('up')) {
                           switchSpanDetails(-1);
                         }
                       }}
@@ -1321,10 +1323,10 @@ export default defineComponent({
                       <span class='icon-monitor icon-arrow-up' />
                     </div>
                     <div
-                      class={['arrow-wrap', { disabled: isDisabled.value('down') }]}
-                      v-bk-tooltips={{ content: isDisabled.value('down') ? t('已经是最后一个span') : t('下一跳') }}
+                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('down') }]}
+                      v-bk-tooltips={{ content: isDisabledUpOrDown('down') ? t('已经是最后一个span') : t('下一跳') }}
                       onClick={() => {
-                        if (!isDisabled.value('down')) {
+                        if (!isDisabledUpOrDown('down')) {
                           switchSpanDetails(1);
                         }
                       }}
