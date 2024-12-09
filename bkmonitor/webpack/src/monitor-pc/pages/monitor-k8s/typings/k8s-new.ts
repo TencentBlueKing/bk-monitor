@@ -42,6 +42,44 @@ export enum K8sNewTabEnum {
   LIST = 'list',
 }
 
+/**
+ * @enum: k8s table column keys 枚举 (方便后期字段名维护)
+ */
+export enum K8sTableColumnKeysEnum {
+  /**
+   * @description: cluster - 集群
+   */
+  CLUSTER = 'cluster',
+  /**
+   * @description: container - 容器
+   */
+  CONTAINER = 'container',
+  /**
+   * @description: cpu - CPU使用率
+   */
+  CPU = 'cpu',
+  /**
+   * @description: internal_memory - 内存使用率
+   */
+  INTERNAL_MEMORY = 'internal_memory',
+  /**
+   * @description: namespace - namespace
+   */
+  NAMESPACE = 'namespace',
+  /**
+   * @description: pod - pod
+   */
+  POD = 'pod',
+  /**
+   * @description: workload - workload
+   */
+  WORKLOAD = 'workload',
+  /**
+   * @description: workload_type - workload_type
+   */
+  WORKLOAD_TYPE = 'workload_type',
+}
+
 export type SceneType = 'performance';
 export interface GroupListItem {
   id: string;

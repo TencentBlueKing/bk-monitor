@@ -5,6 +5,18 @@
   .bk-table {
     height: 100%;
 
+    .bk-table-header-wrapper {
+      .bk-table-header {
+        min-width: 100%;
+      }
+    }
+
+    .bk-table-body-wrapper {
+      .bk-table-body {
+        min-width: 100%;
+      }
+    }
+
     .bk-table-row.hover-row {
       .col-item-operate {
         display: block;

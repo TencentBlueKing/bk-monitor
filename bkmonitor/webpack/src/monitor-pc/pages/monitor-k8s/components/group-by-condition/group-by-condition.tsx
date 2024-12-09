@@ -29,27 +29,28 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
 
+import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { IOption } from '../../typings';
+import type { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 
 import './group-by-condition.scss';
 
 export interface IGroupOption extends IOption {
+  id: K8sTableColumnKeysEnum;
   checked?: boolean;
   count?: number;
   children?: IGroupOption[];
 }
 export interface IGroupByChangeEvent {
-  id: number | string;
-  option: IGroupOption;
-  ids: Array<number | string>;
+  id: K8sTableColumnKeysEnum;
+  option?: IGroupOption;
   checked: boolean;
 }
 
 export interface GroupByConditionProps {
   title: string;
-  groupFilters: Array<number | string>;
+  groupInstance: K8sGroupDimension;
   dimensionOptions?: IGroupOption[];
-  defaultFixedFilter: Array<number | string>;
 }
 
 export interface GroupByConditionEvents {
@@ -60,11 +61,9 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   /** 选择器 label 名称 */
   @Prop({ type: String, default: '' }) title: string;
   /** 外部已选择数组 */
-  @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
+  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
   /** 外部传入选项options数组 */
   @Prop({ type: Array }) dimensionOptions: IGroupOption[];
-  /** 默认必须得有的选项元素 */
-  @Prop({ type: Array, default: () => [] }) defaultFixedFilter: Array<number | string>;
 
   @Ref() customSelectRef: any;
 
@@ -79,25 +78,19 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   }
   /** 可选项数据 */
   get options() {
-    const set = new Set(this.groupFilters);
-    return this.dimensionOptions?.filter(v => !set.has(v.id)) || [];
-  }
-
-  /** 默认必须得有的选项元素 -- 数组结构转换为 Set */
-  get defaultFilterSet() {
-    return new Set(this.defaultFixedFilter);
+    return this.dimensionOptions?.filter(v => !this.groupInstance.hasGroupFilter(v.id)) || [];
   }
 
   /** 添加、删除 */
   @Emit('change')
-  handleValueChange(id, option, ids, checked) {
-    return { id, option, ids, checked };
+  handleValueChange(id, option, checked) {
+    return { id, option, checked };
   }
 
   handleSelect(ids) {
     const changeId = ids[ids.length - 1];
     const changeItem = this.dimensionOptionsMap?.[changeId];
-    this.handleValueChange(changeId, changeItem, ids, !changeItem?.checked);
+    this.handleValueChange(changeId, changeItem, !changeItem?.checked);
     nextTick(() => {
       if (!this.options?.length) {
         this.customSelectRef?.handleHideDropDown?.();
@@ -107,9 +100,33 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
 
   /** 删除操作 */
   handleDeleteItem(item: IGroupOption) {
-    const ids = this.groupFilters.filter(v => v !== item.id);
-    this.handleValueChange(item.id, item, ids, false);
+    this.handleValueChange(item.id, item, false);
     this.customSelectRef?.handleShowDropDown?.();
+  }
+
+  groupTagRender() {
+    return this.groupInstance.groupFilters.map(id => {
+      const verifyRes = this.groupInstance.verifyDeleteGroupFilter(id);
+      const canDelete = typeof verifyRes === 'number';
+      return (
+        <span
+          key={id}
+          class={['group-by-item', !this.groupInstance.isDefaultGroupFilter(id) ? 'can-delete' : '']}
+        >
+          {this.dimensionOptionsMap[id]?.name || '--'}
+          {!this.groupInstance.isDefaultGroupFilter(id) ? (
+            <i
+              class='icon-monitor icon-mc-close'
+              v-bk-tooltips={{
+                content: this.$t(canDelete ? '' : verifyRes),
+                disabled: canDelete,
+              }}
+              onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
+            />
+          ) : null}
+        </span>
+      );
+    });
   }
 
   render() {
@@ -117,20 +134,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
       <div class='group-by-wrap'>
         <span class='group-by-label'>{this.title}</span>
         <span class='group-by-main'>
-          {this.groupFilters.map(id => (
-            <span
-              key={id}
-              class={['group-by-item', !this.defaultFilterSet.has(id) ? 'can-delete' : '']}
-            >
-              {this.dimensionOptionsMap[id]?.name || '--'}
-              {!this.defaultFilterSet.has(id) ? (
-                <i
-                  class='icon-monitor icon-mc-close'
-                  onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
-                />
-              ) : null}
-            </span>
-          ))}
+          {this.groupTagRender()}
           <CustomSelect
             ref='customSelectRef'
             class='group-by-select'
@@ -139,7 +143,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
             options={this.options}
             popoverMinWidth={140}
             searchable={false}
-            value={this.groupFilters}
+            value={this.groupInstance.groupFilters}
             multiple
             onSelected={this.handleSelect}
           >
