@@ -1446,4 +1446,4 @@ def sync_aiops_strategy_signal(strategy_id, signal, update_time):
 
     logger.info(f"sync_aiops_strategy_signal: {strategy_id}, {signal}, {update_time}")
     if signal == "modify":
-        refresh_aiops_sdk_depend_data.deplay(strategy_id, update_time)
+        refresh_aiops_sdk_depend_data.delay(strategy_id, update_time)
