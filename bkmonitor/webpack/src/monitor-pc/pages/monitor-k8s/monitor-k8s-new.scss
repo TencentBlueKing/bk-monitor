@@ -219,25 +219,6 @@
         }
       }
 
-      .content-converge-wrap {
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        padding: 0 16px;
-        background: #ffffff;
-        background-clip: content-box;
-
-        .content-converge {
-          display: flex;
-          flex: 1;
-          align-items: center;
-          height: 48px;
-          padding: 0 16px;
-          box-shadow: 0 2px 4px 0 #00000014;
-        }
-      }
-
       .content-main-wrap {
         flex: 1;
         width: 100%;

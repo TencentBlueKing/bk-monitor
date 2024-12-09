@@ -23,21 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Ref } from 'vue-property-decorator';
+import { Component, Mixins, ProvideReactive, Ref } from 'vue-property-decorator';
 
 import { random } from 'monitor-common/utils';
-import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
-import { CP_METHOD_LIST, METHOD_LIST, PANEL_INTERVAL_LIST } from '../../constant/constant';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import FilterVarSelectSimple from './components/filter-var-select/filter-var-select-simple';
 import GroupByCondition, {
   type IGroupOption,
   type IGroupByChangeEvent,
 } from './components/group-by-condition/group-by-condition';
+import K8SCharts from './components/k8s-charts/k8s-charts';
 import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
@@ -51,7 +49,6 @@ import K8sTableNew, {
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
-import TimeCompareSelect from './components/panel-tools/time-compare-select';
 import { K8sDimension } from './k8s-dimension';
 import { K8sNewTabEnum, type SceneType } from './typings/k8s-new';
 
@@ -82,7 +79,14 @@ const defaultFixedFilter = [K8sTableColumnKeysEnum.NAMESPACE];
 export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
   @Ref() k8sGroupByRef: InstanceType<typeof GroupByCondition>;
-
+  // 数据时间间隔
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
+  // 时区
+  @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
+  // 刷新间隔
+  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  // 是否立即刷新
+  @ProvideReactive('refleshImmediate') refleshImmediate = '';
   tableConfig = {
     loading: false,
     scrollLoading: false,
@@ -96,14 +100,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   sliderShow = false;
   // 场景
   scene: SceneType = 'performance';
-  // 时间范围
-  timeRange: TimeRangeType = [...DEFAULT_TIME_RANGE];
-  // 时区
-  timezone = getDefaultTimezone();
-  // 刷新间隔
-  refreshInterval = -1;
-  // 立即刷新
-  immediateRefresh = random(8);
   // 集群
   cluster = '';
   // 集群列表
@@ -124,14 +120,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   };
   // 是否展示取消下钻
   showCancelDrill = false;
-
-  // 汇聚周期
-  interval: number | string = 'auto';
-  // 汇聚方法
-  method = DEFAULT_METHOD;
-  showTimeCompare = false;
-  timeOffset = [];
-
   groupList = [
     {
       name: 'namespace',
@@ -420,12 +408,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = value;
   }
 
-  handleImmediateRefresh() {
-    this.immediateRefresh = random(8);
+  handleImmediateRefresh(v: string) {
+    this.refleshImmediate = v;
   }
 
   handleRefreshChange(value: number) {
-    this.refreshInterval = value;
+    this.refleshInterval = value;
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -579,29 +567,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.filterBy = v;
   }
 
-  // 刷新间隔设置
-  handleIntervalChange(v: string) {
-    this.interval = v;
-  }
-  // 汇聚方法改变时触发
-  handleMethodChange(v: string) {
-    this.method = v;
-  }
-  /** 时间对比值变更 */
-  handleCompareTimeChange(timeList: string[]) {
-    this.timeOffset = timeList;
-  }
-
-  handleShowTimeCompare(v) {
-    if (!v) {
-      this.timeOffset = [];
-    }
-  }
-
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
-        return <div>chart</div>;
+        return <K8SCharts />;
       default:
         return (
           <K8sTableNew
@@ -628,7 +597,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       <div class='monitor-k8s-new'>
         <div class='monitor-k8s-new-nav-bar'>
           <K8sNavBar
-            refreshInterval={this.refreshInterval}
+            refreshInterval={this.refleshInterval}
             timeRange={this.timeRange}
             timezone={this.timezone}
             value={this.scene}
@@ -732,42 +701,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 ))}
               </bk-tab>
             </div>
-            {this.isChart && (
-              <div class='content-converge-wrap'>
-                <div class='content-converge'>
-                  <FilterVarSelectSimple
-                    field={'interval'}
-                    label={this.$t('汇聚周期')}
-                    options={PANEL_INTERVAL_LIST}
-                    value={this.interval}
-                    onChange={this.handleIntervalChange}
-                  />
-                  <FilterVarSelectSimple
-                    class='ml-36'
-                    field={'method'}
-                    label={this.$t('汇聚方法')}
-                    options={METHOD_LIST.concat(...CP_METHOD_LIST)}
-                    value={this.method}
-                    onChange={this.handleMethodChange}
-                  />
-                  <span class='ml-36 mr-8'>{this.$t('时间对比')}</span>
-                  <bk-switcher
-                    v-model={this.showTimeCompare}
-                    size='small'
-                    theme='primary'
-                    onChange={this.handleShowTimeCompare}
-                  />
-
-                  {this.showTimeCompare && (
-                    <TimeCompareSelect
-                      class='ml-18'
-                      timeValue={this.timeOffset}
-                      onTimeChange={this.handleCompareTimeChange}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
             <div class='content-main-wrap'>{this.tabContentRender()}</div>
           </div>
         </div>
