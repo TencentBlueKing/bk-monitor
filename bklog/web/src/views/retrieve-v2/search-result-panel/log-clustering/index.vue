@@ -182,7 +182,7 @@
   import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
   import { deepClone } from '../../../../common/util';
-
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   export default {
     components: {
       DataFingerprint,
