@@ -25,6 +25,38 @@ rest/v2/k8s/resources/list_bcs_cluster/
 }
 ```
 
+## WorkloadOverview
+
+### 请求 url
+
+rest/v2/k8s/resources/workload_overview/
+
+### 请求参数
+
+| 字段             | 类型  | 必选  | 描述               |
+| -------------- | --- | --- | ---------------- |
+| bk_biz_id      | int | 是   | 业务 ID            |
+| bcs_cluster_id | str | 是   | 集群 ID            |
+| namespace      | str | 否   | 命名空间             |
+| query_string   | str | 否   | workload_name 过滤 |
+
+### 返回示例
+
+```json
+{
+    "result": true,
+    "code": 200,
+    "message": "OK",
+    "data": [
+        ["Deployments", 9],
+        ["StatefulSets", 9],
+        ["DaemonSets", 9],
+        ["Jobs", 9],
+        ["CronJobs", 9],
+    ],
+}
+```
+
 ## ScenarioMetricList
 
 获取指定场景的指标列表
