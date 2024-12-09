@@ -520,7 +520,7 @@ class MigrateOldPanels(Resource):
         panel["options"] = {
             "showHeader": old_panel.get("showHeader", True),
             "cellHeight": "sm",
-            "footer": {"show": False, "reucer": ["sum"], "fields": "", "countRows": False, "enablePagination": False},
+            "footer": {"show": False, "reducer": ["sum"], "fields": "", "countRows": False, "enablePagination": False},
         }
 
         panel["fieldConfig"] = {
