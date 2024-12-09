@@ -79,6 +79,7 @@ export default defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
+    isShowUpDown: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
@@ -1306,28 +1307,32 @@ export default defineComponent({
             <div class='sideslider-header'>
               <div>
                 <span>{info.title}</span>
-                <div
-                  class={['arrow-wrap', { disabled: isDisabled.value('up') }]}
-                  v-bk-tooltips={{ content: isDisabled.value('up') ? t('已经是第一个span') : t('上一跳') }}
-                  onClick={() => {
-                    if (!isDisabled.value('up')) {
-                      switchSpanDetails(-1);
-                    }
-                  }}
-                >
-                  <span class='icon-monitor icon-arrow-up' />
-                </div>
-                <div
-                  class={['arrow-wrap', { disabled: isDisabled.value('down') }]}
-                  v-bk-tooltips={{ content: isDisabled.value('down') ? t('已经是最后一个span') : t('下一跳') }}
-                  onClick={() => {
-                    if (!isDisabled.value('down')) {
-                      switchSpanDetails(1);
-                    }
-                  }}
-                >
-                  <span class='icon-monitor icon-arrow-down' />
-                </div>
+                {props.isShowUpDown ? (
+                  <>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabled.value('up') }]}
+                      v-bk-tooltips={{ content: isDisabled.value('up') ? t('已经是第一个span') : t('上一跳') }}
+                      onClick={() => {
+                        if (!isDisabled.value('up')) {
+                          switchSpanDetails(-1);
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-up' />
+                    </div>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabled.value('down') }]}
+                      v-bk-tooltips={{ content: isDisabled.value('down') ? t('已经是最后一个span') : t('下一跳') }}
+                      onClick={() => {
+                        if (!isDisabled.value('down')) {
+                          switchSpanDetails(1);
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-down' />
+                    </div>
+                  </>
+                ) : null}
               </div>
               <div class='header-tool'>
                 <Switcher

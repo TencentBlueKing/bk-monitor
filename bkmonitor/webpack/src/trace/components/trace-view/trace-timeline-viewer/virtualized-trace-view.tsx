@@ -303,6 +303,7 @@ export default defineComponent({
         />
         <SpanDetails
           isFullscreen={this.isFullscreen}
+          isShowUpDown={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
           onShow={v => (this.showSpanDetails = v)}
