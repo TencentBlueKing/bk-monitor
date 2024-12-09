@@ -76,7 +76,16 @@ class UptimecheckCacheManager(CacheManager):
             pipeline.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task["id"]), json.dumps(task), cls.CACHE_TIMEOUT)
 
         pipeline.execute()
-
+        all_task_id = cls.cache.get(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id="__all__")) or "[]"
+        old_task_list = set(json.loads(all_task_id))
+        to_be_delete = old_task_list - {f["id"] for f in tasks}
+        for t_id in to_be_delete:
+            cls.cache.delete(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=t_id))
+        cls.cache.set(
+            cls.TASK_CACHE_KEY_TEMPLATE.format(task_id="__all__"),
+            json.dumps([f["id"] for f in tasks]),
+            cls.CACHE_TIMEOUT,
+        )
         cls.logger.info("refresh uptimecheck task finished, amount: {}".format(count))
 
     @classmethod
