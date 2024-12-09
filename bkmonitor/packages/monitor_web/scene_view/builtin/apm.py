@@ -15,10 +15,11 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 import arrow
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from apm_web.constants import HostAddressType
+from apm_web.constants import ApmCacheKey, HostAddressType
 from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
@@ -375,16 +376,28 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 }
 
             if metric_count > 0:
-                # 使用非内部指标设置monitor_info_mapping
-                monitor_info_mapping = cls.get_monitor_info(
-                    bk_biz_id,
-                    result_table_id,
-                    service_name=service_name,
-                    count=metric_count,
-                    start_time=params.get("start_time"),
-                    end_time=params.get("end_time"),
-                    **metric_config,
-                )
+                # 使用非内部指标设置monitor_info_mapping, 优先使用缓存
+                monitor_info_mapping = {}
+                if "redis" in caches:
+                    cache_agent = caches["redis"]
+                    cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
+                        bk_biz_id=bk_biz_id, application_id=application.id
+                    )
+                    try:
+                        monitor_info_mapping = json.loads(cache_agent.get(cache_key))
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.warning(f"当前条件下 {cache_key} 暂无scope_name缓存: {e}")
+                        monitor_info_mapping = {}
+                if not monitor_info_mapping:
+                    monitor_info_mapping = metric_group.MetricHelper.get_monitor_info(
+                        bk_biz_id,
+                        result_table_id,
+                        service_name=service_name,
+                        count=metric_count,
+                        start_time=params.get("start_time"),
+                        end_time=params.get("end_time"),
+                        **metric_config,
+                    )
 
                 for idx, i in enumerate(metric_queryset):
                     # 过滤内置指标
