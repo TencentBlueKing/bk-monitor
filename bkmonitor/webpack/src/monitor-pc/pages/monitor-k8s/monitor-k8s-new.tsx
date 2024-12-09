@@ -31,10 +31,7 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import GroupByCondition, {
-  type IGroupOption,
-  type IGroupByChangeEvent,
-} from './components/group-by-condition/group-by-condition';
+import GroupByCondition, { type IGroupByChangeEvent } from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
 import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
@@ -42,20 +39,20 @@ import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
   type K8sTableClickEvent,
   type K8sTableColumn,
-  K8sTableColumnKeysEnum,
   type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
   type K8sTableRow,
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
-import { K8sDimension } from './k8s-dimension';
-import { K8sNewTabEnum, type SceneType } from './typings/k8s-new';
+import { K8sDimension, type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFilterByItem } from './components/filter-by-condition/utils';
 
 import './monitor-k8s-new.scss';
+
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
@@ -74,11 +71,9 @@ const tabList = [
     icon: 'icon-mingxi',
   },
 ];
-const defaultFixedFilter = [K8sTableColumnKeysEnum.NAMESPACE];
 @Component
 export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
-  @Ref() k8sGroupByRef: InstanceType<typeof GroupByCondition>;
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -92,6 +87,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     scrollLoading: false,
     /** 当切换 tab 时进行刷新以达到清楚table中 sort 的状态 */
     refreshKey: random(10),
+    pagination: {
+      page: 1,
+      pageSize: 20,
+    },
     sortContainer: {
       prop: null,
       sort: null,
@@ -108,11 +107,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   activeTab = K8sNewTabEnum.LIST;
   filterBy: IFilterByItem[] = [];
   // Group By 选择器的值
-  groupFilters: Array<number | string> = [...defaultFixedFilter];
+  groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
   // 指标隐藏项
   hideMetrics = [];
   // 表格数据
-  k8sTableData: any[] = [];
+  k8sTableData: any = {
+    count: 0,
+    items: [],
+  };
   // table 点击选中数据项
   k8sTableChooseItem: { row: K8sTableRow; column: K8sTableColumn } = {
     row: null,
@@ -267,12 +269,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
 
-  setGroupOption<T extends keyof IGroupOption>(option: IGroupOption, key: T, value: IGroupOption[T]) {
-    this.$set(option, key, value);
+  get groupFilters() {
+    return this.groupInstance.groupFilters;
   }
 
-  setGroupFilters(filters: Array<number | string>) {
-    this.$set(this, 'groupFilters', filters);
+  setGroupFilters(item: { groupId: K8sTableColumnKeysEnum; checked: boolean }) {
+    if (item.checked) {
+      this.groupInstance?.addGroupFilter(item.groupId);
+      return;
+    }
+    this.groupInstance.deleteGroupFilter(item.groupId);
   }
 
   setK8sTableChooseItem(item: K8sTableClickEvent) {
@@ -311,7 +317,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     getK8sTableDataMock(Math.floor(Math.random() * 101))
       .then(res => {
-        const asyncColumns: K8sTableColumn[] = this.k8sTableRef?.tableColumns.filter(col =>
+        const asyncColumns: K8sTableColumn[] = (this.k8sTableRef?.tableColumnsConfig?.columns || []).filter(col =>
           // @ts-ignore
           Object.hasOwn(col, 'asyncable')
         );
@@ -339,7 +345,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
   loadAsyncData(startTime: number, endTime: number, asyncColumns: K8sTableColumn[]) {
-    const pods = (this.k8sTableData || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
+    const pods = (this.k8sTableData.items || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
     for (const field of asyncColumns) {
       getK8sTableAsyncDataMock({
         start_time: startTime,
@@ -382,12 +388,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   renderTableBatchByBatch(field: string, dataMap: Record<string, any>, asyncColumns: K8sTableColumn[]) {
     const setData = (currentIndex = 0) => {
       let needBreak = false;
-      if (currentIndex <= this.k8sTableData.length && this.k8sTableData.length) {
+      if (currentIndex <= this.k8sTableData.items.length && this.k8sTableData.items.length) {
         const endIndex = Math.min(currentIndex + 2, this.k8sTableData.length);
         for (let i = currentIndex; i < endIndex; i++) {
-          const item = this.k8sTableData[i];
+          const item = this.k8sTableData.items[i];
           item[field] = dataMap[String(item?.[K8sTableColumnKeysEnum.POD] || '')] || null;
-          needBreak = i === this.k8sTableData.length - 1;
+          needBreak = i === this.k8sTableData.items.length - 1;
         }
         if (!needBreak) {
           window.requestIdleCallback(() => {
@@ -430,13 +436,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 左侧面板group状态切换 */
   groupByChange({ groupId, isSelect }) {
-    this.groupFilters = this.groupFilters.reduce(
-      (pre, cur) => {
-        if (cur !== groupId) pre.push(cur);
-        return pre;
-      },
-      isSelect ? [groupId] : []
-    );
+    this.setGroupFilters({ groupId, checked: isSelect });
   }
 
   /** 左侧面板下钻功能 */
@@ -479,7 +479,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
-    this.setGroupFilters([...item.ids]);
+    this.setGroupFilters({ groupId: item.id, checked: item.checked });
   }
 
   /**
@@ -496,13 +496,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param {K8sTableGroupByEvent} item
    */
   handleTableGroupChange(item: K8sTableGroupByEvent) {
-    let ids = [];
-    if (item?.checked) {
-      ids = [...this.groupFilters, item.id];
-    } else {
-      ids = this.groupFilters.filter(id => id !== item.id);
-    }
-    this.handleGroupChecked({ ...item, option: this.k8sGroupByRef?.dimensionOptionsMap?.[item.id], ids });
+    this.handleGroupChecked(item);
   }
 
   /**
@@ -574,14 +568,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       default:
         return (
           <K8sTableNew
-            key={this.tableConfig.refreshKey}
             ref='k8sTableRef'
             activeTab={this.activeTab}
             filterBy={this.filterBy}
             groupFilters={this.groupFilters}
             loading={this.tableConfig.loading}
+            refreshKey={this.tableConfig.refreshKey}
             scrollLoading={this.tableConfig.scrollLoading}
-            tableData={this.k8sTableData}
+            tableData={this.k8sTableData.items}
             onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}
@@ -649,10 +643,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             </div>
             <div class='filter-by-wrap __group-by__'>
               <GroupByCondition
-                ref='k8sGroupByRef'
-                defaultFixedFilter={defaultFixedFilter}
                 dimensionOptions={this.groupList}
-                groupFilters={this.groupFilters}
+                groupInstance={this.groupInstance}
                 title='Group by'
                 onChange={this.handleGroupChecked}
               />

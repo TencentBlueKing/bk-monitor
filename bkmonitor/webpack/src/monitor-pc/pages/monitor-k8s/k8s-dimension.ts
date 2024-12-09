@@ -23,7 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { GroupListItem, SceneType, K8sDimensionParams } from './typings/k8s-new';
+import { bkMessage } from 'monitor-api/utils';
+
+import { type GroupListItem, type SceneType, type K8sDimensionParams, K8sTableColumnKeysEnum } from './typings/k8s-new';
 
 function getListK8SResources({ resource_type }): Promise<{ count: number; items: any[] }> {
   const mockData = {
@@ -194,5 +196,125 @@ export class K8sDimension {
   search(keyword: string) {
     this.keyword = keyword;
     this.init();
+  }
+}
+
+/**
+ * @description K8S GroupFilter 基类
+ */
+export abstract class K8sGroupDimension {
+  /** 默认填充值（该值不可删除的！） */
+  private defaultGroupFilter: Set<K8sTableColumnKeysEnum>;
+  /** Set 结构的 groupFilters 参数（主要用于校验判断是否存在某个值） */
+  private groupFiltersSet: Set<K8sTableColumnKeysEnum>;
+  /** 实现类填充存在的 dimensions  */
+  abstract dimensions: K8sTableColumnKeysEnum[];
+  abstract dimensionsMap: Partial<Record<K8sTableColumnKeysEnum, K8sTableColumnKeysEnum[]>>;
+  /** 已选 group by 维度 */
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  public groupFilters: K8sTableColumnKeysEnum[] = [];
+  constructor(groupFilters: K8sTableColumnKeysEnum[] = []) {
+    this.defaultGroupFilter = new Set(groupFilters);
+    this.setGroupFilters(groupFilters);
+  }
+
+  /**
+   * @description 添加 groupFilters
+   * @param {K8sTableColumnKeysEnum} groupId
+   */
+  addGroupFilter(groupId: K8sTableColumnKeysEnum) {
+    this.setGroupFilters(this.dimensionsMap[groupId]);
+  }
+
+  /**
+   * @description 删除 groupFilters
+   * @param {K8sTableColumnKeysEnum} groupId
+   */
+  deleteGroupFilter(groupId: K8sTableColumnKeysEnum) {
+    const indexOrMsg = this.verifyDeleteGroupFilter(groupId);
+    if (typeof indexOrMsg === 'string') {
+      // TODO 提示方式临时占位，后续需与产品沟通优化
+      bkMessage({
+        theme: 'error',
+        message: indexOrMsg,
+      });
+      return;
+    }
+    this.setGroupFilters(this.groupFilters.slice(0, this.groupFilters.length - 1));
+  }
+
+  /**
+   * @description 判断是否存在 groupId
+   * @param {K8sTableColumnKeysEnum} groupId
+   * @returns {boolean}
+   */
+  hasGroupFilter(groupId: K8sTableColumnKeysEnum) {
+    return this.groupFiltersSet.has(groupId);
+  }
+
+  /**
+   * @description 判断是否为默认 groupFilter
+   * @param {K8sTableColumnKeysEnum} groupId
+   * @returns {boolean}
+   */
+  isDefaultGroupFilter(groupId: K8sTableColumnKeysEnum) {
+    return this.defaultGroupFilter.has(groupId);
+  }
+
+  /**
+   * @description 修改 groupFilters
+   * @param {K8sTableColumnKeysEnum[]} groupFilters
+   */
+  setGroupFilters(groupFilters: K8sTableColumnKeysEnum[]) {
+    this.groupFilters = groupFilters;
+    this.groupFiltersSet = new Set(groupFilters);
+  }
+
+  /**
+   * @description 校验传入 groupId 是否可删除
+   * @param {K8sTableColumnKeysEnum} groupId
+   * @returns {string | number} string 类型表示不可删除，number 类型表示删除成功
+   */
+  verifyDeleteGroupFilter(groupId: K8sTableColumnKeysEnum) {
+    if (this.defaultGroupFilter.has(groupId)) {
+      return '默认值不可删除';
+    }
+    const index = this.groupFilters.findIndex(item => item === groupId);
+    if (index !== this.groupFilters.length - 1) {
+      return '请先删除子级维度';
+    }
+    return index;
+  }
+}
+
+/**
+ * @description 性能 类型 GroupFilter 实现类
+ * */
+export class K8sPerformanceGroupDimension extends K8sGroupDimension {
+  dimensions = [
+    K8sTableColumnKeysEnum.CLUSTER,
+    K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
+    K8sTableColumnKeysEnum.WORKLOAD_TYPE,
+    K8sTableColumnKeysEnum.CONTAINER,
+  ];
+  dimensionsMap = {
+    [K8sTableColumnKeysEnum.NAMESPACE]: [K8sTableColumnKeysEnum.NAMESPACE],
+    [K8sTableColumnKeysEnum.WORKLOAD]: [K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.WORKLOAD],
+    [K8sTableColumnKeysEnum.POD]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+    ],
+    [K8sTableColumnKeysEnum.CONTAINER]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+      K8sTableColumnKeysEnum.CONTAINER,
+    ],
+  };
+  constructor(groupFilters: K8sTableColumnKeysEnum[] = []) {
+    const defaultGroupFilters = [K8sTableColumnKeysEnum.NAMESPACE];
+    super([...defaultGroupFilters, ...groupFilters]);
   }
 }

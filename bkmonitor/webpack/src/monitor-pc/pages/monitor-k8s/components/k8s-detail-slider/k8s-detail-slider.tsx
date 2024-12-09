@@ -63,7 +63,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   }
 
   get activeValue() {
-    return K8sTableNew.getScopedSlotRowText(this.activeItem.row, this.activeTag) || '--';
+    return K8sTableNew.getResourcesTextRowValue(this.activeItem.row, this.activeItem.column) || '--';
   }
 
   get groupParam() {
@@ -88,7 +88,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   }
 
   get filterParams() {
-    const id = K8sTableNew.getScopedSlotRowId(this.activeItem.row, this.activeTag);
+    const id = K8sTableNew.getResourcesTextRowValue(this.activeItem.row, this.activeItem.column);
     const groupItem = this.filterBy?.find?.(v => v.key === this.activeTag);
     const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== id)) || [];
     const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
@@ -207,7 +207,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         ext-cls='k8s-detail-slider'
         isShow={this.isShow}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
-        width={1280}
+        width={'80vw'}
         quick-close={true}
         onHidden={this.handleHiddenSlider}
       >
