@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, List
 
+from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework import serializers
 
@@ -202,10 +203,16 @@ class ListK8SResources(Resource):
         scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance"])
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
+        # 分页
+        page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
+        page = serializers.IntegerField(required=False, default=1, label="页数")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        bcs_cluster_id = validated_request_data["bcs_cluster_id"]
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
+        with_history: bool = validated_request_data["with_history"]
+        page_size: int = validated_request_data["page_size"]
+        page: int = validated_request_data["page"]
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(
             validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id
@@ -219,9 +226,16 @@ class ListK8SResources(Resource):
                     validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
                 )
             )
+
+        # 当 with_history = False 对返回结果进行分页查询
+        if not with_history:
+            count = resource_meta.filter.query_set.count()
+            paginator = Paginator(resource_meta.filter.query_set, page_size)  # 每页 10 项
+            resource_meta = paginator.get_page(page).object_list.values()
+
         resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
         resource_id = [tuple(sorted(r.items())) for r in resource_list]
-        if validated_request_data["with_history"]:
+        if with_history:
             # 3.0 基于promql 查询历史上报数据
             history_resource_list = resource_meta.get_from_promql(
                 validated_request_data["start_time"], validated_request_data["end_time"]
@@ -231,7 +245,10 @@ class ListK8SResources(Resource):
                 rs_dict = rs.to_meta_dict()
                 if tuple(sorted(rs_dict.items())) not in resource_id:
                     resource_list.append(rs_dict)
-        return resource_list
+
+            count = len(resource_list)
+
+        return {"count": count, "items": resource_list}
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
