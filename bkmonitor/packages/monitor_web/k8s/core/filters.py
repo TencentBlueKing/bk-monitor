@@ -77,21 +77,27 @@ class WorkloadFilter(ResourceFilter):
     filter_field = "workload"
 
     @property
-    def filter_dict(self):
+    def filter_dict(self) -> Dict[str, str]:
+        filter = {}
         if len(self.value) > 1:
             raise MultiWorkloadError()
 
         parsed = self.value[0].split(":", 1)
         if len(parsed) == 2:
             workload_kind, workload_name = self.value[0].split(":")
-            return {
-                "workload_kind": workload_kind.strip(),
-                "workload_name": workload_name.strip(),
-            }
+
+            if workload_kind:
+                filter["workload_kind"] = workload_kind.strip()
+            if workload_name:
+                filter["workload_name"] = workload_name.strip()
+
         else:
             if self.fuzzy:
-                return {"workload_name__icontains": self.value[0].strip()}
-            return {"workload_name": self.value[0].strip()}
+                filter["workload_name__icontains"] = self.value[0].strip()
+            else:
+                filter["workload_name"] = self.value[0].strip()
+
+        return filter
 
     def filter_string(self):
         if self.fuzzy:

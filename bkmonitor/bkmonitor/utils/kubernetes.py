@@ -180,7 +180,7 @@ def translate_timestamp_since(start_time):
     return naturaldelta(start_at_current_timezone_naive)
 
 
-def get_progress_value(value: float):
+def get_progress_value(value: float) -> Dict:
     """
     计算进度条数据
     """

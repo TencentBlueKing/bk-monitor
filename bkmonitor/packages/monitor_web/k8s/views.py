@@ -25,4 +25,8 @@ class ResourcesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.k8s.scenario_metric_list, endpoint="scenario_metric_list"),
         # 获取指定集群下资源列表
         ResourceRoute("GET", resource.k8s.list_k8s_resources, endpoint="list_resources"),
+        # 获取指定资源的详情
+        ResourceRoute("GET", resource.k8s.get_resource_detail, endpoint="get_resource_detail"),
+        # 获取 Workload 总览
+        ResourceRoute("GET", resource.k8s.workload_overview, endpoint="workload_overview"),
     ]
