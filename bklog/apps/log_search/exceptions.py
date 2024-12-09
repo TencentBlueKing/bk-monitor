@@ -483,6 +483,11 @@ class GetMultiResultFailException(BaseException):
     MESSAGE = _("字段数量[{field_name}]查询失败 原因: {e}")
 
 
+class MultiFieldsErrorException(BaseSearchException):
+    ERROR_CODE = "446"
+    MESSAGE = _("跨集群获取字段结果处理异常")
+
+
 # =================================================
 # 导出
 # =================================================

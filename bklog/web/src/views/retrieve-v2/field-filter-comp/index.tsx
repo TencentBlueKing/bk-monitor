@@ -42,7 +42,7 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: object;
+  @Prop({ type: String, default: false }) showFieldAlias: object;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;

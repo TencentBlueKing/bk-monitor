@@ -186,8 +186,8 @@
       class="field-value"
       ref="refFieldValue"
       :data-field-name="field.field_name"
-      >{{ renderText }}</span
-    >
+      v-html="renderText"
+    ></span>
   </div>
 </template>
 <style lang="scss">

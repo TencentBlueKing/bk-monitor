@@ -659,6 +659,22 @@
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
           }
+          if (item.hasOwnProperty('aliasErr')) {
+            delete item.aliasErr;
+          }
+
+          if (item.hasOwnProperty('typeErr')) {
+            delete item.typeErr;
+          }
+        });
+        return data;
+      },
+      getAllData() {
+        const data = JSON.parse(JSON.stringify(this.tableAllList));
+        data.forEach(item => {
+          if (item.hasOwnProperty('fieldErr')) {
+            delete item.fieldErr;
+          }
 
           if (item.hasOwnProperty('aliasErr')) {
             delete item.aliasErr;
