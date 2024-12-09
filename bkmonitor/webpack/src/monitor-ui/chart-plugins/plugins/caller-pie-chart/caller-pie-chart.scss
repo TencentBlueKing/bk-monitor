@@ -8,9 +8,16 @@
   flex: 1;
   flex-direction: column;
   z-index: 7;
+  .chart-drill-main {
+    margin-top: 8px;
+    min-height: 50px;
+  }
+  .tag-symbol {
+    color: #ff9c01;
+  }
   .chart-instance {
     width: 100%;
-    height: 600px;
+    height: 560px;
     .chart-base {
       width: 100%;
       margin: 0 auto;
@@ -25,7 +32,7 @@
     flex: 1;
   }
   .pie-echart-content .caller-legend {
-    height: 600px;
+    height: 560px;
   }
 }
 .caller-pie-chart-tooltips {
