@@ -32,6 +32,7 @@
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
+  const activeIndex = ref(Number(localStorage.getItem('bkLogQueryType') ?? 0));
   const route = useRoute();
   const router = useRouter();
 
