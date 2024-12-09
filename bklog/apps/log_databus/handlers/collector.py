@@ -2326,7 +2326,7 @@ class CollectorHandler(object):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
         if not clean_stash:
             return None
-        config = model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        config = model_to_dict(clean_stash)
         # 给未配置自定义分词符和大小写敏感的清洗配置添加默认值
         etl_params = config.get("etl_params", {})
         etl_params.setdefault("original_text_is_case_sensitive", False)
