@@ -1267,7 +1267,7 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
         # 推送aiops策略变更至 sdk 依赖的 历史数据维护服务
-        change_records = histories.values("operate", "strategy_id", "create_time")
+        change_records = histories.values("operate", "strategy_id", "content", "create_time")
         for change_record in change_records:
             changed_time = change_record["create_time"].timestamp()
             if change_record["operate"] == "delete":
