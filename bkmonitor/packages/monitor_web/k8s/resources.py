@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, List
 
+from django.db.models import Count
 from rest_framework import serializers
 
+from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
@@ -25,6 +27,40 @@ class ListBCSCluster(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         return resource.scene_view.get_kubernetes_cluster_choices(bk_biz_id=bk_biz_id)
+
+
+class WorkloadOverview(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bcs_cluster_id = serializers.CharField(required=True, label="集群id")
+        namespace = serializers.CharField(required=False, label="命名空间")
+        query_string = serializers.CharField(required=False, label="名字过滤")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        bcs_cluster_id = (validated_request_data["bcs_cluster_id"],)
+
+        queryset = BCSWorkload.objects.filter(
+            bk_biz_id=bk_biz_id,
+            bcs_cluster_id=bcs_cluster_id,
+        )
+
+        # 如果前端传值则添加过滤
+        if validated_request_data.get("namespace"):
+            queryset = queryset.filter(namespace=validated_request_data["namespace"])
+        if validated_request_data.get("query_string"):
+            queryset = queryset.filter(name_icontains=validated_request_data["query_string"])
+
+        # 统计 workload type 对应的 count
+        """
+        数据结构示例:
+        [
+            {"type": "xxx", "count": 0}
+        ]
+        """
+        result = queryset.values('type').annotate(count=Count('name'))
+
+        return [[item["type"], item["count"]] for item in result]
 
 
 class ScenarioMetricList(Resource):
