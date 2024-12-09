@@ -12,6 +12,7 @@ import datetime
 import functools
 import json
 import logging
+import math
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
@@ -25,6 +26,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
+from api.cmdb.define import Host
 from apm_web.constants import (
     COLLECT_SERVICE_CONFIG_KEY,
     AlertLevel,
@@ -93,6 +95,8 @@ from constants.apm import (
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
+from monitor_web.collecting.constant import CollectStatus
+from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
@@ -114,6 +118,36 @@ from monitor_web.scene_view.table_format import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def format_percent(
+    percent: Union[int, float], precision: int = 2, sig_fig_cnt: int = 2, readable_precision=6
+) -> Union[int, float]:
+    if isinstance(percent, int):
+        return percent
+
+    sign: int = 0
+    sign = (-1, 1)[percent > 0]
+    percent = abs(percent)
+
+    def _with_sign(_f: float) -> float:
+        return sign * _f
+
+    # 如果数据小于可读精度，直接范围可读精度最小值，突出异常比
+    if 0.0 < percent < 10**-readable_precision:
+        return _with_sign(10**-readable_precision)
+
+    # 如果数据小于最小精度，保留两位有效数字
+    if percent < 10**-precision:
+        return _with_sign(float(format(percent, f".{sig_fig_cnt}g")))
+
+    rounded_percent: float = float(format(percent, f".{precision}f"))
+    # 如果超精度四舍五入进位，例如 99.9999 -> 100，则采用截断而不是保留位数的方式处理为 99.999，避免数据失真
+    if rounded_percent - percent < (10 ** -(precision + 1)) * 5:
+        factor = 10.0**precision
+        return _with_sign(math.trunc(percent * factor) / factor)
+
+    return _with_sign(rounded_percent)
 
 
 class UnifyQueryResource(Resource):
@@ -192,6 +226,10 @@ class DynamicUnifyQueryResource(Resource):
                 )
                 return attrs
 
+        class ProcessorSerializer(serializers.Serializer):
+            name = serializers.CharField(label="处理器名称", required=True)
+            options = serializers.DictField(label="处理器参数", required=False, default={})
+
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", default=False)
         unify_query_param = serializers.DictField(label="unify-query参数")
@@ -201,7 +239,7 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
         fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
-        fill_empty_dimensions = serializers.BooleanField(label="是否需要不存在的维度(用于需要展示/下钻空维度的场景)", required=False)
+        processors = serializers.ListField(label="处理器列表", child=ProcessorSerializer(), required=False, default=[])
         alias_prefix = serializers.ChoiceField(
             label="动态主被调当前值",
             choices=SeriesAliasType.get_choices(),
@@ -349,6 +387,34 @@ class DynamicUnifyQueryResource(Resource):
         )
 
     @classmethod
+    def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):
+        try:
+            dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+        except (IndexError, KeyError):
+            # 找不到 group by，就不做填充了
+            return
+
+        for i in response.get("series", []):
+            if "dimensions" not in i:
+                continue
+            # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
+            i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
+
+    @classmethod
+    def format_percent(cls, query_params, response, validate_data, precision: int = 2, sig_fig_cnt: int = 2):
+        for i in response.get("series", []):
+            datapoints = []
+            for dp in i.get("datapoints") or []:
+                percent, timestamp = dp
+                if percent is None:
+                    datapoints.append(dp)
+                else:
+                    datapoints.append(
+                        (format_percent(percent, precision=precision, sig_fig_cnt=sig_fig_cnt), timestamp)
+                    )
+            i["datapoints"] = datapoints
+
+    @classmethod
     def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
         """补充单位、时间点、展示名称"""
         unit = validate_data.get("unit")
@@ -384,18 +450,13 @@ class DynamicUnifyQueryResource(Resource):
 
         # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
         response["query_config"] = query_params
-        if validate_data.get("fill_empty_dimensions"):
-            try:
-                dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
-            except (IndexError, KeyError):
-                # 找不到 group by，就不做填充了
-                return response
 
-            for i in response.get("series", []):
-                if "dimensions" not in i:
-                    continue
-                # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
-                i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
+        processor_map = {"fill_empty_dimensions": cls.fill_empty_dimensions, "format_percent": cls.format_percent}
+        for processor_info in validate_data.get("processors") or []:
+            processor = processor_map.get(processor_info["name"])
+            if processor is None:
+                continue
+            processor(query_params, response, validate_data, **processor_info.get("options", {}))
 
         return response
 
@@ -1371,7 +1432,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             query_params["category"] = data["filter"]
 
         if data["service_name"]:
-            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"])
+            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"], raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
                     data["bk_biz_id"],
@@ -2127,10 +2188,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                     "end_time": data["end_time"],
                     "service_name": service_name,
                     "bk_instance_id": query_param.get("bk_instance_id"),
+                    "raise_exception": False,
                 },
             )
 
-            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 query_param["category"] = node["extra_data"]["category"]
                 query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
@@ -2478,6 +2540,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
             validated_request_data["service_name"],
+            raise_exception=False,
         )
 
         if ComponentHandler.is_component_by_node(node):
@@ -2849,35 +2912,87 @@ class ErrorListByTraceIdsResource(PageListResource):
         return paginated_data
 
 
+class HostDetailResource(GetHostOrTopoNodeDetailResource):
+    """主机详情"""
+
+    class RequestSerializer(GetHostOrTopoNodeDetailResource.RequestSerializer):
+        source_type = serializers.CharField(label="主机关联来源")
+
+    def perform_request(self, params):
+        # 此接口的作用是在主机详情的基础上增加一个关联来源字段 用在页面显示
+        response = GetHostOrTopoNodeDetailResource()(**params)
+        if not response or not isinstance(response, list):
+            return response
+        response.append(
+            {"name": _("关联来源"), "type": "string", "value": HostHandler.SourceType.get_label(params["source_type"])}
+        )
+        return response
+
+
 class HostInstanceDetailListResource(Resource):
+    """关联主机列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
 
         host_instances = HostHandler.list_application_hosts(**data)
 
-        host_instance = [
-            {"id": index, "name": f"{i['bk_host_innerip']}({i['bk_cloud_id']})", **i}
-            for index, i in enumerate(host_instances, 1)
-        ]
-        return {"data": self.filter_keyword(host_instance, keyword), "filter": [], "sort": []}
+        host_mapping = {
+            int(i["bk_host_id"]): {
+                **i,
+                "id": i["bk_host_id"],
+                "name": i["bk_host_innerip"],
+                "status": CollectStatus.NODATA,
+                "app_name": data["app_name"],
+                "service_name": data["service_name"],
+            }
+            for i in host_instances
+        }
+        res = self.filter_keyword(host_mapping, keyword)
+        self.add_status(data["bk_biz_id"], res)
+        return list(res.values())
+
+    def add_status(self, bk_biz_id, hosts):
+        """添加主机 agent 状态字段"""
+        resource.performance.search_host_metric.get_agent_status(
+            bk_biz_id,
+            [
+                Host(
+                    bk_host_innerip=hosts[i]["bk_host_innerip"],
+                    bk_cloud_id=hosts[i]["bk_cloud_id"],
+                    bk_host_id=hosts[i]["bk_host_id"],
+                )
+                for i in hosts
+            ],
+            hosts,
+        )
+        # 根据 status 字段
+        for k in hosts:
+            status = hosts[k].get("status")
+            if status is None:
+                continue
+            if status == 0:
+                hosts[k]["status"] = CollectStatus.SUCCESS
+            else:
+                hosts[k]["status"] = CollectStatus.NODATA
 
     def filter_keyword(self, data, keyword):
         if not keyword:
             return data
 
-        res = []
-        for item in data:
-            if keyword in item["bk_host_innerip"]:
-                res.append(item)
-
+        res = {}
+        for i in data:
+            for k, v in data[i].items():
+                if keyword in v:
+                    res[i] = data[i]
         return res
 
 
@@ -2955,6 +3070,27 @@ class RecordHelperMixin:
             return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
         return records
 
+    @classmethod
+    def format_value(cls, metric_cal_type: str, value: Any) -> float:
+        try:
+            value = float(value)
+        except Exception:  # pylint: disable=broad-except
+            value = 0
+
+        if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+            # 请求量必须是整型
+            value = int(value)
+        elif metric_cal_type in [
+            metric_group.CalculationType.TIMEOUT_RATE,
+            metric_group.CalculationType.SUCCESS_RATE,
+            metric_group.CalculationType.EXCEPTION_RATE,
+        ]:
+            value = format_percent(value, precision=3, sig_fig_cnt=2)
+        else:
+            value = round(value, 2)
+
+        return value
+
 
 class CalculateByRangeResource(Resource, RecordHelperMixin):
     class RequestSerializer(serializers.Serializer):
@@ -3009,7 +3145,10 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
 
     @classmethod
     def _merge(
-        cls, group_fields: List[str], alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]]
+        cls,
+        metric_cal_type: str,
+        group_fields: List[str],
+        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]],
     ) -> List[Dict[str, Any]]:
         group_key_record_map: Dict[Tuple, Dict[str, Any]] = {}
         # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
@@ -3031,6 +3170,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
             # 对合并后不存在的数值补 None
             for alias in aliases:
                 processed_record[alias] = record.get(alias)
+                if processed_record[alias] is None:
+                    continue
+                processed_record[alias] = cls.format_value(metric_cal_type, processed_record[alias])
             merged_records.append(processed_record)
         return merged_records
 
@@ -3050,7 +3192,13 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                     # 当前无数据，同比负增长 100%
                     growth_rate = -100
                 elif record[alias] and record[baseline]:
-                    growth_rate = (record[baseline] - record[alias]) / record[alias] * 100
+                    # 设置 4 位可读精度，非 0 展示 0.0001
+                    growth_rate = format_percent(
+                        (record[baseline] - record[alias]) / record[alias] * 100,
+                        precision=2,
+                        sig_fig_cnt=1,
+                        readable_precision=4,
+                    )
 
                 record.setdefault("growth_rates", {})[alias] = growth_rate
 
@@ -3067,7 +3215,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                     # 总数为 0 或者 数据为空 的情况下，直接置空
                     record.setdefault("proportions", {})[alias] = None
                     continue
-                record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
+                record.setdefault("proportions", {})[alias] = format_percent(
+                    (record[alias] / alias_total_map[alias]) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+                )
 
     def perform_request(self, validated_request_data):
         def _collect(_alias: Optional[str], **_kwargs):
@@ -3080,9 +3230,10 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                 time_shift=_alias,
                 **(validated_request_data["options"].get(group_name) or {}),
             )
-            alias_aggregated_records_map[_alias] = _group.handle(validated_request_data["metric_cal_type"], **_kwargs)
+            alias_aggregated_records_map[_alias] = _group.handle(metric_cal_type, **_kwargs)
 
         baseline: str = validated_request_data["baseline"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
         alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
         group_name: str = validated_request_data["metric_group_name"]
         group_fields: List[str] = validated_request_data.get("group_by") or []
@@ -3102,7 +3253,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
         )
 
         # 合并数据
-        merged_records: List[Dict[str, Any]] = self._merge(group_fields, alias_aggregated_records_map)
+        merged_records: List[Dict[str, Any]] = self._merge(metric_cal_type, group_fields, alias_aggregated_records_map)
 
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
@@ -3187,17 +3338,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
         total: float = 0
         processed_records: List[Dict[str, Any]] = []
         for record in records:
-            # 计算结果保留两位小数，同时对非数值类型进行异常兜底，默认设置为 0
-            value: Union[int, float] = 0
-            try:
-                value: Union[int, float] = round(record["result"], 2)
-            except Exception:  # pylint: disable=broad-except
-                pass
-
-            # 请求量必须是整型
-            if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
-                value = int(value)
-
+            value: float = cls.format_value(metric_cal_type, record["result"])
             total += value
 
             # tooltips 按 GroupBy 顺序拼接
@@ -3211,7 +3352,9 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
                 record["proportion"] = 0
                 continue
 
-            record["proportion"] = round((record["value"] / total) * 100, 2)
+            record["proportion"] = format_percent(
+                (record["value"] / total) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+            )
 
         return processed_records
 

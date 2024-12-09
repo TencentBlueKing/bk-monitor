@@ -33,10 +33,13 @@ from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleS
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
+    ExportFileType,
     FavoriteListOrderType,
+    FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
+    QueryMode,
     SearchMode,
     SearchScopeEnum,
     TagColor,
@@ -483,6 +486,9 @@ class SearchExportSerializer(serializers.Serializer):
     interval = serializers.CharField(label=_("匹配规则"), required=False)
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    file_type = serializers.ChoiceField(
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.TXT.value
+    )
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):
@@ -612,6 +618,10 @@ class CreateFavoriteSerializer(serializers.Serializer):
     index_set_type = serializers.ChoiceField(
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    favorite_type = serializers.ChoiceField(
+        label=_("收藏类型"), required=False, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
+    )
+    chart_params = serializers.JSONField(label=_("图表相关参数"), default=dict, required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -930,3 +940,26 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         elif index_set_type == IndexSetType.UNION.value and not index_set_ids:
             raise serializers.ValidationError(_("参数校验失败: index_set_ids 必须被提供"))
         return attrs
+
+
+class ChartSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql语句"), required=True)
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
+
+
+class SearchConditionSerializer(serializers.Serializer):
+    field = serializers.CharField(label=_("字段名"), required=True)
+    operator = serializers.CharField(label=_("操作符"), required=True)
+    value = serializers.ListField(label=_("值"), required=True)
+
+
+class UISearchSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=True)

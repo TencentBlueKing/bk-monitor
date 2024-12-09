@@ -13,7 +13,7 @@ import copy
 import datetime
 import logging
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Tuple
 
 from django.apps import apps
 from django.conf import settings
@@ -33,10 +33,9 @@ from bkmonitor.action.serializers.report import (
 from bkmonitor.models import Strategy
 from bkmonitor.models.base import ReportContents, ReportItems, ReportStatus
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.common_utils import replce_special_val
 from bkmonitor.utils.grafana import fetch_biz_panels, fetch_panel_title_ids
 from bkmonitor.utils.request import get_request
-from constants.report import GroupId, StaffChoice, return_replace_val_dict
+from constants.report import GRAPH_ID_REGEX, GroupId, StaffChoice
 from core.drf_resource import CacheResource, api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
@@ -143,31 +142,36 @@ class ReportContentResource(Resource):
         )
 
         # 补充图表名称
-        bk_biz_id_uids = {
-            "-".join(graph.split("-")[:-1]) for content in ret_data["contents"] for graph in content["graphs"]
-        }
-        bk_biz_id_uids.add(f"{settings.MAIL_REPORT_BIZ}-{settings.REPORT_DASHBOARD_UID}")
-        panel_tag_name = {}
-        for item in bk_biz_id_uids:
-            item_id = item.split("-", 1)
-            if len(item_id[0].split(",")) > 1:
-                # 说明是内置指标，只取订阅报表默认业务
-                bk_biz_id = int(settings.MAIL_REPORT_BIZ)
-            else:
-                bk_biz_id = item_id[0]
-            panels = fetch_panel_title_ids(bk_biz_id=bk_biz_id, dashboard_uid=item_id[1])
-            for panel in panels:
-                panel_tag_name[f"{item}-{panel['id']}"] = panel["title"]
+        panel_names: Dict[Tuple[int, str], Dict[str, str]] = {}
         for content in ret_data["contents"]:
             content["graph_name"] = []
             for graph in content["graphs"]:
-                panel_tag = (
-                    graph.replace(graph.split("-")[0], str(settings.MAIL_REPORT_BIZ))
-                    if len(graph.split("-")[0].split(",")) > 1
-                    else replce_special_val(graph, return_replace_val_dict(settings.MAIL_REPORT_BIZ))
-                )
-                content["graph_name"].append({"graph_id": graph, "graph_name": panel_tag_name.get(panel_tag)})
+                # 解析图表id
+                match = GRAPH_ID_REGEX.match(graph)
+                if not match:
+                    continue
+                bk_biz_ids, dashboard_uid, panel_id = match.group(1, 4, 5)
+                bk_biz_ids = bk_biz_ids.split(",")
+                # 获取实际业务id
+                if len(bk_biz_ids) > 1:
+                    # 说明是内置图表，只取订阅报表默认业务
+                    bk_biz_id = int(settings.MAIL_REPORT_BIZ)
+                else:
+                    try:
+                        bk_biz_id = int(bk_biz_ids[0])
+                    except ValueError:
+                        # 业务id不是数字，说明是内置业务，只取订阅报表默认业务
+                        bk_biz_id = int(settings.MAIL_REPORT_BIZ)
 
+                # 如果没有获取过此仪表盘的图表名称，则获取
+                if (bk_biz_id, dashboard_uid) not in panel_names:
+                    panel_names[(bk_biz_id, dashboard_uid)] = {}
+                    for panel in fetch_panel_title_ids(bk_biz_id, dashboard_uid):
+                        panel_names[(bk_biz_id, dashboard_uid)][str(panel["id"])] = panel["title"]
+                dashboard_panel_names = panel_names[(bk_biz_id, dashboard_uid)]
+
+                # 补充图表名称
+                content["graph_name"].append({"graph_id": graph, "graph_name": dashboard_panel_names.get(panel_id)})
         return ret_data
 
 

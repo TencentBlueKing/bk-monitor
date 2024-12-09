@@ -579,7 +579,10 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           <div class={['single-chart-content', { 'no-padding': this.singleChartNoPadding }]}>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
-                <ChartWrapper panel={this.singleChartPanel} />
+                <ChartWrapper
+                  isSingleChart={this.isSingleChart}
+                  panel={this.singleChartPanel}
+                />
               </div>
             </div>
           </div>

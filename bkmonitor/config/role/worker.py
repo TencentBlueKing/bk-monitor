@@ -361,6 +361,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "alert": LOGGER_DEFAULT,
             "composite": LOGGER_DEFAULT,
             "recovery": LOGGER_DEFAULT,
+            "preparation": LOGGER_DEFAULT,
             "fta_action": LOGGER_DEFAULT,
             "bkmonitor": LOGGER_DEFAULT,
             "apm_ebpf": LOGGER_DEFAULT,

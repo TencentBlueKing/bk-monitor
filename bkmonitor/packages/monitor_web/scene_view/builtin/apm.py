@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 import arrow
 from django.conf import settings
@@ -25,6 +25,8 @@ from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
+from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -32,6 +34,50 @@ from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
 logger = logging.getLogger(__name__)
+
+
+@using_cache(CacheType.APM(60 * 1))
+def discover_caller_callee(
+    bk_biz_id: int, app_name: str, service_name: str
+) -> Dict[str, Union[Dict[str, Any], List[str]]]:
+    # 页面请求时，get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
+    # 后续这段逻辑可以下沉到统一的框架/语言发现任务，而不是每次请求都要执行一遍。
+    def _fetch_server_list(_group: metric_group.TrpcMetricGroup):
+        discover_result["server_list"] = group.fetch_server_list()
+
+    def _get_server_config(_group: metric_group.TrpcMetricGroup):
+        server_config: Dict[str, Any] = group.get_server_config(server=service_name)
+        try:
+            code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            )
+            server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
+        except CodeRedefinedConfigRelation.DoesNotExist:
+            server_config["ret_code_as_exception"] = False
+
+        # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
+        server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
+        discover_result["server_config"] = server_config
+
+    discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
+    group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+        metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+    )
+    run_threads(
+        [
+            InheritParentThread(target=_fetch_server_list, args=(group,)),
+            InheritParentThread(target=_get_server_config, args=(group,)),
+        ]
+    )
+
+    # run_threads 会吃掉异常，这里需要二次检查补偿，有异常也要在外层抛出
+    if "server_list" not in discover_result:
+        _fetch_server_list(group)
+
+    if "server_config" not in discover_result:
+        _get_server_config(group)
+
+    return discover_result
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
@@ -55,6 +101,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
+        "apm_service-service-default-container",
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
         "apm_service-service-default-overview",
@@ -79,6 +126,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-db",
         "service-default-caller_callee",
         "service-default-custom_metric",
+        "service-default-container",
     ]
 
     # 只需要列表信息时，需要进一步进行渲染的 Tab
@@ -179,19 +227,50 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 )
             ):
                 cls._add_config_from_host(view, view_config)
+                # 兼容前端对 selector_panel 类型为 target_list 做的特殊处理 直接直接替换变量
+                view_config["options"]["selector_panel"]["targets"][0]["data"] = {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
                 return view_config
 
             return cls._get_non_host_view_config(builtin_view, params)
 
+        # k8s 场景
+        if builtin_view == "apm_service-service-default-container":
+            # 时间范围必传
+            start_time = params.get("start_time")
+            end_time = params.get("end_time")
+            if not start_time or not end_time:
+                raise ValueError("没有传递 start_time, end_time")
+
+            if app_name and service_name:
+                from apm_web.container.resources import ListServicePodsResource
+
+                response = ListServicePodsResource()(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+                if response:
+                    # 实际有 Pod 数据才返回
+                    return cls._add_config_from_container(app_name, service_name, view, view_config)
+
+            return cls._get_non_container_view_config(builtin_view, params)
+
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
-            group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-                metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+            discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
+                bk_biz_id, app_name, params["service_name"]
             )
+            server_list: List[str] = discover_result["server_list"]
+            server_config: Dict[str, Any] = discover_result["server_config"]
 
             # 探测服务，存在再展示页面
             view_config["hidden"] = True
-            server_list: List[str] = group.fetch_server_list()
             for server in server_list:
                 if not server:
                     continue
@@ -204,7 +283,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if view_config["hidden"] or params.get("only_simple_info"):
                 return view_config
 
-            server_config: Dict[str, Any] = group.get_server_config(server=params["service_name"])
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
@@ -216,43 +294,38 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config, "${server_filter_method}", server_config["server_filter_method"]
             )
 
-            ret_code_as_exception: str = "false"
-            try:
-                code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-                    bk_biz_id=view.bk_biz_id, app_name=app_name, service_name=params["service_name"]
-                )
-                if code_redefined_config.ret_code_as_exception:
-                    ret_code_as_exception = "true"
-                    success_rate_panel_data: Dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
-                        "targets"
-                    ][0]["data"]
-                    code_condition: Dict[str, Any] = {
-                        "key": "code",
-                        "method": "eq",
-                        "value": ["0", "ret_0"],
+            ret_code_as_exception: bool = server_config.get("ret_code_as_exception", False)
+            if ret_code_as_exception:
+                success_rate_panel_data: Dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
+                    "targets"
+                ][0]["data"]
+                code_condition: Dict[str, Any] = {
+                    "key": "code",
+                    "method": "eq",
+                    "value": ["0", "ret_0"],
+                    "condition": "and",
+                }
+                success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
+                success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
+
+                view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][0][
+                    "variables"
+                ] = {
+                    "code_field": "code",
+                    "code_values": ["0", "ret_0"],
+                    "code_method": "neq",
+                    # 排除非 0 返回码可能是 timeout 的情况
+                    "code_extra_where": {
+                        "key": "code_type",
+                        "method": "neq",
+                        "value": ["timeout"],
                         "condition": "and",
-                    }
-                    success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
-                    success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
+                    },
+                }
 
-                    view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][
-                        1
-                    ]["variables"] = {
-                        "code_field": "code",
-                        "code_values": ["0", "ret_0"],
-                        "code_method": "neq",
-                        # 排除非 0 返回码可能是 timeout 的情况
-                        "code_extra_where": {
-                            "key": "code_type",
-                            "method": "neq",
-                            "value": ["timeout"],
-                            "condition": "and",
-                        },
-                    }
-            except CodeRedefinedConfigRelation.DoesNotExist:
-                pass
-
-            view_config = cls._replace_variable(view_config, "${ret_code_as_exception}", ret_code_as_exception)
+            view_config = cls._replace_variable(
+                view_config, "${ret_code_as_exception}", ("false", "true")[ret_code_as_exception]
+            )
 
         # APM自定义指标
         if builtin_view == "apm_service-service-default-custom_metric" and app_name:
@@ -265,7 +338,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 raise ValueError("Application does not exist")
 
             metric_group_mapping = dict()
-            group_panel_template = view_config["overview_panels"][0]
+            group_panel_template = view_config["overview_panels"].pop(0)
             metric_panel_template = group_panel_template["panels"].pop(0)
 
             metric_queryset = MetricListCache.objects.filter(
@@ -274,6 +347,26 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 data_type_label=DataTypeLabel.TIME_SERIES,
             )
             metric_count = metric_queryset.count()
+
+            # 根据dimension_keys判断metric的监控项维度名和服务维度名
+            dimension_keys = set()
+            for metric in metric_queryset:
+                for dimension in metric.dimensions:
+                    if dimension.get("id"):
+                        dimension_keys.add(dimension["id"])
+            candidate_queue = []
+            target_key = f"{bk_biz_id}-{app_name}.{service_name}"
+            if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
+            else:
+                if "scope_name" in dimension_keys:
+                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
+                if "monitor_name" in dimension_keys:
+                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
+                metric_config = (
+                    candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+                )
+
             if metric_count > 0:
                 # 使用非内部指标设置monitor_info_mapping
                 monitor_info_mapping = cls.get_monitor_info(
@@ -283,6 +376,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     count=metric_count,
                     start_time=params.get("start_time"),
                     end_time=params.get("end_time"),
+                    dimension_keys={
+                        "monitor_name_key": metric_config["monitor_name_key"],
+                        "service_name_key": metric_config["service_name_key"],
+                    },
                 )
 
                 for idx, i in enumerate(metric_queryset):
@@ -321,15 +418,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         metric_group_mapping[monitor_name] = group_panel
                     metric_group_mapping[monitor_name]["panels"].append(metric_panel)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
+            if not view_config["overview_panels"]:
+                cls._generate_non_custom_metric_view_config(view_config)
         return view_config
 
     @classmethod
     def get_monitor_info(
-        cls, bk_biz_id, result_table_id, service_name, count: int = 1000, start_time=None, end_time=None
+        cls, bk_biz_id, result_table_id, service_name, dimension_keys, count: int = 1000, start_time=None, end_time=None
     ) -> dict:
         if not start_time or not end_time:
             end_time = int(arrow.now().timestamp)
             start_time = int(end_time - 3600)
+
         request_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
@@ -351,25 +451,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         metric_table_id = result_table_id.replace('.', ':')
         monitor_info_mapping = {}
         try:
-            # 确定metric_config
-            metric_type_promql = f"count by (monitor_name, scope_name) ({{__name__=~\"custom:{metric_table_id}:.*\"}})"
-            request_params["query_configs"][0]["promql"] = metric_type_promql
-            metric_type_values = resource.grafana.graph_unify_query(request_params)["series"]
-            candidate_queue = []
-            for curve in metric_type_values:
-                if not curve.get("dimensions"):
-                    continue
-                if "scope_name" in curve["dimensions"]:
-                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
-                if "monitor_name" in curve["dimensions"]:
-                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
-            metric_config = (
-                candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
-            )
-            monitor_name_key = metric_config["monitor_name_key"]
-            service_name_key = metric_config["service_name_key"]
-
             # 查询具体的监控项名称和service_name
+            monitor_name_key = dimension_keys["monitor_name_key"]
+            service_name_key = dimension_keys["service_name_key"]
             promql = (
                 f"count by ({monitor_name_key}, {service_name_key}, __name__) "
                 f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=~\"{service_name}$\"}})"
@@ -443,6 +527,42 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
+    def _add_config_from_container(cls, app_name, service_name, view, view_config):
+        """获取容器 Pod 图表配置"""
+        from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
+
+        if not KubernetesBuiltinProcessor.builtin_views:
+            KubernetesBuiltinProcessor.load_builtin_views()
+
+        # 因为 kubernetes 场景不需要 type 字段(在接口处已处理) 这里查询 type 为空的数据
+        pod_view = SceneViewModel.objects.filter(
+            bk_biz_id=view.bk_biz_id,
+            scene_id="kubernetes",
+            name="pod",
+            type="",
+        ).first()
+        pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
+        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
+
+        # 调整配置
+        pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
+        pod_view["options"] = view_config["options"]
+        if "panels" in pod_view:
+            pod_view["overview_panels"] = pod_view["panels"]
+            del pod_view["panels"]
+
+        pod_view["options"]["selector_panel"]["targets"][0]["data"] = {
+            "app_name": app_name,
+            "service_name": service_name,
+        }
+
+        # 不展示事件页面 时间页面单独页面进行展示
+        pod_view["overview_panels"] = [
+            i for i in pod_view["overview_panels"] if i["id"] != 'bk_monitor.time_series.k8s.events'
+        ]
+        return pod_view
+
+    @classmethod
     def _add_config_from_host(cls, view, view_config):
         """从主机监控中获取并增加配置"""
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
@@ -451,6 +571,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
         if host_view:
             view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+        if "overview_panel" in view_config.get("options"):
+            # 去除顶部栏中的策略告警信息
+            del view_config["options"]["overview_panel"]
 
     @classmethod
     def create_default_views(cls, bk_biz_id: int, scene_id: str, view_type: str, existed_views):
@@ -512,8 +635,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "error",
                         "instance",
                         "host",
+                        "container",
                         "log",
                         "profiling",
+                        "custom_metric",
                     ]
                 },
             )
@@ -523,27 +648,63 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return scene_id.startswith(cls.SCENE_ID)
 
     @classmethod
+    def _get_non_container_view_config(cls, builtin_view, params):
+        return {
+            "id": "container",
+            "type": "overview",
+            "mode": "auto",
+            "name": _("k8s"),
+            "panels": [],
+            "overview_panels": [
+                {
+                    "id": 1,
+                    "title": "",
+                    "type": "exception-guide",
+                    "targets": [
+                        {
+                            "data": {
+                                "type": "empty",
+                                "title": _("暂未发现关联 Pod"),
+                                "subTitle": _(
+                                    "如何发现容器信息:\n"
+                                    "1. [推荐] 将上报地址切换为集群内上报，即可自动获取关联。\n"
+                                    "2. 手动补充以下全部集群信息字段，也可以进行关联："
+                                    "k8s.bcs.cluster.id(集群 Id), "
+                                    "k8s.pod.name(Pod 名称), "
+                                    "k8s.namespace.name(Pod 所在命名空间)。\n"
+                                    "如果还是没有数据，可能是由于所选时间段的 Pod 已经销毁。\n",
+                                ),
+                            }
+                        }
+                    ],
+                    "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+                }
+            ],
+            "order": [],
+        }
+
+    @classmethod
     def _get_non_host_view_config(cls, builtin_view, params):
         # 不同场景下返回不同的无数据配置
         link = {}
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
-            title = _("暂未发现主机")
+            title = _("暂未在 Span 中发现主机")
             sub_title = _(
-                "关联主机方法:\n1. 上报时增加 IP 信息。"
+                "如何发现主机:\n1. 上报时增加 IP 信息。"
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "可将上报地址切换为集群内上报，自动获得关联。\n",
+                "可将上报地址切换为集群内上报，即可自动获得关联。\n",
             )
 
         else:
-            title = _("暂未关联主机")
+            title = _("暂未发现主机")
             sub_title = _(
-                "关联主机方法:\n1. SDK上报时增加IP信息。"
+                "如何发现主机:\n1. 上报时增加IP信息。"
                 "如果是非容器环境，"
                 "需要补充 resource.net.host.ip(机器的 IP 地址) 字段。"
                 "如果是容器环境，"
-                "可将上报地址切换为集群内上报，自动获得关联。\n"
+                "可将上报地址切换为集群内上报，即可自动获得关联。\n"
                 "2. 在服务设置中，通过【关联 CMDB 服务】设置关联服务模版，会自动关联此服务模版下的主机列表"
             )
 
@@ -572,6 +733,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         }
 
     @classmethod
+    def _generate_non_custom_metric_view_config(cls, view_config):
+        view_config["variables"] = []
+        view_config["options"] = {}
+        view_config["overview_panels"] = [
+            {
+                "id": 1,
+                "title": "",
+                "type": "apm_custom_graph",
+                "targets": [],
+                "gridPos": {"x": 0, "y": 0, "w": 24, "h": 24},
+            }
+        ]
+
+    @classmethod
     def convert_custom_params(cls, scene_id, params):
         """
         将接口参数转换为视图类需要的参数 各个场景需要的参数如下:
@@ -590,11 +765,21 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "only_simple_info": params.get("only_simple_info") or False,
             }
 
-        return {
+        converted_params = {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
             "only_simple_info": params.get("only_simple_info") or False,
         }
+        # 自定义参数透传
+        if scene_id == "apm_service" and params.get("id") in [
+            "service-default-custom_metric",
+            "service-default-container",
+        ]:
+            if "start_time" in params:
+                converted_params["start_time"] = params["start_time"]
+            if "end_time" in params:
+                converted_params["end_time"] = params["end_time"]
+        return converted_params
 
     @classmethod
     def is_custom_view_list(cls) -> bool:
@@ -637,8 +822,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         res = default_views + specific_views
         if ServiceHandler.is_remote_service_by_node(node):
-            # 自定义服务 无实例、 Profiling 、 DB
-            ignore_tabs = ["db", "instance", "profiling"]
+            # 自定义服务 无实例、 Profiling 、 DB 、 k8s
+            ignore_tabs = ["db", "instance", "profiling", "container"]
             res = [i for i in res if i.id.split("-")[-1] not in ignore_tabs]
 
         return res

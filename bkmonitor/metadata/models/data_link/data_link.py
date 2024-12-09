@@ -24,6 +24,7 @@ from metadata.models.data_link.data_link_configs import (
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.data_link.utils import get_bkbase_raw_data_id_name
 from metadata.models.storage import ClusterInfo
 
 logger = logging.getLogger("metadata")
@@ -103,8 +104,8 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
         bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
 
         logger.info(
@@ -166,9 +167,12 @@ class DataLink(models.Model):
 
         from metadata.models.bcs import BcsFederalClusterInfo
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
-        bkbase_fed_vmrt_name = bkbase_vmrt_name + '_fed'
+        # 联邦子集群场景下，这里的bkbase_data_name会有一个fed_的前缀
+        bkbase_raw_data_name = get_bkbase_raw_data_id_name(data_source=data_source, table_id=table_id)
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+
         bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
 
         logger.info(
@@ -180,7 +184,7 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+        federal_records = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id, is_deleted=False)
         if not federal_records:
             logger.warning(
                 "compose_federal_sub_configs: bcs_cluster_id->[%s],data_link_name->[%s],data_id->[%s] does "
@@ -193,8 +197,8 @@ class DataLink(models.Model):
 
         config_list, conditions = [], []
         for record in federal_records:
-            # 联邦子集群的K8S指标RT名
-            sub_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
+            # 联邦代理集群的RT名
+            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
             match_labels = [{"name": "namespace", "value": ns} for ns in record.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
             logger.info(
@@ -207,7 +211,7 @@ class DataLink(models.Model):
             sinks = [
                 {
                     "kind": "VmStorageBinding",
-                    "name": sub_k8s_metric_vmrt_name,
+                    "name": proxy_k8s_metric_vmrt_name,
                     "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 }
             ]
@@ -223,14 +227,14 @@ class DataLink(models.Model):
         try:
             with transaction.atomic():
                 vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(
-                    name=bkbase_fed_vmrt_name,
+                    name=bkbase_vmrt_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                 )
                 data_bus_ins, _ = DataBusConfig.objects.get_or_create(
-                    name=bkbase_fed_vmrt_name,
-                    data_id_name=bkbase_data_name,
+                    name=bkbase_vmrt_name,
+                    data_id_name=bkbase_raw_data_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
@@ -245,7 +249,7 @@ class DataLink(models.Model):
         conditional_sink = [
             {
                 "kind": DataLinkKind.CONDITIONALSINK.value,
-                "name": bkbase_fed_vmrt_name,
+                "name": bkbase_vmrt_name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
             },
         ]
@@ -268,8 +272,8 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
         bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
         logger.info(
             "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
@@ -390,12 +394,11 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
+        # 现阶段默认都为VM存储类型
         storage_type = ClusterInfo.TYPE_VM
-        if self.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES:
-            storage_type = ClusterInfo.TYPE_VM
 
         try:
             storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
