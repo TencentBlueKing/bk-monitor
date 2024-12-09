@@ -1,17 +1,40 @@
 <script setup>
   import { computed } from 'vue';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import TimeRange from '@/components/time-range/time-range';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import useStore from '@/hooks/use-store';
   import { updateTimezone } from '@/language/dayjs';
-
+  import { useRoute, useRouter } from 'vue-router/composables';
   const store = useStore();
-
+  const route = useRoute();
+  const router = useRouter();
   /** 时间选择器绑定的值 */
   const timeRangValue = computed(() => {
     return store.state.indexItem.datePickerValue;
   });
+
+  const setRouteParams = () => {
+    const query = { ...route.query };
+    const { start_time, end_time, interval, begin, size } = store.getters.retrieveParams;
+    const timezone = store.state.indexItem.timezone;
+
+    const resolver = new RetrieveUrlResolver({
+      start_time,
+      end_time,
+      interval,
+      timezone,
+      begin,
+      size,
+      datePickerValue: store.state.indexItem.datePickerValue,
+    });
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
 
   const timezone = computed(() => {
     const { timezone = '' } = store.state.indexItem;
@@ -22,6 +45,7 @@
     store.commit('updateIndexItemParams', { timezone });
     updateTimezone(timezone);
     store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   // 日期变化
@@ -31,6 +55,7 @@
     store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
     await store.dispatch('requestIndexSetFieldInfo');
     store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   /** 刷新 */

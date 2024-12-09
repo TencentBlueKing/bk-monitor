@@ -53,10 +53,14 @@
   import TrendChart from '@/components/monitor-echarts/trend-chart';
   import { ref, watch, onMounted, computed } from 'vue';
   import useStore from '@/hooks/use-store';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
   const emit = defineEmits(['toggle-change', 'change-queue-res']);
 
   const store = useStore();
+  const route = useRoute();
+  const router = useRouter();
+
   const chartKey = computed(() => store.state.retrieve.chartKey);
 
   const searchTotal = computed(() => {
@@ -86,6 +90,12 @@
     chartInterval.value = v;
     store.commit('updateIndexItem', { interval: v });
     store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
+    router.replace({
+      query: {
+        ...route.query,
+        interval: v,
+      },
+    });
   };
 
   onMounted(() => {

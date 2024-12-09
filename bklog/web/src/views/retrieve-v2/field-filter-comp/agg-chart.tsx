@@ -27,6 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import _escape from 'lodash/escape';
 
 import $http from '@/api';
@@ -112,7 +113,25 @@ export default class AggChart extends tsc<object> {
   }
   addCondition(operator, value) {
     if (this.fieldType === '__virtual__') return;
-    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] });
+
+    const router = this.$router;
+    const route = this.$route;
+    const store = this.$store;
+
+    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] }).then(() => {
+      const query = { ...route.query };
+
+      const resolver = new RetrieveUrlResolver({
+        keyword: store.getters.retrieveParams.keyword,
+        addition: store.getters.retrieveParams.addition,
+      });
+
+      Object.assign(query, resolver.resolveParamsToUrl());
+
+      router.replace({
+        query,
+      });
+    });
   }
   getIconPopover(operator, value) {
     if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
