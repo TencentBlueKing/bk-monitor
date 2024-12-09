@@ -44,7 +44,7 @@
       return 1;
     }
 
-    return localStorage.getItem('bkLogQueryType');
+    return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
   const activeIndex = ref(getDefaultActiveIndex());
