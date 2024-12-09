@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -2162,6 +2162,20 @@ class SearchHandler(object):
             if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
+
+        if log_list:
+            collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+            if collector_config:
+                data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+                alias_dict = data.get("query_alias_settings")
+                if alias_dict:
+                    for log in log_list:
+                        ext_data = log.get("__ext")
+                        if ext_data:
+                            for alias_name, info in alias_dict.items():
+                                field_name = info["path"].split(".")[1]
+                                if field_name in ext_data:
+                                    log[alias_name] = ext_data[field_name]
 
         result.update(
             {
