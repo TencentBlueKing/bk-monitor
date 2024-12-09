@@ -810,6 +810,7 @@ class MappingHandlers(object):
                 schema_dict.update({_field_name: temp_dict})
 
         alias_dict = dict()
+        remove_field_list = list()
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
             data = TransferApi.get_result_table({"table_id": collector_config.table_id})
@@ -851,6 +852,13 @@ class MappingHandlers(object):
                 for alias_name, info in alias_dict.items():
                     if a_field_name == info.get("path"):
                         _field["query_alias"] = alias_name
+                    if a_field_name == alias_name:
+                        remove_field_list.append(_field)
+
+        # 移除不展示的别名字段
+        for field in remove_field_list:
+            if field in fields_list:
+                fields_list.remove(field)
 
         return fields_list
 
