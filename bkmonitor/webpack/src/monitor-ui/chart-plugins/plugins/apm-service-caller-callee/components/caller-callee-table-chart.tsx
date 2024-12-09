@@ -122,6 +122,17 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.dimensionParam = structuredClone(this.callOptions);
   }
 
+  @Watch('$route.query')
+  handleRoute(val) {
+    if (val?.callOptions) {
+      const callOptions = JSON.parse(val.callOptions);
+      if (callOptions?.perspective_group_by) {
+        this.dimensionList.map(item => (item.active = callOptions.perspective_group_by.includes(item.value)));
+      }
+      callOptions?.perspective_type && this.changeTab(callOptions.perspective_type);
+    }
+  }
+
   @Watch('dimensionList', { immediate: true })
   handleDimensionListChange(val) {
     this.dimensionParam = {

@@ -165,6 +165,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       call_filter: routeCallOptions.call_filter || [],
       tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
       kind: this.callType,
+      perspective_type: 'single',
+      perspective_group_by: [],
     };
   }
 
