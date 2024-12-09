@@ -75,7 +75,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
                     "record_id": data_point.record_id,
                     "value": data_point.value,
                     "values": predict_result[0],
-                    "time": predict_result[0]["timestamp"],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
                 },
                 item=data_point.item,
