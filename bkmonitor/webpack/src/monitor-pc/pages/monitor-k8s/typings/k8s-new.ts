@@ -42,9 +42,18 @@ export enum K8sNewTabEnum {
   LIST = 'list',
 }
 
+export type SceneType = 'performance';
 export interface GroupListItem {
   id: string;
   name: string;
   count?: number;
+  hasMore?: boolean;
   children?: GroupListItem[];
+  [key: string]: any;
+}
+
+export interface K8sDimensionParams {
+  scene: SceneType;
+  keyword: string;
+  pageSize?: number;
 }
