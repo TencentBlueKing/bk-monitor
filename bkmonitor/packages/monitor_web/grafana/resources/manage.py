@@ -8,9 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from collections import defaultdict
 from copy import deepcopy
-from random import randint
 from typing import Dict
 
 from blueapps.utils import get_request
@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bk_dataview.api import get_or_create_org
+from bk_dataview.models import Dashboard
 from bk_dataview.permissions import GrafanaPermission, GrafanaRole
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
@@ -383,7 +384,6 @@ class MigrateOldPanels(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         dashboard_uid = serializers.CharField(label="仪表盘UID", required=True)
-        folder_id = serializers.IntegerField(label="目录ID", required=True)
 
     @staticmethod
     def graph_to_timeseries(panel: Dict):
@@ -423,10 +423,29 @@ class MigrateOldPanels(Resource):
         thresholds_style_mode = "off"
         # 阈值和对应显示的颜色
         threshold_steps = [{"color": "green", "value": None}]
+        threshold_colors = [
+            "red",
+            "#EAB839",
+            "#6ED0E0",
+            "#EF843C",
+            "#E24D42",
+            "#1F78C1",
+            "#BA43A9",
+            "#705DA0",
+            "#508642",
+            "#CCA300",
+            "#447EBC",
+            "#C15C17",
+            "#890F02",
+            "#0A437C",
+            "#6D1F62",
+        ]
+        color_index = 0
         for threshold in old_panel.get("thresholds", []):
             if threshold.get("op", "gt") == "lt":  # 当阈值条件为小于时，不显示该阈值, timeseries只有大于显示
                 continue
-            threshold_steps.append({"color": f"{randint(0, 0xFFFFFF):06X}", "value": threshold.get("value")})
+            threshold_steps.append({"color": threshold_colors[color_index], "value": threshold.get("value")})
+            color_index = (color_index + 1) % len(threshold_colors)
             if threshold.get("fill", False) is True and threshold.get("line", False) is True:
                 thresholds_style_mode = "line+area"
             elif threshold.get("fill", False) is True:
@@ -436,7 +455,11 @@ class MigrateOldPanels(Resource):
             else:
                 thresholds_style_mode = "off"
         draw_style_map = {"lines": "line", "bars": "bars", "points": "points"}
-        draw_style = next((draw_style_map[key] for key in draw_style_map if old_panel.get(key, False)), "line")
+        draw_style = "line"
+        for old_style, new_style in draw_style_map.items():
+            if old_panel.get(old_style, False):
+                draw_style = new_style
+                break
         custom = {
             # 以下使用timeseries默认值
             "axisBorderShow": False,
@@ -477,11 +500,85 @@ class MigrateOldPanels(Resource):
         if overrides:
             panel["fieldConfig"]["overrides"] = overrides
 
+    @staticmethod
+    def oldtable_to_newtable(panel: Dict):
+        """
+        将旧版 table 面板 迁移到新版本的 table 面板
+        """
+        old_panel = deepcopy(panel)
+        panel.clear()
+
+        # panel 基本信息
+        panel["id"] = old_panel["id"]
+        panel["type"] = "table"
+        panel["title"] = old_panel.get("title", "Panel Title")
+        panel["gridPos"] = old_panel["gridPos"]
+        panel["datasource"] = old_panel["datasource"]
+        panel["targets"] = old_panel["targets"]
+
+        # 表头和页脚配置
+        panel["options"] = {
+            "showHeader": old_panel.get("showHeader", True),
+            "cellHeight": "sm",
+            "footer": {"show": False, "reucer": ["sum"], "fields": "", "countRows": False, "enablePagination": False},
+        }
+
+        panel["fieldConfig"] = {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "mapping": [],
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [{"value": None, "color": "green"}, {"value": 80, "color": "red"}],
+                },
+                "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": False},
+            },
+            "overrides": [],
+        }
+        for style in old_panel.get("styles", []):
+            override = {"matcher": {"id": "byName", "options": style.get("pattern", "")}, "properties": []}
+
+            alias = style.get("alias", "")
+            if alias:
+                override["properties"].append({"id": "displayName", "value": alias})
+
+            align = style.get("align", "auto")
+            if align != "auto":
+                override["properties"].append({"id": "custom.align", "value": align})
+
+            unit = style.get("unit", "")
+            if unit:
+                if style.get("type") == "date":
+                    unit = f"time: {style.get('dateFormat', 'YYYY-MM-DD HH:mm:ss')}"
+                override["properties"].append({"id": "unit", "value": unit})
+
+            decimals = style.get("decimals")
+            if decimals is not None:
+                override["properties"].append({"id": "decimals", "value": decimals})
+
+            panel["fieldConfig"]["overrides"].append(override)
+
+    def migrate_panel(self, panel: Dict, is_migrate: bool):
+        """
+        将旧版 panels 迁移到新版本
+        """
+        panel_type = panel.get("type")
+
+        # 面板为 graph 时，进行转换为 timeseries 面板
+        if panel_type == "graph":
+            self.graph_to_timeseries(panel)
+            is_migrate = True
+        # 面板为老版 table-old 时，进行转换为新版的 table 面板
+        elif panel_type == "table-old":
+            self.oldtable_to_newtable(panel)
+            is_migrate = True
+        return is_migrate
+
     def perform_request(self, params):
         # 1. 获取仪表盘信息
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
-        dashboard_info = api.grafana.get_dashboard_by_uid(org_id=org_id, uid=params["dashboard_uid"])
-        dashboard = dashboard_info.get("data", {}).get("dashboard")
+        org_id = get_or_create_org(str(params["bk_biz_id"]))["id"]
+        dashboard_info = Dashboard.objects.filter(org_id=org_id, is_folder=False, uid=params["dashboard_uid"]).first()
+        dashboard = json.loads(dashboard_info.data) if dashboard_info else None
 
         # 没有获取到仪表盘信息，直接返回
         if not dashboard:
@@ -496,32 +593,20 @@ class MigrateOldPanels(Resource):
         # 2. 遍历 panels 进行转换更新面板配置
         is_migrate = False
         for panel in dashboard.get("panels", []):
-            # 2.1 面板为 graph 时，进行转换为 timeseries 面板
-            if panel.get("type") == "graph":
-                self.graph_to_timeseries(panel)
-                is_migrate = True
-            else:
-                continue
+            if panel.get("type") == "raw":
+                for raw_panel in panel.get("panels", []):
+                    is_migrate = self.migrate_panel(raw_panel, is_migrate)
+            is_migrate = self.migrate_panel(panel, is_migrate)
 
         # 3. 更新仪表盘
         if is_migrate:
-            result = api.grafana.create_or_update_dashboard_by_uid(
-                org_id=org_id, dashboard=dashboard, overwrite=True, folderId=params["folder_id"]
-            )
-
-            if not result["result"]:
-                return {
-                    "result": False,
-                    "message": f"Dashboard_uid: {params['dashboard_uid']} Migrate failed. {result['message']}",
-                    "code": result["code"],
-                    "data": {},
-                }
-
+            dashboard_info.data = json.dumps(dashboard)
+            dashboard_info.save()
             return {
                 "result": True,
                 "message": "Migrate success.",
-                "code": result["code"],
-                "data": {"url": result["data"].get("url", "")},
+                "code": 200,
+                "data": {},
             }
         else:
             return {
