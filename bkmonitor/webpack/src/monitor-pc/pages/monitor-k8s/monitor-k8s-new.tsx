@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Ref } from 'vue-property-decorator';
 
 import { random } from 'monitor-common/utils';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
@@ -32,6 +31,7 @@ import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { CP_METHOD_LIST, METHOD_LIST, PANEL_INTERVAL_LIST } from '../../constant/constant';
 import { getDefaultTimezone } from '../../i18n/dayjs';
+import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import FilterVarSelectSimple from './components/filter-var-select/filter-var-select-simple';
 import GroupByCondition, {
@@ -52,7 +52,8 @@ import K8sTableNew, {
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
 import TimeCompareSelect from './components/panel-tools/time-compare-select';
-import { K8sNewTabEnum } from './typings/k8s-new';
+import { K8sDimension } from './k8s-dimension';
+import { K8sNewTabEnum, type SceneType } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFilterByItem } from './components/filter-by-condition/utils';
@@ -78,7 +79,7 @@ const tabList = [
 ];
 const defaultFixedFilter = [K8sTableColumnKeysEnum.NAMESPACE];
 @Component
-export default class MonitorK8sNew extends tsc<object> {
+export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
   @Ref() k8sGroupByRef: InstanceType<typeof GroupByCondition>;
 
@@ -94,7 +95,7 @@ export default class MonitorK8sNew extends tsc<object> {
   };
   sliderShow = false;
   // 场景
-  scene = 'performance';
+  scene: SceneType = 'performance';
   // 时间范围
   timeRange: TimeRangeType = [...DEFAULT_TIME_RANGE];
   // 时区
@@ -113,7 +114,7 @@ export default class MonitorK8sNew extends tsc<object> {
   // Group By 选择器的值
   groupFilters: Array<number | string> = [...defaultFixedFilter];
   // 指标隐藏项
-  hideMetrics = JSON.parse(localStorage.getItem(HIDE_METRICS_KEY) || '[]');
+  hideMetrics = [];
   // 表格数据
   k8sTableData: any[] = [];
   // table 点击选中数据项
@@ -274,6 +275,14 @@ export default class MonitorK8sNew extends tsc<object> {
   created() {
     this.getK8sList();
     this.getScenarioMetricList();
+    this.handleGetUserConfig(HIDE_METRICS_KEY).then((res: string[]) => {
+      this.hideMetrics = res || [];
+    });
+    const dimension = new K8sDimension({
+      scene: this.scene,
+      keyword: '',
+    });
+    console.log(dimension);
   }
 
   /**
@@ -442,7 +451,7 @@ export default class MonitorK8sNew extends tsc<object> {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    localStorage.setItem(HIDE_METRICS_KEY, JSON.stringify(hideMetrics));
+    this.handleSetUserConfig(HIDE_METRICS_KEY, JSON.stringify(hideMetrics));
   }
 
   handleClusterChange(cluster: string) {
