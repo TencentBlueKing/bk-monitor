@@ -25,14 +25,12 @@
  */
 import { onMounted, onUnmounted } from 'vue';
 
-import { throttle } from 'lodash';
-
 import { getTargetElement } from './hooks-helper';
 
 export default ({ target, callback }) => {
-  const throttleCallback = throttle((e: WheelEvent) => {
+  const throttleCallback = (e: WheelEvent) => {
     callback?.(e);
-  });
+  };
 
   onMounted(() => {
     const targetElement = getTargetElement(target);

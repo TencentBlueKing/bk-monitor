@@ -574,10 +574,22 @@ export default defineComponent({
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
-        if (event.deltaX !== 0 && hasScrollX.value) {
-          scrollXOffsetLeft.value += event.deltaX;
-          refScrollXBar.value?.scrollLeft(scrollXOffsetLeft.value);
+        if (event.deltaY === 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
         }
+
+        const maxOffset = scrollWidth.value - offsetWidth.value;
+        if (event.deltaX !== 0 && hasScrollX.value) {
+          const nextOffset = scrollXOffsetLeft.value + event.deltaX;
+          if (nextOffset <= maxOffset && nextOffset >= 0) {
+            scrollXOffsetLeft.value += event.deltaX;
+            refScrollXBar.value?.scrollLeft(nextOffset);
+          }
+        }
+
+        console.log('event:', scrollXOffsetLeft.value);
       },
     });
 
