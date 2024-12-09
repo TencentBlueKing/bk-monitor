@@ -10,7 +10,7 @@
   const props = defineProps({
     value: { type: Boolean, default: true },
   });
-  const FieldShowName = ref('field_name');
+  const fieldShowName = ref('field_name');
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -37,7 +37,10 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
+        ? item.field_alias || item.field_name
+        : item.alias_name || item.field_alias || item.field_name;
     });
     return fieldAliasMap;
   });
@@ -51,7 +54,7 @@
     };
   });
 
-  const showFieldAlias = computed(() => store.state.showFieldAlias);
+  // const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   /**
@@ -92,12 +95,12 @@
           ext-popover-cls="field-filter-content"
         >
           <div slot="content">
-            <bk-radio-group v-model="FieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
+            <bk-radio-group v-model="fieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
               <bk-radio-button value="field_name">
-                展示字段名
+                {{ $t('展示字段名') }}
               </bk-radio-button>
               <bk-radio-button value="alias_name">
-                展示别名
+                {{ $t('展示别名') }}
               </bk-radio-button>
             </bk-radio-group>
           </div>
@@ -124,7 +127,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="showFieldAlias"
+      :show-field-alias="fieldShowName"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

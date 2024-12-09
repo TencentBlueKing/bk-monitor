@@ -534,6 +534,7 @@ export default class FieldAnalysis extends Vue {
           ...this.queryParams,
           limit:10
         },
+        // responseType: 'blob'
       },);
       if (res.code === 0) {
        console.log(res);
@@ -544,7 +545,7 @@ export default class FieldAnalysis extends Vue {
   }
   render() {
     return (
-      <div class='retrieveV2 field-analysis-container'>
+      <div class='retrieve-v2 field-analysis-container'>
         <div v-bkloading={{ isLoading: this.infoLoading }}>
           <div class='total-num-container'>
             <span class='total-num'>

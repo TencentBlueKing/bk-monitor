@@ -216,7 +216,7 @@ const updateUserFiledTableConfig = {
 };
 /** 字段分析列表下载*/
 const downloadFieldAnalysisList = {
-  url: '/fetch/index_set/fetch_value_list/',
+  url: '/field/index_set/fetch_value_list/',
   method: 'post',
 };
 export {

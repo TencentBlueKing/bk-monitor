@@ -172,7 +172,7 @@ export default class AggChart extends tsc<object> {
   render() {
     return (
       <div
-        class='retrieveV2 field-data'
+        class='retrieve-v2 field-data'
         v-bkloading={{ isLoading: this.listLoading }}
       >
         {!!this.showFiveList.length ? (

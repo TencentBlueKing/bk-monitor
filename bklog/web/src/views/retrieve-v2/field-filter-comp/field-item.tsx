@@ -36,7 +36,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
+  @Prop({ type: String, default: false }) showFieldAlias: String;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -210,7 +210,8 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span class='field-name'>
               <span>
-                {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
+                {/* {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name} */}
+                {this.fieldAliasMap[this.fieldItem.field_name]}
               </span>
               <span
                 class='field-count'
