@@ -236,9 +236,9 @@ export default class LogFilter extends tsc<object> {
 
           // 字符串类型过滤暂时无过滤参数（全文）
           if (this.activeType === 'separator') {
-            matchNotError = await (container.$refs[`match-${fIndex}-${iIndex}`] as Form)?.validate();
+            matchNotError = await (container?.$refs[`match-${fIndex}-${iIndex}`] as Form)?.validate();
           }
-          const valueNotError = await (container.$refs[`value-${fIndex}-${iIndex}`] as Form)?.validate();
+          const valueNotError = await (container?.$refs[`value-${fIndex}-${iIndex}`] as Form)?.validate();
 
           if (isCanSubmit) isCanSubmit = matchNotError && valueNotError;
         }
