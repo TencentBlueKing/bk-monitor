@@ -75,8 +75,6 @@
     };
   });
 
-  const rightClassName = computed(() => {});
-
   /**** 根据滚动条滚动位置动态计算左侧字段列表高度 *****/
   // 搜索框高度，搜索框高度会改变
   const searchInputHeight = ref(0);
@@ -85,7 +83,7 @@
   // 自定操作时顶部填充高度，根据滚动位置动态计算
   const paddingTop = ref(0);
   // 顶部二级导航高度，这个高度是固定的
-  const subBarHeight = ref(64);
+  const subBarHeight = ref(48);
   // 原始日志，日志聚类这一层级的Tab高度，高度固定
   const tabHeight = ref(50);
 

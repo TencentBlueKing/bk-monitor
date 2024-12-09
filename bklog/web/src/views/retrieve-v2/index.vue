@@ -178,7 +178,7 @@
 
   const stickyStyle = computed(() => {
     return {
-      '--offset-search-bar': `${searchBarHeight.value}px`,
+      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
     };
   });
 
@@ -240,11 +240,15 @@
     return {};
   });
 
+  const isStickyTop = computed(() => {
+    return paddingTop.value === subBarHeight.value;
+  });
+
   /*** 结束计算 ***/
 </script>
 <template>
   <div
-    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true }]"
+    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
     :style="stickyStyle"
   >
     <div class="sub-head">

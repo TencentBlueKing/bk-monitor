@@ -597,7 +597,7 @@ export default defineComponent({
 
     const headStyle = computed(() => {
       return {
-        top: `${searchContainerHeight.value + 16}px`,
+        top: `${searchContainerHeight.value}px`,
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
       };
     });

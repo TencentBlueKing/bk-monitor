@@ -3,7 +3,6 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import useScroll from '@/hooks/use-scroll';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -25,12 +24,11 @@
   const sortList = computed(() => {
     return store.state.indexFieldInfo.sort_list;
   });
+
   const totalFields = computed(() => {
     return store.state.indexFieldInfo.fields;
   });
-  const indexId = computed(() => {
-    return store.state.indexId;
-  });
+
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     store.state.indexFieldInfo.fields.forEach(item => {

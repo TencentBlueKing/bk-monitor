@@ -113,7 +113,7 @@
   .retrieve-v2-content {
     position: relative;
     width: calc(100% - var(--left-width));
-    padding-left: 8px;
+    // padding-left: 8px;
     background-color: #f4f7fa;
 
     &::after {
@@ -125,6 +125,15 @@
       width: 8px;
       content: '';
       background-color: #f4f7fa;
+    }
+
+    .search-bar-container {
+      margin-left: 8px;
+    }
+
+    .retrieve-tab,
+    .search-result-panel {
+      padding-left: 8px;
     }
   }
 
@@ -150,6 +159,13 @@
           overflow: auto;
         }
       }
+    }
+  }
+
+  &.is-sticky-top {
+    .search-bar-container {
+      margin-left: 0;
+      transition: ease-in 0.1s;
     }
   }
 }
