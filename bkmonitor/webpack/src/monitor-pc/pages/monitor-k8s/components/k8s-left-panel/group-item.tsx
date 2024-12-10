@@ -39,7 +39,6 @@ interface GroupItemProps {
   list: GroupListItem;
   value?: string[];
   isGroupBy?: boolean;
-  showMore?: boolean;
   tools?: Tools[];
   hiddenList?: string[];
   defaultExpand?: { [key: string]: boolean } | boolean;
@@ -63,7 +62,6 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: false }) isGroupBy: boolean;
   /** 隐藏项列表 */
   @Prop({ default: () => [] }) hiddenList: string[];
-  @Prop({ default: false }) showMore: boolean;
   @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
   @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
   @Prop({ default: () => [] }) drillDownList: string[];
@@ -72,6 +70,20 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   expand = {};
 
   drillDown = '';
+
+  get showMoreGroup() {
+    const group = [];
+    if (this.list.children.length) {
+      if (this.list.children[0].children) {
+        for (const item of this.list.children) {
+          if (item.children?.length && item.count > item.children.length) group.push(item.id);
+        }
+      } else {
+        if (this.list.count > this.list.children.length) group.push(this.list.id);
+      }
+    }
+    return group;
+  }
 
   @Watch('defaultExpand', { immediate: true })
   handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
@@ -140,6 +152,16 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           </div>
 
           {this.expand[item.id] && item.children.map(child => this.renderGroupContent(child))}
+          {this.showMoreGroup.includes(item.id) && this.expand[item.id] && (
+            <div class='show-more'>
+              <span
+                class='text'
+                onClick={this.handleShowMore}
+              >
+                {this.$t('点击加载更多')}
+              </span>
+            </div>
+          )}
         </div>
       );
     }
@@ -220,7 +242,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             <EmptyStatus type='empty' />
           )}
 
-          {this.showMore && (
+          {this.showMoreGroup.includes(this.list.id) && (
             <div class='show-more'>
               <span
                 class='text'

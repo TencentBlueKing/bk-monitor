@@ -698,6 +698,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           <div class='content-left'>
             <K8sLeftPanel>
               <K8sDimensionList
+                clusterId={this.cluster}
                 filterBy={this.filterBy}
                 groupBy={this.groupFilters}
                 scene={this.scene}
