@@ -1840,7 +1840,7 @@ class Strategy(AbstractConfig):
 
             # 重新生成 metric_id 字段
             for query_config in item["query_configs"]:
-                qc = QueryConfig(**query_config)
+                qc = QueryConfig(strategy_id=self.id, item_id=item["id"], **query_config)
                 query_config["metric_id"] = qc.get_metric_id()
 
         return config
