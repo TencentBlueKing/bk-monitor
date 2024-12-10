@@ -155,8 +155,8 @@ const TListViewProps = {
     type: Array,
     default: [],
   },
-  spansUpDown: {
-    type: Object,
+  activeSpanId: {
+    type: String,
   },
 };
 
@@ -173,7 +173,6 @@ export default defineComponent({
 
     const wrapperElm = ref<HTMLElement | TNil>(null);
     const itemHolderElm = ref<HTMLElement | TNil>(null);
-    const curShowDetailSpanId = ref<string>('');
     const knownHeights = ref(new Map());
     const startIndexDrawn = ref(2 ** 20);
     const endIndexDrawn = ref(-(2 ** 20));
@@ -226,30 +225,6 @@ export default defineComponent({
           const elem = document.querySelector('.trace-detail-wrapper');
           elem?.scrollTo({ top: val * 28, behavior: 'smooth' });
         }
-      }
-    );
-    watch(
-      () => props.spansUpDown,
-      ({ span: nowSpanDetail, jumpFlag: indexVal }) => {
-        const spansList = spans.value;
-        const currentSpanIndex = spansList.findIndex(({ spanID }) => spanID === nowSpanDetail.spanID);
-        if (currentSpanIndex === -1) return;
-        let newSpan = null;
-        if (indexVal === -1) {
-          newSpan = spansList
-            .slice(0, currentSpanIndex)
-            .reverse()
-            .find(({ depth }) => depth === nowSpanDetail.depth || depth === nowSpanDetail.depth - 1);
-        } else {
-          const newIndexSpan = (currentSpanIndex + indexVal + spansList.length) % spansList.length;
-          newSpan = spansList[newIndexSpan];
-          const lastSpan = spansList[currentSpanIndex];
-
-          lastSpan.hasChildren &&
-            Boolean(childrenHiddenStore?.childrenHiddenIds.value.has(lastSpan.spanID)) &&
-            childrenHiddenStore?.onChange(lastSpan?.spanID || '');
-        }
-        handleClick(newSpan);
       }
     );
 
@@ -478,7 +453,7 @@ export default defineComponent({
       const isDetailExpanded = detailStates?.has(spanID);
       const isMatchingFilter = focusMatchesStore?.findMatchesIDs.value?.has(spanID) ?? false;
       const isFocusMatching = spanID === focusMatchesStore?.focusMatchesId.value;
-      const isActiveMatching = spanID === curShowDetailSpanId.value;
+      const isActiveMatching = spanID === props.activeSpanId;
       const isHaveRead = haveReadSpanIds.includes(spanID);
       const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(spans.value, spanIndex));
       const attributes = { ...attrs, id: spanID };
@@ -547,7 +522,6 @@ export default defineComponent({
     }
 
     function handleClick(itemKey: Span) {
-      curShowDetailSpanId.value = itemKey.spanID;
       emit('itemClick', itemKey);
     }
 

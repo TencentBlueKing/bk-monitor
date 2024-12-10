@@ -182,7 +182,6 @@ export default defineComponent({
     const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
-    const spansUpDown = ref(null);
     const spanDetails = ref<null | Span>(null);
 
     const childrenHiddenStore = useChildrenHiddenInject();
@@ -259,6 +258,28 @@ export default defineComponent({
     const handleToggleCollapse = (groupID, status) => {
       nextTick(() => store.updateSpanGroupCollapse(groupID, status));
     };
+    /** 点击上一跳/下一跳 */
+    const handlePrevNextClicked = flag => {
+      // 获取当前spanId, spanIndex
+      const curSpanId = spanDetails.value?.span_id;
+      const curSpanIndex = spans.value.findIndex(span => span.span_id === curSpanId);
+
+      if (curSpanIndex === -1) return; // 找不到当前 span，直接返回
+
+      if (flag === 'next') {
+        // 展开节点
+        spanDetails.value.hasChildren &&
+          Boolean(childrenHiddenStore?.childrenHiddenIds.value.has(curSpanId)) &&
+          childrenHiddenStore?.onChange(curSpanId || '');
+        spanDetails.value = spans.value[curSpanIndex + 1];
+      } else {
+        // 上一跳
+        spanDetails.value = spans.value
+          .slice(0, curSpanIndex)
+          .reverse()
+          .find(({ depth }) => depth === spanDetails.value.depth || depth === spanDetails.value.depth - 1);
+      }
+    };
 
     return {
       virtualizedTraceViewElm,
@@ -272,7 +293,7 @@ export default defineComponent({
       spanDetails,
       traceTree,
       spans,
-      spansUpDown,
+      handlePrevNextClicked,
       handleToggleCollapse,
     };
   },
@@ -287,13 +308,13 @@ export default defineComponent({
       >
         <ListView
           ref='listViewElm'
+          activeSpanId={this.spanDetails?.span_id || ''}
           dataLength={this.getRowStates.length}
           detailStates={this.detailStates}
           haveReadSpanIds={this.haveReadSpanIds}
           // key={this.spans.length}
           itemsWrapperClassName='virtualized-trace-view-rows-wrapper'
           spanNameColumnWidth={spanNameColumnWidth}
-          spansUpDown={this.spansUpDown}
           viewBuffer={300}
           viewBufferMin={100}
           windowScroller
@@ -303,16 +324,13 @@ export default defineComponent({
         />
         <SpanDetails
           isFullscreen={this.isFullscreen}
-          isShowUpDown={true}
+          isShowPrevNextButtons={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
-          onShow={v => (this.showSpanDetails = v)}
-          onSwitchSpanDetails={flag => {
-            this.spansUpDown = {
-              jumpFlag: flag,
-              span: this.spanDetails,
-            };
+          onPrevNextClicked={flag => {
+            this.handlePrevNextClicked(flag);
           }}
+          onShow={v => (this.showSpanDetails = v)}
         />
       </div>
     );

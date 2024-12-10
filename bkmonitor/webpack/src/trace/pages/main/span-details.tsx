@@ -79,13 +79,13 @@ export default defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
-    isShowUpDown: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
+    isShowPrevNextButtons: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
   },
-  emits: ['show', 'switchSpanDetails'],
+  emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
     const { t } = useI18n();
@@ -178,7 +178,9 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        val && Object.keys(val).length && getDetails();
+        if (val && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+          getDetails();
+        }
       },
       { immediate: true, deep: true }
     );
@@ -538,21 +540,9 @@ export default defineComponent({
     };
 
     /* 上一跳/下一跳 */
-    const switchSpanDetails = val => {
+    const handlePrevNextClick = val => {
       handleActiveTabChange();
-      emit('switchSpanDetails', val);
-    };
-
-    /* 是否禁用上一跳/下一跳的按钮*/
-    const isDisabledUpOrDown = (flag: string) => {
-      if (!spans.value || !props.spanDetails) return false;
-
-      const curSpanIndex = spans.value.findIndex(item => item.spanID === props.spanDetails.spanID);
-      const spanCount = spans.value.length;
-
-      if (curSpanIndex === -1) return false;
-
-      return (flag === 'up' && curSpanIndex === 0) || (flag === 'down' && curSpanIndex === spanCount - 1);
+      emit('prevNextClicked', val);
     };
 
     /* 展开收起 */
@@ -917,6 +907,14 @@ export default defineComponent({
           : true)
       );
     });
+    // 第一个span禁用上一跳
+    const isDisabledPre = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === 0
+    );
+    // 最后一个span禁用下一跳
+    const isDisabledNext = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
+    );
     const isTabPanelLoading = ref(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
@@ -1309,25 +1307,29 @@ export default defineComponent({
             <div class='sideslider-header'>
               <div>
                 <span>{info.title}</span>
-                {props.isShowUpDown ? (
+                {props.isShowPrevNextButtons ? (
                   <>
                     <div
-                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('up') }]}
-                      v-bk-tooltips={{ content: isDisabledUpOrDown('up') ? t('已经是第一个span') : t('上一跳') }}
+                      class={['arrow-wrap', { disabled: isDisabledPre.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledPre.value ? t('已经是第一个span') : t('上一跳'),
+                      }}
                       onClick={() => {
-                        if (!isDisabledUpOrDown('up')) {
-                          switchSpanDetails(-1);
+                        if (!isDisabledPre.value) {
+                          handlePrevNextClick('previous');
                         }
                       }}
                     >
                       <span class='icon-monitor icon-arrow-up' />
                     </div>
                     <div
-                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('down') }]}
-                      v-bk-tooltips={{ content: isDisabledUpOrDown('down') ? t('已经是最后一个span') : t('下一跳') }}
+                      class={['arrow-wrap', { disabled: isDisabledNext.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledNext.value ? t('已经是最后一个span') : t('下一跳'),
+                      }}
                       onClick={() => {
-                        if (!isDisabledUpOrDown('down')) {
-                          switchSpanDetails(1);
+                        if (!isDisabledNext.value) {
+                          handlePrevNextClick('next');
                         }
                       }}
                     >
