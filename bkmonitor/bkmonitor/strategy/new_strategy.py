@@ -2971,5 +2971,5 @@ def grafana_panel_to_config(panel_query: Dict, variables: Dict[str, List[str]]) 
         "expression": expression,
         "functions": functions,
         "query_configs": query_configs,
-        "target": [[target]] if target else [[]],
+        "target": target,
     }
