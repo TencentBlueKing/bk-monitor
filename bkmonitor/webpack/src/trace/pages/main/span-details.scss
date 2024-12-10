@@ -33,6 +33,39 @@
     width: 100%;
     padding-right: 40px;
 
+    .arrow-wrap {
+      display: inline-block;
+      width: 26px;
+      height: 26px;
+      font-size: 24px;
+      line-height: 24px;
+      text-align: center;
+      background-color: transparent;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+
+      &:hover {
+        cursor: pointer;
+      }
+
+      &:first-of-type {
+        margin-right: 8px;
+        margin-left : 16px;
+      }
+
+      &.disabled {
+        color: #dcdee5;
+        cursor: not-allowed;
+        background-color: #faf9fd;
+        border-color: #dcdee5;
+
+        .icon-monitor {
+          color: #c4c6cc;
+        }
+      }
+
+    }
+
     .header-tool {
       font-size: 14px;
       color: #63656e;
@@ -755,5 +788,5 @@
   .graph-tools {
     /* stylelint-disable-next-line declaration-no-important */
     left: 60px !important;
-  } 
+  }
 }

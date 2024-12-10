@@ -13,14 +13,8 @@ import json
 import logging
 import time
 
-import six.moves.cPickle
-
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
-from alarm_backends.core.cache.key import (
-    ANOMALY_LIST_KEY,
-    ANOMALY_SIGNAL_KEY,
-    TRIGGER_EVENT_LIST_KEY,
-)
+from alarm_backends.core.cache.key import ANOMALY_LIST_KEY, ANOMALY_SIGNAL_KEY
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.trigger.checker import AnomalyChecker
 from core.errors.alarm_backends import StrategyNotFound
@@ -86,14 +80,6 @@ class TriggerProcessor(object):
                     self.strategy_id, self.item_id, len(self.anomaly_points)
                 )
             )
-
-    def push_event_to_redis(self, event_records):
-        pipeline = TRIGGER_EVENT_LIST_KEY.client.pipeline(transaction=False)
-        trigger_event_list_key = TRIGGER_EVENT_LIST_KEY.get_key()
-        for record in event_records:
-            pipeline.lpush(trigger_event_list_key, six.moves.cPickle.dumps(record).decode("latin1"))
-        pipeline.expire(trigger_event_list_key, TRIGGER_EVENT_LIST_KEY.ttl)
-        pipeline.execute()
 
     def push_event_to_kafka(self, event_records):
         events = []

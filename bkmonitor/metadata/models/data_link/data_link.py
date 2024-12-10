@@ -13,7 +13,7 @@ import logging
 
 from django.conf import settings
 from django.db import models, transaction
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata.models.data_link import utils
@@ -360,6 +360,10 @@ class DataLink(models.Model):
         )
         try:
             response = self.apply_data_link_with_retry(configs)
+        except RetryError as e:
+            logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
+            # 抛出底层错误原因，而非直接RetryError
+            raise e.__cause__
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e

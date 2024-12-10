@@ -271,7 +271,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         return c
 
-    def _get_essentials(self, validated_data: dict) -> dict:
+    @classmethod
+    def get_essentials(cls, validated_data: dict) -> dict:
         """获取 app_name,service_name,bk_biz_id,result_table_id"""
 
         # storing data in 2 ways:
@@ -288,7 +289,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
             service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-            application_info = self._examine_application(bk_biz_id, app_name)
+            application_info = cls._examine_application(bk_biz_id, app_name)
             result_table_id = application_info["profiling_config"]["result_table_id"]
 
         return {
@@ -298,75 +299,113 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             "result_table_id": result_table_id,
         }
 
-    @action(methods=["POST", "GET"], detail=False, url_path="samples")
-    @user_visit_record
-    def samples(self, request: Request):
-        """查询 profiling samples 数据"""
-        serializer = ProfileQuerySerializer(data=request.data or request.query_params)
+    @classmethod
+    def get_query_params(cls, request_data):
+
+        serializer = ProfileQuerySerializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        start, end = self._enlarge_duration(data["start"], data["end"], offset=data.get("offset", 0))
-        essentials = self._get_essentials(data)
-        logger.info(f"[Samples] query essentials: {essentials}")
-
-        tendency_result = {}
-        compare_tendency_result = {}
-        if "tendency" in data["diagram_types"]:
-            data["diagram_types"].remove("tendency")
-            tendency_result, compare_tendency_result = self._get_tendency_data(
-                essentials=essentials,
-                start=start,
-                end=end,
-                profile_id=data.get("profile_id"),
-                filter_labels=data.get("filter_labels"),
-                is_compared=data.get("is_compared"),
-                diff_profile_id=data.get("diff_profile_id"),
-                diff_filter_labels=data.get("diff_filter_labels"),
-                sample_type=data["data_type"],
-            )
-
-            if len(data["diagram_types"]) == 0:
-                if data.get("is_compared"):
-                    return Response(data=compare_tendency_result)
-                return Response(data=tendency_result)
-
+        essentials = cls.get_essentials(data)
         # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if self.is_large_service(
-            essentials["bk_biz_id"],
-            essentials["app_name"],
-            essentials["service_name"],
-            data["data_type"],
+        if cls.is_large_service(
+            essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
         ):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
 
-        query_start_time = data["filter_labels"].pop("start", "")
-        query_end_time = data["filter_labels"].pop("end", "")
-        if query_start_time and query_end_time:
-            query_start_time, query_end_time = self._enlarge_duration(
-                query_start_time, query_end_time, offset=data.get("offset", 0)
-            )
-        tree_converter = self.query(
+        return data, essentials, extra_params
+
+    @classmethod
+    def calculate_timerange(cls, validate_data):
+        offset = validate_data.get("offset", 0)
+        start, end = cls.enlarge_duration(validate_data["start"], validate_data["end"], offset=offset)
+        return start, end, offset
+
+    @classmethod
+    def converter_query(cls, essentials, validate_data, extra_params):
+        offset = validate_data.get("offset", 0)
+
+        start_time, end_time = validate_data["start"], validate_data["end"]
+        filter_start_time = validate_data["filter_labels"].get("start")
+        filter_end_time = validate_data["filter_labels"].get("end")
+        if filter_start_time and filter_end_time:
+            # 时间对比使用对比中的时间
+            start_time, end_time = cls.enlarge_duration(filter_start_time, filter_end_time, offset)
+            del validate_data["filter_labels"]["start"]
+            del validate_data["filter_labels"]["end"]
+        else:
+            start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
+
+        return cls.query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
-            start=query_start_time or start,
-            end=query_end_time or end,
-            profile_id=data.get("profile_id"),
-            filter_labels=data.get("filter_labels"),
+            start=start_time,
+            end=end_time,
+            profile_id=validate_data.get("profile_id"),
+            filter_labels=validate_data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
-            sample_type=data["data_type"],
+            sample_type=validate_data["data_type"],
             converter=ConverterType.Tree,
             extra_params=extra_params,
         )
 
-        if data["global_query"] and not tree_converter:
+    @classmethod
+    def get_converter_options(cls, validate_data):
+        return {"sort": validate_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+
+    @classmethod
+    def converter_to_data(cls, validate_data, tree_converter):
+        if isinstance(tree_converter, dict) and not tree_converter:
+            return {}
+
+        if not tree_converter.tree:
+            return {}
+
+        diagram_dicts = (
+            get_diagrammer(d_type).draw(tree_converter, **cls.get_converter_options(validate_data))
+            for d_type in validate_data["diagram_types"]
+        )
+        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
+        data.update(tree_converter.get_sample_type())
+        return data
+
+    @action(methods=["POST", "GET"], detail=False, url_path="samples")
+    @user_visit_record
+    def samples(self, request: Request):
+        """查询 profiling samples 数据"""
+
+        validate_data, essentials, extra_params = self.get_query_params(request.data)
+
+        if "tendency" in validate_data["diagram_types"]:
+            start, end, _offset = self.calculate_timerange(validate_data)
+            validate_data["diagram_types"].remove("tendency")
+            tendency_result, compare_tendency_result = self._get_tendency_data(
+                essentials=essentials,
+                start=start,
+                end=end,
+                profile_id=validate_data.get("profile_id"),
+                filter_labels=validate_data.get("filter_labels"),
+                is_compared=validate_data.get("is_compared"),
+                diff_profile_id=validate_data.get("diff_profile_id"),
+                diff_filter_labels=validate_data.get("diff_filter_labels"),
+                sample_type=validate_data["data_type"],
+            )
+
+            if len(validate_data["diagram_types"]) == 0:
+                if validate_data.get("is_compared"):
+                    return Response(data=compare_tendency_result)
+                return Response(data=tendency_result)
+
+        tree_converter = self.converter_query(essentials, validate_data, extra_params)
+
+        if validate_data["global_query"] and not tree_converter:
             # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
             # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
-            if data.get("profile_id"):
-                record = ProfileUploadRecord.objects.filter(profile_id=data["profile_id"]).first()
+            if validate_data.get("profile_id"):
+                record = ProfileUploadRecord.objects.filter(profile_id=validate_data["profile_id"]).first()
                 if record and record.status != UploadedFileStatus.STORE_SUCCEED.value:
                     raise ValueError(
                         f"上传文件解析为 Profile 数据失败，"
@@ -377,25 +416,22 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         if not tree_converter or tree_converter.empty():
             return Response(_("未查询到有效数据"), status=HTTP_200_OK)
 
-        diagram_types = data["diagram_types"]
-        options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
-        if data.get("is_compared"):
-            diff_start_time = data["diff_filter_labels"].pop("start", "")
-            diff_end_time = data["diff_filter_labels"].pop("end", "")
-            if diff_start_time and diff_end_time:
-                diff_start_time, diff_end_time = self._enlarge_duration(
-                    diff_start_time, diff_end_time, offset=data.get("offset", 0)
-                )
+        if validate_data.get("is_compared"):
+            diff_start_time = validate_data["diff_filter_labels"].pop("start", validate_data["start"])
+            diff_end_time = validate_data["diff_filter_labels"].pop("end", validate_data["end"])
+            diff_start_time, diff_end_time = self.enlarge_duration(
+                diff_start_time, diff_end_time, offset=validate_data.get("offset", 0)
+            )
             diff_tree_converter = self.query(
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
-                start=diff_start_time or start,
-                end=diff_end_time or end,
-                profile_id=data.get("diff_profile_id"),
-                filter_labels=data.get("diff_filter_labels"),
+                start=diff_start_time,
+                end=diff_end_time,
+                profile_id=validate_data.get("diff_profile_id"),
+                filter_labels=validate_data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],
-                sample_type=data["data_type"],
+                sample_type=validate_data["data_type"],
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
@@ -403,21 +439,20 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 return Response(_("当前对比项的查询条件未查询到有效数据，请调整后再试"), status=HTTP_200_OK)
 
             diff_diagram_dicts = (
-                get_diagrammer(d_type).diff(tree_converter, diff_tree_converter, **options) for d_type in diagram_types
+                get_diagrammer(d_type).diff(
+                    tree_converter, diff_tree_converter, **self.get_converter_options(validate_data)
+                )
+                for d_type in validate_data["diagram_types"]
             )
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
             data.update(tree_converter.get_sample_type())
-            data.update(compare_tendency_result)
             return Response(data=data)
 
-        diagram_dicts = (get_diagrammer(d_type).draw(tree_converter, **options) for d_type in diagram_types)
-        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
-        data.update(tree_converter.get_sample_type())
-        data.update(tendency_result)
-        return Response(data=data)
+        return Response(data=self.converter_to_data(validate_data, tree_converter))
 
+    @classmethod
     @using_cache(CacheType.APM(60 * 60))
-    def is_large_service(self, bk_biz_id, app_name, service, sample_type):
+    def is_large_service(cls, bk_biz_id, app_name, service, sample_type):
         """判断此 profile 服务是否是大应用"""
 
         try:
@@ -507,7 +542,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return tendency_data, compare_tendency_result
 
     @staticmethod
-    def _enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
+    def enlarge_duration(start: int, end: int, offset: int) -> Tuple[int, int]:
         # start & end all in microsecond, so we need to convert it to millisecond
         start = int(start / 1000 + offset * 1000)
         end = int(end / 1000 + offset * 1000)
@@ -546,13 +581,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        essentials = self._get_essentials(validated_data)
+        essentials = self.get_essentials(validated_data)
         bk_biz_id = essentials["bk_biz_id"]
         app_name = essentials["app_name"]
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
 
         # 因为 bkbase label 接口已经改为返回原始格式的所以这里改成取前 5000条 label 进行提取 key 列表
         results = self.query(
@@ -580,13 +615,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         validated_data = serializer.validated_data
 
         offset, rows = validated_data["offset"], validated_data["rows"]
-        essentials = self._get_essentials(validated_data)
+        essentials = self.get_essentials(validated_data)
         bk_biz_id = essentials["bk_biz_id"]
         app_name = essentials["app_name"]
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self._enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
+        start, end = self.enlarge_duration(validated_data["start"], validated_data["end"], offset=300)
         results = self.query(
             api_type=APIType.LABEL_VALUES,
             app_name=app_name,
@@ -612,13 +647,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        essentials = self._get_essentials(validated_data)
+        essentials = self.get_essentials(validated_data)
         bk_biz_id = essentials["bk_biz_id"]
         app_name = essentials["app_name"]
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
 
-        start, end = self._enlarge_duration(
+        start, end = self.enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
         doris_converter = self.query(

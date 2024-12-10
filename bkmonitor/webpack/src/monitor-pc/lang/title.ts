@@ -154,4 +154,6 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
+  // 调用分析
+  维度值分布: 'Dimension value distribution',
 };

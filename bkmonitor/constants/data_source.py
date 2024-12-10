@@ -27,6 +27,7 @@ class DataSourceLabel(object):
     BK_FTA = "bk_fta"
     BK_APM = "bk_apm"
     PROMETHEUS = "prometheus"
+    DASHBOARD = "dashboard"
 
 
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
