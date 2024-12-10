@@ -44,10 +44,27 @@
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
           :max-height="isPreviewMode ? 300 : 320"
-          row-key="field_index"
+          row-key="field_name"
           size="small"
           col-border
+          :expand-row-keys="expandRowKeys"
         >
+          <bk-table-column type="expand" width="0">
+              <template slot-scope="props" v-if="props.row.field_name === 'ext'">
+                <bk-table
+                :data="changeTableList"
+                :empty-text="$t('暂无内容')"
+                :max-height="isPreviewMode ? 300 : 320"
+                row-key="field_name"
+                size="small"
+                col-border>
+                  <bk-table-column label="名称/内网IP" prop="ip"></bk-table-column>
+                  <bk-table-column label="来源" prop="source"></bk-table-column>
+                  <bk-table-column label="状态" prop="status"></bk-table-column>
+                  <bk-table-column label="创建时间" prop="create_time"></bk-table-column>
+              </bk-table>
+              </template>
+          </bk-table-column>
           <template>
             <!-- <bk-table-column
               label=""
@@ -72,6 +89,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
+                  <span v-if="props.row.field_name === 'ext'" @click="expandObject(props.row)">展开</span>
                   <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
@@ -456,6 +474,7 @@
             },
           ],
         },
+        expandRowKeys: []
       };
     },
     computed: {
@@ -937,6 +956,9 @@
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
+      expandObject(row){
+        this.expandRowKeys.push(row.field_name)
+      }
     },
   };
 </script>
@@ -967,6 +989,15 @@
     }
 
     .field-table.add-field-table {
+      thead tr th:first-child {
+        border-right: none;
+      }
+      tbody tr td:first-child {
+        border-right: none;
+        .bk-icon{
+          display: none;
+        }
+      }
       .bk-table-body {
         .cell {
           display: contents;

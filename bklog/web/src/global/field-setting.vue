@@ -400,7 +400,9 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
-
+  const totalFields = computed(() => {
+    return store.state.indexFieldInfo.fields.filter(item => /__ext/.test(item.field_name))
+  });
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(tableField.value);
