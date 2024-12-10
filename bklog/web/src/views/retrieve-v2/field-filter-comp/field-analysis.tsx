@@ -35,7 +35,6 @@ import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
 import store from '@/store';
-
 import './field-analysis.scss';
 
 const CancelToken = axios.CancelToken;
@@ -113,6 +112,7 @@ export default class FieldAnalysis extends Vue {
       min: 0,
     },
   };
+  route = window.mainComponent.$route;
   /** 是否显示柱状图 是否是数字类型字段 */
   get isPillarChart() {
     return ['integer', 'long', 'double'].includes(this.queryParams?.field_type);
@@ -144,6 +144,10 @@ export default class FieldAnalysis extends Vue {
     return true;
   }
 
+  @Emit('downloadFieldStatistics')
+  downloadFieldStatistics() {
+    return true;
+  }
   mounted() {
     this.$nextTick(async () => {
       if (!this.isPillarChart) {
@@ -153,6 +157,7 @@ export default class FieldAnalysis extends Vue {
       await this.queryStatisticsInfo();
       await this.queryStatisticsGraph();
       this.initFieldChart();
+      this.showMore(false)
     });
   }
 
@@ -521,27 +526,9 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  showMore() {
-    this.ifShowMore = true;
-    this.$emit('showMore', this.fieldData);
-  }
-
-  async downloadFieldStatistics(){
-    console.log(this.queryParams);
-    try {
-      const res = await $http.request('retrieve/downloadFieldAnalysisList', {
-        data: {
-          ...this.queryParams,
-          limit:10
-        },
-        // responseType: 'blob'
-      },);
-      if (res.code === 0) {
-       console.log(res);
-       
-      }
-    } catch (err) {
-    }
+  showMore(show) {
+    this.ifShowMore = !!show;
+    this.$emit('showMore', this.fieldData, !!show);
   }
   render() {
     return (

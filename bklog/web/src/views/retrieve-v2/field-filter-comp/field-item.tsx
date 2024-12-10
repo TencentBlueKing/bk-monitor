@@ -29,7 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-
+import { axiosInstance } from '@/api';
+import { blobDownload } from '@/common/util';
 import './field-item.scss';
 @Component
 export default class FieldItem extends tsc<object> {
@@ -61,6 +62,9 @@ export default class FieldItem extends tsc<object> {
   }
   get unionIndexItemList() {
     return this.$store.getters.unionIndexItemList;
+  }
+  get indexSetList (){
+    return this.$store.state.retrieve?.indexSetList ?? []
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
@@ -114,8 +118,8 @@ export default class FieldItem extends tsc<object> {
       fieldItem: this.fieldItem,
     });
   }
-  showMore(fieldData) {
-    this.ifShowMore = true;
+  showMore(fieldData, show: boolean) {
+    this.ifShowMore = show;
     this.fieldData = fieldData;
   }
   closeSlider() {
@@ -139,6 +143,8 @@ export default class FieldItem extends tsc<object> {
     this.fieldAnalysisInstance.$mount();
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
+    /** 字段下载功能 */
+    this.fieldAnalysisInstance?.$on('downloadFieldStatistics', this.downloadFieldStatistics);
     this.fieldAnalysisInstance?.$on('showMore', this.showMore);
     this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
       content: this.fieldAnalysisInstance.$el,
@@ -163,6 +169,7 @@ export default class FieldItem extends tsc<object> {
   }
   instanceDestroy() {
     this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
+    this.fieldAnalysisInstance?.$off('downloadFieldStatistics', this.downloadFieldStatistics);
     this.operationInstance?.destroy();
     this.fieldAnalysisInstance?.$destroy();
     this.operationInstance = null;
@@ -178,6 +185,38 @@ export default class FieldItem extends tsc<object> {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
+  downloadFieldStatistics (){
+    console.log(this.retrieveParams);
+    const indexSetIDs = this.isUnionSearch
+    ? this.unionIndexList
+    : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+    const downRequestUrl = `/field/index_set/fetch_value_list/`;
+    const data = {
+      ...this.retrieveParams,
+      index_set_ids: indexSetIDs,
+      field_type: this.fieldItem.field_type,
+      agg_field: this.fieldItem.field_name,
+      limit: this.fieldData?.distinct_count
+    };
+    axiosInstance
+      .post(downRequestUrl, data)
+      .then(res => {
+        if (typeof res !== 'string') {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('下载失败'),
+          });
+          return;
+        }
+        let routerIndexSet = window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        const lightName = this.indexSetList.find(item => item.index_set_id ===  routerIndexSet)?.lightenName;
+        const downloadName =  `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`
+        blobDownload(res, downloadName);
+      })
+      .finally(() => {
+      
+      });
+  }
   render() {
     return (
       <li class='filed-item'>
@@ -307,6 +346,10 @@ export default class FieldItem extends tsc<object> {
                 <bk-button
                   style='margin-right:8px'
                   size='small'
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.downloadFieldStatistics();
+                  }}
                 >
                   下载
                 </bk-button>
