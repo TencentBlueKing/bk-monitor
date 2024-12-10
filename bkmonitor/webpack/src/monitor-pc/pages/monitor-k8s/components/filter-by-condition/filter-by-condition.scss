@@ -82,10 +82,16 @@
 }
 
 .filter-by-condition-component {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 12px 16px 10px 14px;
   overflow: hidden;
+
+  .tags-wrap-loading {
+    width: 100%;
+    height: 22px;
+  }
 
   .tag-list-wrap {
     @include tag-list-wrap();
@@ -171,6 +177,24 @@
     .filter-by-condition-component-popover-content {
       width: 100%;
       max-height: 304px;
+
+      .skeleton-loading-wrap {
+        position: relative;
+        width: 100%;
+        max-height: 304px;
+
+        .loading-item {
+          display: flex;
+          flex: 1;
+          align-items: center;
+          height: 32px;
+
+          .skeleton-item {
+            height: 20px;
+            margin: 0 12px;
+          }
+        }
+      }
 
       .values-search {
         padding: 8px 8px 0 8px;

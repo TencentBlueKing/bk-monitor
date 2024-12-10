@@ -676,9 +676,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <div class='filter-by-title'>Filter by</div>
               <div class='filter-by-content'>
                 <FilterByCondition
+                  bcsClusterId={this.cluster}
                   filterBy={this.filterBy}
-                  groupList={this.groupList}
                   scene={this.scene}
+                  timeRange={this.timeRange}
                   onChange={this.handleFilterByChange}
                 />
               </div>
