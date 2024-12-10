@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+export enum EDimensionKey {
+  container = 'container',
+  namespace = 'namespace',
+  pod = 'pod',
+  workload = 'workload',
+}
 /**
  * @description: k8s tab类型枚举
  */
@@ -88,6 +94,7 @@ export interface GroupListItem {
   hasMore?: boolean;
   children?: GroupListItem[];
   [key: string]: any;
+  relation?: Record<EDimensionKey, string>; // 关联维度
 }
 
 export interface K8sDimensionParams {
@@ -95,4 +102,5 @@ export interface K8sDimensionParams {
   keyword: string;
   pageSize?: number;
   pageType?: 'scrolling' | 'traditional';
+  bcsClusterId?: string;
 }

@@ -41,6 +41,7 @@ interface IProps {
   groupList?: GroupListItem[];
   filterBy?: IFilterByItem[];
   scene?: SceneType;
+  bcsClusterId?: string;
   onChange?: (v: IFilterByItem[]) => void;
 }
 
@@ -49,6 +50,7 @@ export default class FilterByCondition extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) groupList: GroupListItem[];
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
   @Prop({ type: String, default: '' }) scene: SceneType;
+  @Prop({ type: String, default: '' }) bcsClusterId: string;
   @Ref('selector') selectorRef: HTMLDivElement;
   // tags
   tagList: ITagListItem[] = [];
@@ -83,12 +85,14 @@ export default class FilterByCondition extends tsc<IProps> {
   overflowCountRenderDebounce = null;
   handleValueOptionsScrollThrottle = _v => {};
 
-  created() {
-    this.K8sDimension = new K8sDimension({
+  async created() {
+    this.k8sDimension = new K8sDimension({
       scene: this.scene,
       keyword: '',
       pageSize: 10,
+      bcsClusterId: this.bcsClusterId,
     });
+    await this.k8sDimension.init();
   }
 
   get hasAdd() {

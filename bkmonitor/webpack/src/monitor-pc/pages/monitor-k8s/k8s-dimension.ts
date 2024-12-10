@@ -25,49 +25,92 @@
  */
 import { bkMessage } from 'monitor-api/utils';
 
-import { type GroupListItem, type SceneType, type K8sDimensionParams, K8sTableColumnKeysEnum } from './typings/k8s-new';
+import {
+  type GroupListItem,
+  type SceneType,
+  type K8sDimensionParams,
+  K8sTableColumnKeysEnum,
+  EDimensionKey,
+} from './typings/k8s-new';
+
+function getWorkloadOverview(_params) {
+  const mockData = [
+    ['Deployment', 9],
+    ['StatefulSets', 9],
+    ['DaemonSets', 9],
+    ['Jobs', 9],
+    ['CronJobs', 9],
+  ];
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve(mockData);
+    }, 1000);
+  });
+}
 
 function getListK8SResources({ resource_type }): Promise<{ count: number; items: any[] }> {
   const mockData = {
     pod: {
-      count: 1,
+      count: 2,
       items: [
         {
           pod: 'pod-1',
+          namespace: 'default',
+          workload: 'Deployment:workload-1',
+        },
+        {
+          pod: 'pod-5',
+          namespace: 'default',
+          workload: 'Deployment:workload-3',
         },
       ],
     },
     workload: {
-      count: 2,
+      count: 3,
       items: [
         {
           namespace: 'default',
-          workload: 'Deployment',
+          workload: 'Deployment:workload-1',
         },
         {
-          namespace: 'default',
-          workload: 'state',
+          namespace: 'demo',
+          workload: 'Deployment:workload-1',
+        },
+        {
+          namespace: 'demo',
+          workload: 'Deployment:workload-2',
         },
       ],
     },
     namespace: {
-      count: 1,
+      count: 2,
       items: [
         {
           bk_biz_id: 2,
           bcs_cluster_id: 'BCS-K8S-00000',
           namespace: 'default',
         },
+        {
+          bk_biz_id: 2,
+          bcs_cluster_id: 'BCS-K8S-00000',
+          namespace: 'demo',
+        },
       ],
     },
     container: {
-      count: 1,
+      count: 2,
       items: [
         {
           pod: 'pod-1',
+          container: 'container-1',
           namespace: 'default',
           workload: 'Deployment:workload-1',
-          container: 'container-1',
+        },
+        {
+          pod: 'pod-2',
+          container: 'container-2',
+          namespace: 'demo',
+          workload: 'Deployment:wrokload-2',
         },
       ],
     },
@@ -85,40 +128,60 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
  */
 
 export class K8sDimension {
+  bcsClusterId = '';
+  endTime = 1733905598;
   /** 搜索关键字 */
   keyword = '';
-
   /** 所有的维度数据 */
   originDimensionData: GroupListItem[] = [];
-
+  pageMap = {
+    [EDimensionKey.namespace]: 1,
+    [EDimensionKey.workload]: 1,
+    [EDimensionKey.pod]: 1,
+    [EDimensionKey.container]: 1,
+  };
   /** 分页数量 */
   pageSize = 5;
-
   /** 分页类型 */
   pageType = 'traditional';
-
   /** 场景 */
   scene: SceneType = 'performance';
-
   /** 场景维度枚举 */
   sceneDimensionMap = {
-    performance: ['namespace', 'workload', 'pod', 'container'],
+    performance: [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container],
   };
-
   /** 当前展示的维度数据 */
   showDimensionData: GroupListItem[] = [];
+
+  startTime = 1733819169;
+
+  withHistory = false;
 
   constructor(params: K8sDimensionParams) {
     this.scene = params.scene;
     this.keyword = params.keyword;
     this.pageSize = params.pageSize || 5;
     this.pageType = params.pageType || 'traditional';
-    this.init();
+    this.bcsClusterId = params.bcsClusterId || '';
   }
 
   /** 当前场景的维度列表 */
   get currentDimension() {
     return this.sceneDimensionMap[this.scene];
+  }
+
+  /**
+   * @description 整理items数据
+   * @param type
+   * @param dataItem
+   * @returns
+   */
+  formatData(type: EDimensionKey, dataItem) {
+    return {
+      id: dataItem[type],
+      name: dataItem[type],
+      relation: dataItem, // 关联数据
+    };
   }
 
   getAllDimensionData(params) {
@@ -132,34 +195,97 @@ export class K8sDimension {
     );
   }
 
+  /**
+   * @description rest/v2/k8s/resources/list_k8s_resources/ 获取所有维度值选项
+   * @param params
+   * @returns
+   */
   getDimensionData(params) {
     return getListK8SResources({
       ...params,
-      query_string: this.keyword,
-      sernario: this.scene,
     }).catch(() => ({ count: 0, items: [] }));
   }
+  /**
+   * @description 获取指定类型的维度数据 (不包含搜索 初始化数据)
+   * @param types
+   * @returns
+   */
+  async getDimensionDataOfTypes(types: EDimensionKey[]) {
+    const promiseAll = [];
+    const originDimensionData = [];
+    const setData = async (setType: EDimensionKey) => {
+      const data = await this.getDimensionData({
+        resource_type: setType,
+        sernario: this.scene,
+        bcs_cluster_id: this.bcsClusterId,
+        page_size: this.pageSize,
+        page_type: this.pageType,
+        start_time: this.startTime,
+        end_time: this.endTime,
+        page: this.pageMap[setType],
+      });
 
-  getWorkloadData() {
-    return;
+      if (setType === EDimensionKey.workload) {
+        const overviewData = await this.getWorkloadData({
+          bcs_cluster_id: this.bcsClusterId,
+        });
+        const workloadItemMap = new Map();
+        for (const item of data.items) {
+          const workloadSplit = item.workload.split(':');
+          const workloadType = workloadSplit[0];
+          const temp = workloadItemMap.get(workloadType) || [];
+          temp.push({
+            id: item.workload,
+            name: item.workload,
+            relation: item,
+          });
+          workloadItemMap.set(workloadType, temp);
+        }
+        originDimensionData.push({
+          id: setType,
+          name: setType,
+          count: data.count,
+          children: overviewData.map(o => {
+            return {
+              id: o[0],
+              name: o[0],
+              count: o[1],
+              children: workloadItemMap.get(o[0]) || [],
+            };
+          }),
+        });
+      } else {
+        originDimensionData.push({
+          id: setType,
+          name: setType,
+          count: data.count,
+          children: data.items.map(item => this.formatData(setType, item)),
+        });
+      }
+    };
+    for (const type of types) {
+      promiseAll.push(setData(type));
+    }
+    await Promise.all(promiseAll);
+    this.originDimensionData = Object.freeze(originDimensionData) as any;
   }
 
+  /**
+   * @description rest/v2/k8s/resources/workload_overview/ 获取 workload分类数据
+   * @param params
+   * @returns
+   */
+  getWorkloadData(params) {
+    return getWorkloadOverview({
+      ...params,
+    }).catch(() => []);
+  }
+
+  /**
+   * @description 初始化维度数据
+   */
   async init() {
-    const data = await this.getAllDimensionData({});
-    /** 初始化，不需要在意是否搜索，因为只展示第一页的数据，pageSize条 */
-    this.originDimensionData = this.currentDimension.map((dimension, index) => {
-      const { items, count } = data[index];
-      return {
-        id: dimension,
-        name: dimension,
-        count,
-        hasMore: count > this.pageSize,
-        children: items.map(item => ({
-          id: item[dimension],
-          name: item[dimension],
-        })),
-      };
-    });
+    await this.getDimensionDataOfTypes(this.currentDimension);
     this.showDimensionData = this.originDimensionData.map(dimension => {
       return {
         ...dimension,
@@ -199,9 +325,20 @@ export class K8sDimension {
   }
 
   /** 搜索 */
-  search(keyword: string) {
+  async search(keyword: string, type: EDimensionKey) {
     this.keyword = keyword;
-    this.init();
+    if (type) {
+      const data = await this.getDimensionData({
+        resource_type: type,
+      });
+      for (const item of this.showDimensionData) {
+        if (item.id === type) {
+          item.children = data.items.map(d => this.formatData(type, d));
+        }
+      }
+    } else {
+      this.init();
+    }
   }
 }
 
