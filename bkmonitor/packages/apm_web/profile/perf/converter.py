@@ -34,6 +34,7 @@ class PerfScriptProfileConverter(ProfileConverter):
 
     def convert(self, raw: bytes) -> Optional[Profile]:
         """parse single raw perf script data to Profile object"""
+        self.add_string("")
         self.profile.sample_type = [ValueType(self.add_string("samples"), self.add_string("count"))]
         self.profile.period_type = ValueType(self.add_string("cpu"), self.add_string("nanoseconds"))
         self.profile.period = 1000000
