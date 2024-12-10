@@ -88,6 +88,7 @@ class ListResultTableResource(BkDataAPIGWResource):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         genereage_type = serializers.CharField(required=False, default="user")
         page_size = serializers.IntegerField(required=False, default=5000, max_value=5000)
+        storages = serializers.ListField(required=False)
 
     def perform_request(self, params):
         # 分页拉取，当前接口为返回 total_count 因此同步翻页拉取
@@ -100,8 +101,22 @@ class ListResultTableResource(BkDataAPIGWResource):
                 }
             )
             data = super().perform_request(params)
-            result_table_list += data
-            if len(data) < params["page_size"]:
+            data_length = len(data)
+
+            # 过滤存储类型
+            if params.get("storages"):
+                expect_storages = set(params["storages"])
+                tables = []
+                for table in data:
+                    storages = {key for key, info in table["storages"].items() if info["active"]}
+                    if not expect_storages & storages:
+                        continue
+                    tables.append(table)
+            else:
+                tables = data
+
+            result_table_list += tables
+            if data_length < params["page_size"]:
                 break
             page += 1
         return result_table_list
