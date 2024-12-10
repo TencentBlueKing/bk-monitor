@@ -195,13 +195,16 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return dataTarget ? dataTarget.replace('_target', '').toLocaleUpperCase() : '';
   }
 
+  // 能够设置监控目标
   get canSetTarget() {
-    const set = new Set();
+    if (this.metricData.length === 1) return true; // 单指标
+    const dataTargetSet = new Set();
     for (const { data_target: dataTarget } of this.metricData) {
       if (dataTarget) {
-        set.add(dataTarget);
+        dataTargetSet.add(dataTarget);
       }
-      if (set.size > 1) {
+      // 如果包含两种类型（data_target）的多指标，清空监控主机并隐藏入口
+      if (dataTargetSet.size > 1) {
         this.targetList = [];
         this.handleTargetSave();
         return false;
