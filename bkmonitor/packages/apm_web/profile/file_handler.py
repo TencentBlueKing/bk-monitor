@@ -14,7 +14,7 @@ import traceback
 from datetime import datetime, timedelta
 
 from bkstorages.backends.bkrepo import BKRepoStorage
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.collector import CollectorHandler

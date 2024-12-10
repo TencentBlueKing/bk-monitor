@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import enum
 from typing import Dict, List
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from monitor_web.plugin.constant import PluginType
 from monitor_web.strategies.default_settings.common import (
