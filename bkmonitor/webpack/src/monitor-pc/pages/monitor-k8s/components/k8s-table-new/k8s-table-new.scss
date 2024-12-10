@@ -19,7 +19,8 @@
 
     .bk-table-row.hover-row {
       .col-item-operate {
-        display: block;
+        display: flex;
+        align-items: center;
       }
     }
   }
@@ -30,6 +31,7 @@
 
   .k8s-table-col-item {
     display: flex;
+    line-height: 24px;
 
     .col-item-label {
       display: inline-block;
@@ -46,11 +48,23 @@
       display: none;
       flex-shrink: 0;
 
+      .k8s-dimension-drillDown {
+        .drill-down-icon {
+          margin-left: 0;
+        }
+
+        .icon-xiazuan {
+          margin-left: 0;
+        }
+      }
+
       .icon-monitor {
-        width: 16px;
-        height: 16px;
-        margin-left: 10px;
+        width: 24px;
+        height: 24px;
+        margin-left: 6px;
         font-size: 14px;
+        line-height: 24px;
+
         cursor: pointer;
 
         &.icon-a-sousuo,

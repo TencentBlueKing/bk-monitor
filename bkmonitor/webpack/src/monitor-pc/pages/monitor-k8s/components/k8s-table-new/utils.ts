@@ -57,7 +57,8 @@ const datapointsMock = [
   [1234, 1732264200000],
 ];
 
-export function getK8sTableDataMock(count: number): Promise<any> {
+export function getK8sTableDataMock(param: any): Promise<any> {
+  const count = param.page * param.page_size;
   return new Promise(res => {
     const arr: any[] = [];
     for (let index = 0; index < count; index++) {

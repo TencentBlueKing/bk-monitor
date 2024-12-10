@@ -27,70 +27,55 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CommonDetail from '../common-detail';
-import K8sTableNew from '../k8s-table-new/k8s-table-new';
+import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
 
+import type { K8sGroupDimension } from '../../k8s-dimension';
+import type { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import type { IFilterByItem } from '../filter-by-condition/utils';
-import type { K8sTableClickEvent, K8sTableFilterByEvent, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableFilterByEvent } from '../k8s-table-new/k8s-table-new';
 
 import './k8s-detail-slider.scss';
 
-interface IEventDetailSlider {
-  isShow?: boolean;
-  activeItem: K8sTableClickEvent;
-  groupFilters: Array<number | string>;
-  filterBy: IFilterByItem[];
+export interface K8sDetailSliderActiveTitle {
+  tag: K8sTableColumnKeysEnum | string;
+  field: string;
 }
-interface IEvent {
+
+interface K8sDetailSliderProps {
+  /** 抽屉页是否显示 */
+  isShow?: boolean;
+  tableData: any[];
+  /** GroupBy 选择器选中数据类实例 */
+  groupInstance: K8sGroupDimension;
+  /** 筛选 Filter By 过滤项 */
+  filterBy: IFilterByItem[];
+  /** 当前选中tabel数据项索引 */
+  activeRowIndex: number;
+  /** 当前数据项标题 */
+  activeTitle: K8sDetailSliderActiveTitle;
+}
+interface K8sDetailSliderEvent {
   onShowChange?: boolean;
-  onGroupChange: (item: K8sTableGroupByEvent) => void;
+  onGroupChange: (groupId: K8sTableColumnKeysEnum) => void;
   onFilterChange: (item: K8sTableFilterByEvent) => void;
 }
 
-// 事件详情 | 处理记录详情
-export type TType = 'eventDetail' | 'handleDetail';
-
 @Component
-export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
+export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetailSliderEvent> {
   @Prop({ type: Boolean, default: false }) isShow: boolean;
-  @Prop({ type: Object, default: () => ({ row: null, column: null }) }) activeItem: K8sTableClickEvent;
-  @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
+  @Prop({ type: Object, default: () => ({ row: null, column: null }) }) tableData: any[];
+  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  @Prop({ type: Number }) activeRowIndex: number;
+  @Prop({ type: Object }) activeTitle: K8sDetailSliderActiveTitle;
 
   loading = false;
-
-  get activeTag() {
-    return this.activeItem?.column?.id;
-  }
-
-  get activeValue() {
-    return K8sTableNew.getResourcesTextRowValue(this.activeItem.row, this.activeItem.column) || '--';
-  }
-
-  get groupParam() {
-    const hasGroup = this.groupFilters.includes(this.activeTag);
-    const param = hasGroup
-      ? {
-          btnText: '移除下钻',
-          btnTheme: 'primary',
-          textColorClass: '',
-        }
-      : {
-          btnText: '下钻',
-          btnTheme: 'default',
-          textColorClass: 'is-default',
-        };
-    return {
-      hasGroup,
-      btnText: param.btnText,
-      btnTheme: param.btnTheme,
-      textColorClass: param.textColorClass,
-    };
-  }
+  popoverInstance = null;
 
   get filterParams() {
-    const id = K8sTableNew.getResourcesTextRowValue(this.activeItem.row, this.activeItem.column);
-    const groupItem = this.filterBy?.find?.(v => v.key === this.activeTag);
-    const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== id)) || [];
+    const field = this.activeTitle.field;
+    const groupItem = this.filterBy?.find?.(v => v.key === this.activeTitle.tag);
+    const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== field)) || [];
     const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
     const param = hasFilter
       ? {
@@ -102,7 +87,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
         }
       : {
           icon: 'icon-a-sousuo',
-          ids: [...filterIds, id],
+          ids: [...filterIds, field],
           btnText: '添加为筛选项',
           btnTheme: 'default',
           textColorClass: 'is-default',
@@ -123,16 +108,14 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   }
 
   @Emit('groupChange')
-  groupChange() {
-    return { id: this.activeTag, checked: !this.groupParam.hasGroup };
+  groupChange(groupId: K8sTableColumnKeysEnum) {
+    return groupId;
   }
 
   @Emit('filterChange')
   filterChange() {
     return {
-      column: this.activeItem.column,
-      row: this.activeItem.row,
-      checked: !this.filterParams.hasFilter,
+      groupId: this.activeTitle.tag,
       ids: this.filterParams.ids,
     };
   }
@@ -147,8 +130,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     return (
       <div class='title-wrap'>
         <div class='title-left'>
-          <span class='title-tag'>{this.activeTag}</span>
-          <span class='title-value'> {this.activeValue}</span>
+          <span class='title-tag'>{this.activeTitle.tag}</span>
+          <span class='title-value'> {this.activeTitle.field}</span>
           <span
             class='icon-monitor icon-copy-link title-icon'
             v-bk-tooltips={{ content: '复制链接', placement: 'right' }}
@@ -163,14 +146,20 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
             <span class={['icon-monitor', this.filterParams.icon]} />
             <span class='title-btn-label'>{this.$t(this.filterParams.btnText)}</span>
           </bk-button>
-          <bk-button
-            class={['title-btn', this.groupParam.textColorClass]}
-            theme={this.groupParam.btnTheme}
-            onClick={this.groupChange}
+          <K8sDimensionDrillDown
+            dimension={this.activeTitle.tag}
+            enableTip={false}
+            value={this.activeTitle.tag}
+            onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnKeysEnum)}
           >
-            <span class='icon-monitor icon-xiazuan' />
-            <span class='title-btn-label'>{this.$t(this.groupParam.btnText)}</span>
-          </bk-button>
+            <bk-button
+              class='title-btn is-default'
+              slot='trigger'
+            >
+              <span class='icon-monitor icon-xiazuan' />
+              <span class='title-btn-label'>{this.$t('下钻')}</span>
+            </bk-button>
+          </K8sDimensionDrillDown>
         </div>
       </div>
     );
@@ -180,8 +169,8 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   tplContent() {
     return (
       <div class='k8s-detail-content'>
-        <div class='content-left'>left</div>
-        <div class='content-right'>
+        <div class='detail-content-left'>left</div>
+        <div class='detail-content-right'>
           <CommonDetail
             collapse={false}
             maxWidth={500}

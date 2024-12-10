@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit } from 'vue-property-decorator';
+import { Prop, Component, Emit, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -33,11 +33,16 @@ import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mi
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
-import { K8sNewTabEnum, K8sTableColumnKeysEnum } from '../../typings/k8s-new';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from '../../typings/k8s-new';
+import K8sDetailSlider, { type K8sDetailSliderActiveTitle } from '../k8s-detail-slider/k8s-detail-slider';
+import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
+import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './utils';
 
+import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { ITableItemMap } from '../../typings/table';
 import type { IFilterByItem } from '../filter-by-condition/utils';
-import type { IGroupByChangeEvent } from '../group-by-condition/group-by-condition';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { TranslateResult } from 'vue-i18n';
 
 import './k8s-table-new.scss';
@@ -80,33 +85,25 @@ export interface K8sTableSort {
 export interface K8sTableClickEvent {
   column: K8sTableColumn;
   row: K8sTableRow;
+  index: number;
 }
 
-export type K8sTableFilterByEvent = K8sTableClickEvent & { checked: boolean; ids: Array<number | string> };
-export type K8sTableGroupByEvent = Pick<IGroupByChangeEvent, 'checked' | 'id'>;
+export type K8sTableFilterByEvent = { groupId: K8sTableColumnKeysEnum; ids: Array<number | string> };
+export type K8sTableGroupByEvent = { groupId: K8sTableColumnKeysEnum; checked: boolean };
 
 interface K8sTableNewProps {
   /** 当前选中的 tab 项 */
   activeTab: K8sNewTabEnum;
-  /** 表格数据 */
-  tableData: any[];
-  /** 下钻 Group By 过滤项 */
-  groupFilters: Array<number | string>;
+  /** GroupBy 选择器选中数据类实例 */
+  groupInstance: K8sGroupDimension;
   /** 筛选 Filter By 过滤项 */
   filterBy: IFilterByItem[];
-  /** 骨架屏loading */
-  loading: boolean;
-  /** 触底加载 loading */
-  scrollLoading: boolean;
-  /** 是否重新渲染 table 组件消除状态 */
-  refreshKey: string;
+  /** 场景 */
+  scene: SceneType;
 }
 interface K8sTableNewEvent {
-  onTextClick: (item: K8sTableClickEvent) => void;
   onFilterChange: (item: K8sTableFilterByEvent) => void;
   onGroupChange: (item: K8sTableGroupByEvent) => void;
-  onSortChange: (sort: K8sTableSort) => void;
-  onScrollEnd: () => void;
   onClearSearch: () => void;
 }
 
@@ -150,20 +147,48 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return row => (row?.[columnKey] as string)?.split(':')?.[index] || '--';
   }
 
+  tableLoading = {
+    /** table 骨架屏 loading */
+    loading: false,
+    /** 表格触底加载更多 loading  */
+    scrollLoading: false,
+  };
+
+  /** 当切换 tab 时进行刷新以达到清楚table中 sort 的状态 */
+  refreshKey = random(10);
+  /** 表格滚动分页配置 */
+  pagination = {
+    page: 1,
+    pageSize: 20,
+    pageType: 'scrolling',
+  };
+  /** 表格列排序配置 */
+  sortContainer = {
+    prop: null,
+    sort: null,
+  };
+  /** 接口返回表格数据 */
+  tableData: any = {
+    count: 0,
+    items: [],
+  };
+  /** 是否显示抽屉页 */
+  sliderShow = false;
+  /** 当前点击的数据行索引 */
+  activeRowIndex = -1;
+  /** 当前点击的数据列 */
+  activeTitle: K8sDetailSliderActiveTitle = { tag: '--', field: '--' };
+
   /** 当前页面 tab */
   @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
-  /** 表格数据 */
-  @Prop({ type: Array }) tableData: any[];
-  /** GroupBy 选择器选中数据 */
-  @Prop({ type: Array, default: () => [] }) groupFilters: Array<number | string>;
-  /** FilterBu 选择器选中数据 */
+  /** GroupBy 选择器选中数据类实例 */
+  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
+  /** FilterBy 选择器选中数据 */
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
-  /** 表格骨架屏 loading  */
-  @Prop({ type: Boolean, default: false }) loading: boolean;
-  /** 表格触底加载更多 loading  */
-  @Prop({ type: Boolean, default: false }) scrollLoading: boolean;
-  /** 是否重新渲染 table 组件消除状态 */
-  @Prop({ type: String }) refreshKey: boolean;
+  /** 场景 */
+  @Prop({ type: String }) scene: SceneType;
+  // 数据时间间隔
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -172,8 +197,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   get tableColumnsConfig() {
     const map = this.getKeyToTableColumnsMap();
     const columns: K8sTableColumn[] = [];
-    const iterationTarget = this.isListTab ? this.groupFilters : tabToTableDetailColumnDynamicKeys;
-    const addColumn = (arr, targetArr) => {
+    const iterationTarget = this.isListTab ? this.groupInstance?.groupFilters : tabToTableDetailColumnDynamicKeys;
+    const addColumn = (arr, targetArr = []) => {
       for (const key of targetArr) {
         if (map[key]) {
           arr.push(map[key]);
@@ -197,28 +222,33 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }, {});
   }
 
-  @Emit('textClick')
-  labelClick(column: K8sTableColumn, row: K8sTableRow) {
-    return { column, row };
+  @Watch('activeTab', { immediate: true })
+  onActiveTabChange(v) {
+    if (v !== K8sNewTabEnum.CHART) {
+      // 重新渲染，从而刷新 table sort 状态
+      this.getK8sList({ needRefresh: true });
+    }
+  }
+
+  @Watch('groupInstance.groupFilters')
+  onGroupFiltersChange() {
+    this.getK8sList({ needRefresh: true });
+  }
+
+  @Watch('filterBy')
+  onFilterByChange() {
+    this.getK8sList({ needRefresh: true });
   }
 
   @Emit('filterChange')
-  filterChange(column: K8sTableColumn, row: K8sTableRow, checked: boolean, filterIds: Array<number | string>) {
-    return { column, row, checked, ids: filterIds };
+  filterChange(groupId: K8sTableColumnKeysEnum, ids: Array<number | string>) {
+    return { groupId, ids };
   }
 
   @Emit('groupChange')
-  groupChange(item: K8sTableGroupByEvent) {
-    return item;
+  groupChange(groupId: K8sTableColumnKeysEnum) {
+    return { groupId, checked: true };
   }
-
-  @Emit('sortChange')
-  sortChange(sort: K8sTableSort) {
-    return sort;
-  }
-
-  @Emit('scrollEnd')
-  scrollEnd() {}
 
   @Emit('clearSearch')
   clearSearch() {
@@ -297,19 +327,187 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   /**
-   * @description 表格排序
-   * @param {Object} { prop, order }
+   * @description 重新渲染表格组件（主要是为了处理 table column 的 sort 状态）
    */
-  handleSortChange(sortItem: K8sTableSort) {
-    this.sortChange(sortItem);
+  refreshTable() {
+    this.refreshKey = random(10);
   }
 
   /**
-   * @description 清空搜索条件
-   *
+   * @description 获取k8s列表
+   * @param {boolean} config.needRefresh 是否需要刷新表格状态
+   * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
-  handleClearSearch() {
-    this.clearSearch();
+  getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
+    let loadingKey = 'scrollLoading';
+    if (!config.needIncrement) {
+      this.pagination.page = 1;
+      loadingKey = 'loading';
+    }
+    this.tableLoading[loadingKey] = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const filter_dict = this.filterBy.reduce((prev, curr) => {
+      prev[curr.key] = curr.value;
+      return prev;
+    }, {});
+
+    getK8sTableDataMock({
+      bk_biz_id: '',
+      bcs_cluster_id: '',
+      resource_type: this.groupInstance?.getLastGroupFilter(),
+      filter_dict,
+      start_time: startTime,
+      end_time: endTime,
+      sernario: this.scene,
+      with_history: false,
+      page_size: this.pagination.pageSize,
+      page: this.pagination.page,
+      page_type: this.pagination.pageType,
+    })
+      .then(res => {
+        const asyncColumns: K8sTableColumn[] = (this.tableColumnsConfig?.columns || []).filter(col =>
+          // @ts-ignore
+          Object.hasOwn(col, 'asyncable')
+        );
+        for (const asyncColumn of asyncColumns) {
+          asyncColumn.asyncable = true;
+        }
+        this.tableData = res;
+        this.loadAsyncData(startTime, endTime, asyncColumns);
+      })
+      .finally(() => {
+        if (config.needRefresh) {
+          this.refreshTable();
+        }
+        this.tableLoading[loadingKey] = false;
+      });
+  }
+
+  /**
+   * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
+   */
+  loadAsyncData(startTime: number, endTime: number, asyncColumns: K8sTableColumn[]) {
+    const pods = (this.tableData.items || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
+    for (const field of asyncColumns) {
+      getK8sTableAsyncDataMock({
+        start_time: startTime,
+        end_time: endTime,
+        column: field.id,
+        pods: pods,
+      }).then(podData => {
+        this.mapAsyncData(podData, field.id, asyncColumns);
+      });
+    }
+  }
+
+  /**
+   * @description 将异步数据数组结构为 key-value 的 map
+   * @param podData 异步数据
+   * @param field 当前column的key
+   * @param asyncColumns 需要异步加载的column字段对象
+   */
+  mapAsyncData(podData, field: K8sTableColumnKeysEnum, asyncColumns: K8sTableColumn[]) {
+    const dataMap = {};
+    if (podData?.length) {
+      for (const podItem of podData) {
+        if (podItem?.[K8sTableColumnKeysEnum.POD]) {
+          const columnItem = asyncColumns.find(item => item.id === field);
+          podItem[field].valueTitle = columnItem?.name || null;
+          dataMap[String(podItem?.[K8sTableColumnKeysEnum.POD])] = podItem[field];
+        }
+      }
+    }
+    this.renderTableBatchByBatch(field, dataMap || {}, asyncColumns);
+  }
+
+  /**
+   *
+   * @description: 按需渲染表格数据
+   * @param field 字段名
+   * @param dataMap 数据map
+   * @param asyncColumns 异步获取的column字段对象
+   */
+  renderTableBatchByBatch(field: string, dataMap: Record<string, any>, asyncColumns: K8sTableColumn[]) {
+    const setData = (currentIndex = 0) => {
+      let needBreak = false;
+      if (currentIndex <= this.tableData.items.length && this.tableData.items.length) {
+        const endIndex = Math.min(currentIndex + 2, this.tableData.length);
+        for (let i = currentIndex; i < endIndex; i++) {
+          const item = this.tableData.items[i];
+          item[field] = dataMap[String(item?.[K8sTableColumnKeysEnum.POD] || '')] || null;
+          needBreak = i === this.tableData.items.length - 1;
+        }
+        if (!needBreak) {
+          window.requestIdleCallback(() => {
+            window.requestAnimationFrame(() => setData(endIndex));
+          });
+        } else {
+          const item = asyncColumns.find(col => col.id === field);
+          item.asyncable = false;
+        }
+      }
+    };
+    const item = asyncColumns.find(col => col.id === field);
+    item.asyncable = false;
+    setData(0);
+  }
+
+  /**
+   * @description table label 点击回调
+   * @param {K8sTableClickEvent} item
+   */
+  handleLabelClick(item: K8sTableClickEvent) {
+    this.activeRowIndex = item.index;
+    this.activeTitle.tag = item.column.id;
+    this.activeTitle.field = K8sTableNew.getResourcesTextRowValue(item.row, item.column);
+    this.handleSliderChange(true);
+  }
+
+  /**
+   * @description 表格排序
+   * @param {K8sTableSort} { prop, order }
+   */
+  handleSortChange(sortItem: K8sTableSort) {
+    this.sortContainer = sortItem;
+    this.getK8sList();
+  }
+
+  /**
+   * @description 表格滚动到底部回调
+   */
+  handleTableScrollEnd() {
+    this.pagination.page++;
+    this.getK8sList({ needIncrement: true });
+  }
+
+  /**
+   * @description 抽屉页显示隐藏切换
+   * @param v {boolean}
+   */
+  handleSliderChange(v: boolean) {
+    this.sliderShow = v;
+    if (!v) {
+      this.activeRowIndex = -1;
+      this.activeTitle.tag = '--';
+      this.activeTitle.field = '--';
+    }
+  }
+
+  /**
+   * @description 抽屉页 下钻 按钮点击回调
+   */
+  handleSliderGroupChange(groupId: K8sTableColumnKeysEnum) {
+    this.groupChange(groupId);
+    this.handleSliderChange(false);
+  }
+
+  /**
+   * @description 抽屉页 添加筛选/移除筛选 按钮点击回调
+   * @param {K8sTableFilterByEvent} item
+   */
+  handleSliderFilterChange(item: K8sTableFilterByEvent) {
+    this.filterChange(item.groupId, item.ids);
+    this.handleSliderChange(false);
   }
 
   /**
@@ -317,7 +515,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  filterIconFormatter(row: K8sTableRow, column: K8sTableColumn) {
+  filterIconFormatter(column: K8sTableColumn, row: K8sTableRow) {
     if (!column.k8s_filter) {
       return null;
     }
@@ -330,13 +528,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         <i
           class='icon-monitor icon-sousuo- is-active'
           v-bk-tooltips={{ content: this.$t('移除该筛选项'), interactive: false }}
-          onClick={() => this.filterChange(column, row, false, filterIds)}
+          onClick={() => this.filterChange(column.id, filterIds)}
         />
       ) : (
         <i
           class='icon-monitor icon-a-sousuo'
           v-bk-tooltips={{ content: this.$t('添加为筛选项'), interactive: false }}
-          onClick={() => this.filterChange(column, row, true, [...filterIds, id])}
+          onClick={() => this.filterChange(column.id, [...filterIds, id])}
         />
       );
     }
@@ -348,19 +546,15 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  groupIconFormatter(row: K8sTableRow, column: K8sTableColumn) {
+  groupIconFormatter(column: K8sTableColumn) {
     if (!column.k8s_group) {
       return null;
     }
-    const hasGroup = this.groupFilters.includes(column.id);
     return (
-      <i
-        class={['icon-monitor', 'icon-xiazuan', { 'is-active': hasGroup }]}
-        v-bk-tooltips={{
-          content: this.$t(`${hasGroup ? '移除' : ''}下钻`),
-          interactive: false,
-        }}
-        onClick={() => this.groupChange({ id: column.id, checked: !hasGroup })}
+      <K8sDimensionDrillDown
+        dimension={column.id}
+        value={column.id}
+        onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnKeysEnum)}
       />
     );
   }
@@ -370,23 +564,20 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableColumnKeysEnum} columnKey
    */
   resourcesTextFormatter(column: K8sTableColumn) {
-    return (row: K8sTableRow) => {
+    return (row: K8sTableRow, tableInsideColumn, cellValue, index: number) => {
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
-      if (!text) {
-        return '--';
-      }
       return (
         <div class='k8s-table-col-item'>
           <span
             class='col-item-label'
             v-bk-overflow-tips={{ interactive: false }}
-            onClick={() => this.labelClick(column, row)}
+            onClick={() => this.handleLabelClick({ column, row, index })}
           >
             {text}
           </span>
           <div class='col-item-operate'>
-            {this.filterIconFormatter(row, column)}
-            {this.groupIconFormatter(row, column)}
+            {this.filterIconFormatter(column, row)}
+            {this.groupIconFormatter(column)}
           </div>
         </div>
       );
@@ -454,18 +645,18 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         <bk-table
           key={this.refreshKey}
           ref='table'
-          style={{ display: !this.loading ? 'block' : 'none' }}
+          style={{ display: !this.tableLoading.loading ? 'block' : 'none' }}
           height='100%'
           scrollLoading={{
-            isLoading: this.scrollLoading,
+            isLoading: this.tableLoading.scrollLoading,
             size: 'mini',
             theme: 'info',
             icon: 'circle-2-1',
             placement: 'right',
           }}
-          data={this.tableData}
+          data={this.tableData.items}
           size='small'
-          on-scroll-end={this.scrollEnd}
+          on-scroll-end={this.handleTableScrollEnd}
           on-sort-change={val => this.handleSortChange(val as K8sTableSort)}
         >
           {this.tableColumnsConfig.columns.map(column => this.transformColumn(column))}
@@ -474,16 +665,28 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             textMap={{
               empty: this.$t('暂无数据'),
             }}
-            type={this.groupFilters?.length || this.filterBy?.length ? 'search-empty' : 'empty'}
-            onOperation={() => this.handleClearSearch()}
+            type={this.groupInstance?.groupFilters?.length || this.filterBy?.length ? 'search-empty' : 'empty'}
+            onOperation={this.clearSearch}
           />
         </bk-table>
-        {this.loading ? (
+        {this.tableLoading.loading ? (
           <TableSkeleton
             class='table-skeleton'
             type={5}
           />
         ) : null}
+
+        <K8sDetailSlider
+          activeRowIndex={this.activeRowIndex}
+          activeTitle={this.activeTitle}
+          filterBy={this.filterBy}
+          groupInstance={this.groupInstance}
+          isShow={this.sliderShow}
+          tableData={this.tableData}
+          onFilterChange={this.handleSliderFilterChange}
+          onGroupChange={this.handleSliderGroupChange}
+          onShowChange={this.handleSliderChange}
+        />
       </div>
     );
   }
