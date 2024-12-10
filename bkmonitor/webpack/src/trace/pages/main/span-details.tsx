@@ -79,12 +79,13 @@ export default defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
+    isShowUpDown: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
   },
-  emits: ['show'],
+  emits: ['show', 'switchSpanDetails'],
   setup(props, { emit }) {
     const store = useTraceStore();
     const { t } = useI18n();
@@ -114,6 +115,8 @@ export default defineComponent({
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
     const bizId = computed(() => useAppStore().bizId || 0);
+
+    const spans = computed(() => store.spanGroupTree);
 
     const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
@@ -175,9 +178,7 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        if (val && !props.withSideSlider) {
-          getDetails();
-        }
+        val && Object.keys(val).length && getDetails();
       },
       { immediate: true, deep: true }
     );
@@ -534,6 +535,24 @@ export default defineComponent({
     const handleHiddenChange = () => {
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /* 上一跳/下一跳 */
+    const switchSpanDetails = val => {
+      handleActiveTabChange();
+      emit('switchSpanDetails', val);
+    };
+
+    /* 是否禁用上一跳/下一跳的按钮*/
+    const isDisabledUpOrDown = (flag: string) => {
+      if (!spans.value || !props.spanDetails) return false;
+
+      const curSpanIndex = spans.value.findIndex(item => item.spanID === props.spanDetails.spanID);
+      const spanCount = spans.value.length;
+
+      if (curSpanIndex === -1) return false;
+
+      return (flag === 'up' && curSpanIndex === 0) || (flag === 'down' && curSpanIndex === spanCount - 1);
     };
 
     /* 展开收起 */
@@ -1288,7 +1307,35 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
-              <span>{info.title}</span>
+              <div>
+                <span>{info.title}</span>
+                {props.isShowUpDown ? (
+                  <>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('up') }]}
+                      v-bk-tooltips={{ content: isDisabledUpOrDown('up') ? t('已经是第一个span') : t('上一跳') }}
+                      onClick={() => {
+                        if (!isDisabledUpOrDown('up')) {
+                          switchSpanDetails(-1);
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-up' />
+                    </div>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledUpOrDown('down') }]}
+                      v-bk-tooltips={{ content: isDisabledUpOrDown('down') ? t('已经是最后一个span') : t('下一跳') }}
+                      onClick={() => {
+                        if (!isDisabledUpOrDown('down')) {
+                          switchSpanDetails(1);
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-down' />
+                    </div>
+                  </>
+                ) : null}
+              </div>
               <div class='header-tool'>
                 <Switcher
                   class='switcher'
