@@ -145,7 +145,7 @@ class TagString(object):
             # 是否插入import
             if "from django.utils.translation import ugettext_lazy as _\n" not in self.lines\
                     and "from django.utils.translation import ugettext as _\n" not in self.lines:
-                self.lines.insert(insert_idx, "from django.utils.translation import ugettext as _\n")
+                self.lines.insert(insert_idx, "from django.utils.translation import gettext as _\n")
 
     def process(self, s):
         g = tokenize.generate_tokens(StringIO(s).readline)  # tokenize the string

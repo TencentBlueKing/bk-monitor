@@ -25,7 +25,7 @@ import yaml
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
 from api.grafana.exporter import DashboardExporter

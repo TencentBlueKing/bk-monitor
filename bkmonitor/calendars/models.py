@@ -12,7 +12,7 @@ import datetime
 
 import pytz
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
 from bkmonitor.utils.db import JsonField

@@ -14,7 +14,7 @@ import json
 import os
 
 import yaml
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory

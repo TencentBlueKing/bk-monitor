@@ -3,7 +3,7 @@
 import ujson as json
 import re
 from copy import deepcopy
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource import api
 from fta_web.fta_migrate.pipeline.flow import ServiceActivity, EmptyEndEvent, ExclusiveGateway, SubProcess
