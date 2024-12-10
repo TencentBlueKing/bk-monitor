@@ -7,7 +7,7 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { operatorMapping, translateKeys } from './const-values';
+  import { translateKeys } from './const-values';
   import { excludesFields } from './const.common';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
@@ -112,6 +112,7 @@
     field_name: '*',
     is_full_text: true,
     field_alias: t('全文检索'),
+    field_type: '',
     field_operator: [
       {
         operator: FulltextOperator,
@@ -127,7 +128,7 @@
   let requestTimer = null;
   const rquestFieldEgges = (() => {
     const fields = new Map();
-    return field => {
+    return (field, callback) => {
       if (!fields.has(field.field_name) && !['field_name', '_ip-select_'].includes(field.field_name)) {
         fields.set(field.field_name, field);
       }
@@ -135,12 +136,30 @@
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
         if (fields.size > 0) {
-          store.dispatch('requestIndexSetValueList', { fields: Array.from(fields.values()) });
+          store.dispatch('requestIndexSetValueList', { fields: Array.from(fields.values()) }).then(() => {
+            callback?.();
+          });
           fields.clear();
         }
       });
     };
   })();
+
+  const getFieldWeight = field => {
+    if (field.field_name === '*') {
+      return 101;
+    }
+
+    if (field.field_name === 'log') {
+      return 100;
+    }
+
+    if (['text'].includes(field.field_type)) {
+      return 50;
+    }
+
+    return 0;
+  };
 
   const fieldList = computed(() => {
     let list = [fullTextField.value];
@@ -148,12 +167,13 @@
     if (!isNotIpSelectShow.value) {
       list.push({
         field_name: '_ip-select_',
+        field_type: '',
         is_full_text: true,
         field_alias: t('IP目标'),
         field_operator: [],
       });
     }
-    return list;
+    return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
   // 无需配置值（Value）的条件列表
@@ -232,13 +252,13 @@
   };
 
   const restoreFieldAndCondition = () => {
-    const matchedField = fieldList.value.find(field => field.field_name === props.value.field);
+    const matchedField = fieldList.value.find(field => field.field_name === (props.value as any).field);
     Object.assign(activeFieldItem.value, matchedField ?? {});
     const { operator, relation = 'OR', isInclude, value = [] } = (props.value ?? {}) as Record<string, any>;
     Object.assign(condition.value, { operator, relation, isInclude, value: [...value] });
 
     let filterIndex = filterFieldList.value.findIndex(
-      field =>
+      (field: any) =>
         field.field_type === activeFieldItem.value.field_type && field.field_name === activeFieldItem.value.field_name,
     );
 
@@ -337,11 +357,12 @@
     condition.value.operator = activeFieldItem.value.field_operator?.[0]?.operator;
     condition.value.relation = 'OR';
     condition.value.isInclude = ['text', 'string'].includes(activeFieldItem.value.field_type) ? false : null;
-    rquestFieldEgges(item);
 
-    if (props.value.field === item.field_name) {
+    if ((props.value as any).field === item.field_name) {
       restoreFieldAndCondition();
     }
+
+    rquestFieldEgges(item, () => {});
   };
 
   const handleCancelBtnClick = () => {
@@ -1012,15 +1033,6 @@
                   :class="!tagValidateFun(item) ? 'tag-validate-error' : ''"
                   :key="`-${index}`"
                 >
-                  <!-- <template v-if="currentEditTagIndex === index">
-                    <textarea
-                      class="tag-item-input"
-                      v-model="condition.value[index]"
-                      type="text"
-                      @blur.stop="handleTagInputBlur"
-                      @keyup.enter="handleTagInputEnter"
-                    />
-                  </template> -->
                   <template v-if="currentEditTagIndex === index">
                     <textarea
                       class="tag-item-input"
@@ -1133,188 +1145,7 @@
 </template>
 <style scoped lang="scss">
   @import './ui-input-option.scss';
-
-  .condition-value-container {
-    width: 100%;
-    min-height: 32px;
-    background: #ffffff;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-
-    &.is-focus {
-      border-color: #2c77f4;
-    }
-
-    ul.condition-value-input {
-      display: inline-flex;
-      flex-wrap: wrap;
-      width: 100%;
-      max-height: 110px;
-      padding: 0 5px;
-      margin: 0;
-      overflow: auto;
-
-      > li {
-        display: inline-flex;
-        align-items: center;
-        // height: 22px;
-        margin: 4px 5px 4px 0;
-        overflow: hidden;
-        font-size: 12px;
-        border: solid 1px transparent;
-        border-radius: 2px;
-
-        &.tag-item {
-          color: #63656e;
-          background: #f0f1f5;
-          border-color: #f0f1f5;
-
-          .tag-item-text {
-            // white-space: nowrap;
-            display: -webkit-box;
-            max-width: 100%;
-            padding: 0 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            word-break: break-all;
-            user-select: none;
-
-            /* 第三行溢出省略 */
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-
-            &:hover {
-              background-color: #dcdee5;
-            }
-          }
-
-          .tag-item-del {
-            font-size: 16px;
-            cursor: pointer;
-          }
-        }
-
-        &.tag-validate-error {
-          border-color: red;
-          border-style: dashed;
-        }
-
-        input.tag-option-focus-input {
-          width: 8px;
-          height: auto;
-          font-size: 12px;
-          color: #63656e;
-          border: none;
-        }
-
-        .tag-item-input {
-          position: absolute;
-          top: 0;
-          width: 100%;
-          max-width: 100%;
-          height: 100%;
-
-          /* overflow: hidden; */
-          padding: 0;
-          resize: none;
-          border: 1px solid #c4c6cc;
-
-          &::-webkit-scrollbar {
-            width: 12px; /* Width of the scrollbar */
-          }
-        }
-      }
-    }
-  }
-
-  .tag-error-text {
-    margin: -20px 0 6px 0px;
-    font-size: 12px;
-    color: red;
-  }
 </style>
 <style lang="scss">
-  [data-theme='log-light'] {
-    .ui-value-select {
-      width: 338px;
-      max-height: 200px;
-      overflow: auto;
-
-      .ui-value-option {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        height: 32px;
-        padding: 0 12px;
-        cursor: pointer;
-        background: #ffffff;
-
-        &:not(.active) {
-          &:hover {
-            background: #f5f7fa;
-          }
-        }
-
-        &.active {
-          color: #3a84ff;
-          background: #e1ecff;
-        }
-      }
-    }
-
-    .condition-value-options {
-      display: inline-flex;
-      flex-direction: column;
-      width: 338px;
-      max-height: 300px;
-      overflow: auto;
-      border: 1px solid #dcdee5;
-      box-shadow: 0 2px 6px 0 #0000001a;
-
-      > li {
-        display: inline-block;
-        width: 100%;
-        max-width: 100%;
-        height: 32px;
-        padding: 6px 8px;
-        font-size: 12px;
-        color: #63656e;
-        cursor: pointer;
-        background: #ffffff;
-
-        > div {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        &.empty-section {
-          height: 100px;
-
-          img {
-            width: 120px;
-            height: 60px;
-          }
-
-          .bk-exception {
-            .bk-exception-text {
-              display: flex;
-              justify-content: center;
-            }
-          }
-        }
-
-        &:not(.empty-section) {
-          &.active {
-            background: #f5f7fa;
-          }
-
-          &.is-hover,
-          &:hover {
-            background: #e1ecff;
-          }
-        }
-      }
-    }
-  }
+  @import './theme-light.scss';
 </style>

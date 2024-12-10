@@ -8,15 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from django.conf.urls import include, url
-
-from core.drf_resource.routers import ResourceRouter
-from monitor_web.ai_assistant import views
-
-router = ResourceRouter()
-router.register_module(views)
-
-urlpatterns = [
-    url("", include(router.urls)),
-]
+"""
+容器观测场景 V2(定制下钻版)接口
+"""

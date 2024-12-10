@@ -9,14 +9,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from core.errors import Error
 
-from core.drf_resource.routers import ResourceRouter
-from monitor_web.ai_assistant import views
 
-router = ResourceRouter()
-router.register_module(views)
+class K8sResourceNotFound(Error):
+    status_code = 404
+    code = 3380001
+    name = "unsupported resource type"
+    message_tpl = "unsupported resource type：{resource_type}"
 
-urlpatterns = [
-    url("", include(router.urls)),
-]
+
+class MultiWorkloadError(Error):
+    status_code = 400
+    code = 3380002
+    name = "unsupported multi workload query"
+    message_tpl = "unsupported multi workload query"

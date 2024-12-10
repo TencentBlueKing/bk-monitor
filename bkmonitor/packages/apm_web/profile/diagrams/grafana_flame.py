@@ -59,7 +59,6 @@ class GrafanaFlameDiagrammer:
         selfs: List[int] = None,
         values: List[int] = None,
     ):
-
         if levels is None:
             levels = []
         if labels is None:
