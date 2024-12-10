@@ -8,7 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from io import StringIO
+from urllib import parse
+
 from django.conf import settings
+from django.http import HttpResponse
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -22,6 +26,7 @@ from apps.log_search.serializers import (
     FetchStatisticsGraphSerializer,
     FetchStatisticsInfoSerializer,
     FetchTopkListSerializer,
+    FetchValueListSerializer,
     QueryFieldBaseSerializer,
 )
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP, AggTypeEnum
@@ -105,6 +110,30 @@ class FieldViewSet(APIViewSet):
                 "values": topk_list,
             }
         )
+
+    @list_route(methods=["POST"], url_path="fetch_value_list")
+    def fetch_value_list(self, request, *args, **kwargs):
+        """
+        @api {get} /field/index_set/fetch_value_list/ 获取字段值列表
+        @apiName fetch_value_list
+        """
+        params = self.params_valid(FetchValueListSerializer)
+        index = "_".join(params["result_table_ids"]).replace(".", "_")
+        query_handler = UnifyQueryHandler(params)
+        value_list = query_handler.get_value_list(params["limit"])
+
+        output = StringIO()
+        for item in value_list:
+            output.write(f"{item}\n")
+        response = HttpResponse(output.getvalue())
+        response["Content-Type"] = "application/x-msdownload"
+        field_name = params["agg_field"]
+        file_name = f"bk_log_search_{index}_{field_name}.txt"
+        file_name = parse.quote(file_name, encoding="utf8")
+        file_name = parse.unquote(file_name, encoding="ISO8859_1")
+        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+
+        return response
 
     @list_route(methods=["POST"], url_path="statistics/info")
     def fetch_statistics_info(self, request, *args, **kwargs):
