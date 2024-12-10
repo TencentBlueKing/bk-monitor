@@ -467,6 +467,9 @@ export default {
   暂无更多数据: 'No more data',
   '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
   已成功下发采集配置: 'Successfully issued collection configuration',
+  '内容正在生成中...': 'Content is being generated...',
+  '您可以键入“/”查看更多提问示例': 'You can type "/" to view more question examples',
+  '监控策略如何使用？': 'How to use bkmonitor strategy?',
   // 调用分析
   '仅展示前 30 条数据': 'Only the first 30 data are displayed',
   查看关联调用链: 'View related call chains',
