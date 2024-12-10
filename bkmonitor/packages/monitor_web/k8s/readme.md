@@ -32,6 +32,9 @@ rest/v2/k8s/resources/list_bcs_cluster/
 
 ## WorkloadOverview
 
+获取左侧工作负载列表的视图预览，展示不同类型的统计数量。
+按照 `["Deployments","StatefulSets","DaemonSets","Jobs","CronJobs"]` 的顺序返回
+
 ### 请求 url
 
 rest/v2/k8s/resources/workload_overview/
@@ -73,6 +76,37 @@ rest/v2/k8s/resources/workload_overview/
     ["DaemonSets", 20],
     ["Jobs", 3],
     ["CronJobs", 5]
+  ]
+}
+```
+
+#### 2. 查询不到数据
+
+当查询不到数据时，会按照顺序默认返回 0
+
+##### 请求示例
+
+```json
+{
+  "bk_biz_id": 2,
+  "bcs_cluster_id": "BCS-K8S-00000",
+  "namespace": "other"
+}
+```
+
+##### 响应示例
+
+```json
+{
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": [
+    ["Deployments", 0],
+    ["StatefulSets", 0],
+    ["DaemonSets", 0],
+    ["Jobs", 0],
+    ["CronJobs", 0]
   ]
 }
 ```
