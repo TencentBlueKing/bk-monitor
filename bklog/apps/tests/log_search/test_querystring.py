@@ -33,7 +33,7 @@ SEARCH_PARAMS = {
         {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
         {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
         {"field": "*", "operator": "contains match phrase", "value": ["error"]},
-        {"field": "querystring", "operator": "contains match phrase", "value": ["success"]},
+        {"field": "querystring", "operator": "contains match phrase", "value": ["success", "200"]},
         {"field": "querystring", "operator": "=", "value": []},
         {"field": "error", "operator": "contains", "value": []},
         {"field": "test", "operator": "test", "value": ["test"]},
@@ -100,7 +100,7 @@ TRANSFORM_RESULT = (
     " AND "
     "(\"error\")"
     " AND "
-    "(success)"
+    "(success OR 200)"
 )
 
 

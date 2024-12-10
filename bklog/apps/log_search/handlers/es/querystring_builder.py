@@ -44,10 +44,14 @@ class QueryStringBuilder(object):
 
             # 全文检索的情况
             if condition["field"] in ["*", "querystring"]:
-                value = condition["value"][0]
-                if condition["field"] == "*":
-                    value = f"\"{value}\""
-                querystring_list.append(f"({value})")
+                transform_result_list = []
+                for value in condition["value"]:
+                    if condition["field"] == "*":
+                        value = value.replace('"', '\\"')
+                        value = f"\"{value}\""
+                    transform_result_list.append(value)
+                transform_result = " OR ".join(transform_result_list)
+                querystring_list.append(f"({transform_result})")
                 continue
 
             # 获取querystring

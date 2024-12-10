@@ -283,13 +283,9 @@ class BoolQueryOperation(ABC):
         :param value_list: 值
         :param condition_type: 多个条件间的与或关系
         """
-        transform_result = ""
-        for index, value in enumerate(value_list):
-            if index > 0:
-                transform_result += f" {condition_type} "
-            transform_result += f"{value}"
+        transform_result = f" {condition_type} ".join([str(v) for v in value_list])
         # 有两个以上的值时加括号
-        transform_result = transform_result if len(value_list) == 1 else "(" + transform_result + ")"
+        transform_result = transform_result if len(value_list) == 1 else f"({transform_result})"
         return f"{field_name}: {transform_result}"
 
 
