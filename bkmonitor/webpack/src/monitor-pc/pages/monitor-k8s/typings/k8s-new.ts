@@ -94,4 +94,5 @@ export interface K8sDimensionParams {
   scene: SceneType;
   keyword: string;
   pageSize?: number;
+  pageType?: 'scrolling' | 'traditional';
 }

@@ -1,0 +1,128 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+interface K8sDimensionDrillDownProps {
+  value: number | string;
+  dimension: string;
+}
+import './k8s-dimension-drilldown.scss';
+
+interface K8sDimensionDrillDownEvents {
+  onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
+}
+
+@Component
+export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {
+  /** 维度 */
+  @Prop({ type: String }) dimension: string;
+  /** 下钻id */
+  @Prop({ type: [String, Number], required: true }) value: number | string;
+
+  @Ref('menu')
+  menuRef: any;
+
+  drillDownId = null;
+
+  popoverInstance = null;
+
+  get drillDownList() {
+    const drillListMap = {
+      namespace: ['namespace', 'workload', 'pod', 'container'],
+      workload: ['workload', 'pod', 'container'],
+      pod: ['pod', 'container'],
+      container: ['container'],
+    };
+    return drillListMap[this.dimension];
+  }
+
+  async handleDrillDown(id: number | string, e: Event) {
+    this.drillDownId = id;
+    this.popoverInstance = this.$bkPopover(e.target, {
+      content: this.menuRef,
+      trigger: 'click',
+      placement: 'bottom-start',
+      theme: 'light common-monitor',
+      arrow: false,
+      interactive: true,
+      followCursor: false,
+      onHidden: () => {
+        this.drillDownId = null;
+        this.popoverInstance.destroy();
+        this.popoverInstance = null;
+      },
+    });
+    await this.$nextTick();
+    this.popoverInstance?.show(100);
+  }
+
+  /** 下钻 */
+  @Emit('handleDrillDown')
+  handleDrillDownChange(val: string) {
+    const id = this.drillDownId;
+    this.popoverInstance?.hide();
+    return {
+      id,
+      dimension: val,
+    };
+  }
+
+  render() {
+    return (
+      <div class='k8s-dimension-drillDown'>
+        <div
+          class={{
+            'drill-down-icon': true,
+            active: this.drillDownId === this.value,
+          }}
+          v-bk-tooltips={{ content: this.$t('下钻') }}
+        >
+          <i
+            class='icon-monitor icon-xiazuan'
+            onClick={e => this.handleDrillDown(this.value, e)}
+          />
+        </div>
+        <div style='display: none'>
+          <ul
+            ref='menu'
+            class='drill-down-list-menu'
+          >
+            {this.drillDownList.map(item => (
+              <li
+                key={item}
+                class='menu-item'
+                onClick={() => this.handleDrillDownChange(item)}
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+}

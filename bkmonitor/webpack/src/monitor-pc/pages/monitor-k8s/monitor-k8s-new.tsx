@@ -34,7 +34,9 @@ import FilterByCondition from './components/filter-by-condition/filter-by-condit
 import GroupByCondition, { type IGroupByChangeEvent } from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
 import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
+import K8sDimensionList from './components/k8s-left-panel/k8s-dimension-list';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
+import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
   type K8sTableClickEvent,
@@ -45,7 +47,7 @@ import K8sTableNew, {
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
-import { K8sDimension, type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
+import { type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
 import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -234,12 +236,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     },
   ];
 
+  cacheFilterBy: IFilterByItem[] = [];
+  cacheGroupBy = [];
+
   metricList = [];
 
-  leftPanelLoading = {
-    dimensionLoading: true,
-    metricLoading: true,
-  };
+  metricLoading = true;
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -269,11 +271,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
-    const dimension = new K8sDimension({
-      scene: this.scene,
-      keyword: '',
-    });
-    console.log(dimension);
   }
 
   /**
@@ -287,7 +284,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.clusterLoading = true;
     this.clusterList = await new Promise(resolve => {
       setTimeout(() => {
-        resolve([{ id: 'BCS-K8S-00000', name: '蓝鲸7.0(BCS-K8S-00000)' }]);
+        resolve([
+          { id: 'BCS-K8S-00000', name: '蓝鲸7.0(BCS-K8S-00000)' },
+          { id: 'BCS-K8S-00001', name: '蓝鲸8.0(BCS-K8S-00000)' },
+        ]);
       }, 1000);
     });
     this.clusterLoading = false;
@@ -357,9 +357,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         }, 1000);
       });
     }
-    this.leftPanelLoading.metricLoading = true;
+    this.metricLoading = true;
     const data = await mock({ scenario: this.scene });
-    this.leftPanelLoading.metricLoading = false;
+    this.metricLoading = false;
     this.metricList = data.map(item => ({
       ...item,
       count: item.children.length,
@@ -457,21 +457,30 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /** 取消下钻 */
-  handleCancelDrillDown() {}
+  handleCancelDrillDown() {
+    this.filterBy = this.cacheFilterBy;
+    this.groupInstance.setGroupFilters(this.cacheGroupBy);
+    this.showCancelDrill = false;
+  }
 
   /** 左侧面板group状态切换 */
   groupByChange({ groupId, isSelect }) {
+    this.showCancelDrill = false;
     this.setGroupFilters({ groupId, checked: isSelect });
   }
 
   /** 左侧面板下钻功能 */
-  handleDrillDown({ groupId, ids, drillDownId }) {
-    this.groupByChange({ groupId: drillDownId, isSelect: true });
-    this.filterByChange({ ids, groupId });
+  handleDrillDown({ filterBy, groupId }) {
+    this.cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
+    this.cacheGroupBy = [...this.groupFilters];
+    this.groupByChange({ groupId, isSelect: true });
+    this.filterByChange({ ids: filterBy.value, groupId: filterBy.key });
+    this.showCancelDrill = true;
   }
 
   /* 左侧面板检索功能 */
   filterByChange({ ids, groupId }) {
+    this.showCancelDrill = false;
     const target = this.filterBy.find(item => item.key === groupId);
     if (target) {
       target.value = ids;
@@ -489,6 +498,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
+    this.filterBy = [];
+    this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
+    this.showCancelDrill = false;
   }
 
   /**
@@ -684,19 +696,22 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
         <div class='monitor-k8s-new-content'>
           <div class='content-left'>
-            <K8sLeftPanel
-              slot='main'
-              filterBy={this.filterBy}
-              groupBy={this.groupFilters}
-              groupList={this.groupList}
-              hideMetrics={this.hideMetrics}
-              loading={this.leftPanelLoading}
-              metricList={this.metricList}
-              onDrillDown={this.handleDrillDown}
-              onFilterByChange={this.filterByChange}
-              onGroupByChange={this.groupByChange}
-              onMetricHiddenChange={this.metricHiddenChange}
-            />
+            <K8sLeftPanel>
+              <K8sDimensionList
+                filterBy={this.filterBy}
+                groupBy={this.groupFilters}
+                scene={this.scene}
+                onDrillDown={this.handleDrillDown}
+                onFilterByChange={this.filterByChange}
+                onGroupByChange={this.groupByChange}
+              />
+              <K8sMetricList
+                hideMetrics={this.hideMetrics}
+                loading={this.metricLoading}
+                metricList={this.metricList}
+                onMetricHiddenChange={this.metricHiddenChange}
+              />
+            </K8sLeftPanel>
           </div>
 
           <div class='content-right'>
