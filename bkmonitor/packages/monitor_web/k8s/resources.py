@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from collections import OrderedDict
 from typing import Dict, List
 
 from django.core.paginator import Paginator
@@ -39,7 +40,7 @@ class WorkloadOverview(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        bcs_cluster_id = (validated_request_data["bcs_cluster_id"],)
+        bcs_cluster_id = validated_request_data["bcs_cluster_id"]
 
         queryset = BCSWorkload.objects.filter(
             bk_biz_id=bk_biz_id,
@@ -60,6 +61,12 @@ class WorkloadOverview(Resource):
         ]
         """
         result = queryset.values('type').annotate(count=Count('name'))
+        kind_map = OrderedDict.fromkeys(["Deployments", "StatefulSets", "DaemonSets", "Jobs", "CronJobs"], 0)
+        for item in result:
+            if item["type"] not in kind_map:
+                kind_map[item["type"]] = item["count"]
+            else:
+                kind_map[item["type"]] += item["count"]
 
         return [[item["type"], item["count"]] for item in result]
 
