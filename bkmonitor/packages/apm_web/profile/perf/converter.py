@@ -11,7 +11,6 @@ import datetime
 from dataclasses import dataclass
 from typing import List, Optional
 
-from apm_web.profile.constants import InputType
 from apm_web.profile.models import (
     Function,
     Label,
@@ -22,10 +21,7 @@ from apm_web.profile.models import (
     Sample,
     ValueType,
 )
-from apm_web.profile.profileconverter import (
-    ProfileConverter,
-    register_profile_converter,
-)
+from apm_web.profile.profileconverter import ProfileConverter
 
 
 @dataclass
@@ -160,6 +156,3 @@ class PerfScriptProfileConverter(ProfileConverter):
             )
 
         self.profile.sample.append(sample)
-
-
-register_profile_converter(InputType.PERF_SCRIPT.value, PerfScriptProfileConverter)
