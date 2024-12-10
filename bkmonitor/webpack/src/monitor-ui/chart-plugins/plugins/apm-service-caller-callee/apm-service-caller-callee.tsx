@@ -29,21 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import GroupCompareSelect from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/group-compare-select';
+import { ETypeSelect as EGroupCompareType } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
-import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
-import TabBtnGroup from './components/common-comp/tab-btn-group';
-import {
-  EParamsMode,
-  EPreDateType,
-  type CallOptions,
-  type IFilterData,
-  type IChartOption,
-  type IFilterCondition,
-  EKind,
-} from './type';
+import TabBtnGroup from './components/tab-btn-group';
+import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
 import {
   CALLER_CALLEE_TYPE,
   getRecordCallOptionKind,
@@ -163,7 +156,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       time_shift: routeCallOptions.time_shift || [],
       // 左侧查询条件字段
       call_filter: routeCallOptions.call_filter || [],
-      tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
+      tool_mode: routeCallOptions.tool_mode || EGroupCompareType.compare,
       kind: this.callType,
       perspective_type: 'single',
       perspective_group_by: [],
@@ -179,7 +172,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
           val === '' ||
           val === 0 ||
           (Array.isArray(val) && val.length < 1) ||
-          (key === 'tool_mode' && val === EParamsMode.contrast) ||
+          (key === 'tool_mode' && val === EGroupCompareType.compare) ||
           (key === 'kind' && val === 'caller') ||
           key in this.panelScopedVars
         )
@@ -254,39 +247,12 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    * @param val
    */
   handleContrastDatesChange(val: string[]) {
-    const timeShift = [];
-    for (const item of val) {
-      if (item === EPreDateType.yesterday) {
-        timeShift.push({
-          alias: item,
-          start_time: dayjs().subtract(1, 'day').startOf('day').unix(),
-          end_time: dayjs().subtract(1, 'day').endOf('day').unix(),
-        });
-      } else if (item === EPreDateType.lastWeek) {
-        timeShift.push({
-          alias: item,
-          start_time: dayjs().startOf('week').subtract(1, 'week').unix(),
-          end_time: dayjs().endOf('week').subtract(1, 'week').unix(),
-        });
-      } else {
-        timeShift.push({
-          alias: item,
-          start_time: dayjs(item).startOf('day').unix(),
-          end_time: dayjs(item).endOf('day').unix(),
-        });
-      }
-    }
     this.callOptions = {
       ...this.callOptions,
-      time_shift: timeShift,
+      time_shift: val,
     };
-    this.changeDate(val);
-    this.replaceRouteQuery();
-  }
-
-  changeDate(date) {
-    this.dateData = date;
     this.handleTableColData();
+    this.replaceRouteQuery();
   }
 
   handleCheck(data) {
@@ -294,7 +260,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.handleTableColData();
   }
   handleTableColData() {
-    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    const callTimeShift = this.callOptions.time_shift;
     this.tableColData = callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   handleGroupFilter() {}
@@ -311,8 +277,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.replaceRouteQuery();
   }
 
-  handleParamsModeChange(val: EParamsMode) {
-    if (val === EParamsMode.contrast) {
+  handleParamsModeChange(val: EGroupCompareType) {
+    if (val === EGroupCompareType.compare) {
       this.callOptions = {
         ...this.callOptions,
         group_by: [],
@@ -402,7 +368,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       limit: 10,
       metric_cal_type: this.supportedCalculationTypes?.[0]?.value || '',
       call_filter: [],
-      tool_mode: EParamsMode.contrast,
+      tool_mode: EGroupCompareType.compare,
       time_shift: [],
     };
   }
@@ -460,25 +426,32 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
                   onChange={this.changeTab}
                 />
               </div>
-              <CallerCalleeContrast
-                searchList={
+              <GroupCompareSelect
+                groupOptions={
                   this.callType === EKind.caller ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags
                 }
-                contrastDates={this.callOptions.time_shift.map(item => item.alias)}
-                groupBy={this.callOptions.group_by}
+                active={this.callOptions.tool_mode}
+                groupOptionsLimitEnabled={true}
+                groups={this.callOptions.group_by}
+                hasGroupOptions={true}
                 limit={this.callOptions.limit}
-                method={this.callOptions.method}
+                limitSortMethod={this.callOptions.method}
+                limitSortMethods={this.supportedMethods}
                 metricCalType={this.callOptions.metric_cal_type}
+                metricCalTypes={this.supportedCalculationTypes}
                 paramsMode={this.callOptions.tool_mode}
                 supportedCalculationTypes={this.supportedCalculationTypes}
                 supportedMethods={this.supportedMethods}
                 timeStrShow={this.timeStrShow}
+                timeValue={this.callOptions.time_shift}
                 onContrastDatesChange={this.handleContrastDatesChange}
                 onGroupByChange={this.handleGroupChange}
+                onGroupChange={this.handleGroupChange}
                 onGroupFilter={this.handleGroupFilter}
                 onLimitChange={this.handleLimitChange}
-                onMethodChange={this.handleMethodChange}
-                onMetricCalType={this.handleMetricCalTypeChange}
+                onLimitSortMethodChange={this.handleMethodChange}
+                onMetricCalTypeChange={this.handleMetricCalTypeChange}
+                onTimeCompareChange={this.handleContrastDatesChange}
                 onTypeChange={this.handleParamsModeChange}
               />
             </div>

@@ -332,8 +332,9 @@ class StrategyModel(Model):
     class StrategyType:
         Monitor = "monitor"
         FTASolution = "fta"
+        Dashboard = "dashboard"
 
-        Choices = ((Monitor, _lazy("监控")), (FTASolution, _lazy("故障自愈")))
+        Choices = ((Monitor, _lazy("监控")), (FTASolution, _lazy("故障自愈")), (Dashboard, _lazy("仪表盘")))
 
     class InvalidType:
         NONE = ""
@@ -343,6 +344,7 @@ class StrategyModel(Model):
         INVALID_TARGET = "invalid_target"
         INVALID_METRIC = "invalid_metric"
         INVALID_BIZ = "invalid_biz"
+        INVALID_DASHBOARD_PANEL = "invalid_dashboard_panel"
 
         Choices = [
             (NONE, NONE),
@@ -352,6 +354,7 @@ class StrategyModel(Model):
             (INVALID_TARGET, _lazy("监控目标全部失效")),
             (INVALID_METRIC, _lazy("监控指标不存在")),
             (INVALID_BIZ, _lazy("策略所属业务不存在")),
+            (INVALID_DASHBOARD_PANEL, _lazy("策略配置的仪表盘图表失效")),
         ]
 
     name = models.CharField("策略名称", max_length=128, db_index=True)

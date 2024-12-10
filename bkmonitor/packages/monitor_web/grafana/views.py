@@ -91,6 +91,7 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resource.grafana.time_series_metric, endpoint="time_series/metric", content_encoding="gzip"
         ),
+        ResourceRoute("GET", resource.grafana.get_related_strategy, endpoint="get_related_strategy"),
         ResourceRoute("POST", resource.grafana.time_series_metric_level, endpoint="time_series/metric_level"),
         ResourceRoute("POST", resource.grafana.log_query, endpoint="log/query"),
         # 设置默认仪表盘
