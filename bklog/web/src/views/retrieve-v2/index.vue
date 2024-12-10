@@ -29,13 +29,15 @@
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
+  import { debounce } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
+  import GraphAnalysis from './search-result-panel/graph-analysis';
+
   import SubBar from './sub-bar/index.vue';
   const store = useStore();
   const router = useRouter();
@@ -48,19 +50,35 @@
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
 
-  const routeQueryParams = computed(() => {
-    const { ids, isUnionIndex, search_mode } = store.state.indexItem;
-    const unionList = store.state.unionIndexList;
-    const clusterParams = store.state.clusterParams;
-    return {
-      ...(store.getters.retrieveParams ?? {}),
-      search_mode,
-      ids,
-      isUnionIndex,
-      unionList,
-      clusterParams,
-    };
-  });
+  // 解析默认URL为前端参数
+  // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
+  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+
+  const setDefaultIndexsetId = () => {
+    if (!route.params.indexId) {
+      const routeParams = store.getters.retrieveParams;
+
+      const resolver = new RetrieveUrlResolver({
+        ...routeParams,
+        datePickerValue: store.state.indexItem.datePickerValue,
+      });
+
+      if (store.getters.isUnionSearch) {
+        router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+        return;
+      }
+
+      if (store.state.indexId) {
+        router.replace({
+          params: { indexId: store.state.indexId },
+          query: {
+            ...route.query,
+            ...resolver.resolveParamsToUrl(),
+          },
+        });
+      }
+    }
+  };
 
   /**
    * 拉取索引集列表
@@ -69,32 +87,12 @@
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+        setDefaultIndexsetId();
         store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
         });
       });
     });
-  };
-
-  const setRouteParams = () => {
-    const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex
-      ? { ...route.params, indexId: undefined }
-      : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
-
-    const query = { ...route.query };
-    const resolver = new RetrieveUrlResolver({
-      ...routeQueryParams.value,
-      datePickerValue: store.state.indexItem.datePickerValue,
-    });
-
-    Object.assign(query, resolver.resolveParamsToUrl());
-    if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
-      router.replace({
-        params,
-        query,
-      });
-    }
   };
 
   const handleSpaceIdChange = () => {
@@ -106,15 +104,6 @@
   };
 
   handleSpaceIdChange();
-  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
-
-  watch(
-    routeQueryParams,
-    () => {
-      setRouteParams();
-    },
-    { deep: true },
-  );
 
   watch(spaceUid, () => {
     handleSpaceIdChange();
@@ -182,6 +171,26 @@
       }
     },
   );
+
+  const debounceUpdateTabValue = debounce(() => {
+    router.replace({
+      params: { ...(route.params ?? {}) },
+      query: {
+        ...(route.query ?? {}),
+        tab: activeTab.value,
+      },
+    });
+  }, 60);
+
+  watch(
+    () => activeTab.value,
+    () => {
+      debounceUpdateTabValue();
+    },
+    { immediate: true },
+  );
+
+  const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
   const activeFavorite = ref();
   const updateActiveFavorite = value => {
     activeFavorite.value = value;
@@ -245,7 +254,12 @@
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          <template v-if="showAnalysisTab">
+            <GraphAnalysis></GraphAnalysis>
+          </template>
+          <template v-else>
+            <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          </template>
         </div>
       </div>
     </div>

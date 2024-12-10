@@ -101,6 +101,7 @@ def test_compose_vm_storage_node_config(create_or_delete_records, create_default
         'cluster': 'vm-plat',
         'from_result_table_ids': ['2_vm_cc_2_unify_query_tsdb_test_new_prom_node'],
         'expires': 30,
+        'schemaless': True,
         'from_nodes': [{'id': 2, 'from_result_table_ids': ['2_vm_cc_2_unify_query_tsdb_test_new_prom_node']}],
     }
 
@@ -178,6 +179,7 @@ def test_create_flow_with_full_config(create_or_delete_records, create_default_r
                 'cluster': 'vm-plat',
                 'from_result_table_ids': ['2_vm_cc_2_unify_query_tsdb_test_new_prom_node'],
                 'expires': 30,
+                'schemaless': True,
                 'from_nodes': [{'id': 2, 'from_result_table_ids': ['2_vm_cc_2_unify_query_tsdb_test_new_prom_node']}],
             },
         ],

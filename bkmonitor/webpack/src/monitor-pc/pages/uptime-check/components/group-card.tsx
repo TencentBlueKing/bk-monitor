@@ -189,7 +189,10 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
             </div>
             <div class='desc-right-label'>
               {this.data.protocol_num.map(item => (
-                <span class='right-label'>{`${item.name}(${item.val})`}</span>
+                <span
+                  key={item.name}
+                  class='right-label'
+                >{`${item.name}(${item.val})`}</span>
               ))}
               {!this.data.protocol_num?.length ? <span>{this.$t('空任务组')}</span> : undefined}
             </div>
@@ -212,7 +215,10 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
         {this.data.top_three_tasks?.length ? (
           <div class='card-list'>
             {this.data.top_three_tasks.map(item => (
-              <div class='card-list-progress'>
+              <div
+                key={item.name}
+                class='card-list-progress'
+              >
                 <div class='progress-desc'>
                   <span
                     class='desc-name'
@@ -227,6 +233,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
                   color={processColor(item.available)}
                   percent={+(item.available * 0.01).toFixed(2) || 0}
                   showText={false}
+                  size='small'
                 />
               </div>
             ))}
@@ -244,6 +251,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
           >
             {options.map(item => (
               <div
+                key={item.name}
                 class='popover-desc-btn'
                 onClick={(e: Event) => this.handleOptionsClick(e, item)}
               >

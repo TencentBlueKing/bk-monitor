@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
+import { isEqual } from 'lodash';
 
 import $http from '../../../api';
 import { copyMessage, deepClone } from '../../../common/util';
@@ -147,7 +148,6 @@ export default class CollectIndex extends tsc<IProps> {
     interactive: true,
     theme: 'light',
   };
-  favoriteList = [];
   groupList: IGroupItem[] = []; // 分组列表
   collectList: IGroupItem[] = []; // 收藏列表
   filterCollectList: IGroupItem[] = []; // 搜索的收藏列表
@@ -166,6 +166,19 @@ export default class CollectIndex extends tsc<IProps> {
 
   get activeFavoriteID() {
     return this.activeFavorite?.id || -1;
+  }
+
+  get favoriteList() {
+    const data = this.$store.state.favoriteList;
+    if (!data.length) {
+      return [];
+    }
+
+    const provideFavorite = data[0];
+    const publicFavorite = data[data.length - 1];
+    const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
+    const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
+    return sortAfterList;
   }
 
   get allFavoriteNumber() {
@@ -230,15 +243,9 @@ export default class CollectIndex extends tsc<IProps> {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
     try {
       this.favoriteLoading = true;
-      const { data } = await this.$store.dispatch('requestFavoriteList');
-      const provideFavorite = data[0];
-      const publicFavorite = data[data.length - 1];
-      const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
-      const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-      this.favoriteList = sortAfterList;
+      await this.$store.dispatch('requestFavoriteList');
     } catch (err) {
       this.favoriteLoading = false;
-      this.favoriteList = [];
     } finally {
       // 获取收藏列表后 若当前不是新检索 则判断当前收藏是否已删除 若删除则变为新检索
       if (this.activeFavoriteID !== -1) {
@@ -256,6 +263,53 @@ export default class CollectIndex extends tsc<IProps> {
     }
   }
 
+  setRouteParams() {
+    const getRouteQueryParams = () => {
+      const { ids, isUnionIndex, search_mode } = this.$store.state.indexItem;
+      const unionList = this.$store.state.unionIndexList;
+      const clusterParams = this.$store.state.clusterParams;
+      const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
+        this.$store.getters.retrieveParams;
+
+      return {
+        addition,
+        start_time,
+        end_time,
+        begin,
+        size,
+        ip_chooser,
+        host_scopes,
+        interval,
+        bk_biz_id: this.$store.state.bkBizId,
+        search_mode,
+        sort_list,
+        ids,
+        isUnionIndex,
+        unionList,
+        clusterParams,
+      };
+    };
+    const routeParams = getRouteQueryParams();
+    const { ids, isUnionIndex } = routeParams;
+    const params = isUnionIndex
+      ? { ...this.$route.params, indexId: undefined }
+      : { ...this.$route.params, indexId: ids?.[0] ?? this.$route.params?.indexId };
+
+    const query = { ...this.$route.query };
+    const resolver = new RetrieveUrlResolver({
+      ...routeParams,
+      datePickerValue: this.$store.state.indexItem.datePickerValue,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+    if (!isEqual(params, this.$route.params) || !isEqual(query, this.$route.query)) {
+      this.$router.replace({
+        params,
+        query,
+      });
+    }
+  }
+
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
     if (!value) {
@@ -263,6 +317,7 @@ export default class CollectIndex extends tsc<IProps> {
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
       // 清空当前检索条件
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      this.setRouteParams();
       return;
     }
     const cloneValue = deepClone(value);
@@ -289,6 +344,7 @@ export default class CollectIndex extends tsc<IProps> {
       });
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
@@ -300,9 +356,13 @@ export default class CollectIndex extends tsc<IProps> {
       search_mode: cloneValue.search_mode,
     });
 
+    this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
+
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
     });
+
+    this.setRouteParams();
   }
 
   /**

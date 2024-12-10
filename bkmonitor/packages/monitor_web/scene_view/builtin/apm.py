@@ -355,13 +355,17 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     if dimension.get("id"):
                         dimension_keys.add(dimension["id"])
             candidate_queue = []
-            if "scope_name" in dimension_keys:
-                candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
-            if "monitor_name" in dimension_keys:
-                candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
-            metric_config = (
-                candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
-            )
+            target_key = f"{bk_biz_id}-{app_name}.{service_name}"
+            if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
+            else:
+                if "scope_name" in dimension_keys:
+                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
+                if "monitor_name" in dimension_keys:
+                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
+                metric_config = (
+                    candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+                )
 
             if metric_count > 0:
                 # 使用非内部指标设置monitor_info_mapping

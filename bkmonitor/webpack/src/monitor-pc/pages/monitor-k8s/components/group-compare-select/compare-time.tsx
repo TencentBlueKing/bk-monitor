@@ -73,6 +73,7 @@ interface IProps {
 @Component
 export default class CompareTime extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
+
   localValue = [];
   /* 预设日期 */
   checkboxGroupValue = [];
@@ -96,6 +97,7 @@ export default class CompareTime extends tsc<IProps> {
   get isDateAdd() {
     return this.checkboxGroupValue.length === 2 || this.dateTime.length === 2 || this.isChooseDateOrType;
   }
+
   @Watch('value', { immediate: true })
   handleWatchValue(value) {
     if (JSON.stringify(value) !== JSON.stringify(this.timeOffset)) {
@@ -233,6 +235,9 @@ export default class CompareTime extends tsc<IProps> {
               label={item.value}
             >
               {item.label}
+              {/* {this.checkboxGroupValue.includes(item.value) && (
+                <span class='time-tips'>{this.timeStrShow[item.value]}</span>
+              )} */}
             </bk-checkbox>
           ))}
         </bk-checkbox-group>

@@ -1979,7 +1979,7 @@ class ESStorage(models.Model, StorageResultTable):
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ResultTableField
+        from metadata.models import ESFieldQueryAliasOption, ResultTableField
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -1992,12 +1992,6 @@ class ESStorage(models.Model, StorageResultTable):
                 properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
                     table_id=self.table_id, field_name=field.field_name
                 )
-                alias_settings = ResultTableFieldOption.get_field_es_read_alias(
-                    table_id=self.table_id, field_name=field.field_name
-                )
-
-                if alias_settings:  # 当别名配置不为空时，将别名添加至索引body中
-                    properties.update(alias_settings)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "index_body: error occurs for table_id->[%s],field->[%s],error->[%s]",
@@ -2005,6 +1999,18 @@ class ESStorage(models.Model, StorageResultTable):
                     field.field_name,
                     e,
                 )
+
+        try:
+            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
+            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
+            alias_path_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_path_config->[%s]", self.table_id, alias_path_config)
+            if alias_config and alias_path_config:
+                properties.update(alias_config)
+                properties.update(alias_path_config)
+        except Exception as e:
+            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
 
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
@@ -2017,21 +2023,15 @@ class ESStorage(models.Model, StorageResultTable):
         组装采集项的别名配置
         :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
         """
-        properties = {}
+        from metadata.models import ESFieldQueryAliasOption
+
         logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        for field in ResultTableField.objects.filter(table_id=self.table_id):
-            try:
-                properties.update(
-                    ResultTableFieldOption.get_field_es_read_alias(table_id=self.table_id, field_name=field.field_name)
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "compose_field_alias_settings: unexpected error occurs for table_id->[%s],field_name->[%s],"
-                    "error->[%s]",
-                    self.table_id,
-                    field.field_name,
-                    e,
-                )
+        properties = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        logger.info(
+            "compose_field_alias_settings: compose alias mapping for->[%s] success,alias_settings->[%s]",
+            self.table_id,
+            properties,
+        )
         return {"properties": properties}
 
     def put_field_alias_mapping_to_es(self):
@@ -2686,7 +2686,7 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.error(
                         "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
                         self.table_id,
-                        e,
+                        e.__cause__ if isinstance(e, RetryError) else e,
                     )
                     continue
 
@@ -2830,7 +2830,10 @@ class ESStorage(models.Model, StorageResultTable):
 
         now_datetime_object = self.now
         logger.info(
-            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+            "update_index_v2: table_id->[%s] start to update index,time->[%s],force_rotate->[%s]",
+            self.table_id,
+            now_datetime_object,
+            force_rotate,
         )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
@@ -2876,7 +2879,7 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        should_create = self._should_create_index()
+        should_create = self._should_create_index(force_rotate=force_rotate)
         logger.info("update_index_v2: table_id->[%s] should_create->[%s]", self.table_id, should_create)
 
         # 5. 若should_create为True，执行创建/更新 索引逻辑
@@ -3053,10 +3056,16 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
             )
-        except RetryError:  # 若重试后依然失败，则认为未就绪
+        except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
+            logger.warning(
+                "update_aliases_with_retry:table_id->[%s],new_index->[%s] not ready,error->[%s]",
+                self.table_id,
+                new_index_name,
+                e.__cause__,
+            )
 
         if not is_ready:
             logger.info(

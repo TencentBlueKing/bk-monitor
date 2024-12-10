@@ -28,6 +28,7 @@ import { Component, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import GroupCompareSelect from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/group-compare-select';
 import { ETypeSelect as EGroupCompareType } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
@@ -36,9 +37,15 @@ import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/tab-btn-group';
 import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
-import { CALLER_CALLEE_TYPE, getRecordCallOptionKind, setRecordCallOptionKind } from './utils';
+import {
+  CALLER_CALLEE_TYPE,
+  getRecordCallOptionKind,
+  setRecordCallOptionKind,
+  formatPreviousDayAndWeekTimestamps,
+} from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -59,6 +66,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
   @InjectReactive('viewOptions') viewOptions;
+
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
 
   panelsData = [];
   tabList = CALLER_CALLEE_TYPE;
@@ -91,6 +102,32 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   get commonAngle() {
     return this.commonOptions?.angle || {};
+  }
+  timeStrShow = {};
+  // 自动刷新定时任务
+  refreshIntervalInstance = null;
+  @Watch('refleshInterval', { immediate: true })
+  // 数据刷新间隔
+  handleRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+    }
+    if (v <= 0) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
+      this.handleSetTimeStrShow();
+    }, this.refleshInterval);
+  }
+  @Watch('refleshImmediate')
+  handleRefleshImmediate() {
+    this.handleSetTimeStrShow();
+  }
+
+  @Watch('timeRange', { immediate: true })
+  handleTimeRange() {
+    this.handleSetTimeStrShow();
+  }
+  handleSetTimeStrShow() {
+    this.timeStrShow = formatPreviousDayAndWeekTimestamps(handleTransformToTimestamp(this.timeRange));
   }
 
   @Watch('panel', { immediate: true })
@@ -400,8 +437,15 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
                 limitSortMethods={this.supportedMethods}
                 metricCalType={this.callOptions.metric_cal_type}
                 metricCalTypes={this.supportedCalculationTypes}
+                paramsMode={this.callOptions.tool_mode}
+                supportedCalculationTypes={this.supportedCalculationTypes}
+                supportedMethods={this.supportedMethods}
+                timeStrShow={this.timeStrShow}
                 timeValue={this.callOptions.time_shift}
+                onContrastDatesChange={this.handleContrastDatesChange}
+                onGroupByChange={this.handleGroupChange}
                 onGroupChange={this.handleGroupChange}
+                onGroupFilter={this.handleGroupFilter}
                 onLimitChange={this.handleLimitChange}
                 onLimitSortMethodChange={this.handleMethodChange}
                 onMetricCalTypeChange={this.handleMetricCalTypeChange}
@@ -419,6 +463,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               filterData={this.callOptions.call_filter}
               panel={this.panel}
               searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
+              timeStrShow={this.timeStrShow}
               onCloseChartPoint={this.closeChartPoint}
               onCloseTag={this.handleCloseTag}
               onDrill={this.handleTableDrill}

@@ -216,6 +216,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
     # 定期清理停用的ai 策略对应的flow任务(每天2点半)
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
+    # aiops sdk策略历史依赖管理
+    ("alarm_backends.service.preparation.tasks.maintain_all_aiops_sdk_depend_data", "45 * * * *", "global"),
 ]
 
 DEFAULT_CRONTAB += [
@@ -361,6 +363,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "alert": LOGGER_DEFAULT,
             "composite": LOGGER_DEFAULT,
             "recovery": LOGGER_DEFAULT,
+            "preparation": LOGGER_DEFAULT,
             "fta_action": LOGGER_DEFAULT,
             "bkmonitor": LOGGER_DEFAULT,
             "apm_ebpf": LOGGER_DEFAULT,

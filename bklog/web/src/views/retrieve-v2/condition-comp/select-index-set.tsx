@@ -41,7 +41,7 @@ type ActiveType = 'favorite' | 'history';
 const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
-export default class QueryStatement extends tsc<object> {
+export default class SelectIndexSet extends tsc<object> {
   @Prop({ default: {} }) popoverOptions;
 
   /** 表示集合数据是否正在加载 */
@@ -173,9 +173,9 @@ export default class QueryStatement extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_APM__) {
-      return this.$route.query.indexId;
+      return String(this.$route.query.indexId);
     } else {
-      return this.$route.params.indexId;
+      return String(this.$route.params.indexId);
     }
   }
 
@@ -366,12 +366,13 @@ export default class QueryStatement extends tsc<object> {
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
-    const { start_time, end_time, timezone, keyword, search_mode } = this.indexItem;
+    const { start_time, end_time, timezone, keyword, search_mode, addition } = this.indexItem;
     const payload = {
       start_time,
       end_time,
       timezone,
       ids,
+      addition: addition || [],
       keyword: keyword || '',
       search_mode,
       selectIsUnionSearch: !this.isAloneType,
@@ -379,9 +380,16 @@ export default class QueryStatement extends tsc<object> {
       isUnionIndex: !this.isAloneType,
       sort_list: [],
     };
-    if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
-      payload.keyword = payload.items[0].query_string;
-      payload.search_mode = 'sql';
+    if (payload.items.length === 1 && !payload.addition.length && !payload.keyword) {
+      if (payload.items[0].query_string) {
+        payload.keyword = payload.items[0].query_string;
+        payload.search_mode = 'sql';
+        payload.addition = [];
+      } else if (payload.items[0].addition) {
+        payload.addition = payload.items[0].addition;
+        payload.search_mode = 'ui';
+        payload.keyword = '';
+      }
     }
     return payload;
   }
