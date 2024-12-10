@@ -641,8 +641,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   if (isHas && opt.value === 'callee') {
                     const tips =
                       this.simpleList.length === 0
-                        ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
-                        : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`);
+                        ? this.$t('当前「{preText}」在{perAfterString}分析无调用记录', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          })
+                        : this.$t('查看当前「{preText}」在{perAfterString}分析的数据', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          });
                     return (
                       <bk-popover
                         ext-cls='caller-field-popover'
@@ -685,8 +691,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     const isClick = this.serviceList.includes(row[opt.tags[0]]);
                     const tipsData = {
                       trace: this.$t('查看关联调用链'),
-                      topo: this.$t(`跳转到「${row[intersection[0]]}」拓扑页面`),
-                      service: this.$t(`跳转到「${row[intersection[0]]}」调用分析页面`),
+                      topo: this.$t('跳转到「{intersection}」拓扑页面', {
+                        intersection: row[intersection[0]],
+                      }),
+                      service: this.$t('跳转到「{intersection}」调用分析页面', {
+                        intersection: row[intersection[0]],
+                      }),
                     };
                     return (
                       <span
