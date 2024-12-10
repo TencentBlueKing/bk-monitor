@@ -74,11 +74,11 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
         },
         {
           namespace: 'demo',
-          workload: 'Deployment:workload-1',
+          workload: 'Deployment:workload-2',
         },
         {
           namespace: 'demo',
-          workload: 'Deployment:workload-2',
+          workload: 'Deployment:workload-3',
         },
       ],
     },
