@@ -258,6 +258,11 @@ class SpaceTableIDRedis:
             tid = record["table_id"]
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
+            try:
+                storage_record = models.ESStorageClusterRecord.get_table_id_storage_cluster_records(tid)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", tid, e)
+                storage_record = []
 
             # 索引集，直接按照存储进行路由
             data[tid] = json.dumps(
@@ -268,6 +273,7 @@ class SpaceTableIDRedis:
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
+                    'storage_cluster_record': storage_record,
                 }
             )
         return data

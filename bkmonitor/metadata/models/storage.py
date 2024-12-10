@@ -31,6 +31,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
+from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
@@ -651,6 +652,38 @@ class StorageResultTable(object):
 
     def update_storage(self, **kwargs):
         """更新存储配置"""
+
+        # self.storage_type == 'elasticsearch'
+        if self.storage_type == ClusterInfo.TYPE_ES and kwargs.get("storage_cluster_id", '') != '':
+            # 当集群发生迁移时，创建ESStorageClusterRecord记录
+            last_storage_cluster_id = self.storage_cluster_id
+            new_storage_cluster_id = kwargs.get("storage_cluster_id")
+            record, _ = ESStorageClusterRecord.objects.update_or_create(
+                table_id=self.table_id,
+                cluster_id=last_storage_cluster_id,
+                defaults={
+                    "is_current": False,
+                    "end_time": django_timezone.now(),
+                },
+            )
+            logger.info(
+                "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                self.table_id,
+                record.cluster_id,
+            )
+            new_record, _ = ESStorageClusterRecord.objects.update_or_create(
+                table_id=self.table_id,
+                cluster_id=new_storage_cluster_id,
+                defaults={
+                    "is_current": True,
+                },
+            )
+            logger.info(
+                "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
+                self.table_id,
+                new_record.cluster_id,
+            )
+
         # 遍历获取所有可以更新的字段，逐一更新
         for field_name in self.UPGRADE_FIELD_CONFIG:
             # 尝试获取配置
@@ -677,6 +710,7 @@ class StorageResultTable(object):
             )
 
         self.save()
+
         logger.info("table->[{}] storage->[{}] upgrade operation success.".format(self.table_id, self.STORAGE_TYPE))
 
         return True
@@ -1959,6 +1993,19 @@ class ESStorage(models.Model, StorageResultTable):
             need_create_index=need_create_index,
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
+
+        storage_record, tag = ESStorageClusterRecord.objects.update_or_create(
+            table_id=table_id,
+            cluster_id=cluster_id,
+            defaults={
+                "is_current": True,
+            },
+        )
+        logger.info(
+            "create_table: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+            table_id,
+            storage_record.cluster_id,
+        )
 
         # 判断是否启用创建索引，默认是启用
         if enable_create_index:
@@ -4502,3 +4549,68 @@ class ArgusStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         """增加一个新的字段"""
         pass
+
+
+class ESStorageClusterRecord(models.Model):
+    """
+    采集项历史ES存储记录表
+    """
+
+    table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
+    is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
+    is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
+    creator = models.CharField(max_length=128, verbose_name="创建者")
+
+    # create_time + end_time 供查询时确认目标集群
+    # create_time -> end_time -> delete_time(完成索引清理)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="启用时间")
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="停用时间")
+    delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
+
+    @classmethod
+    def get_table_id_storage_cluster_records(cls, table_id):
+        """
+        获取指定结果表的历史存储集群记录
+        [
+            {
+                "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
+                "is_current": True,         # 是否是当前最新集群
+                "create_time": 1111111111,  # Unix 时间戳
+                "end_time": 2222222222,     # Unix 时间戳 / None
+            },
+        ]
+        """
+        logger.info(
+            "get_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
+        )
+        # 过滤出指定 table_id 且未删除的记录，按 create_time 升序排列
+        records = (
+            cls.objects.filter(table_id=table_id, is_deleted=False)
+            .order_by('create_time')
+            .values('cluster_id', 'is_current', 'create_time', 'end_time')
+        )
+
+        result = []
+        for record in records:
+            # 将 datetime 转换为 Unix 时间戳
+            create_timestamp = int(record['create_time'].timestamp())
+            end_timestamp = int(record['end_time'].timestamp()) if record['end_time'] else None
+
+            result.append(
+                {
+                    "cluster_id": record['cluster_id'],
+                    "is_current": record['is_current'],
+                    "create_time": create_timestamp,
+                    "end_time": end_timestamp,
+                }
+            )
+
+        logger.info(
+            "get_table_id_storage_cluster_records: get storage cluster records for table_id->[%s] success,"
+            "records->[%s]",
+            table_id,
+            result,
+        )
+
+        return result
