@@ -43,6 +43,8 @@ class ServiceLogHandler:
     SERVICE_MAX_SIZE = 1000
     # 通过 unifyquery 接口关联日志索引集的最大数量
     LOG_RELATION_BY_UNIFY_QUERY = 10
+    # log 默认查询语句最大 value 数量
+    LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
 
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
@@ -171,8 +173,11 @@ class ServiceLogHandler:
 
         datasource_infos = defaultdict(list)
         data_ids = set()
-        path_mapping = {SourceK8sPod.name: SourceK8sPod, SourceSystem.name: SourceSystem}
-        for path_name, path_item in path_mapping.items():
+        path_mapping = {
+            SourceK8sPod: (SourceDatasource, SourceK8sPod),
+            SourceSystem: (SourceDatasource, SourceSystem),
+        }
+        for path, path_item in path_mapping.items():
             relations = RelationQ.query(
                 RelationQ.generate_q(
                     bk_biz_id=bk_biz_id,
@@ -183,7 +188,7 @@ class ServiceLogHandler:
                     target_type=SourceDatasource,
                     start_time=start_time,
                     end_time=end_time,
-                    path_resource=[path_name],
+                    path_resource=[path],
                 )
             )
             for r in relations:
@@ -205,9 +210,10 @@ class ServiceLogHandler:
             qs += RelationQ.generate_multi_q(
                 bk_biz_id=bk_biz_id,
                 source_infos=source_infos,
-                target_type=path_item,
+                target_type=path_item[-1],
                 start_time=start_time,
                 end_time=end_time,
+                path_resource=path_item,
             )
 
         data_id_query_mapping = defaultdict(lambda: defaultdict(set))
@@ -222,9 +228,18 @@ class ServiceLogHandler:
                 bk_target_ip = source_info.get("bk_target_ip")
 
                 if pod:
-                    data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"].add(pod)
+                    if (
+                        len(data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"])
+                        >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE
+                    ):
+                        continue
+                    else:
+                        data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"].add(pod)
                 elif bk_target_ip:
-                    data_id_query_mapping[data_id]["serverIp"].add(pod)
+                    if len(data_id_query_mapping[data_id]["serverIp"]) >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE:
+                        continue
+                    else:
+                        data_id_query_mapping[data_id]["serverIp"].add(pod)
 
         @using_cache(CacheType.APM(600))
         def log_list_collectors():
