@@ -89,6 +89,11 @@ class UptimecheckCacheManager(CacheManager):
         cls.logger.info("refresh uptimecheck task finished, amount: {}".format(count))
 
     @classmethod
+    def get_task_id_list(cls):
+        all_task_id = cls.cache.get(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id="__all__")) or "[]"
+        return json.loads(all_task_id)
+
+    @classmethod
     def refresh(cls):
         cls.refresh_nodes()
         cls.refresh_tasks()
