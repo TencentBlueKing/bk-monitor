@@ -185,7 +185,7 @@ class StrategyConfigParser(BaseConfigParser):
         scenario = "other_rt"
         for origin_config in config["query"]["query_configs"]:
             # grafana类型策略处理
-            if config["query"]["data_source"] == DataSourceLabel.GRAFANA:
+            if config["query"]["data_source"] == DataSourceLabel.DASHBOARD:
                 query_configs.append(
                     {
                         "data_source_label": config["query"]["data_source"],
@@ -674,7 +674,7 @@ class StrategyConfigParser(BaseConfigParser):
         query = {"data_source": data_source, "data_type": data_type, "query_configs": []}
         for query_config in query_configs:
             # grafana类型策略处理
-            if data_source == DataSourceLabel.GRAFANA:
+            if data_source == DataSourceLabel.DASHBOARD:
                 code_query_config = {
                     "dashboard_id": query_config["dashboard_id"],
                     "panel_id": query_config["panel_id"],

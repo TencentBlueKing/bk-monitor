@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
-from typing import Dict
+from typing import Any, Dict
 
 from blueapps.utils import get_request
 from django.utils.translation import gettext_lazy as _
@@ -17,6 +17,8 @@ from rest_framework import serializers
 
 from bk_dataview.api import get_or_create_org
 from bk_dataview.permissions import GrafanaPermission, GrafanaRole
+from bkmonitor.models.strategy import QueryConfigModel, StrategyModel
+from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
 from monitor_web.grafana.auth import GrafanaAuthSync
@@ -371,3 +373,46 @@ class CopyDashboardToFolder(Resource):
             "code": result["code"],
             "data": {"imported_url": result["data"].get("importedUrl", "")},
         }
+
+
+class GetRelatedStrategy(Resource):
+    """
+    查询图表关联策略
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        dashboard_uid = serializers.CharField(label="仪表盘UID")
+        panel_id = serializers.IntegerField(label="图表ID", required=False)
+
+    def perform_request(self, params: Dict[str, Any]):
+        strategies = StrategyModel.objects.filter(
+            bk_biz_id=params["bk_biz_id"],
+            type=StrategyModel.StrategyType.Dashboard,
+        ).values("id", "name")
+
+        strategy_names = {strategy["id"]: strategy["name"] for strategy in strategies}
+
+        qcs = QueryConfigModel.objects.filter(
+            data_source_label=DataSourceLabel.DASHBOARD,
+            config__dashboard_uid=params["dashboard_uid"],
+            strategy_id__in=list(strategy_names.keys()),
+        )
+
+        if params.get("panel_id"):
+            qcs = [qc for qc in qcs if qc.config.get("panel_id") == params["panel_id"]]
+
+        result = []
+        for qc in qcs:
+            result.append(
+                {
+                    "dashboard_uid": qc.config["dashboard_uid"],
+                    "variables": qc.config["variables"],
+                    "panel_id": qc.config["panel_id"],
+                    "ref_id": qc.config["ref_id"],
+                    "strategy_id": qc.strategy_id,
+                    "strategy_name": strategy_names[qc.strategy_id],
+                }
+            )
+
+        return result

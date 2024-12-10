@@ -44,7 +44,7 @@ BkMonitorQuerySchema = Schema(
             DataSourceLabel.BK_LOG_SEARCH,
             DataSourceLabel.BK_APM,
             DataSourceLabel.PROMETHEUS,
-            DataSourceLabel.GRAFANA,
+            DataSourceLabel.DASHBOARD,
         ),
         "data_type": Or(
             DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG, DataTypeLabel.EVENT, DataTypeLabel.ALERT, DataTypeLabel.TRACE
