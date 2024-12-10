@@ -31,7 +31,7 @@ from typing import Dict, List, Union
 from zipfile import ZipFile
 
 from django.conf import settings
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.timezone import is_aware
 from django.utils.translation import ugettext as _
@@ -100,7 +100,7 @@ class DatetimeEncoder(json.JSONEncoder):
         if isinstance(obj, set):
             return list(obj)
         if isinstance(obj, Promise):
-            return force_text(obj)
+            return force_str(obj)
         if issubclass(obj.__class__, DictObj):
             return obj.__dict__
         if isinstance(obj, bytes):
