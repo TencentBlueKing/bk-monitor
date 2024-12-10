@@ -471,3 +471,12 @@ class StopCollectorsResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class ListCollectorsResource(LogSearchAPIGWResource):
+    """
+    获取采集项列表(全量)
+    """
+
+    action = "/databus_list_collectors/"
+    method = "GET"

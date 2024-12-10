@@ -63,17 +63,25 @@
       :width="700"
       :title="detailTitle"
     >
-      <pre class="log-content">
-        {{ logDetail }}
-      </pre>
+        <JsonViewer
+          class="log-content"
+          :preview-mode="true"
+          :value="logDetail"
+        />
     </bk-dialog>
   </div>
 </template>
 <script lang="ts">
 import dayjs from 'dayjs';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+import JsonViewer from 'vue-json-viewer';
 
-@Component({ name: 'strategy-view-log' })
+@Component({
+  name: 'strategy-view-log',
+  components: {
+    JsonViewer
+  }
+ })
 export default class StrategyViewLog extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
   @Prop({ default: false, type: Boolean }) private readonly isLast!: boolean;
@@ -104,7 +112,12 @@ export default class StrategyViewLog extends Vue {
     }
   }
   handleShowDetai(row) {
-    this.logDetail = row.content || row['event.content'];
+    const content = row.content || row['event.content']
+    try {
+      this.logDetail = JSON.parse(content);
+    } catch {
+      this.logDetail = content;
+    }
     this.showLogDetail = true;
   }
 
@@ -140,6 +153,14 @@ export default class StrategyViewLog extends Vue {
     word-break: break-all;
     background: #f5f6fa;
     border-radius: 2px;
+
+    &.jv-light {
+      background: #f5f6fa;
+    }
+
+    :deep(.jv-code) {
+      padding: 0;
+    }
   }
 }
 

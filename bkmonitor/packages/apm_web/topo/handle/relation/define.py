@@ -167,6 +167,17 @@ class SourceK8sService(Source):
         return self.service
 
 
+@SourceProvider.registry_source
+@dataclass
+class SourceDatasource(Source):
+    bk_data_id: str
+    name: str = SourceType.DATA_SOURCE.value
+
+    @property
+    def display_name(self):
+        return self.bk_data_id
+
+
 @dataclass
 class Node:
     source_type: str
@@ -243,4 +254,6 @@ class TreeInfo:
 @dataclass
 class Relation:
     parent_id: str
+    # source_info: 接口返回的 source_info 非结构化
+    source_info: dict
     nodes: List[Node]

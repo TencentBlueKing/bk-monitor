@@ -20,16 +20,24 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
 from metadata import models
-from metadata.models import BkBaseResultTable
+from metadata.models import BkBaseResultTable, DataSource
+from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.vm.utils import report_metadata_data_link_status_info
+from metadata.models.space.constants import SpaceTypes
+from metadata.models.vm.utils import (
+    create_fed_bkbase_data_link,
+    get_vm_cluster_id_name,
+    report_metadata_data_link_status_info,
+)
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.utils import consul_tools
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -286,6 +294,13 @@ def _manage_es_storage(es_storage):
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
         logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
+    except RetryError as e:
+        logger.error(
+            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
+                es_storage.table_id, e.__cause__
+            )
+        )
+        logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
         logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
@@ -383,8 +398,10 @@ def _access_bkdata_vm(
     if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
+        logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
+        logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
@@ -414,9 +431,22 @@ def access_bkdata_vm(
             bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
-    except Exception as e:
+    except RetryError as e:
         logger.error(
-            "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e.__cause__,
+        )
+        return
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e,
         )
         return
 
@@ -454,7 +484,85 @@ def push_space_to_redis(space_type: str, space_id: str):
     logger.info("async task push space_type: %s, space_id: %s to redis successfully", space_type, space_id)
 
 
-@app.task(ignore_result=True, queue="celery_long_task_cron")
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def bulk_check_and_delete_ds_consul_config(data_sources):
+    """
+    并发检查V4数据源对应的Consul配置是否存在，若存在则进行删除
+    @param data_sources: 待检查的数据源列表
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    start_time = time.time()  # 记录开始时间
+
+    logger.info("bulk_check_and_delete_ds_consul_config:async task start to check,len->[%s]", len(data_sources))
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(_check_and_delete_ds_consul_config, data_sources)
+
+    cost_time = time.time() - start_time  # 总耗时
+    logger.info(
+        "bulk_check_and_delete_ds_consul_config:async task check and delete ds consul config success, cost_time->[%s]",
+        cost_time,
+    )
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="bulk_check_and_delete_ds_consul_config", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+
+
+def _check_and_delete_ds_consul_config(data_source: DataSource):
+    """
+    检查V4数据源对应的Consul配置是否存在，若存在则进行删除
+    @param data_source: 待检查的数据源
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_check_and_delete_ds_consul_config", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
+    logger.info("_check_and_delete_ds_consul_config:async task start to check,data_id->[%s]", data_source.bk_data_id)
+
+    # 非V4数据源，跳过
+    if data_source.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.warning(
+            "_check_and_delete_ds_consul_config:data_source->[%s],not from bkdata,skip", data_source.bk_data_id
+        )
+        return
+
+    # 获取Consul句柄及对应的返回值
+    hash_consul = consul_tools.HashConsul()
+    index, consul_value = hash_consul.get(data_source.consul_config_path)
+
+    # 若Consul配置不存在，跳过
+    if consul_value is None:
+        logger.info(
+            "_check_and_delete_ds_consul_config:data_source->[%s],consul_config not exist,skip", data_source.bk_data_id
+        )
+        return
+
+    # 删除Consul配置
+    data_source.delete_consul_config()
+
+    cost_time = time.time() - start_time  # 总耗时
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_check_and_delete_ds_consul_config", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_check_and_delete_ds_consul_config", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+
+    logger.info("_check_and_delete_ds_consul_config:data_source->[%s],consul_config deleted", data_source.bk_data_id)
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def bulk_refresh_data_link_status(bkbase_rt_records):
     """
     并发刷新链路状态
@@ -634,3 +742,35 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         data_link_name,
         cost_time,
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def bulk_create_fed_data_link(sub_clusters):
+    from metadata.models import DataSource, DataSourceResultTable
+
+    logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
+    for sub_cluster_id in sub_clusters:
+        # 打印日志记录更新的子集群ID
+        logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
+        try:
+            sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
+            ds = DataSource.objects.get(bk_data_id=sub_cluster.K8sMetricDataID)
+            table_id = DataSourceResultTable.objects.get(bk_data_id=sub_cluster.K8sMetricDataID).table_id
+            vm_cluster = get_vm_cluster_id_name(space_type=SpaceTypes.BKCC.value, space_id=str(sub_cluster.bk_biz_id))
+
+            logger.info(
+                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
+                sub_cluster_id,
+                sub_cluster.K8sMetricDataID,
+                table_id,
+            )
+
+            create_fed_bkbase_data_link(
+                monitor_table_id=table_id,
+                data_source=ds,
+                storage_cluster_name=vm_cluster.get("cluster_name"),
+                bcs_cluster_id=sub_cluster.cluster_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            continue

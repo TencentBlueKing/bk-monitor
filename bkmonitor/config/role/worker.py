@@ -216,6 +216,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
     # 定期清理停用的ai 策略对应的flow任务(每天2点半)
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
+    # aiops sdk策略历史依赖管理
+    ("alarm_backends.service.preparation.tasks.maintain_all_aiops_sdk_depend_data", "45 * * * *", "global"),
 ]
 
 DEFAULT_CRONTAB += [
@@ -231,6 +233,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    # 检查V4数据源是否存在对应的Consul配置，若存在则删除
+    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
     # 刷新metadata降精度配置，10分钟一次
     ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
@@ -359,6 +363,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "alert": LOGGER_DEFAULT,
             "composite": LOGGER_DEFAULT,
             "recovery": LOGGER_DEFAULT,
+            "preparation": LOGGER_DEFAULT,
             "fta_action": LOGGER_DEFAULT,
             "bkmonitor": LOGGER_DEFAULT,
             "apm_ebpf": LOGGER_DEFAULT,

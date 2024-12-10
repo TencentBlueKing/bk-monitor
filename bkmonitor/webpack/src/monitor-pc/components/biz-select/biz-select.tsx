@@ -398,7 +398,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       } else {
         (top as any).BLUEKING.api.open_app_by_other('bk_iam', data.apply_url);
       }
-    } catch (_) {
+    } catch {
       // 防止跨域问题
       window.open(data.apply_url, '_blank');
     }
@@ -421,17 +421,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
    * @description: 跳转demo业务
    */
   handleToDemo() {
-    if (this.demo?.id) {
-      if (+this.$store.getters.bizId === +this.demo.id) {
-        location.reload();
-      } else {
-        /** 切换为demo业务 */
-        this.$store.commit('app/handleChangeBizId', {
-          bizId: this.demo.id,
-          ctx: this,
-        });
-      }
-    }
+    this.handleBizChange(this.demo.id);
   }
 
   handleContentMouseDown(e: MouseEvent) {

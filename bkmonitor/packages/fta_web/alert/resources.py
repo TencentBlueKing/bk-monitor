@@ -89,7 +89,7 @@ from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
-from fta_web.alert.handlers.base import BaseQueryHandler
+from fta_web.alert.handlers.base import BaseQueryHandler, query_cache
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -102,13 +102,11 @@ from fta_web.alert.serializers import (
     EventSearchSerializer,
 )
 from fta_web.alert.utils import (
-    add_aggs,
-    add_overview,
-    get_previous_month_range_unix,
-    slice_time_interval,
-    get_previous_week_range_unix,
     generate_date_ranges,
     get_day_range_unix,
+    get_previous_month_range_unix,
+    get_previous_week_range_unix,
+    slice_time_interval,
 )
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
@@ -127,68 +125,80 @@ from monitor_web.models import CustomEventGroup
 logger = logging.getLogger("root")
 
 
-class GetFtaData(Resource):
+class GetFourMetricsData(Resource):
+    """
+    4线策略告警统计
+    在线： 在线 或 online
+    登录： 登录 或 登陆 或 login
+    注册： 注册 或 registation 或 reg
+    对局： 对局 或 排队 或 battle 或 bat
+    """
 
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
         thedate = validated_request_data.get("thedate", None)
-        # 获取日期
+        biz_ids = validated_request_data.get("biz_ids", "")
         biz_list = api.cmdb.get_business()
-        target_biz_ids = []
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
         # 如果有预期的业务 id 则取预期的业务内容
         if target_biz_ids:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
         else:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list}
-    
+
         if not thedate:
-            # 如果没有传入指定日期 则获取上一周的日期
+            # 获取日期
+            # 如果没有传入指定日期 则获取上一周的日期 四线以每周计
             start_time, end_time = get_previous_week_range_unix()
         else:
-            start_time, end_time = get_day_range_unix()
-        
+            start_time, end_time = get_day_range_unix(thedate)
+
         ret = []
-        scenario = constants.QuickSolutionsConfig.SCENARIO
+        scenario = constants.SCENARIO
         # 日期为第一层 再分业务获取对应的告警数量
         for day_start, day_end in generate_date_ranges(start_time, end_time):
-                # 初始化存储映射 告警名称/业务
-                scenario_totals = {scenario_name: {biz: 0 for biz in biz_info} for scenario_name in scenario.keys()}
-                for scenario_name, scenario_list in scenario.items():
-                    page, page_size, fetched, total = 1, 1000, 0, 1
-                    # 分页处理
-                    conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
-                    # 将生成的条件括在括号内
-                    query_string = f'({conditions})'
-                    # 查询条件
-                    while fetched < total:
-                        request_body = {
-                            "bk_biz_ids": list(biz_info.keys()),
-                            "status": [],
-                            "conditions": [],
-                            "query_string": query_string,
-                            "start_time": int(day_start.timestamp()),
-                            "end_time": int(day_end.timestamp()),
-                            "page": page,
-                            "page_size": page_size,
-                        }
-                        handler = AlertQueryHandler(**request_body)
-                        result = handler.search()
-                        total = result['total']
-                        fetched += len(result['alerts'])
-                        page += 1
-                        # 更新结果总数 供后面判断
-                        for alert in result['alerts']:
-                            scenario_totals[scenario_name][alert['bk_biz_id']] += 1
-                            # 日期 业务 告警指标
-                for biz_id, biz in biz_info.items():
-                    # 最后按业务插入当天的告警数据统计
-                    ret.append({
+            # 初始化存储映射 告警名称/业务
+            scenario_totals = {scenario_name: {biz: 0 for biz in biz_info} for scenario_name in scenario.keys()}
+            for scenario_name, scenario_list in scenario.items():
+                page, page_size, fetched, total = 1, 1000, 0, 1
+                # 分页处理
+                conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
+                # 将生成的条件括在括号内
+                query_string = f'({conditions})'
+                # 查询条件
+                while fetched < total:
+                    request_body = {
+                        "bk_biz_ids": list(biz_info.keys()),
+                        "status": [],
+                        "conditions": [],
+                        "query_string": query_string,
+                        "start_time": int(day_start.timestamp()),
+                        "end_time": int(day_end.timestamp()),
+                        "page": page,
+                        "page_size": page_size,
+                    }
+                    handler = AlertQueryHandler(**request_body)
+                    result = handler.search()
+                    total = result['total']
+                    fetched += len(result['alerts'])
+                    page += 1
+                    # 更新结果总数 供后面判断
+                    for alert in result['alerts']:
+                        scenario_totals[scenario_name][alert['bk_biz_id']] += 1
+                        # 日期 业务 告警指标
+            for biz_id, biz in biz_info.items():
+                # 最后按业务插入当天的告警数据统计
+                ret.append(
+                    {
                         "日期": day_start.date(),
                         "业务": biz.display_name,
-                        **{scenario_name: scenario_totals[scenario_name].get(biz_id, 0) for scenario_name in scenario.keys()}
-                    })
+                        **{
+                            scenario_name: scenario_totals[scenario_name].get(biz_id, 0)
+                            for scenario_name in scenario.keys()
+                        },
+                    }
+                )
         if results_format == "file":
-            
             timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
             filename = f"data_{timestamp}.csv"
             output = StringIO()
@@ -207,21 +217,46 @@ class GetFtaData(Resource):
         else:
             return ret
 
+
 class GetTmpData(Resource):
+    """
+    tmp来源告警占比统计
+    """
+
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
         start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
             "end_time", None
         )
+        biz_ids = validated_request_data.get("biz_ids", "")
+        thedate = validated_request_data.get("thedate", None)
+
+        # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
+        if not thedate:
+            start_time, end_time = get_previous_month_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix(thedate)
         biz_list = api.cmdb.get_business()
-        target_biz_ids = []
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
+        # 检查是否有传入目标业务列表 如果没有 则走事件中心先查询有 tmp 告警来源的业务
         if target_biz_ids:
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
         else:
-            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
-        # 如果都没未指定时间，则默认为上一个月 且必须以 unix 时间传入为准
-        if not start_time and not end_time:
-            start_time, end_time = get_previous_month_range_unix()
+            tmp_biz_params = {
+                'bk_biz_ids': [-1],
+                'status': [],
+                'conditions': [],
+                'query_string': "",
+                'start_time': start_time,
+                'end_time': end_time,
+                'fields': ['bk_biz_id'],
+                'size': 100,
+                'bk_biz_id': -4228445,
+            }
+            biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
+            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数
+            # 考虑到还要根据过滤条件 符合的其实更少
 
         ret = {}
         results = []
@@ -230,7 +265,7 @@ class GetTmpData(Resource):
             params = {
                 'bk_biz_ids': [biz],
                 'status': [],
-                'conditions': constants.QuickSolutionsConfig.CONDITIONS_REQ,
+                'conditions': constants.CONDITIONS_REQ,
                 'query_string': "",
                 'start_time': start_time,
                 'end_time': end_time,
@@ -259,7 +294,7 @@ class GetTmpData(Resource):
             # 在内存读写文件 避免污染 Pod 的 OS 文件
             output.write('\ufeff')
             # 写入 utf-8 bom 避免纯文本乱码
-            fieldnames = constants.QuickSolutionsConfig.TMP_HEADERS
+            fieldnames = constants.TMP_HEADERS
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             for row in results:
@@ -272,9 +307,9 @@ class GetTmpData(Resource):
             return results
 
 
-class GetFtaStrategy(Resource):
+class GetFourMetricsStrategy(Resource):
     """
-    游戏业务下统计业务相关策略数据接口
+    游戏业务下四线统计 业务相关策略数据接口
     """
 
     def perform_request(self, validated_request_data):
@@ -287,7 +322,7 @@ class GetFtaStrategy(Resource):
         # 策略业务统计
         results_format = validated_request_data.get("results", "json")
         biz_list = api.cmdb.get_business()
-        scenario = constants.QuickSolutionsConfig.SCENARIO
+        scenario = constants.SCENARIO
         to_be_deleted = set()
         Biz = namedtuple("Biz", ["name", "info"])
         biz_map = {biz.bk_biz_id: Biz(biz.display_name, defaultdict(int)) for biz in biz_list if biz.bk_biz_id > 0}
@@ -545,6 +580,7 @@ class AlertDateHistogramResource(Resource):
                 for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
             ]
         )
+        query_cache.clear()
 
         data = {status: {} for status in EVENT_STATUS_DICT}
         for result in results:
@@ -1826,6 +1862,7 @@ class AlertTopNResource(Resource):
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
+        query_cache.clear()
 
         result = {
             "doc_count": 0,
@@ -1988,8 +2025,9 @@ class StrategySnapshotResource(Resource):
                 changed_status = self.ConfigChangedStatus.UPDATED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
-            # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
-            strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
+            if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):
+                # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
+                strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
 
         strategy_config.update(strategy_status=changed_status)
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
@@ -2318,11 +2356,9 @@ class MetricRecommendationResource(AIOpsBaseResource):
                 ]
             except KeyError:
                 recommend_panel["feedback"] = {
-                    {
-                        "good": 0,
-                        "bad": 0,
-                        "self": None,
-                    }
+                    "good": 0,
+                    "bad": 0,
+                    "self": None,
                 }
 
         return result

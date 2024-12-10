@@ -24,6 +24,7 @@ import xxhash
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Model, QuerySet
+from django.utils import timezone
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -89,6 +90,7 @@ from bkmonitor.strategy.serializers import (
 from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
+from constants.aiops import SDKDetectStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
     DATALINK_SOURCE,
@@ -623,6 +625,55 @@ class BaseActionRelation(AbstractConfig):
             setattr(action_relation, key, value)
         action_relation.save()
 
+    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig] = None):
+        """
+        根据配置新建或更新关联记录,循环结束后批量创建或更新
+        """
+        action_relations = relations.get(self.strategy_id, [])
+        username = get_global_user() or "unknown"
+        for action_relation in action_relations:
+            if self.id == action_relation.id:
+                action_relation.config_id = self.config_id
+                action_relation.user_groups = self.user_groups
+                action_relation.user_type = self.user_type
+                action_relation.signal = self.signal
+                action_relation.options = self.options
+                action_relation.relate_type = self.RELATE_TYPE
+                action_relation.update_user = username
+                action_relation.update_time = timezone.now()
+
+                return {
+                    "update_data": [
+                        {
+                            "cls": RelationModel,
+                            "keys": [
+                                "config_id",
+                                "user_groups",
+                                "user_type",
+                                "signal",
+                                "options",
+                                "relate_type",
+                                "update_user",
+                                "update_time",
+                            ],
+                            "objs": [action_relation],
+                        }
+                    ]
+                }
+        else:
+            new_relation = RelationModel(
+                strategy_id=self.strategy_id,
+                config_id=self.config_id,
+                relate_type=self.RELATE_TYPE,
+                signal=self.signal,
+                user_groups=self.user_groups,
+                options=self.options,
+                create_user=username,
+                create_time=timezone.now(),
+            )
+
+            return {"create_data": [{"cls": RelationModel, "objs": [new_relation]}]}
+
     @classmethod
     def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
         """
@@ -762,6 +813,59 @@ class NoticeRelation(BaseActionRelation):
         self.config_id = action_config.id
 
         return super(NoticeRelation, self).save()
+
+    def bulk_save(self, relations: Dict[int, List[RelationModel]], action_configs: Dict[int, ActionConfig]):
+        """
+        根据配置新建或更新关联记录,循环结束后批量创建或更新
+        """
+        action_relations = relations.get(self.strategy_id, [])
+        create_or_update_datas = {"create_data": [], "update_data": []}
+        username = get_global_user() or "unknown"
+        for action_relation in action_relations:
+            if self.id == action_relation.id:
+                config_id = action_relation.config_id
+                action_config = action_configs.get(config_id)
+                if action_config:
+                    action_config.name = _("告警通知")
+                    action_config.desc = _("通知套餐，策略ID: {}").format(self.strategy_id)
+                    action_config.bk_biz_id = 0
+                    action_config.plugin_id = ActionConfig.NOTICE_PLUGIN_ID
+                    action_config.execute_config = {"template_detail": self.config}
+                    action_config.update_user = username
+                    action_config.update_time = timezone.now()
+                    create_or_update_datas["update_data"].append(
+                        {
+                            "cls": ActionConfig,
+                            "keys": [
+                                "name",
+                                "desc",
+                                "bk_biz_id",
+                                "plugin_id",
+                                "execute_config",
+                                "update_user",
+                                "update_time",
+                            ],
+                            "objs": [action_config],
+                        }
+                    )
+                    break
+        else:
+            action_config = ActionConfig(
+                name=_("告警通知"),
+                desc=_("通知套餐，策略ID: {}").format(self.strategy_id),
+                bk_biz_id=0,
+                plugin_id=ActionConfig.NOTICE_PLUGIN_ID,
+                execute_config={"template_detail": self.config},
+                create_user=username,
+                create_time=timezone.now(),
+            )
+            create_or_update_datas["create_data"].append({"cls": ActionConfig, "objs": [action_config]})
+
+        parent_data = super(NoticeRelation, self).bulk_save(relations)
+        create_or_update_datas["create_data"].extend(parent_data.get("create_data", []))
+        create_or_update_datas["update_data"].extend(parent_data.get("update_data", []))
+
+        return create_or_update_datas
 
     @classmethod
     def from_models(cls, relations: List["RelationModel"], action_configs: Dict[int, "ActionConfig"]):
@@ -2151,6 +2255,21 @@ class Strategy(AbstractConfig):
         self.notice.save()
 
     @transaction.atomic
+    def bulk_save_notice(self, relations, action_configs):
+        """保存actions配置,循环结束后批量创建或更新."""
+        self.reuse_exists_records(
+            RelationModel,
+            relations.get(self.id),
+            [self.notice],
+            NoticeRelation,
+        )
+
+        # 保存子配置
+        create_or_update_datas = self.notice.bulk_save(relations, action_configs)
+
+        return create_or_update_datas
+
+    @transaction.atomic
     def save(self, rollback=False):
         """
         保存策略配置
@@ -2291,20 +2410,18 @@ class Strategy(AbstractConfig):
         if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
             return
 
-        # 4.2 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
-        if not query_config.result_table_id:
-            raise Exception(_("当前指标暂不支持智能监控策略"))
-
-        # 4.3 标记是否需要接入智能检测算法，默认False表示不接入
+        # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
         need_access = False
-        # 4.3.1 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
-        if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
-            for condition in query_config.agg_condition:
-                if condition["method"] in AdvanceConditionMethod:
-                    raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
-            need_access = True
+        # 4.3.1 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
+        if query_config.result_table_id:
+            # 4.3.2 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
+            if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
+                for condition in query_config.agg_condition:
+                    if condition["method"] in AdvanceConditionMethod:
+                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
+                need_access = True
 
-        # 4.3.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
+        # 4.3.3 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
         if query_config.data_source_label == DataSourceLabel.BK_DATA:
             # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
             if algorithm in (set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)):
@@ -2318,9 +2435,9 @@ class Strategy(AbstractConfig):
                 )
 
         # 4.4 接入智能检测算法
+        intelligent_detect = getattr(query_config, "intelligent_detect", {})
         if need_access:
             # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
-            intelligent_detect = getattr(query_config, "intelligent_detect", {})
             intelligent_detect["status"] = AccessStatus.PENDING
             intelligent_detect["retries"] = 0
             intelligent_detect["message"] = ""
@@ -2331,9 +2448,12 @@ class Strategy(AbstractConfig):
                 access_func = get_aiops_access_func(algorithm)
                 task = access_func.delay(self.id)
                 intelligent_detect["task_id"] = task.id
+        else:
+            intelligent_detect["use_sdk"] = True
+            intelligent_detect["status"] = SDKDetectStatus.PREPARING
 
-            query_config.intelligent_detect = intelligent_detect
-            query_config.save()
+        query_config.intelligent_detect = intelligent_detect
+        query_config.save()
 
     @classmethod
     def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):

@@ -1,0 +1,129 @@
+/* stylelint-disable declaration-no-important */
+@import 'monitor-pc/pages/monitor-k8s/components/common-status/common-status.scss';
+
+@mixin wraps {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 3px 4px;
+  background: #f0f1f5;
+  border-radius: 4px;
+
+  @include common-status-icon;
+
+  .status-tab-item {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 6px;
+    overflow: initial!important;
+    cursor: pointer;
+    border-radius: 4px;
+
+    .status-name {
+      display: inline-block;
+      text-align: center;
+    }
+
+    &:not(:last-of-type) {
+      position: relative;
+      margin-right: 9px;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        right: -5px;
+        width: 1px;
+        height: 14px;
+        content: '';
+        background-color: #dcdee5;
+        transform: translateY(-50%);
+      }
+    }
+
+    &.active {
+      color: #3a84ff;
+      background-color: #fff;
+    }
+
+    .icon-monitor {
+      font-size: 14px;
+    }
+  }
+}
+
+.more-status-tab-wrap {
+  position: relative;
+  @include wraps();
+
+  .status-dropdown-list {
+    display: flex;
+    flex-direction: column;
+
+    .down-status-name {
+      display: flex;
+      align-items: center;
+      min-width: 58px;
+      height: 32px;
+      padding: 0 12px;
+
+      &:hover {
+        cursor: pointer;
+        background: #F5F7FA;
+      }
+    }
+  }
+
+  .status-more-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 4px 0 8px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .icon-arrow-down {
+      font-size: 20px;
+      line-height: 12px;
+    }
+
+    &.more-show {
+      background: #fff;
+
+      .more-text {
+        color: #3A84FF;
+      }
+
+      .icon-arrow-down {
+        transform: rotate(180deg);
+      }
+    }
+
+    &.active {
+      background: #fff;
+
+      .more-text {
+        color: #3A84FF;
+      }
+    }
+  }
+
+  .bk-dropdown-menu {
+    height: 100%;
+
+    .bk-dropdown-trigger {
+      height: 100%;
+    }
+  }
+}
+
+.more-status-tab-wrap-visible {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  overflow: visible;
+  @include wraps();
+}

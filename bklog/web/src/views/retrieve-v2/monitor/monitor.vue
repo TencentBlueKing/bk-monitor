@@ -26,7 +26,7 @@
 
 <script setup>
 window.__IS_MONITOR_APM__ = true;
-import { computed, ref, watch, defineProps, onMounted } from 'vue';
+import { computed, ref, watch, defineProps, onMounted, provide } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -58,8 +58,14 @@ const props = defineProps({
   refleshImmediate: {
     type: String,
     default: ''
+  },
+  handleChartDataZoom: {
+    type: Function,
+    default: null
   }
 });
+
+provide('handleChartDataZoom', props.handleChartDataZoom)
 
 const store = useStore();
 const router = useRouter();
@@ -119,7 +125,7 @@ const getApmIndexSetList = async () => {
 const getIndexSetList = () => {
   if(!props.indexSetApi) return
   getApmIndexSetList().then(res => {
-    if(!res.length) return
+    if(!res?.length) return
     // 拉取完毕根据当前路由参数回填默认选中索引集
     store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
       store.dispatch('requestIndexSetFieldInfo').then(() => {
