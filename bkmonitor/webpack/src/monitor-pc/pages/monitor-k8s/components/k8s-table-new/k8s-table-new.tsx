@@ -79,7 +79,7 @@ export type K8sTableRow = Pick<ITableItemMap, 'datapoints'>['datapoints'] | Reco
 
 export interface K8sTableSort {
   prop: K8sTableColumnKeysEnum.CPU | K8sTableColumnKeysEnum.INTERNAL_MEMORY | null;
-  sort: 'ascending' | 'descending' | null;
+  order: 'ascending' | 'descending' | null;
 }
 
 export interface K8sTableClickEvent {
@@ -164,8 +164,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   };
   /** 表格列排序配置 */
   sortContainer = {
-    prop: null,
-    sort: null,
+    prop: K8sTableColumnKeysEnum.CPU,
+    order: 'descending',
   };
   /** 接口返回表格数据 */
   tableData: any = {
@@ -194,25 +194,34 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.activeTab === K8sNewTabEnum.LIST;
   }
 
-  get tableColumnsConfig() {
+  get tableColumns() {
     const map = this.getKeyToTableColumnsMap();
     const columns: K8sTableColumn[] = [];
-    const iterationTarget = this.isListTab ? this.groupInstance?.groupFilters : tabToTableDetailColumnDynamicKeys;
+    let iterationTarget = tabToTableDetailColumnDynamicKeys;
+    if (this.isListTab) {
+      iterationTarget = [...this.groupInstance.groupFilters].reverse();
+    }
     const addColumn = (arr, targetArr = []) => {
       for (const key of targetArr) {
-        if (map[key]) {
-          arr.push(map[key]);
+        const column = map[key];
+        if (column) {
+          const groupDimensions = this.groupInstance.dimensions;
+          // 维度值不重复的维度不展示筛选 icon
+          if (this.isListTab && column.id === groupDimensions[groupDimensions.length - 1]) {
+            column.k8s_filter = false;
+          }
+          arr.push(column);
         }
       }
     };
     addColumn(columns, iterationTarget);
     addColumn(columns, tabToTableDetailColumnFixedKeys);
-    return { map, columns };
+    return columns;
   }
 
   /** 缩略图分组Id枚举 */
   get chartGroupIdsMap() {
-    return this.tableColumnsConfig.columns.reduce((acc, cur, ind) => {
+    return this.tableColumns.reduce((acc, cur, ind) => {
       if (cur.type === K8sTableColumnTypeEnum.DATA_CHART) {
         if (acc[cur.id]) disconnect(acc[cur.id]);
         acc[cur.id] = `${random(8)}_${ind}`;
@@ -274,6 +283,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
         k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
       },
       [WORKLOAD_TYPE]: {
         id: WORKLOAD_TYPE,
@@ -308,6 +318,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 120,
+        k8s_filter: this.isListTab,
+        k8s_group: this.isListTab,
       },
       [CPU]: {
         id: CPU,
@@ -315,6 +327,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: 'custom',
         type: K8sTableColumnTypeEnum.DATA_CHART,
         min_width: 180,
+        asyncable: true,
       },
       [INTERNAL_MEMORY]: {
         id: INTERNAL_MEMORY,
@@ -322,6 +335,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: 'custom',
         type: K8sTableColumnTypeEnum.DATA_CHART,
         min_width: 180,
+        asyncable: true,
       },
     };
   }
@@ -365,7 +379,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       page_type: this.pagination.pageType,
     })
       .then(res => {
-        const asyncColumns: K8sTableColumn[] = (this.tableColumnsConfig?.columns || []).filter(col =>
+        const asyncColumns: K8sTableColumn[] = (this.tableColumns || []).filter(col =>
           // @ts-ignore
           Object.hasOwn(col, 'asyncable')
         );
@@ -590,11 +604,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   datapointsFormatter(column: K8sTableColumn) {
     return (row: K8sTableRow) => {
-      const value = row[column.id] as Pick<ITableItemMap, 'datapoints'>['datapoints'] & { loading: boolean };
-      if (!value?.datapoints?.length) {
-        return '--';
+      const value = row[column.id] as Pick<ITableItemMap, 'datapoints'>['datapoints'];
+      if (!value?.datapoints) {
+        return (
+          <img
+            class='loading-svg'
+            alt=''
+            src={loadingIcon}
+          />
+        );
       }
-      return !(column.asyncable && value.loading) ? (
+      return !value?.datapoints.length ? (
         <MiniTimeSeries
           data={value.datapoints || []}
           disableHover={true}
@@ -605,11 +625,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           valueTitle={value.valueTitle}
         />
       ) : (
-        <img
-          class='loading-svg'
-          alt=''
-          src={loadingIcon}
-        />
+        '--'
       );
     };
   }
@@ -634,6 +650,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         prop={column.id}
         resizable={typeof column.resizable === 'boolean' ? column.resizable : true}
         show-overflow-tooltip={false}
+        sort-orders={['ascending', 'descending']}
         sortable={column.sortable}
       />
     );
@@ -655,11 +672,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             placement: 'right',
           }}
           data={this.tableData.items}
+          default-sort={this.sortContainer}
           size='small'
           on-scroll-end={this.handleTableScrollEnd}
           on-sort-change={val => this.handleSortChange(val as K8sTableSort)}
         >
-          {this.tableColumnsConfig.columns.map(column => this.transformColumn(column))}
+          {this.tableColumns.map(column => this.transformColumn(column))}
           <EmptyStatus
             slot='empty'
             textMap={{

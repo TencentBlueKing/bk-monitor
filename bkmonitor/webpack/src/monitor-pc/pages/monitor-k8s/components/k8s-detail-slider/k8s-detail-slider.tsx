@@ -23,16 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import CommonDetail from '../common-detail';
 import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
+import { sliderMockData } from '../k8s-table-new/utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import type { IFilterByItem } from '../filter-by-condition/utils';
 import type { K8sTableFilterByEvent } from '../k8s-table-new/k8s-table-new';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-detail-slider.scss';
 
@@ -68,7 +72,28 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
   @Prop({ type: Number }) activeRowIndex: number;
   @Prop({ type: Object }) activeTitle: K8sDetailSliderActiveTitle;
+  @ProvideReactive() viewOptions: IViewOptions = {
+    filters: {},
+    variables: {
+      ...sliderMockData,
+    },
+  };
 
+  // TODO 测试数据
+  panel = new PanelModel({
+    targets: [
+      {
+        datasource: 'info',
+        dataType: 'info',
+        api: 'scene_view.getKubernetesPod',
+        data: {
+          bcs_cluster_id: '$bcs_cluster_id',
+          namespace: '$namespace',
+          pod_name: '$pod_name',
+        },
+      },
+    ],
+  });
   loading = false;
   popoverInstance = null;
 
@@ -175,7 +200,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
             collapse={false}
             maxWidth={500}
             needShrinkBtn={false}
-            panel={null}
+            panel={this.panel}
             placement={'right'}
             selectorPanelType={''}
             startPlacement={'left'}
