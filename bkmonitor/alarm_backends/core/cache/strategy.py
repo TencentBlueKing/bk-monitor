@@ -1428,7 +1428,7 @@ def main():
     StrategyCacheManager.refresh()
 
 
-def sync_aiops_strategy_signal(strategy_id, signal, update_time):
+def sync_aiops_strategy_signal(signal, strategy_id, update_time):
     """
     推送策略变更信号至rabbitmq
     {
