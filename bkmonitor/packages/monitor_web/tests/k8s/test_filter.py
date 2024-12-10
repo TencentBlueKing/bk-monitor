@@ -35,7 +35,11 @@ from monitor_web.k8s.core.meta import (
     NameSpace,
     load_resource_meta,
 )
-from monitor_web.k8s.resources import GetResourceDetail, ListK8SResources
+from monitor_web.k8s.resources import (
+    GetResourceDetail,
+    ListK8SResources,
+    WorkloadOverview,
+)
 
 
 class TestFilter(TestCase):
@@ -192,7 +196,7 @@ class TestGetResourcesDetail(TestCase):
             datetime.utcnow().replace(tzinfo=timezone.utc) - datetime.utcnow().replace(tzinfo=timezone.utc)
         )
         result = GetResourceDetail()(validated_request_data)
-        except_data = [
+        expect_data = [
             {
                 "key": "name",
                 "name": "Pod名称",
@@ -327,7 +331,7 @@ class TestGetResourcesDetail(TestCase):
             {"key": "images", "name": "镜像", "type": "list", "value": [""]},
         ]
 
-        self.assertEqual(result, except_data)
+        self.assertEqual(result, expect_data)
 
     def test_with_workload(self):
         validated_request_data = {
@@ -343,7 +347,7 @@ class TestGetResourcesDetail(TestCase):
         )
         result = GetResourceDetail()(validated_request_data)
 
-        except_data = [
+        expect_data = [
             {
                 "key": "name",
                 "name": "工作负载名称",
@@ -393,7 +397,7 @@ class TestGetResourcesDetail(TestCase):
             {"key": "resources", "name": "资源", "type": "kv", "value": []},
             {"key": "age", "name": "存活时间", "type": "string", "value": age},
         ]
-        self.assertEqual(result, except_data)
+        self.assertEqual(result, expect_data)
 
     def test_with_container(self):
         validated_request_data = {
@@ -409,7 +413,7 @@ class TestGetResourcesDetail(TestCase):
         )
         result = GetResourceDetail()(validated_request_data)
 
-        except_data = [
+        expect_data = [
             {
                 "key": "name",
                 "name": "容器名称",
@@ -491,7 +495,96 @@ class TestGetResourcesDetail(TestCase):
             },
             {"key": "age", "name": "存活时间", "type": "string", "value": age},
         ]
-        self.assertEqual(result, except_data)
+        self.assertEqual(result, expect_data)
+
+
+class TestWorkloadOverview(TestCase):
+    databases = {"default", "monitor_api"}
+
+    def setUp(self):
+        """设置数据库初始化对象用"""
+        self.create_workloads()
+
+    def create_workloads(self):
+        workload_info = [
+            ["blueking", "Deployments", "bk-gateway-esb"],
+            ["bkmonitor", "StatefulSets", "bk-monitor-api-status-1"],
+            ["bkmonitor", "StatefulSets", "bk-monitor-api-status-2"],
+            ["blueking", "StatefulSets", "bk-monitor-api-runing-1"],
+            ["blueking", "StatefulSets", "bk-monitor-api-runing-2"],
+            ["bkmonitor", "DaemonSets", "bk-monitor-daemon"],
+            ["bkmonitor", "Jobs", "bk-monitor-jobs-1"],
+            ["blueking", "Jobs", "bk-monitor-jobs-2"],
+            ["bkmonitor", "CronJobs", "bk-monitor-cron"],
+        ]
+        for info in workload_info:
+            BCSWorkload(
+                bk_biz_id=2,
+                bcs_cluster_id="BCS-K8S-00000",
+                namespace=info[0],
+                type=info[1],
+                name=info[2],
+                created_at=timezone.now(),
+                last_synced_at=timezone.now(),
+                pod_count=0,
+            ).save()
+
+    def test_workload_overview(self):
+        """
+        测试获取工作负载的类型以及对应的类型
+        测试内容：
+        1. 没有 namespace, query_string 时，全量的数据
+        2. 只有namespace， 时的数据
+        3. 只有 query_string 时的数据
+        """
+
+        validated_request_data = {"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000"}
+        # 1. 测试 获取全量数据
+        actual_result = WorkloadOverview()(validated_request_data)
+        expect_result = [
+            ["Deployments", 1],
+            ["StatefulSets", 4],
+            ["DaemonSets", 1],
+            ["Jobs", 2],
+            ["CronJobs", 1],
+        ]
+        self.assertEqual(expect_result, actual_result)
+
+        # 2. 测试 指定 namespace 的数据
+        request_data = {**validated_request_data, "namespace": "bkmonitor"}
+        actual_result = WorkloadOverview()(request_data)
+        expect_result = [
+            ["Deployments", 0],
+            ["StatefulSets", 2],
+            ["DaemonSets", 1],
+            ["Jobs", 1],
+            ["CronJobs", 1],
+        ]
+        self.assertEqual(expect_result, actual_result)
+
+        # 3. 测试 模糊 query_string 的数据
+        request_data = {**validated_request_data, "query_string": "monitor"}
+        actual_result = WorkloadOverview()(request_data)
+        expect_result = [
+            ["Deployments", 0],
+            ["StatefulSets", 4],
+            ["DaemonSets", 1],
+            ["Jobs", 2],
+            ["CronJobs", 1],
+        ]
+        self.assertEqual(expect_result, actual_result)
+
+        # 4. 测试 namespace + query_string
+        request_data = {**validated_request_data, "query_string": "monitor", "namespace": "blueking"}
+        actual_result = WorkloadOverview()(request_data)
+        expect_result = [
+            ["Deployments", 0],
+            ["StatefulSets", 2],
+            ["DaemonSets", 0],
+            ["Jobs", 1],
+            ["CronJobs", 0],
+        ]
+        self.assertEqual(expect_result, actual_result)
 
 
 class TestK8sListResources(TestCase):
