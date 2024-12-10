@@ -55,14 +55,14 @@ def create_or_delete_records(mocker):
         version="5.x",
     )
     models.ESStorageClusterRecord.objects.create(
-        table_id='1001_bklog.stdout', cluster_id=11, is_current=True, create_time=base_time - timedelta(days=30)
+        table_id='1001_bklog.stdout', cluster_id=11, is_current=True, enable_time=base_time - timedelta(days=30)
     )
     models.ESStorageClusterRecord.objects.create(
         table_id='1001_bklog.stdout',
         cluster_id=12,
         is_current=False,
-        create_time=base_time - timedelta(days=60),
-        end_time=base_time - timedelta(days=30),
+        enable_time=base_time - timedelta(days=60),
+        disable_time=base_time - timedelta(days=30),
     )
 
     yield
@@ -76,8 +76,11 @@ def create_or_delete_records(mocker):
 def test_compose_es_table_id_detail_v2(create_or_delete_records):
     client = SpaceTableIDRedis()
 
-    timestamp = int(
-        models.ESStorageClusterRecord.objects.get(cluster_id=11, table_id='1001_bklog.stdout').create_time.timestamp()
+    enable_timestamp = int(
+        models.ESStorageClusterRecord.objects.get(cluster_id=11, table_id='1001_bklog.stdout').enable_time.timestamp()
+    )
+    enable_timestamp_12 = int(
+        models.ESStorageClusterRecord.objects.get(cluster_id=12, table_id='1001_bklog.stdout').enable_time.timestamp()
     )
     data = client._compose_es_table_id_detail(table_id_list=['1001_bklog.stdout'])
     # 构建 expected
@@ -89,8 +92,8 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "options": {},
         "storage_type": "elasticsearch",
         "storage_cluster_record": [
-            {"cluster_id": 11, "is_current": True, "create_time": timestamp, "end_time": None},
-            {"cluster_id": 12, "is_current": False, "create_time": timestamp, "end_time": 1575244800},
+            {"storage_id": 11, "enable_time": enable_timestamp},
+            {"storage_id": 12, "enable_time": enable_timestamp_12},
         ],
     }
     expected = {'1001_bklog.stdout': json.dumps(expected_json)}
