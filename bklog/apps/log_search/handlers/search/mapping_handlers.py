@@ -852,6 +852,7 @@ class MappingHandlers(object):
                 for alias_name, info in alias_dict.items():
                     if a_field_name == info.get("path"):
                         _field["query_alias"] = alias_name
+
                 # 别名字段
                 if _field.get("field_type") == "alias":
                     remove_field_list.append(_field)
