@@ -227,7 +227,7 @@ export default class AiWhale extends tsc<{
   getDefaultMessage() {
     return [
       {
-        content: window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。'),
+        content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>例如：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
         role: RoleType.Assistant,
       },
     ];
@@ -553,7 +553,6 @@ export default class AiWhale extends tsc<{
         'Source-App': window.source_app,
       }
     );
-    console.log('trigger send', message);
   }
   handleAiBluekingStop() {
     this.chatHelper.stop(this.chartId);
@@ -567,6 +566,11 @@ export default class AiWhale extends tsc<{
   handleToggleAiBlueking() {
     this.showAIBlueking = !this.showAIBlueking;
     // this.startPosition.left = this.whalePosition.left +;
+  }
+  handleAiBluekingClick(v: string) {
+    const data = JSON.parse(v);
+    if (data?.type !== 'send') return;
+    this.handleAiBluekingSend(data);
   }
   createAIContent() {
     const countSpan = count => {
@@ -817,6 +821,7 @@ export default class AiWhale extends tsc<{
         shortcuts={DEFAULT_SHORTCUTS}
         size-limit={this.sizeLimit}
         start-position={this.startPosition}
+        on-ai-click={this.handleAiBluekingClick}
         onChoose-prompt={this.handleAiBluekingChoosePrompt}
         onClear={this.handleAiBluekingClear}
         onClose={this.handleAiBluekingClose}
