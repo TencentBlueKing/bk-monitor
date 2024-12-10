@@ -19,7 +19,9 @@
                         "apm_app_name": "$app_name",
                         "apm_service_name": "$service_name"
                     },
-                    "fields": {"custom_metric_filters": "custom_metric_filters"}
+                    "fields": {
+                        "custom_metric_filters": "custom_metric_filters"
+                    }
                 }
             ]
         }
@@ -134,7 +136,31 @@
                                             }
                                         ]
                                     }
-                                ]
+                                ],
+                                "group_by_limit": {
+                                    "enabled": "$group_by_limit_enabled",
+                                    "method": "$limit_sort_method",
+                                    "metric_group_name": "trpc",
+                                    "metric_cal_type": "$metric_cal_type",
+                                    "limit": "$limit",
+                                    "where": [
+                                        {
+                                          "key": "${server}",
+                                          "method": "${server_filter_method}",
+                                          "value": [
+                                            "${service_name}"
+                                          ],
+                                          "condition": "and"
+                                        }
+                                    ],
+                                    "options": {
+                                    "trpc": {
+                                      "kind": "callee",
+                                      "temporality": "${temporality}",
+                                      "ret_code_as_exception": "${ret_code_as_exception}"
+                                    }
+                                  }
+                                }
                             }
                         }
                     ],
@@ -171,6 +197,7 @@
         "enable_index_list": true,
         "variable_editable": false,
         "group_panel": {
+            "type": "compare_or_group",
             "targets": [
                 {
                     "datasource": "dimensions",
@@ -184,7 +211,22 @@
                         "apm_service_name": "$service_name"
                     }
                 }
-            ]
+            ],
+            "options": {
+                "metric_cal_types": [{"id": "request_total", "name": "${request_total_name}"}],
+                "limit_sort_methods": [
+                  {
+                    "value": "top_n",
+                    "text": "top"
+                  },
+                  {
+                    "value": "bottom_n",
+                    "text": "bottom"
+                  }
+                ],
+                "interval_enable": true,
+                "column_enable": true
+            }
         },
         "only_index_list": true
     }
