@@ -79,6 +79,14 @@ class ServiceDiscover(Discover):
             target = item.get("target")
             # TODO 获取其他指标的维度信息
 
+            if not service_name and target:
+                # 满足 [a].<b>.<c> 格式才认为是节点
+                targets = target.split(".")
+                if 2 <= len(targets) <= 3:
+                    target = ".".join(targets[-2:])
+                else:
+                    continue
+
             topo_key = service_name or target
             if not topo_key or topo_key in found_topo_keys:
                 continue
