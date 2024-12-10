@@ -2,7 +2,7 @@
 from typing import List
 
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
     SearchResultItem,

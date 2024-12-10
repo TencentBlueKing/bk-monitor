@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from django.core.cache import cache
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers

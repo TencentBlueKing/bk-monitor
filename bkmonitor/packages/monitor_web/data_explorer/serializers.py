@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import collections
 from typing import Dict
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.models import FavoriteGroup, QueryHistory
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError

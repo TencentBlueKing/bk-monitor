@@ -16,7 +16,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.commons.tools import get_host_view_display_fields

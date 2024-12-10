@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request

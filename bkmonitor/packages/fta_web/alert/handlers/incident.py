@@ -14,7 +14,7 @@ from functools import reduce
 from typing import Dict, List
 
 from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django_elasticsearch_dsl.search import Search
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response import Response

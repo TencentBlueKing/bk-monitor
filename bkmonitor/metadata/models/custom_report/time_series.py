@@ -22,7 +22,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api

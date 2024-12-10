@@ -17,7 +17,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ConvergeInstance, ConvergeRelation

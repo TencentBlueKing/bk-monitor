@@ -2,7 +2,7 @@
 import time
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,

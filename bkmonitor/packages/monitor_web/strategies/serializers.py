@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from django.conf import settings
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.strategies.constant import (
     DETECT_ALGORITHM_FLOAT_OR_INT_LIST,
     DETECT_ALGORITHM_INT_LIST,
