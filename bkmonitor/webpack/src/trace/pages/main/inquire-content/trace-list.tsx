@@ -46,6 +46,7 @@ import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
+import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants';
 import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -175,6 +176,7 @@ export default defineComponent({
     const columnFilters = ref<Record<string, string[]>>({});
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
+    const serviceColorMap = ref([]);
 
     const timeRange = useTimeRanceInject();
     provide('isFullscreen', isFullscreen);
@@ -697,12 +699,13 @@ export default defineComponent({
         ),
         width: 120,
         settingsLabel: `${t('服务数量')}`,
-        field: 'service_count',
+        field: 'service_distribution',
         sort: isPreCalculationMode.value
           ? {
               sortFn: () => false,
             }
           : false,
+        render: ({ data }: { data: ITraceListItem }) => renderServiceDistributionPopover(data),
       },
     ]);
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
@@ -728,6 +731,83 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    // 渲染堆叠图
+    const renderServiceDistributionPopover = (data: ITraceListItem) => {
+      const serviceData = data?.service_distribution;
+
+      if (!serviceData || Object.keys(serviceData).length === 0) {
+        return data?.service_count;
+      }
+
+      const getColorForService = (serviceName: string) => {
+        if (!serviceColorMap.value[serviceName]) {
+          const index = Object.keys(serviceColorMap.value).length % COLOR_LIST_BAR.length;
+          serviceColorMap.value[serviceName] = COLOR_LIST_BAR[index];
+        }
+        return serviceColorMap.value[serviceName];
+      };
+
+      // 计算颜色和百分比
+      const services = Object.keys(serviceData).map(key => ({
+        name: key,
+        color: getColorForService(key),
+        percentage: serviceData[key]?.percentage || 0,
+      }));
+
+      const serviceContent = (
+        <div class='serve-content'>
+          <div class='serve-title'>{t('共有 {0} 个服务', [services.length])}</div>
+          {services.map(service => {
+            return (
+              <div
+                key={service.name}
+                class='status-wrap'
+              >
+                <div
+                  style={{ background: service.color }}
+                  class='status-color'
+                />
+                <div
+                  class='status-text'
+                  title={service.name}
+                >
+                  {service.name}
+                </div>
+
+                <div class='status-percent'>{`${service.percentage}%`}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+
+      const stackedBar = () => (
+        <div class='stacked-bar'>
+          {services.map(service => (
+            <div
+              key={service.name}
+              style={{ background: service.color, width: `${service.percentage}%` }}
+              class='bar'
+            />
+          ))}
+        </div>
+      );
+      return (
+        <Popover
+          width='200'
+          extCls='popover-trace'
+          arrow={false}
+          content={serviceContent}
+          render-type='auto'
+          theme='light'
+          allow-html
+        >
+          {stackedBar()}
+        </Popover>
+      );
+    };
+
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
       const {
