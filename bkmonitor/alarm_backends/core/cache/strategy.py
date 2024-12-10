@@ -347,6 +347,7 @@ class StrategyCacheManager(CacheManager):
             StrategyModel.InvalidType.INVALID_TARGET: set(),
             StrategyModel.InvalidType.DELETED_RELATED_STRATEGY: set(),
             StrategyModel.InvalidType.INVALID_RELATED_STRATEGY: set(),
+            StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL: set(),
             # 关联策略id映射
             "related_ids_map": defaultdict(set),
         }
@@ -1428,7 +1429,7 @@ def main():
     StrategyCacheManager.refresh()
 
 
-def sync_aiops_strategy_signal(strategy_id, signal, update_time):
+def sync_aiops_strategy_signal(signal, strategy_id, update_time):
     """
     推送策略变更信号至rabbitmq
     {

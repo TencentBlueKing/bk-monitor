@@ -1838,6 +1838,11 @@ class Strategy(AbstractConfig):
             item["functions"] = converted_config["functions"]
             item["target"] = converted_config["target"]
 
+            # 重新生成 metric_id 字段
+            for query_config in item["query_configs"]:
+                qc = QueryConfig(**query_config)
+                query_config["metric_id"] = qc.get_metric_id()
+
         return config
 
     @classmethod
