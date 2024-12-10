@@ -1,15 +1,24 @@
 from django.test import TestCase
 
-from apps.log_search.handlers.es.querystring_builder import QueryStringHandler
+from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 
 SEARCH_PARAMS = {
     "addition": [
         {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
+        {"field": "bk_host_id", "operator": "eq", "value": ["3", "4"]},
+        {"field": "bk_host_id", "operator": "is", "value": ["5", "6"]},
         {"field": "service", "operator": "!=", "value": ["php"]},
+        {"field": "service", "operator": "is not", "value": ["a", "b"]},
+        {"field": "service", "operator": "is one of", "value": ["c", "d"]},
+        {"field": "service", "operator": "is not one of", "value": ["e", "f"]},
         {"field": "count", "operator": "<", "value": [100, 200]},
         {"field": "index", "operator": ">", "value": [500]},
         {"field": "number", "operator": ">=", "value": [100, 50]},
         {"field": "id", "operator": "<=", "value": [500]},
+        {"field": "count", "operator": "lt", "value": [100, 200]},
+        {"field": "index", "operator": "gt", "value": [500]},
+        {"field": "number", "operator": "gte", "value": [100, 50]},
+        {"field": "id", "operator": "lte", "value": [500]},
         {"field": "gseIndex", "operator": "=~", "value": ["?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"]},
         {"field": "path", "operator": "!=~", "value": ["?app/*/python.*", "*/python.*"]},
         {"field": "cloudId", "operator": "contains", "value": ["6", "9"]},
@@ -20,58 +29,82 @@ SEARCH_PARAMS = {
         {"field": "log", "operator": "not contains match phrase", "value": ["are you ok"]},
         {"field": "log", "operator": "all contains match phrase", "value": ["su 7"]},
         {"field": "log", "operator": "all not contains match phrase", "value": ["error", "500"]},
+        {"field": "log", "operator": "all not contains match phrase", "value": ["This is a \"test\" string"]},
         {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
         {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
         {"field": "*", "operator": "contains match phrase", "value": ["error"]},
-        {"field": "querystring", "operator": "contains match phrase", "value": ["400"]},
+        {"field": "querystring", "operator": "contains match phrase", "value": ["success"]},
+        {"field": "querystring", "operator": "=", "value": []},
+        {"field": "error", "operator": "contains", "value": []},
+        {"field": "test", "operator": "test", "value": ["test"]},
     ],
 }
 
 
 TRANSFORM_RESULT = (
-    "bk_host_id : (1 OR 2)"
+    "bk_host_id: (1 OR 2)"
     " AND "
-    "NOT service : php"
+    "bk_host_id: (3 OR 4)"
     " AND "
-    "count :< 100"
+    "bk_host_id: (5 OR 6)"
     " AND "
-    "index :> 500"
+    "NOT service: php"
     " AND "
-    "number :>= 100"
+    "NOT service: (a OR b)"
     " AND "
-    "id :<= 500"
+    "service: (c OR d)"
     " AND "
-    "gseIndex : ?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"
+    "NOT service: (e OR f)"
     " AND "
-    "NOT path : (?app/*/python.* OR */python.*)"
+    "count: <200"
     " AND "
-    "cloudId : (*6* OR *9*)"
+    "index: >500"
     " AND "
-    "NOT cloudId : (*1* OR *3*)"
+    "number: >=50"
     " AND "
-    "is_deleted : false"
+    "id: <=500"
     " AND "
-    "flag : true"
+    "count: <200"
     " AND "
-    "log : (\"html\" OR \"hello world\")"
+    "index: >500"
     " AND "
-    "NOT log : \"are you ok\""
+    "number: >=50"
     " AND "
-    "log : \"su 7\""
+    "id: <=500"
     " AND "
-    "NOT log : (\"error\" AND \"500\")"
+    "gseIndex: ?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"
     " AND "
-    "describe : (?el* AND wor?d)"
+    "NOT path: (?app/*/python.* OR */python.*)"
     " AND "
-    "NOT theme : (pg* AND ?h?)"
+    "cloudId: (*6* OR *9*)"
+    " AND "
+    "NOT cloudId: (*1* OR *3*)"
+    " AND "
+    "is_deleted: false"
+    " AND "
+    "flag: true"
+    " AND "
+    "log: (\"html\" OR \"hello world\")"
+    " AND "
+    "NOT log: \"are you ok\""
+    " AND "
+    "log: \"su 7\""
+    " AND "
+    "NOT log: (\"error\" AND \"500\")"
+    " AND "
+    "NOT log: \"This is a \\\"test\\\" string\""
+    " AND "
+    "describe: (?el* AND wor?d)"
+    " AND "
+    "NOT theme: (pg* AND ?h?)"
     " AND "
     "(\"error\")"
     " AND "
-    "(\"400\")"
+    "(success)"
 )
 
 
 class TestQueryString(TestCase):
     def test_querystring(self):
-        result = QueryStringHandler.to_querystring(SEARCH_PARAMS)
+        result = QueryStringBuilder.to_querystring(SEARCH_PARAMS)
         self.assertEqual(result, TRANSFORM_RESULT)

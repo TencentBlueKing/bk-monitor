@@ -24,13 +24,13 @@ from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic impo
 )
 
 
-class QueryStringHandler(object):
+class QueryStringBuilder(object):
     @staticmethod
     def to_querystring(params: dict):
         """
         把查询参数转化为QueryString语法
         :param params: 查询参数
-        :return:
+        :return: str
         """
         querystring_list = []
         addition = params["addition"]
@@ -45,11 +45,14 @@ class QueryStringHandler(object):
             # 全文检索的情况
             if condition["field"] in ["*", "querystring"]:
                 value = condition["value"][0]
-                querystring_list.append(f"(\"{value}\")")
+                if condition["field"] == "*":
+                    value = f"\"{value}\""
+                querystring_list.append(f"({value})")
                 continue
 
             # 获取querystring
             query_object = BoolQueryOperation.get_op(op=condition["operator"], bool_dict=condition)
             transform_result = query_object.to_querystring()
-            querystring_list.append(transform_result)
+            if transform_result:
+                querystring_list.append(transform_result)
         return " AND ".join(querystring_list)
