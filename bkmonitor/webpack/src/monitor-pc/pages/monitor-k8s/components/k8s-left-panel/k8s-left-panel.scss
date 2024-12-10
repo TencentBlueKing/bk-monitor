@@ -9,32 +9,4 @@
     border-radius: 2px 0 0 0;
     box-shadow: 1px 0 0 0 #dcdee5;
   }
-
-  .panel-title {
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #313238;
-  }
-
-  .k8s-object {
-    width: 100%;
-    padding: 16px 24px;
-    background-color: #fff;
-
-    .object-group {
-      margin-top: 12px;
-    }
-  }
-
-  .k8s-metric {
-    width: 100%;
-    padding: 12px 24px;
-    background: #fafbfd;
-    box-shadow: 0 -1px 0 0 #dcdee5;
-
-    .panel-title {
-      margin-bottom: 8px;
-    }
-  }
 }

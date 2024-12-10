@@ -34,7 +34,9 @@ import FilterByCondition from './components/filter-by-condition/filter-by-condit
 import GroupByCondition, { type IGroupByChangeEvent } from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
 import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
+import K8sDimensionList from './components/k8s-left-panel/k8s-dimension-list';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
+import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
   type K8sTableClickEvent,
@@ -45,7 +47,7 @@ import K8sTableNew, {
   type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
 import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
-import { K8sDimension, type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
+import { type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
 import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -103,6 +105,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   cluster = '';
   // 集群列表
   clusterList = [];
+  // 集群加载状态
+  clusterLoading = true;
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
   filterBy: IFilterByItem[] = [];
@@ -232,38 +236,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     },
   ];
 
-  metricList = [
-    {
-      name: 'CPU',
-      id: 'CPU',
-      count: 3,
-      children: [
-        {
-          id: 'CPU使用量',
-          name: 'CPU使用量',
-        },
-        {
-          id: 'CPU limit 使用率',
-          name: 'CPU limit 使用率',
-        },
-        {
-          id: 'CPU request 使用率',
-          name: 'CPU request 使用率',
-        },
-      ],
-    },
-    {
-      name: '内存',
-      id: '内存',
-      count: 4,
-      children: [
-        {
-          id: '内存使用量(rss)',
-          name: '内存使用量(rss)',
-        },
-      ],
-    },
-  ];
+  cacheFilterBy: IFilterByItem[] = [];
+  cacheGroupBy = [];
+
+  metricList = [];
+
+  metricLoading = true;
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -288,15 +266,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   created() {
     this.getK8sList();
+    this.getClusterList();
     this.getScenarioMetricList();
-    this.handleGetUserConfig(HIDE_METRICS_KEY).then((res: string[]) => {
+    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
-    const dimension = new K8sDimension({
-      scene: this.scene,
-      keyword: '',
-    });
-    console.log(dimension);
   }
 
   /**
@@ -304,6 +278,22 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    */
   refreshTable() {
     this.tableConfig.refreshKey = random(10);
+  }
+
+  async getClusterList() {
+    this.clusterLoading = true;
+    this.clusterList = await new Promise(resolve => {
+      setTimeout(() => {
+        resolve([
+          { id: 'BCS-K8S-00000', name: '蓝鲸7.0(BCS-K8S-00000)' },
+          { id: 'BCS-K8S-00001', name: '蓝鲸8.0(BCS-K8S-00000)' },
+        ]);
+      }, 1000);
+    });
+    this.clusterLoading = false;
+    if (this.clusterList.length) {
+      this.cluster = this.clusterList[0].id;
+    }
   }
 
   /**
@@ -339,7 +329,42 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /**
    * @description 获取场景指标列表
    */
-  getScenarioMetricList() {}
+  async getScenarioMetricList() {
+    function mock(params) {
+      console.log(params);
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve([
+            {
+              id: 'CPU',
+              name: 'CPU',
+              children: [
+                { id: 'container_cpu_usage_seconds_total', name: 'CPU使用量' },
+                { id: 'kube_pod_cpu_requests_ratio', name: 'CPU request使用率' },
+                { id: 'kube_pod_cpu_limits_ratio', name: 'CPU limit使用率' },
+              ],
+            },
+            {
+              id: 'memory',
+              name: '内存',
+              children: [
+                { id: 'container_memory_rss', name: '内存使用量(rss)' },
+                { id: 'kube_pod_memory_requests_ratio', name: '内存 request使用率' },
+                { id: 'kube_pod_memory_limits_ratio', name: '内存 limit使用率' },
+              ],
+            },
+          ]);
+        }, 1000);
+      });
+    }
+    this.metricLoading = true;
+    const data = await mock({ scenario: this.scene });
+    this.metricLoading = false;
+    this.metricList = data.map(item => ({
+      ...item,
+      count: item.children.length,
+    }));
+  }
 
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
@@ -432,21 +457,30 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /** 取消下钻 */
-  handleCancelDrillDown() {}
+  handleCancelDrillDown() {
+    this.filterBy = this.cacheFilterBy;
+    this.groupInstance.setGroupFilters(this.cacheGroupBy);
+    this.showCancelDrill = false;
+  }
 
   /** 左侧面板group状态切换 */
   groupByChange({ groupId, isSelect }) {
+    this.showCancelDrill = false;
     this.setGroupFilters({ groupId, checked: isSelect });
   }
 
   /** 左侧面板下钻功能 */
-  handleDrillDown({ groupId, ids, drillDownId }) {
-    this.groupByChange({ groupId: drillDownId, isSelect: true });
-    this.filterByChange({ ids, groupId });
+  handleDrillDown({ filterBy, groupId }) {
+    this.cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
+    this.cacheGroupBy = [...this.groupFilters];
+    this.groupByChange({ groupId, isSelect: true });
+    this.filterByChange({ ids: filterBy.value, groupId: filterBy.key });
+    this.showCancelDrill = true;
   }
 
   /* 左侧面板检索功能 */
   filterByChange({ ids, groupId }) {
+    this.showCancelDrill = false;
     const target = this.filterBy.find(item => item.key === groupId);
     if (target) {
       target.value = ids;
@@ -459,11 +493,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 隐藏指标项变化 */
   metricHiddenChange(hideMetrics: string[]) {
     this.hideMetrics = hideMetrics;
-    this.handleSetUserConfig(HIDE_METRICS_KEY, JSON.stringify(hideMetrics));
+    this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(hideMetrics));
   }
 
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
+    this.filterBy = [];
+    this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
+    this.showCancelDrill = false;
   }
 
   /**
@@ -615,20 +652,25 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header'>
-          <bk-select
-            class='cluster-select'
-            clearable={false}
-            value={this.cluster}
-            onChange={this.handleClusterChange}
-          >
-            {this.clusterList.map(cluster => (
-              <bk-option
-                id={cluster.value}
-                key={cluster.value}
-                name={cluster.label}
-              />
-            ))}
-          </bk-select>
+          {this.clusterLoading ? (
+            <div class='skeleton-element cluster-skeleton' />
+          ) : (
+            <bk-select
+              class='cluster-select'
+              clearable={false}
+              value={this.cluster}
+              onChange={this.handleClusterChange}
+            >
+              {this.clusterList.map(cluster => (
+                <bk-option
+                  id={cluster.id}
+                  key={cluster.id}
+                  name={cluster.name}
+                />
+              ))}
+            </bk-select>
+          )}
+
           <div class='filter-header-wrap'>
             <div class='filter-by-wrap __filter-by__'>
               <div class='filter-by-title'>Filter by</div>
@@ -654,18 +696,22 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
         <div class='monitor-k8s-new-content'>
           <div class='content-left'>
-            <K8sLeftPanel
-              slot='main'
-              filterBy={this.filterBy}
-              groupBy={this.groupFilters}
-              groupList={this.groupList}
-              hideMetrics={this.hideMetrics}
-              metricList={this.metricList}
-              onDrillDown={this.handleDrillDown}
-              onFilterByChange={this.filterByChange}
-              onGroupByChange={this.groupByChange}
-              onMetricHiddenChange={this.metricHiddenChange}
-            />
+            <K8sLeftPanel>
+              <K8sDimensionList
+                filterBy={this.filterBy}
+                groupBy={this.groupFilters}
+                scene={this.scene}
+                onDrillDown={this.handleDrillDown}
+                onFilterByChange={this.filterByChange}
+                onGroupByChange={this.groupByChange}
+              />
+              <K8sMetricList
+                hideMetrics={this.hideMetrics}
+                loading={this.metricLoading}
+                metricList={this.metricList}
+                onMetricHiddenChange={this.metricHiddenChange}
+              />
+            </K8sLeftPanel>
           </div>
 
           <div class='content-right'>

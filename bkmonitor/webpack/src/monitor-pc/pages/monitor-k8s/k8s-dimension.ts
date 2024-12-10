@@ -67,6 +67,7 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
           pod: 'pod-1',
           namespace: 'default',
           workload: 'Deployment:workload-1',
+          container: 'container-1',
         },
       ],
     },
@@ -90,7 +91,11 @@ export class K8sDimension {
   /** 所有的维度数据 */
   originDimensionData: GroupListItem[] = [];
 
+  /** 分页数量 */
   pageSize = 5;
+
+  /** 分页类型 */
+  pageType = 'traditional';
 
   /** 场景 */
   scene: SceneType = 'performance';
@@ -107,6 +112,7 @@ export class K8sDimension {
     this.scene = params.scene;
     this.keyword = params.keyword;
     this.pageSize = params.pageSize || 5;
+    this.pageType = params.pageType || 'traditional';
     this.init();
   }
 
@@ -146,7 +152,7 @@ export class K8sDimension {
       return {
         id: dimension,
         name: dimension,
-        total: count,
+        count,
         hasMore: count > this.pageSize,
         children: items.map(item => ({
           id: item[dimension],

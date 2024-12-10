@@ -23,8 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import K8sDimensionDrillDown from './k8s-dimension-drilldown';
 
 import type { GroupListItem } from '../../typings/k8s-new';
 
@@ -45,7 +48,7 @@ interface GroupItemProps {
 
 interface GroupItemEvent {
   onHandleSearch: (ids: string[]) => void;
-  onHandleDrillDown: (val: { id: string; drillDown: string }) => void;
+  onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
   onHandleGroupByChange: (val: boolean) => void;
   onHandleMoreClick: () => void;
   onHandleHiddenChange: (ids: string[]) => void;
@@ -65,15 +68,10 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
   @Prop({ default: () => [] }) drillDownList: string[];
 
-  @Ref('menu')
-  menuRef: any;
-
   /** 展开的组  */
   expand = {};
 
   drillDown = '';
-
-  popoverInstance = null;
 
   @Watch('defaultExpand', { immediate: true })
   handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
@@ -88,26 +86,6 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   collapseChange(id: string) {
     this.$set(this.expand, id, !this.expand[id]);
-  }
-
-  async handleDrillDown(id: string, e: Event) {
-    this.drillDown = id;
-    this.popoverInstance = this.$bkPopover(e.target, {
-      content: this.menuRef,
-      trigger: 'click',
-      placement: 'bottom-start',
-      theme: 'light common-monitor',
-      arrow: false,
-      interactive: true,
-      followCursor: false,
-      onHidden: () => {
-        this.drillDown = '';
-        this.popoverInstance.destroy();
-        this.popoverInstance = null;
-      },
-    });
-    await this.$nextTick();
-    this.popoverInstance?.show(100);
   }
 
   handleClear(e: Event) {
@@ -126,13 +104,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   /** 下钻 */
   @Emit('handleDrillDown')
-  handleDrillDownChange(val: string) {
-    const id = this.drillDown;
-    this.popoverInstance?.hide();
-    return {
-      id,
-      drillDown: val,
-    };
+  handleDrillDownChange(val) {
+    return val;
   }
 
   @Emit('handleGroupByChange')
@@ -191,15 +164,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             />
           )}
           {this.tools.includes('drillDown') && (
-            <div
-              class={`drill-down-icon ${this.drillDown === item.id ? 'active' : ''}`}
-              v-bk-tooltips={{ content: this.$t('下钻') }}
-            >
-              <i
-                class='icon-monitor icon-xiazuan'
-                onClick={e => this.handleDrillDown(item.id, e)}
-              />
-            </div>
+            <K8sDimensionDrillDown
+              dimension={this.list.id}
+              value={item.id}
+              onHandleDrillDown={this.handleDrillDownChange}
+            />
           )}
           {this.tools.includes('view') && (
             <i
@@ -245,7 +214,12 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           style={{ display: this.expand[this.list.id] ? 'block' : 'none' }}
           class='group-content'
         >
-          {this.list.children.map(child => this.renderGroupContent(child))}
+          {this.list.children.length > 0 ? (
+            this.list.children.map(child => this.renderGroupContent(child))
+          ) : (
+            <EmptyStatus type='empty' />
+          )}
+
           {this.showMore && (
             <div class='show-more'>
               <span
@@ -256,23 +230,6 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               </span>
             </div>
           )}
-        </div>
-
-        <div style='display: none'>
-          <ul
-            ref='menu'
-            class='drill-down-list-menu'
-          >
-            {this.drillDownList.map(item => (
-              <li
-                key={item}
-                class='menu-item'
-                onClick={() => this.handleDrillDownChange(item)}
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     );
