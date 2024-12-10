@@ -83,6 +83,8 @@ class ResourceShortcut(object):
             self._package = None
             self._methods = {}
             self.loaded = False
+            # 新增单元测试 patch 支持
+            self.__deleted_methods = {}
 
         if module_path not in cls._package_pool:
             instance = object.__new__(cls)
@@ -129,6 +131,11 @@ class ResourceShortcut(object):
 
         self.loaded = True
 
+    def __delattr__(self, name):
+        if name in self._methods:
+            self.__deleted_methods[name] = self._methods.pop(name)
+        super(ResourceShortcut, self).__delattr__(name)
+
     @lazy_load
     def __getattr__(self, item):
         if item in self._methods:
@@ -139,6 +146,8 @@ class ResourceShortcut(object):
             try:
                 return import_string("{}.{}".format(self._path, item))
             except ImportError:
+                if item in self.__deleted_methods:
+                    return self.__deleted_methods[item]
                 raise ResourceNotRegistered("Resource {} not in [{}]".format(item, self._package.__name__))
 
     @lazy_load
