@@ -42,6 +42,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
     """
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
+    PREDICT_FUNC = api.aiops_sdk.kpi_predict
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -75,7 +76,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
             },
         }
 
-        predict_result = api.aiops_sdk.kpi_predict(**predict_params)
+        predict_result = self.PREDICT_FUNC(**predict_params)
 
         return super().detect(
             DataPoint(
