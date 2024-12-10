@@ -593,7 +593,7 @@ class MigrateOldPanels(Resource):
         # 2. 遍历 panels 进行转换更新面板配置
         is_migrate = False
         for panel in dashboard.get("panels", []):
-            if panel.get("type") == "raw":
+            if panel.get("type") == "row":
                 for raw_panel in panel.get("panels", []):
                     is_migrate = self.migrate_panel(raw_panel, is_migrate)
             is_migrate = self.migrate_panel(panel, is_migrate)
