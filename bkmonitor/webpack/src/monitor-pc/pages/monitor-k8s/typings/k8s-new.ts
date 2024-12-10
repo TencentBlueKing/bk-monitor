@@ -88,7 +88,7 @@ export enum K8sTableColumnKeysEnum {
 
 export type SceneType = 'performance';
 export interface GroupListItem {
-  id: string;
+  id: EDimensionKey;
   name: string;
   count?: number;
   hasMore?: boolean;
