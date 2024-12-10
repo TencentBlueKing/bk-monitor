@@ -27,18 +27,20 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
-import { debounce } from 'throttle-debounce';
+import { debounce, throttle } from 'throttle-debounce';
 
+import { K8sDimension } from '../../k8s-dimension';
 import KvTag from './kv-tag';
 import { EGroupBy, type IGroupOptionsItem, type ITagListItem, type IValueItem, type IFilterByItem } from './utils';
 
-import type { GroupListItem } from '../../typings/k8s-new';
+import type { GroupListItem, SceneType } from '../../typings/k8s-new';
 
 import './filter-by-condition.scss';
 
 interface IProps {
   groupList?: GroupListItem[];
   filterBy?: IFilterByItem[];
+  scene?: SceneType;
   onChange?: (v: IFilterByItem[]) => void;
 }
 
@@ -46,6 +48,7 @@ interface IProps {
 export default class FilterByCondition extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) groupList: GroupListItem[];
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  @Prop({ type: String, default: '' }) scene: SceneType;
   @Ref('selector') selectorRef: HTMLDivElement;
   // tags
   tagList: ITagListItem[] = [];
@@ -58,6 +61,7 @@ export default class FilterByCondition extends tsc<IProps> {
   valueOptions: IValueItem[] = [];
   // 当前选择的value下的value选项 (二级分类)
   valueCategoryOptions: IValueItem[] = [];
+  //  当前选择的分类
   valueCategorySelected = '';
   // 搜索框输入的值
   searchValue = '';
@@ -77,6 +81,15 @@ export default class FilterByCondition extends tsc<IProps> {
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
+  handleValueOptionsScrollThrottle = _v => {};
+
+  created() {
+    this.K8sDimension = new K8sDimension({
+      scene: this.scene,
+      keyword: '',
+      pageSize: 10,
+    });
+  }
 
   get hasAdd() {
     const ids = this.allOptions.map(item => item.id);
@@ -85,6 +98,7 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   mounted() {
+    this.handleValueOptionsScrollThrottle = throttle(300, this.handleValueOptionsScroll);
     this.overflowCountRenderDebounce = debounce(300, this.overflowCountRender);
     this.resizeObserver = new ResizeObserver(entries => {
       for (const _entry of entries) {
@@ -472,9 +486,18 @@ export default class FilterByCondition extends tsc<IProps> {
     this.overflowCountRender();
   }
 
+  handleValueOptionsScroll(e: any) {
+    const { scrollTop, clientHeight, scrollHeight } = e.target;
+    const isEnd = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
+    console.log(isEnd);
+  }
+
   valuesWrap() {
     return (
-      <div class='value-items'>
+      <div
+        class='value-items'
+        onScroll={this.handleValueOptionsScrollThrottle}
+      >
         {this.searchValueOptions.map(item => (
           <div
             key={item.id}

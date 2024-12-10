@@ -2,16 +2,24 @@
   height: 100%;
   padding: 16px;
 
-  .common-table {
+  .bk-table {
     height: 100%;
 
-    .bk-table {
-      height: 100%;
+    .bk-table-header-wrapper {
+      .bk-table-header {
+        min-width: 100%;
+      }
+    }
 
-      .bk-table-row.hover-row {
-        .col-item-operate {
-          display: block;
-        }
+    .bk-table-body-wrapper {
+      .bk-table-body {
+        min-width: 100%;
+      }
+    }
+
+    .bk-table-row.hover-row {
+      .col-item-operate {
+        display: block;
       }
     }
   }
