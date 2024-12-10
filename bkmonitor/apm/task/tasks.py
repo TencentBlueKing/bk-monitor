@@ -17,7 +17,7 @@ import time
 import traceback
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Value
 from django.utils import timezone
 from opentelemetry.trace import get_current_span
 
@@ -125,7 +125,7 @@ def datasource_discover_cron():
 
     valid_application_mapping = {
         (i["bk_biz_id"], i["app_name"]): i
-        for i in ApmApplication.objects.filter(Q(is_enabled=True) & Q(is_enabled_metric=True)).values(
+        for i in ApmApplication.objects.filter(is_enabled=Value(1), is_enabled_metric=Value(1)).values(
             "id", "bk_biz_id", "app_name"
         )
     }
