@@ -21,7 +21,10 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
-from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection
+from alarm_backends.service.detect.strategy import (
+    BasicAlgorithmsCollection,
+    SDKPreDetectMixin,
+)
 from alarm_backends.templatetags.unit import unit_convert_min, unit_suffix
 from bkmonitor.strategy.serializers import TimeSeriesForecastingSerializer
 from bkmonitor.utils.time_tools import hms_string
@@ -32,10 +35,12 @@ from core.unit import load_unit
 logger = logging.getLogger("detect")
 
 
-class TimeSeriesForecasting(BasicAlgorithmsCollection):
+class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
@@ -62,6 +67,11 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
             # 历史依赖准备就绪才开始检测
             if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 raise Exception("Strategy history dependency data not ready")
+
+            # 优先从预检测结果中获取检测结果
+            predict_result_point = self.fetch_pre_detect_result_point(data_point)
+            if predict_result_point:
+                return super().detect(predict_result_point)
 
             return self.detect_by_sdk(data_point)
         else:
