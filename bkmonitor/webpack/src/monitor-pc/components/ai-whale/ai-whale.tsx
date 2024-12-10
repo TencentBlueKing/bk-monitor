@@ -33,7 +33,6 @@ import AiBlueking, {
   ChatHelper,
   MessageStatus,
   type ISendData,
-  type IShortCut,
 } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText, getCookie, random } from 'monitor-common/utils/utils';
@@ -113,22 +112,6 @@ const questions = [
   '如何接入第三方告警源？',
   '智能检测目前能支持哪些场景？',
 ];
-export const DEFAULT_SHORTCUTS: IShortCut[] = [
-  {
-    label: '翻译',
-    prompt: `You are a highly skilled AI trained in language translation. I would like you to translate the text delimited by triple quotes into Chinese language, ensuring that the translation is colloquial and authentic.
-    Only give me the output and nothing else. Do not wrap responses in quotes
-    '''
-      {{ SELECTED_TEXT }}
-    '''
-    `,
-  },
-  {
-    label: '解释',
-    prompt: `You are a professional explainer. Please provide a detailed explanation of "{{ SELECTED_TEXT }}". Your explanation should include: 1) basic meaning and conceptual explanation; 2) practical applications or use cases; 3) if it's a technical term, please provide relevant technical background; 4) where appropriate, provide specific examples to aid understanding. Use clear and accessible language to ensure non-experts can understand. If the word/phrase has multiple meanings, please list the main definitions. Keep your response concise and clear while ensuring completeness and accuracy of information.`,
-  },
-];
-
 @Component
 export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
@@ -227,7 +210,7 @@ export default class AiWhale extends tsc<{
   getDefaultMessage() {
     return [
       {
-        content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>例如：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
+        content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>${this.$t('例如')}：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
         role: RoleType.Assistant,
       },
     ];
@@ -818,7 +801,6 @@ export default class AiWhale extends tsc<{
         placeholder={this.$t('您可以键入“/”查看更多提问示例')}
         position-limit={this.positionLimit}
         prompts={this.prompts}
-        shortcuts={DEFAULT_SHORTCUTS}
         size-limit={this.sizeLimit}
         start-position={this.startPosition}
         on-ai-click={this.handleAiBluekingClick}

@@ -153,4 +153,5 @@ export default {
   默认继承应用的类型设置: 'Default inheritance application type settings',
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
+  例如: 'For example',
 };
