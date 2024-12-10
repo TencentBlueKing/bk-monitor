@@ -41,6 +41,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
     """
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
+    PREDICT_FUNC = api.aiops_sdk.tf_predict
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
@@ -91,7 +92,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
             },
         }
 
-        predict_result = api.aiops_sdk.tf_predict(**predict_params)
+        predict_result = self.PREDICT_FUNC(**predict_params)
 
         return self.detect_by_bkdata(
             DataPoint(
