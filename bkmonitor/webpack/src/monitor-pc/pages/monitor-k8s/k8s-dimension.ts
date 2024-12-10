@@ -387,6 +387,14 @@ export abstract class K8sGroupDimension {
   }
 
   /**
+   * @description 获取最后一个 groupFilter
+   * @returns {K8sTableColumnKeysEnum}
+   */
+  getLastGroupFilter() {
+    return this.groupFilters[this.groupFilters.length - 1];
+  }
+
+  /**
    * @description 判断是否存在 groupId
    * @param {K8sTableColumnKeysEnum} groupId
    * @returns {boolean}

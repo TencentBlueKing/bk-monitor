@@ -33,7 +33,20 @@
       }
 
       .title-right {
+        display: flex;
         flex-shrink: 0;
+        align-items: center;
+
+        .k8s-dimension-drillDown {
+          .drill-down-icon {
+            width: auto;
+            height: auto;
+
+            &.active {
+              background: none;
+            }
+          }
+        }
 
         .title-btn {
           margin-right: 8px;
@@ -73,12 +86,12 @@
       flex: 1;
       min-height: 0;
 
-      .content-left {
+      .detail-content-left {
         flex: 1;
         min-width: 0;
       }
 
-      .content-right {
+      .detail-content-right {
         flex-shrink: 0;
       }
     }
