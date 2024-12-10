@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Type
 from uuid import UUID
 
+from apm_web.profile.constants import InputType
 from apm_web.profile.models import Function, Location, Mapping, Profile
 
 
@@ -101,3 +102,15 @@ def register_profile_converter(input_type: str, converter: Type[ProfileConverter
 
 def list_profile_converter() -> Dict[str, Type[ProfileConverter]]:
     return _profile_converters
+
+
+def list_profile_parse_converter():
+    """只获取能够解析文件的解析器 (perf + pprof)"""
+
+    res = []
+    if InputType.PERF_SCRIPT.value in _profile_converters:
+        res.append(_profile_converters[InputType.PERF_SCRIPT.value])
+    if InputType.PPROF.value in _profile_converters:
+        res.append(_profile_converters[InputType.PPROF.value])
+
+    return res
