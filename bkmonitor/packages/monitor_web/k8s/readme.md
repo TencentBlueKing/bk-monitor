@@ -146,7 +146,7 @@ rest/v2/k8s/resources/list_k8s_resources/
 | ---------------- | -------- | ----- | -------------------------------------------------------------------- |
 | bk_biz_id        | id       | 是     | 业务 id                                                                |
 | bcs_cluster_id   | string   | 是     | 集群 id                                                                |
-| resource_type    | string   | 是     | 资源类型, 可选值为 ”pod", "node“, "workload", "namespace", "container"       |
+| resource_type    | string   | 是     | 资源类型, 可选值为 ["pod", "workload", "namespace", "container"]       |
 | query_string     | string   | 否     | 名字过滤                                                                 |
 | filter_dict      | dict     | 否     | 精确过滤                                                                 |
 | start_time       | int      | 是     | 开始时间                                                                 |
@@ -583,42 +583,6 @@ rest/v2/k8s/resources/list_k8s_resources/
         "pod": "pod-2",
         "namespace": "default",
         "workload": "Deployment:wrokload-2"
-      } // ...
-    ]
-  }
-}
-```
-
-#### 5.1. 获取资源类型为 node 的列表
-
-##### 请求示例
-
-```json
-{
-  "bk_biz_id": 2,
-  "bcs_cluster_id": "BCS-K8S-00000",
-  "resource_type": "node",
-  "start_time": 1732240257,
-  "end_time": 1732243857,
-  "sernario": "performance"
-}
-```
-
-##### 返回示例
-
-```json
-{
-  "result": true,
-  "code": 200,
-  "message": "OK",
-  "data": {
-    "count": 14,
-    "items": [
-      {
-        "pod": "pod-1",
-        "container": "container-1",
-        "namespace": "default",
-        "workload": "Deployment:workload-1"
       } // ...
     ]
   }
