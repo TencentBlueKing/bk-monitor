@@ -118,16 +118,34 @@ export default defineComponent({
     };
 
     const columns = computed(() => {
-      if (props.chartOptions.category === 'table') {
-        return (props.chartOptions.data?.select_fields_order ?? []).filter(
-          col => !(props.chartOptions.hiddenFields ?? []).includes(col),
-        );
+      if (showTable.value) {
+        if (props.chartOptions.category === 'table') {
+          return (props.chartOptions.data?.select_fields_order ?? []).filter(
+            col => !(props.chartOptions.hiddenFields ?? []).includes(col),
+          );
+        }
+
+        return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
       }
 
-      return props.chartOptions.data?.select_fields_order ?? [];
+      return [];
     });
 
-    const tableData = computed(() => formatListData.value?.list ?? []);
+    const tableData = computed(() => {
+      if (showTable.value) {
+        if (props.chartOptions.category === 'table') {
+          return formatListData.value?.list ?? [];
+        }
+
+        // getChartDataFromTable(
+        //   formatListData.value?.list ?? [],
+        //   props.chartOptions.xFields,
+        //   props.chartOptions.yFields,
+        //   props.chartOptions.dimensions,
+        // );
+      }
+      return [];
+    });
 
     const filterTableData = computed(() => {
       const reg = getRegExp(searchValue.value);
@@ -141,8 +159,9 @@ export default defineComponent({
       console.log('resize');
       getChartInstance()?.resize();
     });
+
     const getDateTimeFormatValue = (row, col) => {
-      let value = row[col]
+      let value = row[col];
       if (!/data|time/i.test(col)) {
         return value;
       }
@@ -195,13 +214,10 @@ export default defineComponent({
                 label={col}
                 // prop={col}
                 scopedSlots={{
-                  default: ({ row }) => (
-                    <span>{getDateTimeFormatValue(row, col)}</span>
-                  ),
+                  default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
                 }}
                 sortable={true}
-              >
-              </bk-table-column>
+              ></bk-table-column>
             ))}
           </bk-table>,
         ];
