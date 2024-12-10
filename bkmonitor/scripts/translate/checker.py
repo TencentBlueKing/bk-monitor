@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import ast
 import re
 import sys
@@ -26,7 +25,6 @@ try:
 except ImportError:
     from flake8 import utils as stdin_utils
 
-
 __version__ = "0.0.1"
 
 Messages = {
@@ -39,8 +37,8 @@ Messages = {
 StringRegex = r"[\u4e00-\u9fff]"  # noqa
 
 ImportPath = "django.utils.translation"
-ImportNames = ["gettext", "gettext", "pgettext", "ngettext", "npgettext", "ungettext"]
-LazyImportNames = ["{}_lazy".format(name) for name in ImportNames] + ["gettext_noop", "gettext_noop"]
+ImportNames = ["gettext", "pgettext", "ngettext", "npgettext"]
+LazyImportNames = ["{}_lazy".format(name) for name in ImportNames] + ["gettext_noop"]
 
 
 class TranslateFuncFinder(ast.NodeVisitor):
