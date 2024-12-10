@@ -74,6 +74,10 @@ class DetectMixin(object):
                     if {DataTypeLabel.LOG, DataTypeLabel.EVENT} & self.data_type_labels:
                         detector.set_default(0)
 
+                # 判断是否需要对使用SDK异常检测的策略进行分组预检测
+                if hasattr(detector, "pre_detect"):
+                    detector.pre_detect(data_points)
+
                 detector_list.append(detector)
 
             if len(detector_list) == 1:
