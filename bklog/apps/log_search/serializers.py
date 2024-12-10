@@ -955,3 +955,10 @@ class UISearchSerializer(serializers.Serializer):
     )
     start_time = serializers.IntegerField(label=_("开始时间"), required=True)
     end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+
+
+class QueryStringSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=True,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=True),
+    )

@@ -28,6 +28,7 @@ from kafka import KafkaConsumer, TopicPartition
 from kubernetes import utils
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from tenacity import RetryError
 
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
@@ -187,9 +188,16 @@ class CreateResultTableResource(Resource):
                     query_alias_settings,
                     e,
                 )
-
-        new_result_table = models.ResultTable.create_result_table(**request_data)
-
+        try:
+            new_result_table = models.ResultTable.create_result_table(**request_data)
+        except RetryError as e:
+            logger.error(
+                "CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e.__cause__
+            )
+            raise e.__cause__
+        except Exception as e:
+            logger.error("CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e)
+            raise e.__cause__
         return {"table_id": new_result_table.table_id}
 
 
@@ -307,9 +315,17 @@ class ModifyResultTableResource(Resource):
                     query_alias_settings,
                     e,
                 )
-
-        result_table = models.ResultTable.objects.get(table_id=table_id)
-        result_table.modify(**request_data)
+        try:
+            result_table = models.ResultTable.objects.get(table_id=table_id)
+            result_table.modify(**request_data)
+        except RetryError as e:
+            logger.error(
+                "ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e.__cause__
+            )
+            raise e.__cause__
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e)
+            raise e
 
         # 刷新一波对象，防止存在缓存等情况
         result_table.refresh_from_db()
@@ -329,8 +345,10 @@ class ModifyResultTableResource(Resource):
                     table_id,
                     bk_data_id,
                 )
+        except RetryError as e:
+            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
+            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
         return result_table.to_json()
 

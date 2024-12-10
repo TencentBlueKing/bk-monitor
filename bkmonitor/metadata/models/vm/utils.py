@@ -16,7 +16,7 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.models import Q
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, retry, stop_after_attempt, wait_fixed
 
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -500,6 +500,9 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     try:
         # 1.2 NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
         ds = get_data_source(data_id)
+    except RetryError as e:
+        logger.error("create vm data link error, get data_id: %s, error: %s", data_id, e.__cause__)
+        return
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return
@@ -555,6 +558,16 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             status=ACCESS_DATA_LINK_SUCCESS_STATUS,
             strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
+    except RetryError as e:
+        logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e.__cause__)
+        report_metadata_data_link_access_metric(
+            version=DATA_LINK_V4_VERSION_NAME,
+            data_id=data_id,
+            biz_id=bk_biz_id,
+            status=ACCESS_DATA_LINK_FAILURE_STATUS,
+            strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+        )
+        return
     except Exception as e:  # pylint: disable=broad-except
         logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         report_metadata_data_link_access_metric(
@@ -581,7 +594,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             status=ACCESS_DATA_LINK_SUCCESS_STATUS,
             strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
         )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("create fed vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         report_metadata_data_link_access_metric(
             version=DATA_LINK_V4_VERSION_NAME,

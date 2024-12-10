@@ -74,6 +74,7 @@ from bkmonitor.strategy.serializers import (
     BkMonitorTimeSeriesSerializer,
     CustomEventSerializer,
     CustomTimeSeriesSerializer,
+    GrafanaTimeSeriesSerializer,
     HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
@@ -87,7 +88,7 @@ from bkmonitor.strategy.serializers import (
     YearRoundAmplitudeSerializer,
     YearRoundRangeSerializer,
 )
-from bkmonitor.utils.time_tools import strftime_local
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, strftime_local
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.aiops import SDKDetectStatus
@@ -1190,6 +1191,12 @@ class QueryConfig(AbstractConfig):
     intelligent_detect: Dict
     values: List[str]
 
+    # grafana图表来源
+    dashboard_uid: str
+    panel_id: int
+    ref_id: str
+    variables: Dict[str, List[str]]
+
     QueryConfigSerializerMapping = {
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES): BkMonitorTimeSeriesSerializer,
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG): BkMonitorLogSerializer,
@@ -1205,6 +1212,7 @@ class QueryConfig(AbstractConfig):
         (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES): BkApmTimeSeriesSerializer,
         (DataSourceLabel.BK_APM, DataTypeLabel.LOG): BkApmTraceSerializer,
         (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES): PrometheusTimeSeriesSerializer,
+        (DataSourceLabel.DASHBOARD, DataTypeLabel.TIME_SERIES): GrafanaTimeSeriesSerializer,
     }
 
     def __init__(
@@ -1745,10 +1753,12 @@ class Strategy(AbstractConfig):
         for obj in chain(self.actions, self.items, self.detects, [self.notice]):
             obj.strategy_id = value
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, convert_dashboard: bool = True) -> Dict:
         """
         转换为JSON字典
         """
+        from bk_dataview.api import get_grafana_panel_query
+
         if self.priority is None:
             priority_group_key = ""
         else:
@@ -1790,6 +1800,48 @@ class Strategy(AbstractConfig):
             if item["expression"]:
                 continue
             item["expression"] = " + ".join([query_config["alias"] for query_config in item["query_configs"]])
+
+        # grafana来源策略适配
+        query_config = self.items[0].query_configs[0]
+        if query_config.data_source_label == DataSourceLabel.DASHBOARD and convert_dashboard:
+            config["from_dashboard"] = {
+                "dashboard_uid": query_config.dashboard_uid,
+                "panel_id": query_config.panel_id,
+                "ref_id": query_config.ref_id,
+                "valid": True,
+                "message": "",
+            }
+
+            __, panel_query = get_grafana_panel_query(
+                self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
+            )
+            if not panel_query:
+                config["is_invalid"] = True
+                config["invalid_type"] = StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL
+                config["from_dashboard"]["valid"] = False
+                config["from_dashboard"]["message"] = _("无法获取到Grafana图表查询配置")
+                return config
+
+            try:
+                converted_config = grafana_panel_to_config(panel_query, query_config.variables)
+            except Exception as e:
+                logger.debug("grafana_panel_to_config fail, %s", e)
+                config["is_invalid"] = True
+                config["invalid_type"] = StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL
+                config["from_dashboard"]["valid"] = False
+                config["from_dashboard"]["message"] = _("Grafana图表查询配置转换失败")
+                return config
+
+            item = config["items"][0]
+            item["query_configs"] = converted_config["query_configs"]
+            item["expression"] = converted_config["expression"]
+            item["functions"] = converted_config["functions"]
+            item["target"] = converted_config["target"]
+
+            # 重新生成 metric_id 字段
+            for query_config in item["query_configs"]:
+                qc = QueryConfig(**query_config)
+                query_config["metric_id"] = qc.get_metric_id()
 
         return config
 
@@ -2274,6 +2326,10 @@ class Strategy(AbstractConfig):
         """
         保存策略配置
         """
+        # grafana策略标记
+        if self.items[0].query_configs[0].data_source_label == DataSourceLabel.DASHBOARD:
+            self.type = StrategyModel.StrategyType.Dashboard
+
         self.supplement_inst_target_dimension()
 
         if not rollback:
@@ -2720,3 +2776,200 @@ class Strategy(AbstractConfig):
                 if query_config.data_type_label == DataTypeLabel.ALERT:
                     return True
         return False
+
+
+def _render_grafana_variable_str(variables: Dict[str, List[str]], value: str, mode: str = "") -> Union[str, List]:
+    """
+    字符串渲染grafana变量
+    mode: promql, list
+    """
+    for variable_key, variable in variables.items():
+        # 变量预处理
+        if mode == "promql":
+            variable_value = "|".join(variable)
+        else:
+            variable_value = ",".join(variable)
+
+        # 如果值和变量相等，直接返回变量
+        if value.strip() == variable_key and mode == "list":
+            return variable
+
+        value = value.replace(variable_key, variable_value)
+    return value
+
+
+def _render_grafana_variable(
+    variables: Dict[str, List[str]], value: Union[str, List, Dict], mode: str = ""
+) -> Union[str, List, Dict]:
+    """
+    递归渲染grafana变量
+    $x, ${x}, {{x}}, ${x:y}
+    mode: regex
+    """
+    if not value:
+        return value
+
+    if isinstance(value, list):
+        new_values = []
+        for v in value:
+            if isinstance(v, dict):
+                new_values.append(_render_grafana_variable(variables, v, mode))
+            elif isinstance(v, str):
+                new_value = _render_grafana_variable_str(variables, v, mode or "promql")
+
+                # 如果是list模式，且变量值是list，则展开
+                if isinstance(new_value, list):
+                    new_values.extend(new_value)
+                else:
+                    new_values.append(new_value)
+            else:
+                new_values.append(v)
+        value = new_values
+    elif isinstance(value, dict):
+        new_value = {}
+        for k, v in value.items():
+            new_value[k] = _render_grafana_variable(variables, v, mode)
+        value = new_value
+    elif isinstance(value, str):
+        value = _render_grafana_variable_str(variables, value, mode)
+
+    return value
+
+
+def grafana_panel_to_config(panel_query: Dict, variables: Dict[str, List[str]]) -> Dict:
+    """
+    将grafana的panel信息转换为监控策略配置格式
+    variables: {"xxx": {"text": "xxx", "value": "xxx"}, "yyy": [{"text": "yyy", "value": "yyy"}]}
+    """
+    # 数据源检查，目前仅支持bkmonitor-timeseries-datasource
+    if panel_query.get("datasource") and panel_query["datasource"]["type"] not in ["bkmonitor-timeseries-datasource"]:
+        raise ValueError(f"not support datasource {panel_query['datasource']}")
+
+    # todo: 配置预处理
+    expression = "a"
+    functions = []
+    if panel_query.get("mode") == "code":
+        promql = panel_query.get("source")
+        step = panel_query.get("step")
+
+        # 判断 promql 不能为空
+        if not promql:
+            raise ValidationError("promql cannot be empty")
+
+        # 周期解析
+        if step:
+            interval = abs(parse_time_compare_abbreviation(step))
+        else:
+            interval = 60
+
+        target = [[]]
+        raw_query_configs = [
+            {
+                "data_source_label": DataSourceLabel.PROMETHEUS,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+                "agg_interval": interval,
+                "promql": promql,
+                "refId": "a",
+            }
+        ]
+    else:
+        # 字段映射
+        raw_query_configs = []
+        for query_config in panel_query.get("query_configs", []):
+            # 周期解析
+            interval = query_config.get("interval", 60)
+            if not interval or interval == "auto":
+                interval = 60
+            elif query_config.get("interval_unit") == "m":
+                interval *= 60
+
+            raw_query_configs.append(
+                {
+                    "data_source_label": query_config["data_source_label"],
+                    "data_type_label": query_config["data_type_label"],
+                    "functions": query_config.get("functions", []),
+                    "agg_dimension": query_config.get("group_by", []),
+                    "agg_interval": interval,
+                    "agg_method": query_config.get("method", "avg"),
+                    "agg_condition": query_config.get("where", []),
+                    "metric_field": query_config.get("metric_field", ""),
+                    "result_table_id": query_config.get("result_table_id", ""),
+                    "index_set_id": query_config.get("index_set_id", ""),
+                    "data_label": query_config.get("data_label", ""),
+                    "time_field": query_config.get("time_field", ""),
+                    "refId": query_config["refId"],
+                }
+            )
+
+        # 监控目标解析
+        target = None
+        if panel_query.get("host"):
+            hosts = []
+            for host in panel_query["host"]:
+                ip, bk_cloud_id = host.split("|")
+                hosts.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
+            target = {"field": TargetFieldType.host_ip, "method": "eq", "value": hosts}
+        elif panel_query.get("module"):
+            modules = [{"bk_obj_id": "module", "bk_inst_id": module["value"]} for module in panel_query["module"]]
+            target = {"field": TargetFieldType.host_topo, "method": "eq", "value": modules}
+        elif panel_query.get("cluster"):
+            sets = [{"bk_obj_id": "set", "bk_inst_id": cluster["value"]} for cluster in panel_query["cluster"]]
+            target = {"field": TargetFieldType.host_topo, "method": "eq", "value": sets}
+
+        if target:
+            target = [[target]]
+        else:
+            target = [[]]
+
+        # 当存在表达式时，使用第一个表达式，否则生成一个or表达式
+        expressions = panel_query.get("expressionList", [])
+        if expressions and expressions[0].get("expression"):
+            expression = expressions[0].get("expression", "")
+            functions = expressions[0].get("functions", [])
+        elif raw_query_configs:
+            expression = " or ".join(q["refId"] for q in raw_query_configs)
+            functions = []
+        else:
+            return
+
+    # 配置格式化及参数渲染
+    query_configs = []
+    for raw_query_config in raw_query_configs:
+        alias = raw_query_config["refId"]
+        data_source_label = raw_query_config["data_source_label"]
+        data_type_label = raw_query_config["data_type_label"]
+        serializer_class = QueryConfig.get_serializer_class(data_source_label, data_type_label)
+        serializer = serializer_class(data=raw_query_config)
+        if not serializer.is_valid():
+            raise ValidationError(serializer.errors)
+
+        query_config = {
+            "alias": alias,
+            "data_source_label": data_source_label,
+            "data_type_label": data_type_label,
+            **serializer.validated_data,
+        }
+
+        # 渲染变量，只有特定字段支持变量渲染,维度，条件，周期，函数，promql
+        fields = ["agg_dimension", "agg_condition", "promql", "functions"]
+        for field in fields:
+            if field not in query_config:
+                continue
+
+            # 根据字段，设置渲染模式
+            mode = ""
+            if field == "agg_condition":
+                mode = "list"
+            elif field == "promql":
+                mode = "promql"
+
+            query_config[field] = _render_grafana_variable(variables, query_config[field], mode)
+
+        query_configs.append(query_config)
+
+    return {
+        "expression": expression,
+        "functions": functions,
+        "query_configs": query_configs,
+        "target": [[target]] if target else [[]],
+    }

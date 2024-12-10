@@ -910,7 +910,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit, state }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list = [] }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -979,6 +979,10 @@ const store = new Vuex.Store({
             payload.keyword = '';
           }
         }
+        // if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
+        //   payload.keyword = payload.items[0].query_string;
+        //   payload.search_mode = 'sql';
+        // }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
@@ -1260,11 +1264,17 @@ const store = new Vuex.Store({
         set(state.indexFieldInfo, 'aggs_items', {});
       }
 
+      if (!!payload.force) {
+        (payload?.fields ?? []).forEach(field => {
+          set(state.indexFieldInfo.aggs_items, field.field_name, []);
+        });
+      }
+
       const isDefaultQuery = !(payload?.fields?.length ?? false);
       const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
       const filterFn = field =>
-        !state.indexFieldInfo.aggs_items[field.field_name] &&
+        !state.indexFieldInfo.aggs_items[field.field_name]?.length &&
         field.es_doc_values &&
         filterBuildIn(field) &&
         ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
@@ -1281,8 +1291,10 @@ const store = new Vuex.Store({
       const queryData = {
         keyword: '*',
         fields,
+        addition: payload?.addition ?? [],
         start_time: formatDate(start_time * 1000),
         end_time: formatDate(end_time * 1000),
+        size: payload?.size ?? 100,
       };
 
       if (state.indexItem.isUnionIndex) {

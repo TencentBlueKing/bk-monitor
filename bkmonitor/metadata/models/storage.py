@@ -2686,7 +2686,7 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.error(
                         "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
                         self.table_id,
-                        e,
+                        e.__cause__ if isinstance(e, RetryError) else e,
                     )
                     continue
 
@@ -2830,7 +2830,10 @@ class ESStorage(models.Model, StorageResultTable):
 
         now_datetime_object = self.now
         logger.info(
-            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+            "update_index_v2: table_id->[%s] start to update index,time->[%s],force_rotate->[%s]",
+            self.table_id,
+            now_datetime_object,
+            force_rotate,
         )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
@@ -2876,7 +2879,7 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        should_create = self._should_create_index()
+        should_create = self._should_create_index(force_rotate=force_rotate)
         logger.info("update_index_v2: table_id->[%s] should_create->[%s]", self.table_id, should_create)
 
         # 5. 若should_create为True，执行创建/更新 索引逻辑
@@ -3053,10 +3056,16 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
             )
-        except RetryError:  # 若重试后依然失败，则认为未就绪
+        except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
+            logger.warning(
+                "update_aliases_with_retry:table_id->[%s],new_index->[%s] not ready,error->[%s]",
+                self.table_id,
+                new_index_name,
+                e.__cause__,
+            )
 
         if not is_ready:
             logger.info(

@@ -473,6 +473,8 @@ class ExportPackageResource(Resource):
             page_size=0,
             with_user_group=True,
             with_user_group_detail=True,
+            # 导出时不要转换 grafana 相关配置
+            convert_dashboard=False,
         )["strategy_config_list"]
 
         target_type_to_dimensions = {
