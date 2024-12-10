@@ -26,12 +26,13 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDate } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-import { formatDate } from '@/common/util';
+
 import './index.scss';
 
 export default defineComponent({
@@ -125,7 +126,7 @@ export default defineComponent({
           );
         }
 
-        return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
+        return props.chartOptions.data?.select_fields_order ?? [];
       }
 
       return [];
@@ -137,12 +138,7 @@ export default defineComponent({
           return formatListData.value?.list ?? [];
         }
 
-        // getChartDataFromTable(
-        //   formatListData.value?.list ?? [],
-        //   props.chartOptions.xFields,
-        //   props.chartOptions.yFields,
-        //   props.chartOptions.dimensions,
-        // );
+        return formatListData.value?.list ?? [];
       }
       return [];
     });
@@ -211,11 +207,11 @@ export default defineComponent({
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
-                label={col}
                 // prop={col}
                 scopedSlots={{
                   default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
                 }}
+                label={col}
                 sortable={true}
               ></bk-table-column>
             ))}
