@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .k8s-charts {
   z-index: 1;
   display: flex;
@@ -32,6 +33,12 @@
 
     .flex-dashboard {
       padding: 0;
+
+      &-item {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+      }
     }
   }
 }

@@ -79,9 +79,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refleshInterval') refreshInterval = -1;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refleshImmediate') refreshImmediate = '';
   tableConfig = {
     loading: false,
     scrollLoading: false,
@@ -414,12 +414,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.scene = value;
   }
 
-  handleImmediateRefresh(v: string) {
-    this.refleshImmediate = v;
+  handleImmediateRefresh() {
+    this.refreshImmediate = random(4);
   }
 
   handleRefreshChange(value: number) {
-    this.refleshInterval = value;
+    this.refreshInterval = value;
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -591,7 +591,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       <div class='monitor-k8s-new'>
         <div class='monitor-k8s-new-nav-bar'>
           <K8sNavBar
-            refreshInterval={this.refleshInterval}
+            refreshInterval={this.refreshInterval}
             timeRange={this.timeRange}
             timezone={this.timezone}
             value={this.scene}
@@ -693,7 +693,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 ))}
               </bk-tab>
             </div>
-            <div class='content-main-wrap'>{this.tabContentRender()}</div>
+            <div
+              style={{
+                background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
+              }}
+              class='content-main-wrap'
+            >
+              {this.tabContentRender()}
+            </div>
           </div>
         </div>
         <K8sDetailSlider

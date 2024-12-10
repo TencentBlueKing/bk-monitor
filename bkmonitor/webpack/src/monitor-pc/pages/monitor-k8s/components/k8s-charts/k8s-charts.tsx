@@ -68,19 +68,22 @@ export default class K8SCharts extends tsc<void> {
   // 刷新间隔设置
   handleIntervalChange(v: string) {
     this.interval = v;
+    this.updateViewOptions();
   }
   // 汇聚方法改变时触发
   handleMethodChange(v: string) {
     this.method = v;
+    this.updateViewOptions();
   }
   /** 时间对比值变更 */
   handleCompareTimeChange(timeList: string[]) {
     this.timeOffset = timeList;
+    this.updateViewOptions();
   }
 
-  handleShowTimeCompare(v) {
+  handleShowTimeCompare(v: boolean) {
     if (!v) {
-      this.timeOffset = [];
+      this.handleCompareTimeChange([]);
     }
   }
   render() {
