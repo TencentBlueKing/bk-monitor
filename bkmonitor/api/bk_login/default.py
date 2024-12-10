@@ -88,7 +88,7 @@ class ListProfileDepartmentsResource(UserManageAPIGWResource):
 
 
 class UnityUserBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/unity-user/stage/api/v1/open/odc-users/" % settings.BK_USERINFO_API_BASE_URL
+    base_url = settings.BK_USERINFO_API_BASE_URL
     module_name = "unity-user"
 
 
@@ -97,7 +97,7 @@ class GetUserSensitiveInfo(UnityUserBaseResource):
     获取用户敏感信息
     """
 
-    action = "/sensitive-info/"
+    action = "/api/v1/open/odc-users/sensitive-info/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):

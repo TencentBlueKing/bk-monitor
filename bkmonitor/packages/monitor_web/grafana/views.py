@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.iam import ActionEnum
@@ -107,6 +106,7 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("DELETE", resource.grafana.delete_folder, endpoint="delete_folder"),
         ResourceRoute("PUT", resource.grafana.rename_folder, endpoint="rename_folder"),
         ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
+        ResourceRoute("POST", resource.grafana.copy_dashboard_to_folder, endpoint="copy_dashboard_to_folder"),
         # 视图保存
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
         # 统一数据查询
@@ -145,4 +145,19 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
         ),
+        # Trace panel
+        ResourceRoute("POST", resource.grafana.list_application_info, endpoint="apm/list_application_info"),
+        ResourceRoute("POST", resource.grafana.get_field_option_values, endpoint="apm/get_field_option_values"),
+        ResourceRoute("POST", resource.grafana.list_trace, endpoint="apm/list_trace"),
+        ResourceRoute("POST", resource.grafana.trace_detail, endpoint="apm/trace_detail"),
+        # profile 查询
+        ResourceRoute("POST", resource.apm_web.grafana_query_profile, endpoint="query_graph_profile"),
+        # 应用服务列表
+        ResourceRoute("GET", resource.apm_web.list_application_services, endpoint="get_profile_application_service"),
+        # profile 数据类型
+        ResourceRoute("GET", resource.apm_web.query_services_detail, endpoint="get_profile_type"),
+        # profile label
+        ResourceRoute("GET", resource.apm_web.grafana_query_profile_label, endpoint="get_profile_label"),
+        # profile label_values
+        ResourceRoute("GET", resource.apm_web.grafana_query_profile_label_values, endpoint="get_profile_label_values"),
     ]

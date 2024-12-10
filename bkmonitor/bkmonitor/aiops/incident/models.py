@@ -504,6 +504,7 @@ class IncidentSnapshot(object):
         if aggregate_cluster:
             # 根据调用关系聚类结果进行聚合
             groups_by_clusters = self.generate_groups_by_edge_clusters()
+            groups_by_clusters = self.drop_groups_duplicates(groups_by_clusters)
             self.aggregate_by_groups(groups_by_clusters, entities_orders)
 
     def generate_groups_by_aggregate_configs(
@@ -639,6 +640,29 @@ class IncidentSnapshot(object):
             return True
 
         return False
+
+    def drop_groups_duplicates(self, groups_by_clusters: Dict[Tuple, set]) -> Dict[Tuple, set]:
+        """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 去重后的分组
+        """
+        result_groups = {}
+
+        for edge_cluster_id, groups in groups_by_clusters.items():
+            is_subset = False
+
+            for comp_edge_cluster_id, comp_groups in groups_by_clusters.items():
+                if edge_cluster_id != comp_edge_cluster_id:
+                    if groups.issubset(comp_groups):
+                        is_subset = True
+                        break
+
+            # 如果当前集合不是任何集合的子集，则保留
+            if not is_subset:
+                result_groups[edge_cluster_id] = groups
+
+        return result_groups
 
     def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
         """按照分组合并节点和边.

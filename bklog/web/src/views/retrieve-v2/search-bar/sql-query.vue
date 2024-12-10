@@ -87,7 +87,7 @@
   };
 
   const isEmptySqlString = computed(() => {
-    return /^\s*\*\s*$/.test(modelValue.value) || !modelValue.value.length;
+    return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
   });
 
   const debounceRetrieve = () => {
@@ -185,7 +185,7 @@
     </div>
   </div>
 </template>
-<style>
+<style lang="scss">
   .search-sql-query {
     display: inline-flex;
     align-items: center;
@@ -238,7 +238,7 @@
   }
 </style>
 
-<style scoped>
+<style lang="scss">
   @import 'tippy.js/dist/tippy.css';
 </style>
 <style lang="scss">

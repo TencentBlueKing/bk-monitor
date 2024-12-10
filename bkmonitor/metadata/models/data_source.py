@@ -118,7 +118,9 @@ class DataSource(models.Model):
         help_text="数据源属于的空间类型，允许授权给对应空间类型",
     )
     space_uid = models.CharField("所属空间的UID", max_length=256, default="")
-    created_from = models.CharField("数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value)
+    created_from = models.CharField(
+        "数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value, db_index=True
+    )
 
     class Meta:
         verbose_name = "数据源管理"
@@ -979,12 +981,13 @@ class DataSource(models.Model):
             logger.info("data_id->[{}] update config to consul skip.".format(self.bk_data_id))
             return
 
-        # 1. 获取consul的句柄
         hash_consul = consul_tools.HashConsul()
 
         # 2. 刷新当前data_id的配置
         hash_consul.put(
-            key=self.consul_config_path, value=self.to_json(is_consul_config=True), bk_data_id=self.bk_data_id
+            key=self.consul_config_path,
+            value=self.to_json(is_consul_config=True),
+            bk_data_id=self.bk_data_id,
         )
         logger.info(
             "data_id->[{}] has update config to ->[{}] success".format(self.bk_data_id, self.consul_config_path)

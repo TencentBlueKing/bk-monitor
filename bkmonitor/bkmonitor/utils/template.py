@@ -14,6 +14,7 @@ import re
 from collections import defaultdict
 from os import path
 
+import arrow
 from django.conf import settings
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import get_template
@@ -183,7 +184,7 @@ class Jinja2Renderer(object):
         return (
             jinja2_environment(autoescape=autoescape, escape_func=escape_func)
             .from_string(content)
-            .render({"json": json, "re": re, **context})
+            .render({"json": json, "re": re, "arrow": arrow, **context})
         )
 
 

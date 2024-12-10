@@ -12,7 +12,6 @@ import copy
 import datetime
 import json
 import logging
-import traceback
 
 import pytz
 from django.conf import settings
@@ -57,11 +56,12 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
-from apm.task.tasks import create_or_update_tail_sampling
+from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -127,61 +127,6 @@ class CreateApplicationResource(Resource):
                 "is_enabled_log": validated_data.get("enabled_log", False),
             },
         )
-
-
-class CreateApplicationSimpleResource(Resource):
-    from apm_web.meta.plugin.plugin import DeploymentEnum, LanguageEnum, Opentelemetry
-
-    DEFAULT_PLUGIN_ID = Opentelemetry.id
-    DEFAULT_DEPLOYMENT_IDS = [DeploymentEnum.CENTOS.id]
-    DEFAULT_LANGUAGE_IDS = [LanguageEnum.PYTHON.id]
-
-    DEFAULT_CLUSTER = "_default"
-    CLUSTER_TYPE = "elasticsearch"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
-        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
-        app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
-        description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
-        plugin_id = serializers.CharField(label="插件ID", max_length=255, required=False)
-        deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
-        language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
-        space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
-        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
-        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
-        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
-        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
-
-    def fill_default(self, validate_data):
-        if not validate_data.get("bk_biz_id"):
-            validate_data["bk_biz_id"] = api.cmdb.get_blueking_biz()
-
-        if not validate_data.get("app_alias"):
-            validate_data["app_alias"] = validate_data["app_name"]
-
-        if not validate_data.get("plugin_id"):
-            validate_data["plugin_id"] = self.DEFAULT_PLUGIN_ID
-
-        if not validate_data.get("deployment_ids"):
-            validate_data["deployment_ids"] = self.DEFAULT_DEPLOYMENT_IDS
-
-        if not validate_data.get("language_ids"):
-            validate_data["language_ids"] = self.DEFAULT_LANGUAGE_IDS
-
-        validate_data["datasource_option"] = ApplicationHelper.get_default_storage_config(validate_data["bk_biz_id"])
-
-    def perform_request(self, validated_request_data):
-        """api侧创建应用 需要保持和saas侧创建应用接口逻辑一致"""
-
-        if validated_request_data.get("space_uid"):
-            validated_request_data["bk_biz_id"] = space_uid_to_bk_biz_id(validated_request_data["space_uid"])
-
-        from apm_web.meta.resources import CreateApplicationResource
-
-        self.fill_default(validated_request_data)
-        app = CreateApplicationResource()(**validated_request_data)
-        return ApplicationInfoResource()(application_id=app["application_id"])["token"]
 
 
 class ApplyDatasourceResource(Resource):
@@ -348,18 +293,6 @@ class ApplicationInfoResource(Resource):
     def perform_request(self, validated_request_data):
         application_id = validated_request_data.get("application_id", None)
         return ApmApplication.objects.get(id=application_id)
-
-
-class DeleteApplicationSimpleResource(Resource):
-    RequestSerializer = ApplicationRequestSerializer
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-        app_name = validated_request_data.get("app_name")
-        from apm_web.meta.resources import DeleteApplicationResource
-
-        DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
-        logger.info(f"删除应用 {app_name} 成功")
 
 
 class ApdexSerializer(serializers.Serializer):
@@ -653,17 +586,15 @@ class QueryTopoNodeResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         topo_key = serializers.CharField(label="Topo Key", required=False, allow_null=True)
 
-    class ResponseSerializer(serializers.ModelSerializer):
+    class NodeResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
             fields = ("extra_data", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
-            data = super(QueryTopoNodeResource.ResponseSerializer, self).to_representation(instance)
+            data = super(QueryTopoNodeResource.NodeResponseSerializer, self).to_representation(instance)
             data["extra_data"] = instance.extra_data
             return data
-
-    many_response_data = True
 
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
@@ -671,7 +602,19 @@ class QueryTopoNodeResource(Resource):
         if data.get("topo_key"):
             filter_params["topo_key"] = data["topo_key"]
 
-        return TopoNode.objects.filter(**filter_params)
+        res = []
+        nodes = TopoNode.objects.filter(**filter_params)
+        for n in nodes:
+            extra = n.extra_data
+            if (
+                extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
+                and extra.get("category") != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+            ):
+                # 过滤掉非 http 类型的自定义服务(目前还没有支持)
+                continue
+
+            res.append(self.NodeResponseSerializer(instance=n).data)
+        return res
 
 
 class QueryTopoRelationResource(Resource):
@@ -1516,24 +1459,7 @@ class DeleteApplicationResource(Resource):
         if not app:
             raise ValueError(_("应用不存在"))
 
-        QpsConfig.refresh_config(
-            app.bk_biz_id,
-            app.app_name,
-            AppConfigBase.APP_LEVEL,
-            app.app_name,
-            [{"qps": -1}],
-        )
-
-        from apm.task.tasks import refresh_apm_application_config
-
-        refresh_apm_application_config(app.bk_biz_id, app.app_name)
-        try:
-            app.stop()
-        except Exception as e:  # noqa
-            logger.exception(
-                f"[DeleteApplication] stop app: {app.bk_biz_id}-{app.app_name} failed {e} " f"{traceback.format_exc()}"
-            )
-        app.delete()
+        delete_application_async.delay(app.bk_biz_id, app.app_name, get_request_username())
 
 
 class QuerySpanStatisticsListResource(Resource):
@@ -1654,7 +1580,7 @@ class CreateOrUpdateBkdataFlowResource(Resource):
                 raise ValueError(f"没有找到app_name: {app_name}的Trace数据表")
 
             if settings.IS_ACCESS_BK_DATA:
-                create_or_update_tail_sampling.delay(trace, ser.data)
+                create_or_update_tail_sampling.delay(trace, ser.data, get_request_username())
                 return
 
             raise ValueError("环境中未开启计算平台，无法创建")
@@ -1741,3 +1667,93 @@ class QueryProfileServiceDetailResource(Resource):
             params["last_check_time__gt"] = datetime.datetime.fromtimestamp(validated_data["last_check_time__gt"])
 
         return ProfileService.objects.filter(**params).order_by(validated_data.get("order", "created_at"))
+
+
+""""后端直接调用的类"""
+
+
+class CreateApplicationSimpleResource(Resource):
+    from apm_web.meta.plugin.plugin import DeploymentEnum, LanguageEnum, Opentelemetry
+
+    DEFAULT_PLUGIN_ID = Opentelemetry.id
+    DEFAULT_DEPLOYMENT_IDS = [DeploymentEnum.CENTOS.id]
+    DEFAULT_LANGUAGE_IDS = [LanguageEnum.PYTHON.id]
+
+    DEFAULT_CLUSTER = "_default"
+    CLUSTER_TYPE = "elasticsearch"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
+        app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
+        description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
+        plugin_id = serializers.CharField(label="插件ID", max_length=255, required=False)
+        deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
+        language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
+        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
+        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
+
+    def fill_default(self, validate_data):
+        if not validate_data.get("bk_biz_id"):
+            validate_data["bk_biz_id"] = api.cmdb.get_blueking_biz()
+
+        if not validate_data.get("app_alias"):
+            validate_data["app_alias"] = validate_data["app_name"]
+
+        if not validate_data.get("plugin_id"):
+            validate_data["plugin_id"] = self.DEFAULT_PLUGIN_ID
+
+        if not validate_data.get("deployment_ids"):
+            validate_data["deployment_ids"] = self.DEFAULT_DEPLOYMENT_IDS
+
+        if not validate_data.get("language_ids"):
+            validate_data["language_ids"] = self.DEFAULT_LANGUAGE_IDS
+
+        validate_data["datasource_option"] = ApplicationHelper.get_default_storage_config(validate_data["bk_biz_id"])
+
+    def perform_request(self, validated_request_data):
+        """api侧创建应用 需要保持和saas侧创建应用接口逻辑一致"""
+
+        if validated_request_data.get("space_uid"):
+            validated_request_data["bk_biz_id"] = space_uid_to_bk_biz_id(validated_request_data["space_uid"])
+
+        from apm_web.meta.resources import CreateApplicationResource
+
+        self.fill_default(validated_request_data)
+        app = CreateApplicationResource()(**validated_request_data)
+        return ApplicationInfoResource()(application_id=app["application_id"])["token"]
+
+
+class DeleteApplicationSimpleResource(Resource):
+    RequestSerializer = ApplicationRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        app_name = validated_request_data.get("app_name")
+        from apm_web.meta.resources import DeleteApplicationResource
+
+        DeleteApplicationResource()(bk_biz_id=bk_biz_id, app_name=app_name)
+        logger.info(f"删除应用 {app_name} 成功")
+
+
+class StartApplicationSimpleResource(Resource):
+    class RequestSerializer(ApplicationRequestSerializer):
+        type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
+
+    def perform_request(self, validated_request_data):
+        from apm_web.meta.resources import StartResource
+
+        return StartResource().request(validated_request_data)
+
+
+class StopApplicationSimpleResource(Resource):
+    class RequestSerializer(ApplicationRequestSerializer):
+        type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
+
+    def perform_request(self, validated_request_data):
+        from apm_web.meta.resources import StopResource
+
+        return StopResource().request(validated_request_data)

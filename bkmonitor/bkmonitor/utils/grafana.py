@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import concurrent.futures
 
 from django.conf import settings
+from django.utils.translation import ugettext as _
 
 from core.drf_resource import api, resource
 
@@ -35,21 +36,20 @@ def fetch_panel_title_ids(bk_biz_id, dashboard_uid, org=None):
         dashboard_config = api.grafana.get_dashboard_by_uid(uid=dashboard_uid, org_id=int(org_id))
         if not dashboard_config.get("data"):
             return []
-        dashboard_panels = dashboard_config["data"].get("dashboard", {}).get("panels", [])
+
         panel_id_title = []
-        for panel in dashboard_panels:
-            if panel.get("panels", []):
-                # 处理子panel
-                for extend_panel in panel["panels"]:
-                    if not extend_panel.get("title"):
-                        continue
-                    panel_id_title.append({"title": extend_panel["title"], "id": extend_panel["id"]})
-            elif panel.get("type") == "row" or not panel.get("title") or not panel.get("id"):
-                # 忽略行及没有基本信息的图表
+        panel_queue = dashboard_config["data"].get("dashboard", {}).get("panels", []).copy()
+        while panel_queue:
+            panel = panel_queue.pop(0)
+            if panel.get("panels"):
+                panel_queue.extend(panel["panels"])
+            elif panel.get("type") == "row" or not panel.get("id"):
                 continue
             else:
-                # 单一个panel
-                panel_id_title.append({"title": panel["title"], "id": panel["id"]})
+                title = panel.get("title")
+                if not title:
+                    title = f"{_('无标题')} #{panel['id']}"
+                panel_id_title.append({"title": title, "id": panel["id"]})
         return panel_id_title
     return []
 

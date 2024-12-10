@@ -42,7 +42,7 @@ interface IProps {
 }
 interface IEvents {
   onBizChange: number;
-  onOpenSpaceManager?: void;
+  onOpenSpaceManager?: () => void;
 }
 @Component
 class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'created')) {
@@ -73,8 +73,12 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
         name: 'grafana-home',
       });
     } else {
+      // console.info(item.url, '+++++++++++++++++');
       this.$router.push({
-        path: `/grafana/d/${item.uid}`,
+        path: item.url?.startsWith?.('/grafana') ? item.url : `/grafana/d/${item.uid}`,
+        params: {
+          rawUrl: item.url,
+        },
       });
     }
   }

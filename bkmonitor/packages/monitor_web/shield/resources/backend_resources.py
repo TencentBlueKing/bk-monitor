@@ -21,6 +21,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import Event, Shield
+from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
@@ -31,6 +32,7 @@ from bkmonitor.utils.time_tools import (
     strftime_local,
     utc2biz_str,
 )
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.shield import ScopeType, ShieldCategory, ShieldStatus
 from core.drf_resource import resource
@@ -163,6 +165,7 @@ class ShieldListResource(Resource):
                     "description": shield.description,
                     "source": shield.source,
                     "update_user": shield.update_user,
+                    "label": shield.label,
                 }
             )
 
@@ -203,6 +206,7 @@ class ShieldDetailResource(Resource):
             "update_time": utc2biz_str(shield.update_time),
             "create_user": shield.create_user,
             "update_user": shield.update_user,
+            "label": shield.label,
         }
         return shield_detail
 
@@ -348,6 +352,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
             description=data.get("description", ""),
             is_quick=data["is_quick"],
             source=data.get("source", ""),
+            label=data.get("label"),
         )
         return {"id": shield_obj.id}
 
@@ -451,6 +456,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     description=data.get("description", ""),
                     is_quick=data["is_quick"],
                     source=source,
+                    label=data.get("label"),
                 )
             )
         Shield.objects.bulk_create(shields)
@@ -472,6 +478,7 @@ class EditShieldResource(Resource):
         shield_notice = serializers.BooleanField(required=True, label="是否有屏蔽通知")
         notice_config = serializers.DictField(required=False, label="通知配置")
         description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
+        label = serializers.CharField(required=False, label="标签", default=None, allow_blank=True)
 
     def perform_request(self, data):
         try:
@@ -497,6 +504,11 @@ class EditShieldResource(Resource):
             shield.notice_config = data["notice_config"]
         else:
             shield.notice_config = {}
+
+        # 如果没有传入label，则使用原来的label
+        if data.get("label") is not None:
+            shield.label = data["label"]
+
         shield.cycle_config = data["cycle_config"]
         shield.description = data.get("description")
         shield.save()
@@ -510,18 +522,34 @@ class DisableShieldResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="屏蔽id")
+        id = serializers.ListField(required=True, child=serializers.IntegerField(), min_length=1, label="屏蔽id列表")
+
+        def to_internal_value(self, data):
+            data["id"] = data.get("id", [])
+            # 确保"id"字段始终是一个列表
+            if not isinstance(data["id"], list):
+                data["id"] = [data["id"]]
+
+            return super().to_internal_value(data)
 
     def perform_request(self, data):
-        try:
-            shield = Shield.objects.get(id=data["id"])
-        except Shield.DoesNotExist:
-            raise ShieldNotExist({"msg": data["id"]})
+        username = get_global_user() or "unknown"
+        shields = Shield.objects.filter(pk__in=data["id"])
+        update_shields = []
+        for shield in shields:
+            if shield.is_enabled:
+                shield.is_enabled = False
+                shield.failure_time = now()
+                shield.update_user = username  # 记录最后的操作人
+                update_shields.append(shield)
+        Shield.objects.bulk_update(update_shields, ["is_enabled", "failure_time", "update_user"])
 
-        if shield.is_enabled:
-            shield.is_enabled = False
-            shield.failure_time = now()
-            shield.save()
+        # 检查是否有不存在的屏蔽对象ID
+        existing_ids = {shield.id for shield in shields}
+        missing_ids = set(data["id"]) - existing_ids
+
+        if missing_ids:
+            logger.warning("Alarm shield ids does not exist: {}".format(list(missing_ids)))
         return "success"
 
 

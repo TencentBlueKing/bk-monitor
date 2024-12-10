@@ -51,7 +51,7 @@ class TreeConverter:
         # 构建 FunctionTree
         tree = FunctionTree(
             root=FunctionNode(
-                id="",
+                id=ROOT_DISPLAY_NAME,
                 name=ROOT_DISPLAY_NAME,
                 system_name="",
                 filename="",

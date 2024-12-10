@@ -1,0 +1,77 @@
+.bklog-sql-editor-root {
+  position: relative;
+  height: 100%;
+  padding-bottom: 48px;
+  background: #1e1e1e;
+
+  .bklog-sql-editor {
+    height: 100%;
+
+    .bk-monaco-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0px 20px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      color: #c4c6cc;
+      background: #2e2e2e;
+      //   border-bottom: 1px solid #3f51b594;
+
+      > div {
+        display: flex;
+        align-items: center;
+      }
+
+      .header-tool-right {
+        display: flex;
+        align-items: center;
+
+        .header-tool-right-icon {
+          padding: 10px;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+  .sql-editor-tools {
+    position: absolute;
+    bottom: 6px;
+    left: 16px;
+    display: flex;
+
+    button,
+    .bklog-sqleditor-bookmark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      margin-right: 8px;
+      cursor: pointer;
+
+      &:not(.sql-editor-query-button) {
+        height: 28px;
+        line-height: 26px;
+        color: #c4c6cc;
+        background-color: #313238;
+        border: 1px solid #63656e;
+        border-radius: 2px;
+        transition: border-color 0.3s ease-in-out;
+
+        &:hover {
+          color: #c4c6cc;
+          border-color: #979ba5;
+        }
+      }
+    }
+
+    .bklog-sqleditor-bookmark {
+      > div {
+        > span {
+          padding: 4px 10px;
+        }
+      }
+    }
+  }
+}

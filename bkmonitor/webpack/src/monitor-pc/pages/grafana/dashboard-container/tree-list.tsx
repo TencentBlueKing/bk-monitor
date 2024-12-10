@@ -142,6 +142,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
         icon: 'icon-mc-delete-line',
         hasAuth: true,
       },
+      {
+        id: MoreType.copy,
+        name: window.i18n.tc('复制到'),
+        icon: 'icon-mc-copy',
+        hasAuth: true,
+      },
     ];
   }
   /**
