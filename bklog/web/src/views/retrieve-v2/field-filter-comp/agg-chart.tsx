@@ -82,7 +82,6 @@ export default class AggChart extends tsc<object> {
     return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
-    console.log(this.isFrontStatistics, this.topFiveList, this.fieldValueData.values);
 
     return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
   }
@@ -93,7 +92,6 @@ export default class AggChart extends tsc<object> {
     return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
   }
   get watchQueryParams() {
-    console.log(this, store.state.indexItem);
     const { datePickerValue, ip_chooser, addition, timezone, keyword } = store.state.indexItem;
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
@@ -105,7 +103,6 @@ export default class AggChart extends tsc<object> {
   }
 
   mounted() {
-    console.log(store, router);
     if (!this.isFrontStatistics) this.queryFieldFetchTopList();
   }
 
@@ -141,7 +138,6 @@ export default class AggChart extends tsc<object> {
   }
   async queryFieldFetchTopList(limit = 5) {
     this.limitSize = limit;
-    console.log(this);
 
     try {
       const indexSetIDs = this.isUnionSearch

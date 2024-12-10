@@ -510,7 +510,6 @@
             confirmLoading.value = true;
 
             const originfieldTableData = originfieldTable.value.getData();
-            // const indexfieldTableData = indexfieldTable.value.getAllData()
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
@@ -526,20 +525,6 @@
               },
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData(),
-              // alias_settings: [
-              //   ...originfieldTableData.map(item =>{
-              //     return  {
-              //       field_name: item.field_name,
-              //       query_alias: item.alias_name, 
-              //       path_type:  item.field_type}
-              //   }),
-              //   ...indexfieldTableData.map(item =>{
-              //     return  {
-              //       field_name: item.field_name,
-              //       query_alias: item.alias_name, 
-              //       path_type:  item.field_type}
-              //   }),
-              // ],
             };
             await http
               .request('collect/fastUpdateCollection', {

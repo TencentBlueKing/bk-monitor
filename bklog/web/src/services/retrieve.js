@@ -214,11 +214,6 @@ const updateUserFiledTableConfig = {
   url: '/search/index_set/user_custom_config/',
   method: 'post',
 };
-/** 字段分析列表下载*/
-const downloadFieldAnalysisList = {
-  url: '/field/index_set/fetch_value_list/',
-  method: 'post',
-};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -263,5 +258,4 @@ export {
   updateClusteringConfig,
   getClusteringConfigStatus,
   updateUserFiledTableConfig,
-  downloadFieldAnalysisList,
 };
