@@ -533,11 +533,13 @@ rest/v2/k8s/resources/list_k8s_resources/
     "items": [
       {
         "pod": "pod-1",
+        "container": "container-1",
         "namespace": "default",
         "workload": "Deployment:workload-1"
       },
       {
         "pod": "pod-2",
+        "container": "container-2",
         "namespace": "demo",
         "workload": "Deployment:wrokload-2"
       } // ...
@@ -576,11 +578,13 @@ rest/v2/k8s/resources/list_k8s_resources/
     "items": [
       {
         "pod": "pod-1",
+        "container": "container-1",
         "namespace": "default",
         "workload": "Deployment:workload-1"
       },
       {
         "pod": "pod-2",
+        "container": "container-2",
         "namespace": "default",
         "workload": "Deployment:wrokload-2"
       } // ...
