@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger("apm")
 
-ROOT_DISPLAY_NAME = "root"
+ROOT_DISPLAY_NAME = "total"
 
 # 节点名称中不能包含以下特殊字符
 DOT_INVALID_CHARS = ["[", "]", ":", ";", "{", "}", '"', "<", ">"]

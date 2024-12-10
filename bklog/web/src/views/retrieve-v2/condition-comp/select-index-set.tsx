@@ -41,7 +41,7 @@ type ActiveType = 'favorite' | 'history';
 const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
-export default class QueryStatement extends tsc<object> {
+export default class SelectIndexSet extends tsc<object> {
   @Prop({ default: {} }) popoverOptions;
 
   /** 表示集合数据是否正在加载 */
@@ -173,9 +173,9 @@ export default class QueryStatement extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_APM__) {
-      return this.$route.query.indexId;
+      return String(this.$route.query.indexId);
     } else {
-      return this.$route.params.indexId;
+      return String(this.$route.params.indexId);
     }
   }
 

@@ -1464,18 +1464,21 @@
         const data = {
           etl_config: 'bk_log_regexp',
           etl_params: {
-            separator_regexp: this.formData.etl_params.path_regexp,
+            separator_regexp: this.formData.etl_params?.path_regexp,
           },
           data: this.pathExample,
         };
         const urlParams = {};
         urlParams.collector_config_id = this.curCollect.collector_config_id;
         const updateData = { params: urlParams, data };
-        // 先置空防止接口失败显示旧数据
-        this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
-        this.metaDataList?.splice?.(0, this.metaDataList.length);
+        // 先置空防止接口失败显示旧数据及兼容etl_params.metadata_fields为null的情况
+        this.formData.etl_params.metadata_fields = this.formData.etl_params?.metadata_fields || [];
+        this.formData.etl_params.metadata_fields.length = 0;
+        this.metaDataList.length = 0;
+
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
-          this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));
+          const fields = res.data?.fields || [];
+          this.formData.etl_params?.metadata_fields.push(...fields);
         });
       },
       debugHandler() {
