@@ -126,6 +126,7 @@
   const condition = ref(getInputQueryDefaultItem());
 
   let requestTimer = null;
+  const isRequesting = ref(false);
   const rquestFieldEgges = (() => {
     return (field, operator?, value?, callback?) => {
       const getConditionValue = () => {
@@ -141,19 +142,25 @@
       }
 
       const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
+      isRequesting.value = true;
 
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
         const addition = value
-          ? [{ field: field.field_name, operator, value: getConditionValue() }].map(val => {
+          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
               const instance = new ConditionOperator(val);
               return instance.getRequestParam();
             })
           : [];
 
-        store.dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size }).then(() => {
-          callback?.();
-        });
+        store
+          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
+          .then(() => {
+            callback?.();
+          })
+          .finally(() => {
+            isRequesting.value = false;
+          });
       }, 300);
     };
   })();
@@ -377,9 +384,11 @@
 
     rquestFieldEgges(item, null, null, () => {
       if (!conditionValueInstance.repositionTippyInstance()) {
-        const target = refConditionInput.value?.parentNode;
-        if (target) {
-          conditionValueInstance.show(target);
+        if (!isOperatorInstanceActive()) {
+          const target = refConditionInput.value?.parentNode;
+          if (target) {
+            conditionValueInstance.show(target);
+          }
         }
       }
     });
@@ -532,7 +541,9 @@
       input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
       conditionValueInputVal.value = input.value;
       rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
-        conditionValueInstance.repositionTippyInstance();
+        if (!operatorInstance.isShown()) {
+          conditionValueInstance.repositionTippyInstance();
+        }
       });
     }
   };
@@ -547,6 +558,9 @@
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
+    setTimeout(() => {
+      conditionValueInstance.hide();
+    });
   };
 
   const appendConditionValue = value => {
@@ -611,7 +625,10 @@
    * 判断当前操作符选择下拉是否激活
    */
   const isOperatorInstanceActive = () => {
-    return operatorInstance.isShown() && activeFieldItem.value.field_operator?.length;
+    return (
+      operatorInstance.isInstanceShowing() ||
+      (operatorInstance.isShown() && activeFieldItem.value.field_operator?.length)
+    );
   };
 
   /**
@@ -1093,6 +1110,7 @@
                   <ul
                     ref="refValueTagInputOptionList"
                     class="condition-value-options"
+                    v-bkloading="{ isLoading: isRequesting }"
                   >
                     <li
                       v-if="!activeItemMatchList.length"
