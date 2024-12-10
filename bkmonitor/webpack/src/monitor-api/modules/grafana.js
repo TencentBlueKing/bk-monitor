@@ -48,6 +48,8 @@ export const setDefaultDashboard = request('POST', 'rest/v2/grafana/set_default_
 export const getDefaultDashboard = request('GET', 'rest/v2/grafana/get_default_dashboard/');
 export const getDirectoryTree = request('GET', 'rest/v2/grafana/get_directory_tree/');
 export const createDashboardOrFolder = request('POST', 'rest/v2/grafana/create_dashboard_or_folder/');
+export const copyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
+export const MigrateOldPanels = request('POST', 'rest/v2/grafana/migrate_old_panels/');
 export const deleteDashboard = request('DELETE', 'rest/v2/grafana/delete_dashboard/');
 export const starDashboard = request('POST', 'rest/v2/grafana/star_dashboard/');
 export const unstarDashboard = request('DELETE', 'rest/v2/grafana/unstar_dashboard/');
@@ -107,6 +109,8 @@ export default {
   getDefaultDashboard,
   getDirectoryTree,
   createDashboardOrFolder,
+  copyDashboardToFolder,
+  MigrateOldPanels,
   deleteDashboard,
   starDashboard,
   unstarDashboard,

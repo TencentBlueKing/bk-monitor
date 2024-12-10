@@ -91,6 +91,7 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resource.grafana.time_series_metric, endpoint="time_series/metric", content_encoding="gzip"
         ),
+        ResourceRoute("GET", resource.grafana.get_related_strategy, endpoint="get_related_strategy"),
         ResourceRoute("POST", resource.grafana.time_series_metric_level, endpoint="time_series/metric_level"),
         ResourceRoute("POST", resource.grafana.log_query, endpoint="log/query"),
         # 设置默认仪表盘
@@ -107,6 +108,7 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("PUT", resource.grafana.rename_folder, endpoint="rename_folder"),
         ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
         ResourceRoute("POST", resource.grafana.copy_dashboard_to_folder, endpoint="copy_dashboard_to_folder"),
+        ResourceRoute("POST", resource.grafana.migrate_old_panels, endpoint="migrate_old_panels"),
         # 视图保存
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
         # 统一数据查询
