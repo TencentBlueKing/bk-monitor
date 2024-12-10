@@ -322,6 +322,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
+  metricTipType = '';
   monitorDataEditMode: EditModeType = 'Edit';
   // 将切换至ui模式
   switchToUI = false;
@@ -1654,8 +1655,28 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     document.addEventListener('mouseup', handleMouseUp);
   }
 
+  showMerticMessageTip() {
+    this.metricTipType = '';
+    if (!this.target.length) return false;
+    if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
+    if (this.monitorDataEditMode !== 'Edit') return false;
+    let hasRelevantDimension = false;
+    hasRelevantDimension = this.metricData.every(item => {
+      const [hostMetric, nodeMetric = []] = item.targetMetricList;
+      const metricSet = this.targetType === 'TOPO' ? new Set([...hostMetric, ...nodeMetric]) : new Set(hostMetric);
+      return item.agg_dimension.some(d => metricSet.has(d));
+    });
+    if (!hasRelevantDimension) {
+      this.metricTipType = this.metricData[0].objectType;
+    }
+    return !hasRelevantDimension;
+  }
+
   async handleValidateStrategyConfig() {
     let validate = true;
+    if (this.showMerticMessageTip()) {
+      return false;
+    }
     if (this.monitorDataEditMode === 'Source') {
       if (!this.sourceData.sourceCode) {
         this.$bkMessage({
@@ -2535,6 +2556,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         hasAiOpsDetect={this.hasAiOpsDetect}
         loading={this.monitorDataLoading}
         metricData={this.metricData}
+        metricTipType={this.metricTipType}
         promqlError={this.sourceData.promqlError}
         readonly={this.isDetailMode}
         source={this.sourceData.sourceCode}
