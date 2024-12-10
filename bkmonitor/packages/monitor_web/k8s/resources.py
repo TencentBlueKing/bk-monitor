@@ -61,14 +61,14 @@ class WorkloadOverview(Resource):
         ]
         """
         result = queryset.values('type').annotate(count=Count('name'))
-        kind_map = OrderedDict.fromkeys(["Deployments", "StatefulSets", "DaemonSets", "Jobs", "CronJobs"], 0)
+        kind_map = OrderedDict.fromkeys(["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"], 0)
         for item in result:
             if item["type"] not in kind_map:
                 kind_map[item["type"]] = item["count"]
             else:
                 kind_map[item["type"]] += item["count"]
 
-        return [[item["type"], item["count"]] for item in result]
+        return [[key, value] for key, value in kind_map.items()]
 
 
 class ScenarioMetricList(Resource):
