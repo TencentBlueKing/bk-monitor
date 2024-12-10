@@ -13,7 +13,6 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Set, Union
 
-import arrow
 from django.conf import settings
 from django.core.cache import caches
 from django.utils.translation import gettext as _
@@ -30,7 +29,6 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -441,72 +439,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             option_variables = {"request_total_name": _("请求总数")}
             view_config = cls._multi_replace_variables(view_config, option_variables)
         return view_config
-
-    @classmethod
-    def get_monitor_info(
-        cls,
-        bk_biz_id,
-        result_table_id,
-        service_name,
-        monitor_name_key,
-        service_name_key,
-        count: int = 1000,
-        start_time=None,
-        end_time=None,
-    ) -> dict:
-        """
-        获取自定义指标的监控信息
-        :param bk_biz_id: 业务ID
-        :param result_table_id: 结果表ID
-        :param service_name: 服务名
-        :param monitor_name_key: 监控项维度名
-        :param service_name_key: 服务维度名
-        :param count: 查询数量
-        :param start_time: 开始时间
-        :param end_time: 结束时间
-        """
-
-        if not start_time or not end_time:
-            end_time = int(arrow.now().timestamp)
-            start_time = int(end_time - 3600)
-
-        request_params = {
-            "bk_biz_id": bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": DataSourceLabel.PROMETHEUS,
-                    "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "promql": "",
-                    "interval": "auto",
-                    "alias": "a",
-                    "filter_dict": {},
-                }
-            ],
-            "slimit": count,
-            "expression": "",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-        metric_table_id = result_table_id.replace('.', ':')
-        monitor_info_mapping = {}
-        try:
-            promql = (
-                f"count by ({monitor_name_key}, __name__) "
-                f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=\"{service_name}\"}})"
-            )
-            request_params["query_configs"][0]["promql"] = promql
-            series = resource.grafana.graph_unify_query(request_params)["series"]
-            for metric in series:
-                metric_field = metric.get("dimensions", {}).get("__name__")
-                if metric_field:
-                    monitor_info_mapping[metric_field] = {
-                        "monitor_name": metric["dimensions"].get(monitor_name_key),
-                    }
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
-
-        return monitor_info_mapping
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):

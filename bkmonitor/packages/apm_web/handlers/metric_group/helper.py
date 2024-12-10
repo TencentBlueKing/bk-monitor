@@ -144,6 +144,7 @@ class MetricHelper:
         count: int = 3000,
         start_time=None,
         end_time=None,
+        **kwargs,
     ) -> dict:
         """
         获取自定义指标的监控信息
