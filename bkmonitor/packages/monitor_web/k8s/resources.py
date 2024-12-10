@@ -206,13 +206,15 @@ class ListK8SResources(Resource):
         # 分页
         page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
         page = serializers.IntegerField(required=False, default=1, label="页数")
+        page_type = serializers.ChoiceField(
+            required=False, choices=["scrolling", "traditional"], default="traditional", label="分页标识"
+        )
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         with_history: bool = validated_request_data["with_history"]
-        page_size: int = validated_request_data["page_size"]
-        page: int = validated_request_data["page"]
+
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(
             validated_request_data["resource_type"], bk_biz_id, bcs_cluster_id
@@ -230,8 +232,7 @@ class ListK8SResources(Resource):
         # 当 with_history = False 对返回结果进行分页查询
         if not with_history:
             count = resource_meta.filter.query_set.count()
-            paginator = Paginator(resource_meta.filter.query_set, page_size)  # 每页 10 项
-            resource_meta = paginator.get_page(page).object_list.values()
+            resource_meta = self.get_resource_meta_by_pagination(validated_request_data)
 
         resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
         resource_id = [tuple(sorted(r.items())) for r in resource_list]
@@ -249,6 +250,24 @@ class ListK8SResources(Resource):
             count = len(resource_list)
 
         return {"count": count, "items": resource_list}
+
+    def get_resource_meta_by_pagination(
+        self, resource_meta: K8sResourceMeta, validated_request_data: Dict
+    ) -> K8sResourceMeta:
+        """
+        获取分页后的 K8sResourceMeta
+        """
+        page_size: int = validated_request_data["page_size"]
+        page: int = validated_request_data["page"]
+        page_type: str = validated_request_data["page_type"]
+
+        # 将传统分页转化为滚动分页
+        if page_type == "scrolling":
+            page_size = page * page_size
+            page = 1
+
+        paginator = Paginator(resource_meta.filter.query_set, page_size)
+        return paginator.get_page(page).object_list.values()
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
