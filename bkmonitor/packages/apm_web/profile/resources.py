@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import itertools
+import json
 import logging
 from collections import defaultdict
 
@@ -16,7 +18,9 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
 from apm_web.models import Application
-from apm_web.profile.doris.querier import QueryTemplate
+from apm_web.profile.constants import GRAFANA_LABEL_MAX_SIZE
+from apm_web.profile.doris.querier import APIType, QueryTemplate
+from apm_web.profile.serializers import ProfileQuerySerializer, QueryBaseSerializer
 from apm_web.utils import get_interval, split_by_interval
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource, api
@@ -303,3 +307,107 @@ class QueryProfileBarGraphResource(Resource):
         end_timestamp = int(end_datetime.timestamp() * 1000)
 
         return start_timestamp, end_timestamp
+
+
+class GrafanaQueryProfileResource(Resource):
+    """Grafana 查询 Profile 数据"""
+
+    class RequestSerializer(ProfileQuerySerializer):
+        def validate(self, attrs):
+            # 使用 grafana 转换器
+            attrs["diagram_types"] = ["grafana_flame"]
+            return attrs
+
+    def perform_request(self, data):
+        from apm_web.profile.views import ProfileQueryViewSet
+
+        validate_data, essentials, extra_params = ProfileQueryViewSet.get_query_params(data)
+        tree_converter = ProfileQueryViewSet.converter_query(essentials, validate_data, extra_params)
+        res = ProfileQueryViewSet.converter_to_data(validate_data, tree_converter)
+        # 返回符合 grafana flame graph 的格式
+        return res.get("frame_data", {})
+
+
+class GrafanaQueryProfileLabelResource(Resource):
+    """Grafana 查询 label"""
+
+    RequestSerializer = QueryBaseSerializer
+
+    def perform_request(self, validated_request_data):
+        return {"label_keys": self.get_labels_keys(validated_request_data)}
+
+    @classmethod
+    def get_labels_keys(cls, validated_data: dict = None):
+        from apm_web.profile.views import ProfileQueryViewSet
+
+        instance = ProfileQueryViewSet()
+
+        essentials = instance.get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
+
+        start, end = instance.enlarge_duration(
+            validated_data["start"], validated_data["end"], offset=validated_data.get("offset", 0)
+        )
+
+        results = instance.query(
+            api_type=APIType.LABELS,
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
+            service_name=service_name,
+            result_table_id=result_table_id,
+            start=start,
+            end=end,
+            extra_params={"limit": {"rows": GRAFANA_LABEL_MAX_SIZE}},
+        )
+
+        label_keys = set(
+            itertools.chain(*[list(json.loads(i["labels"]).keys()) for i in results.get("list", []) if i.get("labels")])
+        )
+        return label_keys
+
+
+class GrafanaQueryProfileLabelValuesResource(Resource):
+    """Grafana 查询 label.value"""
+
+    class RequestSerializer(QueryBaseSerializer):
+        label_key = serializers.CharField(label="label名")
+        offset = serializers.IntegerField(label="label_values查询起点")
+        rows = serializers.IntegerField(label="label_values查询条数")
+
+    def perform_request(self, validated_request_data):
+        """获取 profiling 数据的 label_values 列表"""
+
+        results = self.get_label_values(validated_request_data)
+        return {"label_values": [i["label_value"] for i in results.get("list", {}) if i.get("label_value")]}
+
+    @classmethod
+    def get_label_values(cls, validated_data: dict = None):
+        from apm_web.profile.views import ProfileQueryViewSet
+
+        instance = ProfileQueryViewSet()
+
+        offset, rows = validated_data["offset"], validated_data["rows"]
+        essentials = instance.get_essentials(validated_data)
+        bk_biz_id = essentials["bk_biz_id"]
+        app_name = essentials["app_name"]
+        service_name = essentials["service_name"]
+        result_table_id = essentials["result_table_id"]
+
+        start, end = instance.enlarge_duration(validated_data["start"], validated_data["end"], offset=offset)
+        results = instance.query(
+            api_type=APIType.LABEL_VALUES,
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
+            service_name=service_name,
+            extra_params={
+                "label_key": validated_data["label_key"],
+                "limit": {"offset": offset, "rows": rows},
+            },
+            result_table_id=result_table_id,
+            start=start,
+            end=end,
+        )
+        return results
