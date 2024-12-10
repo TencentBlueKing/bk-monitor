@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from collections import defaultdict
+from copy import deepcopy
 from typing import Dict
 
 from blueapps.utils import get_request
@@ -16,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bk_dataview.api import get_or_create_org
+from bk_dataview.models import Dashboard
 from bk_dataview.permissions import GrafanaPermission, GrafanaRole
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
@@ -371,3 +374,244 @@ class CopyDashboardToFolder(Resource):
             "code": result["code"],
             "data": {"imported_url": result["data"].get("importedUrl", "")},
         }
+
+
+class MigrateOldPanels(Resource):
+    """
+    将旧版 panels 迁移到新版本
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+        dashboard_uid = serializers.CharField(label="仪表盘UID", required=True)
+
+    @staticmethod
+    def graph_to_timeseries(panel: Dict):
+        """
+        将旧版 graph 面板 迁移到新版本的 timeseries 面板
+        """
+        old_panel = deepcopy(panel)
+        panel.clear()
+
+        # panel 基本信息
+        panel["id"] = old_panel["id"]
+        panel["type"] = "timeseries"
+        panel["title"] = old_panel.get("title", "Panel Title")
+        panel["gridPos"] = old_panel["gridPos"]
+        panel["datasource"] = old_panel["datasource"]
+        panel["targets"] = old_panel["targets"]
+
+        # 工具提示和图例迁移
+        old_tooltip = old_panel.get("tooltip", {})
+        short_map = {0: "none", 1: "asc", 2: "desc"}
+        tooltip = {
+            "mode": "multi" if old_tooltip.get("shared", False) is True else "single",
+            "sort": short_map[old_tooltip.get("sort", 0)],
+        }
+        old_legend = old_panel.get("legend", {})
+        calcs_map = {"avg": "mean", "min": "min", "max": "max", "total": "sum", "current": "last"}
+        legend = {
+            "showLegend": old_legend.get("show", True),
+            "displayMode": "table" if old_legend.get("alignAsTable", False) is True else "list",
+            "placement": "right" if old_legend.get("rightSide", False) is True else "bottom",
+            "calcs": [new_calc for old_calc, new_calc in calcs_map.items() if old_legend.get(old_calc, False)],
+        }
+        panel["options"] = {"tooltip": tooltip, "legend": legend}
+
+        # 图表上阈值标记模式："off":  不显示阈值效果；"line": 达到阈值的点上绘制一条线；"area": 在满足阈值区域填充颜色；
+        # "line+area": 除了在图表中绘制一条代表阈值的线之外,还会填充颜色
+        thresholds_style_mode = "off"
+        # 阈值和对应显示的颜色
+        threshold_steps = [{"color": "green", "value": None}]
+        threshold_colors = [
+            "red",
+            "#EAB839",
+            "#6ED0E0",
+            "#EF843C",
+            "#E24D42",
+            "#1F78C1",
+            "#BA43A9",
+            "#705DA0",
+            "#508642",
+            "#CCA300",
+            "#447EBC",
+            "#C15C17",
+            "#890F02",
+            "#0A437C",
+            "#6D1F62",
+        ]
+        color_index = 0
+        for threshold in old_panel.get("thresholds", []):
+            if threshold.get("op", "gt") == "lt":  # 当阈值条件为小于时，不显示该阈值, timeseries只有大于显示
+                continue
+            threshold_steps.append({"color": threshold_colors[color_index], "value": threshold.get("value")})
+            color_index = (color_index + 1) % len(threshold_colors)
+            if threshold.get("fill", False) is True and threshold.get("line", False) is True:
+                thresholds_style_mode = "line+area"
+            elif threshold.get("fill", False) is True:
+                thresholds_style_mode = "area"
+            elif threshold.get("line", False) is True:
+                thresholds_style_mode = "line"
+            else:
+                thresholds_style_mode = "off"
+        draw_style_map = {"lines": "line", "bars": "bars", "points": "points"}
+        draw_style = "line"
+        for old_style, new_style in draw_style_map.items():
+            if old_panel.get(old_style, False):
+                draw_style = new_style
+                break
+        custom = {
+            # 以下使用timeseries默认值
+            "axisBorderShow": False,
+            "axisCenteredZero": False,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "scaleDistribution": {"type": "linear"},
+            "hideFrom": {"legend": False, "tooltip": False, "viz": False},
+            "insertNulls": False,
+            "showPoints": "auto",
+            "barAlignment": 0,
+            # 以下是与graph映射后的值
+            "drawStyle": draw_style,
+            "lineInterpolation": "stepAfter" if old_panel.get("steppedLine", False) is True else "smooth",
+            "lineWidth": old_panel.get("lineWidth", 1),
+            "fillOpacity": old_panel.get("fill", 0) * 10,
+            "gradientMode": "none" if old_panel.get("fillGradient", 0) == 0 else "opacity",
+            "spanNulls": True if old_panel.get("nullPointMode", "null") == "connected" else False,
+            "pointSize": old_panel.get("pointradius", 2) * 4,
+            "stacking": {"mode": "normal" if old_panel.get("stack", False) is True else "none", "group": "A"},
+            "thresholdsStyle": {"mode": thresholds_style_mode},
+        }
+        # 自定义配置
+        panel["fieldConfig"] = {
+            "defaults": {
+                "color": {"mode": "palette-classic"},
+                "mapping": [],
+                "thresholds": {"steps": threshold_steps, "mode": "absolute"},
+                "custom": custom,
+            },
+            "overrides": [],
+        }
+        links = old_panel.get("fieldConfig", {}).get("defaults", {}).get("links", [])
+        if links:
+            panel["fieldConfig"]["defaults"]["links"] = links
+        overrides = old_panel.get("fieldConfig", {}).get("overrides", [])
+        if overrides:
+            panel["fieldConfig"]["overrides"] = overrides
+
+    @staticmethod
+    def oldtable_to_newtable(panel: Dict):
+        """
+        将旧版 table 面板 迁移到新版本的 table 面板
+        """
+        old_panel = deepcopy(panel)
+        panel.clear()
+
+        # panel 基本信息
+        panel["id"] = old_panel["id"]
+        panel["type"] = "table"
+        panel["title"] = old_panel.get("title", "Panel Title")
+        panel["gridPos"] = old_panel["gridPos"]
+        panel["datasource"] = old_panel["datasource"]
+        panel["targets"] = old_panel["targets"]
+
+        # 表头和页脚配置
+        panel["options"] = {
+            "showHeader": old_panel.get("showHeader", True),
+            "cellHeight": "sm",
+            "footer": {"show": False, "reducer": ["sum"], "fields": "", "countRows": False, "enablePagination": False},
+        }
+
+        panel["fieldConfig"] = {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "mapping": [],
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [{"value": None, "color": "green"}, {"value": 80, "color": "red"}],
+                },
+                "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": False},
+            },
+            "overrides": [],
+        }
+        for style in old_panel.get("styles", []):
+            override = {"matcher": {"id": "byName", "options": style.get("pattern", "")}, "properties": []}
+
+            alias = style.get("alias", "")
+            if alias:
+                override["properties"].append({"id": "displayName", "value": alias})
+
+            align = style.get("align", "auto")
+            if align != "auto":
+                override["properties"].append({"id": "custom.align", "value": align})
+
+            unit = style.get("unit", "")
+            if unit:
+                if style.get("type") == "date":
+                    unit = f"time: {style.get('dateFormat', 'YYYY-MM-DD HH:mm:ss')}"
+                override["properties"].append({"id": "unit", "value": unit})
+
+            decimals = style.get("decimals")
+            if decimals is not None:
+                override["properties"].append({"id": "decimals", "value": decimals})
+
+            panel["fieldConfig"]["overrides"].append(override)
+
+    def migrate_panel(self, panel: Dict, is_migrate: bool):
+        """
+        将旧版 panels 迁移到新版本
+        """
+        panel_type = panel.get("type")
+
+        # 面板为 graph 时，进行转换为 timeseries 面板
+        if panel_type == "graph":
+            self.graph_to_timeseries(panel)
+            is_migrate = True
+        # 面板为老版 table-old 时，进行转换为新版的 table 面板
+        elif panel_type == "table-old":
+            self.oldtable_to_newtable(panel)
+            is_migrate = True
+        return is_migrate
+
+    def perform_request(self, params):
+        # 1. 获取仪表盘信息
+        org_id = get_or_create_org(str(params["bk_biz_id"]))["id"]
+        dashboard_info = Dashboard.objects.filter(org_id=org_id, is_folder=False, uid=params["dashboard_uid"]).first()
+        dashboard = json.loads(dashboard_info.data) if dashboard_info else None
+
+        # 没有获取到仪表盘信息，直接返回
+        if not dashboard:
+            return {
+                "result": False,
+                "message": f"Migrate failed. The dashboard information could not be found. "
+                f"dashboard_uid: {params['dashboard_uid']}",
+                "code": 200,
+                "data": {},
+            }
+
+        # 2. 遍历 panels 进行转换更新面板配置
+        is_migrate = False
+        for panel in dashboard.get("panels", []):
+            if panel.get("type") == "row":
+                for raw_panel in panel.get("panels", []):
+                    is_migrate = self.migrate_panel(raw_panel, is_migrate)
+            is_migrate = self.migrate_panel(panel, is_migrate)
+
+        # 3. 更新仪表盘
+        if is_migrate:
+            dashboard_info.data = json.dumps(dashboard)
+            dashboard_info.save()
+            return {
+                "result": True,
+                "message": "Migrate success.",
+                "code": 200,
+                "data": {},
+            }
+        else:
+            return {
+                "result": True,
+                "message": "Nothing to Migrate.",
+                "code": 200,
+                "data": {},
+            }
