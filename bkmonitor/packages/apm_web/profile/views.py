@@ -279,12 +279,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
         if validated_data["global_query"]:
+            builtin_datasource = api.apm_api.query_builtin_profile_datasource()
             app_name = BUILTIN_APP_NAME
             service_name = app_name
-            # TODO: fetch from apm api in the future
-            # we keep the same rule for now
-            bk_biz_id = api.cmdb.get_blueking_biz()
-            result_table_id = f"{bk_biz_id}_profile_{BUILTIN_APP_NAME}"
+            bk_biz_id = builtin_datasource["bk_biz_id"]
+            result_table_id = builtin_datasource["result_table_id"]
         else:
             bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
