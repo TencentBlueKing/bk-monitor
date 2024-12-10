@@ -173,6 +173,9 @@
       }
     }
   }
+  .sideslider{
+    left: auto ;
+  }
 }
 
 .conflict-popover {
@@ -181,4 +184,9 @@
     font-size: 12px;
     color: #63656e;
   }
+}
+
+.aggSidesContent{
+  padding: 16px;
+  font-size: 12px;
 }
