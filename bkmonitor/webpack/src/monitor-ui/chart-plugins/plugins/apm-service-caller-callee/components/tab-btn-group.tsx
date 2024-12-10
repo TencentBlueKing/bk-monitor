@@ -37,7 +37,7 @@ interface ITabBtnGroupEvent {
   onChange: (id: string) => void;
 }
 
-import type { ITabItem } from '../../type';
+import type { ITabItem } from '../type';
 
 import './tab-btn-group.scss';
 

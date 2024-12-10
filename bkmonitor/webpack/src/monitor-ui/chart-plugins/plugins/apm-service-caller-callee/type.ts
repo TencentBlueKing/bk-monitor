@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { ETypeSelect as EGroupCompareType } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 export interface IServiceConfig {
   value: string;
   text: string;
@@ -85,15 +86,11 @@ export type CallOptions = {
   limit: number;
   metric_cal_type: string;
   // 时间对比 字段
-  time_shift: {
-    start_time: number;
-    end_time: number;
-    alias: string;
-  }[];
+  time_shift: string[];
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
   // 对比 还是 group by
-  tool_mode: EParamsMode;
+  tool_mode: EGroupCompareType;
   [key: string]: any;
 };
 export type IChartOption = {

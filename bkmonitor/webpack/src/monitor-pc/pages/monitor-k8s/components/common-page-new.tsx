@@ -85,6 +85,8 @@ import CommonTree from './common-tree/common-tree';
 import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
+import GroupCompareSelect from './group-compare-select/group-compare-select';
+import { ETypeSelect as EGroupCompareType, type IGroupByVariables } from './group-compare-select/utils';
 import GroupSelect from './group-select/group-select';
 import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
@@ -280,6 +282,17 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   cacheTimeRange = [];
   // getSceneViewList 是否报错了
   isSceneDataError = false;
+
+  /* groupBy/对比变量 */
+  /* 当前是否选择了group by 选项 */
+  isGroupByLimit = false;
+  /* 以下四个皆为group by 相关变量 */
+  groupByVariables: IGroupByVariables = {
+    metric_cal_type: '',
+    limit_sort_method: '',
+    limit: 1,
+    group_by_limit_enabled: false,
+  };
 
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
@@ -502,6 +515,19 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get curPanelCount() {
     return this.sceneData?.updatePanels(this.localSceneType) || 0;
   }
+
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return !!this.sceneData?.isGroupCompareType;
+  }
+
+  get limitSortMethods() {
+    return this.sceneData?.limitSortMethods || [];
+  }
+  get metricCalTypes() {
+    return this.sceneData?.metricCalTypes || [];
+  }
+
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
@@ -724,6 +750,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           }
         } else if (customRouterQueryKeys.includes(key)) {
           this.customRouteQuery[key] = val;
+        } else if (key === 'groupByVariables') {
+          try {
+            this.groupByVariables = JSON.parse(decodeURIComponent(val as string));
+          } catch (err) {
+            console.log(err);
+            this.groupByVariables = {
+              metric_cal_type: '',
+              limit_sort_method: '',
+              limit: 1,
+              group_by_limit_enabled: false,
+            };
+          }
         } else {
           this[key] = val;
         }
@@ -735,6 +773,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.interval = this.defaultViewOptions.interval || (this.$route.query.interval as string) || DEFAULT_INTERVAL;
     this.filters = filters;
     this.variables = variables;
+    this.isGroupByLimit = this.$route.query.isGroupByLimit === 'true';
   }
   // 初始化默认分屏宽度
   handleSetDefaultSplitPanelWidth() {
@@ -1184,12 +1223,42 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeOffset = timeList;
     this.handleUpdateViewOptions();
   }
+  handleGroupCompareTimeChange(timeList: string[]) {
+    this.compareType = 'time';
+    this.timeOffset = timeList;
+    this.handleUpdateViewOptions();
+  }
   /** 对比类型变更 */
   handleCompareTypeChange(type: PanelToolsType.CompareId) {
     this.compareType = type;
     this.timeOffset = type === 'time' ? ['1d'] : [];
     this.handleCompareTargetChange();
   }
+  /* group by / 时间对比 */
+  handleGroupCompareTypeChange(type: EGroupCompareType) {
+    this.isGroupByLimit = type !== EGroupCompareType.compare;
+    if (this.isGroupByLimit) {
+      this.compareType = 'none';
+      this.timeOffset = [];
+    } else {
+      this.groups = [];
+      this.compareType = 'time';
+    }
+    this.groupByVariables = {
+      metric_cal_type: '',
+      limit_sort_method: '',
+      limit: 1,
+      group_by_limit_enabled: false,
+    };
+    this.handleUpdateViewOptions();
+  }
+
+  /* group by 变量 */
+  handleGroupByVariablesChange(params: IGroupByVariables) {
+    this.groupByVariables = params;
+    this.handleUpdateViewOptions();
+  }
+
   /** 目标对比值更新 */
   handleCompareTargetChange(viewOptions?: IViewOptions) {
     this.compares = viewOptions?.compares || { targets: [] };
@@ -1293,6 +1362,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
+      groupByVariables: this.groupByVariables,
       filters: this.filters,
       variables: this.variables,
     };
@@ -1331,11 +1401,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
+    let groupByVariables = {};
+    if (this.isGroupCompareType) {
+      groupByVariables = {
+        groupByVariables: JSON.stringify(this.groupByVariables),
+      };
+    }
     this.$router.replace({
       name: this.$route.name,
       query: {
         ...filters,
         ...this.customRouteQuery,
+        ...groupByVariables,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,
@@ -1362,6 +1439,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
             : undefined /** 时间对比 */,
+        isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',
       },
     });
   }
@@ -1834,7 +1912,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                             renderAnimation={false}
                             onExpandChange={val => (this.filterActive = val)}
                           >
-                            <div class='dashboard-panel-filter-content'>
+                            <div
+                              class={[
+                                'dashboard-panel-filter-content',
+                                { 'is-group-compare-type': this.isGroupCompareType },
+                              ]}
+                            >
                               {!!this.sceneData.variables.length && (
                                 <FilterVarSelectGroup
                                   key={this.sceneData.id + this.refleshVariablesKey}
@@ -1851,15 +1934,36 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                                 />
                               )}
                               {this.sceneData.enableGroup ? (
-                                <GroupSelect
-                                  class='k8s-group-select'
-                                  pageId={this.dashboardId}
-                                  panel={this.sceneData.groupPanel}
-                                  scencId={this.sceneId}
-                                  sceneType={this.localSceneType}
-                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
-                                  onChange={this.handleGroupsChange}
-                                />
+                                this.isGroupCompareType ? (
+                                  <GroupCompareSelect
+                                    active={this.isGroupByLimit ? EGroupCompareType.group : EGroupCompareType.compare}
+                                    groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    limit={this.groupByVariables.limit}
+                                    limitSortMethod={this.groupByVariables.limit_sort_method}
+                                    limitSortMethods={this.limitSortMethods}
+                                    metricCalType={this.groupByVariables.metric_cal_type}
+                                    metricCalTypes={this.metricCalTypes}
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    sceneId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    timeValue={this.timeOffset}
+                                    onGroupChange={this.handleGroupsChange}
+                                    onTimeCompareChange={this.handleGroupCompareTimeChange}
+                                    onTypeChange={this.handleGroupCompareTypeChange}
+                                    onVariablesChange={this.handleGroupByVariablesChange}
+                                  />
+                                ) : (
+                                  <GroupSelect
+                                    class='k8s-group-select'
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    scencId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    value={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    onChange={this.handleGroupsChange}
+                                  />
+                                )
                               ) : undefined}
                             </div>
                           </Collapse>
@@ -1896,7 +2000,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                               onChange={this.handleMethodChange}
                             />
                           )}
-                          {this.isShowCompareTool && (
+                          {this.isShowCompareTool && !this.isGroupCompareType && (
                             <CompareSelect
                               compareListEnable={this.compareTypeMap}
                               curTarget={this.currentTitle}
