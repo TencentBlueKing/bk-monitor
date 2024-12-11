@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 
 from django.utils.translation import ugettext_lazy as _
 
+from apm_web.handlers.strategy_group.define import AlgorithmType
 from apm_web.metric.constants import SeriesAliasType
 from constants.alert import EventSeverity
 
@@ -34,7 +35,10 @@ def _name_tmpl(child_name: str):
 
 
 def _detect_config(
-    level: str, recovery_check_window: int, trigger_check_window: int, trigger_count: int
+    recovery_check_window: int,
+    trigger_check_window: int,
+    trigger_count: int,
+    level: str,
 ) -> Dict[str, Any]:
     return {
         "level": level,
@@ -48,16 +52,16 @@ _warning_detect_config = functools.partial(_detect_config, level=EventSeverity.W
 _fatal_detect_config = functools.partial(_detect_config, level=EventSeverity.FATAL)
 
 
-def _threshold_algorithm_config(level: str, method: str, threshold: float) -> Dict[str, Any]:
-    return {"level": level, "method": method, "threshold": threshold}
+def _threshold_algorithm_config(method: str, threshold: float, level: str) -> Dict[str, Any]:
+    return {"level": level, "method": method, "threshold": threshold, "type": AlgorithmType.THRESHOLD.value}
 
 
 _warning_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.WARNING)
 _fatal_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.FATAL)
 
 
-def _year_round_algorithm_config(level: str, ceil: float, floor: float) -> Dict[str, Any]:
-    return {"level": level, "ceil": ceil, "floor": floor}
+def _year_round_algorithm_config(ceil: float, floor: float, level: str) -> Dict[str, Any]:
+    return {"level": level, "ceil": ceil, "floor": floor, "type": AlgorithmType.ADVANCE_YEAR_ROUND.value}
 
 
 _warning_year_round_algorithm_config = functools.partial(_year_round_algorithm_config, level=EventSeverity.WARNING)
@@ -111,7 +115,7 @@ CALLEE_SUCCESS_RATE_STRATEGY_CONFIG: Dict[str, Any] = {
     "name": _name_tmpl("被调成功率告警"),
     "query_name": _("被调成功率（%）"),
     "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
-    "algorithms": [_warning_threshold_algorithm_config("lt", 99.9) + _fatal_threshold_algorithm_config("lt", 90)],
+    "algorithms": [_warning_threshold_algorithm_config("lt", 99.9), _fatal_threshold_algorithm_config("lt", 90)],
 }
 
 PANIC_STRATEGY_CONFIG: Dict[str, Any] = {
