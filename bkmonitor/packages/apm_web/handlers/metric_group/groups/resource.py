@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from collections.abc import Mapping
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from django.db.models import Q
@@ -53,13 +54,24 @@ class ResourceMetricGroup(base.BaseMetricGroup):
         support_get_qs_methods: Dict[str, Callable[[Optional[int], Optional[int]], UnifyQuerySet]] = {
             define.CalculationType.KUBE_MEMORY_USAGE: self._kube_memory_usage_qs,
             define.CalculationType.KUBE_CPU_USAGE: self._kube_cpu_usage_qs,
-            define.CalculationType.KUBE_OOM_KILLED: self._kube_memory_usage_qs,
+            define.CalculationType.KUBE_OOM_KILLED: self._kube_oom_killed_qs,
             define.CalculationType.KUBE_ABNORMAL_RESTART: self._kube_abnormal_restart_qs,
         }
         if calculation_type not in support_get_qs_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
 
         return support_get_qs_methods[calculation_type](start_time, end_time)
+
+    def _filter_dict_to_q(self) -> Q:
+        is_nested: bool = False
+        for val in self.filter_dict:
+            if isinstance(val, Mapping):
+                is_nested = True
+                break
+
+        if not is_nested:
+            return Q(**self.filter_dict)
+        return dict_to_q(self.filter_dict) or Q()
 
     def _q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         q: QueryConfigBuilder = (
@@ -68,12 +80,12 @@ class ResourceMetricGroup(base.BaseMetricGroup):
             .time_field(self.metric_helper.TIME_FIELD)
             .interval(self.interval)
             .group_by(*self.group_by)
-            .filter(dict_to_q(self.filter_dict) or Q())
+            .filter(self._filter_dict_to_q())
         )
         return q
 
     def _qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        return self.metric_helper.time_range_qs(start_time, end_time)
+        return self.metric_helper.time_range_qs(start_time, end_time).limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _kube_memory_usage_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         memory_usage_q: QueryConfigBuilder = (

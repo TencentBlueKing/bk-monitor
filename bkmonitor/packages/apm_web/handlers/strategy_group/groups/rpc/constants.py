@@ -8,20 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 from enum import Enum
 from typing import Any, Dict, List
 
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.metric.constants import SeriesAliasType
-from monitor_web.strategies.default_settings.common import (
-    DEFAULT_NOTICE,
-    NO_DATA_CONFIG,
-    fatal_algorithms_config,
-    fatal_detects_config,
-    warning_algorithms_config,
-    warning_detects_config,
-)
+from constants.alert import EventSeverity
 
 
 class RPCApplyType(Enum):
@@ -32,171 +26,125 @@ class RPCApplyType(Enum):
 
     @classmethod
     def options(cls) -> List[str]:
-        return [cls.CALLER.value, cls.CALLEE.value, cls.PANIC.value, cls.RESOURCE]
-
-
-TRPC_LABEL: str = "BKAPM-RPC"
+        return [cls.CALLER.value, cls.CALLEE.value, cls.PANIC.value, cls.RESOURCE.value]
 
 
 def _name_tmpl(child_name: str):
     return _("[RPC] {child_name} {tmpl}").format(child_name=child_name, tmpl="[{app_name}/{scope}]")
 
 
+def _detect_config(
+    level: str, recovery_check_window: int, trigger_check_window: int, trigger_count: int
+) -> Dict[str, Any]:
+    return {
+        "level": level,
+        "recovery_check_window": recovery_check_window,
+        "trigger_check_window": trigger_check_window,
+        "trigger_count": trigger_count,
+    }
+
+
+_warning_detect_config = functools.partial(_detect_config, level=EventSeverity.WARNING)
+_fatal_detect_config = functools.partial(_detect_config, level=EventSeverity.FATAL)
+
+
+def _threshold_algorithm_config(level: str, method: str, threshold: float) -> Dict[str, Any]:
+    return {"level": level, "method": method, "threshold": threshold}
+
+
+_warning_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.WARNING)
+_fatal_threshold_algorithm_config = functools.partial(_threshold_algorithm_config, level=EventSeverity.FATAL)
+
+
+def _year_round_algorithm_config(level: str, ceil: float, floor: float) -> Dict[str, Any]:
+    return {"level": level, "ceil": ceil, "floor": floor}
+
+
+_warning_year_round_algorithm_config = functools.partial(_year_round_algorithm_config, level=EventSeverity.WARNING)
+_fatal_year_round_algorithm_config = functools.partial(_year_round_algorithm_config, level=EventSeverity.FATAL)
+
+
 CALLER_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gte", 1000) + fatal_algorithms_config("gte", 5000),
-            "name": _("主调平均耗时（ms）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl(_("主调平均耗时告警")),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("主调平均耗时（ms）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("gte", 1000), _fatal_threshold_algorithm_config("gte", 5000)],
 }
 
 CALLER_P99_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gte", 3000) + fatal_algorithms_config("gte", 5000),
-            "name": _("主调 P99 耗时（ms）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl(_("主调 P99 耗时告警")),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("主调 P99 耗时（ms）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("gte", 3000), _fatal_threshold_algorithm_config("gte", 5000)],
 }
 
 CALLER_SUCCESS_RATE_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("lt", 99.9) + fatal_algorithms_config("lt", 90),
-            "name": _("主调成功率（%）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("主调成功率告警"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("主调成功率（%）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("lt", 99.9), _fatal_threshold_algorithm_config("lt", 90)],
+}
+
+
+CALLEE_REQUEST_TOTAL_STRATEGY_CONFIG: Dict[str, Any] = {
+    "name": _name_tmpl(_("被调流量异常告警")),
+    "query_name": _("被调流量"),
+    "detects": [_warning_detect_config(5, 10, 6), _fatal_detect_config(5, 10, 6)],
+    "algorithms": [_warning_year_round_algorithm_config(50, 50), _fatal_year_round_algorithm_config(100, 100)],
 }
 
 CALLEE_AVG_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gte", 1000) + fatal_algorithms_config("gte", 5000),
-            "name": _("被调平均耗时（ms）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("被调平均耗时告警"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("被调平均耗时（ms）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("gte", 1000), _fatal_threshold_algorithm_config("gte", 5000)],
 }
 
 CALLEE_P99_DURATION_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gte", 3000) + fatal_algorithms_config("gte", 5000),
-            "name": _("被调 P99 耗时（ms）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("被调 P99 耗时告警"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("被调 P99 耗时（ms）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("gte", 3000), _fatal_threshold_algorithm_config("gte", 5000)],
 }
 
 CALLEE_SUCCESS_RATE_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": warning_detects_config(5, 5, 2) + fatal_detects_config(5, 5, 2),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("lt", 99.9) + fatal_algorithms_config("lt", 90),
-            "name": _("被调成功率（%）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("被调成功率告警"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("被调成功率（%）"),
+    "detects": [_warning_detect_config(5, 5, 2), _fatal_detect_config(5, 5, 2)],
+    "algorithms": [_warning_threshold_algorithm_config("lt", 99.9) + _fatal_threshold_algorithm_config("lt", 90)],
 }
-
 
 PANIC_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": fatal_detects_config(5, 1, 1),
-    "items": [
-        {
-            "algorithms": fatal_algorithms_config("gt", 0),
-            "name": _("Panic（进程异常退出）次数"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("Panic（进程异常退出）告警"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("Panic（进程异常退出）次数"),
+    "detects": [_fatal_detect_config(5, 1, 1)],
+    "algorithms": [_fatal_threshold_algorithm_config("gt", 0)],
 }
-
 
 MEMORY_USAGE_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": fatal_detects_config(10, 15, 15),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gt", 80) + fatal_algorithms_config("gt", 90),
-            "name": _("内存使用率（%）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("内存使用率过高"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("内存使用率（%）"),
+    "detects": [_fatal_detect_config(10, 15, 15)],
+    "algorithms": [_warning_threshold_algorithm_config("gt", 80), _fatal_threshold_algorithm_config("gt", 90)],
 }
-
 
 CPU_USAGE_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": fatal_detects_config(10, 15, 15),
-    "items": [
-        {
-            "algorithms": warning_algorithms_config("gt", 80) + fatal_algorithms_config("gt", 90),
-            "name": _("CPU 使用率（%）"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("CPU 使用率过高"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("CPU 使用率（%）"),
+    "detects": [_fatal_detect_config(10, 15, 15)],
+    "algorithms": [_warning_threshold_algorithm_config("gt", 80), _fatal_threshold_algorithm_config("gt", 90)],
 }
-
 
 OOM_KILLED_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": fatal_detects_config(5, 1, 1),
-    "items": [
-        {
-            "algorithms": fatal_algorithms_config("gt", 0),
-            "name": _("OOMKilled 退出次数"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("OOMKilled 退出"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("OOMKilled 退出次数"),
+    "detects": [_fatal_detect_config(5, 1, 1)],
+    "algorithms": [_fatal_threshold_algorithm_config("gt", 0)],
 }
 
-
 ABNORMAL_RESTART_STRATEGY_CONFIG: Dict[str, Any] = {
-    "detects": fatal_detects_config(5, 1, 1),
-    "items": [
-        {
-            "algorithms": fatal_algorithms_config("gt", 0),
-            "name": _("异常重启次数"),
-            "no_data_config": NO_DATA_CONFIG,
-            "target": [[]],
-        }
-    ],
     "name": _name_tmpl("异常重启"),
-    "notice": DEFAULT_NOTICE,
+    "query_name": _("异常重启次数"),
+    "detects": [_fatal_detect_config(5, 1, 1)],
+    "algorithms": [_fatal_threshold_algorithm_config("gt", 0)],
 }
