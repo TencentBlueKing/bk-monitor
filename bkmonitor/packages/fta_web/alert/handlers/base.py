@@ -19,7 +19,7 @@ from elasticsearch_dsl.response import Response
 from luqum.auto_head_tail import auto_head_tail
 from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
 from luqum.exceptions import ParseError
-from luqum.parser import lexer, parser
+from luqum.parser import lex, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
@@ -140,7 +140,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
             query_tree = query_cache[query_string]
         else:
             try:
-                query_tree = parser.parse(query_string, lexer=lexer)
+                query_tree = parser.parse(query_string, lexer=lex.lex())
                 query_cache[query_string] = query_tree
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})
