@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Optional
+from typing import Dict, Optional
 
 from django.utils.functional import cached_property
 
@@ -46,7 +46,7 @@ class FilterCollection(object):
             self.query_set = self.query_set.filter(**self.transform_filter_dict(filter_obj))
         return self.query_set
 
-    def transform_filter_dict(self, filter_obj):
+    def transform_filter_dict(self, filter_obj) -> Dict:
         """用于ORM的查询条件"""
         resource_type = filter_obj.resource_type
         resource_meta = load_resource_meta(resource_type, self.meta.bk_biz_id, self.meta.bcs_cluster_id)
