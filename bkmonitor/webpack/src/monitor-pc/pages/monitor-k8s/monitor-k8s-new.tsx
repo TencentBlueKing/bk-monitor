@@ -23,32 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, Mixins, ProvideReactive } from 'vue-property-decorator';
 
 import { random } from 'monitor-common/utils';
 
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition, { type IGroupByChangeEvent } from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
-import K8sDetailSlider from './components/k8s-detail-slider/k8s-detail-slider';
 import K8sDimensionList from './components/k8s-left-panel/k8s-dimension-list';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
-  type K8sTableClickEvent,
-  type K8sTableColumn,
   type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
-  type K8sTableRow,
-  type K8sTableSort,
 } from './components/k8s-table-new/k8s-table-new';
-import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './components/k8s-table-new/utils';
 import { type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
-import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
+import { K8sNewTabEnum, type K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFilterByItem } from './components/filter-by-condition/utils';
@@ -75,7 +69,6 @@ const tabList = [
 ];
 @Component
 export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
-  @Ref() k8sTableRef: InstanceType<typeof K8sTableNew>;
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -84,21 +77,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @ProvideReactive('refleshInterval') refreshInterval = -1;
   // 是否立即刷新
   @ProvideReactive('refleshImmediate') refreshImmediate = '';
-  tableConfig = {
-    loading: false,
-    scrollLoading: false,
-    /** 当切换 tab 时进行刷新以达到清楚table中 sort 的状态 */
-    refreshKey: random(10),
-    pagination: {
-      page: 1,
-      pageSize: 20,
-    },
-    sortContainer: {
-      prop: null,
-      sort: null,
-    },
-  };
-  sliderShow = false;
+
   // 场景
   scene: SceneType = 'performance';
   // 集群
@@ -114,16 +93,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
   // 指标隐藏项
   hideMetrics = [];
-  // 表格数据
-  k8sTableData: any = {
-    count: 0,
-    items: [],
-  };
-  // table 点击选中数据项
-  k8sTableChooseItem: { row: K8sTableRow; column: K8sTableColumn } = {
-    row: null,
-    column: null,
-  };
+
   // 是否展示取消下钻
   showCancelDrill = false;
   groupList = [
@@ -234,6 +204,33 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         },
       ],
     },
+    {
+      name: 'container',
+      id: 'container',
+      count: 5,
+      children: [
+        {
+          id: 'bkbase-puller-datanode-inland…',
+          name: 'bkbase-puller-datanode-inland…',
+        },
+        {
+          id: 'sql-f76a1c37c9ae48f1a9daf0843534535345',
+          name: 'sql-f76a1c37c9ae48f1a9daf081213123',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b13123123',
+          name: 'pf-d1fba8d425e24f268bbed3b13123123',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b56456465466111',
+          name: 'pf-d1fba8d425e24f268bbed3b56456465466111',
+        },
+        {
+          id: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
+          name: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
+        },
+      ],
+    },
   ];
 
   cacheFilterBy: IFilterByItem[] = [];
@@ -259,25 +256,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.groupInstance.deleteGroupFilter(item.groupId);
   }
 
-  setK8sTableChooseItem(item: K8sTableClickEvent) {
-    this.$set(this.k8sTableChooseItem, 'column', item?.column || null);
-    this.$set(this.k8sTableChooseItem, 'row', item?.row || null);
-  }
-
   created() {
-    this.getK8sList();
     this.getClusterList();
     this.getScenarioMetricList();
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
-  }
-
-  /**
-   * @description 重新渲染表格组件（主要是为了处理 table column 的 sort 状态）
-   */
-  refreshTable() {
-    this.tableConfig.refreshKey = random(10);
   }
 
   async getClusterList() {
@@ -294,36 +278,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     if (this.clusterList.length) {
       this.cluster = this.clusterList[0].id;
     }
-  }
-
-  /**
-   * @description 获取k8s列表
-   * @param {boolean} config.needRefresh 是否需要刷新表格状态
-   * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
-   */
-  getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
-    const loadingKey = config.needIncrement ? 'scrollLoading' : 'loading';
-    this.tableConfig[loadingKey] = true;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    getK8sTableDataMock(Math.floor(Math.random() * 101))
-      .then(res => {
-        const asyncColumns: K8sTableColumn[] = (this.k8sTableRef?.tableColumnsConfig?.columns || []).filter(col =>
-          // @ts-ignore
-          Object.hasOwn(col, 'asyncable')
-        );
-        for (const asyncColumn of asyncColumns) {
-          asyncColumn.asyncable = true;
-        }
-
-        this.$set(this, 'k8sTableData', res);
-        this.loadAsyncData(startTime, endTime, asyncColumns);
-      })
-      .finally(() => {
-        if (config.needRefresh) {
-          this.refreshTable();
-        }
-        this.tableConfig[loadingKey] = false;
-      });
   }
 
   /**
@@ -364,75 +318,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       ...item,
       count: item.children.length,
     }));
-  }
-
-  /**
-   * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
-   */
-  loadAsyncData(startTime: number, endTime: number, asyncColumns: K8sTableColumn[]) {
-    const pods = (this.k8sTableData.items || []).map(v => v?.[K8sTableColumnKeysEnum.POD]);
-    for (const field of asyncColumns) {
-      getK8sTableAsyncDataMock({
-        start_time: startTime,
-        end_time: endTime,
-        column: field.id,
-        pods: pods,
-      }).then(podData => {
-        this.mapAsyncData(podData, field.id, asyncColumns);
-      });
-    }
-  }
-
-  /**
-   * @description 将异步数据数组结构为 key-value 的 map
-   * @param podData 异步数据
-   * @param field 当前column的key
-   * @param asyncColumns 需要异步加载的column字段对象
-   */
-  mapAsyncData(podData, field: K8sTableColumnKeysEnum, asyncColumns: K8sTableColumn[]) {
-    const dataMap = {};
-    if (podData?.length) {
-      for (const podItem of podData) {
-        if (podItem?.[K8sTableColumnKeysEnum.POD]) {
-          const columnItem = asyncColumns.find(item => item.id === field);
-          podItem[field].valueTitle = columnItem?.name || null;
-          dataMap[String(podItem?.[K8sTableColumnKeysEnum.POD])] = podItem[field];
-        }
-      }
-    }
-    this.renderTableBatchByBatch(field, dataMap || {}, asyncColumns);
-  }
-
-  /**
-   *
-   * @description: 按需渲染表格数据
-   * @param field 字段名
-   * @param dataMap 数据map
-   * @param asyncColumns 异步获取的column字段对象
-   */
-  renderTableBatchByBatch(field: string, dataMap: Record<string, any>, asyncColumns: K8sTableColumn[]) {
-    const setData = (currentIndex = 0) => {
-      let needBreak = false;
-      if (currentIndex <= this.k8sTableData.items.length && this.k8sTableData.items.length) {
-        const endIndex = Math.min(currentIndex + 2, this.k8sTableData.length);
-        for (let i = currentIndex; i < endIndex; i++) {
-          const item = this.k8sTableData.items[i];
-          item[field] = dataMap[String(item?.[K8sTableColumnKeysEnum.POD] || '')] || null;
-          needBreak = i === this.k8sTableData.items.length - 1;
-        }
-        if (!needBreak) {
-          window.requestIdleCallback(() => {
-            window.requestAnimationFrame(() => setData(endIndex));
-          });
-        } else {
-          const item = asyncColumns.find(col => col.id === field);
-          item.asyncable = false;
-        }
-      }
-    };
-    const item = asyncColumns.find(col => col.id === field);
-    item.asyncable = false;
-    setData(0);
   }
 
   handleSceneChange(value) {
@@ -509,10 +394,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    */
   async handleTabChange(v: K8sNewTabEnum) {
     this.activeTab = v;
-    if (v !== K8sNewTabEnum.CHART) {
-      // 重新渲染，从而刷新 table sort 状态
-      this.getK8sList({ needRefresh: true });
-    }
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
@@ -520,12 +401,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /**
-   * @description 表格排序
-   * @param {K8sTableSort} sort
+   * @description 表格 添加筛选/移除筛选 icon点击回调
+   * @param {K8sTableFilterByEvent} item
    */
-  handleTableSortChange(sort: K8sTableSort) {
-    this.tableConfig.sortContainer = sort;
-    this.getK8sList();
+  handleFilterChange(item: K8sTableFilterByEvent) {
+    this.filterByChange(item);
   }
 
   /**
@@ -533,64 +413,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param {K8sTableGroupByEvent} item
    */
   handleTableGroupChange(item: K8sTableGroupByEvent) {
-    this.handleGroupChecked(item);
-  }
-
-  /**
-   * @description 表格 添加筛选/移除筛选 icon点击回调
-   * @param {K8sTableFilterByEvent} item
-   */
-  handleFilterChange(item: K8sTableFilterByEvent) {
-    const { column, ids } = item;
-    this.filterByChange({ groupId: column.id, ids });
-  }
-
-  /**
-   * @description 表格文本点击回调
-   * @param {K8sTableClickEvent} item
-   */
-  handleTextClick(item: K8sTableClickEvent) {
-    this.setK8sTableChooseItem(item);
-    this.handleSliderChange(true);
-  }
-
-  /**
-   * @description 表格滚动到底部回调
-   */
-  handleTableScrollEnd() {
-    console.log('table scroll end callback');
+    this.setGroupFilters(item);
   }
 
   handleTableClearSearch() {
     console.log('table clear search callback');
-  }
-
-  /**
-   * @description 抽屉页显示隐藏切换
-   * @param v {boolean}
-   */
-  handleSliderChange(v: boolean) {
-    this.sliderShow = v;
-    if (!v) {
-      this.setK8sTableChooseItem(null);
-    }
-  }
-
-  /**
-   * @description 抽屉页 下钻 按钮点击回调
-   */
-  handleSliderGroupChange(item: K8sTableGroupByEvent) {
-    this.handleTableGroupChange(item);
-    this.handleSliderChange(false);
-  }
-
-  /**
-   * @description 抽屉页 添加筛选/移除筛选 按钮点击回调
-   * @param {K8sTableFilterByEvent} item
-   */
-  handleSliderFilterChange(item: K8sTableFilterByEvent) {
-    this.handleFilterChange(item);
-    this.handleSliderChange(false);
   }
 
   handleFilterByChange(v: IFilterByItem[]) {
@@ -605,20 +432,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       default:
         return (
           <K8sTableNew
-            ref='k8sTableRef'
             activeTab={this.activeTab}
             filterBy={this.filterBy}
-            groupFilters={this.groupFilters}
-            loading={this.tableConfig.loading}
-            refreshKey={this.tableConfig.refreshKey}
-            scrollLoading={this.tableConfig.scrollLoading}
-            tableData={this.k8sTableData.items}
+            groupInstance={this.groupInstance}
             onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}
-            onScrollEnd={this.handleTableScrollEnd}
-            onSortChange={this.handleTableSortChange}
-            onTextClick={this.handleTextClick}
           />
         );
     }
@@ -699,6 +518,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           <div class='content-left'>
             <K8sLeftPanel>
               <K8sDimensionList
+                clusterId={this.cluster}
                 filterBy={this.filterBy}
                 groupBy={this.groupFilters}
                 scene={this.scene}
@@ -750,15 +570,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             </div>
           </div>
         </div>
-        <K8sDetailSlider
-          activeItem={this.k8sTableChooseItem}
-          filterBy={this.filterBy}
-          groupFilters={this.groupFilters}
-          isShow={this.sliderShow}
-          onFilterChange={this.handleSliderFilterChange}
-          onGroupChange={this.handleSliderGroupChange}
-          onShowChange={this.handleSliderChange}
-        />
       </div>
     );
   }

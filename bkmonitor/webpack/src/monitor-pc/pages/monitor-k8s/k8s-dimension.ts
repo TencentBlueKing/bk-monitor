@@ -66,7 +66,7 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
       ],
     },
     workload: {
-      count: 3,
+      count: 7,
       items: [
         {
           namespace: 'default',
@@ -79,6 +79,22 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
         {
           namespace: 'demo',
           workload: 'Deployment:workload-3',
+        },
+        {
+          namespace: 'demo',
+          workload: 'Deployment:workload-4',
+        },
+        {
+          namespace: 'demo',
+          workload: 'Deployment:workload-5',
+        },
+        {
+          namespace: 'demo',
+          workload: 'Deployment:workload-6',
+        },
+        {
+          namespace: 'demo',
+          workload: 'Deployment:workload-7',
         },
       ],
     },
@@ -296,9 +312,11 @@ export class K8sDimension {
   async init() {
     await this.getDimensionDataOfTypes(this.currentDimension);
     this.showDimensionData = this.originDimensionData.map(dimension => {
+      const children =
+        dimension.id === EDimensionKey.workload ? dimension.children : dimension.children.slice(0, this.pageSize);
       return {
         ...dimension,
-        children: dimension.children.slice(0, this.pageSize),
+        children,
       };
     });
   }
@@ -307,7 +325,8 @@ export class K8sDimension {
    * 加载更多维度数据
    * @param dimension 需要加载的维度子级链接
    */
-  async loadMore(dimension: string) {
+  async loadMore(dimension: EDimensionKey) {
+    this.pageMap[dimension] += 1;
     /**
      *  1. 如果是搜索状态，接口返回的是全量数据，加载更多不需要请求接口，需要从原数据中找到分页数据，追加到当前展示的维度中
      *  2. 不是搜索状态，接口返回的分页数据，加载更多需要重新请求接口，并追加到原数据中，同时更新到当前展示的维度中
@@ -315,19 +334,10 @@ export class K8sDimension {
     if (this.keyword) {
       const dimensions = this.originDimensionData.find(d => d.id === dimension);
       const showDimensions = this.showDimensionData.find(d => d.id === dimension);
-      showDimensions.children = dimensions.children.slice(0, showDimensions.children.length + this.pageSize);
+      showDimensions.children = dimensions.children.slice(0, this.pageMap[dimension] + this.pageSize);
     } else {
-      const { items } = await this.getDimensionData({
-        resource_type: dimension,
-      });
+      await this.getDimensionDataOfTypes([dimension]);
       const dimensions = this.originDimensionData.find(d => d.id === dimension);
-      dimensions.children = [
-        ...dimensions.children,
-        ...items.map(item => ({
-          id: item[dimension],
-          name: item[dimension],
-        })),
-      ];
       const showDimensions = this.showDimensionData.find(d => d.id === dimension);
       showDimensions.children = dimensions.children;
     }
@@ -384,6 +394,14 @@ export abstract class K8sGroupDimension {
       return;
     }
     this.setGroupFilters(this.groupFilters.slice(0, this.groupFilters.length - 1));
+  }
+
+  /**
+   * @description 获取最后一个 groupFilter
+   * @returns {K8sTableColumnKeysEnum}
+   */
+  getLastGroupFilter() {
+    return this.groupFilters[this.groupFilters.length - 1];
   }
 
   /**

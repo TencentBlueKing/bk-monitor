@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 interface K8sDimensionDrillDownProps {
   value: number | string;
   dimension: string;
+  enableTip?: boolean;
 }
 import './k8s-dimension-drilldown.scss';
 
@@ -42,6 +43,8 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   @Prop({ type: String }) dimension: string;
   /** 下钻id */
   @Prop({ type: [String, Number], required: true }) value: number | string;
+  /** 是否下转 tip 提示 */
+  @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @Ref('menu')
   menuRef: any;
@@ -99,12 +102,10 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
             'drill-down-icon': true,
             active: this.drillDownId === this.value,
           }}
-          v-bk-tooltips={{ content: this.$t('下钻') }}
+          v-bk-tooltips={{ content: this.$t('下钻'), disabled: !this.enableTip }}
+          onClick={e => this.handleDrillDown(this.value, e)}
         >
-          <i
-            class='icon-monitor icon-xiazuan'
-            onClick={e => this.handleDrillDown(this.value, e)}
-          />
+          {this.$slots?.trigger || <i class='icon-monitor icon-xiazuan' />}
         </div>
         <div style='display: none'>
           <ul

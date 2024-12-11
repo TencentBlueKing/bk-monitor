@@ -37,7 +37,6 @@ import './group-by-condition.scss';
 
 export interface IGroupOption extends IOption {
   id: K8sTableColumnKeysEnum;
-  checked?: boolean;
   count?: number;
   children?: IGroupOption[];
 }
@@ -90,7 +89,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   handleSelect(ids) {
     const changeId = ids[ids.length - 1];
     const changeItem = this.dimensionOptionsMap?.[changeId];
-    this.handleValueChange(changeId, changeItem, !changeItem?.checked);
+    this.handleValueChange(changeId, changeItem, !this.groupInstance.hasGroupFilter(changeId));
     nextTick(() => {
       if (!this.options?.length) {
         this.customSelectRef?.handleHideDropDown?.();
@@ -163,7 +162,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
               >
                 <div class='group-by-option-item'>
                   <span class='item-label'>{opt.name}</span>
-                  <span class='item-count'>{opt.children?.length || 0}</span>
+                  <span class='item-count'>{opt.count || 0}</span>
                 </div>
               </bk-option>
             ))}
