@@ -893,6 +893,14 @@ class FetchTopkListSerializer(QueryFieldBaseSerializer):
     limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
 
 
+class FetchValueListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段值列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("字段值限制个数"), required=False, default=10)
+
+
 class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
     """
     获取字段统计信息
