@@ -19,8 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import datetime
 import re
 
+import pytz
+from django.conf import settings
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 
@@ -37,6 +40,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
+from apps.utils.local import get_local_param
 from apps.utils.log import logger
 
 
@@ -78,10 +82,19 @@ class ChartHandler(object):
         根据过滤条件生成sql
         :param params: 过滤条件
         """
-        start_time = params["start_time"] * 1000
-        end_time = params["end_time"] * 1000
+        # 获取时区
+        local_timezone = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+        # 把时间戳转化为字符串格式
+        start_time_object = datetime.datetime.fromtimestamp(params["start_time"], tz=local_timezone)
+        end_time_object = datetime.datetime.fromtimestamp(params["end_time"], tz=local_timezone)
+        start_time_string = start_time_object.strftime("%Y%m%d")
+        end_time_string = end_time_object.strftime("%Y%m%d")
 
-        sql = f"WHERE dtEventTimeStamp>={start_time} AND dtEventTimeStamp<={end_time}"
+        if start_time_string == end_time_string:
+            # 开始和结束时间相同时,直接用等于
+            sql = f"WHERE thedate = {start_time_string}"
+        else:
+            sql = f"WHERE thedate >= {start_time_string} AND thedate <= {end_time_string}"
         addition = params["addition"]
 
         for condition in addition:
@@ -117,8 +130,11 @@ class ChartHandler(object):
             for index, value in enumerate(values):
                 if operator in ["=~", "&=~", "!=~", "&!=~"]:
                     # 替换通配符
-                    value = value.replace("*", "%")
-                    value = value.replace("?", "_")
+                    value = value.replace("*", "%").replace("?", "_")
+                    if not value.startswith("%"):
+                        value = "%" + value
+                    if not value.endswith("%"):
+                        value += "%"
                 elif operator in ["contains", "not contains"]:
                     # 添加通配符
                     value = f"%{value}%"
