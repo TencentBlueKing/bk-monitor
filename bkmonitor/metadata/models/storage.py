@@ -658,37 +658,52 @@ class StorageResultTable(object):
 
         # self.storage_type == 'elasticsearch'
         if self.storage_type == ClusterInfo.TYPE_ES and kwargs.get("storage_cluster_id", '') != '':
-            # 当集群发生迁移时，创建ESStorageClusterRecord记录
-            last_storage_cluster_id = self.storage_cluster_id
-            new_storage_cluster_id = kwargs.get("storage_cluster_id")
-            record, _ = ESStorageClusterRecord.objects.update_or_create(
-                table_id=self.table_id,
-                cluster_id=last_storage_cluster_id,
-                defaults={
-                    "is_current": False,
-                    "disable_time": django_timezone.now(),
-                },
-            )
-            logger.info(
-                "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
-                self.table_id,
-                record.cluster_id,
-            )
-            new_record, _ = ESStorageClusterRecord.objects.update_or_create(
-                table_id=self.table_id,
-                cluster_id=new_storage_cluster_id,
-                enable_time=django_timezone.now(),
-                defaults={
-                    "is_current": True,
-                },
-            )
-            logger.info(
-                "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
-                self.table_id,
-                new_record.cluster_id,
-            )
+            try:
+                logger.info(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id->[%s]",
+                    self.table_id,
+                    kwargs.get("storage_cluster_id"),
+                )
+                # 当集群发生迁移时，创建ESStorageClusterRecord记录
+                last_storage_cluster_id = self.storage_cluster_id
+                new_storage_cluster_id = kwargs.get("storage_cluster_id")
+                # 更新上一次集群记录，更新停止写入时间
+                record, _ = ESStorageClusterRecord.objects.update_or_create(
+                    table_id=self.table_id,
+                    cluster_id=last_storage_cluster_id,
+                    defaults={
+                        "is_current": False,
+                        "disable_time": django_timezone.now(),
+                    },
+                )
+                logger.info(
+                    "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                    self.table_id,
+                    record.cluster_id,
+                )
+                # 创建新纪录
+                new_record, _ = ESStorageClusterRecord.objects.update_or_create(
+                    table_id=self.table_id,
+                    cluster_id=new_storage_cluster_id,
+                    enable_time=django_timezone.now(),
+                    defaults={
+                        "is_current": True,
+                    },
+                )
+                logger.info(
+                    "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
+                    self.table_id,
+                    new_record.cluster_id,
+                )
 
-            space_client.push_table_id_detail(table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True)
+                # 刷新RESULT_TABLE_DETAIL路由
+                space_client.push_table_id_detail(
+                    table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
+                )
 
         # 遍历获取所有可以更新的字段，逐一更新
         for field_name in self.UPGRADE_FIELD_CONFIG:

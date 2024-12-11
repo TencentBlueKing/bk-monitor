@@ -119,11 +119,19 @@ class SpaceTableIDRedis:
         include_es_table_ids: Optional[bool] = False,
     ):
         """推送结果表的详细信息"""
-        logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
+        logger.info(
+            "push_table_id_detail： start to push table_id detail data, table_id_list: %s,is_publish->[%s],"
+            "include_es_table_ids->[%s]",
+            json.dumps(table_id_list),
+            is_publish,
+            include_es_table_ids,
+        )
         # TODO：待AccessVMRecord全量迁移至BkBaseResultTable后，实施改造，使用新版组装方式
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
         if not table_id_detail:
-            logger.info("table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list))
+            logger.info(
+                "push_table_id_detail: table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list)
+            )
             return
 
         table_ids = set(table_id_detail.keys())
@@ -172,7 +180,7 @@ class SpaceTableIDRedis:
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
-        logger.info("push redis result_table_detail")
+        logger.info("push_table_id_detail： push redis result_table_detail")
 
     def _compose_record_rule_table_id_detail(self) -> Dict:
         """组装预计算结果表的详情"""
