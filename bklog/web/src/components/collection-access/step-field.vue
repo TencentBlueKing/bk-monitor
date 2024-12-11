@@ -1226,7 +1226,7 @@
       },
       'formData.etl_params.metadata_fields': {
         handler(val) {
-          this.metaDataList = val;
+          this.metaDataList = val ?? [];
         },
       },
     },
