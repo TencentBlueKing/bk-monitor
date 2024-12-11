@@ -241,6 +241,13 @@
             }
           }
         }
+
+        .scroll-loading-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 32px;
+        }
       }
 
       .value-items-wrap {
