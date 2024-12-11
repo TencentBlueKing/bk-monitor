@@ -42,7 +42,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
-import { K8sNewTabEnum, type K8sTableColumnKeysEnum, type SceneType } from './typings/k8s-new';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum, SceneEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFilterByItem } from './components/filter-by-condition/utils';
@@ -79,7 +79,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @ProvideReactive('refleshImmediate') refreshImmediate = '';
 
   // 场景
-  scene: SceneType = 'performance';
+  scene: SceneEnum = SceneEnum.Performance;
   // 集群
   cluster = '';
   // 集群列表
@@ -356,11 +356,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 左侧面板下钻功能 */
   handleDrillDown({ filterBy, groupId }) {
-    this.cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
-    this.cacheGroupBy = [...this.groupFilters];
     this.groupByChange({ groupId, isSelect: true });
     this.filterByChange({ ids: filterBy.value, groupId: filterBy.key });
-    this.showCancelDrill = true;
   }
 
   /* 左侧面板检索功能 */
