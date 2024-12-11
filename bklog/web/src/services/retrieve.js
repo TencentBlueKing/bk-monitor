@@ -63,6 +63,7 @@ const getCloudAreaList = {
   url: '/search/index_set/$index_set_id/:tailf/',
   method: 'post',
 };
+
 const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
   method: 'post',
