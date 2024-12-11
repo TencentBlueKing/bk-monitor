@@ -118,9 +118,6 @@ typing-extensions==3.7.4.3
 pycryptodome==3.17
 python-magic==0.4.27
 
-# bk-dataview
-dataclasses==0.8
-
 # apigw
 apigw-manager==2.0.0
 
