@@ -73,3 +73,36 @@ def share_lock(ttl=600, identify=None):
         return _inner
 
     return wrapper
+
+
+@contextmanager
+def refresh_service_lock(key_instance, update_time, **kwargs):
+    """刷新当前key实例的锁
+
+    :param key_instance: 锁实例
+    :param update_time: 更新时间
+    """
+    lock_key = key_instance.get_key(**kwargs)
+    client = Cache("cache")
+    client.set(lock_key, update_time, ex=key_instance.ttl)
+
+    yield
+
+    # 如果当前锁还没有被刷新，则删除，否则说明有其他任务刷新了锁并正常执行逻辑中
+    if not check_lock_updated(key_instance, update_time, **kwargs):
+        client.delete(lock_key)
+
+
+def check_lock_updated(key_instance, update_time, **kwargs) -> bool:
+    """检查锁是否被更新，用于一些重载后需要停止旧任务实例的场景（秒级别，秒内的任务重载忽略）
+
+    :param key_instance: 锁实例
+    :param update_time: 更新时间
+    """
+    lock_key = key_instance.get_key(**kwargs)
+    client = Cache("cache")
+    last_update_time = client.get(lock_key)
+    if last_update_time == update_time:
+        return False
+
+    return True

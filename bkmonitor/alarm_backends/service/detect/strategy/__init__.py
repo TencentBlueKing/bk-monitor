@@ -24,6 +24,7 @@ from alarm_backends.core.cache import key
 from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
 from alarm_backends.templatetags.unit import unit_auto_convert, unit_convert_min
+from constants.aiops import SDKDetectStatus
 from core.errors.alarm_backends.detect import (
     HistoryDataNotExists,
     InvalidAlgorithmsConfig,
@@ -474,6 +475,11 @@ class SDKPreDetectMixin(object):
         :param data_points: 待预测的数据
         """
         self._local_pre_detect_results = {}
+
+        item = data_points[0].item
+        if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+            logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+            return
 
         predict_inputs = {}
         for data_point in data_points:
