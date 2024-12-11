@@ -13,11 +13,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 
+from django.conf import settings
+
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
-from alarm_backends.core.lock.service_lock import service_lock
+from alarm_backends.core.lock.service_lock import (
+    check_lock_updated,
+    refresh_service_lock,
+)
 from alarm_backends.service.preparation.base import BasePreparationProcess
 from bkmonitor.models import AlgorithmModel
 from bkmonitor.models.strategy import QueryConfigModel
@@ -46,23 +51,26 @@ INIT_DEPEND_MAPPINGS = {
 class TsDependPreparationProcess(BasePreparationProcess):
     def __init__(self, *args, **kwargs) -> None:
         super(TsDependPreparationProcess, self).__init__()
+        self.prepare_key = key.SERVICE_LOCK_PREPARATION
 
-    def process(self, strategy_id: int) -> None:
-        with service_lock(key.SERVICE_LOCK_PREPARATION, strategy_id=strategy_id):
+    def process(self, strategy_id: int, update_time: int = None) -> None:
+        logger.info(f"Start to refresh depend data for strategy({strategy_id})")
+
+        with refresh_service_lock(self.prepare_key, update_time, strategy_id=strategy_id):
             strategy = Strategy(strategy_id)
             query_config = strategy.config["items"][0]["query_configs"][0]
             # 只有使用SDK进行检测的智能监控策略才进行历史依赖数据的初始化
             if query_config.get("intelligent_detect") and query_config["intelligent_detect"].get("use_sdk", False):
                 # 历史依赖准备就绪才开始检测
                 if query_config["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
-                    self.refresh_strategy_depend_data(strategy)
+                    self.refresh_strategy_depend_data(strategy, update_time)
                     query_config = QueryConfig.from_models(QueryConfigModel.objects.filter(id=query_config["id"]))[0]
                     query_config.intelligent_detect["status"] = SDKDetectStatus.READY
                     query_config.save()
                     StrategyCacheManager.refresh_strategy_ids([{"id": strategy_id}])
                     logger.info(f"Finish to refresh depend data for strategy({strategy_id})")
 
-    def refresh_strategy_depend_data(self, strategy: Strategy) -> None:
+    def refresh_strategy_depend_data(self, strategy: Strategy, update_time: int = None) -> None:
         """根据同步信息，从Cache中获取策略的配置，并调用SDK初始化历史依赖数据.
 
         :param strategy: 策略
@@ -79,7 +87,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
             start_time, end_time = self.generate_depend_time_range(item)
 
-            self.init_depend_data(strategy, init_depend_api_func, start_time, end_time)
+            self.init_depend_data(strategy, init_depend_api_func, start_time, end_time, update_time)
 
     def generate_depend_time_range(self, item: Item) -> Tuple[int, int]:
         """根据配置生成历史依赖的开始时间和结束时间."""
@@ -90,7 +98,12 @@ class TsDependPreparationProcess(BasePreparationProcess):
         return start_time, end_time
 
     def init_depend_data(
-        self, strategy: Strategy, init_depend_api_func: callable, start_time: int, end_time: int
+        self,
+        strategy: Strategy,
+        init_depend_api_func: callable,
+        start_time: int,
+        end_time: int,
+        update_time: int = None,
     ) -> None:
         item: Item = strategy.items[0]
 
@@ -104,6 +117,11 @@ class TsDependPreparationProcess(BasePreparationProcess):
         # 3. 尽量保证每次取的数据不超过100万(DEPEND_DATA_MAX_FETCH_COUNT)，如果5分钟数据超过100万，则继续取5分钟的，
         #    （一般很少这种情况，如果出现，则该策略至少是一个超大维度组合的数据，这么配置告警策略其实也没法用）
         while start_time < step_end_time:
+            # 如果历史依赖数据准备超过prepare key的ttl（默认一小时），也中断初始化任务
+            if check_lock_updated(self.prepare_key, update_time, strategy_id=strategy.id):
+                logger.warning("New event for update strategy({strategy.id}), interrupt current task now.")
+                break
+
             step_start_time = max(step_end_time - minute_step * 60, start_time)
             logger.info(
                 "Start to init depend data for intelligent strategy({}) with time range({} - {})".format(
@@ -143,7 +161,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
             )
 
         tasks = []
-        with ThreadPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_INIT_CONCURRENCY) as executor:
             for series_info in depend_data_by_dimensions.values():
                 series_info["dimensions"]["strategy_id"] = strategy.id
 

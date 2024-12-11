@@ -131,7 +131,7 @@
     return (field, operator?, value?, callback?) => {
       const getConditionValue = () => {
         if (['keyword'].includes(field.field_type)) {
-          return [`${value}*`];
+          return [`*${value}*`];
         }
 
         return [];
@@ -371,6 +371,7 @@
       return;
     }
 
+    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
