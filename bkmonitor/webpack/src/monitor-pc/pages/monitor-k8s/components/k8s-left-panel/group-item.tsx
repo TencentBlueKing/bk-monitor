@@ -43,14 +43,17 @@ interface GroupItemProps {
   hiddenList?: string[];
   defaultExpand?: { [key: string]: boolean } | boolean;
   drillDownList?: string[];
+  expandLoading?: Record<string, boolean>;
+  loadMoreLoading?: Record<string, boolean>;
 }
 
 interface GroupItemEvent {
   onHandleSearch: (ids: string[]) => void;
   onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
   onHandleGroupByChange: (val: boolean) => void;
-  onHandleMoreClick: () => void;
+  onHandleMoreClick: (val: { dimension: string }) => void;
   onHandleHiddenChange: (ids: string[]) => void;
+  onFirstExpand: (id: string) => void;
 }
 
 @Component
@@ -65,6 +68,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
   @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
   @Prop({ default: () => [] }) drillDownList: string[];
+  @Prop({ default: () => ({}) }) expandLoading: Record<string, boolean>;
+  @Prop({ default: () => ({}) }) loadMoreLoading: Record<string, boolean>;
 
   /** 展开的组  */
   expand = {};
@@ -96,8 +101,16 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
     }
   }
 
-  collapseChange(id: string) {
+  collapseChange(id: string, hasData: boolean) {
+    if (!Object.prototype.hasOwnProperty.call(id) && !hasData) {
+      this.firstExpand(id);
+    }
     this.$set(this.expand, id, !this.expand[id]);
+  }
+
+  @Emit('firstExpand')
+  firstExpand(id: string) {
+    return id;
   }
 
   handleClear(e: Event) {
@@ -127,12 +140,42 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   @Emit('handleMoreClick')
-  handleShowMore() {}
+  handleShowMore(dimension: string) {
+    return dimension;
+  }
 
   @Emit('handleHiddenChange')
   handleHiddenChange(id: string) {
     const res = this.hiddenList.includes(id);
     return res ? this.hiddenList.filter(item => item !== id) : [...this.hiddenList, id];
+  }
+
+  /** 渲染骨架屏 */
+  renderGroupSkeleton() {
+    return (
+      <div class='skeleton-element-group'>
+        <div class='skeleton-element group-content' />
+        <div class='skeleton-element group-content' />
+        <div class='skeleton-element group-content' />
+      </div>
+    );
+  }
+
+  renderLoadMore(id: string) {
+    return (
+      <div class='show-more'>
+        {this.loadMoreLoading[id] ? (
+          <bk-spin size='mini' />
+        ) : (
+          <span
+            class='text'
+            onClick={() => this.handleShowMore(id)}
+          >
+            {this.$t('点击加载更多')}
+          </span>
+        )}
+      </div>
+    );
   }
 
   renderGroupContent(item: GroupListItem) {
@@ -141,27 +184,30 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
     if (item.children) {
       return (
-        <div class='child-content'>
+        <div class='child-item'>
           <div
             class='child-header'
-            onClick={() => this.collapseChange(item.id)}
+            onClick={() => this.collapseChange(item.id, Boolean(item.children.length))}
           >
             <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[item.id] ? 'expand' : ''}`} />
             <span class='group-name'>{item.name}</span>
             <div class='group-count'>{item.count}</div>
           </div>
-
-          {this.expand[item.id] && item.children.map(child => this.renderGroupContent(child))}
-          {this.showMoreGroup.includes(item.id) && this.expand[item.id] && (
-            <div class='show-more'>
-              <span
-                class='text'
-                onClick={this.handleShowMore}
-              >
-                {this.$t('点击加载更多')}
-              </span>
-            </div>
-          )}
+          <div
+            style={{ display: this.expand[item.id] ? 'block' : 'none' }}
+            class='child-content'
+          >
+            {this.expandLoading[item.id] ? (
+              this.renderGroupSkeleton()
+            ) : item.children.length ? (
+              [
+                item.children.map(child => this.renderGroupContent(child)),
+                this.showMoreGroup.includes(item.id) && this.expand[item.id] && this.renderLoadMore(item.id),
+              ]
+            ) : (
+              <EmptyStatus type='empty' />
+            )}
+          </div>
         </div>
       );
     }
@@ -209,7 +255,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
       <div class='k8s-new___group-item'>
         <div
           class='group-header'
-          onClick={() => this.collapseChange(this.list.id)}
+          onClick={() => this.collapseChange(this.list.id, Boolean(this.list.children))}
         >
           <div class='group-header-left'>
             <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[this.list.id] ? 'expand' : ''}`} />
@@ -242,16 +288,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             <EmptyStatus type='empty' />
           )}
 
-          {this.showMoreGroup.includes(this.list.id) && (
-            <div class='show-more'>
-              <span
-                class='text'
-                onClick={this.handleShowMore}
-              >
-                {this.$t('点击加载更多')}
-              </span>
-            </div>
-          )}
+          {this.showMoreGroup.includes(this.list.id) && this.renderLoadMore(this.list.id)}
         </div>
       </div>
     );

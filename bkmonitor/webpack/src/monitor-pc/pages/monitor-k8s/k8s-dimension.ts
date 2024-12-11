@@ -23,23 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { bkMessage } from 'monitor-api/utils';
-
 import {
   type GroupListItem,
-  type SceneType,
   type K8sDimensionParams,
   K8sTableColumnKeysEnum,
   EDimensionKey,
+  SceneEnum,
 } from './typings/k8s-new';
 
-function getWorkloadOverview(_params) {
+function getWorkloadOverview(_params): Promise<(number | string)[][]> {
   const mockData = [
-    ['Deployment', 9],
-    ['StatefulSets', 9],
-    ['DaemonSets', 9],
-    ['Jobs', 9],
-    ['CronJobs', 9],
+    ['Deployment', 7],
+    ['StatefulSets', 7],
+    ['DaemonSets', 7],
+    ['Jobs', 7],
+    ['CronJobs', 7],
   ];
   return new Promise(resolve => {
     setTimeout(() => {
@@ -48,7 +46,7 @@ function getWorkloadOverview(_params) {
   });
 }
 
-function getListK8SResources({ resource_type }): Promise<{ count: number; items: any[] }> {
+function getListK8SResources({ resource_type }: any): Promise<{ count: number; items: any[] }> {
   const mockData = {
     pod: {
       count: 2,
@@ -99,7 +97,7 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
       ],
     },
     namespace: {
-      count: 2,
+      count: 10,
       items: [
         ...new Array(10).fill(null).map((_item, index) => {
           return {
@@ -136,10 +134,6 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
   });
 }
 
-/**
- * TODO : 缺少workload类型的特殊处理
- */
-
 export class K8sDimension {
   bcsClusterId = '';
   endTime = 1733905598;
@@ -147,24 +141,18 @@ export class K8sDimension {
   keyword = '';
   /** 所有的维度数据 */
   originDimensionData: GroupListItem[] = [];
-  pageMap = {
-    [EDimensionKey.namespace]: 1,
-    [EDimensionKey.workload]: 1,
-    [EDimensionKey.pod]: 1,
-    [EDimensionKey.container]: 1,
-  };
+  /** 各维度分页 */
+  pageMap = {};
   /** 分页数量 */
   pageSize = 5;
   /** 分页类型 */
-  pageType = 'traditional';
+  pageType: K8sDimensionParams['pageType'] = 'traditional';
   /** 场景 */
-  scene: SceneType = 'performance';
+  scene: SceneEnum = SceneEnum.Performance;
   /** 场景维度枚举 */
   sceneDimensionMap = {
     performance: [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container],
   };
-  /** 当前展示的维度数据 */
-  showDimensionData: GroupListItem[] = [];
 
   startTime = 1733819169;
 
@@ -178,9 +166,48 @@ export class K8sDimension {
     this.bcsClusterId = params.bcsClusterId || '';
   }
 
+  get commonParams() {
+    return {
+      sernario: this.scene,
+      bcs_cluster_id: this.bcsClusterId,
+      page_size: this.pageSize,
+      page_type: this.pageType,
+      query_string: this.keyword,
+    };
+  }
+
   /** 当前场景的维度列表 */
   get currentDimension() {
     return this.sceneDimensionMap[this.scene];
+  }
+
+  /** 当前场景下的维度请求接口 */
+  get currentSceneDimensionRequest() {
+    const requestMap = {
+      performance: this.getPerformanceDimensionData,
+    };
+    return requestMap[this.scene];
+  }
+
+  /** 当前展示的维度数据 */
+  get showDimensionData() {
+    return this.originDimensionData.map(dimension => {
+      let children = [];
+      if (dimension.id === EDimensionKey.workload) {
+        children = dimension.children.map(item => {
+          return {
+            ...item,
+            children: item.children.slice(0, this.pageSize * this.pageMap[item.id] || 1),
+          };
+        });
+      } else {
+        children = dimension.children.slice(0, this.pageSize * this.pageMap[dimension.id] || 1);
+      }
+      return {
+        ...dimension,
+        children,
+      };
+    });
   }
 
   /**
@@ -197,17 +224,6 @@ export class K8sDimension {
     };
   }
 
-  getAllDimensionData(params) {
-    return Promise.all(
-      this.currentDimension.map(dimension =>
-        this.getDimensionData({
-          ...params,
-          resource_type: dimension,
-        })
-      )
-    );
-  }
-
   /**
    * @description rest/v2/k8s/resources/list_k8s_resources/ 获取所有维度值选项
    * @param params
@@ -215,84 +231,90 @@ export class K8sDimension {
    */
   getDimensionData(params) {
     return getListK8SResources({
+      ...this.commonParams,
       ...params,
     }).catch(() => ({ count: 0, items: [] }));
   }
-  /**
-   * @description 获取指定类型的维度数据 (不包含搜索 初始化数据)
-   * @param types
-   * @returns
-   */
-  async getDimensionDataOfTypes(types: EDimensionKey[]) {
-    const promiseAll = [];
-    const originDimensionData = [];
-    const setData = async (setType: EDimensionKey) => {
-      const data = await this.getDimensionData({
-        resource_type: setType,
-        sernario: this.scene,
-        bcs_cluster_id: this.bcsClusterId,
-        page_size: this.pageSize,
-        page_type: this.pageType,
-        start_time: this.startTime,
-        end_time: this.endTime,
-        page: this.pageMap[setType],
-        query_string: this.keyword,
-      });
 
-      if (setType === EDimensionKey.workload) {
-        const overviewData = await this.getWorkloadData({
+  /**
+   * 获取性能场景所有维度的数据, 并初始化各维度的page为1
+   * @param params 请求参数
+   */
+  async getPerformanceDimensionData(params = {}) {
+    const originDimensionData = [];
+    const pageMap = {};
+    let workloadCategory = [];
+    const promiseList = this.currentDimension.map(async dimension => {
+      if (dimension === EDimensionKey.workload) {
+        workloadCategory = await this.getWorkloadData({
           bcs_cluster_id: this.bcsClusterId,
           query_string: this.keyword,
         });
-        const workloadItemMap = new Map();
-        for (const item of data.items) {
-          const workloadSplit = item.workload.split(':');
-          const workloadType = workloadSplit[0];
-          const temp = workloadItemMap.get(workloadType) || [];
-          temp.push({
-            id: item.workload,
-            name: item.workload,
-            relation: item,
-          });
-          workloadItemMap.set(workloadType, temp);
-        }
+        let total = 0;
+        const children = workloadCategory.map(item => {
+          total += item[1];
+          pageMap[item[0]] = 1;
+          return {
+            id: item[0],
+            name: item[0],
+            count: item[1],
+            children: [],
+          };
+        });
         originDimensionData.push({
-          id: setType,
-          name: setType,
-          count: data.count,
-          children: overviewData.map(o => {
-            return {
-              id: o[0],
-              name: o[0],
-              count: o[1],
-              children: workloadItemMap.get(o[0]) || [],
-            };
-          }),
+          id: dimension,
+          name: dimension,
+          count: total,
+          children,
         });
       } else {
+        const data = await this.getDimensionData({
+          resource_type: dimension,
+          page: 1,
+          ...params,
+        });
+        pageMap[dimension] = 1;
         originDimensionData.push({
-          id: setType,
-          name: setType,
+          id: dimension,
+          name: dimension,
           count: data.count,
-          children: data.items.map(item => this.formatData(setType, item)),
+          children: data.items.map(item => this.formatData(dimension, item)),
         });
       }
-    };
-    for (const type of types) {
-      promiseAll.push(setData(type));
+    });
+    this.originDimensionData = originDimensionData;
+    this.pageMap = pageMap;
+    await Promise.all(promiseList);
+    await this.getWorkloadChildrenData({
+      filter_dict: {
+        workload: `${workloadCategory[0][0]}:`,
+      },
+    });
+  }
+
+  /**
+   * @description 获取workload维度下某个分类的数据
+   */
+  async getWorkloadChildrenData({ filter_dict, ...params }) {
+    const { workload: workloadParams } = filter_dict;
+    const [category] = workloadParams.split(':');
+    const data = await getListK8SResources({
+      ...this.commonParams,
+      resource_type: EDimensionKey.workload,
+      page: this.pageMap[category],
+      filter_dict,
+      ...params,
+    });
+    const workloadList = this.originDimensionData.find(item => item.id === EDimensionKey.workload);
+    const categoryList = workloadList.children.find(item => item.id === category);
+    if (this.pageType === 'scrolling') {
+      categoryList.children = data.items.map(item => this.formatData(EDimensionKey.workload, item));
+    } else {
+      categoryList.children = categoryList.children.concat(
+        data.items.map(item => this.formatData(EDimensionKey.workload, item))
+      );
     }
-    await Promise.all(promiseAll);
-    const result = [];
-    for (const key of this.currentDimension) {
-      if (types.includes(key)) {
-        const item = originDimensionData.find(d => d.id === key);
-        if (item) result.push(item);
-      } else {
-        const item = this.originDimensionData.find(d => d.id === key);
-        if (item) result.push(item);
-      }
-    }
-    this.originDimensionData = Object.freeze(result) as any;
+    this.originDimensionData = [...this.originDimensionData];
   }
 
   /**
@@ -309,46 +331,68 @@ export class K8sDimension {
   /**
    * @description 初始化维度数据
    */
-  async init() {
-    await this.getDimensionDataOfTypes(this.currentDimension);
-    this.showDimensionData = this.originDimensionData.map(dimension => {
-      const children =
-        dimension.id === EDimensionKey.workload ? dimension.children : dimension.children.slice(0, this.pageSize);
-      return {
-        ...dimension,
-        children,
-      };
-    });
+  async init(params = {}) {
+    await this.currentSceneDimensionRequest(params);
   }
 
   /**
-   * 加载更多维度数据
-   * @param dimension 需要加载的维度子级链接
+   * 加载某个维度（类目）下一页数据
+   * @param dimension
    */
-  async loadMore(dimension: EDimensionKey) {
+  async loadNextPageData(dimension, params = {}, fatherDimension?: string) {
     this.pageMap[dimension] += 1;
     /**
-     *  1. 如果是搜索状态，接口返回的是全量数据，加载更多不需要请求接口，需要从原数据中找到分页数据，追加到当前展示的维度中
-     *  2. 不是搜索状态，接口返回的分页数据，加载更多需要重新请求接口，并追加到原数据中，同时更新到当前展示的维度中
+     *  1. 如果是搜索状态，接口返回的是全量数据，加载更多不需要请求接口
+     *  2. 不是搜索状态，接口返回的分页数据，加载更多需要重新请求接口，并追加到原数据中
      */
-    if (this.keyword) {
-      const dimensions = this.originDimensionData.find(d => d.id === dimension);
-      const showDimensions = this.showDimensionData.find(d => d.id === dimension);
-      showDimensions.children = dimensions.children.slice(0, this.pageMap[dimension] + this.pageSize);
-    } else {
-      await this.getDimensionDataOfTypes([dimension]);
-      const dimensions = this.originDimensionData.find(d => d.id === dimension);
-      const showDimensions = this.showDimensionData.find(d => d.id === dimension);
-      showDimensions.children = dimensions.children;
+    if (!this.keyword) {
+      if (fatherDimension === EDimensionKey.workload) {
+        await this.getWorkloadChildrenData({
+          filter_dict: {
+            workload: `${dimension}:`,
+          },
+          ...params,
+        });
+      } else {
+        const data = await this.getDimensionData({
+          resource_type: dimension,
+          page: this.pageMap[dimension],
+          ...params,
+        });
+        const dimensionList = this.originDimensionData.find(item => item.id === dimension);
+        dimensionList.children = dimensionList.children.concat(
+          data.items.map(item => this.formatData(dimension, item))
+        );
+        this.originDimensionData = [...this.originDimensionData];
+      }
     }
   }
 
   /** 搜索 */
-  async search(keyword: string, type: EDimensionKey) {
+  async search(keyword: string, params = {}, dimension?: string, fatherDimension?: EDimensionKey) {
     this.keyword = keyword;
-    this.pageMap[type] = 1;
-    this.keyword = keyword;
-    await this.getDimensionDataOfTypes(this.currentDimension);
+    if (dimension) {
+      this.pageMap[dimension] = 1;
+      if (fatherDimension === EDimensionKey.workload) {
+        await this.getWorkloadChildrenData({
+          filter_dict: {
+            workload: `${dimension}:`,
+          },
+          ...params,
+        });
+      } else {
+        const data = await this.getDimensionData({
+          resource_type: dimension,
+          page: this.pageMap[dimension],
+          ...params,
+        });
+        const dimensionList = this.originDimensionData.find(item => item.id === dimension);
+        dimensionList.children = data.items.map(item => this.formatData(fatherDimension, item));
+        this.originDimensionData = [...this.originDimensionData];
+      }
+    } else {
+      this.init();
+    }
   }
 }
 

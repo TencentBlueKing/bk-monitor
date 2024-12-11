@@ -31,13 +31,12 @@ import GroupItem from './group-item';
 // import type { GroupListItem } from '../../typings/k8s-new';
 
 import { K8sDimension } from '../../k8s-dimension';
-
-import type { EDimensionKey, GroupListItem, SceneType } from '../../typings/k8s-new';
+import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
 
 import './k8s-dimension-list.scss';
 
 interface K8sDimensionListProps {
-  scene: SceneType;
+  scene: SceneEnum;
   filterBy: any;
   groupBy: string[];
   clusterId: string;
@@ -52,7 +51,7 @@ interface K8sDimensionListEvents {
 @Component
 export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDimensionListEvents> {
   @Prop({ type: Array, default: () => [] }) filterBy: any;
-  @Prop({ type: String }) scene: SceneType;
+  @Prop({ type: String }) scene: SceneEnum;
   @Prop({ type: String, required: true }) clusterId: string;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
 
@@ -64,11 +63,16 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 已选择的groupBy列表 */
   groupByList = [];
   /** 已选择的检索 */
-  selectData = {};
+  localFilterBy = {};
   /** 下钻弹窗列表 */
   drillDownList = [];
 
+  /** 一级维度列表初始化loading */
   loading = true;
+  /** 展开loading */
+  expandLoading = {};
+  /** 加载更多loading */
+  loadMoreLoading = {};
 
   @Watch('scene')
   handleSceneChange() {
@@ -92,22 +96,32 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     await dimension.init();
     this.loading = false;
     this.showDimensionList = dimension.showDimensionData;
-    this.selectData = dimension.currentDimension.reduce((pre, cur) => {
+    this.initLoading(this.showDimensionList);
+    this.localFilterBy = dimension.currentDimension.reduce((pre, cur) => {
       pre[cur] = [];
       return pre;
     }, {});
-    console.log(dimension);
+  }
+
+  initLoading(data: GroupListItem[]) {
+    for (const item of data) {
+      if (item.children) {
+        this.$set(this.expandLoading, item.id, false);
+        this.$set(this.loadMoreLoading, item.id, false);
+        this.initLoading(item.children);
+      }
+    }
   }
 
   @Watch('filterBy', { immediate: true })
   handleFilterByChange(val: K8sDimensionListProps['filterBy']) {
     if (val.length) {
       val.map(item => {
-        this.selectData[item.key] = item.value;
+        this.localFilterBy[item.key] = item.value;
       });
     } else {
-      Object.keys(this.selectData).map(key => {
-        this.selectData[key] = [];
+      Object.keys(this.localFilterBy).map(key => {
+        this.localFilterBy[key] = [];
       });
     }
   }
@@ -117,9 +131,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.groupByList = val;
   }
 
-  handleSearch(val: string) {
+  async handleSearch(val: string) {
     this.searchValue = val;
-    (this as any).dimension.search(val);
+    this.loading = true;
+    await (this as any).dimension.search(val);
+    this.showDimensionList = (this as any).dimension.showDimensionData;
+    this.loading = false;
   }
 
   /** 检索 */
@@ -134,7 +151,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 下钻 */
   @Emit('drillDown')
   handleDrillDown({ id, dimension }, groupId: string) {
-    const ids = [...(this.selectData[groupId] || [])];
+    const ids = [...(this.localFilterBy[groupId] || [])];
     if (!ids.includes(id)) {
       ids.push(id);
     }
@@ -156,9 +173,26 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     };
   }
 
+  /** 首次展开workload的二级菜单后，请求数据 */
+  async handleFirstExpand(dimension, fatherDimension) {
+    if (fatherDimension === EDimensionKey.workload && dimension !== fatherDimension) {
+      this.expandLoading[dimension] = true;
+      await (this as any).dimension.getWorkloadChildrenData({
+        filter_dict: {
+          workload: `${dimension}:`,
+        },
+      });
+      this.showDimensionList = (this as any).dimension.showDimensionData;
+      this.expandLoading[dimension] = false;
+    }
+  }
+
   /** 加载更多 */
-  handleMoreClick(dimension: EDimensionKey) {
-    (this as any).dimension.loadMore(dimension);
+  async handleMoreClick(dimension, fatherDimension) {
+    this.loadMoreLoading[dimension] = true;
+    await (this as any).dimension.loadNextPageData(dimension, {}, fatherDimension);
+    this.showDimensionList = (this as any).dimension.showDimensionData;
+    this.loadMoreLoading[dimension] = false;
   }
 
   /** 渲染骨架屏 */
@@ -194,12 +228,15 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
                   key={group.id}
                   defaultExpand={index === 0}
                   drillDownList={this.drillDownList}
+                  expandLoading={this.expandLoading}
                   isGroupBy={this.groupByList.includes(group.id)}
                   list={group}
-                  value={this.selectData[group.id]}
+                  loadMoreLoading={this.loadMoreLoading}
+                  value={this.localFilterBy[group.id]}
+                  onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
                   onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
                   onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
-                  onHandleMoreClick={() => this.handleMoreClick(group.id)}
+                  onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
                   onHandleSearch={val => this.handleGroupSearch(val, group.id)}
                 />
               ))}

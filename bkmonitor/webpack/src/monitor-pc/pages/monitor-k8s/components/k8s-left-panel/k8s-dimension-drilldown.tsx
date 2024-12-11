@@ -55,32 +55,37 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   get drillDownList() {
     const drillListMap = {
-      namespace: ['namespace', 'workload', 'pod', 'container'],
-      workload: ['workload', 'pod', 'container'],
-      pod: ['pod', 'container'],
-      container: ['container'],
+      namespace: ['workload', 'pod', 'container'],
+      workload: ['pod', 'container'],
+      pod: ['container'],
+      container: [],
     };
     return drillListMap[this.dimension];
   }
 
   async handleDrillDown(id: number | string, e: Event) {
     this.drillDownId = id;
-    this.popoverInstance = this.$bkPopover(e.target, {
-      content: this.menuRef,
-      trigger: 'click',
-      placement: 'bottom-start',
-      theme: 'light common-monitor',
-      arrow: false,
-      interactive: true,
-      followCursor: false,
-      onHidden: () => {
-        this.drillDownId = null;
-        this.popoverInstance.destroy();
-        this.popoverInstance = null;
-      },
-    });
-    await this.$nextTick();
-    this.popoverInstance?.show(100);
+    /** 下钻列表只有一个选项，直接下钻，不需要暂时popover */
+    if (this.drillDownList.length === 1) {
+      this.handleDrillDownChange(this.drillDownList[0]);
+    } else {
+      this.popoverInstance = this.$bkPopover(e.target, {
+        content: this.menuRef,
+        trigger: 'click',
+        placement: 'bottom-start',
+        theme: 'light common-monitor',
+        arrow: false,
+        interactive: true,
+        followCursor: false,
+        onHidden: () => {
+          this.drillDownId = null;
+          this.popoverInstance?.destroy?.();
+          this.popoverInstance = null;
+        },
+      });
+      await this.$nextTick();
+      this.popoverInstance?.show(100);
+    }
   }
 
   /** 下钻 */
@@ -88,6 +93,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   handleDrillDownChange(val: string) {
     const id = this.drillDownId;
     this.popoverInstance?.hide();
+    this.drillDownId = null;
     return {
       id,
       dimension: val,
@@ -96,16 +102,23 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   render() {
     return (
-      <div class='k8s-dimension-drillDown'>
+      <div
+        style={{ display: this.drillDownList.length ? 'block' : 'none' }}
+        class='k8s-dimension-drillDown'
+      >
         <div
           class={{
             'drill-down-icon': true,
             active: this.drillDownId === this.value,
           }}
           v-bk-tooltips={{ content: this.$t('下钻'), disabled: !this.enableTip }}
-          onClick={e => this.handleDrillDown(this.value, e)}
         >
-          {this.$slots?.trigger || <i class='icon-monitor icon-xiazuan' />}
+          <div
+            class='popover-trigger'
+            onClick={e => this.handleDrillDown(this.value, e)}
+          >
+            {this.$slots?.trigger || <i class='icon-monitor icon-xiazuan' />}
+          </div>
         </div>
         <div style='display: none'>
           <ul

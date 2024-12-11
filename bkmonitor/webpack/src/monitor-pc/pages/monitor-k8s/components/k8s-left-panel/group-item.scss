@@ -131,7 +131,7 @@
     }
   }
 
-  .child-content {
+  .child-item {
     .child-header {
       position: relative;
       display: flex;
@@ -157,6 +157,20 @@
 
     .group-content-item {
       padding-left: 37px;
+    }
+
+    .skeleton-element-group {
+      margin: 8px 0;
+
+      & + .skeleton-element-group {
+        margin-top: 20px;
+      }
+
+      .group-content {
+        width: calc(100% - 31px);
+        height: 20px;
+        margin: 0 7px 12px 24px;
+      }
     }
   }
 }

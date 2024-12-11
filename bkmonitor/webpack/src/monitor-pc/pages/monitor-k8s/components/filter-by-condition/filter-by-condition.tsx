@@ -29,8 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce, random } from 'monitor-common/utils';
 import { debounce, throttle } from 'throttle-debounce';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { K8sDimension } from '../../k8s-dimension';
-import { EDimensionKey, type GroupListItem, type SceneType } from '../../typings/k8s-new';
+import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
 import KvTag from './kv-tag';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -40,7 +42,7 @@ import './filter-by-condition.scss';
 
 interface IProps {
   filterBy?: IFilterByItem[];
-  scene?: SceneType;
+  scene?: SceneEnum;
   bcsClusterId?: string;
   timeRange?: TimeRangeType;
   onChange?: (v: IFilterByItem[]) => void;
@@ -50,12 +52,13 @@ interface IProps {
 export default class FilterByCondition extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
   /* 场景 */
-  @Prop({ type: String, default: '' }) scene: SceneType;
+  @Prop({ type: String, default: '' }) scene: SceneEnum;
   /* 集群id */
   @Prop({ type: String, default: '' }) bcsClusterId: string;
   /* 时间范围 */
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   @Ref('selector') selectorRef: HTMLDivElement;
+  @Ref('valueItems') valueItemsRef: HTMLDivElement;
   groupList: GroupListItem[] = [];
   // tags
   tagList: ITagListItem[] = [];
@@ -83,12 +86,14 @@ export default class FilterByCondition extends tsc<IProps> {
   // 展开tagList
   isExpand = false;
   localFilterBy = [];
+  oldLocalFilterBy = [];
   allOptions = [];
   allOptionsMap = new Map();
 
   loading = false;
   scrollLoading = false;
   valueLoading = false;
+  rightValueLoading = false;
   k8sDimension: K8sDimension;
 
   resizeObserver = null;
@@ -111,6 +116,7 @@ export default class FilterByCondition extends tsc<IProps> {
   @Debounce(200)
   async initData() {
     this.loading = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.k8sDimension = new K8sDimension({
       scene: this.scene,
       pageSize: 10,
@@ -118,7 +124,10 @@ export default class FilterByCondition extends tsc<IProps> {
       pageType: 'scrolling',
       bcsClusterId: this.bcsClusterId,
     });
-    await this.k8sDimension.init();
+    await this.k8sDimension.init({
+      start_time: startTime,
+      end_time: endTime,
+    });
     this.groupList = this.k8sDimension.originDimensionData;
     this.allOptions = this.getGroupList();
     this.loading = false;
@@ -164,7 +173,10 @@ export default class FilterByCondition extends tsc<IProps> {
       });
     }
     this.localFilterBy = JSON.parse(JSON.stringify(filterBy));
-    this.$emit('change', filterBy);
+    if (JSON.stringify(this.oldLocalFilterBy) !== JSON.stringify(this.localFilterBy)) {
+      this.$emit('change', filterBy);
+    }
+    this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
 
   /**
@@ -177,11 +189,11 @@ export default class FilterByCondition extends tsc<IProps> {
       if (item.value.length) {
         tagList.push({
           id: item.key,
-          name: groupMap?.name || '--',
+          name: groupMap?.name || item.key || '--',
           key: random(8),
           values: item.value.map(v => ({
             id: v,
-            name: groupMap?.itemsMap.get(v) || '--',
+            name: groupMap?.itemsMap.get(v) || v || '--',
           })),
         });
       }
@@ -229,6 +241,10 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   async handleAdd(event: MouseEvent) {
+    if (this.popoverInstance) {
+      this.destroyPopoverInstance();
+      return;
+    }
     this.popoverInstance = this.$bkPopover(event.target, {
       content: this.selectorRef,
       trigger: 'click',
@@ -313,28 +329,19 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleSearchChange(value: string) {
     this.searchValue = value;
     this.valueLoading = true;
-    await this.k8sDimension.search(value, this.groupSelected as EDimensionKey);
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    await this.k8sDimension.search(
+      value,
+      {
+        start_time: startTime,
+        end_time: endTime,
+      },
+      this.groupSelected as EDimensionKey
+    );
     this.groupList = this.k8sDimension.originDimensionData;
     this.allOptions = this.getGroupList();
     this.handleSelectGroup(this.groupSelected);
     this.valueLoading = false;
-    // if (!value) {
-    //   this.searchValueOptions = this.valueOptions;
-    //   this.searchValueCategoryOptions = this.valueCategoryOptions;
-    //   return;
-    // }
-    // if (this.groupSelected === EGroupBy.workload) {
-    //   this.searchValueCategoryOptions = this.valueCategoryOptions.filter(item => {
-    //     return item.list.some(l => {
-    //       const lName = l.name.toLocaleLowerCase();
-    //       return lName.includes(searchValue);
-    //     });
-    //   });
-    // }
-    // this.searchValueOptions = this.valueOptions.filter(item => {
-    //   const name = item.name.toLocaleLowerCase();
-    //   return name.includes(searchValue);
-    // });
   }
 
   /**
@@ -372,12 +379,21 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   setTagList() {
     const curSelected = [];
+    const tagSelected = []; // 获取当前不存在下拉选项的tags
+    for (const tag of this.tagList) {
+      if (tag.id === this.groupSelected) {
+        tagSelected.push(...tag.values.map(item => item.id));
+        break;
+      }
+    }
+    const tempSet = new Set();
     if (this.groupSelected === EDimensionKey.workload) {
       for (const option of this.valueCategoryOptions) {
         for (const l of option.list) {
           if (l.checked) {
             curSelected.push(l);
           }
+          tempSet.add(l.id);
         }
       }
     } else {
@@ -385,21 +401,42 @@ export default class FilterByCondition extends tsc<IProps> {
         if (value.checked) {
           curSelected.push(value);
         }
+        tempSet.add(value.id);
+      }
+    }
+    const otherIds = [];
+    for (const t of tagSelected) {
+      if (!tempSet.has(t)) {
+        otherIds.push(t);
       }
     }
     let has = false;
     if (!curSelected.length) {
       const delIndex = this.tagList.findIndex(item => item.id === this.groupSelected);
       if (delIndex > -1) {
-        this.tagList.splice(delIndex, 1);
+        if (otherIds.length) {
+          this.tagList[delIndex].values = otherIds.map(id => ({
+            id: id,
+            name: id,
+          }));
+        } else {
+          this.tagList.splice(delIndex, 1);
+        }
       }
     } else {
       for (const tag of this.tagList) {
         if (tag.id === this.groupSelected) {
-          tag.values = curSelected.map(item => ({
+          const values = curSelected.map(item => ({
             id: item.id,
             name: item.name,
           }));
+          values.unshift(
+            ...otherIds.map(id => ({
+              id: id,
+              name: id,
+            }))
+          );
+          tag.values = values;
           has = true;
           break;
         }
@@ -442,10 +479,21 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   // 切换workload 分类
-  handleSelectCategory(item: IValueItem) {
+  async handleSelectCategory(item: IValueItem) {
     this.valueCategorySelected = item.id;
+    this.rightValueLoading = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    await this.k8sDimension.getWorkloadChildrenData({
+      filter_dict: { workload: item.id },
+      start_time: startTime,
+      end_time: endTime,
+    });
+    this.groupList = this.k8sDimension.originDimensionData;
+    this.allOptions = this.getGroupList();
+    this.handleSelectGroup(this.groupSelected);
     const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
     this.valueOptions = values;
+    this.rightValueLoading = false;
   }
 
   // 计算溢出个数
@@ -527,7 +575,12 @@ export default class FilterByCondition extends tsc<IProps> {
     const isEnd = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
     if (isEnd && !this.scrollLoading) {
       this.scrollLoading = true;
-      await this.k8sDimension.loadMore(this.groupSelected);
+      this.$nextTick(() => {
+        this.valueItemsRef.scrollTop = this.valueItemsRef.scrollHeight - clientHeight;
+      });
+      await this.k8sDimension.loadNextPageData(this.groupSelected);
+      this.groupList = this.k8sDimension.originDimensionData;
+      this.allOptions = this.getGroupList();
       this.scrollLoading = false;
     }
   }
@@ -535,19 +588,31 @@ export default class FilterByCondition extends tsc<IProps> {
   valuesWrap() {
     return (
       <div
+        ref='valueItems'
         class='value-items'
         onScroll={this.handleValueOptionsScrollThrottle}
       >
-        {this.valueOptions.map(item => (
-          <div
-            key={item.id}
-            class={['value-item', { checked: item.checked }]}
-            onClick={() => this.handleCheck(item)}
-          >
-            <span class='value-item-name'>{item.name}</span>
-            <span class='value-item-checked'>{item.checked && <span class='icon-monitor icon-mc-check-small' />}</span>
+        {this.valueOptions.length ? (
+          this.valueOptions.map(item => (
+            <div
+              key={item.id}
+              class={['value-item', { checked: item.checked }]}
+              onClick={() => this.handleCheck(item)}
+            >
+              <span class='value-item-name'>{item.name}</span>
+              <span class='value-item-checked'>
+                {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+              </span>
+            </div>
+          ))
+        ) : (
+          <EmptyStatus type='empty' />
+        )}
+        {this.scrollLoading && (
+          <div class='scroll-loading-wrap'>
+            <bk-spin size={'mini'} />
           </div>
-        ))}
+        )}
       </div>
     );
   }
@@ -648,7 +713,7 @@ export default class FilterByCondition extends tsc<IProps> {
         {!this.loading ? (
           <div class='tag-list-wrap'>{this.tagsWrap()}</div>
         ) : (
-          <div class='skeleton-element tags-wrap-loading'></div>
+          <div class='skeleton-element tags-wrap-loading' />
         )}
         <div class='tag-list-wrap-hidden'>{this.tagsWrap(true)}</div>
         <div
@@ -712,7 +777,22 @@ export default class FilterByCondition extends tsc<IProps> {
                       </div>
                     ))}
                   </div>
-                  {this.valuesWrap()}
+                  {this.rightValueLoading ? (
+                    <div class='skeleton-loading-wrap'>
+                      {new Array(8).fill(null).map((_item, index) => {
+                        return (
+                          <div
+                            key={index}
+                            class='loading-item'
+                          >
+                            <div class='skeleton-element skeleton-item' />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    this.valuesWrap()
+                  )}
                 </div>
               ) : (
                 this.valuesWrap()
