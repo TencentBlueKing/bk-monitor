@@ -25,8 +25,7 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
-import { formatDate } from '@/common/util';
+import { formatDateTimeField, getRegExp, formatDate } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
@@ -126,24 +125,25 @@ export default defineComponent({
           );
         }
 
-        return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
+        return props.chartOptions.data?.select_fields_order ?? [];
+        // return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
       }
 
       return [];
     });
 
-    const getChildNodes = index => {
-      const field = props.chartOptions.xFields[index];
-      if (field) {
-        return (formatListData.value?.list ?? []).map(item => ({
-          field,
-          value: item[field],
-          children: getChildNodes(index + 1),
-        }));
-      }
+    // const getChildNodes = index => {
+    //   const field = props.chartOptions.xFields[index];
+    //   if (field) {
+    //     return (formatListData.value?.list ?? []).map(item => ({
+    //       field,
+    //       value: item[field],
+    //       children: getChildNodes(index + 1),
+    //     }));
+    //   }
 
-      return [];
-    };
+    //   return [];
+    // };
 
     const tableData = computed(() => {
       if (showTable.value) {
@@ -151,24 +151,28 @@ export default defineComponent({
           return formatListData.value?.list ?? [];
         }
 
-        return (props.chartOptions.yFields ?? []).map(yField => {
-          return [[...props.chartOptions.dimensions, ...props.chartOptions.xFields[0]]].map(([timeField, xField]) => {
-            if (timeField || xField) {
-              return (formatListData.value?.list ?? []).map(row => {
-                const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
-                  if (cur && row[cur]) {
-                    return Object.assign(acc, { [cur]: row[cur] });
-                  }
+        return formatListData.value?.list ?? [];
+        // const result = (props.chartOptions.yFields ?? []).map(yField => {
+        //   return [[...props.chartOptions.dimensions, props.chartOptions.xFields[0]]].map(([timeField, xField]) => {
+        //     if (timeField || xField) {
+        //       return cloneDeep(formatListData.value?.list ?? []).map(row => {
+        //         const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
+        //           if (cur && row[cur]) {
+        //             return Object.assign(acc, { [cur]: row[cur] });
+        //           }
 
-                  return acc;
-                }, {});
-                return { targetValue, children: getChildNodes(1) };
-              });
-            }
+        //           return acc;
+        //         }, {});
+        //         return { ...targetValue, children: getChildNodes(1) };
+        //       });
+        //     }
 
-            return [];
-          });
-        });
+        //     return [];
+        //   });
+        // });
+
+        // console.log('result', result);
+        // return result;
       }
       return [];
     });
