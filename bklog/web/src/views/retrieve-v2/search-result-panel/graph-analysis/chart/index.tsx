@@ -132,7 +132,7 @@ export default defineComponent({
 
         const length =
           [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length * props.chartOptions.xFields.length;
-        tableData.value.splice(0, tableData.value.length, ...result.flat(length));
+        tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
       }
 
