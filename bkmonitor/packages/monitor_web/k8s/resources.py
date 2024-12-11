@@ -243,12 +243,17 @@ class ListK8SResources(Resource):
                 )
             )
 
+        # 获取过滤后从数据库中查询到的 queryset
+        resource_meta_queryset = resource_meta.get_from_meta()
+        # 获取总的
+        count = resource_meta_queryset.count()
+
         # 当 with_history = False 对返回结果进行分页查询
         if not with_history:
-            count = resource_meta.filter.query_set.count()
-            resource_meta = self.get_resource_meta_by_pagination(validated_request_data)
+            resource_list = self.get_resource_list_by_pagination(resource_meta_queryset, validated_request_data)
+        else:
+            resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta_queryset]
 
-        resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
         resource_id = [tuple(sorted(r.items())) for r in resource_list]
         if with_history:
             # 3.0 基于promql 查询历史上报数据
@@ -265,9 +270,7 @@ class ListK8SResources(Resource):
 
         return {"count": count, "items": resource_list}
 
-    def get_resource_meta_by_pagination(
-        self, resource_meta: K8sResourceMeta, validated_request_data: Dict
-    ) -> K8sResourceMeta:
+    def get_resource_list_by_pagination(self, resource_meta_queryset, validated_request_data: Dict):
         """
         获取分页后的 K8sResourceMeta
         """
@@ -280,8 +283,12 @@ class ListK8SResources(Resource):
             page_size = page * page_size
             page = 1
 
-        paginator = Paginator(resource_meta.filter.query_set, page_size)
-        return paginator.get_page(page).object_list.values()
+        # 添加默认 id 排序
+        resource_meta_queryset = resource_meta_queryset.order_by("id")
+
+        paginator = Paginator(resource_meta_queryset, page_size)
+        resource_list: List = paginator.get_page(page).object_list
+        return resource_list
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
