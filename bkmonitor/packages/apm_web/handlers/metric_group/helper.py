@@ -204,9 +204,13 @@ class MetricHelper:
                 if metric_service_name and metric_field:
                     if metric_service_name not in monitor_info_mapping:
                         monitor_info_mapping[metric_service_name] = {}
-                    monitor_info_mapping[metric_service_name][metric_field] = {
-                        "monitor_name": metric["dimensions"].get(monitor_name_key),
-                    }
+                    if metric_field not in monitor_info_mapping[metric_service_name]:
+                        monitor_info_mapping[metric_service_name][metric_field] = {"monitor_name_list": []}
+                    monitor_name = metric["dimensions"].get(monitor_name_key) or "default"
+                    if monitor_name not in monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"]:
+                        monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"].append(
+                            monitor_name
+                        )
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
 

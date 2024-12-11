@@ -122,7 +122,8 @@
                                             "$custom_metric_filters"
                                         ],
                                         "filter_dict": {
-                                            "${filter_key_name}": "${filter_key_value}"
+                                            "service_name": "${service_name_value}",
+                                            "scope_name": "${scope_name_value}"
                                         },
                                         "functions": [
                                             {
