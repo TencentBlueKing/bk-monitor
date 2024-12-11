@@ -158,6 +158,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
         ("APM_APPLICATION_QUICK_REFRESH_DELTA", slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30)),
         (
+            "APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA",
+            slz.IntegerField(label=_("指标数据源数据发现时需要将周期切分为每批查询几分钟的数据"), default=200),
+        ),
+        (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
             slz.IntegerField(label="APM应用操作BkdataFlow时拉取运行状态的最大操作次数", default=10),
         ),
@@ -322,7 +326,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
     ]
 )
-
 
 # ！！！注意！！！
 # 上面高级配置定义， 不提供用户配置页面， 所以 label 不要标记！不要标记！不要标记！

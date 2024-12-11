@@ -154,6 +154,17 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
     return val;
   }
 
+  // taginput黏贴格式处理
+  tagInputPasteFn(mode: string, str: string, title: string) {
+    const panel = mode === 'filter' ? this.localFilterPanel : this.localDiffPanel;
+    const item = panel.find(item => item.title === title && !item.value.includes(str));
+    if (item) {
+      item.value = [...item.value, str];
+      this.handleSelectValueChange(mode);
+    }
+    return [];
+  }
+
   // 更新过滤条件
   handleSelectValueChange(mode: string) {
     const labelValues = {};
@@ -226,6 +237,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                 allow-create
                 clearable
                 has-delete-icon
+                paste-fn={(str) => this.tagInputPasteFn(mode, str, item.title)}
                 on-change={() => this.handleSelectValueChange(mode)}
               />
             </span>

@@ -43,10 +43,10 @@ def mock_es_client(mocker):
     mock_get_alias.return_value = {
         'v2_2_bklog_rt_create_20241125_0': {
             'aliases': {
-                '2_bklog_rt_create_20241125_read': {},
-                '2_bklog_rt_create_20241126_read': {},
-                'write_20241125_2_bklog_rt_create': {},
-                'write_20241126_2_bklog_rt_create': {},
+                '2_bklog_rt_create_20241206_read': {},
+                '2_bklog_rt_create_20241205_read': {},
+                'write_20241206_2_bklog_rt_create': {},
+                'write_20241225_2_bklog_rt_create': {},
             }
         }
     }
@@ -105,6 +105,16 @@ def create_or_delete_records(mocker):
     #     is_config_by_user=True,
     #
     # )
+    models.ClusterInfo.objects.create(
+        cluster_id=11,
+        cluster_name="test_es_1",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es_test.1",
+        port=9090,
+        description="",
+        is_default_cluster=False,
+        version="5.x",
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     data_source.delete()
@@ -138,7 +148,10 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 "option": {"field_index": 1, "es_type": "text"},
             }
         ],
-        query_alias_settings=[{"field_name": "test_field1", "query_alias": "new_field1"}],
+        query_alias_settings=[
+            {"field_name": "test_field1", "query_alias": "new_field1", "path_type": "text"},
+            {"field_name": "_ext.io", "query_alias": "k8s_io", "path_type": "keyword"},
+        ],
         default_storage_config={
             "mapping_settings": {
                 "dynamic_templates": [
@@ -157,8 +170,14 @@ def test_create_and_modify_result_table_resource_for_es_storage(
 
     # 调用CreateResultTable接口
     CreateResultTableResource().request(**params)
+
+    es_record_0 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
+    assert es_record_0.is_current is True
+
     rt = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
     es_rt = models.ESStorage.objects.get(table_id="2_bklog.rt_create")
+    es_rt.retention = 30
+    es_rt.save()
     assert rt.bk_biz_id == 2
 
     # mapping_settings是否符合预期
@@ -184,7 +203,12 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     # 测试别名配置能否正确组装
     field_alias_mappings = es_rt.compose_field_alias_settings()
 
-    expected = {"properties": {"new_field1": {"type": "alias", "path": "test_field1"}}}
+    expected = {
+        "properties": {
+            "new_field1": {"type": "alias", "path": "test_field1"},
+            "k8s_io": {"type": "alias", "path": "_ext.io"},
+        }
+    }
     assert field_alias_mappings == expected
 
     # 测试索引body能否正确组装
@@ -209,13 +233,15 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 'bk_supplier_id': {},
                 'bk_target_host_id': {},
                 'ip': {},
-                'test_field1': {'type': 'text'},
-                'new_field1': {'type': 'alias', 'path': 'test_field1'},
+                'test_field1': {'type': 'keyword'},
                 'time': {},
+                'new_field1': {'type': 'alias', 'path': 'test_field1'},
+                'k8s_io': {'type': 'alias', 'path': '_ext.io'},
+                '_ext.io': {'type': 'keyword'},
             },
         },
     }
-    assert index_body == expected
+    assert json.dumps(index_body) == json.dumps(expected)
 
     es_rt.es_client = mock_es_client
     # 测试能否正常获取激活状态的索引
@@ -263,12 +289,17 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 ],
             },
         },
+        external_storage={"elasticsearch": {"storage_cluster_id": 11}},
         operator="admin",
         data_label="1001_bklog_test",
     )
 
     mocker.patch('metadata.models.ESStorage.update_index_and_aliases', return_value=None)
     ModifyResultTableResource().request(**modify_params)
+
+    es_rt2 = models.ESStorage.objects.get(table_id="2_bklog.rt_create")
+
+    assert es_rt2.storage_cluster_id == 11
 
     # 是否创建了对应的字段别名配置  原字段:test_field1 读别名: new_field1
 
@@ -310,13 +341,18 @@ def test_create_and_modify_result_table_resource_for_es_storage(
                 'bk_supplier_id': {},
                 'bk_target_host_id': {},
                 'ip': {},
-                'test_field2': {'type': 'text'},
+                'test_field2': {'type': 'keyword'},
                 'new_field2': {'type': 'alias', 'path': 'test_field2'},
                 'time': {},
             },
         },
     }
     assert index_body == expected
+
+    es_record1 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
+    es_record2 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=11)
+    assert es_record1.is_current is False
+    assert es_record2.is_current is True
 
     # 测试mapping配置比对逻辑
     is_same = es_rt.is_mapping_same(index_name='v2_2_bklog_rt_create_20241125_0')
