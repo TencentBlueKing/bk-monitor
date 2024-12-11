@@ -522,7 +522,7 @@ APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 
 # 新建应用的创建时间到当前时间的时长范围，单位：分钟
 APM_APPLICATION_QUICK_REFRESH_DELTA = 30
-# 新建应用的创建时间到当前时间的时长范围 默认 200s
+# 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
 APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
 # 是否下发平台级别api_name构成配置
