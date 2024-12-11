@@ -114,22 +114,28 @@ class TestFilter(TestCase):
         对 WorkloadFilter().filter_dict 的单元测试
         """
         workload_filter = WorkloadFilter("type:name")
-        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type', 'workload_name': 'name'})
+        self.assertEqual(
+            workload_filter.filter_dict,
+            {"workload_kind": "type", "workload_name": "name"},
+        )
         workload_filter = WorkloadFilter("type:")
-        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_kind": "type"})
         workload_filter = WorkloadFilter(":name")
-        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'name'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_name": "name"})
         workload_filter = WorkloadFilter("any")
-        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'any'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_name": "any"})
 
         workload_filter = WorkloadFilter("type:name", fuzzy=True)
-        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type', 'workload_name': 'name'})
+        self.assertEqual(
+            workload_filter.filter_dict,
+            {"workload_kind": "type", "workload_name": "name"},
+        )
         workload_filter = WorkloadFilter("type:", fuzzy=True)
-        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_kind": "type"})
         workload_filter = WorkloadFilter(":name", fuzzy=True)
-        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'name'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_name": "name"})
         workload_filter = WorkloadFilter("any", fuzzy=True)
-        self.assertEqual(workload_filter.filter_dict, {'workload_name__icontains': 'any'})
+        self.assertEqual(workload_filter.filter_dict, {"workload_name__icontains": "any"})
 
 
 class TestGetResourcesDetail(TestCase):
@@ -597,7 +603,11 @@ class TestWorkloadOverview(TestCase):
         self.assertEqual(expect_result, actual_result)
 
         # 4. 测试 namespace + query_string
-        request_data = {**validated_request_data, "query_string": "monitor", "namespace": "blueking"}
+        request_data = {
+            **validated_request_data,
+            "query_string": "monitor",
+            "namespace": "blueking",
+        }
         actual_result = WorkloadOverview()(request_data)
         expect_result = [
             ["Deployment", 0],
@@ -609,7 +619,11 @@ class TestWorkloadOverview(TestCase):
         self.assertEqual(expect_result, actual_result)
 
         # 5. 测试 无数据
-        request_data = {**validated_request_data, "query_string": "any", "namespace": "any"}
+        request_data = {
+            **validated_request_data,
+            "query_string": "any",
+            "namespace": "any",
+        }
         actual_result = WorkloadOverview()(request_data)
         expect_result = [
             ["Deployment", 0],
@@ -627,6 +641,7 @@ class TestK8sListResources(TestCase):
     def setUp(self):
         self.create_workloads()
         self.create_pods()
+        self.craete_containers()
 
     def create_workloads(self):
         BCSWorkload(
@@ -666,7 +681,7 @@ class TestK8sListResources(TestCase):
             bcs_cluster_id="BCS-K8S-00000",
             namespace="blueking",
             name="bk-monitor-web-worker-784b79c9f-s9fhh",
-            node_name="node-9-136-175-75",
+            node_name="node-127-0-0-1",
             node_ip="127.0.0.1",
             workload_type="Deployment",
             workload_name="bk-monitor-web-worker",
@@ -682,7 +697,7 @@ class TestK8sListResources(TestCase):
             bcs_cluster_id="BCS-K8S-00000",
             namespace="default",
             name="bk-monitor-web-worker-784b79c9f-8lw9j",
-            node_name="node-30-167-61-89",
+            node_name="node-127-0-0-1",
             node_ip="127.0.0.1",
             workload_type="Deployment",
             workload_name="bk-monitor-web-worker",
@@ -698,7 +713,7 @@ class TestK8sListResources(TestCase):
             bcs_cluster_id="BCS-K8S-00000",
             namespace="blueking",
             name="bk-monitor-web-worker-resource-557cd688bd-c2q2c",
-            node_name="node-30-167-61-61",
+            node_name="node-127-0-0-1",
             node_ip="127.0.0.1",
             workload_type="Deployment",
             workload_name="bk-monitor-web-worker-resource",
@@ -722,6 +737,8 @@ class TestK8sListResources(TestCase):
             node_ip="127.0.0.1",
             node_name="node-127-0-0-1",
             image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
         ).save()
         BCSContainer(
             bk_biz_id=2,
@@ -734,6 +751,8 @@ class TestK8sListResources(TestCase):
             node_ip="127.0.0.1",
             node_name="node-127-0-0-1",
             image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
         ).save()
         BCSContainer(
             bk_biz_id=2,
@@ -746,6 +765,8 @@ class TestK8sListResources(TestCase):
             node_ip="127.0.0.1",
             node_name="node-127-0-0-1",
             image="mirrors.tencent.com/build/blueking/bk-monitor:3.10.0-alpha.335",
+            created_at=timezone.now(),
+            last_synced_at=timezone.now(),
         ).save()
 
     def tearDown(self):
@@ -800,7 +821,9 @@ class TestK8sListResources(TestCase):
         list_k8s_resources.add_filter(resource_meta, validated_request_data["filter_dict"])
         resource_meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         resource_meta_queryset = resource_meta.get_from_meta()  # queryset
@@ -830,7 +853,9 @@ class TestK8sListResources(TestCase):
         list_k8s_resources.add_filter(resource_meta, validated_request_data["filter_dict"])
         resource_meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         resource_meta_queryset = resource_meta.get_from_meta()  # queryset
@@ -858,7 +883,9 @@ class TestK8sListResources(TestCase):
         list_k8s_resources.add_filter(resource_meta, validated_request_data["filter_dict"])
         resource_meta.filter.add(
             load_resource_filter(
-                validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                validated_request_data["resource_type"],
+                validated_request_data["query_string"],
+                fuzzy=True,
             )
         )
         resource_meta_queryset = resource_meta.get_from_meta()  # queryset
@@ -991,13 +1018,22 @@ class TestK8sListResources(TestCase):
             )
 
             # 验证整体接口(不带历史数据)
-            self.assertEqual(ListK8SResources()(validated_request_data), orm_resource)
+            self.assertEqual(
+                ListK8SResources()(validated_request_data),
+                {
+                    "count": len(orm_resource),
+                    "items": orm_resource,
+                },
+            )
 
             # 带上历史数据, 去重 default
             validated_request_data["with_history"] = True
             self.assertEqual(
                 ListK8SResources()(validated_request_data),
-                orm_resource + promql_resource[:1],
+                {
+                    "count": len(orm_resource + promql_resource[:1]),
+                    "items": orm_resource + promql_resource[:1],
+                },
             )
 
             # 资源名过滤
@@ -1033,7 +1069,10 @@ class TestK8sListResources(TestCase):
                 ),
             )
             # 第一个namespace: blueking 命中 检索
-            self.assertEqual(ListK8SResources()(validated_request_data), orm_resource[:1])
+            self.assertEqual(
+                ListK8SResources()(validated_request_data),
+                {"count": len(orm_resource[:1]), "items": orm_resource[:1]},
+            )
 
     def test_with_workload(self):
         validated_request_data = {
@@ -1078,7 +1117,11 @@ class TestK8sListResources(TestCase):
         )
         # 验证get_from_meta
         workload_list = ListK8SResources()(validated_request_data)
-        self.assertEqual(workload_list, [obj.to_meta_dict() for obj in orm_resource])
+        expect_workload_list = [obj.to_meta_dict() for obj in orm_resource]
+        self.assertEqual(
+            workload_list,
+            {"items": expect_workload_list, "count": len(expect_workload_list)},
+        )
 
         # 验证promql with  filter_dict AND query_string
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
@@ -1135,19 +1178,16 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             workload_list = ListK8SResources()(validated_request_data)
+            expect_workload_list = [obj.to_meta_dict() for obj in orm_resource] + [
+                BCSWorkload(
+                    namespace="blueking",
+                    type="Deployment",
+                    name="bk-monitor-web-beat",
+                ).to_meta_dict()
+            ]
             self.assertEqual(
                 workload_list,
-                (
-                    [obj.to_meta_dict() for obj in orm_resource]
-                    # 充当历史数据，
-                    + [
-                        BCSWorkload(
-                            namespace="blueking",
-                            type="Deployment",
-                            name="bk-monitor-web-beat",
-                        ).to_meta_dict()
-                    ]
-                ),
+                {"items": expect_workload_list, "count": len(expect_workload_list)},
             )
 
     def test_with_pod(self):
@@ -1200,7 +1240,8 @@ class TestK8sListResources(TestCase):
         )
         # 验证 get_from_meta
         pod_list = ListK8SResources()(validated_request_data)
-        self.assertEqual(pod_list, [obj.to_meta_dict() for obj in orm_resource])
+        expect_pod_list = [obj.to_meta_dict() for obj in orm_resource]
+        self.assertEqual(pod_list, {"count": len(expect_pod_list), "items": expect_pod_list})
         # 验证 promql with  filter_dict AND query_string
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
         meta.filter.add(
@@ -1246,20 +1287,15 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             pod_list = ListK8SResources()(validated_request_data)
-            self.assertEqual(
-                pod_list,
-                (
-                    [obj.to_meta_dict() for obj in orm_resource]
-                    + [
-                        BCSPod(
-                            workload_type="Deployment",
-                            workload_name="bk-monitor-web-worker-scheduler",
-                            namespace="blueking",
-                            name="bk-monitor-web-worker-scheduler-7b666c7788-2abcd",
-                        ).to_meta_dict()
-                    ]
-                ),
-            )
+            expect_pod_list = [obj.to_meta_dict() for obj in orm_resource] + [
+                BCSPod(
+                    workload_type="Deployment",
+                    workload_name="bk-monitor-web-worker-scheduler",
+                    namespace="blueking",
+                    name="bk-monitor-web-worker-scheduler-7b666c7788-2abcd",
+                ).to_meta_dict()
+            ]
+            self.assertEqual(pod_list, {"count": len(expect_pod_list), "items": expect_pod_list})
 
     def test_with_container(self):
         validated_request_data = {
@@ -1314,8 +1350,11 @@ class TestK8sListResources(TestCase):
         )
         # 验证 get_from_meta
         contianer_list = ListK8SResources()(validated_request_data)
-
-        self.assertEqual(contianer_list, [obj.to_meta_dict() for obj in orm_resource])
+        expect_container_list = [obj.to_meta_dict() for obj in orm_resource]
+        self.assertEqual(
+            contianer_list,
+            {"count": len(expect_container_list), "items": expect_container_list},
+        )
         # 验证 promql with  filter_dict AND query_string
         ListK8SResources().add_filter(meta, validated_request_data["filter_dict"])
         meta.filter.add(
@@ -1361,19 +1400,18 @@ class TestK8sListResources(TestCase):
         with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
-            pod_list = ListK8SResources()(validated_request_data)
+            container_list = ListK8SResources()(validated_request_data)
+            expect_container_list = [obj.to_meta_dict() for obj in orm_resource] + [
+                BCSContainer(
+                    pod_name="bk-monitor-web-544d4dc768-4564s",
+                    name="bk-monitor-web",
+                    namespace="blueking",
+                    workload_type="Deployment",
+                    workload_name="bk-monitor-web",
+                ).to_meta_dict()
+            ]
             self.assertEqual(
-                pod_list,
-                (
-                    [obj.to_meta_dict() for obj in orm_resource]
-                    + [
-                        BCSContainer(
-                            pod_name="bk-monitor-web-544d4dc768-4564s",
-                            name="bk-monitor-web",
-                            namespace="blueking",
-                            workload_type="Deployment",
-                            workload_name="bk-monitor-web",
-                        ).to_meta_dict()
-                    ]
-                ),
+                container_list["items"],
+                expect_container_list,
             )
+            self.assertEqual(container_list["count"], len(expect_container_list))
