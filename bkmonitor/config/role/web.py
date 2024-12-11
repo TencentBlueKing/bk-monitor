@@ -365,9 +365,9 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/60"),
         "enabled": True,
     },
-    "monitor_web.tasks.keep_alive": {
-        "task": "monitor_web.tasks.keep_alive",
-        "schedule": crontab(),
+    "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
+        "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
+        "schedule": crontab(minute="*/60"),
         "enabled": True,
         "options": {"queue": "celery_resource"},
     },

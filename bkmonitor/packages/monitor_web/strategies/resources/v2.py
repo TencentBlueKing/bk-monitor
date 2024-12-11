@@ -1033,7 +1033,7 @@ class GetStrategyListV2Resource(Resource):
                             query_config["bkmonitor_strategy_id"],
                         )
                     )
-                elif query_config["data_source_label"] == DataSourceLabel.PROMETHEUS:
+                elif query_config["data_source_label"] in [DataSourceLabel.PROMETHEUS, DataSourceLabel.DASHBOARD]:
                     continue
                 else:
                     query_tuples.add(
