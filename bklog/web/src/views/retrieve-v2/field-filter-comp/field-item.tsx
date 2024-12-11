@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AggChart from './agg-chart';
@@ -95,11 +95,7 @@ export default class FieldItem extends tsc<object> {
   beforeDestroy() {
     this.instanceDestroy();
   }
-  // 数据变化后关闭图表分析
-  @Watch('statisticalFieldData')
-  statisticalFieldDataChange(v) {
-    this.instanceDestroy();
-  }
+
   @Emit('toggleItem')
   emitToggleItem(v) {
     return v;
@@ -334,7 +330,7 @@ export default class FieldItem extends tsc<object> {
         <bk-sideslider
           width={600}
           is-show={this.ifShowMore}
-          quick-close={true}
+          quick-close={false}
           // transfer
           show-mask={false}
           onAnimation-end={this.closeSlider}
@@ -357,7 +353,7 @@ export default class FieldItem extends tsc<object> {
                 >
                   下载
                 </bk-button>
-                {/* <bk-button size='small'>查看仪表盘</bk-button> */}
+                <bk-button size='small'>查看仪表盘</bk-button>
               </div>
             </div>
           </template>
@@ -370,7 +366,6 @@ export default class FieldItem extends tsc<object> {
                 parent-expand={this.isExpand}
                 retrieve-params={this.retrieveParams}
                 statistical-field-data={this.statisticalFieldData}
-                limit={this.fieldData?.distinct_count}
               />
             </div>
           </template>

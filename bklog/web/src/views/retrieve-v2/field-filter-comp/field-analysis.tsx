@@ -241,7 +241,6 @@ export default class FieldAnalysis extends Vue {
         Object.assign(this.pillarOption, {
           tooltip: {
             trigger: 'axis',
-            appendToBody: true,
             transitionDuration: 0,
             axisPointer: {
               type: 'line',
@@ -323,7 +322,6 @@ export default class FieldAnalysis extends Vue {
           useUTC: false,
           tooltip: {
             trigger: 'axis',
-            appendToBody: true,
             axisPointer: {
               type: 'line',
               lineStyle: {
@@ -676,26 +674,24 @@ export default class FieldAnalysis extends Vue {
                 <div class='countNum'>
                   <span>去重后字段统计</span>
                   <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
-                 {
-                  this.fieldData.distinct_count >5? ( <span
+                  <span
                     class='moreDistinct'
                     onClick={this.showMore.bind(this)}
                   >
                     更多
-                  </span>):null
-                 }
+                  </span>
                 </div>
                 <div class='moreFn'>
                   <span
-                    class='fnBtn bk-icon icon-download'
+                    class='fnBtn bk-icon icon-upload'
                     v-bk-tooltips='下载'
                     onClick={this.downloadFieldStatistics.bind(this)}
                   ></span>
 
-                  {/* <span
+                  <span
                     class='fnBtn bk-icon icon-apps'
                     v-bk-tooltips='查看仪表盘'
-                  ></span> */}
+                  ></span>
                 </div>
               </div>
               {this.queryParams.agg_field && (
