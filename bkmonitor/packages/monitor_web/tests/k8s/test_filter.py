@@ -529,15 +529,15 @@ class TestWorkloadOverview(TestCase):
 
     def create_workloads(self):
         workload_info = [
-            ["blueking", "Deployments", "bk-gateway-esb"],
-            ["bkmonitor", "StatefulSets", "bk-monitor-api-status-1"],
-            ["bkmonitor", "StatefulSets", "bk-monitor-api-status-2"],
-            ["blueking", "StatefulSets", "bk-monitor-api-runing-1"],
-            ["blueking", "StatefulSets", "bk-monitor-api-runing-2"],
-            ["bkmonitor", "DaemonSets", "bk-monitor-daemon"],
-            ["bkmonitor", "Jobs", "bk-monitor-jobs-1"],
-            ["blueking", "Jobs", "bk-monitor-jobs-2"],
-            ["bkmonitor", "CronJobs", "bk-monitor-cron"],
+            ["blueking", "Deployment", "bk-gateway-esb"],
+            ["bkmonitor", "StatefulSet", "bk-monitor-api-status-1"],
+            ["bkmonitor", "StatefulSet", "bk-monitor-api-status-2"],
+            ["blueking", "StatefulSet", "bk-monitor-api-runing-1"],
+            ["blueking", "StatefulSet", "bk-monitor-api-runing-2"],
+            ["bkmonitor", "DaemonSet", "bk-monitor-daemon"],
+            ["bkmonitor", "Job", "bk-monitor-jobs-1"],
+            ["blueking", "Job", "bk-monitor-jobs-2"],
+            ["bkmonitor", "CronJob", "bk-monitor-cron"],
         ]
         for info in workload_info:
             BCSWorkload(
@@ -564,11 +564,11 @@ class TestWorkloadOverview(TestCase):
         # 1. 测试 获取全量数据
         actual_result = WorkloadOverview()(validated_request_data)
         expect_result = [
-            ["Deployments", 1],
-            ["StatefulSets", 4],
-            ["DaemonSets", 1],
-            ["Jobs", 2],
-            ["CronJobs", 1],
+            ["Deployment", 1],
+            ["StatefulSet", 4],
+            ["DaemonSet", 1],
+            ["Job", 2],
+            ["CronJob", 1],
         ]
         self.assertEqual(expect_result, actual_result)
 
@@ -576,11 +576,11 @@ class TestWorkloadOverview(TestCase):
         request_data = {**validated_request_data, "namespace": "bkmonitor"}
         actual_result = WorkloadOverview()(request_data)
         expect_result = [
-            ["Deployments", 0],
-            ["StatefulSets", 2],
-            ["DaemonSets", 1],
-            ["Jobs", 1],
-            ["CronJobs", 1],
+            ["Deployment", 0],
+            ["StatefulSet", 2],
+            ["DaemonSet", 1],
+            ["Job", 1],
+            ["CronJob", 1],
         ]
         self.assertEqual(expect_result, actual_result)
 
@@ -588,11 +588,11 @@ class TestWorkloadOverview(TestCase):
         request_data = {**validated_request_data, "query_string": "monitor"}
         actual_result = WorkloadOverview()(request_data)
         expect_result = [
-            ["Deployments", 0],
-            ["StatefulSets", 4],
-            ["DaemonSets", 1],
-            ["Jobs", 2],
-            ["CronJobs", 1],
+            ["Deployment", 0],
+            ["StatefulSet", 4],
+            ["DaemonSet", 1],
+            ["Job", 2],
+            ["CronJob", 1],
         ]
         self.assertEqual(expect_result, actual_result)
 
@@ -600,11 +600,23 @@ class TestWorkloadOverview(TestCase):
         request_data = {**validated_request_data, "query_string": "monitor", "namespace": "blueking"}
         actual_result = WorkloadOverview()(request_data)
         expect_result = [
-            ["Deployments", 0],
-            ["StatefulSets", 2],
-            ["DaemonSets", 0],
-            ["Jobs", 1],
-            ["CronJobs", 0],
+            ["Deployment", 0],
+            ["StatefulSet", 2],
+            ["DaemonSet", 0],
+            ["Job", 1],
+            ["CronJob", 0],
+        ]
+        self.assertEqual(expect_result, actual_result)
+
+        # 5. 测试 无数据
+        request_data = {**validated_request_data, "query_string": "any", "namespace": "any"}
+        actual_result = WorkloadOverview()(request_data)
+        expect_result = [
+            ["Deployment", 0],
+            ["StatefulSet", 0],
+            ["DaemonSet", 0],
+            ["Job", 0],
+            ["CronJob", 0],
         ]
         self.assertEqual(expect_result, actual_result)
 
