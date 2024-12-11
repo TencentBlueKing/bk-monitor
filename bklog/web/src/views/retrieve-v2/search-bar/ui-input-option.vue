@@ -131,7 +131,7 @@
     return (field, operator?, value?, callback?) => {
       const getConditionValue = () => {
         if (['keyword'].includes(field.field_type)) {
-          return [`${value}*`];
+          return [`*${value}*`];
         }
 
         return [];
