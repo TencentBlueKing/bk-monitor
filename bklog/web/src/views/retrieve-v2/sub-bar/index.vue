@@ -83,9 +83,13 @@
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
       setRouteParams(payload.ids, payload.isUnionIndex);
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
       store.commit('retrieve/updateChartKey');
       store.dispatch('requestIndexSetQuery');
+      store.commit('updateIndexItem', payload);
+      if (!payload.isUnionIndex) {
+        store.commit('updateIndexId', payload.ids[0]);
+      }
     }
   };
 

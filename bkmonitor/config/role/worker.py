@@ -154,6 +154,8 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.mail_report", "*/30 * * * *", "global"),
     # apm topo discover: 每分钟触发，每次分片处理1/10应用
     ("apm.task.tasks.topo_discover_cron", "* * * * *", "global"),
+    # apm datasource discover: 每分钟触发，每次分片处理1/10应用
+    ("apm.task.tasks.datasource_discover_cron", "* * * * *", "global"),
     # apm 配置下发: 每分钟触发，每次分片处理1/30应用
     ("apm.task.tasks.refresh_apm_config", "* * * * *", "global"),
     ("apm.task.tasks.refresh_apm_platform_config", "*/30 * * * *", "global"),
@@ -577,3 +579,4 @@ AIOPS_INCIDENT_SYNC_QUEUE = os.environ.get("AIOPS_INCIDENT_SYNC_QUEUE", "")
 
 # AIOPS SDK批量预测并行度
 AIOPS_SDK_PREDICT_CONCURRENCY = int(os.environ.get("AIOPS_SDK_PREDICT_CONCURRENCY", 20))
+AIOPS_SDK_INIT_CONCURRENCY = int(os.environ.get("AIOPS_SDK_INIT_CONCURRENCY", 20))
