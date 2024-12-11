@@ -22,6 +22,7 @@ from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
     RangeRatioAlgorithmsCollection,
+    SDKPreDetectMixin,
 )
 from constants.aiops import SDKDetectStatus
 from core.drf_resource import api
@@ -35,16 +36,23 @@ class DetectDirect(object):
     ALL = "all"
 
 
-class IntelligentDetect(RangeRatioAlgorithmsCollection):
+class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             # 历史依赖准备就绪才开始检测
             if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 raise Exception("Strategy history dependency data not ready")
+
+            # 优先从预检测结果中获取检测结果
+            predict_result_point = self.fetch_pre_detect_result_point(data_point)
+            if predict_result_point:
+                return super().detect(predict_result_point)
 
             return self.detect_by_sdk(data_point)
         else:

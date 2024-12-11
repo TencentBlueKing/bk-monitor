@@ -41,6 +41,7 @@ export const getDataSourceConfig = request('GET', 'rest/v2/grafana/get_data_sour
 export const getVariableValue = request('POST', 'query-api/rest/v2/grafana/get_variable_value/');
 export const getVariableField = request('GET', 'rest/v2/grafana/get_variable_field/');
 export const timeSeriesMetric = request('POST', 'rest/v2/grafana/time_series/metric/');
+export const getRelatedStrategy = request('GET', 'rest/v2/grafana/get_related_strategy/');
 export const timeSeriesMetricLevel = request('POST', 'rest/v2/grafana/time_series/metric_level/');
 export const logQuery = request('POST', 'query-api/rest/v2/grafana/log/query/');
 export const getDashboardList = request('GET', 'rest/v2/grafana/dashboards/');
@@ -55,6 +56,7 @@ export const deleteFolder = request('DELETE', 'rest/v2/grafana/delete_folder/');
 export const renameFolder = request('PUT', 'rest/v2/grafana/rename_folder/');
 export const quickImportDashboard = request('POST', 'rest/v2/grafana/quick_import_dashboard/');
 export const copyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
+export const migrateOldPanels = request('POST', 'rest/v2/grafana/migrate_old_panels/');
 export const saveToDashboard = request('POST', 'rest/v2/grafana/save_to_dashboard/');
 export const getFunctions = request('GET', 'rest/v2/grafana/time_series/functions/');
 export const graphUnifyQuery = request('POST', 'query-api/rest/v2/grafana/time_series/unify_query/');
@@ -100,6 +102,7 @@ export default {
   getVariableValue,
   getVariableField,
   timeSeriesMetric,
+  getRelatedStrategy,
   timeSeriesMetricLevel,
   logQuery,
   getDashboardList,
@@ -114,6 +117,7 @@ export default {
   renameFolder,
   quickImportDashboard,
   copyDashboardToFolder,
+  migrateOldPanels,
   saveToDashboard,
   getFunctions,
   graphUnifyQuery,
