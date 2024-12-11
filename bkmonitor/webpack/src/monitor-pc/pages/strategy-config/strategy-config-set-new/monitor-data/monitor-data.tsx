@@ -125,6 +125,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   @Prop({ default: 'auto', type: [Number, String] }) sourceStep: number | string; /* source模式下的agg_interval */
   /* 当前的数据类型，用于判断应该弹出哪种指标选择器 */
   @Prop({ default: 'time_series', type: String }) dataTypeLabel: string;
+  /* 指标类型，分为主机、服务实例、NONE */
   @Prop({ default: '', type: String }) metricTipType: string;
   /* 报错信息 */
   @Prop({ default: '', type: String }) errMsg: string;
