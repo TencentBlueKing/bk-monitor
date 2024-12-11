@@ -496,7 +496,7 @@ export default class SpaceSelect extends tsc<
 
       const searchShow =
         preciseMatch ||
-        item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
+        item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
         item.py_text?.indexOf(keyword) > -1 ||
         item.pyf_text?.indexOf(keyword) > -1 ||
         `${item.id}`.includes(keyword) ||
