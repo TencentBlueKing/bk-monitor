@@ -109,6 +109,28 @@ class TestFilter(TestCase):
             'namespace="blueking",pod_name="bk-monitor-web-5dc76bbfd7-8w9c6"',
         )
 
+    def test_filter_dict_with_workload_filter(self):
+        """
+        对 WorkloadFilter().filter_dict 的单元测试
+        """
+        workload_filter = WorkloadFilter("type:name")
+        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type', 'workload_name': 'name'})
+        workload_filter = WorkloadFilter("type:")
+        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type'})
+        workload_filter = WorkloadFilter(":name")
+        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'name'})
+        workload_filter = WorkloadFilter("any")
+        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'any'})
+
+        workload_filter = WorkloadFilter("type:name", fuzzy=True)
+        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type', 'workload_name': 'name'})
+        workload_filter = WorkloadFilter("type:", fuzzy=True)
+        self.assertEqual(workload_filter.filter_dict, {'workload_kind': 'type'})
+        workload_filter = WorkloadFilter(":name", fuzzy=True)
+        self.assertEqual(workload_filter.filter_dict, {'workload_name': 'name'})
+        workload_filter = WorkloadFilter("any", fuzzy=True)
+        self.assertEqual(workload_filter.filter_dict, {'workload_name__icontains': 'any'})
+
 
 class TestGetResourcesDetail(TestCase):
     databases = {"default", "monitor_api"}
