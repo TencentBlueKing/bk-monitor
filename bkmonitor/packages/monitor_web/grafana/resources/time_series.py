@@ -14,12 +14,15 @@ import time
 from functools import partial
 from typing import Dict, List
 
+from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from api.cmdb.default import get_host_dict_by_biz
+from api.cmdb.define import Host
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import (
     BCSCluster,
@@ -517,8 +520,14 @@ class GetVariableValue(Resource):
             instances = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         elif type == "module":
             instances = api.cmdb.get_module(bk_biz_id=bk_biz_id)
+            hosts = get_host_dict_by_biz(
+                bk_biz_id=bk_biz_id, fields=list(set(list(Host.Fields) + settings.HOST_DYNAMIC_FIELDS))
+            )
         elif type == "set":
             instances = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+            hosts = get_host_dict_by_biz(
+                bk_biz_id=bk_biz_id, fields=list(set(list(Host.Fields) + settings.HOST_DYNAMIC_FIELDS))
+            )
         elif type == "service_instance":
             instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
         else:
@@ -540,7 +549,25 @@ class GetVariableValue(Resource):
                 continue
 
             new_labels, new_values = self.format_label_and_value(labels, values)
-            value_dict["|".join(new_values)] = "|".join(new_labels)
+            if type in ["module", "set"]:
+                # 模块和集群变量加上主机数量
+                instance_id = instance.bk_module_id if type == "module" else instance.bk_set_id
+                if instance_id not in value_dict:
+                    value_dict[instance_id] = {"host_count": 0}
+                value_dict[instance_id]["|".join(new_values)] = "|".join(new_labels)
+                for host in hosts:
+                    if instance_id in host["bk_module_ids" if type == "module" else "bk_set_ids"]:
+                        value_dict[instance_id]["host_count"] += 1
+            else:
+                value_dict["|".join(new_values)] = "|".join(new_labels)
+
+        if type in ["module", "set"]:
+            result = []
+            for bk_set_or_module_id, values in value_dict.items():
+                for value, label in values.items():
+                    if value != "host_count":
+                        result.append({"label": label, "value": value, "host_count": values.get("host_count", 0)})
+            return result
 
         return [{"label": k, "value": v} for v, k in value_dict.items()]
 
