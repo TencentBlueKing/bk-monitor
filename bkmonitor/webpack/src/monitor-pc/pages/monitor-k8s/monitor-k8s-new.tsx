@@ -268,8 +268,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         return (
           <K8sTableNew
             activeTab={this.activeTab}
+            clusterId={this.cluster}
             filterBy={this.filterBy}
             groupInstance={this.groupInstance}
+            scene={this.scene}
             onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}
