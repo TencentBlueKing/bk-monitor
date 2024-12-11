@@ -246,7 +246,7 @@ class ListK8SResources(Resource):
         # 当 with_history = False 对返回结果进行分页查询
         if not with_history:
             count = resource_meta.filter.query_set.count()
-            resource_meta = self.get_resource_meta_by_pagination(validated_request_data)
+            resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
 
         resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
         resource_id = [tuple(sorted(r.items())) for r in resource_list]
