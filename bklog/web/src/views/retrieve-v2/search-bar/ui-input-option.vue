@@ -536,7 +536,7 @@
 
   const handleInputVlaueChange = e => {
     const input = e.target;
-    if (input !== undefined) {
+    if (input !== undefined && input.value.length) {
       const value = input.value;
       const charLen = getCharLength(value);
       input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
@@ -544,6 +544,13 @@
       rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
         if (!operatorInstance.isShown()) {
           conditionValueInstance.repositionTippyInstance();
+
+          if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
+          }
         }
       });
     }
@@ -873,11 +880,12 @@
   };
 
   const handleConditionValueInputBlur = e => {
-    if (conditionValueInstance.isShown()) {
+    if (conditionValueInstance.isShown() || conditionValueInstance.isInstanceShowing()) {
       return;
     }
 
     isConditionValueInputFocus.value = false;
+    conditionValueInputVal.value = '';
 
     if (e.target.value) {
       const value = e.target.value;
@@ -1128,6 +1136,7 @@
                       v-for="(item, index) in activeItemMatchList"
                       :class="{ active: (condition.value ?? []).includes(item) }"
                       :key="`${item}-${index}`"
+                      :title="formatDateTimeField(item, activeFieldItem.field_type)"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
                       <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
