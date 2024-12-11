@@ -66,7 +66,7 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
       ],
     },
     workload: {
-      count: 3,
+      count: 7,
       items: [
         {
           namespace: 'default',
@@ -101,16 +101,13 @@ function getListK8SResources({ resource_type }): Promise<{ count: number; items:
     namespace: {
       count: 2,
       items: [
-        {
-          bk_biz_id: 2,
-          bcs_cluster_id: 'BCS-K8S-00000',
-          namespace: 'default',
-        },
-        {
-          bk_biz_id: 2,
-          bcs_cluster_id: 'BCS-K8S-00000',
-          namespace: 'demo',
-        },
+        ...new Array(10).fill(null).map((_item, index) => {
+          return {
+            bk_biz_id: 2,
+            bcs_cluster_id: 'BCS-K8S-00000',
+            namespace: `default${index}`,
+          };
+        }),
       ],
     },
     container: {
@@ -239,11 +236,13 @@ export class K8sDimension {
         start_time: this.startTime,
         end_time: this.endTime,
         page: this.pageMap[setType],
+        query_string: this.keyword,
       });
 
       if (setType === EDimensionKey.workload) {
         const overviewData = await this.getWorkloadData({
           bcs_cluster_id: this.bcsClusterId,
+          query_string: this.keyword,
         });
         const workloadItemMap = new Map();
         for (const item of data.items) {
@@ -283,7 +282,17 @@ export class K8sDimension {
       promiseAll.push(setData(type));
     }
     await Promise.all(promiseAll);
-    this.originDimensionData = Object.freeze(originDimensionData) as any;
+    const result = [];
+    for (const key of this.currentDimension) {
+      if (types.includes(key)) {
+        const item = originDimensionData.find(d => d.id === key);
+        if (item) result.push(item);
+      } else {
+        const item = this.originDimensionData.find(d => d.id === key);
+        if (item) result.push(item);
+      }
+    }
+    this.originDimensionData = Object.freeze(result) as any;
   }
 
   /**
@@ -337,18 +346,9 @@ export class K8sDimension {
   /** 搜索 */
   async search(keyword: string, type: EDimensionKey) {
     this.keyword = keyword;
-    if (type) {
-      const data = await this.getDimensionData({
-        resource_type: type,
-      });
-      for (const item of this.showDimensionData) {
-        if (item.id === type) {
-          item.children = data.items.map(d => this.formatData(type, d));
-        }
-      }
-    } else {
-      this.init();
-    }
+    this.pageMap[type] = 1;
+    this.keyword = keyword;
+    await this.getDimensionDataOfTypes(this.currentDimension);
   }
 }
 

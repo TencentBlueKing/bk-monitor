@@ -30,35 +30,40 @@ import { Debounce, random } from 'monitor-common/utils';
 import { debounce, throttle } from 'throttle-debounce';
 
 import { K8sDimension } from '../../k8s-dimension';
+import { EDimensionKey, type GroupListItem, type SceneType } from '../../typings/k8s-new';
 import KvTag from './kv-tag';
-import { EGroupBy, type IGroupOptionsItem, type ITagListItem, type IValueItem, type IFilterByItem } from './utils';
 
-import type { GroupListItem, SceneType } from '../../typings/k8s-new';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IGroupOptionsItem, ITagListItem, IValueItem, IFilterByItem } from './utils';
 
 import './filter-by-condition.scss';
 
 interface IProps {
-  groupList?: GroupListItem[];
   filterBy?: IFilterByItem[];
   scene?: SceneType;
   bcsClusterId?: string;
+  timeRange?: TimeRangeType;
   onChange?: (v: IFilterByItem[]) => void;
 }
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) groupList: GroupListItem[];
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  /* 场景 */
   @Prop({ type: String, default: '' }) scene: SceneType;
+  /* 集群id */
   @Prop({ type: String, default: '' }) bcsClusterId: string;
+  /* 时间范围 */
+  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   @Ref('selector') selectorRef: HTMLDivElement;
+  groupList: GroupListItem[] = [];
   // tags
   tagList: ITagListItem[] = [];
   popoverInstance = null;
   // 头部group选项
   groupOptions: IGroupOptionsItem[] = [];
   // 当前选择的group
-  groupSelected: EGroupBy | string = '';
+  groupSelected: EDimensionKey | string = '';
   // 当前选择的group下的value选项
   valueOptions: IValueItem[] = [];
   // 当前选择的value下的value选项 (二级分类)
@@ -67,8 +72,8 @@ export default class FilterByCondition extends tsc<IProps> {
   valueCategorySelected = '';
   // 搜索框输入的值
   searchValue = '';
-  searchValueOptions = [];
-  searchValueCategoryOptions = [];
+  // searchValueOptions = [];
+  // searchValueCategoryOptions = [];
   // 当前点击的tag
   updateActive = '';
   // 溢出的数量
@@ -81,18 +86,42 @@ export default class FilterByCondition extends tsc<IProps> {
   allOptions = [];
   allOptionsMap = new Map();
 
+  loading = false;
+  scrollLoading = false;
+  valueLoading = false;
+  k8sDimension: K8sDimension;
+
   resizeObserver = null;
   overflowCountRenderDebounce = null;
   handleValueOptionsScrollThrottle = _v => {};
 
-  async created() {
+  @Watch('scene', { immediate: true })
+  handleWatchScene() {
+    this.initData();
+  }
+  @Watch('bcsClusterId', { immediate: true })
+  handleWatchBcsClusterId() {
+    this.initData();
+  }
+  @Watch('timeRange', { immediate: true })
+  handleWatchTimeRange() {
+    this.initData();
+  }
+
+  @Debounce(200)
+  async initData() {
+    this.loading = true;
     this.k8sDimension = new K8sDimension({
       scene: this.scene,
-      keyword: '',
       pageSize: 10,
+      keyword: '',
+      pageType: 'scrolling',
       bcsClusterId: this.bcsClusterId,
     });
     await this.k8sDimension.init();
+    this.groupList = this.k8sDimension.originDimensionData;
+    this.allOptions = this.getGroupList();
+    this.loading = false;
   }
 
   get hasAdd() {
@@ -110,11 +139,6 @@ export default class FilterByCondition extends tsc<IProps> {
       }
     });
     this.resizeObserver.observe(this.$el);
-  }
-
-  @Watch('groupList', { immediate: true })
-  handleWatchGroupList() {
-    this.allOptions = this.getGroupList();
   }
 
   @Watch('filterBy')
@@ -179,7 +203,7 @@ export default class FilterByCondition extends tsc<IProps> {
         name: item.name,
         count: item.count,
         list: item.children.map(child => {
-          if (item.id !== EGroupBy.workload) {
+          if (item.id !== EDimensionKey.workload) {
             itemsMap.set(child.id, child.name);
           }
           return {
@@ -249,7 +273,7 @@ export default class FilterByCondition extends tsc<IProps> {
           break;
         }
       }
-      if (this.groupSelected === EGroupBy.workload) {
+      if (this.groupSelected === EDimensionKey.workload) {
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
         this.valueCategoryOptions = groupValues.map(item => ({
           ...item,
@@ -272,7 +296,7 @@ export default class FilterByCondition extends tsc<IProps> {
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
-      this.handleSearchChange('');
+      // this.handleSearchChange('');
     }
   }
 
@@ -286,26 +310,31 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param value
    * @returns
    */
-  handleSearchChange(value: string) {
+  async handleSearchChange(value: string) {
     this.searchValue = value;
-    const searchValue = value.toLocaleLowerCase();
-    if (!value) {
-      this.searchValueOptions = this.valueOptions;
-      this.searchValueCategoryOptions = this.valueCategoryOptions;
-      return;
-    }
-    if (this.groupSelected === EGroupBy.workload) {
-      this.searchValueCategoryOptions = this.valueCategoryOptions.filter(item => {
-        return item.list.some(l => {
-          const lName = l.name.toLocaleLowerCase();
-          return lName.includes(searchValue);
-        });
-      });
-    }
-    this.searchValueOptions = this.valueOptions.filter(item => {
-      const name = item.name.toLocaleLowerCase();
-      return name.includes(searchValue);
-    });
+    this.valueLoading = true;
+    await this.k8sDimension.search(value, this.groupSelected as EDimensionKey);
+    this.groupList = this.k8sDimension.originDimensionData;
+    this.allOptions = this.getGroupList();
+    this.handleSelectGroup(this.groupSelected);
+    this.valueLoading = false;
+    // if (!value) {
+    //   this.searchValueOptions = this.valueOptions;
+    //   this.searchValueCategoryOptions = this.valueCategoryOptions;
+    //   return;
+    // }
+    // if (this.groupSelected === EGroupBy.workload) {
+    //   this.searchValueCategoryOptions = this.valueCategoryOptions.filter(item => {
+    //     return item.list.some(l => {
+    //       const lName = l.name.toLocaleLowerCase();
+    //       return lName.includes(searchValue);
+    //     });
+    //   });
+    // }
+    // this.searchValueOptions = this.valueOptions.filter(item => {
+    //   const name = item.name.toLocaleLowerCase();
+    //   return name.includes(searchValue);
+    // });
   }
 
   /**
@@ -314,7 +343,7 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   handleCheck(item: IValueItem) {
     item.checked = !item.checked;
-    if (this.groupSelected === EGroupBy.workload) {
+    if (this.groupSelected === EDimensionKey.workload) {
       let isBreak = false;
       for (const option of this.valueCategoryOptions) {
         for (const l of option.list) {
@@ -343,7 +372,7 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   setTagList() {
     const curSelected = [];
-    if (this.groupSelected === EGroupBy.workload) {
+    if (this.groupSelected === EDimensionKey.workload) {
       for (const option of this.valueCategoryOptions) {
         for (const l of option.list) {
           if (l.checked) {
@@ -417,7 +446,6 @@ export default class FilterByCondition extends tsc<IProps> {
     this.valueCategorySelected = item.id;
     const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
     this.valueOptions = values;
-    this.handleSearchChange(this.searchValue);
   }
 
   // 计算溢出个数
@@ -490,10 +518,18 @@ export default class FilterByCondition extends tsc<IProps> {
     this.overflowCountRender();
   }
 
-  handleValueOptionsScroll(e: any) {
+  /**
+   * @description 下拉加载
+   * @param e
+   */
+  async handleValueOptionsScroll(e: any) {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
     const isEnd = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
-    console.log(isEnd);
+    if (isEnd && !this.scrollLoading) {
+      this.scrollLoading = true;
+      await this.k8sDimension.loadMore(this.groupSelected);
+      this.scrollLoading = false;
+    }
   }
 
   valuesWrap() {
@@ -502,7 +538,7 @@ export default class FilterByCondition extends tsc<IProps> {
         class='value-items'
         onScroll={this.handleValueOptionsScrollThrottle}
       >
-        {this.searchValueOptions.map(item => (
+        {this.valueOptions.map(item => (
           <div
             key={item.id}
             class={['value-item', { checked: item.checked }]}
@@ -609,7 +645,11 @@ export default class FilterByCondition extends tsc<IProps> {
   render() {
     return (
       <div class={['filter-by-condition-component', { 'expand-tags': this.isExpand }]}>
-        <div class='tag-list-wrap'>{this.tagsWrap()}</div>
+        {!this.loading ? (
+          <div class='tag-list-wrap'>{this.tagsWrap()}</div>
+        ) : (
+          <div class='skeleton-element tags-wrap-loading'></div>
+        )}
         <div class='tag-list-wrap-hidden'>{this.tagsWrap(true)}</div>
         <div
           style={{
@@ -642,7 +682,20 @@ export default class FilterByCondition extends tsc<IProps> {
                   onChange={this.handleSearchChangeDebounce}
                 />
               </div>
-              {this.searchValueCategoryOptions.length ? (
+              {this.valueLoading ? (
+                <div class='skeleton-loading-wrap'>
+                  {new Array(8).fill(null).map((_item, index) => {
+                    return (
+                      <div
+                        key={index}
+                        class='loading-item'
+                      >
+                        <div class='skeleton-element skeleton-item' />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : this.valueCategoryOptions.length ? (
                 <div class='value-items-wrap'>
                   <div class='left-wrap'>
                     {this.valueCategoryOptions.map(item => (
