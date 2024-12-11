@@ -86,19 +86,21 @@ export enum K8sTableColumnKeysEnum {
   WORKLOAD_TYPE = 'workload_type',
 }
 
-export type SceneType = 'performance';
+export enum SceneEnum {
+  Performance = 'performance',
+}
+
 export interface GroupListItem {
   id: EDimensionKey;
   name: string;
   count?: number;
-  hasMore?: boolean;
   children?: GroupListItem[];
-  [key: string]: any;
   relation?: Record<EDimensionKey, string>; // 关联维度
+  [key: string]: any;
 }
 
 export interface K8sDimensionParams {
-  scene: SceneType;
+  scene: SceneEnum;
   keyword: string;
   pageSize?: number;
   pageType?: 'scrolling' | 'traditional';
