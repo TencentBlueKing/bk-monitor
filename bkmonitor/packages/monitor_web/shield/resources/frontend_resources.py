@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import itertools
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set
 
 from bkmonitor.models import StrategyModel
@@ -87,15 +87,16 @@ class FrontendShieldListResource(Resource):
         if search_terms:
             shields = self.search(search_terms, shields, is_active)
             if page and page_size:
-                shields = shields[(page - 1) * page_size : page * page_size]
+                shields = shields[(page - 1) * page_size: page * page_size]
 
         return {"count": result["count"], "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
         """模糊搜索屏蔽列表。"""
-        active_fields = ["id", "category_name", "content", "begin_time", "cycle_duration", "description", "status_name"]
-        inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name"]
+        active_fields = ["id", "category_name", "content", "begin_time", "cycle_duration", "description", "status_name",
+                         "label"]
+        inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name", "label"]
         search_fields = active_fields if is_active else inactive_fields
 
         def match(shield):
@@ -106,30 +107,11 @@ class FrontendShieldListResource(Resource):
 
         return [shield for shield in shields if match(shield)]
 
-    def enrich_shield(self, manager, strategy_id_to_name, shield):
-        """补充单个屏蔽记录的数据，用于并发"""
-        return {
-            "id": shield["id"],
-            "bk_biz_id": shield["bk_biz_id"],
-            "category": shield["category"],
-            "category_name": manager.get_category_name(shield),
-            "status": shield["status"],
-            "status_name": self.get_status_name(shield["status"]),
-            "dimension_config": self.get_dimension_config(shield),
-            "content": shield["content"] or manager.get_shield_content(shield, strategy_id_to_name),
-            "begin_time": shield["begin_time"],
-            "failure_time": shield["failure_time"],
-            "cycle_duration": manager.get_cycle_duration(shield),
-            "description": shield["description"],
-            "source": shield["source"],
-            "update_user": shield["update_user"],
-        }
-
     def enrich_shields(self, bk_biz_id: Optional[int], shields: list) -> list:
+        """补充屏蔽记录的数据便于展示。"""
         if not shields:
             return []
 
-        """补充屏蔽记录的数据便于展示。"""
         manager = ShieldDisplayManager(bk_biz_id)
         # 获取关联策略名
         strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
@@ -137,11 +119,29 @@ class FrontendShieldListResource(Resource):
             strategy.id: strategy.name for strategy in StrategyModel.objects.filter(id__in=strategy_ids).only("name")
         }
 
-        formatted_shields = []
         with ThreadPoolExecutor(max_workers=20) as executor:
-            futures = [executor.submit(self.enrich_shield, manager, strategy_id_to_name, shield) for shield in shields]
-            for future in as_completed(futures):
-                formatted_shields.append(future.result())
+            formatted_shields = list(
+                executor.map(
+                    lambda shield: {
+                        "id": shield["id"],
+                        "bk_biz_id": shield["bk_biz_id"],
+                        "category": shield["category"],
+                        "category_name": manager.get_category_name(shield),
+                        "status": shield["status"],
+                        "status_name": self.get_status_name(shield["status"]),
+                        "dimension_config": self.get_dimension_config(shield),
+                        "content": shield["content"] or manager.get_shield_content(shield, strategy_id_to_name),
+                        "begin_time": shield["begin_time"],
+                        "failure_time": shield["failure_time"],
+                        "cycle_duration": manager.get_cycle_duration(shield),
+                        "description": shield["description"],
+                        "source": shield["source"],
+                        "update_user": shield["update_user"],
+                        "label": shield["label"],
+                    },
+                    shields,
+                )
+            )
 
         return formatted_shields
 

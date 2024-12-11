@@ -83,6 +83,7 @@
                 </div>
                 <bk-select
                   v-model="queryConfigItem.metrics[0].method"
+                  searchable
                   :clearable="false"
                   @change="handleMethodChange"
                   :popover-options="{ appendTo: 'parent' }"

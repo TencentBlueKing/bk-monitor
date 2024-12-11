@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
@@ -28,7 +29,12 @@ from metadata.models import BkBaseResultTable, DataSource
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.vm.utils import report_metadata_data_link_status_info
+from metadata.models.space.constants import SpaceTypes
+from metadata.models.vm.utils import (
+    create_fed_bkbase_data_link,
+    get_vm_cluster_id_name,
+    report_metadata_data_link_status_info,
+)
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
@@ -288,6 +294,13 @@ def _manage_es_storage(es_storage):
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
         logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
+    except RetryError as e:
+        logger.error(
+            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
+                es_storage.table_id, e.__cause__
+            )
+        )
+        logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
         logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
@@ -385,8 +398,10 @@ def _access_bkdata_vm(
     if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
+        logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
+        logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
@@ -416,9 +431,22 @@ def access_bkdata_vm(
             bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
-    except Exception as e:
+    except RetryError as e:
         logger.error(
-            "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e.__cause__,
+        )
+        return
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e,
         )
         return
 
@@ -714,3 +742,35 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         data_link_name,
         cost_time,
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def bulk_create_fed_data_link(sub_clusters):
+    from metadata.models import DataSource, DataSourceResultTable
+
+    logger.info("bulk_create_fed_data_link: start to bulk create fed datalinks for->[%s]", sub_clusters)
+    for sub_cluster_id in sub_clusters:
+        # 打印日志记录更新的子集群ID
+        logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
+        try:
+            sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
+            ds = DataSource.objects.get(bk_data_id=sub_cluster.K8sMetricDataID)
+            table_id = DataSourceResultTable.objects.get(bk_data_id=sub_cluster.K8sMetricDataID).table_id
+            vm_cluster = get_vm_cluster_id_name(space_type=SpaceTypes.BKCC.value, space_id=str(sub_cluster.bk_biz_id))
+
+            logger.info(
+                "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
+                sub_cluster_id,
+                sub_cluster.K8sMetricDataID,
+                table_id,
+            )
+
+            create_fed_bkbase_data_link(
+                monitor_table_id=table_id,
+                data_source=ds,
+                storage_cluster_name=vm_cluster.get("cluster_name"),
+                bcs_cluster_id=sub_cluster.cluster_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
+            continue

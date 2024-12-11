@@ -29,6 +29,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
+from apm.models.doris import BkDataDorisProvider
 from apm.utils.es_search import EsSearch
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.user import get_global_user
@@ -39,8 +40,6 @@ from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata import models as metadata_models
-
-from .doris import BkDataDorisProvider
 
 
 class ApmDataSourceConfigBase(models.Model):
@@ -101,11 +100,15 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).switch_result_table(True)
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if instance:
+            instance.switch_result_table(True)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).switch_result_table(False)
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if instance:
+            instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
         resource.metadata.modify_result_table(
@@ -360,8 +363,9 @@ class LogDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.log_search.stop_collectors(collector_config_id=instance.collector_config_id)
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if instance:
+            api.log_search.stop_collectors(collector_config_id=instance.collector_config_id)
 
 
 class TraceDataSource(ApmDataSourceConfigBase):
@@ -1126,12 +1130,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def stop(cls, bk_biz_id, app_name):
         super(TraceDataSource, cls).stop(bk_biz_id, app_name)
         # 删除关联的索引集
-        ins = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        try:
-            api.log_search.delete_index_set(index_set_id=ins.index_set_id)
-            logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
-        except BKAPIError as e:
-            logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
+        ins = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if ins:
+            try:
+                api.log_search.delete_index_set(index_set_id=ins.index_set_id)
+                logger.info(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} of ({bk_biz_id}){app_name}")
+            except BKAPIError as e:
+                logger.error(f"[StopTraceDatasource] delete index_set_id: {ins.index_set_id} failed, error: {e}")
 
 
 class ProfileDataSource(ApmDataSourceConfigBase):
@@ -1198,7 +1203,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def create_builtin_source(cls):
         builtin_biz = api.cmdb.get_blueking_biz()
         # datasource is enough, no real app created.
-        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
 
     @classmethod
@@ -1219,8 +1224,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if instance:
+            api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):

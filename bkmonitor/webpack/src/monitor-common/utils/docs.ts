@@ -136,7 +136,7 @@ export function linkJump(type: DocLinkType, path: string) {
  */
 export function skipToDocsLink<T extends Record<string, IDocLinkData>>(
   id: keyof (typeof DOCS_LINK_MAP)['BKOther'] | keyof (typeof DOCS_LINK_MAP)['Monitor'] | keyof T,
-  remoteMap: T
+  remoteMap?: T
 ) {
   let path = '';
   let type = DocLinkType.Link;

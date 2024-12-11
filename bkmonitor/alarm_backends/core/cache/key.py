@@ -474,6 +474,16 @@ SERVICE_LOCK_PULL_TRIGGER = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_PREPARATION = register_key_with_config(
+    {
+        "label": "preparation.lock.strategy_{strategy_id}",
+        "key_type": "string",
+        "key_tpl": "preparation.lock.{strategy_id}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
 ACCESS_END_TIME_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取的结束时间",
@@ -914,6 +924,16 @@ ALERT_HOST_DATA_ID_KEY = register_key_with_config(
 APM_TOPO_DISCOVER_LOCK = register_key_with_config(
     {
         "label": "[apm]TOPO自动发现周期锁",
+        "key_type": "string",
+        "key_tpl": "apm.tasks.topo.discover.{app_id}",
+        "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)
+
+APM_DATASOURCE_DISCOVER_LOCK = register_key_with_config(
+    {
+        "label": "[apm]数据源自动发现周期锁",
         "key_type": "string",
         "key_tpl": "apm.tasks.topo.discover.{app_id}",
         "ttl": CONST_MINUTES * 10,

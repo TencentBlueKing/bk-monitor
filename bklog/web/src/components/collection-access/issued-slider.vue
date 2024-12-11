@@ -227,6 +227,14 @@
                     </right-panel>
                   </template>
                 </section>
+                <bk-exception
+                  v-else
+                  class="exception-wrap-item exception-part"
+                  scene="part"
+                  style="margin-top: 240px;"
+                  type="empty"
+                >
+                </bk-exception>
                 <div
                   v-if="tableList.length"
                   class="detail-wrap"

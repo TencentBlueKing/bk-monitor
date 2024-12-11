@@ -118,7 +118,9 @@ class DataSource(models.Model):
         help_text="数据源属于的空间类型，允许授权给对应空间类型",
     )
     space_uid = models.CharField("所属空间的UID", max_length=256, default="")
-    created_from = models.CharField("数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value)
+    created_from = models.CharField(
+        "数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value, db_index=True
+    )
 
     class Meta:
         verbose_name = "数据源管理"

@@ -68,18 +68,27 @@ from .ping_server import PingServerSubscriptionConfig
 from .record_rule import RecordRule, ResultTableFlow
 from .result_table import (
     CMDBLevelRecord,
+    ESFieldQueryAliasOption,
     ResultTable,
     ResultTableField,
     ResultTableFieldOption,
     ResultTableOption,
     ResultTableRecordFormat,
 )
-from .space import Space, SpaceDataSource, SpaceResource, SpaceStickyInfo, SpaceType
+from .space import (
+    BkAppSpaceRecord,
+    Space,
+    SpaceDataSource,
+    SpaceResource,
+    SpaceStickyInfo,
+    SpaceType,
+)
 from .storage import (
     ArgusStorage,
     BkDataStorage,
     ClusterInfo,
     ESStorage,
+    ESStorageClusterRecord,
     InfluxDBStorage,
     KafkaStorage,
     KafkaTopicInfo,
@@ -105,6 +114,7 @@ __all__ = [
     "CMDBLevelRecord",
     "ResultTableOption",
     "ResultTableFieldOption",
+    "ESFieldQueryAliasOption",
     # storage
     "ClusterInfo",
     "KafkaTopicInfo",
@@ -119,6 +129,7 @@ __all__ = [
     "DownsampledContinuousQueries",
     "DownsampleByDateFlow",
     "ArgusStorage",
+    "ESStorageClusterRecord",
     # custom_report
     "EventGroup",
     "Event",
@@ -150,6 +161,7 @@ __all__ = [
     "SpaceDataSource",
     "SpaceResource",
     "SpaceStickyInfo",
+    "BkAppSpaceRecord",
     # data pipeline
     "DataPipeline",
     "DataPipelineSpace",

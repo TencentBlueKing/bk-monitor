@@ -57,6 +57,7 @@ import _isEqual from 'lodash/isEqual';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import SpanDetails from '../../../pages/main/span-details';
+import { QUERY_TRACE_RELATION_APP } from '../../../store/constant';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject } from '../hooks';
@@ -76,8 +77,8 @@ type RowState = {
 const VirtualizedTraceViewProps = {
   registerAccessors: Function as PropType<(accesors: any) => void>,
   setSpanNameColumnWidth: Function as PropType<(width: number) => void>,
-  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: TNil | string) => void>,
-  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: TNil | string, allowHide?: boolean) => void>,
+  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: string | TNil) => void>,
+  focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: string | TNil, allowHide?: boolean) => void>,
   shouldScrollToFirstUiFindMatch: {
     type: Boolean,
   },
@@ -181,7 +182,7 @@ export default defineComponent({
     const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
 
     const childrenHiddenStore = useChildrenHiddenInject();
     const isFullscreen = inject('isFullscreen', false);
@@ -237,6 +238,7 @@ export default defineComponent({
           app_name: appName,
           trace_id: traceId,
           bk_biz_id: bkBizId,
+          [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
         };
         const data = await traceDetail(params).catch(() => null);
         if (data) {
@@ -256,6 +258,28 @@ export default defineComponent({
     const handleToggleCollapse = (groupID, status) => {
       nextTick(() => store.updateSpanGroupCollapse(groupID, status));
     };
+    /** 点击上一跳/下一跳 */
+    const handlePrevNextClicked = flag => {
+      // 获取当前spanId, spanIndex
+      const curSpanId = spanDetails.value?.span_id;
+      const curSpanIndex = spans.value.findIndex(span => span.span_id === curSpanId);
+
+      if (curSpanIndex === -1) return; // 找不到当前 span，直接返回
+
+      if (flag === 'next') {
+        // 展开节点
+        spanDetails.value.hasChildren &&
+          Boolean(childrenHiddenStore?.childrenHiddenIds.value.has(curSpanId)) &&
+          childrenHiddenStore?.onChange(curSpanId || '');
+        spanDetails.value = spans.value[curSpanIndex + 1];
+      } else {
+        // 上一跳
+        spanDetails.value = spans.value
+          .slice(0, curSpanIndex)
+          .reverse()
+          .find(({ depth }) => depth === spanDetails.value.depth || depth === spanDetails.value.depth - 1);
+      }
+    };
 
     return {
       virtualizedTraceViewElm,
@@ -269,6 +293,7 @@ export default defineComponent({
       spanDetails,
       traceTree,
       spans,
+      handlePrevNextClicked,
       handleToggleCollapse,
     };
   },
@@ -283,6 +308,7 @@ export default defineComponent({
       >
         <ListView
           ref='listViewElm'
+          activeSpanId={this.spanDetails?.span_id || ''}
           dataLength={this.getRowStates.length}
           detailStates={this.detailStates}
           haveReadSpanIds={this.haveReadSpanIds}
@@ -298,8 +324,12 @@ export default defineComponent({
         />
         <SpanDetails
           isFullscreen={this.isFullscreen}
+          isShowPrevNextButtons={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
+          onPrevNextClicked={flag => {
+            this.handlePrevNextClicked(flag);
+          }}
           onShow={v => (this.showSpanDetails = v)}
         />
       </div>

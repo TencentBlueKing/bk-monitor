@@ -360,9 +360,14 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/1"),
         "enabled": True,
     },
-    "monitor_web.tasks.keep_alive": {
-        "task": "monitor_web.tasks.keep_alive",
-        "schedule": crontab(),
+    "apm_web.tasks.cache_application_scope_name": {
+        "task": "apm_web.tasks.cache_application_scope_name",
+        "schedule": crontab(minute="*/60"),
+        "enabled": True,
+    },
+    "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
+        "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
+        "schedule": crontab(minute="*/60"),
         "enabled": True,
         "options": {"queue": "celery_resource"},
     },
@@ -546,7 +551,7 @@ var _wr = function(type) {
 }
 
 # 拨测任务最大超时限制(ms)
-MAX_AVAILABLE_DURATION_LIMIT = 60000
+MAX_AVAILABLE_DURATION_LIMIT = 180000
 
 # job平台在登录目标机器时，有时会遇到目标机器配置了登录时打印一些信息的情况
 # 该变量用于分割额外信息与真正的脚本执行结果

@@ -12,6 +12,7 @@ import logging
 from collections import defaultdict
 from ipaddress import IPv6Address, ip_address
 
+from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
 
 from api.cmdb.client import list_biz_hosts
@@ -38,6 +39,15 @@ class HostHandler:
         TOPO = "topo"
         RELATION = "relation"
         FIELD = "field"
+
+        @classmethod
+        def get_label(cls, key):
+            return {
+                cls.CMDB_RELATION: _("通过服务模版 - CMDB 模版集关联"),
+                cls.TOPO: _("通过上报数据发现"),
+                cls.RELATION: _("通过上报数据发现"),
+                cls.FIELD: _("通过 Span 中包含 IP 字段发现"),
+            }.get(key, key)
 
     PAGE_LIMIT = 100
 
@@ -113,7 +123,7 @@ class HostHandler:
 
         # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
         extra_ip_info = defaultdict(dict)
-        for path_item in ["system", "pod"]:
+        for path_item in [SourceSystem, SourceK8sPod]:
             system_relations = RelationQ.query(
                 RelationQ.generate_q(
                     bk_biz_id=bk_biz_id,

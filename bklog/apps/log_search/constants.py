@@ -121,6 +121,10 @@ ASYNC_SORTED = "desc"
 ASYNC_COUNT_SIZE = 1
 # 异步导出最大条数
 MAX_ASYNC_COUNT = 2000000
+# 快速下载单分片异步导出最大条数
+MAX_QUICK_EXPORT_ASYNC_COUNT = 5000000
+# 快速下载异步导出最大分片数
+MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT = 3
 # 异步导出时间
 ASYNC_EXPORT_TIME_RANGE = "customized"
 # 异步导出目录
@@ -1422,6 +1426,17 @@ class SearchMode(ChoicesEnum):
     _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
+class QueryMode(ChoicesEnum):
+    """
+    查询模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1430,6 +1445,20 @@ INDEX_SET_NO_DATA_CHECK_INTERVAL = 15
 
 ERROR_MSG_CHECK_FIELDS_FROM_BKDATA = _(", 请在计算平台清洗中调整")
 ERROR_MSG_CHECK_FIELDS_FROM_LOG = _(", 请联系平台管理员")
+
+
+class ExportFileType(ChoicesEnum):
+    """
+    日志下载文件类型枚举
+    """
+
+    TXT = "txt"
+    CSV = "csv"
+
+    _choices_labels = (
+        (TXT, _("txt类型")),
+        (CSV, _("csv类型")),
+    )
 
 
 class FavoriteVisibleType(ChoicesEnum):
@@ -1476,6 +1505,17 @@ class FavoriteListOrderType(ChoicesEnum):
         (NAME_DESC, _("名称降序")),
         (UPDATED_AT_DESC, _("更新时间降序")),
     )
+
+
+class FavoriteType(ChoicesEnum):
+    """
+    收藏类型
+    """
+
+    SEARCH = "search"
+    CHART = "chart"
+
+    _choices_labels = ((SEARCH, _("检索")), (CHART, _("图表")))
 
 
 # 用户指引步骤
@@ -1612,3 +1652,28 @@ SEARCH_OPTION_HISTORY_NUM = 20
 
 # 字段分析支持列表下载的最大数
 MAX_FIELD_VALUE_LIST_NUM = 10000
+# SQL模板
+SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
+SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
+
+# 日志检索条件到sql操作符的映射
+SQL_CONDITION_MAPPINGS = {
+    ">": ">",
+    ">=": ">=",
+    "<": "<",
+    "<=": "<=",
+    "=": "=",
+    "!=": "!=",
+    "=~": "LIKE",
+    "&=~": "LIKE",
+    "!=~": "NOT LIKE",
+    "&!=~": "NOT LIKE",
+    "contains": "LIKE",
+    "not contains": "NOT LIKE",
+    "contains match phrase": "MATCH_PHRASE",
+    "not contains match phrase": "NOT MATCH_PHRASE",
+    "all contains match phrase": "MATCH_PHRASE",
+    "all not contains match phrase": "NOT MATCH_PHRASE",
+    "is true": "IS TRUE",
+    "is false": "IS FALSE",
+}

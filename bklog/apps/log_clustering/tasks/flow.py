@@ -34,6 +34,6 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
         fields=fields, etl_config=etl_config, clustering_fields=clustering_handler.data.clustering_fields
     )
     if clustering_handler.data.bkdata_etl_processing_id:
-        DataAccessHandler().create_or_update_bkdata_etl(collector_config_id, fields, etl_params)
+        DataAccessHandler().sync_bkdata_etl(collector_config_id)
     DataFlowHandler().update_flow(index_set_id=clustering_handler.data.index_set_id)
     logger.info(f"update flow success: collector_config_id -> {collector_config_id}")

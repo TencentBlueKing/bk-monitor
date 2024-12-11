@@ -18,7 +18,14 @@ import logging
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from alarm_backends.service.detect.strategy import ExprDetectAlgorithms, RangeRatioAlgorithmsCollection
+from alarm_backends.service.detect import DataPoint
+from alarm_backends.service.detect.strategy import (
+    ExprDetectAlgorithms,
+    RangeRatioAlgorithmsCollection,
+    SDKPreDetectMixin,
+)
+from constants.aiops import SDKDetectStatus
+from core.drf_resource import api
 
 logger = logging.getLogger("detect")
 
@@ -29,10 +36,60 @@ class DetectDirect(object):
     ALL = "all"
 
 
-class IntelligentDetect(RangeRatioAlgorithmsCollection):
+class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
+    PREDICT_FUNC = api.aiops_sdk.kpi_predict
+
+    def detect(self, data_point):
+        if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            # 历史依赖准备就绪才开始检测
+            if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                raise Exception("Strategy history dependency data not ready")
+
+            # 优先从预检测结果中获取检测结果
+            predict_result_point = self.fetch_pre_detect_result_point(data_point)
+            if predict_result_point:
+                return super().detect(predict_result_point)
+
+            return self.detect_by_sdk(data_point)
+        else:
+            return super().detect(data_point)
+
+    def detect_by_sdk(self, data_point):
+        dimensions = copy.deepcopy(data_point.dimensions)
+        dimensions["strategy_id"] = data_point.item.strategy.id
+        predict_params = {
+            "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
+            "dimensions": dimensions,
+            "interval": data_point.item.query_configs[0]["agg_interval"],
+            "predict_args": {
+                "alert_up": self.validated_config["args"].get("$alert_up"),
+                "alert_down": self.validated_config["args"].get("$alert_down"),
+                "sensitivity": self.validated_config["args"].get("$sensitivity"),
+            },
+            "extra_data": {
+                "history_anomaly": [],
+            },
+        }
+
+        predict_result = self.PREDICT_FUNC(**predict_params)
+
+        return super().detect(
+            DataPoint(
+                accessed_data={
+                    "record_id": data_point.record_id,
+                    "value": data_point.value,
+                    "values": predict_result[0],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
+                    "dimensions": data_point.dimensions,
+                },
+                item=data_point.item,
+            )
+        )
 
     def gen_expr(self):
         expr = "is_anomaly > 0"

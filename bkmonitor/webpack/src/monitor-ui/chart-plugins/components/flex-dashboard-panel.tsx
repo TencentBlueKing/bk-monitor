@@ -370,7 +370,10 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
           <div class='single-chart-content'>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
-                <ChartWrapper panel={this.singleChartPanel} />
+                <ChartWrapper
+                  isSingleChart={this.isSingleChart}
+                  panel={this.singleChartPanel}
+                />
               </div>
             </div>
           </div>

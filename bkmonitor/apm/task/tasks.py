@@ -14,17 +14,19 @@ specific language governing permissions and limitations under the License.
 import datetime
 import logging
 import time
+import traceback
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Value
 from django.utils import timezone
+from opentelemetry.trace import get_current_span
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
-from apm.core.discover.base import TopoHandler
+from apm.core.discover.base import DiscoverContainer, TopoHandler
 from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -34,11 +36,14 @@ from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
 from apm.models import (
     ApmApplication,
+    AppConfigBase,
     EbpfApplicationConfig,
     MetricDataSource,
     ProfileDataSource,
+    QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
+from constants.apm import TelemetryDataType
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -94,6 +99,54 @@ def topo_discover_cron():
             continue
 
 
+@app.task(ignore_result=True, queue="celery_cron")
+def datasource_discover_handler(metric_datasource, interval, start_time):
+    cur = timezone.now()
+    all_seconds = interval * 60
+    split_seconds = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
+    for start in range(0, all_seconds, split_seconds):
+        end = start + split_seconds
+        for d in DiscoverContainer.list_discovers(TelemetryDataType.METRIC.value):
+            d(metric_datasource).discover(start_time + start, start_time + end)
+
+    logger.info(
+        f"[datasource_discover_handler] finished datasource discover, "
+        f"({metric_datasource.bk_biz_id}){metric_datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
+    )
+
+
+def datasource_discover_cron():
+    """Metric|Log 数据源数据发现"""
+
+    interval = 10
+    current_time = timezone.now()
+    current_timestamp = int(current_time.timestamp())
+    slug = current_time.minute % interval
+
+    valid_application_mapping = {
+        (i["bk_biz_id"], i["app_name"]): i
+        for i in ApmApplication.objects.filter(is_enabled=Value(1), is_enabled_metric=Value(1)).values(
+            "id", "bk_biz_id", "app_name"
+        )
+    }
+    datasource_mapping = {
+        (i.bk_biz_id, i.app_name): i
+        for i in MetricDataSource.objects.filter(~Q(result_table_id="") & ~Q(bk_data_id=-1))
+        if (i.bk_biz_id, i.app_name) in valid_application_mapping
+    }
+    for k, v in datasource_mapping.items():
+        app_id = valid_application_mapping[k]["id"]
+        try:
+            with service_lock(key.APM_DATASOURCE_DISCOVER_LOCK, app_id=app_id):
+
+                if app_id % interval == slug:
+                    logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
+                    datasource_discover_handler.delay(v, interval, current_timestamp)
+        except LockError:
+            logger.info(f"skipped: [datasource_discover_cron] already running. app_id: {app_id}")
+            continue
+
+
 def refresh_apm_config():
     # 30分钟刷新一次
     interval = 30
@@ -129,13 +182,22 @@ def create_virtual_metric(bk_biz_id, app_name):
 
     # 空间下应用不创建虚拟指标
     if int(metric.bk_biz_id) > 0 and settings.IS_ACCESS_BK_DATA:
-        VirtualMetricFlow(metric).update_or_create()
+        try:
+            VirtualMetricFlow(metric).update_or_create()
+        except Exception as e:  # noqa
+            EventReportHelper.report(f"应用：({bk_biz_id}){app_name} 开启虚拟指标失败")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def create_or_update_tail_sampling(trace_datasource, data):
+def create_or_update_tail_sampling(trace_datasource, data, operator=None):
     """创建/更新尾部采样Flow"""
-    TailSamplingFlow(trace_datasource, data).start()
+    bk_biz_id = trace_datasource.bk_biz_id
+    app_name = trace_datasource.app_name
+    try:
+        TailSamplingFlow(trace_datasource, data).start()
+        EventReportHelper.report(f"应用: ({bk_biz_id}){app_name} 开启尾部采样成功，操作人：{operator}, 规则: {data}")
+    except Exception as e:  # noqa
+        EventReportHelper.report(f"应用：({bk_biz_id}){app_name} 开启尾部采样失败，操作人：{operator}")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -225,3 +287,41 @@ def bmw_task_cron():
         EventReportHelper.report(f"[预计算定时任务] 出现 {len(removed_tasks)} 个删除任务，请检查数据是否正确。{removed_tasks}")
     else:
         PreCalculateCheck.batch_remove(removed_tasks)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def delete_application_async(bk_biz_id, app_name, operator=None):
+    """
+    异步删除 API 侧 APM 应用
+    """
+    application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if not application:
+        logger.info(f"[DeleteApplication] application: {bk_biz_id}-{app_name} not found")
+        EventReportHelper.report(f"操作人: {operator} 尝试删除应用: ({bk_biz_id}){app_name} 但是此应用未在 DB 中")
+        return
+
+    qps = QpsConfig.get_application_qps(bk_biz_id, app_name)
+    if qps != -1:
+        QpsConfig.refresh_config(
+            application.bk_biz_id,
+            application.app_name,
+            AppConfigBase.APP_LEVEL,
+            application.app_name,
+            [{"qps": -1}],
+        )
+
+    try:
+        refresh_apm_application_config(application.bk_biz_id, application.app_name)
+        application.stop_trace()
+        application.stop_profiling()
+        application.stop_metric()
+        application.stop_log()
+        EventReportHelper.report(f"操作人: {operator} 删除了应用: ({bk_biz_id}){app_name}")
+    except Exception as e:  # noqa
+        logger.exception(
+            f"[DeleteApplication] stop app: {application.bk_biz_id}-{application.app_name} failed {e} "
+            f"{traceback.format_exc()}"
+        )
+        get_current_span().record_exception(e)
+        EventReportHelper.report(f"删除应用: ({bk_biz_id}){app_name} 失败，操作人: {operator}")
+    application.delete()
