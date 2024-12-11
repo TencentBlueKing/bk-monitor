@@ -23,6 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export const sliderMockData = {
+  bcs_cluster_id: 'BCS-K8S-00000',
+  namespace: 'default',
+  pod_name: 'mysql-test-1',
+  bk_biz_id: 2,
+};
 
 const datapointsMock = [
   [2499, 1732260720000],

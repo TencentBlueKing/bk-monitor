@@ -33,11 +33,13 @@
       padding: 0 10px;
       margin-right: 4px;
       line-height: 22px;
+      color: #4d4f56;
       background-color: #f0f1f5;
       border-radius: 2px;
 
       &.can-delete {
         padding-right: 22px;
+        color: #63656e;
       }
 
       .icon-mc-close {
@@ -82,13 +84,22 @@
   }
 }
 
-.group-by-select-popover {
+.k8s-group-by-select-popover {
+  .bk-options .bk-option-content {
+    padding-right: 8px;
+    padding-left: 12px;
+  }
+
   .group-by-option-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
     font-size: 12px;
+
+    .item-label {
+      color: #4d4f56;
+    }
 
     .item-count {
       display: flex;

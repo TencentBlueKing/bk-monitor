@@ -50,7 +50,7 @@
 
       .k8s-dimension-drillDown {
         .drill-down-icon {
-          margin-left: 0;
+          margin-left: 6px;
         }
 
         .icon-xiazuan {
@@ -69,7 +69,15 @@
 
         &.icon-a-sousuo,
         &.icon-sousuo- {
+          display: flex;
+          justify-content: center;
           font-size: 16px;
+
+          & + .k8s-dimension-drillDown {
+            .drill-down-icon {
+              margin-left: 0;
+            }
+          }
         }
 
         &.is-active {
@@ -81,5 +89,10 @@
         }
       }
     }
+  }
+
+  .loading-svg {
+    width: 16px;
+    height: 16px;
   }
 }

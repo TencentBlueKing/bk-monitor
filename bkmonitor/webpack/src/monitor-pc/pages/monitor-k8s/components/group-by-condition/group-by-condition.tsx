@@ -138,7 +138,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
             ref='customSelectRef'
             class='group-by-select'
             // @ts-ignore
-            extPopoverCls='group-by-select-popover'
+            extPopoverCls='k8s-group-by-select-popover'
             options={this.options}
             popoverMinWidth={140}
             searchable={false}

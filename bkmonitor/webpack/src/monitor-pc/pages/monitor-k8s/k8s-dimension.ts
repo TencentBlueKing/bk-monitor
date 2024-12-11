@@ -385,15 +385,24 @@ export abstract class K8sGroupDimension {
    */
   deleteGroupFilter(groupId: K8sTableColumnKeysEnum) {
     const indexOrMsg = this.verifyDeleteGroupFilter(groupId);
-    if (typeof indexOrMsg === 'string') {
-      // TODO 提示方式临时占位，后续需与产品沟通优化
-      bkMessage({
-        theme: 'error',
-        message: indexOrMsg,
-      });
-      return;
+    if (typeof indexOrMsg === 'string') return;
+    this.deleteGroupFilterForce(groupId);
+  }
+
+  /**
+   * @description 强制删除 groupFilter（将所在层级及所有子级对象删除）
+   * @param {K8sTableColumnKeysEnum} groupId
+   */
+  deleteGroupFilterForce(groupId: K8sTableColumnKeysEnum) {
+    if (!this.hasGroupFilter(groupId)) return;
+    const arr = [];
+    for (const v of this.groupFilters) {
+      if (v === groupId) {
+        break;
+      }
+      arr.push(v);
     }
-    this.setGroupFilters(this.groupFilters.slice(0, this.groupFilters.length - 1));
+    this.setGroupFilters(arr);
   }
 
   /**
@@ -452,14 +461,14 @@ export abstract class K8sGroupDimension {
  * @description 性能 类型 GroupFilter 实现类
  * */
 export class K8sPerformanceGroupDimension extends K8sGroupDimension {
-  dimensions = [
+  readonly dimensions = [
     K8sTableColumnKeysEnum.CLUSTER,
     K8sTableColumnKeysEnum.NAMESPACE,
     K8sTableColumnKeysEnum.WORKLOAD,
     K8sTableColumnKeysEnum.WORKLOAD_TYPE,
     K8sTableColumnKeysEnum.CONTAINER,
   ];
-  dimensionsMap = {
+  readonly dimensionsMap = {
     [K8sTableColumnKeysEnum.NAMESPACE]: [K8sTableColumnKeysEnum.NAMESPACE],
     [K8sTableColumnKeysEnum.WORKLOAD]: [K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.WORKLOAD],
     [K8sTableColumnKeysEnum.POD]: [
