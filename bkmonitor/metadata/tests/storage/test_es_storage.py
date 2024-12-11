@@ -171,7 +171,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     # 调用CreateResultTable接口
     CreateResultTableResource().request(**params)
 
-    es_record_0 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
+    es_record_0 = models.StorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
     assert es_record_0.is_current is True
 
     rt = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
@@ -349,8 +349,8 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     }
     assert index_body == expected
 
-    es_record1 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
-    es_record2 = models.ESStorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=11)
+    es_record1 = models.StorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
+    es_record2 = models.StorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=11)
     assert es_record1.is_current is False
     assert es_record2.is_current is True
 
