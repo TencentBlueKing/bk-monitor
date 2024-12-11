@@ -566,7 +566,7 @@ class GetVariableValue(Resource):
             for bk_set_or_module_id, values in value_dict.items():
                 for value, label in values.items():
                     if value != "host_count":
-                        result.append({"label": label, "value": value, "host_count": values.get("host_count", 0)})
+                        result.append({"label": f"{label}[{values.get('host_count', 0)}]", "value": value})
             return result
 
         return [{"label": k, "value": v} for v, k in value_dict.items()]
