@@ -341,8 +341,8 @@ export default class FieldItem extends tsc<object> {
           class='sideslider'
         >
           <template slot='header'>
-            <div class='aggSidesHeader'>
-              <div class='distinctNum'>
+            <div class='agg-sides-header'>
+              <div class='distinct-num'>
                 <span>去重后字段统计</span>
                 <span class='distinct-count-num'>{this.fieldData?.distinct_count}</span>
               </div>
@@ -362,7 +362,7 @@ export default class FieldItem extends tsc<object> {
             </div>
           </template>
           <template slot='content'>
-            <div class='aggSidesContent'>
+            <div class='agg-sides-content'>
               <AggChart
                 field-name={this.fieldItem.field_name}
                 field-type={this.fieldItem.field_type}

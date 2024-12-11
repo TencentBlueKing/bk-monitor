@@ -672,8 +672,8 @@ export default class FieldAnalysis extends Vue {
                   )}
                 </div>
               )}
-              <div class='distinctCountNum'>
-                <div class='countNum'>
+              <div class='distinct-count-num-box'>
+                <div class='count-num'>
                   <span>去重后字段统计</span>
                   <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
                  {
