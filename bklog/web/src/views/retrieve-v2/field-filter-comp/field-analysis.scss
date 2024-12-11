@@ -61,8 +61,8 @@
       line-height: 16px;
 
       .distinct-count-num{
-        width: 24px;
-        margin: 0 4px;
+        min-width: 24px;
+        padding: 0 4px;
         text-align: center;
         background: #F0F1F5;
         border-radius: 8px;
