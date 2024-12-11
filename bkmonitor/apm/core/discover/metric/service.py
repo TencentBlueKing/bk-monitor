@@ -14,8 +14,7 @@ from datetime import datetime
 from apm.core.discover.metric.base import Discover
 from apm.models import TopoNode
 from constants.apm import TelemetryDataType
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import resource
+from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
 
@@ -35,41 +34,35 @@ class ServiceDiscover(Discover):
     def discover(self, start_time, end_time):
         # Step1: 查询普通指标中的 service_name 维度
         params = {
-            "bk_biz_id": self.bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": DataSourceLabel.PROMETHEUS,
-                    "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "promql": "",
-                    "alias": "a",
-                    "filter_dict": {},
-                    "interval": end_time - start_time,
-                }
-            ],
-            "slimit": 1,
-            "expression": "A",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
+            "bk_biz_ids": [self.bk_biz_id],
+            "start": start_time,
+            "end": end_time,
+            "step": f"{end_time - start_time}s",
         }
         normal_pql = f'count by (service_name) ({{__name__=~"custom:{self.result_table_id}:.*"}})'
-        params["query_configs"][0]["promql"] = normal_pql
-        response = resource.grafana.graph_unify_query(params)
+        params["promql"] = normal_pql
+        response = api.unify_query.query_data_by_promql(params)
 
         # Step2: 查询框架中的 target 维度
         trpc_pql = f'count by (target) ({{__name__=~"custom:{self.result_table_id}:trpc.*"}})'
-        params["query_configs"][0]["promql"] = trpc_pql
-        target_response = resource.grafana.graph_unify_query(params)
+        params["promql"] = trpc_pql
+        target_response = api.unify_query.query_data_by_promql(params)
 
-        dimensions = [i.get("dimensions") for i in response.get("series", []) if i.get("dimensions")] + [
-            i.get("dimensions") for i in target_response.get("series", []) if i.get("dimensions")
+        dimensions = [
+            {i: item.get("group_values")[index] for index, i in enumerate(item["group_keys"])}
+            for item in response.get("series", [])
+            if item.get("group_keys")
+        ] + [
+            {i: item.get("group_values")[index] for index, i in enumerate(item["group_keys"])}
+            for item in target_response.get("series", [])
+            if item.get("group_keys")
         ]
 
-        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name})query series with params: {params}")
+        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query series with params: {params}")
         if not response:
             return
 
-        logger.info(f"[MetricServiceDiscover] find {len(response.get('series', []))} dimensions")
+        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) find {len(dimensions)} dimensions")
         exists_mapping = self.list_exists_mapping()
         update_instances = []
         create_instances = []
