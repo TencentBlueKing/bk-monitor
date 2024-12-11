@@ -184,6 +184,32 @@ class K8sNodeMeta(K8sResourceMeta):
     pass
 
 
+class NameSpaceQuerySet(list):
+    def count(self):
+        return len(self)
+
+    def order_by(self, *field_names):
+        # 如果没有提供字段名，则不进行排序
+        if not field_names:
+            return self
+
+        def get_sort_key(item):
+            key = []
+            for field in field_names:
+                # 检查是否为降序字段
+                if field.startswith('-'):
+                    field_name = field[1:]
+                    # 使用负值来反转排序
+                    key.append(-item.get(field_name, 0))
+                else:
+                    key.append(item.get(field, 0))
+            return tuple(key)
+
+        # 使用 sorted 函数进行排序
+        sorted_data = sorted(self, key=get_sort_key)
+        return NameSpaceQuerySet(sorted_data)
+
+
 class NameSpace(dict):
     columns = ["bk_biz_id", "bcs_cluster_id", "namespace"]
 
@@ -231,7 +257,9 @@ class K8sNamespaceMeta(K8sResourceMeta):
             row = tuple(ns[field] for field in NameSpace.columns)
             unique_ns_query_set.add(row)
         # 默认按照namespace(第三个字段)排序
-        return [NameSpace(zip(NameSpace.columns, ns)) for ns in sorted(unique_ns_query_set, key=lambda x: x[2])]
+        return NameSpaceQuerySet(
+            [NameSpace(zip(NameSpace.columns, ns)) for ns in sorted(unique_ns_query_set, key=lambda x: x[2])]
+        )
 
 
 class K8sWorkloadMeta(K8sResourceMeta):
