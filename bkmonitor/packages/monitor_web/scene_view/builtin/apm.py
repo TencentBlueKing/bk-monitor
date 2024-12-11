@@ -415,25 +415,27 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "readable_name": i.readable_name,
                         "data_source_label": i.data_source_label,
                         "data_type_label": i.data_type_label,
-                        "filter_key_name": metric_config["service_name_key"],
-                        "filter_key_value": service_name,
+                        "service_name_value": service_name,
                     }
                     metric_panel = copy.deepcopy(metric_panel_template)
                     if view_variables:
                         variables.update(view_variables)
                     metric_panel = cls._multi_replace_variables(metric_panel, variables)
 
-                    monitor_name = metric_info["monitor_name"] or "default"
-                    if monitor_name not in metric_group_mapping:
-                        group_id = len(metric_group_mapping)
-                        group_panel = copy.deepcopy(group_panel_template)
-                        group_variables = {
-                            "group_id": group_id,
-                            "group_name": monitor_name,
-                        }
-                        group_panel = cls._multi_replace_variables(group_panel, group_variables)
-                        metric_group_mapping[monitor_name] = group_panel
-                    metric_group_mapping[monitor_name]["panels"].append(metric_panel)
+                    monitor_name_list = metric_info.get("monitor_name_list") or ["default"]
+                    for monitor_name in monitor_name_list:
+                        if monitor_name not in metric_group_mapping:
+                            group_id = len(metric_group_mapping)
+                            group_panel = copy.deepcopy(group_panel_template)
+                            group_variables = {
+                                "group_id": group_id,
+                                "group_name": monitor_name,
+                            }
+                            group_panel = cls._multi_replace_variables(group_panel, group_variables)
+                            metric_group_mapping[monitor_name] = group_panel
+                        # 设置monitor_name和metric_panel
+                        metric_panel = cls._replace_variable(metric_panel, "${scope_name_value}", monitor_name)
+                        metric_group_mapping[monitor_name]["panels"].append(metric_panel)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
             if not view_config["overview_panels"]:
                 cls._generate_non_custom_metric_view_config(view_config)
