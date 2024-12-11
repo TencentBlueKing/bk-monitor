@@ -82,12 +82,7 @@ export default defineComponent({
 
     expose({
       scrollLeft: (left: number) => {
-        const scrollTop = refSrollRoot.value.scrollTop;
-        refSrollRoot.value.scrollTo({
-          left,
-          top: scrollTop,
-          behavior: 'smooth',
-        });
+        refSrollRoot.value.scrollLeft = left;
       },
     });
 
