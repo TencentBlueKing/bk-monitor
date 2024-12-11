@@ -43,7 +43,6 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
-  @Prop({ type: Number, default: 5}) limit: number;
   showAllList = false;
   shouldShowMore = false;
   listLoading = false;
@@ -104,7 +103,7 @@ export default class AggChart extends tsc<object> {
   }
 
   mounted() {
-    if (!this.isFrontStatistics) this.queryFieldFetchTopList(this.limit);
+    if (!this.isFrontStatistics) this.queryFieldFetchTopList();
   }
 
   // 计算百分比
