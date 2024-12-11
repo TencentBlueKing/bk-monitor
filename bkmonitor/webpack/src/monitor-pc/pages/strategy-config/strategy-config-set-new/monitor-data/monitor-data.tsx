@@ -783,7 +783,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                           />
                         )),
                       this.metricTipType && (
-                        <span class='ip-dimension-tip'>
+                        <span
+                          id='ip-dimension-tip'
+                          class='ip-dimension-tip'
+                          tabindex={-1}
+                        >
                           <span class='icon-monitor icon-remind' />
                           <span>{this.$t(targetMessageTemp[this.metricTipType])}</span>
                         </span>

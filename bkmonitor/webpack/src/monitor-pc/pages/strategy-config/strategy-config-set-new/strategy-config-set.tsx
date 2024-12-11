@@ -1695,6 +1695,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   async handleValidateStrategyConfig() {
     let validate = true;
     if (this.showMerticMessageTip()) {
+      // 聚焦至tips上
+      this.$nextTick(() => {
+        const targetElement = document.getElementById('ip-dimension-tip');
+        targetElement?.focus();
+      });
       return false;
     }
     if (this.monitorDataEditMode === 'Source') {
@@ -2403,6 +2408,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {EditModeType} mode
    */
   async handleEditModeChange({ mode }: { mode: EditModeType; hasError: boolean }) {
+    // 切换指标的编辑模式时，警告有则消失
+    if (this.metricTipType) {
+      this.metricTipType = '';
+    }
     if (mode === 'Source') {
       if (this.metricData.every(item => item.isNullMetric)) {
         this.sourceData.sourceCode = '';
