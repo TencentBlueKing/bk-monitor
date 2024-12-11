@@ -12,17 +12,15 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from functools import partial
-from typing import Dict, List
+from typing import Any, Dict, List
 
-from django.conf import settings
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from api.cmdb.default import get_host_dict_by_biz
-from api.cmdb.define import Host
+from bkm_ipchooser.handlers import topo_handler
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import (
     BCSCluster,
@@ -512,6 +510,29 @@ class GetVariableValue(Resource):
 
         return new_labels, new_values
 
+    @staticmethod
+    def get_host_count(bk_biz_id: int, target_type: str) -> Dict[int, int]:
+        """
+        获取主机数量，比如集群或者模块的主机数量
+        """
+        host_count = {}
+
+        def collect(trees: List[Dict[str, Any]]):
+            for node in trees:
+                if node["object_id"] == target_type:
+                    host_count[node["instance_id"]] = node["count"]
+
+                if "child" in node and node["child"]:
+                    collect(node["child"])
+
+        trees = topo_handler.TopoHandler.trees(
+            scope_list=[{"bk_biz_id": bk_biz_id}],
+            count_instance_type="host",
+        )
+        collect(trees)
+
+        return host_count
+
     def query_cmdb(self, type, bk_biz_id, params):
         label_fields = [label_field for label_field in params["label_field"].split("|") if label_field]
         value_fields = [value_field for value_field in params["value_field"].split("|") if value_field]
@@ -520,14 +541,10 @@ class GetVariableValue(Resource):
             instances = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         elif type == "module":
             instances = api.cmdb.get_module(bk_biz_id=bk_biz_id)
-            hosts = get_host_dict_by_biz(
-                bk_biz_id=bk_biz_id, fields=list(set(list(Host.Fields) + settings.HOST_DYNAMIC_FIELDS))
-            )
+            host_count = self.get_host_count(bk_biz_id, "module")
         elif type == "set":
             instances = api.cmdb.get_set(bk_biz_id=bk_biz_id)
-            hosts = get_host_dict_by_biz(
-                bk_biz_id=bk_biz_id, fields=list(set(list(Host.Fields) + settings.HOST_DYNAMIC_FIELDS))
-            )
+            host_count = self.get_host_count(bk_biz_id, "set")
         elif type == "service_instance":
             instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
         else:
@@ -552,22 +569,9 @@ class GetVariableValue(Resource):
             if type in ["module", "set"]:
                 # 模块和集群变量加上主机数量
                 instance_id = instance.bk_module_id if type == "module" else instance.bk_set_id
-                if instance_id not in value_dict:
-                    value_dict[instance_id] = {"host_count": 0}
-                value_dict[instance_id]["|".join(new_values)] = "|".join(new_labels)
-                for host in hosts:
-                    if instance_id in host.get("bk_module_ids" if type == "module" else "bk_set_ids", []):
-                        value_dict[instance_id]["host_count"] += 1
+                value_dict["|".join(new_values)] = "|".join(new_labels) + f"[{host_count.get(instance_id, 0)}]"
             else:
                 value_dict["|".join(new_values)] = "|".join(new_labels)
-
-        if type in ["module", "set"]:
-            result = []
-            for bk_set_or_module_id, values in value_dict.items():
-                for value, label in values.items():
-                    if value != "host_count":
-                        result.append({"label": f"{label}[{values.get('host_count', 0)}]", "value": value})
-            return result
 
         return [{"label": k, "value": v} for v, k in value_dict.items()]
 
