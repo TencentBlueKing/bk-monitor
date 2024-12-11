@@ -17,7 +17,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import partial, reduce
 from itertools import chain, permutations
-from typing import Dict, List, Type, Union
+from typing import Any, Dict, List, Type, Union
 
 import arrow
 import xxhash
@@ -29,6 +29,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bk_dataview.api import get_grafana_panel_query
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.action.serializers import (
     ConvergeConfigSlz,
@@ -1196,6 +1197,7 @@ class QueryConfig(AbstractConfig):
     panel_id: int
     ref_id: str
     variables: Dict[str, List[str]]
+    snapshot_config: Dict[str, Any]
 
     QueryConfigSerializerMapping = {
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES): BkMonitorTimeSeriesSerializer,
@@ -1753,12 +1755,27 @@ class Strategy(AbstractConfig):
         for obj in chain(self.actions, self.items, self.detects, [self.notice]):
             obj.strategy_id = value
 
+    def _get_dashboard_panel_query_config(self, query_config: QueryConfig) -> Dict:
+        """
+        获取Grafana图表查询配置
+        """
+        __, panel_query = get_grafana_panel_query(
+            self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
+        )
+        if not panel_query:
+            raise ValidationError(_("无法获取到Grafana图表查询配置"))
+
+        try:
+            converted_config = grafana_panel_to_config(panel_query, query_config.variables)
+        except (ValidationError, ValueError):
+            raise ValidationError(_("Grafana图表查询配置转换失败"))
+
+        return converted_config
+
     def to_dict(self, convert_dashboard: bool = True) -> Dict:
         """
         转换为JSON字典
         """
-        from bk_dataview.api import get_grafana_panel_query
-
         if self.priority is None:
             priority_group_key = ""
         else:
@@ -1812,25 +1829,16 @@ class Strategy(AbstractConfig):
                 "message": "",
             }
 
-            __, panel_query = get_grafana_panel_query(
-                self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
-            )
-            if not panel_query:
-                config["is_invalid"] = True
-                config["invalid_type"] = StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL
-                config["from_dashboard"]["valid"] = False
-                config["from_dashboard"]["message"] = _("无法获取到Grafana图表查询配置")
-                return config
-
             try:
-                converted_config = grafana_panel_to_config(panel_query, query_config.variables)
-            except Exception as e:
-                logger.debug("grafana_panel_to_config fail, %s", e)
+                converted_config = self._get_dashboard_panel_query_config(query_config)
+            except ValidationError as e:
                 config["is_invalid"] = True
                 config["invalid_type"] = StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL
                 config["from_dashboard"]["valid"] = False
-                config["from_dashboard"]["message"] = _("Grafana图表查询配置转换失败")
-                return config
+                config["from_dashboard"]["message"] = str(e.detail[0])
+
+                # 使用快照配置
+                converted_config = query_config.snapshot_config
 
             item = config["items"][0]
             item["query_configs"] = converted_config["query_configs"]
@@ -2329,6 +2337,11 @@ class Strategy(AbstractConfig):
         # grafana策略标记
         if self.items[0].query_configs[0].data_source_label == DataSourceLabel.DASHBOARD:
             self.type = StrategyModel.StrategyType.Dashboard
+
+            # 补充快照信息
+            if not self.items[0].query_configs[0].snapshot_config:
+                converted_config = self._get_dashboard_panel_query_config(self.items[0].query_configs[0])
+                self.items[0].query_configs[0].snapshot_config = converted_config
 
         self.supplement_inst_target_dimension()
 
@@ -2836,7 +2849,7 @@ def _render_grafana_variable(
     return value
 
 
-def grafana_panel_to_config(panel_query: Dict, variables: Dict[str, List[str]]) -> Dict:
+def grafana_panel_to_config(panel_query: Dict, variables: Dict[str, List[str]]) -> Dict[str, Any]:
     """
     将grafana的panel信息转换为监控策略配置格式
     variables: {"xxx": {"text": "xxx", "value": "xxx"}, "yyy": [{"text": "yyy", "value": "yyy"}]}
