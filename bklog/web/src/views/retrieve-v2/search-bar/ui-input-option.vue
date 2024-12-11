@@ -124,6 +124,9 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
+  const hasConditionValueTip = computed(() => {
+    return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
+  });
 
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -383,16 +386,20 @@
       restoreFieldAndCondition();
     }
 
-    rquestFieldEgges(item, null, null, () => {
-      if (!conditionValueInstance.repositionTippyInstance()) {
-        if (!isOperatorInstanceActive()) {
-          const target = refConditionInput.value?.parentNode;
-          if (target) {
-            conditionValueInstance.show(target);
+    if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+      rquestFieldEgges(item, null, null, () => {
+        if (!conditionValueInstance.repositionTippyInstance()) {
+          if (!isOperatorInstanceActive()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
           }
         }
-      }
-    });
+      });
+    } else {
+      conditionValueInstance.hide();
+    }
   };
 
   const handleCancelBtnClick = () => {
