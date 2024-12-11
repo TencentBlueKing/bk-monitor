@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import datetime
 import re
 
+import pytz
+from django.conf import settings
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 
@@ -38,6 +40,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
+from apps.utils.local import get_local_param
 from apps.utils.log import logger
 
 
@@ -79,11 +82,13 @@ class ChartHandler(object):
         根据过滤条件生成sql
         :param params: 过滤条件
         """
-        start_time_object = datetime.datetime.utcfromtimestamp(params["start_time"])
-        end_time_object = datetime.datetime.utcfromtimestamp(params["end_time"])
-        # 格式化为字符串
-        start_time_string = start_time_object.strftime('%Y%m%d')
-        end_time_string = end_time_object.strftime('%Y%m%d')
+        # 获取时区
+        local_timezone = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+        # 把时间戳转化为字符串格式
+        start_time_object = datetime.datetime.fromtimestamp(params["start_time"], tz=local_timezone)
+        end_time_object = datetime.datetime.fromtimestamp(params["end_time"], tz=local_timezone)
+        start_time_string = start_time_object.strftime("%Y%m%d")
+        end_time_string = end_time_object.strftime("%Y%m%d")
 
         if start_time_string == end_time_string:
             # 开始和结束时间相同时,直接用等于

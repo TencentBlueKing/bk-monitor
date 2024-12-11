@@ -37,7 +37,7 @@ SEARCH_PARAMS = {
 
 SQL_RESULT = (
     f"{SQL_PREFIX} "
-    "WHERE thedate >= 20241121 AND thedate <= 20241128"
+    "WHERE thedate >= 20241122 AND thedate <= 20241129"
     " AND "
     "(bk_host_id = '1' OR bk_host_id = '2')"
     " AND "
