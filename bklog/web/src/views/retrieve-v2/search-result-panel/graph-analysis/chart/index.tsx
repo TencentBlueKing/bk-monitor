@@ -27,7 +27,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField, getRegExp, formatDate } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
-import { debounce, cloneDeep } from 'lodash';
+import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
@@ -114,7 +114,7 @@ export default defineComponent({
         const result = (props.chartOptions.yFields ?? []).map(yField => {
           return [[...props.chartOptions.dimensions, props.chartOptions.xFields[0]]].map(([timeField, xField]) => {
             if (timeField || xField) {
-              return cloneDeep(formatListData.value?.list ?? []).map(row => {
+              return (formatListData.value?.list ?? []).map(row => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
                   if (cur && row[cur]) {
                     return Object.assign(acc, { [cur]: row[cur] });
