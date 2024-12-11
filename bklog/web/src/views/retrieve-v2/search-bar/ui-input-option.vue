@@ -371,6 +371,7 @@
       return;
     }
 
+    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
