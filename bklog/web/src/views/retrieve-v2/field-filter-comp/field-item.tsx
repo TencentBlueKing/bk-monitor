@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-
+import { axiosInstance } from '@/api';
+import { blobDownload } from '@/common/util';
 import './field-item.scss';
-
 @Component
 export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
+  @Prop({ type: String, default: false }) showFieldAlias: String;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -49,7 +49,8 @@ export default class FieldItem extends tsc<object> {
   analysisActive = false;
   operationInstance = null;
   fieldAnalysisInstance = null;
-
+  ifShowMore = false;
+  fieldData = null;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -61,6 +62,9 @@ export default class FieldItem extends tsc<object> {
   }
   get unionIndexItemList() {
     return this.$store.getters.unionIndexItemList;
+  }
+  get indexSetList (){
+    return this.$store.state.retrieve?.indexSetList ?? []
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
@@ -91,7 +95,11 @@ export default class FieldItem extends tsc<object> {
   beforeDestroy() {
     this.instanceDestroy();
   }
-
+  // 数据变化后关闭图表分析
+  @Watch('statisticalFieldData')
+  statisticalFieldDataChange(v) {
+    this.instanceDestroy();
+  }
   @Emit('toggleItem')
   emitToggleItem(v) {
     return v;
@@ -114,10 +122,17 @@ export default class FieldItem extends tsc<object> {
       fieldItem: this.fieldItem,
     });
   }
+  showMore(fieldData, show: boolean) {
+    this.ifShowMore = show;
+    this.fieldData = fieldData;
+  }
+  closeSlider() {
+    this.ifShowMore = false;
+  }
   handleClickAnalysisItem() {
     this.instanceDestroy();
     this.analysisActive = true;
-    this.fieldAnalysisInstance = new FieldAnalysis().$mount();
+    this.fieldAnalysisInstance = new FieldAnalysis();
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -126,9 +141,15 @@ export default class FieldItem extends tsc<object> {
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
       agg_field: this.fieldItem.field_name,
+      statisticalFieldData: this.statisticalFieldData,
+      isFrontStatisticsL: this.isFrontStatistics,
     };
+    this.fieldAnalysisInstance.$mount();
     /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
     this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
+    /** 字段下载功能 */
+    this.fieldAnalysisInstance?.$on('downloadFieldStatistics', this.downloadFieldStatistics);
+    this.fieldAnalysisInstance?.$on('showMore', this.showMore);
     this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
       content: this.fieldAnalysisInstance.$el,
       arrow: true,
@@ -152,6 +173,7 @@ export default class FieldItem extends tsc<object> {
   }
   instanceDestroy() {
     this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
+    this.fieldAnalysisInstance?.$off('downloadFieldStatistics', this.downloadFieldStatistics);
     this.operationInstance?.destroy();
     this.fieldAnalysisInstance?.$destroy();
     this.operationInstance = null;
@@ -167,6 +189,38 @@ export default class FieldItem extends tsc<object> {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
+  downloadFieldStatistics (){
+    console.log(this.retrieveParams);
+    const indexSetIDs = this.isUnionSearch
+    ? this.unionIndexList
+    : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+    const downRequestUrl = `/field/index_set/fetch_value_list/`;
+    const data = {
+      ...this.retrieveParams,
+      index_set_ids: indexSetIDs,
+      field_type: this.fieldItem.field_type,
+      agg_field: this.fieldItem.field_name,
+      limit: this.fieldData?.distinct_count
+    };
+    axiosInstance
+      .post(downRequestUrl, data)
+      .then(res => {
+        if (typeof res !== 'string') {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('下载失败'),
+          });
+          return;
+        }
+        let routerIndexSet = window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        const lightName = this.indexSetList.find(item => item.index_set_id ===  routerIndexSet)?.lightenName;
+        const downloadName =  `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`
+        blobDownload(res, downloadName);
+      })
+      .finally(() => {
+      
+      });
+  }
   render() {
     return (
       <li class='filed-item'>
@@ -199,7 +253,8 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span class='field-name'>
               <span>
-                {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name}
+                {/* {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name} */}
+                {this.fieldAliasMap[this.fieldItem.field_name]}
               </span>
               <span
                 class='field-count'
@@ -276,6 +331,50 @@ export default class FieldItem extends tsc<object> {
             statistical-field-data={this.statisticalFieldData}
           />
         )}
+        <bk-sideslider
+          width={600}
+          is-show={this.ifShowMore}
+          quick-close={true}
+          // transfer
+          show-mask={false}
+          onAnimation-end={this.closeSlider}
+          class='sideslider'
+        >
+          <template slot='header'>
+            <div class='agg-sides-header'>
+              <div class='distinct-num'>
+                <span>去重后字段统计</span>
+                <span class='distinct-count-num'>{this.fieldData?.distinct_count}</span>
+              </div>
+              <div class='fnBtn'>
+                <bk-button
+                  style='margin-right:8px'
+                  size='small'
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.downloadFieldStatistics();
+                  }}
+                >
+                  下载
+                </bk-button>
+                {/* <bk-button size='small'>查看仪表盘</bk-button> */}
+              </div>
+            </div>
+          </template>
+          <template slot='content'>
+            <div class='agg-sides-content'>
+              <AggChart
+                field-name={this.fieldItem.field_name}
+                field-type={this.fieldItem.field_type}
+                is-front-statistics={this.isFrontStatistics}
+                parent-expand={this.isExpand}
+                retrieve-params={this.retrieveParams}
+                statistical-field-data={this.statisticalFieldData}
+                limit={this.fieldData?.distinct_count}
+              />
+            </div>
+          </template>
+        </bk-sideslider>
       </li>
     );
   }

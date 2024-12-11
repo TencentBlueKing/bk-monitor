@@ -1,8 +1,9 @@
 @import '@/scss/mixins/flex.scss';
 
-.field-analysis-container {
+.retrieve-v2.field-analysis-container {
   width: 480px;
   padding: 6px 16px 10px;
+  overflow: auto;
   font-size: 12px;
   color: #63656e;
   %num-box-extend {
@@ -14,10 +15,12 @@
   }
 
   .total-num-container {
-    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
 
     .total-num {
-      margin-right: 32px;
+      margin-right: 0px;
     }
   }
 
@@ -45,6 +48,37 @@
 
     .log-str {
       margin-top: 4px;
+    }
+  }
+
+  .distinct-count-num-box{
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+
+    .count-num{
+      display: flex;
+      line-height: 16px;
+
+      .distinct-count-num{
+        min-width: 24px;
+        padding: 0 4px;
+        text-align: center;
+        background: #F0F1F5;
+        border-radius: 8px;
+      }
+
+      .moreDistinct{
+        color: #3A84FF;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .moreFn{
+    .fnBtn{
+      margin-left: 8px;
+      cursor: pointer;
     }
   }
 
