@@ -1267,7 +1267,7 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
         # 推送aiops策略变更至 sdk 依赖的 历史数据维护服务
-        change_records = histories.values("operate", "strategy_id", "create_time")
+        change_records = histories.values("operate", "strategy_id", "content", "create_time")
         for change_record in change_records:
             changed_time = change_record["create_time"].timestamp()
             if change_record["operate"] == "delete":
@@ -1442,4 +1442,8 @@ def sync_aiops_strategy_signal(strategy_id, signal, update_time):
     delete: 已删除的策略（不论是否是aiops策略）, 修改后的策略不包含aiops算法
     modify: 新增的，修改后的 策略包含了aiops算法
     """
+    from alarm_backends.service.preparation.tasks import refresh_aiops_sdk_depend_data
+
     logger.info(f"sync_aiops_strategy_signal: {strategy_id}, {signal}, {update_time}")
+    if signal == "modify":
+        refresh_aiops_sdk_depend_data.delay(strategy_id, update_time)

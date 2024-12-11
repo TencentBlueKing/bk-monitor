@@ -99,6 +99,7 @@ class GetStrategyListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
         with_user_group = serializers.BooleanField(default=False, label="是否补充告警组信息")
         with_user_group_detail = serializers.BooleanField(required=False, default=False, label="补充告警组详细信息")
+        convert_dashboard = serializers.BooleanField(required=False, default=True, label="是否转换仪表盘格式")
 
     @classmethod
     def filter_by_ip(cls, ips: List[Dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
@@ -1162,7 +1163,7 @@ class GetStrategyListV2Resource(Resource):
         strategy_objs = Strategy.from_models(strategies)
         for strategy_obj in strategy_objs:
             strategy_obj.restore()
-        strategy_configs = [s.to_dict() for s in strategy_objs]
+        strategy_configs = [s.to_dict(convert_dashboard=params["convert_dashboard"]) for s in strategy_objs]
 
         # 补充告警组信息
         if params["with_user_group"]:

@@ -73,14 +73,6 @@ interface IProps {
   panel: PanelModel;
 }
 
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
-}
-
 function removeTrailingZeros(num) {
   if (num && num !== '0') {
     return num
@@ -237,9 +229,7 @@ class CallerLineChart extends CommonSimpleChart {
       const promiseList = [];
       const timeShiftList = [
         '',
-        ...(this.isSupportCompare && this.callOptions.time_shift?.length
-          ? this.callOptions.time_shift.map(t => t.alias)
-          : []),
+        ...(this.isSupportCompare && this.callOptions.time_shift?.length ? this.callOptions.time_shift : []),
       ];
       const down_sample_range = this.downSampleRangeComputed(
         'auto',
@@ -265,7 +255,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
-      for (const time_shift of timeShiftList) {
+      for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
           const paramsResult = data;
@@ -284,7 +274,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 ...(this.callOptions || {}),
-                time_shift: timeShiftFormat(time_shift),
+                time_shift: timeShift,
                 group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
                 interval,
               },
@@ -331,12 +321,12 @@ class CallerLineChart extends CommonSimpleChart {
                     if (this.enablePanelsSelector) {
                       item.alias = this.curTitle;
                     }
-                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
                       name: name,
-                      timeShift: time_shift,
+                      timeShift: timeShift,
                     });
                     return {
                       ...set,
@@ -430,7 +420,7 @@ class CallerLineChart extends CommonSimpleChart {
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const { width } = this.$el?.getBoundingClientRect();
+        const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
@@ -1015,7 +1005,7 @@ class CallerLineChart extends CommonSimpleChart {
       case 1:
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
-      case 2:
+      case 2: {
         const eventTargetStr = alarmStatus.targetStr;
         window.open(
           location.href.replace(
@@ -1026,6 +1016,7 @@ class CallerLineChart extends CommonSimpleChart {
           )
         );
         break;
+      }
     }
   }
 

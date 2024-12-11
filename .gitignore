@@ -193,6 +193,7 @@ build.yml
 
 .idea
 .vscode
+.fleet
 
 pre-*-bkcodeai
 bkcodeai.json

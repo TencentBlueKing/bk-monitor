@@ -154,10 +154,12 @@ export default class PopInstanceUtil {
     this.delayShowInstance(target);
   }
 
-  repositionTippyInstance() {
-    if (this.getTippyInstance()?.state.isShown) {
+  repositionTippyInstance(force?) {
+    if (this.getTippyInstance()?.state.isShown || force) {
       this.getTippyInstance()?.popperInstance?.update();
     }
+
+    return this.getTippyInstance()?.state.isShown;
   }
 
   hide() {

@@ -84,12 +84,12 @@ class PerfScriptProfileConverter(ProfileConverter):
         event_fields = [x for x in lines[0].split(" ") if x]
         process_name = event_fields[0]
         pid = event_fields[1]
-        cpu = event_fields[2][1:-1]
+        cpu = event_fields[2][:-1]
 
         # got duration for the profile by
         timestamp = int(float(event_fields[3][:-1]) * 10**9)
         event_type = event_fields[4]
-        event_name, event_extra, *_ = event_fields[5].split(":")
+        event_name, event_extra, *_ = event_fields[-1].split(":")
 
         sample_locations = []
         for stack_line in lines[1:]:
