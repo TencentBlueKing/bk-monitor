@@ -556,7 +556,7 @@ class GetVariableValue(Resource):
                     value_dict[instance_id] = {"host_count": 0}
                 value_dict[instance_id]["|".join(new_values)] = "|".join(new_labels)
                 for host in hosts:
-                    if instance_id in host["bk_module_ids" if type == "module" else "bk_set_ids"]:
+                    if instance_id in host.get("bk_module_ids" if type == "module" else "bk_set_ids", []):
                         value_dict[instance_id]["host_count"] += 1
             else:
                 value_dict["|".join(new_values)] = "|".join(new_labels)
