@@ -51,7 +51,7 @@ class WorkloadOverview(Resource):
         if validated_request_data.get("namespace"):
             queryset = queryset.filter(namespace=validated_request_data["namespace"])
         if validated_request_data.get("query_string"):
-            queryset = queryset.filter(name_icontains=validated_request_data["query_string"])
+            queryset = queryset.filter(name__icontains=validated_request_data["query_string"])
 
         # 统计 workload type 对应的 count
         """
@@ -198,14 +198,16 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
         resource_type = serializers.ChoiceField(
-            required=True, choices=['pod', 'node', 'workload', 'namespace', 'container'], label='资源类型'
+            required=True,
+            choices=["pod", "node", "workload", "namespace", "container"],
+            label="资源类型",
         )
         # 用于模糊查询
-        query_string = serializers.CharField(required=False, default='', allow_blank=True, label='名字过滤')
+        query_string = serializers.CharField(required=False, default="", allow_blank=True, label="名字过滤")
         # 用于精确过滤查询
         filter_dict = serializers.DictField(required=False, allow_null=True)
-        start_time = serializers.IntegerField(required=True, label='开始时间')
-        end_time = serializers.IntegerField(required=True, label='结束时间')
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
         scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance"])
         # 历史出现过的资源
@@ -214,7 +216,10 @@ class ListK8SResources(Resource):
         page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
         page = serializers.IntegerField(required=False, default=1, label="页数")
         page_type = serializers.ChoiceField(
-            required=False, choices=["scrolling", "traditional"], default="traditional", label="分页标识"
+            required=False,
+            choices=["scrolling", "traditional"],
+            default="traditional",
+            label="分页标识",
         )
 
     def perform_request(self, validated_request_data):
@@ -232,7 +237,9 @@ class ListK8SResources(Resource):
             # 2.1 基于query_string 加载 filter
             resource_meta.filter.add(
                 load_resource_filter(
-                    validated_request_data["resource_type"], validated_request_data["query_string"], fuzzy=True
+                    validated_request_data["resource_type"],
+                    validated_request_data["query_string"],
+                    fuzzy=True,
                 )
             )
 
