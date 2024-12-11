@@ -41,7 +41,7 @@ class Command(BaseCommand):
             choices=RPCApplyType.options(),
             help=_("应用告警策略类型列表"),
         )
-        parser.add_argument("-t", "--apply-servers", nargs="+", type=str, default=[], help=_("服务列表"))
+        parser.add_argument("-s", "--apply-servers", nargs="+", type=str, default=[], help=_("服务列表"))
         parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, help=_("告警组 ID 列表"))
         parser.add_argument("--config", type=str, default="{}", help=_("配置"))
 

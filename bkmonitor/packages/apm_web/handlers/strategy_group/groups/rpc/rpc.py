@@ -117,8 +117,9 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         self.apply_types: List[str] = (apply_types or constants.RPCApplyType.options())[:]
         if self.apply_servers:
             # 指定服务时，移除应用级别类型的策略
-            self.apply_types.remove(constants.RPCApplyType.PANIC.value)
-            self.apply_types.remove(constants.RPCApplyType.RESOURCE.value)
+            self.apply_types = list(
+                set(self.apply_types) - {constants.RPCApplyType.PANIC.value, constants.RPCApplyType.RESOURCE.value}
+            )
 
         options_serializer = RPCStrategyOptions(data=options or {})
         try:
@@ -175,10 +176,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         }
         call_options: Dict[str, Any] = {
             "kind": kind,
-            "call_filter": [
-                {"key": dimension, "method": "eq", "value": [f"{{alarm.dimensions['{dimension}'].display_value}}"]}
-                for dimension in group_by
-            ],
+            "call_filter": [],
             "time_shift": ["1w"],
             "perspective_type": "multiple",
             "perspective_group_by": perspective_group_by,
@@ -188,12 +186,8 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         # A：避免 url 转义导致策略模板变量失效。
         for dimension in group_by:
             template_key: str = f"VAR_{dimension.upper()}"
-            template_variables[template_key] = "{{alarm.dimensions['{dimension}'].display_value}}".format(
-                dimension=dimension
-            )
-            call_options["call_filter"].append(
-                {"key": dimension, "method": "eq", "value": [template_variables[template_key]]}
-            )
+            template_variables[template_key] = "{{alarm.dimensions['%s'].display_value}}" % dimension
+            call_options["call_filter"].append({"key": dimension, "method": "eq", "value": [template_key]})
 
         params: Dict[str, str] = {
             "filter-app_name": self.app_name,
@@ -207,8 +201,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         encoded_params: str = urllib.parse.urlencode(params)
         for k, v in template_variables.items():
             encoded_params = encoded_params.replace(k, v)
-
-        return f"{settings.BK_MONITOR_HOST}/?bizId={self.bk_biz_id}#/apm/service?{encoded_params}"
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={self.bk_biz_id}#/apm/service?{encoded_params}")
 
     def _build_strategy(
         self, cal_type: str, group: metric_group.BaseMetricGroup, cal_type_config_mapping: Dict[str, Dict[str, Any]]
@@ -368,7 +361,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     kind, _server, _group_by, list(_perspective_group_by)
                 )
                 message_tmpl: str = _strategy["notice"]["config"][0]["message_tmpl"]
-                _strategy["notice"]["config"][0]["message_tmpl"] = message_tmpl + "\n异常分析下钻：" + _url_templ
+                _strategy["notice"]["config"]["template"][0]["message_tmpl"] = message_tmpl + "\n调用分析：" + _url_templ
 
                 logger.info(
                     "[_list_caller_callee] kind -> %s, server -> %s, cal_type -> %s, name -> %s",
