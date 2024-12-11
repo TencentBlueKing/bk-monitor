@@ -8,10 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import copy
 import datetime
+import json
 import logging
 import re
+import urllib.parse
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set
 
@@ -34,10 +35,10 @@ from bkmonitor.data_source import q_to_dict
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.apm import MetricTemporality, TRPCMetricTag
-from constants.data_source import ApplicationsResultTableLabel
 from core.drf_resource import resource
 
 from ... import base, define
+from ...builder import StrategyBuilder
 from ...typing import StrategyKeyT, StrategyT
 from . import constants
 
@@ -47,12 +48,14 @@ logger = logging.getLogger(__name__)
 # 策略配置 By 类别（主调、被调、Panic）
 STRATEGY_CONFIGS: Dict[str, Dict[str, Dict[str, Any]]] = {
     constants.RPCApplyType.CALLER.value: {
-        CalculationType.P99_DURATION: constants.CALLER_P99_DURATION_STRATEGY_CONFIG,
+        # 均值告警更实用，为了让服务策略数更精简，此处先行注释
+        # CalculationType.P99_DURATION: constants.CALLER_P99_DURATION_STRATEGY_CONFIG,
         CalculationType.AVG_DURATION: constants.CALLER_AVG_DURATION_STRATEGY_CONFIG,
         CalculationType.SUCCESS_RATE: constants.CALLER_SUCCESS_RATE_STRATEGY_CONFIG,
     },
     constants.RPCApplyType.CALLEE.value: {
-        CalculationType.P99_DURATION: constants.CALLEE_P99_DURATION_STRATEGY_CONFIG,
+        # CalculationType.P99_DURATION: constants.CALLEE_P99_DURATION_STRATEGY_CONFIG,
+        CalculationType.REQUEST_TOTAL: constants.CALLEE_REQUEST_TOTAL_STRATEGY_CONFIG,
         CalculationType.AVG_DURATION: constants.CALLEE_AVG_DURATION_STRATEGY_CONFIG,
         CalculationType.SUCCESS_RATE: constants.CALLEE_SUCCESS_RATE_STRATEGY_CONFIG,
     },
@@ -67,9 +70,10 @@ STRATEGY_CONFIGS: Dict[str, Dict[str, Dict[str, Any]]] = {
 
 
 class RPCStrategyCallerCalleeOptions(serializers.Serializer):
-    extra_group_by = serializers.ListField(
-        label=_("额外的下钻维度"), child=serializers.CharField(label=_("下钻维度")), required=False, default=[]
+    group_by = serializers.ListField(
+        label=_("下钻维度"), child=serializers.CharField(label=_("下钻维度")), required=False, default=[]
     )
+    filter_dict = serializers.DictField(label=_("检索条件"), required=False, default={})
 
 
 class RPCStrategyOptions(serializers.Serializer):
@@ -79,11 +83,13 @@ class RPCStrategyOptions(serializers.Serializer):
 
 class RPCStrategyGroup(base.BaseStrategyGroup):
 
+    _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: List[str] = ["time", TRPCMetricTag.TARGET, TRPCMetricTag.SERVICE_NAME]
+
     DEPLOYMENT_POD_NAME_PATTERN = re.compile("^([a-z0-9-]+?)(-[a-z0-9]{5,10}-[a-z0-9]{5})$")
     STATEFUL_SET_POD_NAME_PATTERN = re.compile(r"^([a-z0-9-]+?)-\d+$")
 
     class Meta:
-        name = define.GroupEnum.RPC
+        name = define.GroupType.RPC.value
 
     def __init__(
         self,
@@ -92,6 +98,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         notice_group_ids: List[int],
         metric_helper: MetricHelper,
         apply_types: Optional[List[str]] = None,
+        apply_servers: Optional[List[str]] = None,
         options: Dict[str, Any] = None,
         rpc_metric_group_constructor: Optional[Callable[..., metric_group.BaseMetricGroup]] = None,
         resource_metric_group_constructor: Optional[Callable[..., metric_group.BaseMetricGroup]] = None,
@@ -103,8 +110,15 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         self.notice_group_ids: List[int] = notice_group_ids
         # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）
         self.labels: List[str] = [f"tRPC({self.app_name})"]
+        # 需要应用的服务
+        self.apply_servers: List[str] = list(set(apply_servers or []))
+
         # 需要应用的策略类别
-        self.apply_types: List[str] = apply_types or constants.RPCApplyType.options()
+        self.apply_types: List[str] = (apply_types or constants.RPCApplyType.options())[:]
+        if self.apply_servers:
+            # 指定服务时，移除应用级别类型的策略
+            self.apply_types.remove(constants.RPCApplyType.PANIC.value)
+            self.apply_types.remove(constants.RPCApplyType.RESOURCE.value)
 
         options_serializer = RPCStrategyOptions(data=options or {})
         try:
@@ -128,13 +142,17 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             ..., metric_group.BaseMetricGroup
         ] = resource_metric_group_constructor or partial(
             metric_group.MetricGroupRegistry.get,
-            MetricGroupEnum,
+            MetricGroupEnum.RESOURCE,
             self.bk_biz_id,
             self.app_name,
             metric_helper=self.metric_helper,
         )
 
-        self._server_infos: List[Dict[str, Any]] = self._fetch_server_infos()
+        self._server_infos: List[Dict[str, Any]] = [
+            server_info
+            for server_info in self._fetch_server_infos()
+            if not self.apply_servers or server_info["name"] in self.apply_servers
+        ]
 
     @classmethod
     def _get_pod_name_prefix(cls, pod_name: str) -> Optional[str]:
@@ -148,31 +166,66 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 return match.group(1)
         return None
 
+    def _get_caller_callee_url_template(
+        self, kind: str, server: str, group_by: List[str], perspective_group_by: List[str]
+    ) -> str:
+        template_variables: Dict[str, str] = {
+            "VAR_FROM": "{{alarm.begin_timestamp * 1000 - alarm.duration * 1000 - 5 * 60 * 1000}}",
+            "VAR_TO": "{{alarm.begin_timestamp * 1000 + 5 * 60 * 1000}}",
+        }
+        call_options: Dict[str, Any] = {
+            "kind": kind,
+            "call_filter": [
+                {"key": dimension, "method": "eq", "value": [f"{{alarm.dimensions['{dimension}'].display_value}}"]}
+                for dimension in group_by
+            ],
+            "time_shift": ["1w"],
+            "perspective_type": "multiple",
+            "perspective_group_by": perspective_group_by,
+        }
+
+        # Q：为什么用 VAR_xxx？
+        # A：避免 url 转义导致策略模板变量失效。
+        for dimension in group_by:
+            template_key: str = f"VAR_{dimension.upper()}"
+            template_variables[template_key] = "{{alarm.dimensions['{dimension}'].display_value}}".format(
+                dimension=dimension
+            )
+            call_options["call_filter"].append(
+                {"key": dimension, "method": "eq", "value": [template_variables[template_key]]}
+            )
+
+        params: Dict[str, str] = {
+            "filter-app_name": self.app_name,
+            "filter-service_name": server,
+            "callOptions": json.dumps(call_options),
+            "dashboardId": "service-default-caller_callee",
+            "from": "VAR_FROM",
+            "to": "VAR_TO",
+            "sceneId": "apm_service",
+        }
+        encoded_params: str = urllib.parse.urlencode(params)
+        for k, v in template_variables.items():
+            encoded_params = encoded_params.replace(k, v)
+
+        return f"{settings.BK_MONITOR_HOST}/?bizId={self.bk_biz_id}#/apm/service?{encoded_params}"
+
     def _build_strategy(
         self, cal_type: str, group: metric_group.BaseMetricGroup, cal_type_config_mapping: Dict[str, Dict[str, Any]]
     ) -> StrategyT:
         try:
-            conf: Dict[str, Any] = copy.deepcopy(cal_type_config_mapping[cal_type])
+            conf: Dict[str, Any] = cal_type_config_mapping[cal_type]
         except KeyError:
             raise KeyError("[_build_strategy] config(%s) not found", cal_type)
 
-        conf["labels"] = copy.deepcopy(self.labels)
-        conf["notice"]["user_groups"] = copy.deepcopy(self.notice_group_ids)
-        conf["notice"]["config"]["template"] = DEFAULT_NOTICE_MESSAGE_TEMPLATE
-
-        # 配置指标查询信息
-        query_config: Dict[str, Any] = group.query_config(cal_type)
-        conf["items"][0]["name"] = str(conf["items"][0]["name"])
-        conf["items"][0]["expression"] = query_config["expression"]
-        conf["items"][0]["query_configs"] = query_config["query_configs"]
-        conf["items"][0]["functions"] = query_config.get("functions") or []
-
-        return {
+        return StrategyBuilder(
+            bk_biz_id=self.bk_biz_id,
+            query_config=group.query_config(cal_type),
+            labels=self.labels,
+            notice_group_ids=self.notice_group_ids,
+            message_templates=DEFAULT_NOTICE_MESSAGE_TEMPLATE,
             **conf,
-            "actions": [],
-            "bk_biz_id": self.bk_biz_id,
-            "scenario": ApplicationsResultTableLabel.application_check,
-        }
+        ).build()
 
     def _fetch_server_infos(self) -> List[Dict[str, Any]]:
         server_config: Dict[str, Any] = (
@@ -213,7 +266,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             server_info: Dict[str, Any] = {
                 "name": service_name,
                 SeriesAliasType.CALLEE.value: service_name in callee_servers,
-                SeriesAliasType.CALLER.value: service_name in callee_servers,
+                SeriesAliasType.CALLER.value: service_name in caller_servers,
                 "language": service.get("extra_data", {}).get("service_language", ""),
                 "ret_code_as_exception": service_name in ret_code_as_exception_servers,
             }
@@ -252,9 +305,15 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
 
     def _list_remote(self, *args, **kwargs) -> List[StrategyT]:
         conditions: List[Dict[str, Any]] = [{"key": "label_name", "value": [f"/{label}/"]} for label in self.labels]
-        return resource.strategies.get_strategy_list_v2(
+        strategies: List[StrategyT] = resource.strategies.get_strategy_list_v2(
             bk_biz_id=self.bk_biz_id, conditions=conditions, page_size=1000
         ).get("strategy_config_list", [])
+        # 策略不支持 labels 间的 and 查询，此处先查询应用关联的策略，再二次过滤。
+        return [
+            strategy
+            for strategy in strategies
+            if not self.apply_servers or set(self.apply_servers) & set(strategy["labels"] or [])
+        ]
 
     def _list_caller_callee(self, kind: str, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
         server_names: List[str] = []
@@ -276,9 +335,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             _server_field: str = _server_info["server_fields"][kind]
             _construct_config: Dict[str, Any] = {
                 # 增加服务实体作为维度，虽然策略已经按实体维度划分，但补充维度能在事件中心进行更好的下钻。
-                "group_by": ["time", _server_field, *self.options[kind]["extra_group_by"]],
+                "group_by": ["time", _server_field, *self.options[kind]["group_by"]],
                 "filter_dict": {
-                    f"{_server_field}__{_server_info['server_filter_method']}": _server_info['server_filter_value']
+                    f"{_server_field}__{_server_info['server_filter_method']}": _server_info['server_filter_value'],
+                    **(self.options[kind].get("filter_dict") or {}),
                 },
                 "kind": kind,
                 "temporality": _server_info["temporality"],
@@ -295,6 +355,21 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 _strategy: StrategyT = self._build_strategy(_cal_type, _group, cal_type_config_mapping)
                 _strategy["name"] = str(_strategy["name"].format(scope=_server, app_name=self.app_name))
                 _strategy["labels"].append(_server)
+
+                # 异常分析下钻
+                _group_by: List[str] = list(
+                    set(self.options[kind]["group_by"]) - set(self._NOT_SUPPORT_FILTER_RPC_DIMENSIONS)
+                )
+                _perspective_group_by: Set[str] = {TRPCMetricTag.CALLEE_METHOD} | set(_group_by)
+                if _cal_type == CalculationType.SUCCESS_RATE:
+                    _perspective_group_by.add(TRPCMetricTag.CODE)
+
+                _url_templ: str = self._get_caller_callee_url_template(
+                    kind, _server, _group_by, list(_perspective_group_by)
+                )
+                message_tmpl: str = _strategy["notice"]["config"][0]["message_tmpl"]
+                _strategy["notice"]["config"][0]["message_tmpl"] = message_tmpl + "\n异常分析下钻：" + _url_templ
+
                 logger.info(
                     "[_list_caller_callee] kind -> %s, server -> %s, cal_type -> %s, name -> %s",
                     kind,
@@ -315,7 +390,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
 
     def _list_panic(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
         # APM 的 service 在 RPC 概念中实际上是 sever，这里的命名也沿用 RPC 领域的设定。
-
         with_target_attr_servers: List[str] = []
         with_service_name_attr_servers: List[str] = []
         for server_info in self._server_infos:
@@ -346,7 +420,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             )
             _strategy: StrategyT = self._build_strategy(CalculationType.PANIC, _group, cal_type_config_mapping)
             _strategy["name"] = str(_strategy["name"].format(scope=_entity_field, app_name=self.app_name))
-            _strategy["labels"].append(f"tRPC({constants.RPCApplyType.PANIC})")
+            _strategy["labels"].append(f"RPC({constants.RPCApplyType.PANIC})")
             strategies.append(_strategy)
 
         # Panic 告警规则相对单一，此处聚合上报行为相同的服务为同一条告警策略，减少内置策略数
@@ -355,7 +429,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         return strategies
 
     def _list_resource(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
-
         namespaces: Set[str] = set()
         bcs_cluster_ids: Set[str] = set()
         pod_name_prefixes: Set[str] = set()
@@ -367,9 +440,13 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             for relation in relations:
                 for node in relation.nodes:
                     source_info = node.source_info.to_source_info()
-                    namespaces.add(source_info.get("namespace") or "")
-                    bcs_cluster_ids.add(source_info.get("bcs_cluster_id") or "")
-                    pod_name_prefixes.add(self._get_pod_name_prefix(source_info.get("pod") or ""))
+                    namespace: Optional[str] = source_info.get("namespace")
+                    bcs_cluster_id: Optional[str] = source_info.get("bcs_cluster_id")
+                    pod_name_prefix: Optional[str] = self._get_pod_name_prefix(source_info.get("pod") or "")
+                    if namespace and bcs_cluster_id and pod_name_prefix:
+                        namespaces.add(namespace)
+                        bcs_cluster_ids.add(bcs_cluster_id)
+                        pod_name_prefixes.add(pod_name_prefix)
 
         end_time: int = int(datetime.datetime.now().timestamp())
         start_time: int = end_time - int(datetime.timedelta(hours=1).total_seconds())
@@ -401,7 +478,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         for cal_type in cal_type_config_mapping:
             strategy: StrategyT = self._build_strategy(cal_type, _group, cal_type_config_mapping)
             strategy["name"] = str(strategy["name"].format(scope="Pod", app_name=self.app_name))
-            strategy["labels"].append(_("{group}（容量告警）").format(group=define.GroupEnum.RPC.upper()))
+            strategy["labels"].append(_("{group}（容量告警）").format(group=define.GroupType.RPC.value.upper()))
             strategies.append(strategy)
 
         return strategies
@@ -416,7 +493,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             constants.RPCApplyType.CALLER.value: self._list_caller,
             constants.RPCApplyType.CALLEE.value: self._list_callee,
             constants.RPCApplyType.PANIC.value: self._list_panic,
-            constants.RPCApplyType.RESOURCE: self._list_resource,
+            constants.RPCApplyType.RESOURCE.value: self._list_resource,
         }
         run_threads([InheritParentThread(target=_collect, args=(apply_type,)) for apply_type in self.apply_types])
         return strategies

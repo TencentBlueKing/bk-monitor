@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from .base import BaseStrategyGroup, StrategyGroupRegistry
-from .define import GroupEnum
+from .define import GroupType
 from .groups.rpc.constants import RPCApplyType
 from .groups.rpc.rpc import RPCStrategyGroup
 
-__all__ = [BaseStrategyGroup, StrategyGroupRegistry, GroupEnum, RPCStrategyGroup, RPCApplyType]
+__all__ = [BaseStrategyGroup, StrategyGroupRegistry, GroupType, RPCStrategyGroup, RPCApplyType]
