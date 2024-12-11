@@ -126,6 +126,7 @@
           display: flex;
           align-items: flex-start;
           height: 100%;
+          min-height: var(--row-min-height);
           padding: 4px;
           background-color: #fff;
 
@@ -167,6 +168,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            min-height: var(--row-min-height);
             padding: 12px;
           }
 

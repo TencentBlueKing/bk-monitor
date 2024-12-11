@@ -507,6 +507,10 @@ export default defineComponent({
     // 滚动不满一行数据时，第一行数据的偏移量
     const scrollRowOffsetHeight = ref(0);
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
+      if (isRequesting.value) {
+        return;
+      }
+
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
@@ -541,7 +545,7 @@ export default defineComponent({
       }
 
       scrollRowOffsetHeight.value = useScrollHeight - startPosition;
-      visibleIndexs.value.startIndex = startIndex;
+      visibleIndexs.value.startIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
       visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
     };
@@ -635,6 +639,8 @@ export default defineComponent({
 
     const scrollTop = () => {
       scrollToTop(visibleIndexs.value.endIndex < 100);
+      visibleIndexs.value.startIndex = 0;
+      visibleIndexs.value.endIndex = bufferCount * 2;
     };
 
     const renderScrollTop = () => {
@@ -685,39 +691,14 @@ export default defineComponent({
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
     };
 
-    // 未显示的行高度
-    const preHiddenHeight = computed(() => {
-      return tableData.value.slice(0, visibleIndexs.value.startIndex).reduce((pre, cur) => {
-        return pre + (cur[ROW_CONFIG].value.minHeight ?? 0);
-      }, 0);
-    });
-
-    const preEmptyStyle = computed(() => {
-      return {
-        minHeight: `${preHiddenHeight.value}px`,
-      };
-    });
-
-    const renderRows = computed(() => tableData.value.slice(visibleIndexs.value.startIndex));
-
     const renderRowVNode = () => {
-      let rowStickyTop = 0;
       const { startIndex, endIndex } = visibleIndexs.value;
-      return [{}, ...renderRows.value].map((row, index) => {
-        if (index === 0) {
-          return (
-            <div
-              style={preEmptyStyle.value}
-              class={['preloading-placeholder', { 'has-animation': preHiddenHeight.value > 300 }]}
-            ></div>
-          );
-        }
-
+      return tableData.value.map(row => {
         const rowIndex = row[ROW_INDEX];
-        const preConfig = tableData.value[rowIndex - 1]?.[ROW_CONFIG]?.value;
-        rowStickyTop = rowStickyTop + (preConfig?.minHeight ?? 0);
+
         const rowStyle = {
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
+          '--row-min-height': `${row[ROW_CONFIG].value.minHeight - 2}px`,
         };
 
         if (rowIndex >= startIndex && rowIndex < endIndex) {

@@ -37,12 +37,13 @@ export default defineComponent({
   emits: ['row-resize'],
   setup(props, { emit, slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
+
     const renderRowVNode = () => {
       return (
         <div data-row-index={props.rowIndex}>
           <div
             ref={refRowNodeRoot}
-            class='bklog-row-observe'
+            class={['bklog-row-observe']}
           >
             {slots.default?.()}
           </div>
