@@ -20,6 +20,7 @@ from django.http import Http404
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from apm_web.constants import METRIC_COMMON_DIMENSION
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -50,6 +51,11 @@ def validate_scene_type(params):
     if scene_id in ["apm_application", "apm_service", "kubernetes", "alert"]:
         params["type"] = ""
     return params
+
+
+def addon_top_limit_attributes(dimension: dict):
+    if dimension["id"] in METRIC_COMMON_DIMENSION:
+        dimension["top_limit_enable"] = True
 
 
 class GetSceneResource(Resource):
@@ -223,9 +229,13 @@ class GetSceneViewResource(ApiAuthResource):
         bk_cloud_id = serializers.CharField(label="主机云区域ID", required=False, allow_null=True)
         bk_host_id = serializers.CharField(label="主机ID", required=False, allow_null=True)
         # ---
-
+        # 时间范围
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
+        # ---
+        # view场景开关
+        view_switches = serializers.DictField(label="view场景开关", required=False, default={})
+        # ---
 
         def validate(self, params):
             return validate_scene_type(params)
@@ -452,7 +462,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                 {"bcs_cluster_id": bcs_cluster_id, "name": name, "bk_biz_id": bk_biz_id, "namespace": namespace}
             )
         elif resource_id == "service-default-custom_metric":
-            view_config = GetSceneViewResource().request(params)
+            view_config = GetSceneViewResource().request({**params, "view_switches": {"only_dimension": True}})
             panels = view_config.get("overview_panels")
             filter_with_metric = True
         else:
@@ -519,6 +529,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
             for dimension in metric.dimensions:
                 if dimension["id"] in existed_dimensions:
                     continue
+                addon_top_limit_attributes(dimension)
                 dimensions.append(dimension)
                 existed_dimensions.add(dimension["id"])
         return dimensions

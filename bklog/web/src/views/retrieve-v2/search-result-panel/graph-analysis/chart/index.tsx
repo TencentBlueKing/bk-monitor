@@ -26,12 +26,13 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDate } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-import { formatDate } from '@/common/util';
+
 import './index.scss';
 
 export default defineComponent({
@@ -118,16 +119,29 @@ export default defineComponent({
     };
 
     const columns = computed(() => {
-      if (props.chartOptions.category === 'table') {
-        return (props.chartOptions.data?.select_fields_order ?? []).filter(
-          col => !(props.chartOptions.hiddenFields ?? []).includes(col),
-        );
+      if (showTable.value) {
+        if (props.chartOptions.category === 'table') {
+          return (props.chartOptions.data?.select_fields_order ?? []).filter(
+            col => !(props.chartOptions.hiddenFields ?? []).includes(col),
+          );
+        }
+
+        return props.chartOptions.data?.select_fields_order ?? [];
       }
 
-      return props.chartOptions.data?.select_fields_order ?? [];
+      return [];
     });
 
-    const tableData = computed(() => formatListData.value?.list ?? []);
+    const tableData = computed(() => {
+      if (showTable.value) {
+        if (props.chartOptions.category === 'table') {
+          return formatListData.value?.list ?? [];
+        }
+
+        return formatListData.value?.list ?? [];
+      }
+      return [];
+    });
 
     const filterTableData = computed(() => {
       const reg = getRegExp(searchValue.value);
@@ -141,8 +155,9 @@ export default defineComponent({
       console.log('resize');
       getChartInstance()?.resize();
     });
+
     const getDateTimeFormatValue = (row, col) => {
-      let value = row[col]
+      let value = row[col];
       if (!/data|time/i.test(col)) {
         return value;
       }
@@ -192,16 +207,13 @@ export default defineComponent({
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
-                label={col}
                 // prop={col}
                 scopedSlots={{
-                  default: ({ row }) => (
-                    <span>{getDateTimeFormatValue(row, col)}</span>
-                  ),
+                  default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
                 }}
+                label={col}
                 sortable={true}
-              >
-              </bk-table-column>
+              ></bk-table-column>
             ))}
           </bk-table>,
         ];

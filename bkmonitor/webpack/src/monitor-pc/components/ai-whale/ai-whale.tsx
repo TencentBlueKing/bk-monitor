@@ -112,7 +112,6 @@ const questions = [
   '如何接入第三方告警源？',
   '智能检测目前能支持哪些场景？',
 ];
-
 @Component
 export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
@@ -150,12 +149,7 @@ export default class AiWhale extends tsc<{
   lastRecordTime = 0;
 
   /* AI Blueking */
-  messages: IMessage[] = [
-    {
-      content: window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。'),
-      role: RoleType.Assistant,
-    },
-  ];
+  messages: IMessage[] = [];
   prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
   loading = false;
   background = '#f5f7fa';
@@ -193,6 +187,7 @@ export default class AiWhale extends tsc<{
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
     this.resizeFn = throttle(50, this.handleWindowResize);
+    this.messages = this.getDefaultMessage();
     window.addEventListener('resize', this.resizeFn);
   }
 
@@ -211,6 +206,14 @@ export default class AiWhale extends tsc<{
     window.clearInterval(this.timeInstance);
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
+  }
+  getDefaultMessage() {
+    return [
+      {
+        content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>${this.$t('例如')}：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
+        role: RoleType.Assistant,
+      },
+    ];
   }
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
@@ -456,11 +459,10 @@ export default class AiWhale extends tsc<{
     // 接收消息
     const handleReceiveMessage = (message: string) => {
       const currentMessage = this.messages.at(-1);
-      if (currentMessage.status === 'loading') {
+      if (currentMessage.content === this.$tc('内容正在生成中...')) {
         // 如果是loading状态，直接覆盖
         currentMessage.content = message;
-        currentMessage.status = MessageStatus.Success;
-      } else if (currentMessage.status === 'success') {
+      } else if (currentMessage.status === 'loading') {
         // 如果是后续消息，就追加消息
         currentMessage.content += message;
       }
@@ -470,10 +472,12 @@ export default class AiWhale extends tsc<{
       this.loading = false;
       const currentMessage = this.messages.at(-1);
       // loading 情况下终止
-      if (currentMessage.status === MessageStatus.Loading) {
+      if (currentMessage.content === this.$tc('内容正在生成中...')) {
         currentMessage.content = '聊天内容已中断';
         currentMessage.status = MessageStatus.Error;
+        return;
       }
+      currentMessage.status = MessageStatus.Success;
     };
     // 错误处理
     const handleError = (message: string) => {
@@ -499,7 +503,7 @@ export default class AiWhale extends tsc<{
     );
   }
   handleAiBluekingClear() {
-    this.messages = [];
+    this.messages = this.getDefaultMessage();
   }
   handleAiBluekingSend(message: ISendData) {
     // 记录当前消息记录
@@ -532,7 +536,6 @@ export default class AiWhale extends tsc<{
         'Source-App': window.source_app,
       }
     );
-    console.log('trigger send', message);
   }
   handleAiBluekingStop() {
     this.chatHelper.stop(this.chartId);
@@ -546,6 +549,11 @@ export default class AiWhale extends tsc<{
   handleToggleAiBlueking() {
     this.showAIBlueking = !this.showAIBlueking;
     // this.startPosition.left = this.whalePosition.left +;
+  }
+  handleAiBluekingClick(v: string) {
+    const data = JSON.parse(v);
+    if (data?.type !== 'send') return;
+    this.handleAiBluekingSend(data);
   }
   createAIContent() {
     const countSpan = count => {
@@ -790,10 +798,12 @@ export default class AiWhale extends tsc<{
         isShow={this.showAIBlueking}
         loading={this.loading}
         messages={this.messages}
+        placeholder={this.$t('您可以键入“/”查看更多提问示例')}
         position-limit={this.positionLimit}
         prompts={this.prompts}
         size-limit={this.sizeLimit}
         start-position={this.startPosition}
+        on-ai-click={this.handleAiBluekingClick}
         onChoose-prompt={this.handleAiBluekingChoosePrompt}
         onClear={this.handleAiBluekingClear}
         onClose={this.handleAiBluekingClose}

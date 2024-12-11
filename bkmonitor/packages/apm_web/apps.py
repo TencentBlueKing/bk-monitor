@@ -17,4 +17,13 @@ class ApmWebConfig(AppConfig):
     label = "apm_web"
 
     def ready(self):
-        pass
+        # 注册 profile 解析器
+        from apm_web.profile.constants import InputType
+        from apm_web.profile.doris.converter import DorisProfileConverter
+        from apm_web.profile.perf.converter import PerfScriptProfileConverter
+        from apm_web.profile.pprof.converter import PprofProfileConverter
+        from apm_web.profile.profileconverter import register_profile_converter
+
+        register_profile_converter(InputType.DORIS.value, DorisProfileConverter)
+        register_profile_converter(InputType.PERF_SCRIPT.value, PerfScriptProfileConverter)
+        register_profile_converter(InputType.PPROF.value, PprofProfileConverter)

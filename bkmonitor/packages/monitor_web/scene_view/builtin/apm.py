@@ -13,12 +13,12 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Set, Union
 
-import arrow
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from apm_web.constants import HostAddressType
+from apm_web.constants import ApmCacheKey, HostAddressType
 from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
@@ -26,10 +26,10 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 
@@ -170,6 +170,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         bk_biz_id = view.bk_biz_id
         app_name = params["app_name"]
         service_name = params["service_name"]
+        view_switches = params.get("view_switches", {})
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
@@ -348,46 +349,62 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             )
             metric_count = metric_queryset.count()
 
-            # 根据dimension_keys判断metric的监控项维度名和服务维度名
-            dimension_keys = set()
-            for metric in metric_queryset:
-                for dimension in metric.dimensions:
-                    if dimension.get("id"):
-                        dimension_keys.add(dimension["id"])
-            candidate_queue = []
             target_key = f"{bk_biz_id}-{app_name}.{service_name}"
             if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
                 metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
             else:
-                if "scope_name" in dimension_keys:
-                    candidate_queue.append({"monitor_name_key": "scope_name", "service_name_key": "service_name"})
-                if "monitor_name" in dimension_keys:
-                    candidate_queue.append({"monitor_name_key": "monitor_name", "service_name_key": "target"})
-                metric_config = (
-                    candidate_queue[0] if candidate_queue else settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+
+            view_variables = {}
+            if not view_switches.get("only_dimension", False):
+                discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
+                    bk_biz_id, app_name, params["service_name"]
                 )
+                server_config: Dict[str, Any] = discover_result["server_config"]
+
+                if server_config["temporality"] == MetricTemporality.CUMULATIVE:
+                    # 指标为累加类型，需要添加 increase 函数
+                    cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
+                view_variables = {
+                    "temporality": server_config["temporality"],
+                    "server": server_config["server_field"],
+                    "service_name": server_config["service_field"],
+                    "server_filter_method": server_config["server_filter_method"],
+                    "ret_code_as_exception": server_config.get("ret_code_as_exception", False),
+                }
 
             if metric_count > 0:
-                # 使用非内部指标设置monitor_info_mapping
-                monitor_info_mapping = cls.get_monitor_info(
-                    bk_biz_id,
-                    result_table_id,
-                    service_name=service_name,
-                    count=metric_count,
-                    start_time=params.get("start_time"),
-                    end_time=params.get("end_time"),
-                    dimension_keys={
-                        "monitor_name_key": metric_config["monitor_name_key"],
-                        "service_name_key": metric_config["service_name_key"],
-                    },
-                )
+                # 使用非内部指标设置monitor_info_mapping, 优先使用缓存
+                monitor_info_mapping = {}
+                if "redis" in caches:
+                    cache_agent = caches["redis"]
+                    cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
+                        bk_biz_id=bk_biz_id, application_id=application.application_id
+                    )
+                    try:
+                        cached_data = cache_agent.get(cache_key)
+                        monitor_info_mapping = deserialize_and_decompress(cached_data) if cached_data else {}
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.warning(f"当前条件下 {cache_key} 暂无scope_name缓存: {e}")
+                        monitor_info_mapping = {}
+                if not monitor_info_mapping:
+                    monitor_info_mapping = metric_group.MetricHelper.get_monitor_info(
+                        bk_biz_id,
+                        result_table_id,
+                        service_name=service_name,
+                        count=metric_count,
+                        start_time=params.get("start_time"),
+                        end_time=params.get("end_time"),
+                        **metric_config,
+                    )
 
                 for idx, i in enumerate(metric_queryset):
                     # 过滤内置指标
                     if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                         continue
                     # 根据dimension获取monitor_name监控项, 获取不到的则跳过
-                    metric_info = monitor_info_mapping.get(f"{i.metric_field}_value")
+                    metric_info = monitor_info_mapping.get(service_name, {}).get(f"{i.metric_field}_value")
                     if not metric_info:
                         continue
                     # 进行panels的变量渲染
@@ -398,12 +415,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         "readable_name": i.readable_name,
                         "data_source_label": i.data_source_label,
                         "data_type_label": i.data_type_label,
-                        "filter_key_name": metric_info["filter_service_name"],
-                        "filter_key_value": metric_info["filter_service_value"],
+                        "filter_key_name": metric_config["service_name_key"],
+                        "filter_key_value": service_name,
                     }
                     metric_panel = copy.deepcopy(metric_panel_template)
-                    for var_name, var_value in variables.items():
-                        metric_panel = cls._replace_variable(metric_panel, "${{{}}}".format(var_name), var_value)
+                    if view_variables:
+                        variables.update(view_variables)
+                    metric_panel = cls._multi_replace_variables(metric_panel, variables)
 
                     monitor_name = metric_info["monitor_name"] or "default"
                     if monitor_name not in metric_group_mapping:
@@ -413,65 +431,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "group_id": group_id,
                             "group_name": monitor_name,
                         }
-                        for var_name, var_value in group_variables.items():
-                            group_panel = cls._replace_variable(group_panel, "${{{}}}".format(var_name), var_value)
+                        group_panel = cls._multi_replace_variables(group_panel, group_variables)
                         metric_group_mapping[monitor_name] = group_panel
                     metric_group_mapping[monitor_name]["panels"].append(metric_panel)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
             if not view_config["overview_panels"]:
                 cls._generate_non_custom_metric_view_config(view_config)
+
+            option_variables = {"request_total_name": _("请求总数")}
+            view_config = cls._multi_replace_variables(view_config, option_variables)
         return view_config
-
-    @classmethod
-    def get_monitor_info(
-        cls, bk_biz_id, result_table_id, service_name, dimension_keys, count: int = 1000, start_time=None, end_time=None
-    ) -> dict:
-        if not start_time or not end_time:
-            end_time = int(arrow.now().timestamp)
-            start_time = int(end_time - 3600)
-
-        request_params = {
-            "bk_biz_id": bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": DataSourceLabel.PROMETHEUS,
-                    "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "promql": "",
-                    "interval": "auto",
-                    "alias": "a",
-                    "filter_dict": {},
-                }
-            ],
-            "slimit": count,
-            "expression": "",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-        metric_table_id = result_table_id.replace('.', ':')
-        monitor_info_mapping = {}
-        try:
-            # 查询具体的监控项名称和service_name
-            monitor_name_key = dimension_keys["monitor_name_key"]
-            service_name_key = dimension_keys["service_name_key"]
-            promql = (
-                f"count by ({monitor_name_key}, {service_name_key}, __name__) "
-                f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=~\"{service_name}$\"}})"
-            )
-            request_params["query_configs"][0]["promql"] = promql
-            series = resource.grafana.graph_unify_query(request_params)["series"]
-            for metric in series:
-                metric_field = metric.get("dimensions", {}).get("__name__")
-                if metric_field:
-                    monitor_info_mapping[metric_field] = {
-                        "monitor_name": metric["dimensions"].get(monitor_name_key),
-                        "filter_service_name": service_name_key,
-                        "filter_service_value": metric["dimensions"].get(service_name_key),
-                    }
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
-
-        return monitor_info_mapping
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
@@ -496,6 +465,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             current_target["bk_host_id"] = span_host["bk_host_id"]
 
                         query_config["filter_dict"]["targets"] = [current_target]
+
+    @classmethod
+    def _multi_replace_variables(cls, replace_config, variables_mapping):
+        replace_content = json.dumps(replace_config)
+        for var_name, var_value in variables_mapping.items():
+            replace_content = replace_content.replace("${{{}}}".format(var_name), str(var_value))
+        return json.loads(replace_content)
 
     @classmethod
     def _replace_variable(cls, view_config, target, value):
@@ -769,6 +745,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
             "only_simple_info": params.get("only_simple_info") or False,
+            "view_switches": params.get("view_switches", {}),
         }
         # 自定义参数透传
         if scene_id == "apm_service" and params.get("id") in [

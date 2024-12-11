@@ -199,6 +199,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         title={`【${item.title}】${item.metric_name_alias}`}
         {...{
           on: {
+            // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
             layoutChange: val => (this.layoutActive = val),
           },
           scopedSlots: {
@@ -224,24 +225,13 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       setTimeout(() => {
         (this.$refs[key] as any)?.handleToggleCollapse?.(true);
       }, 60);
-
-      //   setTimeout(() => {
-      //   //   console.log('213123312---');
-      //   //   current.scrollIntoView({
-      //   //     behavior: 'smooth'
-      //   //   });
-      //   // }, 200);
-      //   (this.$refs[key] as any)?.handleToggleCollapse?.(true);
-      //   // return;
-      // })
     }
   }
   /** 将指标打平展示 */
   get recommendedMetricPanels() {
     return (
       this.panelMap.recommendedMetricPanels?.reduce?.((prev, curr) => {
-        prev = prev.concat(curr.metrics);
-        return prev;
+        return prev.concat(curr.metrics);
       }, []) || []
     );
   }
@@ -258,8 +248,12 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       >
         {this.panelMap.recommendedMetricPanels.length > 0 ? (
           [
-            <div class='correlation-metric-nav-wrap-bg' />,
             <div
+              key='wrap-bg'
+              class='correlation-metric-nav-wrap-bg'
+            />,
+            <div
+              key='wrap-nav'
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
               class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
             >
@@ -269,7 +263,10 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
                 onActive={this.handleActive}
               />
             </div>,
-            <div class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}>
+            <div
+              key='wrap-panels'
+              class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}
+            >
               {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
             </div>,
           ]
