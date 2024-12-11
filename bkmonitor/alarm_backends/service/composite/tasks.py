@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 
-from celery.task import task
+from celery import shared_task
 
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.alert.alert import AlertKey
@@ -12,7 +12,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("composite")
 
 
-@task(ignore_result=True, queue="celery_composite")
+@shared_task(ignore_result=True, queue="celery_composite")
 def check_action_and_composite(
     alert_key: AlertKey, alert_status: str, composite_strategy_ids: list = None, retry_times: int = 0
 ):

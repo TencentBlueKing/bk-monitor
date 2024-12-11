@@ -10,24 +10,24 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 import logging
-from django.utils.translation import gettext as _
 
-from celery.task import task
+from celery import shared_task
 from django.conf import settings
-from fta_web.action.utils import (
-    compile_assign_action_config,
-    parse_bk_plugin_deployed_info,
-)
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils.send import NoneTemplateSender
 from constants.action import ActionSignal, ActionStatus
 from core.drf_resource import api
+from fta_web.action.utils import (
+    compile_assign_action_config,
+    parse_bk_plugin_deployed_info,
+)
 
 logger = logging.getLogger("root")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def scheduled_register_bk_plugin():
     """
     批量注册蓝鲸插件到系统中
@@ -59,7 +59,7 @@ def scheduled_register_bk_plugin():
     )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def notify_to_appointee(validated_request_data):
     """
     通知分派人员

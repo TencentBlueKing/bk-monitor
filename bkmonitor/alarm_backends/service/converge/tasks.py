@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from celery.task import task
+from celery import shared_task
 from django.db import OperationalError
 
 from alarm_backends.constants import CONST_HALF_MINUTE
@@ -21,7 +21,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("fta_action.converge")
 
 
-@task(ignore_result=True, queue="celery_converge")
+@shared_task(ignore_result=True, queue="celery_converge")
 def run_converge(converge_config, instance_id, instance_type, converge_context=None, alerts=None, retry_times=0):
     """
     执行收敛动作
