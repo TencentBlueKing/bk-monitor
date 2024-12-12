@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import _escape from 'lodash/escape';
 
 import $http from '@/api';
-import router from '@/router';
 import store from '@/store';
 
 import './agg-chart.scss';
@@ -46,7 +45,6 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
   @Prop({ type: Number, default: 5}) limit: number;
   showAllList = false;
-  shouldShowMore = false;
   listLoading = false;
   mappingKay = {
     // is is not 值映射
@@ -80,7 +78,6 @@ export default class AggChart extends tsc<object> {
         item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
       }
     });
-    this.shouldShowMore = totalList.length > 5;
     return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
@@ -102,6 +99,11 @@ export default class AggChart extends tsc<object> {
   watchPicker() {
     if (this.isFrontStatistics) return;
     this.queryFieldFetchTopList(this.limitSize);
+  }
+
+  @Emit('distinctCount')
+  emitDistinctCount(val) {
+    return val;
   }
 
   mounted() {
@@ -175,7 +177,7 @@ export default class AggChart extends tsc<object> {
       });
       if (res.code === 0) {
         await this.$nextTick();
-        this.shouldShowMore = res.data.distinct_count > 5;
+        this.emitDistinctCount(res.data.distinct_count)
         Object.assign(this.fieldValueData, res.data);
       }
     } catch (error) {
@@ -230,24 +232,6 @@ export default class AggChart extends tsc<object> {
                   </div>
                 </li>
               ))}
-              {
-                <li class='more-item'>
-                  <div>
-                    {!this.showAllList && this.shouldShowMore && (
-                      <span
-                        onClick={() => {
-                          this.showAllList = !this.showAllList;
-                          if (this.isFrontStatistics) return;
-                          this.queryFieldFetchTopList(100);
-                        }}
-                      >
-                        {/* {this.t('更多')} */}
-                      </span>
-                    )}
-                  </div>
-                  <span>{/* <i class='bk-icon icon-download'></i> <span>{this.t('下载')}</span> */}</span>
-                </li>
-              }
             </ul>
           </div>
         ) : (

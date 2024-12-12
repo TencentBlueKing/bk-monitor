@@ -59,7 +59,11 @@
     .count-num{
       display: flex;
       line-height: 16px;
-
+      .count-num-title{
+        font-size: 12px;
+        font-weight: bold;
+        color: #313238;
+      }
       .distinct-count-num{
         min-width: 24px;
         padding: 0 4px;
@@ -110,6 +114,7 @@
   .chart-title {
     margin: 12px 0;
     font-size: 12px;
+    font-weight: bold;
     color: #313238;
 
     @include flex-justify(space-between);

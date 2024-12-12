@@ -674,21 +674,21 @@ export default class FieldAnalysis extends Vue {
               )}
               <div class='distinct-count-num-box'>
                 <div class='count-num'>
-                  <span>去重后字段统计</span>
+                  <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
                   <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
                  {
                   this.fieldData.distinct_count >5? ( <span
                     class='moreDistinct'
                     onClick={this.showMore.bind(this)}
                   >
-                    更多
+                    {window.mainComponent.$t('更多')}
                   </span>):null
                  }
                 </div>
                 <div class='moreFn'>
                   <span
                     class='fnBtn bk-icon icon-download'
-                    v-bk-tooltips='下载'
+                    v-bk-tooltips={window.mainComponent.$t('下载')}
                     onClick={this.downloadFieldStatistics.bind(this)}
                   ></span>
 
