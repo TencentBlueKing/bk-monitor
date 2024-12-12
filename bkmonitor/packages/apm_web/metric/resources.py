@@ -933,7 +933,7 @@ class ServiceListResource(PageListResource):
                 end_time,
                 services,
             )
-            cache.set(cache_key, json.dumps(data_status_mapping))
+            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
 
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
