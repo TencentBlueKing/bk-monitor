@@ -31,6 +31,7 @@ class RelationQ:
     def query(cls, qs, expect_paths=None):
         """Relation 接口普通查询"""
 
+        # 从查询参数提取业务 ID，用于数据查询鉴权
         bk_biz_ids: Set[int] = set()
         for query_config in qs:
             bk_biz_ids |= set(query_config.get("bk_biz_ids") or [])

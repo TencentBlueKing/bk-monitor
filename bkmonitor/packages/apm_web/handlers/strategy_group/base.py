@@ -55,6 +55,8 @@ class StrategyGroupMeta(type):
 
 
 class BaseStrategyGroup(metaclass=StrategyGroupMeta):
+    """声明式告警策略管理框架"""
+
     def __init__(self, bk_biz_id: int, app_name: str, **kwargs):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
@@ -66,14 +68,15 @@ class BaseStrategyGroup(metaclass=StrategyGroupMeta):
             }
             return set(_strategies_map.keys()), _strategies_map
 
+        # 拉取同个管理范围，本地、远端的数据
         local_keys, local_strategies_map = _format(self._list_local())
         remote_keys, remote_strategies_map = _format(self._list_remote())
         logger.info("[apply] local -> %s, remote -> %s", len(local_keys), len(remote_keys))
 
+        # 调谐过程，计算变更
         to_be_added_keys: Set[str] = local_keys - remote_keys
         to_be_update_keys: Set[str] = local_keys & remote_keys
         to_be_deleted_keys: Set[str] = remote_keys - local_keys
-
         logger.info(
             "[apply] to_be_added_keys -> %s, to_be_update_keys -> %s, to_be_deleted_keys -> %s",
             to_be_added_keys,
@@ -81,6 +84,7 @@ class BaseStrategyGroup(metaclass=StrategyGroupMeta):
             to_be_deleted_keys,
         )
 
+        # 执行变更
         self._handle_delete([remote_strategies_map[key] for key in to_be_deleted_keys])
         self._handle_update(
             {key: local_strategies_map[key] for key in to_be_update_keys},
