@@ -519,7 +519,7 @@ export default defineComponent({
       });
     });
 
-    const getVisibleRows = scrollTop => {
+    const getVisibleRows = (scrollTop, visibleHeight) => {
       const rows = tableData.value;
       let startIdx = 0;
       let endIdx = rows.length - 1;
@@ -534,7 +534,14 @@ export default defineComponent({
         }
       }
 
-      return [startIdx, startIdx + bufferCount * 2];
+      let lastVisibleRow = startIdx;
+
+      // 找到最后一个可见的行
+      while (lastVisibleRow < rows.length && cumulativeHeights.value[lastVisibleRow] < scrollTop + visibleHeight) {
+        lastVisibleRow++;
+      }
+
+      return [startIdx, lastVisibleRow];
     };
 
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
@@ -544,7 +551,10 @@ export default defineComponent({
 
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
-      const [startIndex, endIndex] = getVisibleRows(useScrollHeight);
+
+      const visibleHeight = (event.target as HTMLElement).offsetHeight;
+
+      const [startIndex, endIndex] = getVisibleRows(useScrollHeight, visibleHeight);
 
       visibleIndexs.value.startIndex = startIndex;
       visibleIndexs.value.endIndex = endIndex;
@@ -707,6 +717,7 @@ export default defineComponent({
     const renderRowVNode = () => {
       const { startIndex, endIndex } = visibleIndexs.value;
       const visibleStartIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
+      const visibleEndIndex = endIndex + bufferCount;
       return tableData.value.map(row => {
         const rowIndex = row[ROW_INDEX];
 
@@ -715,7 +726,7 @@ export default defineComponent({
           '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
         };
 
-        if (rowIndex >= visibleStartIndex && rowIndex < endIndex) {
+        if (rowIndex >= visibleStartIndex && rowIndex < visibleEndIndex) {
           return (
             <RowRender
               key={row[ROW_KEY]}
