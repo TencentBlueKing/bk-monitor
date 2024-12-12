@@ -159,6 +159,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return row => (row?.[columnKey] as string)?.split(':')?.[index] || '--';
   }
 
+  /** 当前页面 tab */
+  @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
+  /** GroupBy 选择器选中数据类实例 */
+  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
+  /** FilterBy 选择器选中数据 */
+  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  /** 场景 */
+  @Prop({ type: String }) scene: SceneEnum;
+  /** 集群 */
+  @Prop({ type: String }) clusterId: string;
+  // 数据时间间隔
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+
   tableLoading = {
     /** table 骨架屏 loading */
     loading: false,
@@ -193,19 +206,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   activeTitle: K8sDetailSliderActiveTitle = { tag: '--', field: '--' };
   /** 图表异步请求数据缓存 */
   asyncDataCache = new Map();
-
-  /** 当前页面 tab */
-  @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
-  /** GroupBy 选择器选中数据类实例 */
-  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
-  /** FilterBy 选择器选中数据 */
-  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
-  /** 场景 */
-  @Prop({ type: String }) scene: SceneEnum;
-  /** 集群 */
-  @Prop({ type: String }) clusterId: string;
-  // 数据时间间隔
-  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -802,6 +802,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         <K8sDetailSlider
           activeRowIndex={this.activeRowIndex}
           activeTitle={this.activeTitle}
+          clusterId={this.clusterId}
           filterBy={this.filterBy}
           groupInstance={this.groupInstance}
           isShow={this.sliderShow}
