@@ -118,6 +118,8 @@ class DiscoverContainer:
 class DiscoverBase(ABC):
     MAX_COUNT = None
     model = None
+    # 定义此发现器根据 span 列表发现时 span 列表是否为过滤后的 span 列表
+    DISCOVERY_ALL_SPANS = False
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -416,12 +418,19 @@ class TopoHandler:
                 )
 
             span_count += len(all_spans)
-            topo_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
 
             # 拓扑发现任务
+            # endpoint\relation\remote_service_relation\root_endpoint 需要 kind != 0/1 数据
+            # host\instance\node 需要全部 span 数据
             topo_params = [
-                (c, topo_spans, "topo") for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
+                (
+                    c,
+                    [[i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND], all_spans][c.DISCOVERY_ALL_SPANS],
+                    "topo",
+                )
+                for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
             ]
+
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(
