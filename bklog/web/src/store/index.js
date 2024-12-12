@@ -989,7 +989,7 @@ const store = new Vuex.Store({
     },
 
     /** 请求字段config信息 */
-    requestIndexSetFieldInfo({ commit, dispatch, state }) {
+    requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
 
@@ -1038,7 +1038,7 @@ const store = new Vuex.Store({
           commit('resetIndexSetOperatorConfig');
 
           // 请求字段联想相关配置
-          dispatch('requestIndexSetValueList');
+          // dispatch('requestIndexSetValueList');
 
           return res;
         })
@@ -1123,7 +1123,7 @@ const store = new Vuex.Store({
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload.isPagination
-          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+          ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,
       }));

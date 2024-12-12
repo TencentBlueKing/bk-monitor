@@ -477,8 +477,11 @@ class SDKPreDetectMixin(object):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
-        if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
-            logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+        if item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+                return
+        else:
             return
 
         predict_inputs = {}

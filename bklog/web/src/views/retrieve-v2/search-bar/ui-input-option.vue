@@ -124,6 +124,9 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
+  const hasConditionValueTip = computed(() => {
+    return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
+  });
 
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -131,7 +134,7 @@
     return (field, operator?, value?, callback?) => {
       const getConditionValue = () => {
         if (['keyword'].includes(field.field_type)) {
-          return [`${value}*`];
+          return [`*${value}*`];
         }
 
         return [];
@@ -383,16 +386,20 @@
       restoreFieldAndCondition();
     }
 
-    rquestFieldEgges(item, null, null, () => {
-      if (!conditionValueInstance.repositionTippyInstance()) {
-        if (!isOperatorInstanceActive()) {
-          const target = refConditionInput.value?.parentNode;
-          if (target) {
-            conditionValueInstance.show(target);
+    if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+      rquestFieldEgges(item, null, null, () => {
+        if (!conditionValueInstance.repositionTippyInstance()) {
+          if (!isOperatorInstanceActive()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
           }
         }
-      }
-    });
+      });
+    } else {
+      conditionValueInstance.hide();
+    }
   };
 
   const handleCancelBtnClick = () => {
@@ -536,7 +543,7 @@
 
   const handleInputVlaueChange = e => {
     const input = e.target;
-    if (input !== undefined) {
+    if (input !== undefined && input.value.length) {
       const value = input.value;
       const charLen = getCharLength(value);
       input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
@@ -544,6 +551,13 @@
       rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
         if (!operatorInstance.isShown()) {
           conditionValueInstance.repositionTippyInstance();
+
+          if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
+          }
         }
       });
     }
@@ -873,11 +887,12 @@
   };
 
   const handleConditionValueInputBlur = e => {
-    if (conditionValueInstance.isShown()) {
+    if (conditionValueInstance.isShown() || conditionValueInstance.isInstanceShowing()) {
       return;
     }
 
     isConditionValueInputFocus.value = false;
+    conditionValueInputVal.value = '';
 
     if (e.target.value) {
       const value = e.target.value;
@@ -1128,6 +1143,7 @@
                       v-for="(item, index) in activeItemMatchList"
                       :class="{ active: (condition.value ?? []).includes(item) }"
                       :key="`${item}-${index}`"
+                      :title="formatDateTimeField(item, activeFieldItem.field_type)"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
                       <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>

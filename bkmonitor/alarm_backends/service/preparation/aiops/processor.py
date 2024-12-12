@@ -117,6 +117,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
         # 3. 尽量保证每次取的数据不超过100万(DEPEND_DATA_MAX_FETCH_COUNT)，如果5分钟数据超过100万，则继续取5分钟的，
         #    （一般很少这种情况，如果出现，则该策略至少是一个超大维度组合的数据，这么配置告警策略其实也没法用）
         while start_time < step_end_time:
+            # 如果历史依赖数据准备超过prepare key的ttl（默认一小时），也中断初始化任务
             if check_lock_updated(self.prepare_key, update_time, strategy_id=strategy.id):
                 logger.warning("New event for update strategy({strategy.id}), interrupt current task now.")
                 break

@@ -25,8 +25,7 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
-import { formatDate } from '@/common/util';
+import { formatDateTimeField, getRegExp, formatDate } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
@@ -92,6 +91,54 @@ export default defineComponent({
       });
     };
 
+    const tableData = ref([]);
+
+    const getChildNodes = (parent, index) => {
+      const field = props.chartOptions.xFields[index];
+      if (field) {
+        return (formatListData.value?.list ?? []).map(item =>
+          getChildNodes({ ...parent, [field]: item[field] }, index + 1),
+        );
+      }
+
+      return parent;
+    };
+
+    const setTableData = () => {
+      if (showTable.value) {
+        if (props.chartOptions.category === 'table') {
+          tableData.value.splice(0, tableData.value.length, ...(formatListData.value?.list ?? []));
+          return;
+        }
+
+        const result = (props.chartOptions.yFields ?? []).map(yField => {
+          return [[...props.chartOptions.dimensions, props.chartOptions.xFields[0]]].map(([timeField, xField]) => {
+            if (timeField || xField) {
+              return (formatListData.value?.list ?? []).map(row => {
+                const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
+                  if (cur && row[cur]) {
+                    return Object.assign(acc, { [cur]: row[cur] });
+                  }
+
+                  return acc;
+                }, {});
+                return getChildNodes(targetValue, 1);
+              });
+            }
+
+            return [];
+          });
+        });
+
+        const length =
+          [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length * props.chartOptions.xFields.length;
+        tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
+        return;
+      }
+
+      tableData.value.splice(0, tableData.value.length);
+    };
+
     watch(
       () => props.chartCounter,
       () => {
@@ -99,6 +146,7 @@ export default defineComponent({
         if (!showTable.value) {
           debounceUpdateChartOptions(xFields, yFields, dimensions, type);
         } else {
+          setTableData();
           destroyInstance();
         }
       },
@@ -126,20 +174,9 @@ export default defineComponent({
           );
         }
 
-        return props.chartOptions.data?.select_fields_order ?? [];
+        return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
       }
 
-      return [];
-    });
-
-    const tableData = computed(() => {
-      if (showTable.value) {
-        if (props.chartOptions.category === 'table') {
-          return formatListData.value?.list ?? [];
-        }
-
-        return formatListData.value?.list ?? [];
-      }
       return [];
     });
 
@@ -151,8 +188,15 @@ export default defineComponent({
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
     });
 
+    const formatTableData = computed(() => {
+      return filterTableData.value.map(row => {
+        return columns.value.reduce((acc, cur) => {
+          return Object.assign(acc, { [cur]: getDateTimeFormatValue(row, cur) });
+        }, {});
+      });
+    });
+
     const handleChartRootResize = debounce(() => {
-      console.log('resize');
       getChartInstance()?.resize();
     });
 
@@ -198,7 +242,7 @@ export default defineComponent({
               onLimit-change={handlePageLimitChange}
             ></bk-pagination>
           </div>,
-          <bk-table data={filterTableData.value}>
+          <bk-table data={formatTableData.value}>
             <bk-table-column
               width='60'
               label={$t('行号')}
@@ -207,11 +251,8 @@ export default defineComponent({
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
-                // prop={col}
-                scopedSlots={{
-                  default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
-                }}
                 label={col}
+                prop={col}
                 sortable={true}
               ></bk-table-column>
             ))}
