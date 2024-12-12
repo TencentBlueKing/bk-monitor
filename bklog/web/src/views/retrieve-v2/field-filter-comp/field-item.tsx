@@ -51,6 +51,7 @@ export default class FieldItem extends tsc<object> {
   fieldAnalysisInstance = null;
   ifShowMore = false;
   fieldData = null;
+  distinctCount = 0
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -221,6 +222,9 @@ export default class FieldItem extends tsc<object> {
       
       });
   }
+  getdistinctCount(val){
+    this.distinctCount = val
+  }
   render() {
     return (
       <li class='filed-item'>
@@ -343,8 +347,8 @@ export default class FieldItem extends tsc<object> {
           <template slot='header'>
             <div class='agg-sides-header'>
               <div class='distinct-num'>
-                <span>去重后字段统计</span>
-                <span class='distinct-count-num'>{this.fieldData?.distinct_count}</span>
+                <span>{this.$t('去重后字段统计')}</span>
+                <span class='distinct-count-num'>{ this.distinctCount}</span>
               </div>
               <div class='fnBtn'>
                 <bk-button
@@ -355,7 +359,7 @@ export default class FieldItem extends tsc<object> {
                     this.downloadFieldStatistics();
                   }}
                 >
-                  下载
+                {this.$t('下载')}
                 </bk-button>
                 {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
@@ -371,6 +375,7 @@ export default class FieldItem extends tsc<object> {
                 retrieve-params={this.retrieveParams}
                 statistical-field-data={this.statisticalFieldData}
                 limit={this.fieldData?.distinct_count}
+                onDistinctCount={ val => this.getdistinctCount(val)}
               />
             </div>
           </template>
