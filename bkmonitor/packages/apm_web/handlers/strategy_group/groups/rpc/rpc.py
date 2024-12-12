@@ -98,7 +98,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         notice_group_ids: List[int],
         metric_helper: MetricHelper,
         apply_types: Optional[List[str]] = None,
-        apply_servers: Optional[List[str]] = None,
+        apply_services: Optional[List[str]] = None,
         options: Dict[str, Any] = None,
         rpc_metric_group_constructor: Optional[Callable[..., metric_group.BaseMetricGroup]] = None,
         resource_metric_group_constructor: Optional[Callable[..., metric_group.BaseMetricGroup]] = None,
@@ -108,14 +108,17 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         self.metric_helper: MetricHelper = metric_helper
         # 策略告警组 ID 列表
         self.notice_group_ids: List[int] = notice_group_ids
-        # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）
-        self.labels: List[str] = [f"tRPC({self.app_name})"]
+        # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）的某个场景（RPC）
+        self.labels: List[str] = [
+            define.StrategyLabelType.scene_label(app_name),
+            define.StrategyLabelType.system_label(self.Meta.name.upper()),
+        ]
         # 需要应用的服务
-        self.apply_servers: List[str] = list(set(apply_servers or []))
+        self.apply_services: List[str] = list(set(apply_services or []))
 
         # 需要应用的策略类别
         self.apply_types: List[str] = (apply_types or constants.RPCApplyType.options())[:]
-        if self.apply_servers:
+        if self.apply_services:
             # 指定服务时，移除应用级别类型的策略
             self.apply_types = list(
                 set(self.apply_types) - {constants.RPCApplyType.PANIC.value, constants.RPCApplyType.RESOURCE.value}
@@ -149,10 +152,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             metric_helper=self.metric_helper,
         )
 
-        self._server_infos: List[Dict[str, Any]] = [
-            server_info
-            for server_info in self._fetch_server_infos()
-            if not self.apply_servers or server_info["name"] in self.apply_servers
+        self._service_infos: List[Dict[str, Any]] = [
+            service_info
+            for service_info in self._fetch_service_infos()
+            if not self.apply_services or service_info["name"] in self.apply_services
         ]
 
     @classmethod
@@ -168,11 +171,13 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         return None
 
     def _get_caller_callee_url_template(
-        self, kind: str, server: str, group_by: List[str], perspective_group_by: List[str]
+        self, kind: str, service_name: str, group_by: List[str], perspective_group_by: List[str]
     ) -> str:
+        # 在告警持续时间基础上，前后增加偏移量，
+        offset: int = 5 * 60 * 1000
         template_variables: Dict[str, str] = {
-            "VAR_FROM": "{{alarm.begin_timestamp * 1000 - alarm.duration * 1000 - 5 * 60 * 1000}}",
-            "VAR_TO": "{{alarm.begin_timestamp * 1000 + 5 * 60 * 1000}}",
+            "VAR_FROM": "{{alarm.begin_timestamp * 1000 - alarm.duration * 1000 - %s}}" % offset,
+            "VAR_TO": "{{alarm.begin_timestamp * 1000 + %s}}" % offset,
         }
         call_options: Dict[str, Any] = {
             "kind": kind,
@@ -191,7 +196,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
 
         params: Dict[str, str] = {
             "filter-app_name": self.app_name,
-            "filter-service_name": server,
+            "filter-service_name": service_name,
             "callOptions": json.dumps(call_options),
             "dashboardId": "service-default-caller_callee",
             "from": "VAR_FROM",
@@ -220,51 +225,51 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             **conf,
         ).build()
 
-    def _fetch_server_infos(self) -> List[Dict[str, Any]]:
-        server_config: Dict[str, Any] = (
+    def _fetch_service_infos(self) -> List[Dict[str, Any]]:
+        service_config: Dict[str, Any] = (
             settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{self.bk_biz_id}-{self.app_name}") or {}
         )
         callee_servers: Set[str] = set(
             self.metric_helper.get_field_option_values(
                 TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
-                server_config.get("server_field") or TRPCMetricTag.CALLEE_SERVER,
+                service_config.get("server_field") or TRPCMetricTag.CALLEE_SERVER,
             )
         )
         caller_servers: Set[str] = set(
             self.metric_helper.get_field_option_values(
                 TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
-                server_config.get("server_field") or TRPCMetricTag.CALLER_SERVER,
+                service_config.get("server_field") or TRPCMetricTag.CALLER_SERVER,
             )
         )
 
         group: metric_group.TrpcMetricGroup = self.rpc_metric_group_constructor()
-        with_app_attr_servers: Set[str] = set(group.fetch_server_list(filter_dict={f"{TRPCMetricTag.APP}__neq": ""}))
+        with_app_attr_services: Set[str] = set(group.fetch_server_list(filter_dict={f"{TRPCMetricTag.APP}__neq": ""}))
 
         code_redefined_configs: List[CodeRedefinedConfigRelation] = CodeRedefinedConfigRelation.objects.filter(
             bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=callee_servers | caller_servers
         )
-        ret_code_as_exception_servers: List[str] = [
+        ret_code_as_exception_services: List[str] = [
             code_redefined_config.service_name
             for code_redefined_config in code_redefined_configs
             if code_redefined_config.ret_code_as_exception
         ]
 
-        server_infos: List[Dict[str, Any]] = []
+        service_infos: List[Dict[str, Any]] = []
         for service in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
             service_name: str = service["topo_key"]
             if service_name == "." or (service_name not in callee_servers and service_name not in caller_servers):
                 continue
 
-            server_field: Optional[str] = server_config.get("server_field")
-            server_info: Dict[str, Any] = {
+            server_field: Optional[str] = service_config.get("server_field")
+            service_info: Dict[str, Any] = {
                 "name": service_name,
                 SeriesAliasType.CALLEE.value: service_name in callee_servers,
                 SeriesAliasType.CALLER.value: service_name in caller_servers,
                 "language": service.get("extra_data", {}).get("service_language", ""),
-                "ret_code_as_exception": service_name in ret_code_as_exception_servers,
+                "ret_code_as_exception": service_name in ret_code_as_exception_services,
             }
-            if service_name in with_app_attr_servers:
-                server_info.update(
+            if service_name in with_app_attr_services:
+                service_info.update(
                     {
                         "temporality": MetricTemporality.CUMULATIVE,
                         "server_filter_method": "eq",
@@ -276,7 +281,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     }
                 )
             else:
-                server_info.update(
+                service_info.update(
                     {
                         "temporality": MetricTemporality.DELTA,
                         "server_filter_method": "reg",
@@ -288,10 +293,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     }
                 )
 
-            server_info.update(server_config)
-            server_infos.append(server_info)
+            service_info.update(service_config)
+            service_infos.append(service_info)
 
-        return server_infos
+        return service_infos
 
     def _get_key(self, strategy: StrategyT) -> StrategyKeyT:
         return strategy["name"]
@@ -301,53 +306,58 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         strategies: List[StrategyT] = resource.strategies.get_strategy_list_v2(
             bk_biz_id=self.bk_biz_id, conditions=conditions, page_size=1000
         ).get("strategy_config_list", [])
+
+        if not self.apply_services:
+            return strategies
+
         # 策略不支持 labels 间的 and 查询，此处先查询应用关联的策略，再二次过滤。
-        return [
-            strategy
-            for strategy in strategies
-            if not self.apply_servers or set(self.apply_servers) & set(strategy["labels"] or [])
-        ]
+        service_labels: Set[str] = {
+            define.StrategyLabelType.service_label(service_name) for service_name in self.apply_services
+        }
+        return [strategy for strategy in strategies if service_labels & set(strategy.get("labels") or [])]
 
     def _list_caller_callee(self, kind: str, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
-        server_names: List[str] = []
-        server_infos: List[Dict[str, Any]] = []
-        for server_info in self._server_infos:
-            if server_info[kind]:
-                server_infos.append(server_info)
-                server_names.append(server_info["name"])
+        service_names: List[str] = []
+        service_infos: List[Dict[str, Any]] = []
+        for service_info in self._service_infos:
+            if service_info[kind]:
+                service_infos.append(service_info)
+                service_names.append(service_info["name"])
 
-        if not server_infos:
-            logger.info("[_list_caller_callee] no servers found: kind -> %s")
+        if not service_infos:
+            logger.info("[_list_caller_callee] no services found: kind -> %s")
             return []
-        logger.info("[_list_caller_callee] found servers -> %s", server_names)
+        logger.info("[_list_caller_callee] found services -> %s", service_names)
 
         strategies: List[StrategyT] = []
 
-        def _collect(_server_info: Dict[str, Any]):
-            _server: str = _server_info["name"]
-            _server_field: str = _server_info["server_fields"][kind]
+        def _collect(_service_info: Dict[str, Any]):
+            _service_name: str = _service_info["name"]
+            _server_field: str = _service_info["server_fields"][kind]
             _construct_config: Dict[str, Any] = {
                 # 增加服务实体作为维度，虽然策略已经按实体维度划分，但补充维度能在事件中心进行更好的下钻。
                 "group_by": ["time", _server_field, *self.options[kind]["group_by"]],
                 "filter_dict": {
-                    f"{_server_field}__{_server_info['server_filter_method']}": _server_info['server_filter_value'],
+                    f"{_server_field}__{_service_info['server_filter_method']}": _service_info['server_filter_value'],
                     **(self.options[kind].get("filter_dict") or {}),
                 },
                 "kind": kind,
-                "temporality": _server_info["temporality"],
-                "ret_code_as_exception": _server_info["ret_code_as_exception"],
+                "temporality": _service_info["temporality"],
+                "ret_code_as_exception": _service_info["ret_code_as_exception"],
             }
             _group: metric_group.BaseMetricGroup = self.rpc_metric_group_constructor(**_construct_config)
             logger.info(
-                "[_list_caller_callee] constructed group: server -> %s, construct_config -> %s",
-                _server,
+                "[_list_caller_callee] constructed group: service -> %s, construct_config -> %s",
+                _service_name,
                 _construct_config,
             )
 
             for _cal_type in cal_type_config_mapping:
                 _strategy: StrategyT = self._build_strategy(_cal_type, _group, cal_type_config_mapping)
-                _strategy["name"] = str(_strategy["name"].format(scope=_server, app_name=self.app_name))
-                _strategy["labels"].append(_server)
+                _strategy["name"] = str(_strategy["name"].format(scope=_service_name, app_name=self.app_name))
+                _strategy["labels"].extend(
+                    [define.StrategyLabelType.service_label(_service_name), define.StrategyLabelType.alert_type(kind)]
+                )
 
                 # 异常分析下钻
                 _group_by: List[str] = list(
@@ -358,21 +368,24 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     _perspective_group_by.add(TRPCMetricTag.CODE)
 
                 _url_templ: str = self._get_caller_callee_url_template(
-                    kind, _server, _group_by, list(_perspective_group_by)
+                    kind, _service_name, _group_by, list(_perspective_group_by)
                 )
-                message_tmpl: str = _strategy["notice"]["config"][0]["message_tmpl"]
-                _strategy["notice"]["config"]["template"][0]["message_tmpl"] = message_tmpl + "\n调用分析：" + _url_templ
+                message_tmpl: str = _strategy["notice"]["config"]["template"][0]["message_tmpl"]
+                # TODO(crayon) 后续 APM 具有服务告警页面时，在告警后台增加 APM Url 模板，可以根据场景跳转到 APM 相关页面
+                _strategy["notice"]["config"]["template"][0]["message_tmpl"] = "{}\n调用分析：[查看]({})".format(
+                    message_tmpl, _url_templ
+                )
 
                 logger.info(
-                    "[_list_caller_callee] kind -> %s, server -> %s, cal_type -> %s, name -> %s",
+                    "[_list_caller_callee] kind -> %s, service -> %s, cal_type -> %s, name -> %s",
                     kind,
-                    _server,
+                    _service_name,
                     _cal_type,
                     _strategy["name"],
                 )
                 strategies.append(_strategy)
 
-        run_threads([InheritParentThread(target=_collect, args=(server_info,)) for server_info in server_infos])
+        run_threads([InheritParentThread(target=_collect, args=(service_info,)) for service_info in service_infos])
         return strategies
 
     def _list_callee(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
@@ -383,42 +396,42 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
 
     def _list_panic(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
         # APM 的 service 在 RPC 概念中实际上是 sever，这里的命名也沿用 RPC 领域的设定。
-        with_target_attr_servers: List[str] = []
-        with_service_name_attr_servers: List[str] = []
-        for server_info in self._server_infos:
-            if server_info["language"] != TelemetrySdkLanguageValues.GO.value:
+        with_target_attr_services: List[str] = []
+        with_service_name_attr_services: List[str] = []
+        for service_info in self._service_infos:
+            if service_info["language"] != TelemetrySdkLanguageValues.GO.value:
                 continue
 
-            if server_info["server_fields"][SeriesAliasType.CALLEE.value] == TRPCMetricTag.TARGET:
-                with_target_attr_servers.append(server_info["name"])
+            if service_info["server_fields"][SeriesAliasType.CALLEE.value] == TRPCMetricTag.TARGET:
+                with_target_attr_services.append(service_info["name"])
             else:
-                with_service_name_attr_servers.append(server_info["name"])
+                with_service_name_attr_services.append(service_info["name"])
         logger.info(
             "[_list_panic] discover: with_service_name_attr_servers -> %s, with_target_attr_servers -> %s",
-            with_service_name_attr_servers,
-            with_target_attr_servers,
+            with_service_name_attr_services,
+            with_target_attr_services,
         )
 
         strategies: List[StrategyT] = []
 
-        def _handle(_servers: List[str], _entity_field: str, _temporality: str):
-            if not _servers:
+        def _handle(_services: List[str], _entity_field: str, _temporality: str):
+            if not _services:
                 return
 
             _group: metric_group.BaseMetricGroup = self.rpc_metric_group_constructor(
                 group_by=["time", _entity_field],
-                filter_dict={f"{_entity_field}__reg": [f".*{_server}$" for _server in _servers]},
+                filter_dict={f"{_entity_field}__reg": [f".*{_service}$" for _service in _services]},
                 kind=SeriesAliasType.CALLEE.value,
                 temporality=_temporality,
             )
             _strategy: StrategyT = self._build_strategy(CalculationType.PANIC, _group, cal_type_config_mapping)
             _strategy["name"] = str(_strategy["name"].format(scope=_entity_field, app_name=self.app_name))
-            _strategy["labels"].append(f"RPC({constants.RPCApplyType.PANIC})")
+            _strategy["labels"].append(define.StrategyLabelType.alert_type(constants.RPCApplyType.PANIC.value))
             strategies.append(_strategy)
 
         # Panic 告警规则相对单一，此处聚合上报行为相同的服务为同一条告警策略，减少内置策略数
-        _handle(list(with_target_attr_servers), TRPCMetricTag.TARGET, MetricTemporality.DELTA)
-        _handle(list(with_service_name_attr_servers), TRPCMetricTag.SERVICE_NAME, MetricTemporality.CUMULATIVE)
+        _handle(list(with_target_attr_services), TRPCMetricTag.TARGET, MetricTemporality.DELTA)
+        _handle(list(with_service_name_attr_services), TRPCMetricTag.SERVICE_NAME, MetricTemporality.CUMULATIVE)
         return strategies
 
     def _list_resource(self, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
@@ -448,12 +461,12 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 InheritParentThread(
                     target=_collect,
                     args=(
-                        server_info["name"],
+                        service_info["name"],
                         start_time,
                         end_time,
                     ),
                 )
-                for server_info in self._server_infos
+                for service_info in self._service_infos
             ]
         )
 
@@ -471,7 +484,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         for cal_type in cal_type_config_mapping:
             strategy: StrategyT = self._build_strategy(cal_type, _group, cal_type_config_mapping)
             strategy["name"] = str(strategy["name"].format(scope="Pod", app_name=self.app_name))
-            strategy["labels"].append(_("{group}（容量告警）").format(group=define.GroupType.RPC.value.upper()))
+            strategy["labels"].append(define.StrategyLabelType.alert_type(constants.RPCApplyType.RESOURCE.value))
             strategies.append(strategy)
 
         return strategies
