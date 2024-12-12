@@ -214,6 +214,13 @@ const updateUserFiledTableConfig = {
   url: '/search/index_set/user_custom_config/',
   method: 'post',
 };
+
+/** 输出UI查询转为querystring语法*/
+const generateQueryString = {
+  url: '/search/index_set/generate_querystring/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -258,4 +265,5 @@ export {
   updateClusteringConfig,
   getClusteringConfigStatus,
   updateUserFiledTableConfig,
+  generateQueryString,
 };
