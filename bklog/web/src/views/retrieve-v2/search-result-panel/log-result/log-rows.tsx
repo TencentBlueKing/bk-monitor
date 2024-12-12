@@ -510,7 +510,33 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    const lastPosition = ref(0);
+    const cumulativeHeights = computed(() => {
+      let preHeight = 0;
+      return tableData.value.map(row => {
+        const rowHeight = row[ROW_CONFIG]?.value?.minHeight;
+        preHeight = preHeight + rowHeight;
+        return preHeight - rowHeight;
+      });
+    });
+
+    const getVisibleRows = scrollTop => {
+      const rows = tableData.value;
+      let startIdx = 0;
+      let endIdx = rows.length - 1;
+
+      // 使用二分查找找到第一个可见的行
+      while (startIdx < endIdx) {
+        let midIdx = Math.floor((startIdx + endIdx) / 2);
+        if (cumulativeHeights.value[midIdx] < scrollTop) {
+          startIdx = midIdx + 1;
+        } else {
+          endIdx = midIdx;
+        }
+      }
+
+      return [startIdx, startIdx + bufferCount * 2];
+    };
+
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
       if (isRequesting.value) {
         return;
@@ -518,62 +544,11 @@ export default defineComponent({
 
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
-
-      const nextIndexOperator = useScrollHeight >= lastPosition.value ? 1 : -1;
-
-      let startPosition = lastPosition.value;
-      let startIndex = visibleIndexs.value.startIndex;
-
-      if (useScrollHeight == 0) {
-        startIndex = 0;
-        lastPosition.value = 0;
-      }
-
-      // 根据滚动方向，判断是否需要继续遍历
-      const getCondition = (pos?) => {
-        if (useScrollHeight == 0) {
-          return false;
-        }
-
-        if (nextIndexOperator === 1) {
-          return (pos ?? startPosition) < useScrollHeight;
-        }
-
-        return (pos ?? startPosition) > useScrollHeight;
-      };
-
-      while (getCondition()) {
-        const nextItem = tableData.value[startIndex];
-        if (nextItem) {
-          const lastHeight = startPosition + nextIndexOperator * nextItem[ROW_CONFIG].value.minHeight;
-          if (getCondition(lastHeight)) {
-            startPosition = lastHeight;
-            const nextIndex = startIndex + 1 * nextIndexOperator;
-            startIndex = nextIndex >= 0 ? nextIndex : 0;
-          } else {
-            break;
-          }
-        }
-
-        if (!nextItem) {
-          break;
-        }
-      }
-
-      const containerHeihgt = (event.target as HTMLElement).clientHeight;
-      let endIndex = startIndex + bufferCount * 2;
-      const visibleHeight = tableData.value.slice(startIndex, endIndex).reduce((acc, row) => {
-        return acc + row[ROW_CONFIG].value.minHeight;
-      }, 0);
-
-      if (visibleHeight < containerHeihgt) {
-        endIndex = endIndex + bufferCount / 2;
-      }
+      const [startIndex, endIndex] = getVisibleRows(useScrollHeight);
 
       visibleIndexs.value.startIndex = startIndex;
       visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
-      lastPosition.value = startPosition;
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -675,7 +650,6 @@ export default defineComponent({
 
     const scrollTop = () => {
       scrollToTop(visibleIndexs.value.endIndex < 100);
-      lastPosition.value = 0;
       visibleIndexs.value.startIndex = 0;
       visibleIndexs.value.endIndex = bufferCount * 2;
     };
