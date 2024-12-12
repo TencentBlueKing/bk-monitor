@@ -60,7 +60,13 @@
                 size="small"
                 class="expand-table"
                 col-border>
-                  <bk-table-column label="字段名" prop="field_name"   width="89"></bk-table-column>
+                  <bk-table-column label="字段名" prop="field_name"   width="120">
+                    <template #default="props">
+                      <div class="ext-field_name">
+                        <span>{{ props.row.field_name }}</span>
+                      </div>
+                    </template>
+                  </bk-table-column>
                   <bk-table-column label="别名" width="120">
                     <template #default="props">
                       <!-- 这个is_edit干嘛,接口也没返回啊 -->
@@ -69,14 +75,14 @@
                         class="overflow-tips"
                         v-bk-overflow-tips
                       >
-                        <span>{{ props.row.alias_name }}</span>
+                        <span>{{ props.row.query_alias }}</span>
                       </div>
                       <bk-form-item
                         v-else
                         :class="{ 'is-required is-error': props.row.aliasErr }"
                       >
                         <bk-input
-                          v-model.trim="props.row.alias_name"
+                          v-model.trim="props.row.query_alias"
                           :disabled="props.row.is_delete || isSetDisabled"
                           @blur="checkAliasNameItem(props.row)"
                         >
@@ -91,8 +97,8 @@
                       </bk-form-item>
                     </template>
                   </bk-table-column>
-                  <bk-table-column label="数据类型" prop="field_type" width="100"></bk-table-column>
-                  <bk-table-column label="分词符" prop="field_type" width="200"></bk-table-column>
+                  <bk-table-column label="数据类型" prop="field_type" width="100" align="center"></bk-table-column>
+                  <bk-table-column label="分词符" prop="" width="200"></bk-table-column>
               </bk-table>
               </template>
           </bk-table-column>
@@ -109,8 +115,8 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn">展开</span>
-                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn">关闭</span>
+                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn bklog-icon bklog-zhankai"></span>
+                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bklog-icon bklog-zhedie"></span>
                   <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
@@ -1036,11 +1042,16 @@
         }
       }
       .bk-table-expanded-cell{
-        padding: 0 0 0 30px;
+        padding: 0 
       }
       .expand-table{
+        border: none;
         tbody tr td:first-child {
           border-right: 1px solid #dfe0e5;
+        }
+        .ext-field_name{
+          margin-left: 20px;
+
         }
       }
       .bk-table-body {

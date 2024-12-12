@@ -510,7 +510,7 @@
             confirmLoading.value = true;
 
             const originfieldTableData = originfieldTable.value.getData();
-            const indexfieldTableData = indexfieldTable.value.getAllData()
+            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             // console.log(indexfieldTableData);
             // return
             const data = {
@@ -532,7 +532,7 @@
                 ...indexfieldTableData.map(item =>{
                   return  {
                     field_name: item.field_name,
-                    query_alias: item.alias_name, 
+                    query_alias: item.query_alias, 
                     path_type:  item.field_type}
                 }),
               ],
