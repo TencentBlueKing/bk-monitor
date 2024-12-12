@@ -108,11 +108,11 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         self.metric_helper: MetricHelper = metric_helper
         # 策略告警组 ID 列表
         self.notice_group_ids: List[int] = notice_group_ids
+
         # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）的某个场景（RPC）
-        self.labels: List[str] = [
-            define.StrategyLabelType.scene_label(app_name),
-            define.StrategyLabelType.system_label(self.Meta.name.upper()),
-        ]
+        self.scene_label: str = define.StrategyLabelType.scene_label(app_name)
+        self.labels: List[str] = [self.scene_label, define.StrategyLabelType.system_label(self.Meta.name.upper())]
+
         # 需要应用的服务
         self.apply_services: List[str] = list(set(apply_services or []))
 
@@ -302,10 +302,27 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         return strategy["name"]
 
     def _list_remote(self, *args, **kwargs) -> List[StrategyT]:
-        conditions: List[Dict[str, Any]] = [{"key": "label_name", "value": [f"/{label}/"]} for label in self.labels]
+        conditions: List[Dict[str, Any]] = [{"key": "label_name", "value": [f"/{self.scene_label}/"]}]
         strategies: List[StrategyT] = resource.strategies.get_strategy_list_v2(
             bk_biz_id=self.bk_biz_id, conditions=conditions, page_size=1000
         ).get("strategy_config_list", [])
+
+        filtered_strategies: List[StrategyT] = []
+        label_set: Set[str] = set(self.labels)
+        service_label_set: Set[str] = {
+            define.StrategyLabelType.service_label(service_name) for service_name in self.apply_services
+        }
+        for strategy in strategies:
+            strategy_label_set: Set[str] = set(strategy.get("labels") or [])
+
+            # 策略不支持 labels 间的 and 查询，此处先查询应用关联的策略，再二次过滤。
+            # 过滤规则 1：策略标签需包含 label_set（本次导入影响的策略范围）
+            if not strategy_label_set.issuperset(label_set):
+                continue
+
+            # 过滤规则 2：指定服务场景下，仅保留服务列表内的策略
+            if not service_label_set or service_label_set & strategy_label_set:
+                filtered_strategies.append(strategy)
 
         if not self.apply_services:
             return strategies
@@ -371,7 +388,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     kind, _service_name, _group_by, list(_perspective_group_by)
                 )
                 message_tmpl: str = _strategy["notice"]["config"]["template"][0]["message_tmpl"]
-                # TODO(crayon) 后续 APM 具有服务告警页面时，在告警后台增加 APM Url 模板，可以根据场景跳转到 APM 相关页面
+                # TODO(crayon) 后续 APM 具有服务告警页面时，在告警后台增加 APM URL 模板
+                # 可能的模板方案：
+                # - 识别策略标签，得到应用名（APM-APP）、服务（APM-SERVICE）、系统（APM-SYSTEM）、告警类别（APM-ALERT）
+                # - 增加 UrlProcessor，根据标签计算和告警信息，计算出需要跳转到哪个页面
                 _strategy["notice"]["config"]["template"][0]["message_tmpl"] = "{}\n调用分析：[查看]({})".format(
                     message_tmpl, _url_templ
                 )
