@@ -88,7 +88,7 @@ ujson==5.9.0
 schematics==2.0.1
 Pillow==10.2.0
 PyYAML==6.0.2
-PyMySQL==1.0.2
+PyMySQL==1.1.1
 coreapi==2.3.3
 kafka-python==1.4.6
 babel==2.14.0
