@@ -27,6 +27,7 @@ import { Prop, Component, Emit, Watch, InjectReactive } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
+import { listK8sResources } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
@@ -34,10 +35,10 @@ import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mi
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneType } from '../../typings/k8s-new';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneEnum } from '../../typings/k8s-new';
 import K8sDetailSlider, { type K8sDetailSliderActiveTitle } from '../k8s-detail-slider/k8s-detail-slider';
 import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
-import { getK8sTableAsyncDataMock, getK8sTableDataMock } from './utils';
+import { getK8sTableAsyncDataMock } from './utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { ITableItemMap } from '../../typings/table';
@@ -47,14 +48,20 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './k8s-table-new.scss';
 
-/**
- * @description k8s 表格列配置类型
- */
-export interface K8sTableColumn {
+type GetK8sColumnEnumValueType<T extends keyof typeof K8sTableColumnKeysEnum> = (typeof K8sTableColumnKeysEnum)[T];
+/** k8s table column 图表字段类型 */
+export type K8sTableColumnChartKey = GetK8sColumnEnumValueType<'CPU' | 'INTERNAL_MEMORY'>;
+/** k8s table column 列资源字段类型 */
+export type K8sTableColumnResourceKey = GetK8sColumnEnumValueType<
+  keyof Omit<typeof K8sTableColumnKeysEnum, 'CPU' | 'INTERNAL_MEMORY'>
+>;
+
+/** k8s 表格列配置类型 */
+export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   /** 字段类型 */
   type: K8sTableColumnTypeEnum;
   /** 字段id */
-  id: K8sTableColumnKeysEnum;
+  id: T;
   /** 字段名称 */
   name: TranslateResult;
   /** 是否伸缩大小 */
@@ -72,24 +79,27 @@ export interface K8sTableColumn {
   /** 是否开启 下钻 icon */
   k8s_group?: boolean;
   /** 自定义获取值逻辑函数 */
-  getValue?: (row: K8sTableRow) => unknown;
+
+  getValue?: (row: K8sTableRow) => string;
 }
 
-export type K8sTableRow = Pick<ITableItemMap, 'datapoints'>['datapoints'] | Record<string, string>;
+/** k8s table行数据数据类型 */
+export type K8sTableRow = Partial<Record<K8sTableColumnResourceKey, string>> &
+  Record<K8sTableColumnChartKey, Pick<ITableItemMap, 'datapoints'>['datapoints']>;
 
 export interface K8sTableSort {
-  prop: K8sTableColumnKeysEnum.CPU | K8sTableColumnKeysEnum.INTERNAL_MEMORY | null;
+  prop: K8sTableColumnResourceKey | null;
   order: 'ascending' | 'descending' | null;
 }
 
 export interface K8sTableClickEvent {
-  column: K8sTableColumn;
+  column: K8sTableColumn<K8sTableColumnResourceKey>;
   row: K8sTableRow;
   index: number;
 }
 
-export type K8sTableFilterByEvent = { groupId: K8sTableColumnKeysEnum; ids: Array<number | string> };
-export type K8sTableGroupByEvent = { groupId: K8sTableColumnKeysEnum; checked: boolean };
+export type K8sTableFilterByEvent = { groupId: K8sTableColumnResourceKey; ids: Array<number | string> };
+export type K8sTableGroupByEvent = { groupId: K8sTableColumnResourceKey; checked: boolean };
 
 interface K8sTableNewProps {
   /** 当前选中的 tab 项 */
@@ -99,7 +109,7 @@ interface K8sTableNewProps {
   /** 筛选 Filter By 过滤项 */
   filterBy: IFilterByItem[];
   /** 场景 */
-  scene: SceneType;
+  scene: SceneEnum;
   /** 集群Id */
   clusterId: string;
 }
@@ -137,7 +147,7 @@ const tabToTableDetailColumnFixedKeys = [K8sTableColumnKeysEnum.CPU, K8sTableCol
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
   /** k8s table ResourcesText 类型列 获取值静态方法  */
-  static getResourcesTextRowValue(row: K8sTableRow, column: K8sTableColumn) {
+  static getResourcesTextRowValue(row: K8sTableRow, column: K8sTableColumn<K8sTableColumnResourceKey>) {
     if (column?.getValue) {
       return column.getValue(row) || '--';
     }
@@ -145,7 +155,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   /** workload / workload_type 不同场景下的获取值逻辑  */
-  static getWorkloadValue(columnKey: K8sTableColumnKeysEnum, index: 0 | 1) {
+  static getWorkloadValue(columnKey: K8sTableColumnResourceKey, index: 0 | 1) {
     return row => (row?.[columnKey] as string)?.split(':')?.[index] || '--';
   }
 
@@ -172,10 +182,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     initDone: false,
   };
   /** 接口返回表格数据 */
-  tableData: { count: number; items: K8sTableRow[] } = {
-    count: 0,
-    items: [],
-  };
+  tableData: K8sTableRow[] = [];
+  /** 表格数据总条数 */
+  tableDataTotal = 0;
   /** 是否显示抽屉页 */
   sliderShow = false;
   /** 当前点击的数据行索引 */
@@ -192,7 +201,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** FilterBy 选择器选中数据 */
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
   /** 场景 */
-  @Prop({ type: String }) scene: SceneType;
+  @Prop({ type: String }) scene: SceneEnum;
   /** 集群 */
   @Prop({ type: String }) clusterId: string;
   // 数据时间间隔
@@ -213,7 +222,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   get tableColumns() {
     const map = this.getKeyToTableColumnsMap();
-    const columns: K8sTableColumn[] = [];
+    const columns: K8sTableColumn<K8sTableColumnKeysEnum>[] = [];
     let iterationTarget = tabToTableDetailColumnDynamicKeys;
     if (this.isListTab) {
       iterationTarget = [...this.groupInstance.groupFilters].reverse();
@@ -266,13 +275,25 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.getK8sList({ needRefresh: true });
   }
 
+  @Watch('clusterId')
+  onClusterIdChange(v) {
+    if (!v) return;
+    this.getK8sList({ needRefresh: true });
+  }
+
+  @Watch('scene')
+  onSceneChange(v) {
+    if (!v) return;
+    this.getK8sList({ needRefresh: true });
+  }
+
   @Emit('filterChange')
-  filterChange(groupId: K8sTableColumnKeysEnum, ids: Array<number | string>) {
+  filterChange(groupId: K8sTableColumnResourceKey, ids: Array<number | string>) {
     return { groupId, ids };
   }
 
   @Emit('groupChange')
-  groupChange(groupId: K8sTableColumnKeysEnum) {
+  groupChange(groupId: K8sTableColumnResourceKey) {
     return { groupId, checked: true };
   }
 
@@ -285,7 +306,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.getK8sList();
   }
 
-  getKeyToTableColumnsMap(): Record<K8sTableColumnKeysEnum, K8sTableColumn> {
+  getKeyToTableColumnsMap(): Record<K8sTableColumnKeysEnum, K8sTableColumn<K8sTableColumnKeysEnum>> {
     const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER, CPU, INTERNAL_MEMORY } =
       K8sTableColumnKeysEnum;
 
@@ -374,6 +395,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
   async getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
+    if (!this.clusterId) {
+      return;
+    }
     let loadingKey = 'scrollLoading';
     if (!config.needIncrement) {
       this.pagination.page = 1;
@@ -391,21 +415,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       return prev;
     }, {});
     const requestParam = {
-      bk_biz_id: 2,
       bcs_cluster_id: this.clusterId,
       resource_type: resourceType,
       filter_dict,
       start_time: startTime,
       end_time: endTime,
-      sernario: this.scene,
+      scenario: this.scene,
       with_history: false,
       page_size: this.pagination.pageSize,
       page: this.pagination.page,
       page_type: this.pagination.pageType,
     };
-    const data = await getK8sTableDataMock(requestParam);
-    const resourceParam = this.formatTableData(data.items, resourceType);
-    this.tableData = data;
+    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam).catch(() => ({
+      count: 0,
+      items: [],
+    }));
+    const resourceParam = this.formatTableData(data.items, resourceType as K8sTableColumnResourceKey);
+    this.tableData = data.items;
+    this.tableDataTotal = data.count;
 
     if (config.needRefresh) {
       this.sortContainer = {
@@ -425,7 +452,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   formatTableData(
     tableData: K8sTableRow[],
-    resourceType: K8sTableColumnKeysEnum
+    resourceType: K8sTableColumnResourceKey
   ): { ids: string[]; tableDataMap: Record<string, number> } {
     return tableData.reduce(
       (prev, curr, index) => {
@@ -455,8 +482,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
-  loadAsyncData(startTime: number, endTime: number, resourceType: K8sTableColumnKeysEnum, resourceParam) {
-    const asyncColumns: K8sTableColumn[] = (this.tableColumns || []).filter(col =>
+  loadAsyncData(startTime: number, endTime: number, resourceType: K8sTableColumnResourceKey, resourceParam) {
+    const asyncColumns = (this.tableColumns || []).filter(col =>
       // @ts-ignore
       Object.hasOwn(col, 'asyncable')
     );
@@ -468,7 +495,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         resourceType,
         [resourceType]: resourceParam.ids,
       }).then(tableAsyncData => {
-        this.renderTableBatchByBatch(field.id, resourceType, tableAsyncData, resourceParam.tableDataMap);
+        this.renderTableBatchByBatch(
+          field.id as K8sTableColumnResourceKey,
+          resourceType,
+          tableAsyncData,
+          resourceParam.tableDataMap
+        );
       });
     }
   }
@@ -481,8 +513,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射
    */
   renderTableBatchByBatch(
-    field: K8sTableColumnKeysEnum,
-    resourceType: K8sTableColumnKeysEnum,
+    field: K8sTableColumnResourceKey,
+    resourceType: K8sTableColumnResourceKey,
     tableAsyncData,
     tableDataMap
   ) {
@@ -505,7 +537,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           mapItem[field] = chartData;
         }
         const rowIndex = tableDataMap[resourceId];
-        const rowData = this.tableData.items[rowIndex];
+        const rowData = this.tableData[rowIndex];
         rowData[field] = chartData;
       }
       if (shouldBreak) {
@@ -576,7 +608,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /**
    * @description 抽屉页 下钻 按钮点击回调
    */
-  handleSliderGroupChange(groupId: K8sTableColumnKeysEnum) {
+  handleSliderGroupChange(groupId: K8sTableColumnResourceKey) {
     this.groupChange(groupId);
     this.handleSliderChange(false);
   }
@@ -595,7 +627,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  filterIconFormatter(column: K8sTableColumn, row: K8sTableRow) {
+  filterIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>, row: K8sTableRow) {
     if (!column.k8s_filter) {
       return null;
     }
@@ -626,7 +658,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
    */
-  groupIconFormatter(column: K8sTableColumn) {
+  groupIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>) {
     if (!column.k8s_group) {
       return null;
     }
@@ -634,16 +666,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       <K8sDimensionDrillDown
         dimension={column.id}
         value={column.id}
-        onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnKeysEnum)}
+        onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
       />
     );
   }
 
   /**
    * @description K8sTableColumnTypeEnum.RESOURCES_TEXT 类型表格列文本渲染方法
-   * @param {K8sTableColumnKeysEnum} columnKey
+   * @param {K8sTableColumn} column
    */
-  resourcesTextFormatter(column: K8sTableColumn) {
+  resourcesTextFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>) {
     return (row: K8sTableRow, tableInsideColumn, cellValue, index: number) => {
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
@@ -666,9 +698,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description K8sTableColumnTypeEnum.DATA_CHART 类型表格列图表渲染方法
-   * @param {K8sTableColumnKeysEnum} columnKey
+   * @param {K8sTableColumn} column
    */
-  datapointsFormatter(column: K8sTableColumn) {
+  datapointsFormatter(column: K8sTableColumn<K8sTableColumnChartKey>) {
     return (row: K8sTableRow) => {
       const columnKey = column.id;
       const chartData = row[columnKey];
@@ -697,16 +729,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     };
   }
 
-  handleSetFormatter(column: K8sTableColumn) {
+  handleSetFormatter(column: K8sTableColumn<K8sTableColumnKeysEnum>) {
     switch (column.type) {
       case K8sTableColumnTypeEnum.RESOURCES_TEXT:
-        return this.resourcesTextFormatter(column);
+        return this.resourcesTextFormatter(column as K8sTableColumn<K8sTableColumnResourceKey>);
       default:
-        return this.datapointsFormatter(column);
+        return this.datapointsFormatter(column as K8sTableColumn<K8sTableColumnChartKey>);
     }
   }
 
-  transformColumn(column: K8sTableColumn) {
+  transformColumn(column: K8sTableColumn<K8sTableColumnKeysEnum>) {
     return (
       <bk-table-column
         key={`column_${column.id}`}
@@ -744,7 +776,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             icon: 'circle-2-1',
             placement: 'right',
           }}
-          data={this.tableData.items}
+          data={this.tableData}
           row-key={this.tableRowKey}
           size='small'
           on-scroll-end={this.handleTableScrollEnd}

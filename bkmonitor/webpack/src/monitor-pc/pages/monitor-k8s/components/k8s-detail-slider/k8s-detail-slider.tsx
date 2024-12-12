@@ -33,22 +33,22 @@ import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
 import { sliderMockData } from '../k8s-table-new/utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
-import type { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import type { IFilterByItem } from '../filter-by-condition/utils';
-import type { K8sTableFilterByEvent } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableFilterByEvent, K8sTableColumnResourceKey, K8sTableRow } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-detail-slider.scss';
 
 export interface K8sDetailSliderActiveTitle {
-  tag: K8sTableColumnKeysEnum | string;
+  tag: K8sTableColumnResourceKey | string;
   field: string;
 }
 
 interface K8sDetailSliderProps {
   /** 抽屉页是否显示 */
   isShow?: boolean;
-  tableData: any[];
+  /** table表格数据 */
+  tableData: K8sTableRow[];
   /** GroupBy 选择器选中数据类实例 */
   groupInstance: K8sGroupDimension;
   /** 筛选 Filter By 过滤项 */
@@ -60,17 +60,23 @@ interface K8sDetailSliderProps {
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
-  onGroupChange: (groupId: K8sTableColumnKeysEnum) => void;
+  onGroupChange: (groupId: K8sTableColumnResourceKey) => void;
   onFilterChange: (item: K8sTableFilterByEvent) => void;
 }
 
 @Component
 export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetailSliderEvent> {
+  /** 抽屉页是否显示 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
-  @Prop({ type: Object, default: () => ({ row: null, column: null }) }) tableData: any[];
+  /** table表格数据 */
+  @Prop({ type: Array, default: () => [] }) tableData: K8sTableRow[];
+  /** GroupBy 选择器选中数据类实例 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
+  /** 筛选 Filter By 过滤项 */
   @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  /** 当前选中tabel数据项索引 */
   @Prop({ type: Number }) activeRowIndex: number;
+  /** 当前数据项标题 */
   @Prop({ type: Object }) activeTitle: K8sDetailSliderActiveTitle;
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
@@ -133,7 +139,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   }
 
   @Emit('groupChange')
-  groupChange(groupId: K8sTableColumnKeysEnum) {
+  groupChange(groupId: K8sTableColumnResourceKey) {
     return groupId;
   }
 
@@ -175,7 +181,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
             dimension={this.activeTitle.tag}
             enableTip={false}
             value={this.activeTitle.tag}
-            onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnKeysEnum)}
+            onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
           >
             <bk-button
               class='title-btn is-default'

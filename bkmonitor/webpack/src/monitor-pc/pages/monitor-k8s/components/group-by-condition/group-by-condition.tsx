@@ -28,20 +28,21 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
+import { getStrLengOfPx } from '../../../../utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { IOption } from '../../typings';
-import type { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
+import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 
 import './group-by-condition.scss';
 
 export interface IGroupOption extends IOption {
-  id: K8sTableColumnKeysEnum;
+  id: K8sTableColumnResourceKey;
   count?: number;
   children?: IGroupOption[];
 }
 export interface IGroupByChangeEvent {
-  id: K8sTableColumnKeysEnum;
+  id: K8sTableColumnResourceKey;
   option?: IGroupOption;
   checked: boolean;
 }
@@ -77,7 +78,10 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   }
   /** 可选项数据 */
   get options() {
-    return this.dimensionOptions?.filter(v => !this.groupInstance.hasGroupFilter(v.id)) || [];
+    return (
+      this.groupInstance.dimensions?.filter(v => !this.groupInstance.hasGroupFilter(v as K8sTableColumnResourceKey)) ||
+      []
+    );
   }
 
   /** 添加、删除 */
@@ -98,10 +102,24 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   }
 
   /** 删除操作 */
-  handleDeleteItem(item: IGroupOption) {
-    this.handleValueChange(item.id, item, false);
+  handleDeleteItem(groupId: K8sTableColumnResourceKey) {
+    this.handleValueChange(groupId, this.dimensionOptionsMap[groupId], false);
     this.customSelectRef?.handleShowDropDown?.();
   }
+
+  /** 动态计算弹层宽度 单位: px
+   * @param options 可选项数据
+   * @param padding padding量 单位: px
+   * @param min 最小值 单位: px
+   * @return number 宽度值 单位: px
+   */
+  getPopoverWidth = (options, padding = 32, min?: number) => {
+    const width = options.reduce((width, item) => {
+      const curWidth = getStrLengOfPx(item as string, 6, 13) + padding;
+      return Math.max(curWidth, width);
+    }, 0);
+    return min ? Math.max(width, min) : width;
+  };
 
   groupTagRender() {
     return this.groupInstance.groupFilters.map(id => {
@@ -112,7 +130,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
           key={id}
           class={['group-by-item', !this.groupInstance.isDefaultGroupFilter(id) ? 'can-delete' : '']}
         >
-          {this.dimensionOptionsMap[id]?.name || '--'}
+          {id || '--'}
           {!this.groupInstance.isDefaultGroupFilter(id) ? (
             <i
               class='icon-monitor icon-mc-close'
@@ -120,7 +138,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
                 content: this.$t(canDelete ? '' : verifyRes),
                 disabled: canDelete,
               }}
-              onClick={() => this.handleDeleteItem(this.dimensionOptionsMap[id])}
+              onClick={() => this.handleDeleteItem(id)}
             />
           ) : null}
         </span>
@@ -139,7 +157,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
             class='group-by-select'
             // @ts-ignore
             extPopoverCls='k8s-group-by-select-popover'
-            options={this.options}
+            popover-width={this.getPopoverWidth(this.options) || void 0}
             popoverMinWidth={140}
             searchable={false}
             value={this.groupInstance.groupFilters}
@@ -156,13 +174,13 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
 
             {this.options.map(opt => (
               <bk-option
-                id={opt.id}
-                key={opt.id}
-                name={opt.name}
+                id={opt}
+                key={opt}
+                name={opt}
               >
                 <div class='group-by-option-item'>
-                  <span class='item-label'>{opt.name}</span>
-                  <span class='item-count'>{opt.count || 0}</span>
+                  <span class='item-label'>{opt}</span>
+                  <span class='item-count'>{this.dimensionOptionsMap?.[opt]?.count || 0}</span>
                 </div>
               </bk-option>
             ))}

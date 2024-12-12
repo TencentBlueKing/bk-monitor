@@ -39,6 +39,7 @@ import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
+  type K8sTableColumnResourceKey,
   type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
@@ -119,7 +120,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return handleTransformToTimestamp(this.timeRange);
   }
 
-  setGroupFilters(item: { groupId: K8sTableColumnKeysEnum; checked: boolean }) {
+  setGroupFilters(item: { groupId: K8sTableColumnResourceKey; checked: boolean }) {
     if (item.checked) {
       this.groupInstance?.addGroupFilter(item.groupId);
       return;
