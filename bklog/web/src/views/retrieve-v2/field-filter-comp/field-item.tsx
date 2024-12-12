@@ -347,7 +347,7 @@ export default class FieldItem extends tsc<object> {
           <template slot='header'>
             <div class='agg-sides-header'>
               <div class='distinct-num'>
-                <span>去重后字段统计</span>
+                <span>{this.$t('去重后字段统计')}</span>
                 <span class='distinct-count-num'>{ this.distinctCount}</span>
               </div>
               <div class='fnBtn'>
@@ -359,7 +359,7 @@ export default class FieldItem extends tsc<object> {
                     this.downloadFieldStatistics();
                   }}
                 >
-                  下载
+                {this.$t('下载')}
                 </bk-button>
                 {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
