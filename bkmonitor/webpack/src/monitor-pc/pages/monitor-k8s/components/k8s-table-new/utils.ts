@@ -23,12 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const sliderMockData = {
-  bcs_cluster_id: 'BCS-K8S-00000',
-  namespace: 'default',
-  pod_name: 'mysql-test-1',
-  bk_biz_id: 2,
-};
 
 const datapointsMock = [
   [2499, 1732260720000],
@@ -62,30 +56,6 @@ const datapointsMock = [
   [1743, 1732264080000],
   [1234, 1732264200000],
 ];
-
-export function getK8sTableDataMock(param: any): Promise<any> {
-  const count = param.page * param.page_size;
-  return new Promise(res => {
-    const arr: any[] = [];
-    for (let index = 0; index < count; index++) {
-      arr.push({
-        cluster: `ckuster${index}`,
-        pod: `bkTest-teesst-datanode-tessst-test-${index}`,
-        workload: `StatefulSet:bkTest-teesst-ttttestt-tessst-test-${index}`,
-        namespace: `bkTessst${index}`,
-        workload_type: `Tesst${index}`,
-        container: `Kube-testtestt${index}`,
-      });
-    }
-
-    setTimeout(() => {
-      res({
-        count: arr.length,
-        items: arr,
-      });
-    }, 1000);
-  });
-}
 
 export function getK8sTableAsyncDataMock(param: any) {
   return new Promise(res => {

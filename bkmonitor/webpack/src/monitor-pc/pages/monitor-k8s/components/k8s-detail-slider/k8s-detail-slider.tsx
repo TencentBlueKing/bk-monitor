@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
+import { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import CommonDetail from '../common-detail';
 import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
-import { sliderMockData } from '../k8s-table-new/utils';
+import K8sTableNew from '../k8s-table-new/k8s-table-new';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { IFilterByItem } from '../filter-by-condition/utils';
@@ -57,6 +58,8 @@ interface K8sDetailSliderProps {
   activeRowIndex: number;
   /** 当前数据项标题 */
   activeTitle: K8sDetailSliderActiveTitle;
+  /** 集群Id */
+  clusterId: string;
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
@@ -78,28 +81,15 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   @Prop({ type: Number }) activeRowIndex: number;
   /** 当前数据项标题 */
   @Prop({ type: Object }) activeTitle: K8sDetailSliderActiveTitle;
+  /** 集群 */
+  @Prop({ type: String }) clusterId: string;
+
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
-    variables: {
-      ...sliderMockData,
-    },
+    variables: {},
   };
 
-  // TODO 测试数据
-  panel = new PanelModel({
-    targets: [
-      {
-        datasource: 'info',
-        dataType: 'info',
-        api: 'scene_view.getKubernetesPod',
-        data: {
-          bcs_cluster_id: '$bcs_cluster_id',
-          namespace: '$namespace',
-          pod_name: '$pod_name',
-        },
-      },
-    ],
-  });
+  panel: PanelModel = null;
   loading = false;
   popoverInstance = null;
 
@@ -133,6 +123,46 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     };
   }
 
+  @Watch('isShow')
+  handleResourceChange(v) {
+    if (!v) return;
+    this.modifyApiOptions();
+  }
+
+  @Watch('activeTitle.tag')
+  handleActiveTitleTagChange(v) {
+    if (!v) return;
+    // @ts-ignore
+    this.viewOptions.resource_type = v;
+  }
+
+  @Watch('clusterId')
+  handleClusterIdChange(v) {
+    if (!v) return;
+    // @ts-ignore
+    this.viewOptions.clusterId = v;
+  }
+
+  @Watch('activeRowIndex')
+  handleActiveRowIndexChange(v) {
+    if (v === -1) return;
+    const rowData = this.tableData[v];
+    const { tag } = this.activeTitle;
+    const viewOptions = {
+      ...this.viewOptions,
+      ...rowData,
+      filters: {},
+      variables: {},
+    };
+    if (tag === K8sTableColumnKeysEnum.WORKLOAD) {
+      // @ts-ignore
+      viewOptions.workload_name = K8sTableNew.getWorkloadValue(tag, 0)(rowData);
+      viewOptions.workload_type = K8sTableNew.getWorkloadValue(tag, 1)(rowData);
+    }
+
+    this.viewOptions = viewOptions;
+  }
+
   @Emit('showChange')
   emitIsShow(v: boolean) {
     return v;
@@ -151,12 +181,63 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     };
   }
 
-  // 隐藏详情
+  /** 获取默认的详情接口配置 */
+  getDefaultApiOptions() {
+    return {
+      targets: [
+        {
+          datasource: 'info',
+          dataType: 'info',
+          api: 'k8s.getResourceDetail',
+          data: {
+            bcs_cluster_id: '$clusterId',
+            namespace: '$namespace',
+            resource_type: '$resource_type',
+          },
+        },
+      ],
+    };
+  }
+
+  /** 定义请求详情接口时所需要传的参数 */
+  defineApiDynamicParams() {
+    switch (this.activeTitle.tag) {
+      case K8sTableColumnKeysEnum.WORKLOAD:
+        return {
+          workload_name: '$workload_name',
+          workload_type: '$workload_type',
+        };
+      case K8sTableColumnKeysEnum.POD:
+        return {
+          pod_name: '$pod',
+        };
+      case K8sTableColumnKeysEnum.CONTAINER:
+        return {
+          pod_name: '$pod',
+          container_name: '$container',
+        };
+      default:
+        return {};
+    }
+  }
+
+  /** 更新 详情接口 配置 */
+  modifyApiOptions() {
+    const apiOptions = this.getDefaultApiOptions();
+    const dynamicParam = this.defineApiDynamicParams();
+    apiOptions.targets[0].data = {
+      ...apiOptions.targets[0].data,
+      ...dynamicParam,
+    };
+    this.panel = new PanelModel(apiOptions);
+  }
+
+  /** 隐藏详情 */
   handleHiddenSlider() {
     this.emitIsShow(false);
   }
 
-  // 标题
+  /** 抽屉页标题渲染 */
   tplTitle() {
     return (
       <div class='title-wrap'>
@@ -196,7 +277,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     );
   }
 
-  // 内容
+  /** 抽屉页右侧详情渲染 */
   tplContent() {
     return (
       <div class='k8s-detail-content'>
