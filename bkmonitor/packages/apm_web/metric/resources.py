@@ -3344,10 +3344,15 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             value: float = cls.format_value(metric_cal_type, record["result"])
             total += value
 
-            # tooltips 按 GroupBy 顺序拼接
-            name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
+            group_values: List[str] = []
+            processed_record: Dict[str, Any] = {"value": value, "dimensions": {}}
+            for field in group_fields:
+                # 按 GroupBy 序处理
+                processed_record["dimensions"][field] = record["dimensions"].get(field) or ""
+                group_values.append(processed_record["dimensions"][field])
 
-            processed_records.append({"name": name, "value": value})
+            processed_record["name"] = "|".join(group_values)
+            processed_records.append(processed_record)
 
         for record in processed_records:
             # 分母为 0，占比也设置为 0
