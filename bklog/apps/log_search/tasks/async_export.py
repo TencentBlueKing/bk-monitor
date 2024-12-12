@@ -286,11 +286,22 @@ class AsyncExportUtils(object):
                 # 处理 start_time 和 end_time
                 start_time = self.process_time(self.search_handler.start_time, tz_info)
                 end_time = self.process_time(self.search_handler.end_time, tz_info)
-                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.search_handler.index_set_id),
-                    created_at__gt=(start_time - datetime.timedelta(hours=1)),
-                    created_at__lt=end_time,
-                ).exclude(storage_cluster_id=self.search_handler.storage_cluster_id)
+                storage_cluster_record_objs = (
+                    StorageClusterRecord.objects.filter(
+                        index_set_id=int(self.search_handler.index_set_id),
+                        created_at__gt=(start_time - datetime.timedelta(hours=1)),
+                        created_at__lt=end_time,
+                    )
+                    .exclude(storage_cluster_id=self.search_handler.storage_cluster_id)
+                    .order_by("created_at")
+                )
+                max_created_at = None
+                for obj in storage_cluster_record_objs:
+                    if end_time <= obj.created_at:
+                        max_created_at = obj.created_at
+                        break
+                if max_created_at:
+                    storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
         return storage_cluster_record_objs
