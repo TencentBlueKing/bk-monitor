@@ -204,6 +204,15 @@ export const getRouteConfig = () => {
               canStore: true,
             },
             {
+              name: 'New K8S',
+              icon: 'icon-monitor icon-mc-mainboard menu-icon',
+              id: 'k8s-new',
+              path: '/k8s-new',
+              href: '#/k8s-new',
+              // isBeta: window.platform?.te === false,
+              canStore: true,
+            },
+            {
               name: '主机监控',
               icon: 'icon-monitor icon-menu-performance menu-icon',
               id: 'performance',
@@ -518,6 +527,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
       return {
         ...item,
         children: item.children.reduce(
+          // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
           []
         ),
