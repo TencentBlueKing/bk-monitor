@@ -54,7 +54,7 @@
     };
   });
 
-  // const showFieldAlias = computed(() => store.state.showFieldAlias);
+  const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   /**
@@ -109,7 +109,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="fieldShowName"
+      :show-field-alias="showFieldAlias"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"
