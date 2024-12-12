@@ -124,13 +124,17 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
+  const hasConditionValueTip = computed(() => {
+    return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
+  });
 
   let requestTimer = null;
+  const isRequesting = ref(false);
   const rquestFieldEgges = (() => {
     return (field, operator?, value?, callback?) => {
       const getConditionValue = () => {
         if (['keyword'].includes(field.field_type)) {
-          return [`${value}*`];
+          return [`*${value}*`];
         }
 
         return [];
@@ -141,19 +145,25 @@
       }
 
       const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
+      isRequesting.value = true;
 
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
         const addition = value
-          ? [{ field: field.field_name, operator, value: getConditionValue() }].map(val => {
+          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
               const instance = new ConditionOperator(val);
               return instance.getRequestParam();
             })
           : [];
 
-        store.dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size }).then(() => {
-          callback?.();
-        });
+        store
+          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
+          .then(() => {
+            callback?.();
+          })
+          .finally(() => {
+            isRequesting.value = false;
+          });
       }, 300);
     };
   })();
@@ -364,6 +374,7 @@
       return;
     }
 
+    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
@@ -375,14 +386,20 @@
       restoreFieldAndCondition();
     }
 
-    rquestFieldEgges(item, null, null, () => {
-      if (!conditionValueInstance.repositionTippyInstance()) {
-        const target = refConditionInput.value?.parentNode;
-        if (target) {
-          conditionValueInstance.show(target);
+    if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+      rquestFieldEgges(item, null, null, () => {
+        if (!conditionValueInstance.repositionTippyInstance()) {
+          if (!isOperatorInstanceActive()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
+          }
         }
-      }
-    });
+      });
+    } else {
+      conditionValueInstance.hide();
+    }
   };
 
   const handleCancelBtnClick = () => {
@@ -526,13 +543,22 @@
 
   const handleInputVlaueChange = e => {
     const input = e.target;
-    if (input !== undefined) {
+    if (input !== undefined && input.value.length) {
       const value = input.value;
       const charLen = getCharLength(value);
       input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
       conditionValueInputVal.value = input.value;
       rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
-        conditionValueInstance.repositionTippyInstance();
+        if (!operatorInstance.isShown()) {
+          conditionValueInstance.repositionTippyInstance();
+
+          if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
+          }
+        }
       });
     }
   };
@@ -547,6 +573,9 @@
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
+    setTimeout(() => {
+      conditionValueInstance.hide();
+    });
   };
 
   const appendConditionValue = value => {
@@ -611,7 +640,10 @@
    * 判断当前操作符选择下拉是否激活
    */
   const isOperatorInstanceActive = () => {
-    return operatorInstance.isShown() && activeFieldItem.value.field_operator?.length;
+    return (
+      operatorInstance.isInstanceShowing() ||
+      (operatorInstance.isShown() && activeFieldItem.value.field_operator?.length)
+    );
   };
 
   /**
@@ -855,11 +887,12 @@
   };
 
   const handleConditionValueInputBlur = e => {
-    if (conditionValueInstance.isShown()) {
+    if (conditionValueInstance.isShown() || conditionValueInstance.isInstanceShowing()) {
       return;
     }
 
     isConditionValueInputFocus.value = false;
+    conditionValueInputVal.value = '';
 
     if (e.target.value) {
       const value = e.target.value;
@@ -1093,6 +1126,7 @@
                   <ul
                     ref="refValueTagInputOptionList"
                     class="condition-value-options"
+                    v-bkloading="{ isLoading: isRequesting }"
                   >
                     <li
                       v-if="!activeItemMatchList.length"
@@ -1109,6 +1143,7 @@
                       v-for="(item, index) in activeItemMatchList"
                       :class="{ active: (condition.value ?? []).includes(item) }"
                       :key="`${item}-${index}`"
+                      :title="formatDateTimeField(item, activeFieldItem.field_type)"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
                       <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>

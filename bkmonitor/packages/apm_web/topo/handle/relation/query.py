@@ -79,7 +79,7 @@ class RelationQ:
                 "source_info": source_info.to_source_info(),
                 "source_type": source_info.name,
                 "step": step or f"{end_time - start_time}s",
-                "path_resource": [i.name for i in path_resource] or [],
+                "path_resource": [i.name for i in path_resource] if path_resource else [],
             }
         ]
 
