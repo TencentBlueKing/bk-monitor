@@ -41,7 +41,7 @@ class Command(BaseCommand):
             choices=RPCApplyType.options(),
             help=_("应用告警策略类型列表"),
         )
-        parser.add_argument("-s", "--apply-servers", nargs="+", type=str, default=[], help=_("服务列表"))
+        parser.add_argument("-s", "--apply-services", nargs="+", type=str, default=[], help=_("服务列表"))
         parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, help=_("告警组 ID 列表"))
         parser.add_argument("--config", type=str, default="{}", help=_("配置"))
 
@@ -49,7 +49,7 @@ class Command(BaseCommand):
         bk_biz_id: int = options["bk_biz_id"]
         app_name: str = options["app_name"]
         apply_types: List[str] = list(options.get("apply_types") or [])
-        apply_servers: List[str] = list(options.get("apply_servers") or [])
+        apply_services: List[str] = list(options.get("apply_servers") or [])
         notice_group_ids: List[int] = options["notice_group_ids"]
         options_config: Dict[str, Any] = json.loads(options.get("config") or "{}")
 
@@ -58,13 +58,13 @@ class Command(BaseCommand):
             "bk_biz_id -> %s, \n"
             "app_name -> %s, \n"
             "apply_types -> %s, \n"
-            "apply_servers -> %s, \n"
+            "apply_services -> %s, \n"
             "notice_group_ids -> %s \n"
             "config -> %s",
             bk_biz_id,
             app_name,
             apply_types,
-            apply_servers,
+            apply_services,
             notice_group_ids,
             json.dumps(options_config, indent=2),
         )
@@ -77,7 +77,7 @@ class Command(BaseCommand):
             metric_helper=metric_helper,
             notice_group_ids=notice_group_ids,
             apply_types=apply_types,
-            apply_servers=apply_servers,
+            apply_services=apply_services,
             options=options_config,
         )
         group.apply()
