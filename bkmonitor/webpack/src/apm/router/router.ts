@@ -94,6 +94,7 @@ const isAuthority = async (page: string | string[]) => {
   return !!data.length && data.some(item => item.isAllowed);
 };
 router.beforeEach(async (to, from, next) => {
+  document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题
   Store.commit('app/SET_NAV_ID', to.meta.navId || to.name);
   const { fromUrl, actionId } = to.query;
   if (to.name === 'error-exception' && actionId) {

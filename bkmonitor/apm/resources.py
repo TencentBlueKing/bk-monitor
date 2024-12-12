@@ -61,6 +61,7 @@ from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -585,17 +586,15 @@ class QueryTopoNodeResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         topo_key = serializers.CharField(label="Topo Key", required=False, allow_null=True)
 
-    class ResponseSerializer(serializers.ModelSerializer):
+    class NodeResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
             fields = ("extra_data", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
-            data = super(QueryTopoNodeResource.ResponseSerializer, self).to_representation(instance)
+            data = super(QueryTopoNodeResource.NodeResponseSerializer, self).to_representation(instance)
             data["extra_data"] = instance.extra_data
             return data
-
-    many_response_data = True
 
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
@@ -603,7 +602,19 @@ class QueryTopoNodeResource(Resource):
         if data.get("topo_key"):
             filter_params["topo_key"] = data["topo_key"]
 
-        return TopoNode.objects.filter(**filter_params)
+        res = []
+        nodes = TopoNode.objects.filter(**filter_params)
+        for n in nodes:
+            extra = n.extra_data
+            if (
+                extra.get("kind") == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
+                and extra.get("category") != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+            ):
+                # 过滤掉非 http 类型的自定义服务(目前还没有支持)
+                continue
+
+            res.append(self.NodeResponseSerializer(instance=n).data)
+        return res
 
 
 class QueryTopoRelationResource(Resource):
@@ -1448,7 +1459,7 @@ class DeleteApplicationResource(Resource):
         if not app:
             raise ValueError(_("应用不存在"))
 
-        delete_application_async.delay(app.bk_biz_id, app.app_name)
+        delete_application_async.delay(app.bk_biz_id, app.app_name, get_request_username())
 
 
 class QuerySpanStatisticsListResource(Resource):
@@ -1569,7 +1580,7 @@ class CreateOrUpdateBkdataFlowResource(Resource):
                 raise ValueError(f"没有找到app_name: {app_name}的Trace数据表")
 
             if settings.IS_ACCESS_BK_DATA:
-                create_or_update_tail_sampling.delay(trace, ser.data)
+                create_or_update_tail_sampling.delay(trace, ser.data, get_request_username())
                 return
 
             raise ValueError("环境中未开启计算平台，无法创建")

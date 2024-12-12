@@ -15,7 +15,7 @@
     >
       <template #header>
         <div>
-          {{ t('字段配置') }}
+          {{ t('索引集配置') }}
           <bk-button
             v-if="!isEdit"
             class="mt10 fr"
@@ -167,7 +167,7 @@
             <div class="add-collection-title">{{ $t('索引配置') }}</div>
             <div class="setting-title">{{ $t('原始日志配置') }}</div>
             <setting-table
-              v-if="formData.etl_params.retain_original_text"
+              v-if="isOriginTableSaved"
               ref="originfieldTable"
               :original-text-tokenize-on-chars="defaultParticipleStr"
               :extract-method="cleanType"
@@ -457,6 +457,7 @@
       })
       .then(res => {
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;
   };
@@ -555,6 +556,17 @@
   const closeSlider = () => {
     isEdit.value = false;
   };
+
+  const isOriginTableSaved = computed(() => {
+    if (
+      Object.prototype.hasOwnProperty.call(formData.value.etl_params ?? {}, 'retain_original_text') &&
+      typeof formData.value.etl_params.retain_original_text === 'boolean'
+    ) {
+      return formData.value.etl_params.retain_original_text;
+    }
+
+    return true;
+  });
 </script>
 
 <style lang="scss" scoped>

@@ -23,10 +23,7 @@ import functools
 import operator
 from typing import Any, Dict, List
 
-from apps.utils.local import (
-    get_request_external_username,
-    get_request_username,
-)
+from apps.utils.local import get_request_external_username, get_request_username
 
 
 def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=lambda x: x) -> List[Dict[str, Any]]:

@@ -36,7 +36,8 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
+import { formatDateRange } from '../utils';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
@@ -55,6 +56,7 @@ interface IMultiViewTableProps {
   totalList?: IDataItem[];
   activeTabKey?: string;
   resizeStatus?: boolean;
+  timeStrShow?: IDataItem;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -78,6 +80,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
 
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
@@ -85,6 +88,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @ProvideReactive('curDimensionKey') curDimensionKey: string;
   @InjectReactive('viewOptions') viewOptions;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -168,7 +172,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   get dialogTop() {
-    return window.innerHeight;
+    return (window.innerHeight - 720) / 2;
   }
 
   get appName() {
@@ -218,7 +222,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   @Watch('tableListData', { immediate: true })
-  handleListData(val: IListItem[]) {
+  handleListData(_val: IListItem[]) {
     this.filterOpt = {};
     // console.log(val, 'tableListData');
   }
@@ -575,7 +579,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }));
   }
   @Watch('filterOpt', { deep: true })
-  handleFilterOpt(val) {
+  handleFilterOpt(_val) {
     // console.log(val, 'val');
   }
   fieldFilterMethod(value, row, column) {
@@ -637,8 +641,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   if (isHas && opt.value === 'callee') {
                     const tips =
                       this.simpleList.length === 0
-                        ? this.$t(`当前「${pre?.text}」在${this.perAfterString}分析无调用记录`)
-                        : this.$t(`查看当前「${pre?.text}」在${this.perAfterString}分析的数据`);
+                        ? this.$t('当前「{preText}」在{perAfterString}分析无调用记录', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          })
+                        : this.$t('查看当前「{preText}」在{perAfterString}分析的数据', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          });
                     return (
                       <bk-popover
                         ext-cls='caller-field-popover'
@@ -681,8 +691,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     const isClick = this.serviceList.includes(row[opt.tags[0]]);
                     const tipsData = {
                       trace: this.$t('查看关联调用链'),
-                      topo: this.$t(`跳转到「${row[intersection[0]]}」拓扑页面`),
-                      service: this.$t(`跳转到「${row[intersection[0]]}」调用分析页面`),
+                      topo: this.$t('跳转到「{intersection}」拓扑页面', {
+                        intersection: row[intersection[0]],
+                      }),
+                      service: this.$t('跳转到「{intersection}」调用分析页面', {
+                        intersection: row[intersection[0]],
+                      }),
                     };
                     return (
                       <span
@@ -783,9 +797,18 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   renderHeader(h, { column }: any, item: any) {
+    const { pointTime } = this.dimensionParam;
+    let tips = this.timeStrShow[item.prop.slice(-2)];
+    if (pointTime?.startTime) {
+      tips = formatDateRange(pointTime?.startTime * 1000, pointTime?.endTime * 1000);
+    }
     const showKeys = ['growth_rates', 'proportions', 'p50_duration', 'p95_duration', 'p99_duration'];
+    const tipsKey = ['1d', '1w'];
     const hasPrefix = (fieldName: string) => {
       return showKeys.some(pre => fieldName.startsWith(pre));
+    };
+    const hasTips = (fieldName: string) => {
+      return tipsKey.some(pre => fieldName.endsWith(pre));
     };
     return (
       <span class='custom-header-main'>
@@ -793,7 +816,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           class={[{ 'item-txt': !hasPrefix(item.prop) }, { 'item-txt-no': hasPrefix(item.prop) }]}
           v-bk-overflow-tips
         >
-          {item.label}
+          <span
+            class={{ 'custom-header-tips': !hasPrefix(item.prop) && hasTips(item.prop) }}
+            v-bk-tooltips={!hasPrefix(item.prop) && hasTips(item.prop) ? { content: tips } : {}}
+          >
+            {item.label}
+          </span>
         </span>
         {!hasPrefix(item.prop) && (
           <i
@@ -809,10 +837,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   // 渲染tab表格的列
   handleMultiTabColumn() {
+    const { pointTime } = this.dimensionParam;
     const curColumn = this.panels.find(item => item.id === this.active);
     return (curColumn.columns || []).map(item => (
       <bk-table-column
-        key={item.prop}
+        key={`${item.prop}_${pointTime?.startTime}`}
         scopedSlots={{
           default: ({ row }) => {
             const txt = this.formatTableValShow(row[item.prop], item.prop);
@@ -1053,11 +1082,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
         <bk-dialog
-          width={640}
+          width={960}
           ext-cls='multi-detail-dialog'
           v-model={this.isShowDimension}
           position={{
-            top: this.dialogTop / 3,
+            top: this.dialogTop,
           }}
           header-position={'left'}
           show-footer={false}

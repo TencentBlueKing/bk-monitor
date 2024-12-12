@@ -20,7 +20,12 @@ from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
     BaseSearchIndexSetException,
 )
-from apps.log_search.constants import OperatorEnum, TimeFieldTypeEnum, TimeFieldUnitEnum
+from apps.log_search.constants import (
+    MAX_FIELD_VALUE_LIST_NUM,
+    OperatorEnum,
+    TimeFieldTypeEnum,
+    TimeFieldUnitEnum,
+)
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -472,6 +477,20 @@ class UnifyQueryHandler(object):
         return sorted(
             [[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True
         )
+
+    def get_value_list(self, limit: int = 10):
+        limit = limit if limit <= MAX_FIELD_VALUE_LIST_NUM else MAX_FIELD_VALUE_LIST_NUM
+        search_dict = copy.deepcopy(self.base_dict)
+        reference_list = []
+        for query in search_dict["query_list"]:
+            query["limit"] = limit
+            query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
+            reference_list.append(query["reference_name"])
+        search_dict.update({"metric_merge": " or ".join(reference_list)})
+        data = self.query_ts_reference(search_dict)
+        series = data["series"]
+        for s in series[:limit]:
+            yield s["group_values"][0]
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
         # 浮点数分桶区间精度默认为两位小数

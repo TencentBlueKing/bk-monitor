@@ -26,6 +26,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
+from api.cmdb.define import Host
 from apm_web.constants import (
     COLLECT_SERVICE_CONFIG_KEY,
     AlertLevel,
@@ -94,6 +95,8 @@ from constants.apm import (
 )
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
+from monitor_web.collecting.constant import CollectStatus
+from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
@@ -215,6 +218,7 @@ class DynamicUnifyQueryResource(Resource):
                 label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
             )
             options = OptionsSerializer(label="配置", required=False, default={})
+            enabled = serializers.BooleanField(label="是否可用", required=False, default=True)
 
             def validate(self, attrs):
                 # 合并查询条件
@@ -272,7 +276,7 @@ class DynamicUnifyQueryResource(Resource):
 
             require_fill_series = True
 
-        if validate_data.get("group_by_limit"):
+        if validate_data.get("group_by_limit") and validate_data["group_by_limit"].get("enabled", True):
             group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
                 {
                     "bk_biz_id": validate_data["bk_biz_id"],
@@ -1429,7 +1433,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             query_params["category"] = data["filter"]
 
         if data["service_name"]:
-            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"])
+            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"], raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
                     data["bk_biz_id"],
@@ -2185,10 +2189,11 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                     "end_time": data["end_time"],
                     "service_name": service_name,
                     "bk_instance_id": query_param.get("bk_instance_id"),
+                    "raise_exception": False,
                 },
             )
 
-            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 query_param["category"] = node["extra_data"]["category"]
                 query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
@@ -2536,6 +2541,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
             validated_request_data["service_name"],
+            raise_exception=False,
         )
 
         if ComponentHandler.is_component_by_node(node):
@@ -2907,35 +2913,87 @@ class ErrorListByTraceIdsResource(PageListResource):
         return paginated_data
 
 
+class HostDetailResource(GetHostOrTopoNodeDetailResource):
+    """主机详情"""
+
+    class RequestSerializer(GetHostOrTopoNodeDetailResource.RequestSerializer):
+        source_type = serializers.CharField(label="主机关联来源")
+
+    def perform_request(self, params):
+        # 此接口的作用是在主机详情的基础上增加一个关联来源字段 用在页面显示
+        response = GetHostOrTopoNodeDetailResource()(**params)
+        if not response or not isinstance(response, list):
+            return response
+        response.append(
+            {"name": _("关联来源"), "type": "string", "value": HostHandler.SourceType.get_label(params["source_type"])}
+        )
+        return response
+
+
 class HostInstanceDetailListResource(Resource):
+    """关联主机列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
 
         host_instances = HostHandler.list_application_hosts(**data)
 
-        host_instance = [
-            {"id": index, "name": f"{i['bk_host_innerip']}({i['bk_cloud_id']})", **i}
-            for index, i in enumerate(host_instances, 1)
-        ]
-        return {"data": self.filter_keyword(host_instance, keyword), "filter": [], "sort": []}
+        host_mapping = {
+            int(i["bk_host_id"]): {
+                **i,
+                "id": i["bk_host_id"],
+                "name": i["bk_host_innerip"],
+                "status": CollectStatus.NODATA,
+                "app_name": data["app_name"],
+                "service_name": data["service_name"],
+            }
+            for i in host_instances
+        }
+        res = self.filter_keyword(host_mapping, keyword)
+        self.add_status(data["bk_biz_id"], res)
+        return list(res.values())
+
+    def add_status(self, bk_biz_id, hosts):
+        """添加主机 agent 状态字段"""
+        resource.performance.search_host_metric.get_agent_status(
+            bk_biz_id,
+            [
+                Host(
+                    bk_host_innerip=hosts[i]["bk_host_innerip"],
+                    bk_cloud_id=hosts[i]["bk_cloud_id"],
+                    bk_host_id=hosts[i]["bk_host_id"],
+                )
+                for i in hosts
+            ],
+            hosts,
+        )
+        # 根据 status 字段
+        for k in hosts:
+            status = hosts[k].get("status")
+            if status is None:
+                continue
+            if status == 0:
+                hosts[k]["status"] = CollectStatus.SUCCESS
+            else:
+                hosts[k]["status"] = CollectStatus.NODATA
 
     def filter_keyword(self, data, keyword):
         if not keyword:
             return data
 
-        res = []
-        for item in data:
-            if keyword in item["bk_host_innerip"]:
-                res.append(item)
-
+        res = {}
+        for i in data:
+            for k, v in data[i].items():
+                if keyword in v:
+                    res[i] = data[i]
         return res
 
 

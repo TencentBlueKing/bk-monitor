@@ -37,6 +37,7 @@ import {
 import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { mapState, mapGetters } from 'vuex';
 
 import OriginalLightHeight from '../result-comp/original-light-height.tsx';
@@ -161,6 +162,9 @@ export default {
     },
     getOperatorToolsWidth() {
       return this.operatorConfig?.bcsWebConsole?.is_active ? '84' : '58';
+    },
+    apmRelation() {
+      return this.$store.state.indexSetFieldConfig.apm_relation;
     },
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
@@ -392,6 +396,10 @@ export default {
       return ['exists', 'does not exists'].includes(operator);
     },
     handleAddCondition(field, operator, value, isLink = false, depth = undefined) {
+      const router = this.$router;
+      const route = this.$route;
+      const store = this.$store;
+
       this.$store
         .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
@@ -400,6 +408,19 @@ export default {
             console.log(openUrl);
             window.open(openUrl, '_blank');
           }
+
+          const query = { ...route.query };
+
+          const resolver = new RetrieveUrlResolver({
+            keyword: store.getters.retrieveParams.keyword,
+            addition: store.getters.retrieveParams.addition,
+          });
+
+          Object.assign(query, resolver.resolveParamsToUrl());
+
+          router.replace({
+            query,
+          });
         });
     },
     handleIconClick(type, content, field, row, isLink, depth) {
@@ -408,6 +429,10 @@ export default {
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
 
+      if (type === 'trace-view') {
+        this.handleTraceIdClick(content);
+        return;
+      }
       if (type === 'search') {
         // 将表格单元添加到过滤条件
         this.handleAddCondition(field.field_name, 'eq', [value], isLink);
@@ -424,6 +449,19 @@ export default {
     getFieldIconColor(fieldType) {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
+    handleTraceIdClick(traceId) {
+      if (this.apmRelation.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
@@ -439,6 +477,9 @@ export default {
           break;
         case 'display':
           this.$emit('fields-updated', option.displayFieldNames, undefined, false);
+          break;
+        case 'trace-view':
+          this.handleTraceIdClick(option.value);
           break;
         default:
           break;
@@ -459,6 +500,12 @@ export default {
         sort_list: sortList,
       });
       this.$store.dispatch('requestIndexSetQuery');
+      this.$router.replace({
+        query: {
+          ...this.$route.query,
+          sort_list: JSON.stringify(sortList),
+        },
+      });
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称

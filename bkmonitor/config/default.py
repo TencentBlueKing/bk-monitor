@@ -357,6 +357,7 @@ ACTIVE_VIEWS = {
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
         "apm_profile": "apm_web.profile.views",
+        "apm_container": "apm_web.container.views",
     },
 }
 
@@ -521,6 +522,8 @@ APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 
 # 新建应用的创建时间到当前时间的时长范围，单位：分钟
 APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+# 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
+APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
@@ -1093,9 +1096,12 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
+# bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
+# bkdata api only for query profiling data (not required)
+BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")

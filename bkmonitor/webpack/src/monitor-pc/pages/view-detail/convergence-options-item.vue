@@ -39,6 +39,7 @@
     </div>
     <bk-select
       v-model="checkData"
+      searchable
       :clearable="false"
       @change="handleCheckedChange"
       :popover-options="{ appendTo: 'parent' }"

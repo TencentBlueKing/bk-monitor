@@ -103,7 +103,7 @@
             >
               <template #default="props">
                 <div
-                  v-if="!props.row.is_edit && isPreviewMode"
+                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog'"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -319,7 +319,7 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
-
+  import { cloneDeep } from 'lodash';
   export default {
     name: 'SettingTable',
     props: {
@@ -503,7 +503,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = JSON.parse(JSON.stringify(this.fields)); // option指向地址bug
+        const copyFields = cloneDeep(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -654,7 +654,23 @@
       },
       getData() {
         // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
-        const data = JSON.parse(JSON.stringify(this.formData.tableList));
+        const data = cloneDeep(this.formData.tableList);
+        data.forEach(item => {
+          if (item.hasOwnProperty('fieldErr')) {
+            delete item.fieldErr;
+          }
+          if (item.hasOwnProperty('aliasErr')) {
+            delete item.aliasErr;
+          }
+
+          if (item.hasOwnProperty('typeErr')) {
+            delete item.typeErr;
+          }
+        });
+        return data;
+      },
+      getAllData() {
+        const data = cloneDeep(this.tableAllList);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -759,7 +775,6 @@
         if (isDelete) {
           return true;
         }
-
         if (aliasName) {
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
@@ -767,12 +782,12 @@
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
             return false;
           }
-          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())) {
+          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
             // 别名不能与内置字段名相同
             row.aliasErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
           // 字段名与内置字段冲突，必须设置别名
           row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
           return false;

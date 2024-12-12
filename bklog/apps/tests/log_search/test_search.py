@@ -89,6 +89,9 @@ class TestSearchHandler(TestCase):
     )
     def setUp(self) -> None:
         self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False)
+        self.search_handler.index_set_obj = Mock()
+        self.search_handler.index_set_obj.max_async_count = 2010000
+        self.search_handler.index_set_obj.result_window = 10000
 
     @patch("apps.api.BkLogApi.search", lambda _, data_api_retry_cls: SEARCH_RESULT)
     @patch(
@@ -100,12 +103,10 @@ class TestSearchHandler(TestCase):
         search_after_result = self.search_handler.search_after_result(
             search_result=SEARCH_RESULT, sorted_fields=LOG_ASYNC_FIELDS
         )
-        self.search_handler.index_set_obj = Mock()
-        self.search_handler.index_set_obj.result_window = 10000
         logs_result = []
         for result in search_after_result:
             logs_result.extend(result["list"])
-        self.assertEqual(len(logs_result), 90000)
+        self.assertEqual(len(logs_result), 2000000)
 
     @patch("apps.api.BkLogApi.scroll", lambda _, data_api_retry_cls: SEARCH_RESULT)
     @patch(
@@ -114,10 +115,8 @@ class TestSearchHandler(TestCase):
     )
     def test_scroll_result(self):
         scroll_result = self.search_handler.scroll_result(scroll_result=SEARCH_RESULT)
-        self.search_handler.index_set_obj = Mock()
-        self.search_handler.index_set_obj.result_window = 10000
         logs_result = []
         for result in scroll_result:
             logs_result.extend(result["list"])
 
-        self.assertEqual(len(logs_result), 90000)
+        self.assertEqual(len(logs_result), 2000000)

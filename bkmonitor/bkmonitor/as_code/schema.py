@@ -44,6 +44,7 @@ BkMonitorQuerySchema = Schema(
             DataSourceLabel.BK_LOG_SEARCH,
             DataSourceLabel.BK_APM,
             DataSourceLabel.PROMETHEUS,
+            DataSourceLabel.DASHBOARD,
         ),
         "data_type": Or(
             DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG, DataTypeLabel.EVENT, DataTypeLabel.ALERT, DataTypeLabel.TRACE
@@ -52,7 +53,7 @@ BkMonitorQuerySchema = Schema(
         Optional("functions", default=lambda: []): [str],
         "query_configs": [
             {
-                "metric": str,
+                Optional("metric", default=""): str,
                 Optional("query_string", default="*"): str,
                 Optional("method", default=""): str,
                 Optional("interval", default=60): int,
@@ -62,6 +63,10 @@ BkMonitorQuerySchema = Schema(
                 Optional("alias", default="a"): str,
                 Optional("time_field"): str,
                 Optional("unit", default=""): str,
+                Optional("dashboard_uid", default=""): str,
+                Optional("panel_id", default=""): int,
+                Optional("ref_id", default=""): str,
+                Optional("variables", default=lambda: {}): dict,
             }
         ],
         Optional("target"): {"type": Or("host", "topo", "set_template", "service_template"), "nodes": [str]},

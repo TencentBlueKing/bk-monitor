@@ -1,0 +1,35 @@
+.common-page___group-compare-select {
+  position: relative;
+  display: flex;
+  height: 48px;
+
+  .select-type-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    cursor: pointer;
+    background: #FDF4E8;
+
+    .select-type-name {
+      display: inline-block;
+      height: 16px;
+      font-weight: 700;
+      line-height: 16px;
+      color: #313238;
+    }
+
+    .contrast-switch {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      font-size: 8px;
+      line-height: 16px;
+      color: #fff;
+      text-align: center;
+      background: #a3c5fd;
+      border-radius: 50%;
+    }
+  }
+}

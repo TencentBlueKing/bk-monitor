@@ -24,7 +24,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
 
     # Resource: 从 SpanId 关联主机中找
     if span_id:
-        host_indexes = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
+        host_indexes, ip = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
         for item in host_indexes:
             if str(item["index_set_id"]) not in index_set_ids:
                 index_info = next(
@@ -36,6 +36,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                     None,
                 )
                 if index_info:
+                    # 默认查询: 机器 IP
+                    index_info["addition"] = [{"field": "*", "operator": "contains match phrase", "value": [ip]}]
                     index_set_ids.append(str(item["index_set_id"]))
                     yield index_info
 
@@ -51,6 +53,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             None,
         )
         if index_info:
+            # 默认查询: 服务名称
+            index_info["addition"] = [{"field": "resource.service.name", "operator": "=", "value": [service_name]}]
             index_set_ids.append(str(datasource_index_set_id))
             yield index_info
 
@@ -65,6 +69,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 None,
             )
             if index_info:
+                # 服务关联无默认查询
                 index_set_ids.append(relation.value)
                 yield index_info
         else:
@@ -73,27 +78,29 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 None,
             )
             if index_info:
+                # 服务关联无默认查询
                 index_set_ids.append(relation.value)
                 yield index_info
 
     # Resource: 从关联指标中找
-    relation_index_set_ids = ServiceLogHandler.list_indexes_by_relation(
+    relations = ServiceLogHandler.list_indexes_by_relation(
         bk_biz_id,
         app_name,
         service_name,
         start_time,
         end_time,
     )
-    if relation_index_set_ids:
-        for i in relation_index_set_ids:
-            if str(i) not in index_set_ids:
+    if relations:
+        for r in relations:
+            if str(r["index_set_id"]) not in index_set_ids:
 
                 index_info = next(
-                    (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(i)),
+                    (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(r["index_set_id"])),
                     None,
                 )
                 if index_info:
-                    index_set_ids.append(str(i))
+                    index_info["addition"] = r["addition"]
+                    index_set_ids.append(str(r["index_set_id"]))
                     yield index_info
 
 

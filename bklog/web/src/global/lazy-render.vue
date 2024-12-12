@@ -19,6 +19,7 @@
 <script setup>
   import { ref, computed, onUnmounted } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
+  import { isElement } from 'lodash';
 
   const props = defineProps({
     delay: {
@@ -51,17 +52,17 @@
   });
 
   let resizeObserver = new ResizeObserver(() => {
-    localHeight.value = `${lazyRenderCell.value.firstElementChild.offsetHeight ?? props.minHeight}px}`;
+    localHeight.value = `${lazyRenderCell.value?.firstElementChild?.offsetHeight ?? props.minHeight}px}`;
   });
 
   useIntersectionObserver(lazyRenderCell, entry => {
     if (entry.isIntersecting) {
       isVisible.value = true;
-      if (lazyRenderCell.value.firstElementChild) {
+      if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
         resizeObserver.observe(lazyRenderCell.value.firstElementChild);
       }
     } else {
-      if (lazyRenderCell.value.firstElementChild) {
+      if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
         resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
       }
       if (props.visibleOnly) {
@@ -80,7 +81,7 @@
   .bklog-lazy-render-cell {
     box-sizing: border-box;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     height: 100%;
     min-height: 40px;
 
