@@ -56,10 +56,11 @@
                 :empty-text="$t('暂无内容')"
                 :max-height="isPreviewMode ? 300 : 320"
                 row-key="field_name"
+                :show-header="false"
                 size="small"
                 col-border>
-                  <bk-table-column label="名称/内网IP" prop="ip"></bk-table-column>
-                  <bk-table-column label="来源" prop="source"></bk-table-column>
+                  <bk-table-column label="字段名" prop="ip"></bk-table-column>
+                  <bk-table-column label="别名" prop="source"></bk-table-column>
                   <bk-table-column label="状态" prop="status"></bk-table-column>
                   <bk-table-column label="创建时间" prop="create_time"></bk-table-column>
               </bk-table>
@@ -89,7 +90,8 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext'" @click="expandObject(props.row)">展开</span>
+                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)">展开</span>
+                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)">关闭</span>
                   <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
@@ -474,7 +476,8 @@
             },
           ],
         },
-        expandRowKeys: []
+        expandRowKeys: [],
+        extExpand: false
       };
     },
     computed: {
@@ -956,8 +959,13 @@
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
-      expandObject(row){
-        this.expandRowKeys.push(row.field_name)
+      expandObject(row, show){
+        this.extExpand = show
+        if(show){
+          this.expandRowKeys.push(row.field_name)
+        }else{
+          this.expandRowKeys = []
+        }
       }
     },
   };
