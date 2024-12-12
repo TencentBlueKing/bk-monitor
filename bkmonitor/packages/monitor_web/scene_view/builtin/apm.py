@@ -409,7 +409,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                         continue
                     # 进行panels的变量渲染
                     variables = {
-                        "id": f"idx_{idx}",
                         "table_id": i.result_table_id,
                         "metric_field": i.metric_field,
                         "readable_name": i.readable_name,
@@ -433,9 +432,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             }
                             group_panel = cls._multi_replace_variables(group_panel, group_variables)
                             metric_group_mapping[monitor_name] = group_panel
+                        metric_panel_instance = copy.deepcopy(metric_panel)
+                        # 设置monitor_name的id
+                        metric_panel_instance = cls._replace_variable(
+                            metric_panel_instance, "${id}", f"{monitor_name}_{idx}"
+                        )
                         # 设置monitor_name和metric_panel
-                        metric_panel = cls._replace_variable(metric_panel, "${scope_name_value}", monitor_name)
-                        metric_group_mapping[monitor_name]["panels"].append(metric_panel)
+                        metric_panel_instance = cls._replace_variable(
+                            metric_panel_instance, "${scope_name_value}", monitor_name
+                        )
+                        metric_group_mapping[monitor_name]["panels"].append(metric_panel_instance)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
             if not view_config["overview_panels"]:
                 cls._generate_non_custom_metric_view_config(view_config)
