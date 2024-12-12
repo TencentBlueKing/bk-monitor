@@ -933,7 +933,7 @@ class ServiceListResource(PageListResource):
                 end_time,
                 services,
             )
-            cache.set(cache_key, json.dumps(data_status_mapping))
+            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
 
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
@@ -956,14 +956,16 @@ class ServiceListResource(PageListResource):
                     "service_name": name,
                     "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": data_status_mapping[name].get(
+                    "metric_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.METRIC.value, DataStatus.DISABLED
                     ),
-                    "log_data_status": data_status_mapping[name].get(TelemetryDataType.LOG.value, DataStatus.DISABLED),
-                    "trace_data_status": data_status_mapping[name].get(
+                    "log_data_status": data_status_mapping.get(name, {}).get(
+                        TelemetryDataType.LOG.value, DataStatus.DISABLED
+                    ),
+                    "trace_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.TRACE.value, DataStatus.DISABLED
                     ),
-                    "profiling_data_status": data_status_mapping[name].get(
+                    "profiling_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.PROFILING.value, DataStatus.DISABLED
                     ),
                     "operation": {
