@@ -139,6 +139,7 @@ export const lineOrBarOptions = {
     borderWidth: 0,
     textStyle: {
       fontSize: 12,
+      color: '#fff',
     },
     extraCssText: 'border-radius: 0',
   },
@@ -241,25 +242,26 @@ export const pieOptions: any = {
         show: true,
       },
     },
-    itemStyle: {
-      borderRadius: 5,
-    },
     data: [],
   },
-
   tooltip: {
     show: true,
     trigger: 'item',
     confine: true,
+    backgroundColor: 'rgba(50, 50, 50, 0.7)', // 半透明背景
+    borderColor: '#333',                     // 边框颜色
+    borderWidth: 1,  
     textStyle: {
       fontSize: 12,
       lineHeight: 18,
       fontWeight: 'normal',
       fontFamily: 'MicrosoftYaHei, PingFang SC',
+      color: '#fff',
     },
     order: 'seriesAsc',
     appendToBody: true,
     renderMode: 'html',
+    extraCssText: 'box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); padding: 5px', // 添加阴影
   },
   icon: 'pin',
   color: [

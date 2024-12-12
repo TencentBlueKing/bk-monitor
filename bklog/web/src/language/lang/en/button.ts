@@ -208,4 +208,6 @@ export default {
   同步查询条件到SQL: 'Sync Query Condition To SQL',
   格式化: 'Format',
   取消全屏: 'Exit Full Screen',
+  展示字段名: 'Show Field Name',
+  展示别名: 'Show Alias Name',
 };
