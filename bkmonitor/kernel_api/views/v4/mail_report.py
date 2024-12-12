@@ -162,5 +162,6 @@ class MailReportViewSet(ResourceViewSet):
         ResourceRoute("POST", TestReportMail, endpoint="test_report_mail"),
         ResourceRoute("POST", SendReportMail, endpoint="send_report_mail"),
         ResourceRoute("GET", resource.report.group_list, endpoint="group_list"),
+        ResourceRoute("GET", resource.report.report_list, endpoint="report_mail_list"),
         ResourceRoute("POST", IsSuperuser, endpoint="is_superuser"),
     ]

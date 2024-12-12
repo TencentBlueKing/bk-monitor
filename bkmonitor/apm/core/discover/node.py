@@ -24,7 +24,7 @@ from apm.core.discover.base import (
 from apm.models import ApmTopoDiscoverRule, TopoNode
 from apm.utils.base import divide_biscuit
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import OtlpKey, Vendor
+from constants.apm import OtlpKey, TelemetryDataType, Vendor
 
 
 class NodeDiscover(DiscoverBase):
@@ -76,12 +76,17 @@ class NodeDiscover(DiscoverBase):
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
                     if all(k not in i for i in [update_instances, create_instances, exists_instances]):
                         # 如果目前没有发现这个符合 other 规则的服务 才把他添加进列表中 (不然如果更新的话会导致数据被覆盖为空)
-                        create_instances.update({k: v})
+                        create_instances.update({k: {**v, "source": [TelemetryDataType.TRACE.value]}})
                 else:
                     if k not in exists_instances:
-                        create_instances.update({k: v})
+                        create_instances.update({k: {**v, "source": [TelemetryDataType.TRACE.value]}})
                     else:
-                        update_instances.update({k: v})
+                        source = exists_instances[k]["source"]
+                        if not source:
+                            source = [TelemetryDataType.TRACE.value]
+                        elif TelemetryDataType.TRACE.value not in source:
+                            source.append(TelemetryDataType.TRACE.value)
+                        update_instances.update({k: {**v, "source": source}})
 
         # update
         update_combine_instances = []
@@ -100,12 +105,13 @@ class NodeDiscover(DiscoverBase):
                     platform=topo_value["platform"],
                     system=self.combine_list(exist_instance["system"], topo_value["system"]),
                     sdk=self.combine_list(exist_instance["sdk"], topo_value["sdk"]),
+                    source=topo_value["source"],
                     updated_at=datetime.now(),
                 )
             )
 
         TopoNode.objects.bulk_update(
-            update_combine_instances, fields=["extra_data", "platform", "system", "sdk", "updated_at"]
+            update_combine_instances, fields=["extra_data", "platform", "system", "sdk", "source", "updated_at"]
         )
 
         # create
@@ -271,7 +277,7 @@ class NodeDiscover(DiscoverBase):
         return {
             i["topo_key"]: i
             for i in TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).values(
-                "topo_key", "extra_data", "system", "platform", "sdk", "id"
+                "topo_key", "extra_data", "system", "platform", "sdk", "id", "source"
             )
         }
 

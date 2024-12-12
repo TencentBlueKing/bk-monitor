@@ -30,6 +30,7 @@ from django.core.files.storage import default_storage
 from django.dispatch import receiver as celery_receiver
 from django.forms import model_to_dict
 from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ValidationError
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space, SpaceTypeEnum
@@ -52,7 +53,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
 )
 from bkmonitor.models import ActionConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
-from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
+from bkmonitor.strategy.new_strategy import QueryConfig, Strategy, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
@@ -893,11 +894,19 @@ def update_report_receivers():
 
 
 @task(ignore_result=True)
-def keep_alive():
+def refresh_dashboard_strategy_snapshot():
     """
-    低频队列Worker保活任务
+    刷新仪表盘策略快照
     """
-    print("alive")
+    stategies = Strategy.from_models(StrategyModel.objects.filter(type=StrategyModel.StrategyType.Dashboard))
+
+    for strategy in stategies:
+        query_config = strategy.items[0].query_configs[0]
+        try:
+            query_config.snapshot_config = strategy._get_dashboard_panel_query_config(query_config)
+        except ValidationError:
+            continue
+        query_config.save()
 
 
 @task(ignore_result=True)

@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import datetime
 import decimal
+import gzip
 import hashlib
 import inspect
 import json
@@ -794,3 +795,23 @@ def camel_obj_key_to_underscore(obj: Union[List, Dict, str]) -> object:
             new_obj.append(value)
             return new_obj
     return obj
+
+
+def compress_and_serialize(data):
+    # 将字典转换为 JSON 字符串
+    json_str = json.dumps(data)
+
+    # 压缩 JSON 字符串
+    compressed_data = gzip.compress(json_str.encode('utf-8'))
+
+    return compressed_data
+
+
+def deserialize_and_decompress(compressed_data):
+    # 解压缩数据
+    json_str = gzip.decompress(compressed_data).decode('utf-8')
+
+    # 将 JSON 字符串转换回字典
+    data = json.loads(json_str)
+
+    return data

@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
+import { isEqual } from 'lodash';
 
 import $http from '../../../api';
 import { copyMessage, deepClone } from '../../../common/util';
@@ -262,14 +263,61 @@ export default class CollectIndex extends tsc<IProps> {
     }
   }
 
+  setRouteParams() {
+    const getRouteQueryParams = () => {
+      const { ids, isUnionIndex, search_mode } = this.$store.state.indexItem;
+      const unionList = this.$store.state.unionIndexList;
+      const clusterParams = this.$store.state.clusterParams;
+      const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
+        this.$store.getters.retrieveParams;
+
+      return {
+        addition,
+        start_time,
+        end_time,
+        begin,
+        size,
+        ip_chooser,
+        host_scopes,
+        interval,
+        bk_biz_id: this.$store.state.bkBizId,
+        search_mode,
+        sort_list,
+        ids,
+        isUnionIndex,
+        unionList,
+        clusterParams,
+      };
+    };
+    const routeParams = getRouteQueryParams();
+    const { ids, isUnionIndex } = routeParams;
+    const params = isUnionIndex
+      ? { ...this.$route.params, indexId: undefined }
+      : { ...this.$route.params, indexId: ids?.[0] ?? this.$route.params?.indexId };
+
+    const query = { ...this.$route.query };
+    const resolver = new RetrieveUrlResolver({
+      ...routeParams,
+      datePickerValue: this.$store.state.indexItem.datePickerValue,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+    if (!isEqual(params, this.$route.params) || !isEqual(query, this.$route.query)) {
+      this.$router.replace({
+        params,
+        query,
+      });
+    }
+  }
+
   // 点击收藏列表的收藏
   handleClickFavoriteItem(value?) {
-    console.log('handleClickFavoriteItem', value);
     if (!value) {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
       // 清空当前检索条件
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      this.setRouteParams();
       return;
     }
     const cloneValue = deepClone(value);
@@ -313,6 +361,8 @@ export default class CollectIndex extends tsc<IProps> {
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       this.$store.dispatch('requestIndexSetQuery');
     });
+
+    this.setRouteParams();
   }
 
   /**

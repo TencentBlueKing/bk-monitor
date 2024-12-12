@@ -393,6 +393,7 @@
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.cpu_usage | progressColors"
                 :percent="+(row.cpu_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -420,6 +421,7 @@
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.disk_in_use | progressColors"
                 :percent="+(row.disk_in_use * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -447,6 +449,7 @@
                 {{ row.io_util | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.io_util | progressColors"
                 :percent="+(row.io_util * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -474,6 +477,7 @@
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.mem_usage | progressColors"
                 :percent="+(row.mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -501,6 +505,7 @@
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.psc_mem_usage | progressColors"
                 :percent="+(row.psc_mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"

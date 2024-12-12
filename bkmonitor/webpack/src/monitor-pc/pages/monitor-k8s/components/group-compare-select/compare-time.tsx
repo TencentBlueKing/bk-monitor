@@ -23,25 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { EPreDateType, type IDataItem } from '../../type';
+import { EPreDateType } from './utils';
 
-import './contrast-view.scss';
+import './compare-time.scss';
+
+const preDateTypeList = [
+  {
+    label: window.i18n.t('昨天'),
+    value: EPreDateType.yesterday,
+  },
+  {
+    label: window.i18n.t('上周'),
+    value: EPreDateType.lastWeek,
+  },
+];
+
+function timeShiftFormat(t: string) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return `${dayjs().diff(dayjs(t), 'day')}d`;
+  }
+  return t;
+}
+
+function timeOffsetDateFormat(t: string) {
+  if (preDateTypeList.map(item => item.value).includes(t as any)) {
+    return t;
+  }
+  const regex = /^(\d+)d$/; // 匹配类似 '1d', '10d' 的格式
+  const match = t.match(regex);
+  if (match) {
+    const days = Number.parseInt(match[1], 10); // 提取天数
+    const targetDate = dayjs().subtract(days, 'day'); // 当前日期减去天数
+    return targetDate.format('YYYY-MM-DD'); // 格式化为 YYYY-MM-DD
+  }
+  return t;
+}
 
 interface IProps {
   value?: string[];
-  onChange?: (val: string[]) => void;
+  onChange?: (value: string[]) => void;
 }
-@Component({
-  name: 'ContrastView',
-  components: {},
-})
-export default class ContrastView extends tsc<IProps> {
+
+@Component
+export default class CompareTime extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
 
   localValue = [];
@@ -59,17 +89,7 @@ export default class ContrastView extends tsc<IProps> {
   datePickOpen = false;
   /* 自定义日期tag */
   dateTime = [];
-  /* 预设日期 */
-  typeList = [
-    {
-      label: this.$t('昨天'),
-      value: EPreDateType.yesterday,
-    },
-    {
-      label: this.$t('上周'),
-      value: EPreDateType.lastWeek,
-    },
-  ];
+  timeOffset = [];
 
   get isChooseDateOrType() {
     return this.checkboxGroupValue.length === 1 && this.dateTime.length === 1;
@@ -80,12 +100,14 @@ export default class ContrastView extends tsc<IProps> {
 
   @Watch('value', { immediate: true })
   handleWatchValue(value) {
-    if (JSON.stringify(value) !== JSON.stringify(this.localValue)) {
-      this.localValue = value;
-      const typeList = this.typeList.map(item => item.value);
+    if (JSON.stringify(value) !== JSON.stringify(this.timeOffset)) {
+      this.timeOffset = value;
+      const localValue: any[] = this.timeOffset.map(item => timeOffsetDateFormat(item));
+      this.localValue = localValue;
+      const typeList = preDateTypeList.map(item => item.value);
       const checkboxGroupValue = [];
       const dateTime = [];
-      for (const item of value) {
+      for (const item of localValue) {
         if (typeList.includes(item)) {
           checkboxGroupValue.push(item);
         } else {
@@ -107,7 +129,8 @@ export default class ContrastView extends tsc<IProps> {
       result.push(item);
     }
     this.localValue = result;
-    return result;
+    this.timeOffset = result.map(item => timeShiftFormat(item));
+    return this.timeOffset;
   }
   /**
    * @description 展开日期选择器
@@ -131,7 +154,7 @@ export default class ContrastView extends tsc<IProps> {
   }
   /** 设置日历组件禁用时间 */
   setDisabledDate(date) {
-    const preDateStr = this.typeList.map(item => item.value);
+    const preDateStr = preDateTypeList.map(item => item.value);
     const preSelects = [];
     for (const item of this.localValue) {
       if (preDateStr.includes(item)) {
@@ -169,7 +192,7 @@ export default class ContrastView extends tsc<IProps> {
     this.isShowPicker = false;
     let dayDiff = `${dayjs().diff(dayjs(date), 'day')}d`;
     dayDiff = dayDiff === '7d' ? EPreDateType.lastWeek : dayDiff;
-    const preDateStr = this.typeList.map(item => item.value);
+    const preDateStr = preDateTypeList.map(item => item.value);
     if (preDateStr.includes(dayDiff as any)) {
       if (!this.checkboxGroupValue.includes(dayDiff)) {
         this.checkboxGroupValue.push(dayDiff);
@@ -195,13 +218,13 @@ export default class ContrastView extends tsc<IProps> {
 
   render() {
     return (
-      <div class='apm-service-caller-callee-contrast-view'>
+      <div class='group-compare-select___compare-time'>
         <bk-checkbox-group
           class='contrast-view-checkbox-group'
           v-model={this.checkboxGroupValue}
           onChange={this.handleCheckboxChange}
         >
-          {this.typeList.map(item => (
+          {preDateTypeList.map(item => (
             <bk-checkbox
               key={item.value}
               v-bk-tooltips={{
@@ -251,6 +274,7 @@ export default class ContrastView extends tsc<IProps> {
               behavior='simplicity'
               open={this.datePickOpen}
               options={this.pickerOptions}
+              transfer={true}
               on-open-change={this.handleOpenChange}
               onChange={this.changePicker}
             />

@@ -137,13 +137,32 @@ class DataAccessHandler(BaseAiopsHandler):
         raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(bk_biz_id=bk_biz_id))
 
     def sync_bkdata_etl(self, collector_config_id):
-        collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
-        etl_config = collector_config.get_etl_config()
-        self.create_or_update_bkdata_etl(collector_config_id, etl_config["fields"], etl_config["etl_params"])
-
-    def create_or_update_bkdata_etl(self, collector_config_id, fields, etl_params):
         clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
-        collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
+        bk_data_id = clustering_config.bkdata_data_id
+        result = self.create_or_update_bkdata_etl(
+            collector_config_id, bk_data_id, clustering_config.bkdata_etl_processing_id
+        )
+        if not clustering_config.bkdata_etl_processing_id:
+            clustering_config.bkdata_etl_processing_id = result["processing_id"]
+            clustering_config.bkdata_etl_result_table_id = result["result_table_id"]
+            clustering_config.save()
+            # 新建rt后需要启动清洗任务，并且从尾部开始消费
+            self.start_bkdata_clean(result["result_table_id"], from_tail=True)
+        else:
+            # 更新rt之后需要重启清洗任务
+            self.stop_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
+            self.start_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
+
+    def create_or_update_bkdata_etl(self, collector_config_id, bk_data_id=None, bkdata_etl_processing_id=None):
+        collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+
+        bk_data_id = bk_data_id or collector_config.bk_data_id
+
+        etl_config = collector_config.get_etl_config()
+
+        fields = etl_config["fields"]
+        etl_params = etl_config["etl_params"]
+
         etl_storage = EtlStorage.get_instance(etl_config=collector_config.etl_config)
 
         # 把path的字段信息从fields中分离
@@ -186,14 +205,14 @@ class DataAccessHandler(BaseAiopsHandler):
                 dedupe_fields_config.append(field)
                 fields_names.add(field_name)
 
-        if clustering_config.bkdata_data_id == collector_config.bk_data_id:
+        if bk_data_id == collector_config.bk_data_id:
             bk_biz_id = self.validate_bk_biz_id(collector_config.bk_biz_id)
         else:
             # 旧版聚类链路，清洗走公共业务
             bk_biz_id = self.conf.get("bk_biz_id")
 
         params = {
-            "raw_data_id": clustering_config.bkdata_data_id,
+            "raw_data_id": bk_data_id,
             "result_table_name": result_table_name[-50:],
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
@@ -215,20 +234,12 @@ class DataAccessHandler(BaseAiopsHandler):
             "no_request": True,
         }
 
-        if not clustering_config.bkdata_etl_processing_id:
-            result = BkDataDatabusApi.databus_cleans_post(params)
-            clustering_config.bkdata_etl_processing_id = result["processing_id"]
-            clustering_config.bkdata_etl_result_table_id = result["result_table_id"]
-            clustering_config.save()
-            # 新建rt后需要启动清洗任务，并且从尾部开始消费
-            self.start_bkdata_clean(result["result_table_id"], from_tail=True)
-            return
+        if bkdata_etl_processing_id:
+            params.update({"processing_id": bkdata_etl_processing_id})
+            result = BkDataDatabusApi.databus_cleans_put(params, request_cookies=False)
+            return result
 
-        params.update({"processing_id": clustering_config.bkdata_etl_processing_id})
-        BkDataDatabusApi.databus_cleans_put(params, request_cookies=False)
-        # 更新rt之后需要重启清洗任务
-        self.stop_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
-        self.start_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
+        return BkDataDatabusApi.databus_cleans_post(params)
 
     def stop_bkdata_clean(self, bkdata_result_table_id):
         return BkDataDatabusApi.delete_tasks(

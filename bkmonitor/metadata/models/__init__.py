@@ -88,6 +88,7 @@ from .storage import (
     BkDataStorage,
     ClusterInfo,
     ESStorage,
+    ESStorageClusterRecord,
     InfluxDBStorage,
     KafkaStorage,
     KafkaTopicInfo,
@@ -128,6 +129,7 @@ __all__ = [
     "DownsampledContinuousQueries",
     "DownsampleByDateFlow",
     "ArgusStorage",
+    "ESStorageClusterRecord",
     # custom_report
     "EventGroup",
     "Event",

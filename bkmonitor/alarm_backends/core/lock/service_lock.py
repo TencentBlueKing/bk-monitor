@@ -14,6 +14,7 @@ import functools
 import time
 from contextlib import contextmanager
 
+from alarm_backends.core.cache.key import RedisDataKey
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.lock import MultiRedisLock, RedisLock
 from alarm_backends.core.storage.redis import Cache
@@ -73,3 +74,36 @@ def share_lock(ttl=600, identify=None):
         return _inner
 
     return wrapper
+
+
+@contextmanager
+def refresh_service_lock(key_instance: RedisDataKey, token: str, **kwargs):
+    """刷新当前key实例的锁
+
+    :param key_instance: 锁实例
+    :param token: 标记，一般用时间
+    """
+    lock_key = key_instance.get_key(**kwargs)
+    client = Cache("cache")
+    client.set(lock_key, token, ex=key_instance.ttl)
+
+    yield
+
+    # 如果当前锁还没有被刷新，则删除，否则说明有其他任务刷新了锁并正常执行逻辑中
+    if not check_lock_updated(key_instance, token, **kwargs):
+        client.delete(lock_key)
+
+
+def check_lock_updated(key_instance: RedisDataKey, token: str = None, **kwargs) -> bool:
+    """检查锁是否被更新，用于一些重载后需要停止旧任务实例的场景（秒级别，秒内的任务重载忽略）
+
+    :param key_instance: 锁实例
+    :param token: 标记，一般用时间
+    """
+    lock_key = key_instance.get_key(**kwargs)
+    client = Cache("cache")
+    last_token = client.get(lock_key)
+    if last_token == str(token):
+        return False
+
+    return True

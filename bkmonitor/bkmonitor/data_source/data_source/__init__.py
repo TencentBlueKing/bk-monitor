@@ -1276,6 +1276,7 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
         if not isinstance(dimension_field, list):
             dimension_field = [dimension_field]
         dimension_field = [dmf if dmf.startswith("`") else f"`{dmf}`" for dmf in dimension_field]
+        self.rollback_query()
         return super().query_dimensions(
             dimension_field=dimension_field,
             start_time=start_time,

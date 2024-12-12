@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import _escape from 'lodash/escape';
 
 import $http from '@/api';
+import store from '@/store';
 
 import './agg-chart.scss';
 
@@ -41,9 +43,8 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
-
+  @Prop({ type: Number, default: 5}) limit: number;
   showAllList = false;
-  shouldShowMore = false;
   listLoading = false;
   mappingKay = {
     // is is not 值映射
@@ -51,6 +52,7 @@ export default class AggChart extends tsc<object> {
     'is not': '!=',
   };
   limitSize = 5;
+  route = window.mainComponent.$route;
   fieldValueData = {
     name: '',
     columns: [],
@@ -60,12 +62,12 @@ export default class AggChart extends tsc<object> {
     field_count: 0,
     values: [],
   };
-
+  t = window.mainComponent.$t.bind(window.mainComponent);
   get unionIndexList() {
-    return this.$store.getters.unionIndexList;
+    return store.getters.unionIndexList;
   }
   get isUnionSearch() {
-    return this.$store.getters.isUnionSearch;
+    return store.getters.isUnionSearch;
   }
   get topFiveList() {
     const totalList = Object.entries(this.statisticalFieldData);
@@ -76,10 +78,10 @@ export default class AggChart extends tsc<object> {
         item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
       }
     });
-    this.shouldShowMore = totalList.length > 5;
     return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
+
     return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
   }
   get showValidCount() {
@@ -89,7 +91,7 @@ export default class AggChart extends tsc<object> {
     return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
   }
   get watchQueryParams() {
-    const { datePickerValue, ip_chooser, addition, timezone, keyword } = this.$store.state.indexItem;
+    const { datePickerValue, ip_chooser, addition, timezone, keyword } = store.state.indexItem;
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
 
@@ -99,8 +101,13 @@ export default class AggChart extends tsc<object> {
     this.queryFieldFetchTopList(this.limitSize);
   }
 
+  @Emit('distinctCount')
+  emitDistinctCount(val) {
+    return val;
+  }
+
   mounted() {
-    if (!this.isFrontStatistics) this.queryFieldFetchTopList();
+    if (!this.isFrontStatistics) this.queryFieldFetchTopList(this.limit);
   }
 
   // 计算百分比
@@ -112,11 +119,29 @@ export default class AggChart extends tsc<object> {
   }
   addCondition(operator, value) {
     if (this.fieldType === '__virtual__') return;
-    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] });
+
+    const router = this.$router;
+    const route = this.$route;
+    const store = this.$store;
+
+    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] }).then(() => {
+      const query = { ...route.query };
+
+      const resolver = new RetrieveUrlResolver({
+        keyword: store.getters.retrieveParams.keyword,
+        addition: store.getters.retrieveParams.addition,
+      });
+
+      Object.assign(query, resolver.resolveParamsToUrl());
+
+      router.replace({
+        query,
+      });
+    });
   }
   getIconPopover(operator, value) {
-    if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
-    if (this.filterIsExist(operator, value)) return this.$t('已添加过滤条件');
+    if (this.fieldType === '__virtual__') return this.t('该字段为平台补充 不可检索');
+    if (this.filterIsExist(operator, value)) return this.t('已添加过滤条件');
     return `${this.fieldName} ${operator} ${_escape(value)}`;
   }
   filterIsExist(operator, value) {
@@ -135,10 +160,11 @@ export default class AggChart extends tsc<object> {
   }
   async queryFieldFetchTopList(limit = 5) {
     this.limitSize = limit;
+
     try {
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
-        : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+        : [window.__IS_MONITOR_APM__ ? this.route.query.indexId : this.route.params.indexId];
       this.listLoading = true;
       const data = {
         ...this.retrieveParams,
@@ -151,10 +177,11 @@ export default class AggChart extends tsc<object> {
       });
       if (res.code === 0) {
         await this.$nextTick();
-        this.shouldShowMore = res.data.distinct_count > 5;
+        this.emitDistinctCount(res.data.distinct_count)
         Object.assign(this.fieldValueData, res.data);
       }
     } catch (error) {
+      console.error(error);
     } finally {
       this.listLoading = false;
     }
@@ -163,12 +190,12 @@ export default class AggChart extends tsc<object> {
   render() {
     return (
       <div
-        class='field-data'
+        class='retrieve-v2 field-data'
         v-bkloading={{ isLoading: this.listLoading }}
       >
         {!!this.showFiveList.length ? (
           <div>
-            <div class='title'>{this.$t('字段内容分布')}</div>
+            {/* <div class='title'>{this.t('字段内容分布')}</div> */}
             <ul class='chart-list'>
               {this.showFiveList.map(item => (
                 <li class='chart-item'>
@@ -180,7 +207,9 @@ export default class AggChart extends tsc<object> {
                       >
                         {item[0]}
                       </div>
-                      <div class='percent-value'>{this.computePercent(item[1])}</div>
+                      <div class='percent-value'>
+                        {<span>{item[1] + this.t('条')}</span>} {this.computePercent(item[1])}
+                      </div>
                     </div>
                     <div class='percent-bar-container'>
                       <div
@@ -203,28 +232,10 @@ export default class AggChart extends tsc<object> {
                   </div>
                 </li>
               ))}
-              {
-                <li class='more-item'>
-                  <div>
-                    {!this.showAllList && this.shouldShowMore && (
-                      <span
-                        onClick={() => {
-                          this.showAllList = !this.showAllList;
-                          if (this.isFrontStatistics) return;
-                          this.queryFieldFetchTopList(100);
-                        }}
-                      >
-                        {this.$t('更多')}
-                      </span>
-                    )}
-                  </div>
-                  <span>{/* <i class='bk-icon icon-download'></i> <span>{this.$t('下载')}</span> */}</span>
-                </li>
-              }
             </ul>
           </div>
         ) : (
-          <div class='error-container'>{!this.listLoading && this.$t('暂无字段数据')}</div>
+          <div class='error-container'>{!this.listLoading && this.t('暂无字段数据')}</div>
         )}
       </div>
     );

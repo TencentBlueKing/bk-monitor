@@ -305,4 +305,8 @@ export default {
   '存在表达式,暂不支持转换': 'Expression exists, conversion is not supported temporarily',
   中位数: 'median',
   复制到: 'Copy to',
+  上一跳: 'Previous hop',
+  下一跳: 'Next hop',
+  已经是第一个span: 'It is already the first span',
+  已经是最后一个span: 'It is already the last span',
 };

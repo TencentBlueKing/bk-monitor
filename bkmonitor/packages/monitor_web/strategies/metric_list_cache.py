@@ -624,14 +624,11 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
         if str(self.bk_biz_id) == str(settings.BK_DATA_BK_BIZ_ID):
             return
         else:
-            yield from api.bkdata.list_result_table(bk_biz_id=self.bk_biz_id)
+            yield from api.bkdata.list_result_table(
+                bk_biz_id=self.bk_biz_id, storages=["mysql", "tspider", "databus_tspider"]
+            )
 
     def get_metrics_by_table(self, table):
-        storage_list = {key for key, info in list(table["storages"].items()) if info["active"]}
-        # 计算平台中支持进行监控的存储
-        if not {"mysql", "tspider", "databus_tspider"} & set(storage_list):
-            return []
-
         bk_biz_id = table["bk_biz_id"]
         result_table_id = table["result_table_id"]
         result_table_name = table["result_table_name"]

@@ -28,8 +28,9 @@ class ApmApiConfig(AppConfig):
     label = "apm"
 
     def ready(self):
-        # 注册APM发现器
-        from apm.core.discover.base import DiscoverBase
+        from apm.core.discover.base import DiscoverContainer
+
+        # Trace 数据拓扑发现器 ↓
         from apm.core.discover.endpoint import EndpointDiscover
         from apm.core.discover.host import HostDiscover
         from apm.core.discover.instance import InstanceDiscover
@@ -39,20 +40,29 @@ class ApmApiConfig(AppConfig):
             RemoteServiceRelationDiscover,
         )
         from apm.core.discover.root_endpoint import RootEndpointDiscover
+        from constants.apm import TelemetryDataType
 
-        DiscoverBase.register(EndpointDiscover)
-        DiscoverBase.register(HostDiscover)
-        DiscoverBase.register(InstanceDiscover)
-        DiscoverBase.register(NodeDiscover)
-        DiscoverBase.register(RelationDiscover)
-        DiscoverBase.register(RemoteServiceRelationDiscover)
-        DiscoverBase.register(RootEndpointDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, EndpointDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, HostDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, InstanceDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, NodeDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, RelationDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, RemoteServiceRelationDiscover)
+        DiscoverContainer.register(TelemetryDataType.TRACE.value, RootEndpointDiscover)
 
-        # 注册Profile发现器
-        from apm.core.discover.profile.base import DiscoverContainers
-        from apm.core.discover.profile.service import ServiceDiscover
+        # Metric 数据拓扑发现器 ↓
+        from apm.core.discover.metric.service import (
+            ServiceDiscover as MetricServiceDiscover,
+        )
 
-        DiscoverContainers.register(ServiceDiscover)
+        DiscoverContainer.register(TelemetryDataType.METRIC.value, MetricServiceDiscover)
+
+        # Profile 数据拓扑发现器 ↓
+        from apm.core.discover.profile.service import (
+            ServiceDiscover as ProfileServiceDiscover,
+        )
+
+        DiscoverContainer.register(TelemetryDataType.PROFILING.value, ProfileServiceDiscover)
 
         if "migrate" in sys.argv and settings.ENVIRONMENT != "development":
             post_migrate.connect(migrate_apm_metric_dimension, sender=self)

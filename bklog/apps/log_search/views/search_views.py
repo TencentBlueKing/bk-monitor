@@ -59,6 +59,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
@@ -79,6 +80,7 @@ from apps.log_search.serializers import (
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
     OriginalSearchAttrSerializer,
+    QueryStringSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
@@ -1776,3 +1778,24 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(UISearchSerializer)
         sql = ChartHandler.generate_sql(params)
         return Response({"sql": sql})
+
+    @list_route(methods=["POST"], url_path="generate_querystring")
+    def generate_querystring(self, request):
+        """
+        @api {get} /search/index_set/generate_querystring/
+        @apiDescription 生成querystring语法
+        @apiName generate_querystring
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "querystring": "color: * AND name: x"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(QueryStringSerializer)
+        querystring = QueryStringBuilder.to_querystring(params)
+        return Response({"querystring": querystring})

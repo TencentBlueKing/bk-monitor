@@ -26,10 +26,6 @@ class ServiceDiscover(Discover):
 
     LARGE_SERVICE_SIZE = 10000
 
-    @classmethod
-    def get_name(cls):
-        return "service_discover"
-
     def discover(self, start_time: int, end_time: int):
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")

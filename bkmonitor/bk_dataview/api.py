@@ -407,3 +407,33 @@ def _get_user_dashboard_actions(org_id: int, user_id: int, ignore_org_role: Fals
             dashboard_permissions[uid].add(action)
 
     return dashboard_permissions, False
+
+
+def get_grafana_panel_query(bk_biz_id: int, dasboard_uid: str, panel_id: int, ref_id: str) -> Tuple[str, Dict]:
+    """
+    获取grafana的panel中的数据源配置
+    返回值: panel标题, 查询配置
+    """
+    org_id = get_or_create_org(bk_biz_id)["id"]
+    dashboard = Dashboard.objects.filter(org_id=org_id, uid=dasboard_uid).first()
+    if not dashboard:
+        return "", None
+
+    try:
+        dashboard_data = json.loads(dashboard.data)
+    except json.JSONDecodeError:
+        return "", None
+
+    for panel in dashboard_data["panels"]:
+        # 查找panel
+        if panel["id"] != panel_id:
+            continue
+
+        for target in panel.get("targets", []):
+            # 查找ref_id
+            if target.get("refId") == ref_id:
+                return panel.get("title", ""), target
+
+        return "", None
+
+    return "", None

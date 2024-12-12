@@ -893,6 +893,14 @@ class FetchTopkListSerializer(QueryFieldBaseSerializer):
     limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
 
 
+class FetchValueListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段值列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("字段值限制个数"), required=False, default=10)
+
+
 class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
     """
     获取字段统计信息
@@ -955,3 +963,10 @@ class UISearchSerializer(serializers.Serializer):
     )
     start_time = serializers.IntegerField(label=_("开始时间"), required=True)
     end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+
+
+class QueryStringSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=True,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=True),
+    )

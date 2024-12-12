@@ -15,6 +15,15 @@ from datetime import datetime
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.icon import get_icon
+
+# 导出 profiling 接口给 grafana 仪表盘使用
+from apm_web.profile.resources import (  # noqa
+    GrafanaQueryProfileLabelResource,
+    GrafanaQueryProfileLabelValuesResource,
+    GrafanaQueryProfileResource,
+    ListApplicationServicesResource,
+    QueryServicesDetailResource,
+)
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import OverviewDataTableFormat

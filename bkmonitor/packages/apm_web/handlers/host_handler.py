@@ -123,7 +123,7 @@ class HostHandler:
 
         # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
         extra_ip_info = defaultdict(dict)
-        for path_item in ["system", "pod"]:
+        for path_item in [SourceSystem, SourceK8sPod]:
             system_relations = RelationQ.query(
                 RelationQ.generate_q(
                     bk_biz_id=bk_biz_id,

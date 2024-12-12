@@ -41,7 +41,7 @@ type ActiveType = 'favorite' | 'history';
 const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
-export default class QueryStatement extends tsc<object> {
+export default class SelectIndexSet extends tsc<object> {
   @Prop({ default: {} }) popoverOptions;
 
   /** 表示集合数据是否正在加载 */
@@ -173,9 +173,9 @@ export default class QueryStatement extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_APM__) {
-      return this.$route.query.indexId;
+      return String(this.$route.query.indexId);
     } else {
-      return this.$route.params.indexId;
+      return String(this.$route.params.indexId);
     }
   }
 
@@ -474,8 +474,8 @@ export default class QueryStatement extends tsc<object> {
         localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
       }
 
-      this.aloneHistory = [];
-      this.multipleHistory = [];
+      this.aloneHistory.length = 0;
+      this.multipleHistory.length = 0;
       this.changeTypeCatchIDlist = [];
       this.filterTagID = null;
       setTimeout(() => {
@@ -781,14 +781,15 @@ export default class QueryStatement extends tsc<object> {
    * @param {IndexSetType} queryType 历史记录类型
    * @param {Boolean} isForceRequest 是否强制请求
    */
-  async getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
+  getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
     // 判断当前历史记录数组是否需要请求
     const isShouldQuery = queryType === 'single' ? !!this.aloneHistory.length : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
     if ((!isForceRequest && isShouldQuery) || this.historyLoading) return;
 
     this.historyLoading = true;
-    await $http
+    const target = queryType === 'single' ? this.aloneHistory : this.multipleHistory;
+    $http
       .request('unionSearch/unionHistoryList', {
         data: {
           space_uid: this.spaceUid,
@@ -796,11 +797,8 @@ export default class QueryStatement extends tsc<object> {
         },
       })
       .then(res => {
-        if (queryType === 'single') {
-          this.aloneHistory = (res.data ?? []).slice(10);
-        } else {
-          this.multipleHistory = (res.data ?? []).slice(10);
-        }
+        const result = (res.data ?? []).slice(0, 10);
+        target.splice(0, target.length, ...result);
       })
       .finally(() => {
         this.historyLoading = false;

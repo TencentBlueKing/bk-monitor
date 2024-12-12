@@ -12,7 +12,6 @@ from typing import Optional
 
 import ujson as json
 
-from apm_web.profile.constants import InputType
 from apm_web.profile.models import (
     Function,
     Line,
@@ -22,10 +21,7 @@ from apm_web.profile.models import (
     Sample,
     ValueType,
 )
-from apm_web.profile.profileconverter import (
-    ProfileConverter,
-    register_profile_converter,
-)
+from apm_web.profile.profileconverter import ProfileConverter
 
 
 @dataclass
@@ -111,6 +107,3 @@ class DorisProfileConverter(ProfileConverter):
 
     def __len__(self):
         return len(self.raw_data)
-
-
-register_profile_converter(InputType.DORIS.value, DorisProfileConverter)

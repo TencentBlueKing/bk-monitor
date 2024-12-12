@@ -649,7 +649,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         <div />
         <div
           style={{
-            height: `${this.indexListHeight - 40}px`,
+            height: this.isOnlyShowIndex ? `${this.indexListHeight - 80}px` : `${this.indexListHeight - 40}px`,
           }}
           class='index-tree-main'
         >

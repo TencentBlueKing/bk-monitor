@@ -319,7 +319,7 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
-
+  import { cloneDeep } from 'lodash';
   export default {
     name: 'SettingTable',
     props: {
@@ -503,7 +503,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = JSON.parse(JSON.stringify(this.fields)); // option指向地址bug
+        const copyFields = cloneDeep(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -654,7 +654,23 @@
       },
       getData() {
         // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
-        const data = JSON.parse(JSON.stringify(this.formData.tableList));
+        const data = cloneDeep(this.formData.tableList);
+        data.forEach(item => {
+          if (item.hasOwnProperty('fieldErr')) {
+            delete item.fieldErr;
+          }
+          if (item.hasOwnProperty('aliasErr')) {
+            delete item.aliasErr;
+          }
+
+          if (item.hasOwnProperty('typeErr')) {
+            delete item.typeErr;
+          }
+        });
+        return data;
+      },
+      getAllData() {
+        const data = cloneDeep(this.tableAllList);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;

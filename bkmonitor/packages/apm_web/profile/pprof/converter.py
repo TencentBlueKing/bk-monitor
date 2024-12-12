@@ -12,12 +12,8 @@ import gzip
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.constants import InputType
 from apm_web.profile.models import Label, Profile
-from apm_web.profile.profileconverter import (
-    ProfileConverter,
-    register_profile_converter,
-)
+from apm_web.profile.profileconverter import ProfileConverter
 
 
 @dataclass
@@ -54,6 +50,3 @@ class PprofProfileConverter(ProfileConverter):
             self.profile.time_nanos = int(datetime.datetime.now().timestamp() * 10**9)
 
         return self.profile
-
-
-register_profile_converter(InputType.PPROF.value, PprofProfileConverter)

@@ -15,6 +15,7 @@ import itertools
 import logging
 import traceback
 from abc import ABC
+from collections import defaultdict
 from typing import List, NamedTuple, Tuple, Union
 
 from django.conf import settings
@@ -26,7 +27,7 @@ from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import OtlpKey, SpanKind, TelemetryDataType
 
 logger = logging.getLogger("apm")
 
@@ -99,20 +100,24 @@ class ApmTopoDiscoverRuleCls(NamedTuple):
     sort: int
 
 
+class DiscoverContainer:
+    _discover_mapping = defaultdict(list)
+
+    @classmethod
+    def register(cls, module, target):
+        cls._discover_mapping[module].append(target)
+
+    @classmethod
+    def list_discovers(cls, module):
+        if module not in cls._discover_mapping:
+            raise ValueError(f"[DiscoverContainer] 未找到 discover 类型为: {module} ")
+        return cls._discover_mapping[module]
+
+
+# DiscoverBase: Trace 数据拓扑发现基类
 class DiscoverBase(ABC):
-    DISCOVER_CLS = []
     MAX_COUNT = None
     model = None
-
-    @classmethod
-    def register(cls, target):
-        cls.DISCOVER_CLS.append(target)
-        return target
-
-    @classmethod
-    def discovers(cls):
-        for target in cls.DISCOVER_CLS:
-            yield target
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -414,7 +419,9 @@ class TopoHandler:
             topo_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
 
             # 拓扑发现任务
-            topo_params = [(c, topo_spans, "topo") for c in DiscoverBase.DISCOVER_CLS]
+            topo_params = [
+                (c, topo_spans, "topo") for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
+            ]
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(

@@ -360,9 +360,14 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/1"),
         "enabled": True,
     },
-    "monitor_web.tasks.keep_alive": {
-        "task": "monitor_web.tasks.keep_alive",
-        "schedule": crontab(),
+    "apm_web.tasks.cache_application_scope_name": {
+        "task": "apm_web.tasks.cache_application_scope_name",
+        "schedule": crontab(minute="*/60"),
+        "enabled": True,
+    },
+    "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
+        "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
+        "schedule": crontab(minute="*/60"),
         "enabled": True,
         "options": {"queue": "celery_resource"},
     },

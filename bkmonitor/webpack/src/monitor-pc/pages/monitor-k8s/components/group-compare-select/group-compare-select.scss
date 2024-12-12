@@ -1,23 +1,22 @@
-.caller-callee-contrast {
+.common-page___group-compare-select {
+  position: relative;
   display: flex;
-  width: 100%;
-  height: 100%;
+  height: 48px;
 
-  .contrast-left {
+  .select-type-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 96px;
     height: 100%;
-    font-weight: 700;
-    color: #313238;
     cursor: pointer;
-    background: #fff3e1;
+    background: #FDF4E8;
 
-    .contrast-label {
+    .select-type-name {
       display: inline-block;
       height: 16px;
+      font-weight: 700;
       line-height: 16px;
+      color: #313238;
     }
 
     .contrast-switch {
@@ -32,10 +31,5 @@
       background: #a3c5fd;
       border-radius: 50%;
     }
-  }
-
-  .contrast-right {
-    height: 100%;
-    // padding-left: 12px;
   }
 }

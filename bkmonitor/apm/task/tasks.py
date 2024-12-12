@@ -17,7 +17,7 @@ import time
 import traceback
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Value
 from django.utils import timezone
 from opentelemetry.trace import get_current_span
 
@@ -26,7 +26,7 @@ from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
-from apm.core.discover.base import TopoHandler
+from apm.core.discover.base import DiscoverContainer, TopoHandler
 from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -43,6 +43,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
+from constants.apm import TelemetryDataType
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -95,6 +96,54 @@ def topo_discover_cron():
                         handler.delay(bk_biz_id, app_name)
         except LockError:
             logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
+            continue
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def datasource_discover_handler(metric_datasource, interval, start_time):
+    cur = timezone.now()
+    all_seconds = interval * 60
+    split_seconds = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
+    for start in range(0, all_seconds, split_seconds):
+        end = start + split_seconds
+        for d in DiscoverContainer.list_discovers(TelemetryDataType.METRIC.value):
+            d(metric_datasource).discover(start_time + start, start_time + end)
+
+    logger.info(
+        f"[datasource_discover_handler] finished datasource discover, "
+        f"({metric_datasource.bk_biz_id}){metric_datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
+    )
+
+
+def datasource_discover_cron():
+    """Metric|Log 数据源数据发现"""
+
+    interval = 10
+    current_time = timezone.now()
+    current_timestamp = int(current_time.timestamp())
+    slug = current_time.minute % interval
+
+    valid_application_mapping = {
+        (i["bk_biz_id"], i["app_name"]): i
+        for i in ApmApplication.objects.filter(is_enabled=Value(1), is_enabled_metric=Value(1)).values(
+            "id", "bk_biz_id", "app_name"
+        )
+    }
+    datasource_mapping = {
+        (i.bk_biz_id, i.app_name): i
+        for i in MetricDataSource.objects.filter(~Q(result_table_id="") & ~Q(bk_data_id=-1))
+        if (i.bk_biz_id, i.app_name) in valid_application_mapping
+    }
+    for k, v in datasource_mapping.items():
+        app_id = valid_application_mapping[k]["id"]
+        try:
+            with service_lock(key.APM_DATASOURCE_DISCOVER_LOCK, app_id=app_id):
+
+                if app_id % interval == slug:
+                    logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
+                    datasource_discover_handler.delay(v, interval, current_timestamp)
+        except LockError:
+            logger.info(f"skipped: [datasource_discover_cron] already running. app_id: {app_id}")
             continue
 
 

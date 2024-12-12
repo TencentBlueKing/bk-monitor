@@ -45,11 +45,11 @@ export interface IListItem {
   space_code?: string;
   space_type_id?: string;
   space_id?: string;
-  tags?: ItagsItem[];
+  tags?: ITagsItem[];
   children?: IListItem[];
   bk_biz_id?: number;
 }
-interface ItagsItem {
+interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
@@ -88,9 +88,12 @@ export default class List extends tsc<IProps, IEvents> {
   render() {
     return (
       <div>
-        {!!this.list.length ? (
-          this.list.map(item => (
-            <div class={['list-group', { 'no-name': !item.name }]}>
+        {this.list.length ? (
+          this.list.map((item, index) => (
+            <div
+              key={index}
+              class={['list-group', { 'no-name': !item.name }]}
+            >
               {
                 <bk-checkbox
                   ext-cls={'list-item-checkbox'}
@@ -104,6 +107,7 @@ export default class List extends tsc<IProps, IEvents> {
               }
               {item.children.map(child => (
                 <bk-checkbox
+                  key={child.bk_biz_id}
                   ext-cls={'list-item-checkbox'}
                   checked={this.selectList.includes(child.bk_biz_id)}
                   onChange={() => this.handleCheckBoxChange(child.bk_biz_id)}
@@ -129,6 +133,7 @@ export default class List extends tsc<IProps, IEvents> {
                     <span class='list-item-right'>
                       {child.tags?.map?.(tag => (
                         <span
+                          key={tag.id}
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
                           class='list-item-tag'
                         >

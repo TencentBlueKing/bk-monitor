@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
@@ -293,6 +294,13 @@ def _manage_es_storage(es_storage):
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
         logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
+    except RetryError as e:
+        logger.error(
+            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
+                es_storage.table_id, e.__cause__
+            )
+        )
+        logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
         logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
@@ -390,8 +398,10 @@ def _access_bkdata_vm(
     if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
+        logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
+        logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
@@ -421,9 +431,22 @@ def access_bkdata_vm(
             bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
-    except Exception as e:
+    except RetryError as e:
         logger.error(
-            "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e.__cause__,
+        )
+        return
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e,
         )
         return
 

@@ -702,11 +702,13 @@ class PluginManager(BasePluginManager):
         if self.version.signature:
             context["signature"] = Signature(self.version.signature).dumps2yaml()
         if self.plugin.plugin_type in [PluginType.EXPORTER, PluginType.JMX, PluginType.SNMP]:
+            context["port_range"] = "10000-65535"
             try:
                 default_port = [x for x in self.version.config.config_json if x["name"] == "port"][0]["default"]
-                context["port_range"] = "%s,10000-65535" % default_port
-            except (KeyError, IndexError):
-                context["port_range"] = "10000-65535"
+                if default_port:
+                    context["port_range"] = "%s,10000-65535" % default_port
+            except Exception:
+                pass
 
         return context
 
