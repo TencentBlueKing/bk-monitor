@@ -218,6 +218,7 @@ class DynamicUnifyQueryResource(Resource):
                 label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
             )
             options = OptionsSerializer(label="配置", required=False, default={})
+            enabled = serializers.BooleanField(label="是否可用", required=False, default=True)
 
             def validate(self, attrs):
                 # 合并查询条件
@@ -275,7 +276,7 @@ class DynamicUnifyQueryResource(Resource):
 
             require_fill_series = True
 
-        if validate_data.get("group_by_limit"):
+        if validate_data.get("group_by_limit") and validate_data["group_by_limit"].get("enabled", True):
             group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
                 {
                     "bk_biz_id": validate_data["bk_biz_id"],

@@ -11,7 +11,6 @@ import datetime
 from dataclasses import dataclass
 from typing import List, Optional
 
-from apm_web.profile.constants import InputType
 from apm_web.profile.models import (
     Function,
     Label,
@@ -22,10 +21,7 @@ from apm_web.profile.models import (
     Sample,
     ValueType,
 )
-from apm_web.profile.profileconverter import (
-    ProfileConverter,
-    register_profile_converter,
-)
+from apm_web.profile.profileconverter import ProfileConverter
 
 
 @dataclass
@@ -34,6 +30,7 @@ class PerfScriptProfileConverter(ProfileConverter):
 
     def convert(self, raw: bytes) -> Optional[Profile]:
         """parse single raw perf script data to Profile object"""
+        self.add_string("")
         self.profile.sample_type = [ValueType(self.add_string("samples"), self.add_string("count"))]
         self.profile.period_type = ValueType(self.add_string("cpu"), self.add_string("nanoseconds"))
         self.profile.period = 1000000
@@ -59,9 +56,12 @@ class PerfScriptProfileConverter(ProfileConverter):
                 continue
             sample_texts.append(line)
 
-        self.profile.duration_nanos = self._get_sample_ns_timestamp(
-            self.profile.sample[-1]
-        ) - self._get_sample_ns_timestamp(self.profile.sample[0])
+        self.profile.duration_nanos = int(
+            abs(
+                self._get_sample_ns_timestamp(self.profile.sample[-1])
+                - self._get_sample_ns_timestamp(self.profile.sample[0])
+            )
+        )
 
         print(f"samples: {len(self.profile.sample)}")
         print(f"locations: {len(self.profile.location)}")
@@ -70,11 +70,12 @@ class PerfScriptProfileConverter(ProfileConverter):
         return self.profile
 
     def _get_sample_ns_timestamp(self, s: Sample) -> int:
-        """get sample timestamp"""
-        index = self.profile.string_table.index("timestamp")
+        """get sample timestamp unit: seconds"""
+        index = self.profile.string_table.index("cpu_time")
         for lab in s.label:
             if lab.key == index:
                 return lab.num
+        return 0
 
     def _parse_lines(self, lines: List[str]):
         """parse multiple lines to a single sample"""
@@ -82,18 +83,18 @@ class PerfScriptProfileConverter(ProfileConverter):
             return
 
         event_fields = [x for x in lines[0].split(" ") if x]
+        if len(event_fields) < 4:
+            return
+
         process_name = event_fields[0]
         pid = event_fields[1]
-        cpu = event_fields[2][:-1]
-
-        # got duration for the profile by
-        timestamp = int(float(event_fields[3][:-1]) * 10**9)
-        event_type = event_fields[4]
+        cpu_time = int(float(event_fields[2].split(":")[0]) * 10**9)
+        samples_count = int(event_fields[3])
         event_name, event_extra, *_ = event_fields[-1].split(":")
 
         sample_locations = []
         for stack_line in lines[1:]:
-            stack_fields = stack_line.split(" ")
+            stack_fields = stack_line.replace("\t", "").strip().split(" ")
             if len(stack_fields) != 3:
                 continue
 
@@ -113,8 +114,6 @@ class PerfScriptProfileConverter(ProfileConverter):
                 self.profile.location.append(location)
 
             func_name = stack_fields[1]
-            if len(func_name.split("+")) == 2:
-                func_name = func_name.split("+")[0]
             file_name = stack_fields[2][1:-1]
             function = self._function_mapping.get(func_name)
             if function is None:
@@ -137,14 +136,12 @@ class PerfScriptProfileConverter(ProfileConverter):
             sample_locations.append(location)
 
         sample = Sample(
-            value=[1],
+            value=[samples_count],
             location_id=[loc.id for loc in sample_locations],
             label=[
                 Label(key=self.add_string("process_name"), str=self.add_string(process_name)),
                 Label(key=self.add_string("pid"), str=self.add_string(pid)),
-                Label(key=self.add_string("cpu"), str=self.add_string(cpu)),
-                Label(key=self.add_string("timestamp"), num=timestamp, num_unit=self.add_string("nanoseconds")),
-                Label(key=self.add_string("event_type"), str=self.add_string(event_type)),
+                Label(key=self.add_string("cpu_time"), num=cpu_time, num_unit=self.add_string("nanoseconds")),
                 Label(key=self.add_string("event_name"), str=self.add_string(event_name)),
                 Label(key=self.add_string("event_extra"), str=self.add_string(event_extra)),
             ],
@@ -159,6 +156,3 @@ class PerfScriptProfileConverter(ProfileConverter):
             )
 
         self.profile.sample.append(sample)
-
-
-register_profile_converter(InputType.PERF_SCRIPT.value, PerfScriptProfileConverter)

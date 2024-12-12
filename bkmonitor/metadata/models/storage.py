@@ -31,6 +31,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
+from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
@@ -651,6 +652,59 @@ class StorageResultTable(object):
 
     def update_storage(self, **kwargs):
         """更新存储配置"""
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        space_client = SpaceTableIDRedis()
+
+        # self.storage_type == 'elasticsearch'
+        if self.storage_type == ClusterInfo.TYPE_ES and kwargs.get("storage_cluster_id", '') != '':
+            try:
+                logger.info(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id->[%s]",
+                    self.table_id,
+                    kwargs.get("storage_cluster_id"),
+                )
+                # 当集群发生迁移时，创建ESStorageClusterRecord记录
+                last_storage_cluster_id = self.storage_cluster_id
+                new_storage_cluster_id = kwargs.get("storage_cluster_id")
+                # 更新上一次集群记录，更新停止写入时间
+                record, _ = ESStorageClusterRecord.objects.update_or_create(
+                    table_id=self.table_id,
+                    cluster_id=last_storage_cluster_id,
+                    defaults={
+                        "is_current": False,
+                        "disable_time": django_timezone.now(),
+                    },
+                )
+                logger.info(
+                    "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                    self.table_id,
+                    record.cluster_id,
+                )
+                # 创建新纪录
+                new_record, _ = ESStorageClusterRecord.objects.update_or_create(
+                    table_id=self.table_id,
+                    cluster_id=new_storage_cluster_id,
+                    enable_time=django_timezone.now(),
+                    defaults={
+                        "is_current": True,
+                    },
+                )
+                logger.info(
+                    "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
+                    self.table_id,
+                    new_record.cluster_id,
+                )
+
+                # 刷新RESULT_TABLE_DETAIL路由
+                space_client.push_table_id_detail(
+                    table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
+                )
+
         # 遍历获取所有可以更新的字段，逐一更新
         for field_name in self.UPGRADE_FIELD_CONFIG:
             # 尝试获取配置
@@ -677,6 +731,7 @@ class StorageResultTable(object):
             )
 
         self.save()
+
         logger.info("table->[{}] storage->[{}] upgrade operation success.".format(self.table_id, self.STORAGE_TYPE))
 
         return True
@@ -1960,6 +2015,20 @@ class ESStorage(models.Model, StorageResultTable):
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 
+        storage_record, tag = ESStorageClusterRecord.objects.update_or_create(
+            table_id=table_id,
+            cluster_id=cluster_id,
+            enable_time=django_timezone.now(),
+            defaults={
+                "is_current": True,
+            },
+        )
+        logger.info(
+            "create_table: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+            table_id,
+            storage_record.cluster_id,
+        )
+
         # 判断是否启用创建索引，默认是启用
         if enable_create_index:
             new_record.create_es_index(is_sync_db)
@@ -2686,7 +2755,7 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.error(
                         "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
                         self.table_id,
-                        e,
+                        e.__cause__ if isinstance(e, RetryError) else e,
                     )
                     continue
 
@@ -2830,7 +2899,10 @@ class ESStorage(models.Model, StorageResultTable):
 
         now_datetime_object = self.now
         logger.info(
-            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+            "update_index_v2: table_id->[%s] start to update index,time->[%s],force_rotate->[%s]",
+            self.table_id,
+            now_datetime_object,
+            force_rotate,
         )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
@@ -2876,7 +2948,7 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        should_create = self._should_create_index()
+        should_create = self._should_create_index(force_rotate=force_rotate)
         logger.info("update_index_v2: table_id->[%s] should_create->[%s]", self.table_id, should_create)
 
         # 5. 若should_create为True，执行创建/更新 索引逻辑
@@ -3053,10 +3125,16 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
             )
-        except RetryError:  # 若重试后依然失败，则认为未就绪
+        except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
+            logger.warning(
+                "update_aliases_with_retry:table_id->[%s],new_index->[%s] not ready,error->[%s]",
+                self.table_id,
+                new_index_name,
+                e.__cause__,
+            )
 
         if not is_ready:
             logger.info(
@@ -4493,3 +4571,71 @@ class ArgusStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         """增加一个新的字段"""
         pass
+
+
+class ESStorageClusterRecord(models.Model):
+    """
+    采集项历史ES存储记录表
+    """
+
+    table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
+    is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
+    is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
+    creator = models.CharField(max_length=128, verbose_name="创建者")
+
+    # enable_time & disable_time 分别对应 数据 开始/停止 写入 时间
+    # create_time -> enable_time -> disable_time -> delete_time(完成索引清理)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    enable_time = models.DateTimeField(null=True, blank=True, verbose_name='启用时间')
+    disable_time = models.DateTimeField(null=True, blank=True, verbose_name="停用时间")
+
+    delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
+
+    class Meta:
+        unique_together = ('table_id', 'cluster_id', 'enable_time')  # 联合索引，保证唯一性
+
+    @classmethod
+    def compose_table_id_storage_cluster_records(cls, table_id):
+        """
+        组装指定结果表的历史存储集群记录
+        [
+            {
+                "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
+                "is_current": True,         # 是否是当前最新集群
+                "create_time": 1111111111,  # Unix 时间戳
+                "end_time": 2222222222,     # Unix 时间戳 / None
+            },
+        ]
+        """
+        logger.info(
+            "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
+        )
+        # 过滤出指定 table_id 且未删除的记录，按 create_time 升序排列
+        records = (
+            cls.objects.filter(table_id=table_id, is_deleted=False)
+            .order_by('create_time')
+            .values('cluster_id', 'is_current', 'enable_time')
+        )
+
+        result = []
+        for record in records:
+            # 将 datetime 转换为 Unix 时间戳
+            enable_timestamp = int(record['enable_time'].timestamp())
+
+            result.append(
+                {
+                    "storage_id": record['cluster_id'],
+                    "enable_time": enable_timestamp,
+                }
+            )
+
+        logger.info(
+            "compose_table_id_storage_cluster_records: get storage cluster records for table_id->[%s] success,"
+            "records->[%s]",
+            table_id,
+            result,
+        )
+
+        return result

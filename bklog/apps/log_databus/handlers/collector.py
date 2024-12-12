@@ -2174,7 +2174,7 @@ class CollectorHandler(object):
         match_lines = 0
         for line in lines:
             try:
-                if re.match(data["multiline_pattern"], line):
+                if re.search(data["multiline_pattern"], line):
                     match_lines += 1
             except re.error as e:
                 raise RegexInvalidException(RegexInvalidException.MESSAGE.format(error=e))

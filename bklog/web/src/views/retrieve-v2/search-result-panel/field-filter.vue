@@ -10,6 +10,7 @@
   const props = defineProps({
     value: { type: Boolean, default: true },
   });
+  const fieldShowName = ref('field_name');
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -35,7 +36,10 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
+        ? item.field_alias || item.field_name
+        : item.alias_name || item.field_alias || item.field_name;
     });
     return fieldAliasMap;
   });
@@ -49,7 +53,7 @@
     };
   });
 
-  const showFieldAlias = computed(() => store.state.showFieldAlias);
+  // const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   /**
@@ -69,6 +73,8 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
+  const handlerChange = (value) => {
+  }
 </script>
 
 <template>
@@ -102,7 +108,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="showFieldAlias"
+      :show-field-alias="fieldShowName"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"
