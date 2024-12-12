@@ -156,10 +156,24 @@ export default class UseJsonFormatter {
     return result;
   }
 
+  escapeString(val: string) {
+    const map = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#x27;': "'",
+    };
+
+    return typeof val !== 'string'
+      ? val
+      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+  }
+
   getSplitList(field: any, content: any) {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
-    const value = `${content}`;
+    const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
       // 这里进来的都是开了分词的情况
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));

@@ -390,6 +390,7 @@ class GrafanaTimeSeriesSerializer(QueryConfigSerializer):
     panel_id = serializers.IntegerField(label="panel id")
     ref_id = serializers.CharField(label="ref id")
     variables = serializers.DictField(label="变量", default={})
+    snapshot_config = serializers.JSONField(label="快照配置", default={})
 
 
 class NoticeGroupSerializer(serializers.Serializer):

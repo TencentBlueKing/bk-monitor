@@ -1,6 +1,6 @@
-.field-data {
+.retrieve-v2.field-data {
   padding: 2px 0;
-  background-color: #FAFBFD;
+  background-color: #FAFBFD00;
 
   .title {
     padding: 0 12px 4px;
@@ -25,7 +25,7 @@
   }
 
   .chart-list {
-    padding: 0 12px;
+    padding: 0 0px;
 
     .chart-item {
       display: flex;
@@ -106,5 +106,27 @@
         cursor: pointer;
       }
     }
+  }
+
+}
+
+.agg-sides-header{
+  display: flex;
+  justify-content: space-between;
+  
+  .distinct-num{
+    display: flex;
+    align-items: center;
+  }
+
+  .distinct-count-num{
+    min-width: 24px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    background: #F0F1F5;
+    border-radius: 2px;
   }
 }
