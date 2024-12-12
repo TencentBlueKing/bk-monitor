@@ -826,13 +826,11 @@ class TestK8sListResources(TestCase):
                 fuzzy=True,
             )
         )
-        resource_meta_queryset = resource_meta.get_from_meta()  # queryset
         # 验证查询到的总量
-        self.assertEqual(20, resource_meta_queryset.count())
+        self.assertEqual(20, resource_meta.get_from_meta().count())
 
-        resource_list = list_k8s_resources.get_resource_list_by_pagination(
-            resource_meta_queryset, validated_request_data
-        )
+        resource_meta = list_k8s_resources.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+        resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
         self.assertEqual(6, len(resource_list))
 
         # 滚动分页 第2页 & 6个 -> 12个
@@ -858,11 +856,9 @@ class TestK8sListResources(TestCase):
                 fuzzy=True,
             )
         )
-        resource_meta_queryset = resource_meta.get_from_meta()  # queryset
 
-        resource_list = list_k8s_resources.get_resource_list_by_pagination(
-            resource_meta_queryset, validated_request_data
-        )
+        resource_meta = list_k8s_resources.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+        resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
         self.assertEqual(12, len(resource_list))
 
         # # 传统分页 第2页 & 6个 -> 6个
@@ -888,11 +884,9 @@ class TestK8sListResources(TestCase):
                 fuzzy=True,
             )
         )
-        resource_meta_queryset = resource_meta.get_from_meta()  # queryset
 
-        resource_list = list_k8s_resources.get_resource_list_by_pagination(
-            resource_meta_queryset, validated_request_data
-        )
+        resource_meta = list_k8s_resources.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+        resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
         self.assertEqual(6, len(resource_list))
 
     def test_with_namespace(self):
