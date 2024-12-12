@@ -75,14 +75,6 @@ export function getK8sTableDataMock(param: any): Promise<any> {
         namespace: `bkTessst${index}`,
         workload_type: `Tesst${index}`,
         container: `Kube-testtestt${index}`,
-        cpu: {
-          datapoints: null,
-          unit: null,
-        },
-        internal_memory: {
-          datapoints: null,
-          unit: null,
-        },
       });
     }
 
@@ -98,11 +90,12 @@ export function getK8sTableDataMock(param: any): Promise<any> {
 export function getK8sTableAsyncDataMock(param: any) {
   return new Promise(res => {
     const result = [];
-    const pods = param.pods;
-    for (const pod of pods) {
+    const resourceType = param.resourceType;
+    const column = param.column;
+    for (const resourceTypeId of param[resourceType]) {
       result.push({
-        pod: pod,
-        [param.column]: {
+        [resourceType]: resourceTypeId,
+        [column]: {
           datapoints: datapointsMock,
           unit: null,
         },

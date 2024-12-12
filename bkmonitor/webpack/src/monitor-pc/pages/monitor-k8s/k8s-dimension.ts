@@ -33,6 +33,8 @@ import {
   SceneEnum,
 } from './typings/k8s-new';
 
+import type { K8sTableColumnResourceKey } from './components/k8s-table-new/k8s-table-new';
+
 export class K8sDimension {
   bcsClusterId = '';
   endTime = 1733905598;
@@ -306,25 +308,25 @@ export abstract class K8sGroupDimension {
   abstract dimensionsMap: Partial<Record<K8sTableColumnKeysEnum, K8sTableColumnKeysEnum[]>>;
   /** 已选 group by 维度 */
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  public groupFilters: K8sTableColumnKeysEnum[] = [];
-  constructor(groupFilters: K8sTableColumnKeysEnum[] = []) {
+  public groupFilters: K8sTableColumnResourceKey[] = [];
+  constructor(groupFilters: K8sTableColumnResourceKey[] = []) {
     this.defaultGroupFilter = new Set(groupFilters);
     this.setGroupFilters(groupFilters);
   }
 
   /**
    * @description 添加 groupFilters
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    */
-  addGroupFilter(groupId: K8sTableColumnKeysEnum) {
-    this.setGroupFilters(this.dimensionsMap[groupId]);
+  addGroupFilter(groupId: K8sTableColumnResourceKey) {
+    this.setGroupFilters(this.dimensionsMap[groupId] as K8sTableColumnResourceKey[]);
   }
 
   /**
    * @description 删除 groupFilters
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    */
-  deleteGroupFilter(groupId: K8sTableColumnKeysEnum) {
+  deleteGroupFilter(groupId: K8sTableColumnResourceKey) {
     const indexOrMsg = this.verifyDeleteGroupFilter(groupId);
     if (typeof indexOrMsg === 'string') return;
     this.deleteGroupFilterForce(groupId);
@@ -332,9 +334,9 @@ export abstract class K8sGroupDimension {
 
   /**
    * @description 强制删除 groupFilter（将所在层级及所有子级对象删除）
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    */
-  deleteGroupFilterForce(groupId: K8sTableColumnKeysEnum) {
+  deleteGroupFilterForce(groupId: K8sTableColumnResourceKey) {
     if (!this.hasGroupFilter(groupId)) return;
     const arr = [];
     for (const v of this.groupFilters) {
@@ -348,7 +350,7 @@ export abstract class K8sGroupDimension {
 
   /**
    * @description 获取最后一个 groupFilter
-   * @returns {K8sTableColumnKeysEnum}
+   * @returns {K8sTableColumnResourceKey}
    */
   getLastGroupFilter() {
     return this.groupFilters[this.groupFilters.length - 1];
@@ -356,37 +358,37 @@ export abstract class K8sGroupDimension {
 
   /**
    * @description 判断是否存在 groupId
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    * @returns {boolean}
    */
-  hasGroupFilter(groupId: K8sTableColumnKeysEnum) {
+  hasGroupFilter(groupId: K8sTableColumnResourceKey) {
     return this.groupFiltersSet.has(groupId);
   }
 
   /**
    * @description 判断是否为默认 groupFilter
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    * @returns {boolean}
    */
-  isDefaultGroupFilter(groupId: K8sTableColumnKeysEnum) {
+  isDefaultGroupFilter(groupId: K8sTableColumnResourceKey) {
     return this.defaultGroupFilter.has(groupId);
   }
 
   /**
    * @description 修改 groupFilters
-   * @param {K8sTableColumnKeysEnum[]} groupFilters
+   * @param {K8sTableColumnResourceKey[]} groupFilters
    */
-  setGroupFilters(groupFilters: K8sTableColumnKeysEnum[]) {
+  setGroupFilters(groupFilters: K8sTableColumnResourceKey[]) {
     this.groupFilters = groupFilters;
     this.groupFiltersSet = new Set(groupFilters);
   }
 
   /**
    * @description 校验传入 groupId 是否可删除
-   * @param {K8sTableColumnKeysEnum} groupId
+   * @param {K8sTableColumnResourceKey} groupId
    * @returns {string | number} string 类型表示不可删除，number 类型表示删除成功
    */
-  verifyDeleteGroupFilter(groupId: K8sTableColumnKeysEnum) {
+  verifyDeleteGroupFilter(groupId: K8sTableColumnResourceKey) {
     if (this.defaultGroupFilter.has(groupId)) {
       return '默认值不可删除';
     }
@@ -403,10 +405,9 @@ export abstract class K8sGroupDimension {
  * */
 export class K8sPerformanceGroupDimension extends K8sGroupDimension {
   readonly dimensions = [
-    K8sTableColumnKeysEnum.CLUSTER,
     K8sTableColumnKeysEnum.NAMESPACE,
     K8sTableColumnKeysEnum.WORKLOAD,
-    K8sTableColumnKeysEnum.WORKLOAD_TYPE,
+    K8sTableColumnKeysEnum.POD,
     K8sTableColumnKeysEnum.CONTAINER,
   ];
   readonly dimensionsMap = {
@@ -424,8 +425,8 @@ export class K8sPerformanceGroupDimension extends K8sGroupDimension {
       K8sTableColumnKeysEnum.CONTAINER,
     ],
   };
-  constructor(groupFilters: K8sTableColumnKeysEnum[] = []) {
-    const defaultGroupFilters = [K8sTableColumnKeysEnum.NAMESPACE];
+  constructor(groupFilters: K8sTableColumnResourceKey[] = []) {
+    const defaultGroupFilters = [K8sTableColumnKeysEnum.NAMESPACE] as K8sTableColumnResourceKey[];
     super([...defaultGroupFilters, ...groupFilters]);
   }
 }
