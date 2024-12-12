@@ -48,41 +48,60 @@
           size="small"
           col-border
           :expand-row-keys="expandRowKeys"
+          ref="fieldsTable"
         >
-          <bk-table-column type="expand" width="0">
+          <bk-table-column type="expand" width="0" min-width="0" >
               <template slot-scope="props" v-if="props.row.field_name === 'ext'">
                 <bk-table
-                :data="changeTableList"
+                :data="totalFields"
                 :empty-text="$t('暂无内容')"
-                :max-height="isPreviewMode ? 300 : 320"
                 row-key="field_name"
                 :show-header="false"
                 size="small"
+                class="expand-table"
                 col-border>
-                  <bk-table-column label="字段名" prop="ip"></bk-table-column>
-                  <bk-table-column label="别名" prop="source"></bk-table-column>
-                  <bk-table-column label="状态" prop="status"></bk-table-column>
-                  <bk-table-column label="创建时间" prop="create_time"></bk-table-column>
+                  <bk-table-column label="字段名" prop="field_name"   width="89"></bk-table-column>
+                  <bk-table-column label="别名" width="120">
+                    <template #default="props">
+                      <!-- 这个is_edit干嘛,接口也没返回啊 -->
+                      <div
+                        v-if="isPreviewMode || tableType === 'originLog'"
+                        class="overflow-tips"
+                        v-bk-overflow-tips
+                      >
+                        <span>{{ props.row.alias_name }}</span>
+                      </div>
+                      <bk-form-item
+                        v-else
+                        :class="{ 'is-required is-error': props.row.aliasErr }"
+                      >
+                        <bk-input
+                          v-model.trim="props.row.alias_name"
+                          :disabled="props.row.is_delete || isSetDisabled"
+                          @blur="checkAliasNameItem(props.row)"
+                        >
+                        </bk-input>
+                        <template v-if="props.row.aliasErr">
+                          <i
+                            style="right: 8px"
+                            class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                            v-bk-tooltips.top="props.row.aliasErr"
+                          ></i>
+                        </template>
+                      </bk-form-item>
+                    </template>
+                  </bk-table-column>
+                  <bk-table-column label="数据类型" prop="field_type" width="100"></bk-table-column>
+                  <bk-table-column label="分词符" prop="field_type" width="200"></bk-table-column>
               </bk-table>
               </template>
           </bk-table-column>
           <template>
-            <!-- <bk-table-column
-              label=""
-              align="center"
-              :resizable="false"
-              width="40"
-              v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
-            >
-              <template slot-scope="props">
-                <span>{{ props.row.field_index }}</span>
-              </template>
-            </bk-table-column> -->
             <!-- 字段名 -->
             <bk-table-column
               :render-header="renderHeaderFieldName"
               :resizable="false"
-              min-width="100"
+              width="120"
             >
               <template #default="props">
                 <div
@@ -90,8 +109,8 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)">展开</span>
-                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)">关闭</span>
+                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn">展开</span>
+                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn">关闭</span>
                   <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
@@ -119,7 +138,7 @@
             <bk-table-column
               :render-header="renderHeaderAliasName"
               :resizable="false"
-              min-width="100"
+              width="120"
             >
               <template #default="props">
                 <div
@@ -154,7 +173,7 @@
               :render-header="renderHeaderDataType"
               :resizable="false"
               align="center"
-              min-width="100"
+              width="100"
             >
               <template #default="props">
                 <div
@@ -202,7 +221,7 @@
               :render-header="renderHeaderParticipleName"
               :resizable="false"
               align="left"
-              min-width="200"
+              width="200"
             >
               <template #default="props">
                 <!-- 预览模式-->
@@ -495,8 +514,13 @@
       tableAllList() {
         return [...this.tableList, ...this.builtFields];
       },
+      totalFields () {
+        return  this.$store.state.indexFieldInfo.fields.filter(item => /__ext/.test(item.field_name))
+      },
       changeTableList() {
         const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
+        console.log('currentTableList',currentTableList);
+        
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
@@ -519,6 +543,9 @@
       },
     },
     async mounted() {
+      console.log(this.totalFields);
+      console.log(this.$store.state.indexFieldInfo.fields);
+      
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
     },
@@ -692,7 +719,7 @@
         return data;
       },
       getAllData() {
-        const data = cloneDeep(this.tableAllList);
+        const data = cloneDeep(this.totalFields);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -960,6 +987,8 @@
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
       expandObject(row, show){
+        console.log(this.$refs.fieldsTable);
+        
         this.extExpand = show
         if(show){
           this.expandRowKeys.push(row.field_name)
@@ -1006,6 +1035,14 @@
           display: none;
         }
       }
+      .bk-table-expanded-cell{
+        padding: 0 0 0 30px;
+      }
+      .expand-table{
+        tbody tr td:first-child {
+          border-right: 1px solid #dfe0e5;
+        }
+      }
       .bk-table-body {
         .cell {
           display: contents;
@@ -1020,6 +1057,9 @@
 
           .overflow-tips {
             padding: 10px 15px;
+            .ext-btn{
+              cursor: pointer;
+            }
           }
         }
       }
