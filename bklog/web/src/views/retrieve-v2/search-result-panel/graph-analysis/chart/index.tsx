@@ -188,6 +188,14 @@ export default defineComponent({
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
     });
 
+    const formatTableData = computed(() => {
+      return filterTableData.value.map(row => {
+        return columns.value.reduce((acc, cur) => {
+          return Object.assign(acc, { [cur]: getDateTimeFormatValue(row, cur) });
+        }, {});
+      });
+    });
+
     const handleChartRootResize = debounce(() => {
       getChartInstance()?.resize();
     });
@@ -234,7 +242,7 @@ export default defineComponent({
               onLimit-change={handlePageLimitChange}
             ></bk-pagination>
           </div>,
-          <bk-table data={filterTableData.value}>
+          <bk-table data={formatTableData.value}>
             <bk-table-column
               width='60'
               label={$t('行号')}
@@ -243,11 +251,8 @@ export default defineComponent({
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
-                // prop={col}
-                scopedSlots={{
-                  default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
-                }}
                 label={col}
+                prop={col}
                 sortable={true}
               ></bk-table-column>
             ))}
