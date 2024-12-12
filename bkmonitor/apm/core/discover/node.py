@@ -28,6 +28,7 @@ from constants.apm import OtlpKey, TelemetryDataType, Vendor
 
 
 class NodeDiscover(DiscoverBase):
+    DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     model = TopoNode
     # 批量处理 span 时 每批次的数量
