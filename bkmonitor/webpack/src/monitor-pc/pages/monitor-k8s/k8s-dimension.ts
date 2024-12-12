@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { listK8sResources, workloadOverview } from 'monitor-api/modules/k8s';
+
 import {
   type GroupListItem,
   type K8sDimensionParams,
@@ -30,109 +32,6 @@ import {
   EDimensionKey,
   SceneEnum,
 } from './typings/k8s-new';
-
-function getWorkloadOverview(_params): Promise<(number | string)[][]> {
-  const mockData = [
-    ['Deployment', 7],
-    ['StatefulSets', 7],
-    ['DaemonSets', 7],
-    ['Jobs', 7],
-    ['CronJobs', 7],
-  ];
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(mockData);
-    }, 1000);
-  });
-}
-
-function getListK8SResources({ resource_type }: any): Promise<{ count: number; items: any[] }> {
-  const mockData = {
-    pod: {
-      count: 2,
-      items: [
-        {
-          pod: 'pod-1',
-          namespace: 'default',
-          workload: 'Deployment:workload-1',
-        },
-        {
-          pod: 'pod-5',
-          namespace: 'default',
-          workload: 'Deployment:workload-3',
-        },
-      ],
-    },
-    workload: {
-      count: 7,
-      items: [
-        {
-          namespace: 'default',
-          workload: 'Deployment:workload-1',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-2',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-3',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-4',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-5',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-6',
-        },
-        {
-          namespace: 'demo',
-          workload: 'Deployment:workload-7',
-        },
-      ],
-    },
-    namespace: {
-      count: 10,
-      items: [
-        ...new Array(10).fill(null).map((_item, index) => {
-          return {
-            bk_biz_id: 2,
-            bcs_cluster_id: 'BCS-K8S-00000',
-            namespace: `default${index}`,
-          };
-        }),
-      ],
-    },
-    container: {
-      count: 2,
-      items: [
-        {
-          pod: 'pod-1',
-          container: 'container-1',
-          namespace: 'default',
-          workload: 'Deployment:workload-1',
-        },
-        {
-          pod: 'pod-2',
-          container: 'container-2',
-          namespace: 'demo',
-          workload: 'Deployment:wrokload-2',
-        },
-      ],
-    },
-  };
-
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(mockData[resource_type]);
-    }, 1000);
-  });
-}
 
 export class K8sDimension {
   bcsClusterId = '';
@@ -173,6 +72,7 @@ export class K8sDimension {
       page_size: this.pageSize,
       page_type: this.pageType,
       query_string: this.keyword,
+      with_history: false,
     };
   }
 
@@ -225,15 +125,35 @@ export class K8sDimension {
   }
 
   /**
-   * @description rest/v2/k8s/resources/list_k8s_resources/ 获取所有维度值选项
+   * 获取常规维度数据（性能场景除workload维度）
    * @param params
-   * @returns
    */
-  getDimensionData(params) {
-    return getListK8SResources({
+  async getDimensionData({ resource_type, ...params }) {
+    const data = await listK8sResources({
       ...this.commonParams,
+      resource_type,
+      page: this.pageMap[resource_type] || 1,
       ...params,
     }).catch(() => ({ count: 0, items: [] }));
+    const index = this.currentDimension.findIndex(item => item === resource_type);
+    const dimensionList = this.originDimensionData[index];
+    if (!dimensionList) {
+      this.originDimensionData[index] = {
+        id: resource_type,
+        name: resource_type,
+        count: data.count,
+        children: data.items.map(item => this.formatData(resource_type, item)),
+      };
+    } else {
+      if (this.pageType === 'scrolling') {
+        dimensionList.children = data.items.map(item => this.formatData(resource_type, item));
+      } else {
+        dimensionList.children = dimensionList.children.concat(
+          data.items.map(item => this.formatData(resource_type, item))
+        );
+      }
+    }
+    this.originDimensionData = [...this.originDimensionData];
   }
 
   /**
@@ -241,12 +161,12 @@ export class K8sDimension {
    * @param params 请求参数
    */
   async getPerformanceDimensionData(params = {}) {
-    const originDimensionData = [];
+    this.originDimensionData = [];
     const pageMap = {};
     let workloadCategory = [];
-    const promiseList = this.currentDimension.map(async dimension => {
+    const promiseList = this.currentDimension.map(async (dimension, index) => {
       if (dimension === EDimensionKey.workload) {
-        workloadCategory = await this.getWorkloadData({
+        workloadCategory = await workloadOverview({
           bcs_cluster_id: this.bcsClusterId,
           query_string: this.keyword,
         });
@@ -261,34 +181,27 @@ export class K8sDimension {
             children: [],
           };
         });
-        originDimensionData.push({
+        this.originDimensionData[index] = {
           id: dimension,
           name: dimension,
           count: total,
           children,
-        });
+        };
       } else {
-        const data = await this.getDimensionData({
+        await this.getDimensionData({
           resource_type: dimension,
-          page: 1,
           ...params,
         });
         pageMap[dimension] = 1;
-        originDimensionData.push({
-          id: dimension,
-          name: dimension,
-          count: data.count,
-          children: data.items.map(item => this.formatData(dimension, item)),
-        });
       }
     });
-    this.originDimensionData = originDimensionData;
     this.pageMap = pageMap;
     await Promise.all(promiseList);
     await this.getWorkloadChildrenData({
       filter_dict: {
         workload: `${workloadCategory[0][0]}:`,
       },
+      ...params,
     });
   }
 
@@ -298,13 +211,13 @@ export class K8sDimension {
   async getWorkloadChildrenData({ filter_dict, ...params }) {
     const { workload: workloadParams } = filter_dict;
     const [category] = workloadParams.split(':');
-    const data = await getListK8SResources({
+    const data = await listK8sResources({
       ...this.commonParams,
       resource_type: EDimensionKey.workload,
       page: this.pageMap[category],
       filter_dict,
       ...params,
-    });
+    }).catch(() => ({ count: 0, items: [] }));
     const workloadList = this.originDimensionData.find(item => item.id === EDimensionKey.workload);
     const categoryList = workloadList.children.find(item => item.id === category);
     if (this.pageType === 'scrolling') {
@@ -318,20 +231,10 @@ export class K8sDimension {
   }
 
   /**
-   * @description rest/v2/k8s/resources/workload_overview/ 获取 workload分类数据
-   * @param params
-   * @returns
-   */
-  getWorkloadData(params) {
-    return getWorkloadOverview({
-      ...params,
-    }).catch(() => []);
-  }
-
-  /**
    * @description 初始化维度数据
    */
   async init(params = {}) {
+    this.pageMap = {};
     await this.currentSceneDimensionRequest(params);
   }
 
@@ -354,16 +257,11 @@ export class K8sDimension {
           ...params,
         });
       } else {
-        const data = await this.getDimensionData({
+        await this.getDimensionData({
           resource_type: dimension,
           page: this.pageMap[dimension],
           ...params,
         });
-        const dimensionList = this.originDimensionData.find(item => item.id === dimension);
-        dimensionList.children = dimensionList.children.concat(
-          data.items.map(item => this.formatData(dimension, item))
-        );
-        this.originDimensionData = [...this.originDimensionData];
       }
     }
   }
@@ -381,17 +279,14 @@ export class K8sDimension {
           ...params,
         });
       } else {
-        const data = await this.getDimensionData({
+        await this.getDimensionData({
           resource_type: dimension,
           page: this.pageMap[dimension],
           ...params,
         });
-        const dimensionList = this.originDimensionData.find(item => item.id === dimension);
-        dimensionList.children = data.items.map(item => this.formatData(fatherDimension, item));
-        this.originDimensionData = [...this.originDimensionData];
       }
     } else {
-      this.init();
+      await this.init(params);
     }
   }
 }
