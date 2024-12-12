@@ -112,7 +112,7 @@ class K8sResourceMeta(object):
         """
         return self.filter.filter_queryset
 
-    def get_from_promql(self, start_time, end_time):
+    def get_from_promql(self, start_time, end_time, order_by=""):
         """
         数据获取来源
         TODO
@@ -129,7 +129,7 @@ class K8sResourceMeta(object):
                 {
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
-                    "promql": self.meta_prom(sort_by="cpu"),
+                    "promql": self.meta_prom_by_sort(order_by=order_by),
                     "interval": get_interval_number(start_time, end_time, interval="auto"),
                     "alias": "result",
                 }
@@ -168,7 +168,7 @@ class K8sResourceMeta(object):
         """不带排序的资源查询promql"""
         return ""
 
-    def meta_prom_by_sort(self, order_by="cpu", page_size=20):
+    def meta_prom_by_sort(self, order_by="", page_size=20):
         order_type = "DESC" if order_by.startswith("-") else "ASC"
         order_func = "topk" if order_type == "DESC" else "bottomk"
         order_field = order_by.strip("-")
@@ -176,7 +176,7 @@ class K8sResourceMeta(object):
         meta_prom_func = f"meta_prom_with_{order_field}"
         if hasattr(self, meta_prom_func):
             return f"{order_func}({page_size}, {getattr(self, meta_prom_func)})"
-        raise NotImplementedError(f"not supported order by: {order_by}")
+        return self.meta_prom
 
     @property
     def meta_prom_with_mem(self):
