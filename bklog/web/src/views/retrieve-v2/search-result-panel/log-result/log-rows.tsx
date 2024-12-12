@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onUnmounted, Ref } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -60,6 +60,7 @@ type RowConfig = {
   isIntersect?: boolean;
   minHeight?: number;
   stickyTop?: number;
+  rowMinHeight?: number;
 };
 
 export default defineComponent({
@@ -353,6 +354,7 @@ export default defineComponent({
         ['expand', false],
         ['isIntersect', true],
         ['minHeight', 40],
+        ['rowMinHeight', 40],
         ['stickyTop', 0],
       ].reduce(
         (cfg, item: [keyof RowConfig, any]) =>
@@ -385,6 +387,10 @@ export default defineComponent({
       for (let i = startIndex; i < tableData.value.length; i++) {
         if (tableData.value[ROW_CONFIG]?.minHeight) {
           tableData.value[ROW_CONFIG].minHeight = 40;
+        }
+
+        if (tableData.value[ROW_CONFIG]?.rowMinHeight) {
+          tableData.value[ROW_CONFIG].rowMinHeight = 40;
         }
       }
     };
@@ -513,13 +519,22 @@ export default defineComponent({
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
-      const nextIndexOperator = useScrollHeight > lastPosition.value ? 1 : -1;
+      const nextIndexOperator = useScrollHeight >= lastPosition.value ? 1 : -1;
 
       let startPosition = lastPosition.value;
       let startIndex = visibleIndexs.value.startIndex;
 
+      if (useScrollHeight == 0) {
+        startIndex = 0;
+        lastPosition.value = 0;
+      }
+
       // 根据滚动方向，判断是否需要继续遍历
       const getCondition = (pos?) => {
+        if (useScrollHeight == 0) {
+          return false;
+        }
+
         if (nextIndexOperator === 1) {
           return (pos ?? startPosition) < useScrollHeight;
         }
@@ -533,7 +548,8 @@ export default defineComponent({
           const lastHeight = startPosition + nextIndexOperator * nextItem[ROW_CONFIG].value.minHeight;
           if (getCondition(lastHeight)) {
             startPosition = lastHeight;
-            startIndex = startIndex + 1 * nextIndexOperator;
+            const nextIndex = startIndex + 1 * nextIndexOperator;
+            startIndex = nextIndex >= 0 ? nextIndex : 0;
           } else {
             break;
           }
@@ -545,7 +561,7 @@ export default defineComponent({
       }
 
       const containerHeihgt = (event.target as HTMLElement).clientHeight;
-      let endIndex = startIndex + bufferCount;
+      let endIndex = startIndex + bufferCount * 2;
       const visibleHeight = tableData.value.slice(startIndex, endIndex).reduce((acc, row) => {
         return acc + row[ROW_CONFIG].value.minHeight;
       }, 0);
@@ -554,7 +570,7 @@ export default defineComponent({
         endIndex = endIndex + bufferCount / 2;
       }
 
-      visibleIndexs.value.startIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
+      visibleIndexs.value.startIndex = startIndex;
       visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
       lastPosition.value = startPosition;
@@ -569,7 +585,7 @@ export default defineComponent({
       visibleIndexs.value.endIndex = bufferCount;
     });
 
-    onUnmounted(() => {
+    onBeforeUnmount(() => {
       tableRowStore.clear();
     });
 
@@ -686,7 +702,7 @@ export default defineComponent({
         <div class='bklog-list-row'>
           {renderColumns.value.map(column => (
             <LogCell
-              key={column.key}
+              key={`${rowIndex}-${column.key}`}
               width={column.width}
               class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
               minWidth={column.minWidth ?? 'auto'}
@@ -709,20 +725,23 @@ export default defineComponent({
     const handleRowResize = (entry, row) => {
       const config: RowConfig = row[ROW_CONFIG].value;
       config.minHeight = entry.contentRect.height;
+      const rowElement = entry.target.querySelector('.bklog-list-row');
+      config.rowMinHeight = rowElement.offsetHeight;
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
     };
 
     const renderRowVNode = () => {
       const { startIndex, endIndex } = visibleIndexs.value;
+      const visibleStartIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
       return tableData.value.map(row => {
         const rowIndex = row[ROW_INDEX];
 
         const rowStyle = {
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
-          '--row-min-height': `${row[ROW_CONFIG].value.minHeight - 2}px`,
+          '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px}`,
         };
 
-        if (rowIndex >= startIndex && rowIndex < endIndex) {
+        if (rowIndex >= visibleStartIndex && rowIndex < endIndex) {
           return (
             <RowRender
               key={row[ROW_KEY]}

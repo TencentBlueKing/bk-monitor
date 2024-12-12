@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref, nextTick } from 'vue';
+import { computed, defineComponent, onMounted, ref, nextTick, onBeforeUnmount } from 'vue';
 
 import interactjs from 'interactjs';
 
@@ -56,6 +56,7 @@ export default defineComponent({
     });
 
     const refRoot = ref();
+    let interactjsInstance = null;
 
     const renderVNode = () => {
       return (
@@ -81,7 +82,8 @@ export default defineComponent({
             guideLineElement.style.left = `${client.x - containerRect.x}px`;
           };
 
-          interactjs(refRoot.value).resizable({
+          interactjsInstance = interactjs(refRoot.value);
+          interactjsInstance.resizable({
             edges: { top: false, left: false, bottom: false, right: true },
             listeners: {
               start(event) {
@@ -117,6 +119,10 @@ export default defineComponent({
           });
         });
       }
+    });
+
+    onBeforeUnmount(() => {
+      interactjsInstance?.unset();
     });
 
     return { renderVNode };

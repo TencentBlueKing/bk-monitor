@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, watch, computed, onMounted } from 'vue';
+  import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
@@ -54,7 +54,7 @@
     emit('menu-click', event);
   };
 
-  const instance = new UseJsonFormatter({
+  let instance = new UseJsonFormatter({
     target: refContent,
     fields: [props.field],
     jsonValue: props.content,
@@ -150,6 +150,10 @@
   const showMore = computed(() => renderText.value.length < props.content.length && maxWidth.value > 0);
 
   const debounceSetSegmentTag = () => {
+    if (!instance) {
+      return;
+    }
+
     instance.config.jsonValue = props.content;
     instance.destroy?.();
 
@@ -199,6 +203,11 @@
     setMaxWidth();
     renderText.value = truncateTextWithCanvas();
     debounceSetSegmentTag();
+  });
+
+  onBeforeUnmount(() => {
+    instance.destroy?.();
+    instance = null;
   });
 </script>
 <template>

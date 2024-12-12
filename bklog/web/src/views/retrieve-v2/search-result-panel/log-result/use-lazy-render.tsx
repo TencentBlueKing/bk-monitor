@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 
 import useResizeObserve from '@/hooks/use-resize-observe';
 import { throttle, debounce } from 'lodash';
@@ -117,7 +117,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     calculateOffsetTop();
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     getScrollElement()?.removeEventListener('scroll', handleScrollEvent);
   });
 

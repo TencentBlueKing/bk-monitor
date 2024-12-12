@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, onUnmounted, Ref, ref } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, Ref, ref } from 'vue';
 
 import { throttle } from 'lodash';
 
@@ -76,7 +76,7 @@ export default defineComponent({
       refSrollRoot.value?.addEventListener('scroll', handleScrollEvent);
     });
 
-    onUnmounted(() => {
+    onBeforeUnmount(() => {
       refSrollRoot.value?.removeEventListener('scroll', handleScrollEvent);
     });
 

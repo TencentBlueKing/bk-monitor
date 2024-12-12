@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onUnmounted,inject } from 'vue';
+  import { ref, computed, watch, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -21,13 +21,11 @@
 
   const refDataTrendCanvas = ref(null);
 
-  
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
-    handleChartDataZoom
+    handleChartDataZoom,
   });
-
 
   const finishPolling = ref(false);
   const isStart = ref(false);
@@ -191,7 +189,7 @@
     },
   );
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     logChartCancel?.();
   });
 </script>

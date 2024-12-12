@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onBeforeUnmount } from 'vue';
 
 import { getTargetElement } from './hooks-helper';
 
@@ -37,7 +37,7 @@ export default ({ target, callback }) => {
     targetElement?.addEventListener('wheel', throttleCallback);
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     const targetElement = getTargetElement(target);
     targetElement?.removeEventListener('wheel', throttleCallback);
   });
