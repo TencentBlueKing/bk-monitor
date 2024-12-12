@@ -11,6 +11,34 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 
 
+class StrategyLabelType(Enum):
+    # 用于标识一个策略的归属，便于后续完善 APM 告警治理
+    # 场景层
+    SCENE: str = "APM-APP"
+    # 服务层
+    SERVICE: str = "APM-SERVICE"
+    # 系统层
+    SYSTEM: str = "APM-SYSTEM"
+    # 告警类别
+    ALERT_TYPE: str = "APM-ALERT"
+
+    @classmethod
+    def scene_label(cls, app_name: str) -> str:
+        return f"{cls.SCENE.value}({app_name})"
+
+    @classmethod
+    def service_label(cls, service_name: str) -> str:
+        return f"{cls.SERVICE.value}({service_name})"
+
+    @classmethod
+    def system_label(cls, system: str) -> str:
+        return f"{cls.SYSTEM.value}({system})"
+
+    @classmethod
+    def alert_type(cls, alert_type: str) -> str:
+        return f"{cls.ALERT_TYPE.value}({alert_type})"
+
+
 class GroupType(Enum):
     RPC: str = "rpc"
 
