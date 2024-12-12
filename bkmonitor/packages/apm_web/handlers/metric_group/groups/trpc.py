@@ -53,6 +53,9 @@ class CodeType:
 
 class TrpcMetricGroup(base.BaseMetricGroup):
 
+    # tRPC-Go Recovery 插件写入指标，通用框架指标，和上报 SDK 无关。
+    PANIC_METRIC_FIELD: str = "trpc_PanicNum"
+
     METRIC_FIELDS: Dict[str, Dict[str, str]] = {
         SeriesAliasType.CALLER.value: {
             "rpc_handled_total": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
@@ -93,6 +96,9 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
     def handle(self, calculation_type: str, **kwargs) -> List[Dict[str, Any]]:
         return self.get_calculation_method(calculation_type)(**kwargs)
+
+    def query_config(self, calculation_type: str, **kwargs) -> Dict[str, Any]:
+        return self._get_qs(calculation_type).query_config
 
     class Meta:
         name = define.GroupEnum.TRPC
@@ -149,6 +155,12 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
+    def _panic_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
+        q: QueryConfigBuilder = (
+            self.q(start_time, end_time).alias("a").metric(field=self.PANIC_METRIC_FIELD, method="SUM", alias="a")
+        )
+        return self.qs(start_time, end_time).add_query(q).expression("a")
+
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         q: QueryConfigBuilder = (
             self.q(start_time, end_time)
@@ -178,16 +190,21 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
 
-    def _histogram_quantile_duration(
+    def _histogram_quantile_duration_qs(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> UnifyQuerySet:
         q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .group_by("le")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], method="SUM", alias="a")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
-        return list(self.qs(start_time, end_time).add_query(q).expression("a * 1000"))
+        return self.qs(start_time, end_time).add_query(q).expression("a * 1000")
+
+    def _histogram_quantile_duration(
+        self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        return list(self._histogram_quantile_duration_qs(scalar, start_time, end_time))
 
     def _code_redefined(self, code_type: str, q: QueryConfigBuilder) -> QueryConfigBuilder:
         if not self.ret_code_as_exception:
@@ -238,6 +255,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
             define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate_qs, CodeType.EXCEPTION),
             define.CalculationType.AVG_DURATION: self._avg_duration_qs,
+            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration_qs, 0.99),
+            define.CalculationType.PANIC: self._panic_qs,
         }[qs_type](start_time, end_time)
 
     def _top_n(
@@ -261,13 +280,34 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     ) -> List[Dict[str, Any]]:
         return list(self._get_qs(qs_type, start_time, end_time).func(_id="bottomk", params=[{"value": limit}]))
 
-    def fetch_server_list(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[str]:
+    def fetch_server_list(
+        self,
+        filter_dict: Optional[Dict[str, Any]] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+    ) -> List[str]:
         return self.metric_helper.get_field_option_values_by_groups(
             params_list=[
-                {"metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL, "field": TRPCMetricTag.CALLER_SERVER},
-                {"metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL, "field": TRPCMetricTag.CALLEE_SERVER},
-                {"metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL, "field": TRPCMetricTag.SERVICE_NAME},
-                {"metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL, "field": TRPCMetricTag.SERVICE_NAME},
+                {
+                    "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.CALLER_SERVER,
+                    "filter_dict": filter_dict,
+                },
+                {
+                    "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.CALLEE_SERVER,
+                    "filter_dict": filter_dict,
+                },
+                {
+                    "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "filter_dict": filter_dict,
+                },
+                {
+                    "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
+                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "filter_dict": filter_dict,
+                },
             ],
             start_time=start_time,
             end_time=end_time,

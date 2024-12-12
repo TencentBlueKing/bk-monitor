@@ -67,12 +67,17 @@ class BaseMetricGroup(metaclass=MetricGroupMeta):
         app_name: str,
         group_by: Optional[List[str]] = None,
         filter_dict: Optional[Dict[str, Any]] = None,
+        metric_helper: Optional[MetricHelper] = None,
         **kwargs,
     ):
         self.group_by: List[str] = copy.deepcopy(group_by or [])
         self.filter_dict: Dict[str, Any] = filter_dict or {}
-        self.metric_helper: MetricHelper = MetricHelper(bk_biz_id, app_name)
+        self.metric_helper: MetricHelper = metric_helper or MetricHelper(bk_biz_id, app_name)
 
     @abc.abstractmethod
     def handle(self, calculation_type: str, **kwargs) -> List[Dict[str, Any]]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def query_config(self, calculation_type: str, **kwargs) -> Dict[str, Any]:
         raise NotImplementedError
