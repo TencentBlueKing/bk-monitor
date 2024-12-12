@@ -504,8 +504,7 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    // 滚动不满一行数据时，第一行数据的偏移量
-    const scrollRowOffsetHeight = ref(0);
+    const lastPosition = ref(0);
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
       if (isRequesting.value) {
         return;
@@ -514,16 +513,27 @@ export default defineComponent({
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
-      let startPosition = 0;
-      let startIndex = 0;
+      const nextIndexOperator = useScrollHeight > lastPosition.value ? 1 : -1;
 
-      while (startPosition < useScrollHeight) {
+      let startPosition = lastPosition.value;
+      let startIndex = visibleIndexs.value.startIndex;
+
+      // 根据滚动方向，判断是否需要继续遍历
+      const getCondition = (pos?) => {
+        if (nextIndexOperator === 1) {
+          return (pos ?? startPosition) < useScrollHeight;
+        }
+
+        return (pos ?? startPosition) > useScrollHeight;
+      };
+
+      while (getCondition()) {
         const nextItem = tableData.value[startIndex];
         if (nextItem) {
-          const lastHeight = startPosition + nextItem[ROW_CONFIG].value.minHeight;
-          if (lastHeight <= useScrollHeight) {
+          const lastHeight = startPosition + nextIndexOperator * nextItem[ROW_CONFIG].value.minHeight;
+          if (getCondition(lastHeight)) {
             startPosition = lastHeight;
-            startIndex = startIndex + 1;
+            startIndex = startIndex + 1 * nextIndexOperator;
           } else {
             break;
           }
@@ -544,10 +554,10 @@ export default defineComponent({
         endIndex = endIndex + bufferCount / 2;
       }
 
-      scrollRowOffsetHeight.value = useScrollHeight - startPosition;
       visibleIndexs.value.startIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
       visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
+      lastPosition.value = startPosition;
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -592,8 +602,6 @@ export default defineComponent({
             refScrollXBar.value?.scrollLeft(nextOffset);
           }
         }
-
-        console.log('event:', scrollXOffsetLeft.value);
       },
     });
 
@@ -651,6 +659,7 @@ export default defineComponent({
 
     const scrollTop = () => {
       scrollToTop(visibleIndexs.value.endIndex < 100);
+      lastPosition.value = 0;
       visibleIndexs.value.startIndex = 0;
       visibleIndexs.value.endIndex = bufferCount * 2;
     };
