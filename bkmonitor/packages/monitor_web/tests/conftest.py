@@ -27,7 +27,7 @@ from api.kubernetes.default import (
     FetchK8sBkmMetricbeatEndpointUpResource,
     FetchK8sEventListResource,
     FetchK8sEventLogResource,
-    FetchK8sMonitorEndpointList,
+    FetchK8sMonitorEndpointListResource,
     FetchK8sNodePerformanceResource,
     FetchK8sPodListByClusterResource,
     FetchK8sWorkloadListByClusterResource,

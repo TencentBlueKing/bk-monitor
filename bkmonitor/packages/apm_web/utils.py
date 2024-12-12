@@ -118,7 +118,7 @@ def get_interval_number(start_time, end_time, interval="auto"):
     return 60 if not isinstance(interval, int) else interval
 
 
-def get_bar_interval_number(start_time, end_time, size=30):
+def get_bar_interval_number(start_time, end_time, size=30) -> int:
     """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
     # 最低聚合为一分钟
     c = (end_time - start_time) / 60

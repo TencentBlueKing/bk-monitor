@@ -32,10 +32,7 @@ export const bkLogSearchDimension = request('GET', 'query-api/rest/v2/grafana/bk
 export const bkLogSearchTargetTree = request('GET', 'rest/v2/grafana/bk_log_search/grafana/target_tree/');
 export const bkLogSearchQueryLog = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/query_log/');
 export const bkLogSearchGetVariableField = request('GET', 'rest/v2/grafana/bk_log_search/grafana/get_variable_field/');
-export const bkLogSearchGetVariableValue = request(
-  'POST',
-  'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/'
-);
+export const bkLogSearchGetVariableValue = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/');
 export const getLabel = request('GET', 'rest/v2/grafana/get_label/');
 export const getTopoTree = request('GET', 'rest/v2/grafana/topo_tree/');
 export const getDimensionValues = request('GET', 'rest/v2/grafana/get_dimension_values/');
@@ -44,6 +41,7 @@ export const getDataSourceConfig = request('GET', 'rest/v2/grafana/get_data_sour
 export const getVariableValue = request('POST', 'query-api/rest/v2/grafana/get_variable_value/');
 export const getVariableField = request('GET', 'rest/v2/grafana/get_variable_field/');
 export const timeSeriesMetric = request('POST', 'rest/v2/grafana/time_series/metric/');
+export const getRelatedStrategy = request('GET', 'rest/v2/grafana/get_related_strategy/');
 export const timeSeriesMetricLevel = request('POST', 'rest/v2/grafana/time_series/metric_level/');
 export const logQuery = request('POST', 'query-api/rest/v2/grafana/log/query/');
 export const getDashboardList = request('GET', 'rest/v2/grafana/dashboards/');
@@ -51,14 +49,14 @@ export const setDefaultDashboard = request('POST', 'rest/v2/grafana/set_default_
 export const getDefaultDashboard = request('GET', 'rest/v2/grafana/get_default_dashboard/');
 export const getDirectoryTree = request('GET', 'rest/v2/grafana/get_directory_tree/');
 export const createDashboardOrFolder = request('POST', 'rest/v2/grafana/create_dashboard_or_folder/');
-export const copyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
-export const MigrateOldPanels = request('POST', 'rest/v2/grafana/migrate_old_panels/');
 export const deleteDashboard = request('DELETE', 'rest/v2/grafana/delete_dashboard/');
 export const starDashboard = request('POST', 'rest/v2/grafana/star_dashboard/');
 export const unstarDashboard = request('DELETE', 'rest/v2/grafana/unstar_dashboard/');
 export const deleteFolder = request('DELETE', 'rest/v2/grafana/delete_folder/');
 export const renameFolder = request('PUT', 'rest/v2/grafana/rename_folder/');
 export const quickImportDashboard = request('POST', 'rest/v2/grafana/quick_import_dashboard/');
+export const copyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
+export const migrateOldPanels = request('POST', 'rest/v2/grafana/migrate_old_panels/');
 export const saveToDashboard = request('POST', 'rest/v2/grafana/save_to_dashboard/');
 export const getFunctions = request('GET', 'rest/v2/grafana/time_series/functions/');
 export const graphUnifyQuery = request('POST', 'query-api/rest/v2/grafana/time_series/unify_query/');
@@ -81,6 +79,11 @@ export const listApplicationInfo = request('POST', 'rest/v2/grafana/apm/list_app
 export const getFieldOptionValues = request('POST', 'rest/v2/grafana/apm/get_field_option_values/');
 export const listTrace = request('POST', 'rest/v2/grafana/apm/list_trace/');
 export const traceDetail = request('POST', 'rest/v2/grafana/apm/trace_detail/');
+export const grafanaQueryProfile = request('POST', 'rest/v2/grafana/query_graph_profile/');
+export const listApplicationServices = request('GET', 'rest/v2/grafana/get_profile_application_service/');
+export const queryServicesDetail = request('GET', 'rest/v2/grafana/get_profile_type/');
+export const grafanaQueryProfileLabel = request('GET', 'rest/v2/grafana/get_profile_label/');
+export const grafanaQueryProfileLabelValues = request('GET', 'rest/v2/grafana/get_profile_label_values/');
 
 export default {
   test,
@@ -99,6 +102,7 @@ export default {
   getVariableValue,
   getVariableField,
   timeSeriesMetric,
+  getRelatedStrategy,
   timeSeriesMetricLevel,
   logQuery,
   getDashboardList,
@@ -106,14 +110,14 @@ export default {
   getDefaultDashboard,
   getDirectoryTree,
   createDashboardOrFolder,
-  copyDashboardToFolder,
-  MigrateOldPanels,
   deleteDashboard,
   starDashboard,
   unstarDashboard,
   deleteFolder,
   renameFolder,
   quickImportDashboard,
+  copyDashboardToFolder,
+  migrateOldPanels,
   saveToDashboard,
   getFunctions,
   graphUnifyQuery,
@@ -136,4 +140,9 @@ export default {
   getFieldOptionValues,
   listTrace,
   traceDetail,
+  grafanaQueryProfile,
+  listApplicationServices,
+  queryServicesDetail,
+  grafanaQueryProfileLabel,
+  grafanaQueryProfileLabelValues,
 };

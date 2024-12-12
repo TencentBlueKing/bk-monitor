@@ -33,6 +33,7 @@ export enum IntroduceRouteKey {
   'collect-config' = 'collect-config',
   'custom-scenes' = 'custom-scenes',
   k8s = 'k8s',
+  // 'k8s-old' = 'k8s-old',
   performance = 'performance',
   'plugin-manager' = 'plugin-manager',
   'uptime-check' = 'uptime-check',

@@ -1,0 +1,86 @@
+.k8s-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 52px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 0 0 #dcdee5,
+    0 3px 4px 0 #4070cb0f;
+
+  .k8s-nav-title {
+    display: flex;
+    align-items: center;
+    padding-left: 24px;
+
+    .title {
+      font-size: 16px;
+      color: #313238;
+    }
+
+    .nav-select {
+      width: 160px;
+      height: 32px;
+      margin: 0 18px;
+      background: #f0f1f5;
+      border-color: transparent;
+      border-radius: 2px;
+
+      &.is-focus {
+        background-color: #fff;
+        border: 1px solid #3a84ff;
+        box-shadow: none;
+      }
+
+      .bk-select-prefix-icon {
+        top: calc(50% - 10px);
+        left: 8px;
+        font-size: 20px;
+        line-height: normal;
+        color: #a3c5fd;
+      }
+
+      .bk-select-name {
+        padding-left: 36px;
+        font-size: 14px;
+        line-height: 32px;
+        color: #313238;
+      }
+    }
+
+    .icon-copy-link {
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .k8s-nav-tools {
+    .dashboard-tools {
+      padding-right: 25px;
+
+      .dashboard-tools-interval {
+        &::after {
+          display: none;
+        }
+      }
+    }
+  }
+}
+
+.new-k8s-nav-select-popover {
+  .bk-option-content {
+    padding-left: 12px;
+  }
+
+  .icon-monitor {
+    margin-right: 4px;
+    font-size: 16px;
+    vertical-align: middle;
+  }
+
+  .label {
+    vertical-align: middle;
+  }
+}

@@ -12,8 +12,7 @@ specific language governing permissions and limitations under the License.
 from django.conf.urls import include, url
 
 from core.drf_resource.routers import ResourceRouter
-
-from . import views
+from monitor_web.ai_assistant import views
 
 router = ResourceRouter()
 router.register_module(views)
