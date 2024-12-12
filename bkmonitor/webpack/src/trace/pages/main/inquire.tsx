@@ -1037,6 +1037,8 @@ export default defineComponent({
 
         item.selectedConditionValue.length = 0;
       });
+      // 无应用时不调用getFieldOptionValues API
+      if (!params.app_name) return;
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
@@ -1305,6 +1307,7 @@ export default defineComponent({
       };
       conditionList[index].conditionValueList.length = 0;
       isAddConditionButtonLoading.value = true;
+      if (!params.app_name) return; // 无应用时不调用getFieldOptionValues API
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
@@ -1417,8 +1420,8 @@ export default defineComponent({
         bk_biz_id: window.bk_biz_id,
         fields: selectedConditions.value,
       };
-      // 没有选择或配置正确的筛选项就不应该发生请求。
-      if (params.fields.length === 0) return;
+      // 没有选择或配置正确的筛选项就不应该发生请求 || 无应用时不调用getFieldOptionValues API。
+      if (params.fields.length === 0 || !params.app_name) return;
       isAddConditionButtonLoading.value = true;
       const result = await getFieldOptionValues(params, { cancelToken: cancelTokenSource?.token })
         .catch(() => {})
