@@ -738,7 +738,7 @@ export default defineComponent({
 
         const rowStyle = {
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
-          '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px}`,
+          '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
         };
 
         if (rowIndex >= visibleStartIndex && rowIndex < endIndex) {
