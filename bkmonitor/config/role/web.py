@@ -542,7 +542,7 @@ var _wr = function(type) {
    history.replaceState = _wr('replaceState');
   ["popstate", "replaceState", "pushState"].forEach(function(eventName) {
     window.addEventListener(eventName, function() {
-      window.parent.postMessage({ pathname: this.location.pathname }, "*");
+      window.parent.postMessage({ pathname: this.location.pathname, search: this.location.search }, "*");
     });
   });
 </script>
