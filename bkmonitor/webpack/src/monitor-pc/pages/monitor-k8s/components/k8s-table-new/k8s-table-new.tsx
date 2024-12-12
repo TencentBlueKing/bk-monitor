@@ -72,6 +72,8 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   width?: number;
   /** 最小列宽 */
   min_width?: number;
+  /** label 是否可以点击 */
+  canClick?: boolean;
   /** 是否需要异步加载 */
   asyncable?: boolean;
   /** 是否开启 添加/移除 筛选项 icon */
@@ -79,7 +81,6 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   /** 是否开启 下钻 icon */
   k8s_group?: boolean;
   /** 自定义获取值逻辑函数 */
-
   getValue?: (row: K8sTableRow) => string;
 }
 
@@ -257,6 +258,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }, {});
   }
 
+  /** table 空数据时显示样式类型 'search-empty'/'empty' */
+  get tableEmptyType() {
+    if (this.filterBy?.length) {
+      return 'search-empty';
+    }
+    return 'empty';
+  }
+
   @Watch('activeTab')
   onActiveTabChange(v) {
     if (v !== K8sNewTabEnum.CHART) {
@@ -267,6 +276,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   @Watch('groupInstance.groupFilters')
   onGroupFiltersChange() {
+    if (!this.isListTab) return;
     this.getK8sList({ needRefresh: true });
   }
 
@@ -317,6 +327,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 90,
+        canClick: true,
+        getValue: () => this.clusterId,
       },
       [POD]: {
         id: POD,
@@ -324,6 +336,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
+        canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -333,7 +346,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        getValue: K8sTableNew.getWorkloadValue(K8sTableColumnKeysEnum.WORKLOAD, 1),
+        getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 1),
       },
       [WORKLOAD]: {
         id: WORKLOAD,
@@ -341,9 +354,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
+        canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
-        getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(K8sTableColumnKeysEnum.WORKLOAD, 0) : null,
+        getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 0) : null,
       },
       [NAMESPACE]: {
         id: NAMESPACE,
@@ -360,6 +374,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 120,
+        canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -407,7 +422,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
     this.tableLoading[loadingKey] = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const resourceType = this.groupInstance?.getLastGroupFilter();
+    const { dimensions } = this.groupInstance;
+    const resourceType = this.isListTab
+      ? this.groupInstance?.getLastGroupFilter()
+      : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
     const filter_dict = this.filterBy.reduce((prev, curr) => {
       if (curr.value?.length) {
         prev[curr.key] = curr.value;
@@ -518,7 +536,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     tableAsyncData,
     tableDataMap
   ) {
-    const setData = (currentIndex = 0, enableIdle = true, step = 1) => {
+    const setData = (currentIndex = 0, enableIdle = true, step = 5) => {
       const len = tableAsyncData.length;
       let endIndex = currentIndex + step;
       let shouldBreak = false;
@@ -541,19 +559,23 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         rowData[field] = chartData;
       }
       if (shouldBreak) {
-        return shouldBreak;
+        return { shouldBreak, endIndex: -1 };
       }
       if (enableIdle) {
         requestIdleCallback(deadline => {
           while (deadline.timeRemaining() > 0 && !shouldBreak) {
-            shouldBreak = setData(endIndex, false);
+            const res = setData(endIndex, false);
+            endIndex = res.endIndex;
+            shouldBreak = res.shouldBreak;
           }
           if (!shouldBreak) {
-            setData(endIndex, true);
+            requestAnimationFrame(() => {
+              setData(endIndex, true);
+            });
           }
         });
       } else {
-        setData(endIndex, false);
+        return { shouldBreak: false, endIndex };
       }
     };
     setData(0, true);
@@ -588,6 +610,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 表格滚动到底部回调
    */
   handleTableScrollEnd() {
+    if (this.tableData.length >= this.tableDataTotal) {
+      return;
+    }
     this.pagination.page++;
     this.getK8sList({ needIncrement: true });
   }
@@ -680,13 +705,22 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
         <div class='k8s-table-col-item'>
-          <span
-            class='col-item-label'
-            v-bk-overflow-tips={{ interactive: false }}
-            onClick={() => this.handleLabelClick({ column, row, index })}
-          >
-            {text}
-          </span>
+          {column.canClick ? (
+            <span
+              class='col-item-label can-click'
+              v-bk-overflow-tips={{ interactive: false }}
+              onClick={() => this.handleLabelClick({ column, row, index })}
+            >
+              {text}
+            </span>
+          ) : (
+            <span
+              class='col-item-label'
+              v-bk-overflow-tips={{ interactive: false }}
+            >
+              {text}
+            </span>
+          )}
           <div class='col-item-operate'>
             {this.filterIconFormatter(column, row)}
             {this.groupIconFormatter(column)}
@@ -777,7 +811,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             placement: 'right',
           }}
           data={this.tableData}
-          row-key={this.tableRowKey}
+          // row-key={this.tableRowKey}
           size='small'
           on-scroll-end={this.handleTableScrollEnd}
           on-sort-change={val => this.handleSortChange(val as K8sTableSort)}
@@ -788,7 +822,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             textMap={{
               empty: this.$t('暂无数据'),
             }}
-            type={this.groupInstance?.groupFilters?.length || this.filterBy?.length ? 'search-empty' : 'empty'}
+            type={this.tableEmptyType}
             onOperation={this.clearSearch}
           />
         </bk-table>
