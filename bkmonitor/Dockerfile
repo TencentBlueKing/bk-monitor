@@ -1,4 +1,4 @@
-FROM python:3.6-bullseye as builder
+FROM python:3.7-bullseye as builder
 ARG build_frontend=true
 ARG replace_debian_source=false
 
@@ -54,7 +54,7 @@ fi
 
 RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
-FROM python:3.6-bullseye
+FROM python:3.7-bullseye
 
 ARG username=bkmonitor
 ARG version
