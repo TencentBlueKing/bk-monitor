@@ -49,7 +49,7 @@ class Command(BaseCommand):
         bk_biz_id: int = options["bk_biz_id"]
         app_name: str = options["app_name"]
         apply_types: List[str] = list(options.get("apply_types") or [])
-        apply_services: List[str] = list(options.get("apply_servers") or [])
+        apply_services: List[str] = list(options.get("apply_services") or [])
         notice_group_ids: List[int] = options["notice_group_ids"]
         options_config: Dict[str, Any] = json.loads(options.get("config") or "{}")
 
