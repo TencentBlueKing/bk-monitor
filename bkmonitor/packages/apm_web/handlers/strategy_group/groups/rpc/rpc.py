@@ -324,14 +324,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             if not service_label_set or service_label_set & strategy_label_set:
                 filtered_strategies.append(strategy)
 
-        if not self.apply_services:
-            return strategies
-
-        # 策略不支持 labels 间的 and 查询，此处先查询应用关联的策略，再二次过滤。
-        service_labels: Set[str] = {
-            define.StrategyLabelType.service_label(service_name) for service_name in self.apply_services
-        }
-        return [strategy for strategy in strategies if service_labels & set(strategy.get("labels") or [])]
+        return filtered_strategies
 
     def _list_caller_callee(self, kind: str, cal_type_config_mapping: Dict[str, Dict[str, Any]]) -> List[StrategyT]:
         service_names: List[str] = []
