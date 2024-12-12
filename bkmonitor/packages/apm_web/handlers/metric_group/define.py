@@ -35,9 +35,13 @@ class CalculationType:
     BOTTOM_N = "bottom_n"
 
     # Resource
+    # 内存使用率
     KUBE_MEMORY_USAGE = "kube_memory_usage"
+    # CPU 使用率
     KUBE_CPU_USAGE = "kube_cpu_usage"
+    # OOM 异常退出
     KUBE_OOM_KILLED = "kube_oom_killed"
+    # 异常重启
     KUBE_ABNORMAL_RESTART = "kube_abnormal_restart"
 
     @classmethod

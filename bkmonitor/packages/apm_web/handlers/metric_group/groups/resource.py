@@ -21,6 +21,7 @@ from .. import base, define
 
 
 class ResourceMetricGroup(base.BaseMetricGroup):
+    """定义系统容量相关算子"""
 
     TABLE_ID: str = ""
     USING: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.BK_MONITOR_COLLECTOR)

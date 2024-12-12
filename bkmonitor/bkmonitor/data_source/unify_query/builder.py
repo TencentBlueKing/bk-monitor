@@ -172,6 +172,7 @@ class QueryHelper:
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
+            # 业务层处理鉴权（读取 requests 的空间信息），底层模块无需额外增加鉴权信息，确保在后台使用不会抛出无权限
             space_uid=None,
         )
 
@@ -363,6 +364,7 @@ class UnifyQueryConfig:
 class CompilerMixin:
     @property
     def query_config(self):
+        """导出数据查询配置"""
         compiler = self.query.get_compiler(using=self.using)
         __, params = compiler.as_sql()
         query_configs: List[Dict[str, Any]] = []
