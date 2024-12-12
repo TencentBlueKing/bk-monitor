@@ -228,6 +228,9 @@ class SQLChartHandler(ChartHandler):
         # 记录doris日志
         logger.info(
             "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
-            get_request_username(), sql, result_data["data"]["totalRecords"], result_data["data"]["timetaken"]
+            get_request_username(),
+            sql.replace("\n", " "),
+            result_data["data"]["totalRecords"],
+            result_data["data"]["timetaken"],
         )
         return data
