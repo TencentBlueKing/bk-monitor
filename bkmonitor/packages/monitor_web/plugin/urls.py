@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 from core.drf_resource.routers import ResourceRouter
 from monitor_web.plugin import views
@@ -16,4 +16,4 @@ from monitor_web.plugin import views
 router = ResourceRouter()
 router.register_module(views)
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [re_path(r"^", include(router.urls))]

@@ -17,7 +17,7 @@ from collections import defaultdict
 import networkx
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from networkx import dag_longest_path_length
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import RpcGrpcStatusCodeValues, SpanAttributes

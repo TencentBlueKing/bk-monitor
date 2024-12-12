@@ -13,7 +13,7 @@ import copy
 import logging
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six import string_types
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager

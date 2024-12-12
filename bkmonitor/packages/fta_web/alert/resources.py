@@ -27,7 +27,7 @@ from django.core.cache import cache
 from django.db.models import Count
 from django.db.models import Q as DQ
 from django.http import HttpResponse, HttpResponseRedirect
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError

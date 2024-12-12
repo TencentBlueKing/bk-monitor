@@ -16,7 +16,7 @@ import os.path
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import authentication
 
 from core.drf_resource import api

@@ -16,7 +16,7 @@ import json
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (

@@ -18,7 +18,7 @@ from collections import defaultdict, namedtuple
 import six
 from django.conf import settings
 from django.template import Context, Template
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.common_utils import host_key
 from core.drf_resource import api, resource

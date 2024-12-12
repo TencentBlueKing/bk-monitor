@@ -13,10 +13,10 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from celery.schedules import crontab
-from celery.task import periodic_task
 
 from alarm_backends.core.api_cache.library import API_CRONTAB
 from alarm_backends.core.cluster import get_cluster
+from alarm_backends.service.scheduler.app import periodic_task
 from alarm_backends.service.scheduler.tasks.cron import task_duration
 
 logger = logging.getLogger("cron")

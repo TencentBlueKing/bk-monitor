@@ -270,7 +270,7 @@ class SimilarityMap:
 @dataclass
 class DiffTree:
     roots: List[DiffNode] = field(default_factory=list)
-    config: TreeBuildingConfig = TreeBuildingConfig.default()
+    config: TreeBuildingConfig = field(default_factory=TreeBuildingConfig.default())
     level_similarity_map: Dict[int, SimilarityMap] = field(default_factory=lambda: defaultdict(SimilarityMap))
 
     # id -> DiffNode, quick access for DiffNode

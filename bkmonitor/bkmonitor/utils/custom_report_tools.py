@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import posixpath
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 import requests
 from django.conf import settings

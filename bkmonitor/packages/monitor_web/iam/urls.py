@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
-from django.conf.urls import include, url
+from django.urls import include, re_path
 from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
-from monitor_web.iam import views
 
 from bkmonitor.iam.permission import Permission
 from core.drf_resource.routers import ResourceRouter
+from monitor_web.iam import views
 
 router = ResourceRouter()
 router.register_module(views)
@@ -25,4 +25,4 @@ dispatcher.register("apm_application", views.ApmApplicationProvider())
 dispatcher.register("space", views.SpaceProvider())
 dispatcher.register("grafana_dashboard", views.GrafanaDashboardProvider())
 
-urlpatterns = [url(r"^", include(router.urls)), url(r"^iam/resource/$", dispatcher.as_view([login_exempt]))]
+urlpatterns = [re_path(r"^", include(router.urls)), re_path(r"^iam/resource/$", dispatcher.as_view([login_exempt]))]

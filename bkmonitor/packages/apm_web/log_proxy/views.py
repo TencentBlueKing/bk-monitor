@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 import requests
 from django.conf import settings
 from django.http import JsonResponse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 from rest_framework.views import APIView
 

@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.conf.urls import url
+from django.urls import re_path
 
 from monitor_adapter.api import signature, status, views
 
 urlpatterns = [
-    url(r"^api/signature.png$", signature.signature),
-    url(r"^api/status/settings/$", status.status_settings),
-    url(r"^VERSION/$", views.version_info),
+    re_path(r"^api/signature.png$", signature.signature),
+    re_path(r"^api/status/settings/$", status.status_settings),
+    re_path(r"^VERSION/$", views.version_info),
 ]

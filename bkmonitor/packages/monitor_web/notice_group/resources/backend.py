@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models.base import NoticeGroup
 from bkmonitor.strategy.serializers import NoticeGroupSerializer

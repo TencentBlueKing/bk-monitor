@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from datetime import datetime, timedelta
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.aiops.alert.utils import AIOPSManager

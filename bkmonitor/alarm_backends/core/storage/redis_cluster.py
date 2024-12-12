@@ -193,7 +193,7 @@ DEFAULT_NODE = None
 
 
 def get_node_by_strategy_id(strategy_id: int):
-    from django.utils.translation import ugettext as _
+    from django.utils.translation import gettext as _
 
     global STRATEGY_ROUTER_CACHE, DEFAULT_NODE, STRATEGY_NODE_MAP
 

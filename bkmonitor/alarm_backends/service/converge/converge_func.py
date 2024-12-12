@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import logging
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.service.converge.utils import (

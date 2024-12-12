@@ -16,7 +16,7 @@ from typing import Optional
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField

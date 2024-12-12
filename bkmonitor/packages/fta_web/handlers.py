@@ -14,7 +14,7 @@ import traceback
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents.tasks import rollover_indices
 from bkmonitor.models import EventPluginInstance, EventPluginV2

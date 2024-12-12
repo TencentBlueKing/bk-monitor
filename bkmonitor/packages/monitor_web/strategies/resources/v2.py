@@ -15,7 +15,7 @@ import arrow
 import pytz
 from django.conf import settings
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 

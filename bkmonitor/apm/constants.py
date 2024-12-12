@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 from django.conf import settings
 from django.db.models import TextChoices
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from constants.apm import SpanKind
 

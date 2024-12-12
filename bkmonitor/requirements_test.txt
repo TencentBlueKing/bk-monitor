@@ -6,7 +6,7 @@ pytest-django==4.5.2
 pytest-mock==3.6.1
 coverage==6.1.2
 mock==5.0.1
-fakeredis==1.6.1
+fakeredis==2.26.1
 pytest-cov==4.0.0
 ElasticMock==1.8.1
 attrdict==2.0.1

@@ -15,7 +15,7 @@ from blueapps.account.decorators import login_exempt
 from django.apps import apps
 from django.conf import settings
 from django.utils.decorators import classonlymethod
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor import models as app_models
 from monitor.constants import SHELL_COLLECTOR_DB, UPTIME_CHECK_DB
 from monitor_api import filtersets, models, serializers

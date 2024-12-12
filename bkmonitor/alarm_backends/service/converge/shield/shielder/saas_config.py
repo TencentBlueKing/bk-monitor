@@ -14,7 +14,7 @@ from datetime import datetime
 
 import arrow
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.cache.key import ALERT_SHIELD_SNAPSHOT

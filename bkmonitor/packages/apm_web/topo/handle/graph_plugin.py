@@ -13,7 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import A, Q
 
 from apm_web.constants import AlertLevel, Apdex, TopoNodeKind, TopoVirtualServiceKind

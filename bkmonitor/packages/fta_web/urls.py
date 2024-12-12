@@ -9,16 +9,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
+
 from fta_web.views import home
 
 app_name = "fta_web"
 
 urlpatterns = [
-    url(r"^$", home),
-    url(r"^plugin/", include("fta_web.event_plugin.urls")),
-    url(r"^alert/", include("fta_web.alert.urls")),
-    url(r"^action/", include("fta_web.action.urls")),
-    url(r"^assign/", include("fta_web.assign.urls")),
-    url(r"^home/", include("fta_web.home.urls")),
+    re_path(r"^$", home),
+    re_path(r"^plugin/", include("fta_web.event_plugin.urls")),
+    re_path(r"^alert/", include("fta_web.alert.urls")),
+    re_path(r"^action/", include("fta_web.action.urls")),
+    re_path(r"^assign/", include("fta_web.assign.urls")),
+    re_path(r"^home/", include("fta_web.home.urls")),
 ]

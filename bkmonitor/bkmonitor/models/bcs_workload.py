@@ -13,7 +13,7 @@ import itertools
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBase, BCSBaseManager, BCSBaseResources, BCSLabel, BCSPod
 from core.drf_resource import api

@@ -16,7 +16,7 @@ from collections import defaultdict
 from typing import Callable, Dict, Generator, Iterable, List, Set, Tuple
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 

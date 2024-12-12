@@ -14,7 +14,7 @@ import random
 import time
 from datetime import datetime, timezone
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.key import FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY
 from alarm_backends.service.converge.dimension import (

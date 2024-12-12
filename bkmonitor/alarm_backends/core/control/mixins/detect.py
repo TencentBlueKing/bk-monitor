@@ -13,7 +13,7 @@ from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Type
 
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.cache.key import LAST_CHECKPOINTS_CACHE_KEY

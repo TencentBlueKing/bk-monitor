@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import Dict, Tuple
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pyppeteer import launch
 from pyppeteer.errors import TimeoutError
 

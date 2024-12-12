@@ -18,7 +18,7 @@ import arrow
 import requests
 from django.apps import apps
 from django.conf import settings
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from prometheus_client.parser import text_string_to_metric_families
 from prometheus_client.samples import Sample
 
@@ -125,7 +125,7 @@ class TransferMetricHelper:
         # key_pair: (xxx/service_host, xxxx/service_port)
         for key in key_pair:
             _, result = self.consul_client.kv.get(key)
-            value_pair.append(force_text(result["Value"]))
+            value_pair.append(force_str(result["Value"]))
 
         target_url = f"http://{':'.join(value_pair)}/metrics"
         return target_url

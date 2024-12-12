@@ -15,7 +15,7 @@ from typing import Dict
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from furl import furl
 from kubernetes.client.rest import ApiException
 

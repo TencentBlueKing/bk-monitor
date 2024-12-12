@@ -14,7 +14,7 @@ import logging
 from typing import Optional
 
 from django.http import Http404
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.trace.span import Span
 from opentelemetry.util import types
 from rest_framework import status

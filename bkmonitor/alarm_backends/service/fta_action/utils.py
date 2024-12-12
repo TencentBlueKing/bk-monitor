@@ -16,7 +16,7 @@ from typing import List
 
 import pytz
 from dateutil.relativedelta import relativedelta
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.cache.cmdb.module import ModuleManager

@@ -13,7 +13,7 @@ import logging
 from typing import List
 
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.alert.alert import Alert, AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager

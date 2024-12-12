@@ -15,7 +15,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 import humanize
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from typing_extensions import TypedDict
 
 from common.log import logger

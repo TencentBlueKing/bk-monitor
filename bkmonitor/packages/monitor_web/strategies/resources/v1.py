@@ -18,7 +18,7 @@ from django.conf import settings
 from django.db.models import Count, Q, QuerySet, Sum
 from django.db.models.functions import Length
 from django.forms import model_to_dict
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import (

@@ -3,7 +3,7 @@ import base64
 
 import pytest
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.cmdb.define import Business
 from bkmonitor.models import ReportContents

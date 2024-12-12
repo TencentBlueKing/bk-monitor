@@ -14,11 +14,11 @@ import logging
 import time
 
 from celery.schedules import crontab
-from celery.task import periodic_task
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from alarm_backends.core.cluster import get_cluster
+from alarm_backends.service.scheduler.app import periodic_task
 from core.prometheus import metrics
 
 logger = logging.getLogger("cron")

@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.service.detect.strategy import RangeRatioAlgorithmsCollection
 from bkmonitor.strategy.serializers import SimpleRingRatioSerializer
@@ -30,5 +30,4 @@ class SimpleRingRatio(RangeRatioAlgorithmsCollection):
     ceil_desc_tpl = _("{% load unit %}较前一时刻({{history_data_point.value|auto_unit:unit}})上升超过{{ceil}}%")
 
     def get_history_offsets(self, item):
-
         return [item.query_configs[0]["agg_interval"]]

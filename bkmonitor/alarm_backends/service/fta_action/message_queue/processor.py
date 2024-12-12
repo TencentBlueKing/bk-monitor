@@ -12,7 +12,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.context import ActionContext
 from alarm_backends.core.i18n import i18n

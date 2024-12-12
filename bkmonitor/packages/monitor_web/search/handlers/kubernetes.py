@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from furl import furl
 from monitor_web.search.handlers.base import BaseSearchHandler, SearchResultItem
 
