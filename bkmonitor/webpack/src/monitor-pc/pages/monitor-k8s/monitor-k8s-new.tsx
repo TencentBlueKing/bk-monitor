@@ -205,7 +205,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       target.value = ids;
       this.filterBy = [...this.filterBy];
     } else {
-      this.filterBy.push({ key: groupId, value: ids, method: 'eq' });
+      this.filterBy.push({ key: groupId, value: ids });
     }
   }
 

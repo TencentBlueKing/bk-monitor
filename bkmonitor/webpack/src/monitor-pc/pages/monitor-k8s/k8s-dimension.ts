@@ -169,7 +169,7 @@ export class K8sDimension {
         workloadCategory = await workloadOverview({
           bcs_cluster_id: this.bcsClusterId,
           query_string: this.keyword,
-        });
+        }).catch(() => []);
         let total = 0;
         const children = workloadCategory.map(item => {
           total += item[1];
@@ -197,12 +197,14 @@ export class K8sDimension {
     });
     this.pageMap = pageMap;
     await Promise.all(promiseList);
-    await this.getWorkloadChildrenData({
-      filter_dict: {
-        workload: `${workloadCategory[0][0]}:`,
-      },
-      ...params,
-    });
+    if (workloadCategory.length) {
+      await this.getWorkloadChildrenData({
+        filter_dict: {
+          workload: `${workloadCategory[0][0]}:`,
+        },
+        ...params,
+      });
+    }
   }
 
   /**

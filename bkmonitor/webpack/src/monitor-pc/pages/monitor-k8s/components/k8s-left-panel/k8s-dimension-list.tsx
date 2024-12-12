@@ -72,7 +72,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   drillDownList = [];
 
   /** 一级维度列表初始化loading */
-  loading = true;
+  loading = false;
   /** 展开loading */
   expandLoading = {};
   /** 加载更多loading */
