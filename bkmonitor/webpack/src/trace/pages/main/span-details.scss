@@ -13,6 +13,25 @@
   }
 }
 
+%json-head {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+  color: #63656e;
+
+  .icon-monitor {
+    margin-left: 12px;
+    font-size: 16px;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+}
+
 .span-details-sideslider {
   /* stylelint-disable-next-line declaration-no-important */
   position: fixed !important;
@@ -115,7 +134,11 @@
       }
 
       .json-text-style {
-        @extend %json-style
+        @extend %json-style;
+
+        .json-head {
+          @extend %json-head;
+        }
       }
     }
 
@@ -600,8 +623,13 @@
   }
 
   .json-text-style {
+    position: relative;
     margin-top: 12px;
-    @extend %json-style
+    @extend %json-style;
+
+    .json-head {
+      @extend %json-head;
+    }
   }
 }
 

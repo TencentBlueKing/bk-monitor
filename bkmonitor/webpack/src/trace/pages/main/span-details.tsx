@@ -624,13 +624,22 @@ export default defineComponent({
     function handleTitleCopy(content: string) {
       let text = '';
       const { spanID } = props.spanDetails;
-      if (content === 'text') {
-        text = spanID;
-      } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
-          appName.value
-        }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
-        text = location.href.replace(location.hash, hash);
+      switch (content) {
+        case 'text': {
+          text = spanID;
+          break;
+        }
+        case 'original': {
+          text = JSON.stringify(originalData.value);
+          break;
+        }
+        default: {
+          const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
+            appName.value
+          }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
+          text = location.href.replace(location.hash, hash);
+          break;
+        }
       }
       copyText(text, (msg: string) => {
         Message({
@@ -991,6 +1000,22 @@ export default defineComponent({
         </Popover>
       </div>
     );
+
+    // 复制json字符串数据的icon
+    const copyOriginalElem = () => (
+      <div class='json-head'>
+        <Popover
+          content={t('复制')}
+          placement='right'
+          theme='light'
+        >
+          <span
+            class='icon-monitor icon-mc-copy'
+            onClick={() => handleTitleCopy('original')}
+          />
+        </Popover>
+      </div>
+    );
     if (window.enable_apm_profiling) {
       tabList.push({
         label: t('性能分析'),
@@ -1010,6 +1035,7 @@ export default defineComponent({
         >
           {props.withSideSlider && showOriginalData.value ? (
             <div class='json-text-style'>
+              {copyOriginalElem()}
               <VueJsonPretty data={originalData.value} />
             </div>
           ) : (
@@ -1038,6 +1064,7 @@ export default defineComponent({
                 <div class='accurate-original-panel'>
                   {titleInfoElem()}
                   <div class='json-text-style'>
+                    {copyOriginalElem()}
                     <VueJsonPretty data={originalData.value} />
                   </div>
                 </div>
