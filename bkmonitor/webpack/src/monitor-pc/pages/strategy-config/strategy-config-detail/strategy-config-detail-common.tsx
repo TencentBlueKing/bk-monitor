@@ -446,6 +446,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
+        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -519,8 +520,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       this.checkedTarget.node_count,
       this.checkedTarget.instance_count
     );
-    /** 监控目标数据 */
-    this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
     /** 同级别算法关系 */
     const {
       detects: [{ connector, level }],
@@ -670,6 +669,51 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       this.scenarioList = data;
     });
   }
+
+  async getTargetsTableData() {
+    // 获取策略目标详情
+    const targetDetail = (await getTargetDetail({ strategy_ids: [this.strategyId] })) || {};
+    const strategyTarget = targetDetail[this.strategyId] || {};
+
+    // 提取目标列表和字段名称，提供默认值
+    let targetList = this.detailData?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    const field = this.detailData?.items?.[0]?.target?.[0]?.[0]?.field || '';
+    const targetType = strategyTarget.node_type || '';
+
+    // 对旧版策略的特殊处理
+    if (targetType === 'INSTANCE' && field === 'bk_target_ip') {
+      targetList = targetList.map(item => ({
+        ...item,
+        ip: item.bk_target_ip,
+        bk_cloud_id: item.bk_target_cloud_id,
+      }));
+    }
+
+    // 设置第一个目标的实例计数
+    if (targetList.length) {
+      targetList[0].instances_count = strategyTarget.instance_count || 0;
+    }
+
+    // 更新目标详情
+    this.targetDetail = {
+      ...strategyTarget,
+      detail: strategyTarget.target_detail || [],
+      target_detail: targetList,
+    };
+
+    // 更新目标描述
+    const { targetType: metricTargetType = '', objectType: metricObjectType = '' } = this.metricData[0] || {};
+    this.targetsDesc = handleSetTargetDesc(
+      this.targetDetail.target_detail,
+      metricTargetType || this.targetDetail.node_type || '',
+      metricObjectType || this.targetDetail.instance_type || '',
+      this.checkedTarget.node_count,
+      this.checkedTarget.instance_count
+    );
+    /** 监控目标数据 */
+    this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
+  }
+
   /**
    * @description 策略详情数据获取
    * @param id
@@ -688,23 +732,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     }
     this.strategyId = snapshotRes?.id || id;
     // 策略快照end
-    const targetDetail = await getTargetDetail({ strategy_ids: [this.strategyId] }).catch(() => ({}));
     const strategyDetail = snapshotRes.name
       ? snapshotRes
       : await getStrategyV2({ id: this.strategyId }).catch(() => ({}));
     this.detailData = strategyDetail;
     this.detectionConfig.data = strategyDetail?.items?.[0]?.algorithms?.filter(item => !!item.type) || [];
     this.detectionConfig.unit = strategyDetail?.items?.[0]?.algorithms?.[0]?.unit_prefix || '';
-    const strategyTarget = targetDetail?.[this.strategyId];
-    const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
-    const targetType = strategyTarget?.node_type || '';
-    let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
-    // 对旧版的策略target进行特殊处理
-    if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
-      targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
-    }
-    targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
-    this.targetDetail = { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList };
+    const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    this.targetDetail = { target_detail: targetList };
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
