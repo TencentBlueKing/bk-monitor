@@ -62,7 +62,7 @@ class FilterCollection(object):
             else:
                 field_name, condition = parsed_token
             # 字段映射， prometheus数据字段 映射到 ORM中的 模型字段
-            field_name = resource_meta.column_mapping.get(field_name, field_name)
+            field_name = self.meta.column_mapping.get(field_name, field_name)
             # 重新组装特殊查询条件
             new_key = field_name if len(parsed_token) == 1 else f"{field_name}__{condition}"
             orm_filter_dict[new_key] = value
