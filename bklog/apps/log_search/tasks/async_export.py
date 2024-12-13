@@ -296,7 +296,7 @@ class AsyncExportUtils(object):
             storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
         else:
             storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
-            storage_cluster_ids.add(self.search_handler.index_set_id)
+            storage_cluster_ids.add(self.search_handler.storage_cluster_id)
         return storage_cluster_ids
 
     def _async_export(self, search_handler, file_path):
