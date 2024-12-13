@@ -208,7 +208,7 @@ class ConvergeProcessor(object):
                 "run action converge(%s) skip: strategy(%s) not found", self.instance_id, self.instance.strategy_id
             )
             self.status = ActionStatus.SKIPPED
-            self.comment = _("策略(%s) 被删除或停用, 跳过.").format(
+            self.comment = _("策略({}) 被删除或停用, 跳过.").format(
                 self.instance.strategy_id,
             )
             self.push_to_queue()
