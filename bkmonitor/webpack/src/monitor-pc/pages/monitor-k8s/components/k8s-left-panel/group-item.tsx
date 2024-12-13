@@ -76,20 +76,6 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   drillDown = '';
 
-  get showMoreGroup() {
-    const group = [];
-    if (this.list.children.length) {
-      if (this.list.children[0].children) {
-        for (const item of this.list.children) {
-          if (item.children?.length && item.count > item.children.length) group.push(item.id);
-        }
-      } else {
-        if (this.list.count > this.list.children.length) group.push(this.list.id);
-      }
-    }
-    return group;
-  }
-
   @Watch('defaultExpand', { immediate: true })
   handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
     if (typeof val === 'boolean') {
@@ -181,73 +167,70 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   renderGroupContent(item: GroupListItem) {
     const isSelectSearch = this.value.includes(item.id);
     const isHidden = this.hiddenList.includes(item.id);
-
-    if (item.children) {
-      return (
-        <div class='child-item'>
+    let showMore = true;
+    if (!item.children?.length) return <EmptyStatus type='empty' />;
+    return [
+      item.children.map((child, ind) => {
+        if (child.children) {
+          showMore = false;
+          return (
+            <div class='child-item'>
+              <div
+                class='child-header'
+                onClick={() => this.collapseChange(child.id, Boolean(child.children.length))}
+              >
+                <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[child.id] ? 'expand' : ''}`} />
+                <span class='group-name'>{child.name}</span>
+                <div class='group-count'>{child.count}</div>
+              </div>
+              <div
+                style={{ display: this.expand[child.id] ? 'block' : 'none' }}
+                class='group-content'
+              >
+                {this.expandLoading[child.id] ? this.renderGroupSkeleton() : this.renderGroupContent(child)}
+              </div>
+            </div>
+          );
+        }
+        return (
           <div
-            class='child-header'
-            onClick={() => this.collapseChange(item.id, Boolean(item.children.length))}
+            key={`${child.id}-${ind}`}
+            class='group-content-item'
           >
-            <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[item.id] ? 'expand' : ''}`} />
-            <span class='group-name'>{item.name}</span>
-            <div class='group-count'>{item.count}</div>
+            <span
+              class='content-name'
+              v-bk-overflow-tips
+            >
+              {child.name}
+            </span>
+            <div class='tools'>
+              {this.tools.includes('search') && (
+                <i
+                  class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
+                  v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
+                  onClick={() => this.handleSearch(child.id)}
+                />
+              )}
+              {this.tools.includes('drillDown') && (
+                <K8sDimensionDrillDown
+                  dimension={this.list.id}
+                  value={child.id}
+                  onHandleDrillDown={this.handleDrillDownChange}
+                />
+              )}
+              {this.tools.includes('view') && (
+                <i
+                  class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
+                  v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
+                  onClick={() => this.handleHiddenChange(child.id)}
+                />
+              )}
+            </div>
           </div>
-          <div
-            style={{ display: this.expand[item.id] ? 'block' : 'none' }}
-            class='child-content'
-          >
-            {this.expandLoading[item.id] ? (
-              this.renderGroupSkeleton()
-            ) : item.children.length ? (
-              [
-                item.children.map(child => this.renderGroupContent(child)),
-                this.showMoreGroup.includes(item.id) && this.expand[item.id] && this.renderLoadMore(item.id),
-              ]
-            ) : (
-              <EmptyStatus type='empty' />
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        key={item.id}
-        class='group-content-item'
-      >
-        <span
-          class='content-name'
-          v-bk-overflow-tips
-        >
-          {item.name}
-        </span>
-        <div class='tools'>
-          {this.tools.includes('search') && (
-            <i
-              class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
-              v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
-              onClick={() => this.handleSearch(item.id)}
-            />
-          )}
-          {this.tools.includes('drillDown') && (
-            <K8sDimensionDrillDown
-              dimension={this.list.id}
-              value={item.id}
-              onHandleDrillDown={this.handleDrillDownChange}
-            />
-          )}
-          {this.tools.includes('view') && (
-            <i
-              class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
-              v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
-              onClick={() => this.handleHiddenChange(item.id)}
-            />
-          )}
-        </div>
-      </div>
-    );
+        );
+      }),
+      showMore && item.count > item.children.length && this.renderLoadMore(item.id),
+    ];
   }
 
   render() {
@@ -282,13 +265,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           style={{ display: this.expand[this.list.id] ? 'block' : 'none' }}
           class='group-content'
         >
-          {this.list.children.length > 0 ? (
-            this.list.children.map(child => this.renderGroupContent(child))
-          ) : (
-            <EmptyStatus type='empty' />
-          )}
-
-          {this.showMoreGroup.includes(this.list.id) && this.renderLoadMore(this.list.id)}
+          {this.renderGroupContent(this.list)}
         </div>
       </div>
     );
