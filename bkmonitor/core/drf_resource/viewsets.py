@@ -106,7 +106,9 @@ class ResourceViewSet(viewsets.GenericViewSet):
         class Meta:
             ref_name = None
 
-        serializer_class.Meta = Meta
+        if not getattr(serializer_class, "Meta"):
+            serializer_class.Meta = Meta
+
         return serializer_class
 
     def get_queryset(self):
