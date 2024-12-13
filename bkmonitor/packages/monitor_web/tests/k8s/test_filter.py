@@ -16,6 +16,7 @@ from django.test import TestCase
 from django.utils import timezone
 from humanize import naturaldelta
 
+from bkmonitor.models import BCSCluster
 from monitor_web.k8s.core.filters import (
     ContainerFilter,
     NamespaceFilter,
@@ -193,6 +194,23 @@ class TestGetResourcesDetail(TestCase):
             monitor_status="success",
             status="running",
             created_at=timezone.now(),
+            last_synced_at=timezone.now(),
+        ).save()
+        BCSCluster(
+            bk_biz_id=2,
+            bcs_cluster_id="BCS-K8S-00000",
+            name="",
+            area_name="",
+            project_name="",
+            environment="正式",
+            updated_at=timezone.now(),
+            node_count=18,
+            cpu_usage_ratio=19.22,
+            memory_usage_ratio=65.36,
+            disk_usage_ratio=51.45,
+            created_at=timezone.now(),
+            status="RUNNING",
+            monitor_status="success",
             last_synced_at=timezone.now(),
         ).save()
 
@@ -524,6 +542,73 @@ class TestGetResourcesDetail(TestCase):
             {"key": "age", "name": "存活时间", "type": "string", "value": age},
         ]
         self.assertEqual(result, expect_data)
+
+    def test_with_cluster(self):
+        validated_request_data = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "namespace": "bkmonitor",
+            "resource_type": "cluster",
+        }
+        age = naturaldelta(
+            datetime.utcnow().replace(tzinfo=timezone.utc) - datetime.utcnow().replace(tzinfo=timezone.utc)
+        )
+        with mock.patch("bkmonitor.models.BCSCluster.update_monitor_status") as mock_update_monitor_status:
+            mock_update_monitor_status.return_value = None
+
+            actual_data = GetResourceDetail()(validated_request_data)
+            expect_data = [
+                {
+                    "key": "bcs_cluster_id",
+                    "name": "集群ID",
+                    "type": "string",
+                    "value": "BCS-K8S-00000",
+                },
+                {"key": "name", "name": "集群名称", "type": "string", "value": ""},
+                {"key": "status", "name": "运行状态", "type": "string", "value": "RUNNING"},
+                {
+                    "key": "monitor_status",
+                    "name": "采集状态",
+                    "type": "status",
+                    "value": {"type": "success", "text": "正常"},
+                },
+                {"key": "environment", "name": "环境", "type": "string", "value": "正式"},
+                {"key": "node_count", "name": "节点数量", "type": "number", "value": 18},
+                {
+                    "key": "cpu_usage_ratio",
+                    "name": "CPU使用率",
+                    "type": "progress",
+                    "value": {"value": 19.22, "label": "19.22%", "status": "SUCCESS"},
+                },
+                {
+                    "key": "memory_usage_ratio",
+                    "name": "内存使用率",
+                    "type": "progress",
+                    "value": {"value": 65.36, "label": "65.36%", "status": "SUCCESS"},
+                },
+                {
+                    "key": "disk_usage_ratio",
+                    "name": "磁盘使用率",
+                    "type": "progress",
+                    "value": {"value": 51.45, "label": "51.45%", "status": "SUCCESS"},
+                },
+                {"key": "area_name", "name": "区域", "type": "string", "value": ""},
+                {
+                    "key": "created_at",
+                    "name": "创建时间",
+                    "type": "string",
+                    "value": age,
+                },
+                {
+                    "key": "updated_at",
+                    "name": "更新时间",
+                    "type": "string",
+                    "value": age,
+                },
+                {"key": "project_name", "name": "所属项目", "type": "string", "value": ""},
+                {"key": "description", "name": "描述", "type": "string", "value": ""},
+            ]
+            self.assertEqual(expect_data, actual_data)
 
 
 class TestWorkloadOverview(TestCase):

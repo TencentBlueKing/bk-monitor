@@ -112,7 +112,7 @@ class GetResourceDetail(Resource):
         bk_biz_id: int = serializers.IntegerField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
-            required=True, choices=["pod", "workload", "container"], label="资源类型"
+            required=True, choices=["pod", "workload", "container", "cluster"], label="资源类型"
         )
         # 私有参数
         pod_name: str = serializers.CharField(required=False, allow_null=True)
@@ -132,6 +132,9 @@ class GetResourceDetail(Resource):
         elif resource_type == "container":
             fields = ["pod_name", "container_name"]
             self.validate_field_exist(resource_type, fields, request_data)
+        elif resource_type == "cluster":
+            # 只有 bk_biz_id, bcs_cluster_id 是必传的
+            pass
 
         return super().validate_request_data(request_data)
 
@@ -158,32 +161,23 @@ class GetResourceDetail(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
-        namespace = validated_request_data["namespace"]
 
         resource_type = validated_request_data["resource_type"]
-        if resource_type == "pod":
-            items: List[Dict] = resource.scene_view.get_kubernetes_pod(
-                bk_biz_id=bk_biz_id,
-                bcs_cluster_id=bcs_cluster_id,
-                namespace=namespace,
-                pod_name=validated_request_data["pod_name"],
-            )
-        elif resource_type == "workload":
-            items: List[Dict] = resource.scene_view.get_kubernetes_workload(
-                bk_biz_id=bk_biz_id,
-                bcs_cluster_id=bcs_cluster_id,
-                namespace=namespace,
-                workload_name=validated_request_data["workload_name"],
-                workload_type=validated_request_data["workload_type"],
-            )
-        elif resource_type == "container":
-            items: List[Dict] = resource.scene_view.get_kubernetes_container(
-                bk_biz_id=bk_biz_id,
-                bcs_cluster_id=bcs_cluster_id,
-                namespace=namespace,
-                pod_name=validated_request_data["pod_name"],
-                container_name=validated_request_data["container_name"],
-            )
+
+        # 不同的 resource_type 对应不同要调用的接口，并且记录额外要传递的参数
+        resource_router: Dict[str, List[Dict]] = {
+            "cluster": [resource.scene_view.get_kubernetes_cluster, []],
+            "pod": [resource.scene_view.get_kubernetes_pod, ["namespace", "pod_name"]],
+            "workload": [resource.scene_view.get_kubernetes_workload, ["namespace", "workload_name", "workload_type"]],
+            "container": [resource.scene_view.get_kubernetes_container, ["namespace", "pod_name", "container_name"]],
+        }
+        # 构建同名字典 -> {"field":validated_request_data["field"]}
+        extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
+
+        # 调用对应的资源类型的接口，返回对应的接口数据
+        items = resource_router[resource_type][0](
+            **{"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id, **extra_request_arg}
+        )
 
         for item in items:
             self.link_to_string(item)
