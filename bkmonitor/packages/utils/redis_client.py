@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import os
 import random
+from typing import Literal
 
 import redis
 from django.conf import settings
@@ -44,10 +45,12 @@ class RedisClient(Singleton):
         return getattr(self.client, item)
 
     @classmethod
-    def from_envs(cls, prefix: str = "BK_MONITOR", prefer_type: str = "sentinel") -> redis.StrictRedis:
+    def from_envs(
+        cls, prefix: str = "BK_MONITOR", prefer_type: Literal["sentinel", "standalone"] = "sentinel"
+    ) -> redis.StrictRedis:
         """从环境变量中获取 Redis Client
         :param prefix: 配置前缀
-        :param prefer_type: 倾向模式，优先使用哨兵， sentinel/standalone
+        :param prefer_type: 倾向模式，优先使用哨兵
         :return: redis.StrictRedis
         """
         # sentinel or standalone
