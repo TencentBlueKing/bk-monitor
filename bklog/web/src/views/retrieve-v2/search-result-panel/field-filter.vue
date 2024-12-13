@@ -39,9 +39,11 @@
       item.filterVisible = true;
       // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
       fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
-        ? item.field_alias || item.field_name
-        : item.alias_name || item.field_alias || item.field_name;
+        ?  item.field_name || item.field_alias
+        : item.query_alias || item.field_alias  || item.field_name;
     });
+    console.log('fieldAliasMap',fieldAliasMap);
+    
     return fieldAliasMap;
   });
 
@@ -127,7 +129,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="fieldShowName"
+      :show-field-alias="fieldShowName === 'field_name'"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

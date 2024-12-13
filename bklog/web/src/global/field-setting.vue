@@ -10,7 +10,7 @@
       :is-show.sync="showSlider"
       :quick-close="true"
       :title="$t('索引集配置')"
-      :width="640"
+      :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
