@@ -279,34 +279,25 @@ class AsyncExportUtils(object):
         """
         获取集群切换记录
         """
-        storage_cluster_record_objs = StorageClusterRecord.objects.none()
-        add_current_cluster = False
-        if self.search_handler.start_time and self.search_handler.end_time:
-            try:
-                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                # 处理 start_time 和 end_time
-                start_time = self.process_time(self.search_handler.start_time, tz_info)
-                end_time = self.process_time(self.search_handler.end_time, tz_info)
-                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.search_handler.index_set_id),
-                    created_at__gt=(start_time - datetime.timedelta(hours=1)),
-                ).order_by("created_at")
-                max_created_at = None
-                for obj in storage_cluster_record_objs:
-                    if end_time <= obj.created_at:
-                        max_created_at = obj.created_at
-                        break
-                if max_created_at:
-                    storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
-                else:
-                    objs = storage_cluster_record_objs.filter(created_at__lte=end_time)
-                    if objs.count() == storage_cluster_record_objs.count():
-                        add_current_cluster = True
-                    else:
-                        add_current_cluster = False
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception(f"[_multi_search] parse time error -> e: {e}")
-        return storage_cluster_record_objs, add_current_cluster
+        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+        start_time = self.process_time(self.search_handler.start_time, tz_info)
+        end_time = self.process_time(self.search_handler.end_time, tz_info)
+        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+            index_set_id=int(self.search_handler.index_set_id),
+            created_at__gt=(start_time - datetime.timedelta(hours=1)),
+        ).order_by("created_at")
+        max_created_at = None
+        for obj in storage_cluster_record_objs:
+            if end_time <= obj.created_at:
+                max_created_at = obj.created_at
+                break
+        if max_created_at:
+            storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
+            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
+        else:
+            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
+            storage_cluster_ids.add(self.search_handler.index_set_id)
+        return storage_cluster_ids
 
     def _async_export(self, search_handler, file_path):
         max_result_window = search_handler.index_set_obj.result_window
@@ -328,54 +319,28 @@ class AsyncExportUtils(object):
         return file_path
 
     def async_export(self):
-        storage_cluster_record_objs, add_current_cluster = self.get_storage_cluster_record()
-        if not storage_cluster_record_objs:
-            self._async_export(self.search_handler, self.file_path)
-            self.file_path_list.append(self.file_path)
-            with tarfile.open(self.tar_file_path, "w:gz") as tar:
-                tar.add(self.file_path, arcname=self.file_name)
-            return
-
-        # 存在集群切换
-        storage_cluster_ids = set()
+        storage_cluster_record_ids = self.get_storage_cluster_record()
         multi_execute_func = MultiExecuteFunc()
-        if add_current_cluster:
-            current_cluster_id = self.search_handler.storage_cluster_id
-            storage_cluster_ids.add(current_cluster_id)
+        for storage_cluster_record_id in storage_cluster_record_ids:
+            search_handler = SearchHandler(
+                index_set_id=self.search_handler.index_set_id,
+                search_dict=copy.deepcopy(self.search_handler.search_dict),
+                export_fields=self.search_handler.export_fields,
+                export_log=True,
+            )
+            search_handler.storage_cluster_id = storage_cluster_record_id
+            current_cluster_id = search_handler.storage_cluster_id
             file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
             params = {
-                "search_handler": self.search_handler,
+                "search_handler": search_handler,
                 "file_path": file_path,
             }
-            # 获取当前使用的存储集群数据
             multi_execute_func.append(
-                result_key=current_cluster_id,
+                result_key=search_handler.storage_cluster_id,
                 func=self._async_export,
                 params=params,
                 multi_func_params=True,
             )
-        for storage_cluster_record_obj in storage_cluster_record_objs:
-            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
-                search_handler = SearchHandler(
-                    index_set_id=self.search_handler.index_set_id,
-                    search_dict=copy.deepcopy(self.search_handler.search_dict),
-                    export_fields=self.search_handler.export_fields,
-                    export_log=True,
-                )
-                search_handler.storage_cluster_id = storage_cluster_record_obj.storage_cluster_id
-                current_cluster_id = search_handler.storage_cluster_id
-                file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
-                params = {
-                    "search_handler": search_handler,
-                    "file_path": file_path,
-                }
-                multi_execute_func.append(
-                    result_key=search_handler.storage_cluster_id,
-                    func=self._async_export,
-                    params=params,
-                    multi_func_params=True,
-                )
-                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
         multi_result = multi_execute_func.run(return_exception=True)
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
         with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
@@ -405,23 +370,10 @@ class AsyncExportUtils(object):
                 self.file_path_list.append(result)
 
     def quick_export(self):
-        storage_cluster_record_objs, add_current_cluster = self.get_storage_cluster_record()
-        if not storage_cluster_record_objs:
+        storage_cluster_record_ids = self.get_storage_cluster_record()
+        for storage_cluster_record_id in storage_cluster_record_ids:
+            self.search_handler.storage_cluster_id = storage_cluster_record_id
             self._quick_export(self.search_handler)
-            with tarfile.open(self.tar_file_path, "w:gz") as tar:
-                for file_path in self.file_path_list:
-                    tar.add(file_path, arcname=os.path.basename(file_path))
-            return
-
-        storage_cluster_ids = set()
-        if add_current_cluster:
-            self._quick_export(self.search_handler)
-            storage_cluster_ids.add(self.search_handler.storage_cluster_id)
-        for storage_cluster_record_obj in storage_cluster_record_objs:
-            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
-                self.search_handler.storage_cluster_id = storage_cluster_record_obj.storage_cluster_id
-                self._quick_export(self.search_handler)
-                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             for file_path in self.file_path_list:
                 tar.add(file_path, arcname=os.path.basename(file_path))
