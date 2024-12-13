@@ -47,7 +47,7 @@ class BkCollectorCollector(BaseCollector):
             }
         ]
 
-        now_ts = arrow.now().timestamp
+        now_ts = arrow.now().int_timestamp
         data_sources = []
         for query_config in query:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])

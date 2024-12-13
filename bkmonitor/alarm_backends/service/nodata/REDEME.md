@@ -43,7 +43,7 @@ key.NO_DATA_LIST_KEY 队列
 redis: key.NO_DATA_LIST_KEY
 
 - 变量定义
-now_timestamp: 任务执行时刻 now_timestamp = arrow.utcnow().timestamp
+now_timestamp: 任务执行时刻 now_timestamp = arrow.utcnow().int_timestamp
 check_timestamp: 无数据监测时刻 check_timestamp = (now_timestamp / agg_interval) * agg_interval - agg_interval
 record: 上报数据，json 个数
 

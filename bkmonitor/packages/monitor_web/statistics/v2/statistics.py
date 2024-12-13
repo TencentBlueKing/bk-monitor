@@ -34,4 +34,4 @@ class StatisticCollector(BaseCollector):
         for bk_biz_id in self.biz_info:
             metric.labels(
                 domain_name=settings.BK_MONITOR_HOST, bk_biz_id=bk_biz_id, bk_biz_name=self.get_biz_name(bk_biz_id)
-            ).set(arrow.now().timestamp)
+            ).set(arrow.now().int_timestamp)

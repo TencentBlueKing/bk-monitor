@@ -92,7 +92,7 @@ def parse_uptime_check():
     )
     query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
     http_records = query.query_data(
-        start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+        start_time=now_ts.replace(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
     )
     # udp
     data_source = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)(
@@ -103,7 +103,7 @@ def parse_uptime_check():
     )
     query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
     udp_records = query.query_data(
-        start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+        start_time=now_ts.replace(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
     )
     # tcp
     data_source = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)(
@@ -114,7 +114,7 @@ def parse_uptime_check():
     )
     query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
     tcp_records = query.query_data(
-        start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+        start_time=now_ts.replace(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
     )
     # icmp
     data_source = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)(
@@ -125,7 +125,7 @@ def parse_uptime_check():
     )
     query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
     icmp_records = query.query_data(
-        start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+        start_time=now_ts.replace(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
     )
 
     records = http_records + tcp_records + icmp_records + udp_records

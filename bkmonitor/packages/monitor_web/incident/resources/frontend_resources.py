@@ -173,7 +173,7 @@ class IncidentBaseResource(Resource):
                 if incident_key == "status":
                     if incident_value == IncidentStatus.CLOSED.value:
                         IncidentOperationManager.record_close_incident(
-                            incident_info["incident_id"], update_time.timestamp
+                            incident_info["incident_id"], update_time.int_timestamp
                         )
                     elif incident_value == IncidentStatus.RECOVERING.value:
                         incident_document.end_time = int(time.time())
@@ -182,7 +182,7 @@ class IncidentBaseResource(Resource):
                 elif incident_key == "feedback":
                     IncidentOperationManager.record_feedback_incident(
                         incident_info["incident_id"],
-                        update_time.timestamp,
+                        update_time.int_timestamp,
                         incident_info["feedback"]["incident_root"],
                         incident_info["feedback"]["content"],
                     )
@@ -191,14 +191,14 @@ class IncidentBaseResource(Resource):
                     if incident_key not in ["updated_at"]:
                         IncidentOperationManager.record_user_update_incident(
                             incident_info["incident_id"],
-                            update_time.timestamp,
+                            update_time.int_timestamp,
                             incident_key,
                             getattr(incident_document, incident_key),
                             incident_value,
                         )
                 setattr(incident_document, incident_key, incident_value)
 
-        incident_document.update_time = update_time.timestamp
+        incident_document.update_time = update_time.int_timestamp
         IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
 
 
@@ -1066,7 +1066,7 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         if is_cancel:
             IncidentOperationManager.record_feedback_incident(
                 incident_info["incident_id"],
-                update_time.timestamp,
+                update_time.int_timestamp,
                 None,
                 None,
                 is_cancel,

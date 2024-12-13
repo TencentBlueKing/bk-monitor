@@ -46,7 +46,7 @@ class ShieldObj(object):
         self.id = config["id"]
 
         self.dimension_check = None
-        self.time_check = None
+        self.time_check: TimeMatch | None = None
         self.notice_lock_key = NOTICE_SHIELD_KEY_LOCK.get_key(shield_id=self.config["id"])
         self.display_manager = DisplayManager()
         self._parse_dimension_config()

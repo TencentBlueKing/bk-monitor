@@ -54,8 +54,8 @@ class EventPluginCollector(BaseCollector):
 
         now_time = arrow.now()
         for le_en, seconds in TIME_RANGE:
-            start_time = int(now_time.replace(seconds=-seconds).timestamp)
-            end_time = int(now_time.timestamp)
+            start_time = int(now_time.replace(seconds=-seconds).int_timestamp)
+            end_time = int(now_time.int_timestamp)
             search_obj = (
                 EventDocument.search()
                 .exclude("term", plugin_id=settings.MONITOR_EVENT_PLUGIN_ID)

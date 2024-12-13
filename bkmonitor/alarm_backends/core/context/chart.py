@@ -15,6 +15,7 @@ import os
 
 import arrow
 import pytz
+from arrow import Arrow
 from django.conf import settings
 from django.template.loader import get_template
 from django.utils.translation import gettext as _
@@ -56,7 +57,7 @@ def get_chart_by_origin_alarm(item, source_time, title=""):
     return get_chart_image(chart_data)
 
 
-def get_chart_data(item: Item, source_time, title=""):
+def get_chart_data(item: Item, source_time: Arrow, title=""):
     """
     获取图表数据
     :param item: 监控项配置
@@ -80,8 +81,8 @@ def get_chart_data(item: Item, source_time, title=""):
     for name, offset in list(chart_option.items()):
         data = []
         records = unify_query.query_data(
-            start_time=start_time.replace(days=offset).timestamp * 1000,
-            end_time=(end_time.replace(days=offset) if offset != 0 else source_time.replace(seconds=interval)).timestamp
+            start_time=start_time.replace(days=offset).int_timestamp * 1000,
+            end_time=(end_time.replace(days=offset) if offset != 0 else source_time.replace(seconds=interval)).int_timestamp
             * 1000,
         )
         for record in records:
@@ -99,7 +100,7 @@ def get_chart_data(item: Item, source_time, title=""):
         "chart_type": "spline",
         "title": title or item.name,
         "subtitle": item.query_configs[0].get("metric_field", ""),
-        "source_timestamp": source_time.timestamp * 1000,
+        "source_timestamp": source_time.int_timestamp * 1000,
         "locale": i18n.get_locale().replace("_", "-"),
         "timezone": timezone,
         "series": series,

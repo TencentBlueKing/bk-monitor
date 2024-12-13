@@ -202,7 +202,7 @@ def update_metric_list():
         key="METRIC_CACHE_TASK_LAST_TIMESTAMP", defaults={"value": 0}
     )
     # 如果当前分发任务距离上次更新时间不超过周期1min，则不执行本次任务，避免短时间重复下发
-    now_timestamp = arrow.get(datetime.datetime.now()).timestamp
+    now_timestamp = arrow.get(datetime.datetime.now()).int_timestamp
     if metric_cache_task_last_timestamp.value and now_timestamp - metric_cache_task_last_timestamp.value < 60:
         return
 

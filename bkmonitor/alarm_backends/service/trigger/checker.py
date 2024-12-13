@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import logging
+from typing import List, Tuple
 
 from django.utils.translation import gettext as _
 
@@ -91,7 +92,7 @@ class AnomalyChecker(object):
 
         return anomaly_records, event_record
 
-    def gen_event_record(self, anomaly_level, anomaly_timestamps):
+    def gen_event_record(self, anomaly_level, anomaly_timestamps: List[int]):
         """
         生成事件记录，用于推送给event
         :param anomaly_level: 异常级别
@@ -141,7 +142,7 @@ class AnomalyChecker(object):
             records.append(anomaly_record)
         return records
 
-    def check_anomaly(self):
+    def check_anomaly(self) -> Tuple[int, List[int]]:
         """
         异常检测
         :return 触发告警的告警级别，如果都没触发告警，则返回 -1
@@ -165,7 +166,7 @@ class AnomalyChecker(object):
                 anomaly_level = level
         return anomaly_level, anomaly_timestamps
 
-    def _check_anomaly_by_level(self, level):
+    def _check_anomaly_by_level(self, level) -> Tuple[bool, List[int]]:
         """
         检测某个级别的异常点是否满足触发条件
         :param str level: 告警级别

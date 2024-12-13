@@ -52,10 +52,10 @@ class AlertActionCollector(BaseCollector):
         告警通知数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.replace(seconds=-seconds).int_timestamp)
             search_object = (
-                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
-                .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})
+                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.int_timestamp))
+                .filter("range", create_time={"gte": start_time, "lte": int(self.now.int_timestamp)})
                 .filter("term", action_plugin_type=ActionPluginType.NOTICE)
                 .exclude("term", is_parent_action=True)
             )
@@ -86,10 +86,10 @@ class AlertActionCollector(BaseCollector):
         处理记录数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.replace(seconds=-seconds).int_timestamp)
             search_object = (
-                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
-                .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})
+                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.int_timestamp))
+                .filter("range", create_time={"gte": start_time, "lte": int(self.now.int_timestamp)})
                 .exclude("term", is_parent_action=True)
             )
 
@@ -132,8 +132,8 @@ class AlertActionCollector(BaseCollector):
             strategy_mapping[strategy["id"]] = strategy
 
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
-            end_time = int(self.now.timestamp)
+            start_time = int(self.now.replace(seconds=-seconds).int_timestamp)
+            end_time = int(self.now.int_timestamp)
             search_object = AlertDocument.search(all_indices=True).filter(
                 (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))
                 & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))

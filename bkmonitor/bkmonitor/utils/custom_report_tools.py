@@ -12,10 +12,10 @@ import json
 import logging
 import os
 import posixpath
-from django.utils.translation import gettext as _
 
 import requests
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.thread_backend import ThreadPool
 
@@ -60,7 +60,7 @@ class custom_report_tool:
             # 来源标识
             "target": settings.BK_PAAS_INNER_HOST,
             # 数据时间，精确到毫秒，非必需项
-            "timestamp": arrow.now().timestamp * 1000
+            "timestamp": arrow.now().int_timestamp * 1000
         }]
         """
 
@@ -107,13 +107,13 @@ class custom_report_tool:
             # 来源标识
             "target": settings.BK_PAAS_INNER_HOST,
             # 数据时间，精确到毫秒，非必需项
-            "timestamp": arrow.now().timestamp * 1000
+            "timestamp": arrow.now().int_timestamp * 1000
         }]
         :param access_token: token
         :param parallel: 是否并发请求
         """
-        assert settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, (
-            _("全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]" "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！")
+        assert settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, _(
+            "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]" "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
         )
         send_list = [[]]
         chunk_index = 0

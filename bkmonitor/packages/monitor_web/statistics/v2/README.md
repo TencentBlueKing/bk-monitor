@@ -84,10 +84,10 @@ class AlertActionCollector(BaseCollector):
         告警通知数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.shift(seconds=-seconds).int_timestamp)
             search_object = (
-                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
-                .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})
+                ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.int_timestamp))
+                .filter("range", create_time={"gte": start_time, "lte": int(self.now.int_timestamp)})
                 .filter("term", action_plugin_type=ActionPluginType.NOTICE)
                 .exclude("term", is_parent_action=True)
             )

@@ -76,7 +76,7 @@ def remove_tag(text):
 
 
 def get_random_id():
-    return "{}{}".format(arrow.now().timestamp, random.randint(1000, 9999))
+    return "{}{}".format(arrow.now().int_timestamp, random.randint(1000, 9999))
 
 
 def _count_md5(content):
