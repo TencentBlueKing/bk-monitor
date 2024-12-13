@@ -581,6 +581,10 @@ export default class FilterByCondition extends tsc<IProps> {
     }
   }
 
+  handleEmptyOperation() {
+    this.handleSearchChange('');
+  }
+
   valuesWrap() {
     return (
       <div
@@ -607,7 +611,10 @@ export default class FilterByCondition extends tsc<IProps> {
             </div>
           ))
         ) : (
-          <EmptyStatus type='empty' />
+          <EmptyStatus
+            type={this.searchValue ? 'search-empty' : 'empty'}
+            onOperation={this.handleEmptyOperation}
+          />
         )}
         {this.scrollLoading && (
           <div class='scroll-loading-wrap'>
