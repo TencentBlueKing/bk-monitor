@@ -595,7 +595,12 @@ export default class FilterByCondition extends tsc<IProps> {
               class={['value-item', { checked: item.checked }]}
               onClick={() => this.handleCheck(item)}
             >
-              <span class='value-item-name'>{item.name}</span>
+              <span
+                class='value-item-name'
+                v-bk-overflow-tips
+              >
+                {item.name}
+              </span>
               <span class='value-item-checked'>
                 {item.checked && <span class='icon-monitor icon-mc-check-small' />}
               </span>
