@@ -112,11 +112,16 @@ class K8sResourceMeta(object):
         """
         return self.filter.filter_queryset
 
-    def get_from_promql(self, start_time, end_time):
+    def get_from_promql(self, start_time, end_time, order_by=""):
         """
         数据获取来源
-
-        从 promql 获取数据
+        TODO
+        GraphPromqlQueryResource
+        {"down_sample_range":"","end_time":1733992769,"format":"time_series",
+        "promql":"topk(20, sum by (namespace)
+        (rate(bkmonitor:container_cpu_usage_seconds_total
+        {bcs_cluster_id=\"BCS-K8S-00000\"}[1m])))",
+        "start_time":1733981969,"step":"auto","type":"instant","bk_biz_id":"2"}
         """
         query_params = {
             "bk_biz_id": self.bk_biz_id,
@@ -124,7 +129,7 @@ class K8sResourceMeta(object):
                 {
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
-                    "promql": self.meta_prom,
+                    "promql": self.meta_prom_by_sort(order_by=order_by),
                     "interval": get_interval_number(start_time, end_time, interval="auto"),
                     "alias": "result",
                 }
@@ -160,7 +165,28 @@ class K8sResourceMeta(object):
 
     @property
     def meta_prom(self):
+        """不带排序的资源查询promql"""
         return ""
+
+    def meta_prom_by_sort(self, order_by="", page_size=20):
+        order_type = "DESC" if order_by.startswith("-") else "ASC"
+        order_func = "topk" if order_type == "DESC" else "bottomk"
+        order_field = order_by.strip("-")
+
+        meta_prom_func = f"meta_prom_with_{order_field}"
+        if hasattr(self, meta_prom_func):
+            return f"{order_func}({page_size}, {getattr(self, meta_prom_func)})"
+        return self.meta_prom
+
+    @property
+    def meta_prom_with_mem(self):
+        """按内存排序的资源查询promql"""
+        return ""
+
+    @property
+    def meta_prom_with_cpu(self):
+        """按cpu排序的资源查询promql"""
+        return self.meta_prom
 
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
@@ -176,7 +202,15 @@ class K8sPodMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             "sum by (workload_kind, workload_name, namespace, pod_name) "
-            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+        )
+
+    @property
+    def meta_prom_with_mem(self):
+        """按内存排序的资源查询promql"""
+        return (
+            "sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
 
 
@@ -250,6 +284,10 @@ class K8sNamespaceMeta(K8sResourceMeta):
     def get_from_meta(self):
         return self.distinct(self.filter.filter_queryset)
 
+    @property
+    def meta_prom_with_cpu(self):
+        return "sum by (namespace) " f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+
     @classmethod
     def distinct(cls, objs):
         unique_ns_query_set = set()
@@ -272,7 +310,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace) "
-            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
         )
 
 
@@ -286,7 +324,7 @@ class K8sContainerMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
-            f"(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
         )
 
 

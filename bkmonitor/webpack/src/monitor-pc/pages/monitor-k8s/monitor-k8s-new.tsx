@@ -25,9 +25,10 @@
  */
 import { Component, Mixins, ProvideReactive } from 'vue-property-decorator';
 
+import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
 
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
@@ -38,6 +39,7 @@ import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
+  type K8sTableColumnResourceKey,
   type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
@@ -96,142 +98,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   // 是否展示取消下钻
   showCancelDrill = false;
-  groupList = [
-    {
-      name: 'namespace',
-      id: 'namespace',
-      count: 4,
-      children: [
-        {
-          id: '监控测试集群(BCS-K8S-26286)',
-          name: '监控测试集群(BCS-K8S-26286)',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)__222',
-          name: '监控测试集群(BCS-K8S-26286)__222',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_3',
-          name: '监控测试集群(BCS-K8S-26286)_3',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_4',
-          name: '监控测试集群(BCS-K8S-26286)_4',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_5',
-          name: '监控测试集群(BCS-K8S-26286)_5',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_6',
-          name: '监控测试集群(BCS-K8S-26286)_6',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_7',
-          name: '监控测试集群(BCS-K8S-26286)_7',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_8',
-          name: '监控测试集群(BCS-K8S-26286)_8',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_9',
-          name: '监控测试集群(BCS-K8S-26286)_9',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_10',
-          name: '监控测试集群(BCS-K8S-26286)_10',
-        },
-        {
-          id: '监控测试集群(BCS-K8S-26286)_11',
-          name: '监控测试集群(BCS-K8S-26286)_11',
-        },
-      ],
-    },
-    {
-      name: 'workload',
-      id: 'workload',
-      count: 4,
-      children: [
-        {
-          name: 'Deployments',
-          id: 'Deployments',
-          count: 1,
-          children: [
-            {
-              id: 'monitor-test1',
-              name: 'monitor-test1',
-            },
-          ],
-        },
-        {
-          name: 'StatefulSets',
-          count: 1,
-          id: 'StatefulSets',
-          children: [
-            {
-              id: 'monitor-test2',
-              name: 'monitor-test2',
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'pod',
-      id: 'pod',
-      count: 5,
-      children: [
-        {
-          id: 'bkbase-puller-datanode-inland…',
-          name: 'bkbase-puller-datanode-inland…',
-        },
-        {
-          id: 'sql-f76a1c37c9ae48f1a9daf0843534535345',
-          name: 'sql-f76a1c37c9ae48f1a9daf081213123',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b13123123',
-          name: 'pf-d1fba8d425e24f268bbed3b13123123',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b56456465466111',
-          name: 'pf-d1fba8d425e24f268bbed3b56456465466111',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
-          name: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
-        },
-      ],
-    },
-    {
-      name: 'container',
-      id: 'container',
-      count: 5,
-      children: [
-        {
-          id: 'bkbase-puller-datanode-inland…',
-          name: 'bkbase-puller-datanode-inland…',
-        },
-        {
-          id: 'sql-f76a1c37c9ae48f1a9daf0843534535345',
-          name: 'sql-f76a1c37c9ae48f1a9daf081213123',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b13123123',
-          name: 'pf-d1fba8d425e24f268bbed3b13123123',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b56456465466111',
-          name: 'pf-d1fba8d425e24f268bbed3b56456465466111',
-        },
-        {
-          id: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
-          name: 'pf-d1fba8d425e24f268bbed3b89789111111dd',
-        },
-      ],
-    },
-  ];
+  groupList = [];
 
   cacheFilterBy: IFilterByItem[] = [];
   cacheGroupBy = [];
@@ -248,7 +115,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return this.groupInstance.groupFilters;
   }
 
-  setGroupFilters(item: { groupId: K8sTableColumnKeysEnum; checked: boolean }) {
+  @ProvideReactive('formatTimeRange')
+  get formatTimeRange() {
+    return handleTransformToTimestamp(this.timeRange);
+  }
+
+  setGroupFilters(item: { groupId: K8sTableColumnResourceKey; checked: boolean }) {
     if (item.checked) {
       this.groupInstance?.addGroupFilter(item.groupId);
       return;
@@ -266,14 +138,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   async getClusterList() {
     this.clusterLoading = true;
-    this.clusterList = await new Promise(resolve => {
-      setTimeout(() => {
-        resolve([
-          { id: 'BCS-K8S-00000', name: '蓝鲸7.0(BCS-K8S-00000)' },
-          { id: 'BCS-K8S-00001', name: '蓝鲸8.0(BCS-K8S-00000)' },
-        ]);
-      }, 1000);
-    });
+    this.clusterList = await listBcsCluster().catch(() => []);
     this.clusterLoading = false;
     if (this.clusterList.length) {
       this.cluster = this.clusterList[0].id;
@@ -284,35 +149,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @description 获取场景指标列表
    */
   async getScenarioMetricList() {
-    function mock(params) {
-      console.log(params);
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve([
-            {
-              id: 'CPU',
-              name: 'CPU',
-              children: [
-                { id: 'container_cpu_usage_seconds_total', name: 'CPU使用量' },
-                { id: 'kube_pod_cpu_requests_ratio', name: 'CPU request使用率' },
-                { id: 'kube_pod_cpu_limits_ratio', name: 'CPU limit使用率' },
-              ],
-            },
-            {
-              id: 'memory',
-              name: '内存',
-              children: [
-                { id: 'container_memory_rss', name: '内存使用量(rss)' },
-                { id: 'kube_pod_memory_requests_ratio', name: '内存 request使用率' },
-                { id: 'kube_pod_memory_limits_ratio', name: '内存 limit使用率' },
-              ],
-            },
-          ]);
-        }, 1000);
-      });
-    }
     this.metricLoading = true;
-    const data = await mock({ scenario: this.scene });
+    const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
     this.metricLoading = false;
     this.metricList = data.map(item => ({
       ...item,
@@ -368,7 +206,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       target.value = ids;
       this.filterBy = [...this.filterBy];
     } else {
-      this.filterBy.push({ key: groupId, value: ids, method: 'eq' });
+      this.filterBy.push({ key: groupId, value: ids });
     }
   }
 
@@ -383,6 +221,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.filterBy = [];
     this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
     this.showCancelDrill = false;
+    this.getScenarioMetricList();
   }
 
   /**
@@ -430,8 +269,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         return (
           <K8sTableNew
             activeTab={this.activeTab}
+            clusterId={this.cluster}
             filterBy={this.filterBy}
             groupInstance={this.groupInstance}
+            scene={this.scene}
             onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}

@@ -34,7 +34,7 @@ def refresh_aiops_sdk_depend_data(strategy_id, update_time: int = None):
     :return:
     """
     try:
-        TsDependPreparationProcess().process(strategy_id)
+        TsDependPreparationProcess().process(strategy_id, update_time)
     except LockError:
         logger.info("Failed to acquire lock. on strategy({}) with update time: {}".format(strategy_id, update_time))
     except Exception as e:

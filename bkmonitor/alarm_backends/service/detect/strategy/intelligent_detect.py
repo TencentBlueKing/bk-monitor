@@ -42,6 +42,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
     """
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
+    PREDICT_FUNC = api.aiops_sdk.kpi_predict
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -50,11 +51,14 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 raise Exception("Strategy history dependency data not ready")
 
             # 优先从预检测结果中获取检测结果
-            predict_result_point = self.fetch_pre_detect_result_point(data_point)
-            if predict_result_point:
-                return super().detect(predict_result_point)
-
-            return self.detect_by_sdk(data_point)
+            if hasattr(self, "_local_pre_detect_results") and self._local_pre_detect_results:
+                predict_result_point = self.fetch_pre_detect_result_point(data_point)
+                if predict_result_point:
+                    return super().detect(predict_result_point)
+                else:
+                    raise Exception("Pre delete error.")
+            else:
+                return self.detect_by_sdk(data_point)
         else:
             return super().detect(data_point)
 
@@ -75,7 +79,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
             },
         }
 
-        predict_result = api.aiops_sdk.kpi_predict(**predict_params)
+        predict_result = self.PREDICT_FUNC(**predict_params)
 
         return super().detect(
             DataPoint(

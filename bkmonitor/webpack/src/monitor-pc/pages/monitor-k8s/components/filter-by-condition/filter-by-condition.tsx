@@ -115,6 +115,9 @@ export default class FilterByCondition extends tsc<IProps> {
 
   @Debounce(200)
   async initData() {
+    if (!this.bcsClusterId) {
+      return;
+    }
     this.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.k8sDimension = new K8sDimension({

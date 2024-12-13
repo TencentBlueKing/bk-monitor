@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import GroupItem from './group-item';
-
-// import type { GroupListItem } from '../../typings/k8s-new';
 
 import { K8sDimension } from '../../k8s-dimension';
 import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
+import GroupItem from './group-item';
+
+// import type { GroupListItem } from '../../typings/k8s-new';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './k8s-dimension-list.scss';
 
@@ -54,6 +54,10 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   @Prop({ type: String }) scene: SceneEnum;
   @Prop({ type: String, required: true }) clusterId: string;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
+  @InjectReactive('formatTimeRange') readonly formatTimeRange!: TimeRangeType;
+  @InjectReactive('timezone') readonly timezone!: string;
+  @InjectReactive('refleshInterval') readonly refreshInterval!: number;
+  @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
 
   dimensionList = [];
   /** 搜索 */
@@ -68,7 +72,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   drillDownList = [];
 
   /** 一级维度列表初始化loading */
-  loading = true;
+  loading = false;
   /** 展开loading */
   expandLoading = {};
   /** 加载更多loading */
@@ -84,7 +88,23 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.init();
   }
 
+  @Watch('refreshInterval')
+  handleRefleshIntervalChange() {
+    this.init();
+  }
+
+  @Watch('refreshImmediate')
+  handleRefleshImmediateChange() {
+    this.init();
+  }
+
+  @Watch('formatTimeRange')
+  handleFormatTimeRangeChange() {
+    this.init();
+  }
+
   async init() {
+    if (!this.clusterId) return;
     const dimension = new K8sDimension({
       scene: this.scene,
       keyword: this.searchValue,
@@ -93,7 +113,10 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     });
     (this as any).dimension = dimension;
     this.loading = true;
-    await dimension.init();
+    await dimension.init({
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    });
     this.loading = false;
     this.showDimensionList = dimension.showDimensionData;
     this.initLoading(this.showDimensionList);
@@ -131,10 +154,14 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.groupByList = val;
   }
 
+  /** 搜索 */
   async handleSearch(val: string) {
     this.searchValue = val;
     this.loading = true;
-    await (this as any).dimension.search(val);
+    await (this as any).dimension.search(val, {
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    });
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loading = false;
   }
@@ -181,6 +208,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
         filter_dict: {
           workload: `${dimension}:`,
         },
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
       });
       this.showDimensionList = (this as any).dimension.showDimensionData;
       this.expandLoading[dimension] = false;
@@ -190,7 +219,14 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 加载更多 */
   async handleMoreClick(dimension, fatherDimension) {
     this.loadMoreLoading[dimension] = true;
-    await (this as any).dimension.loadNextPageData(dimension, {}, fatherDimension);
+    await (this as any).dimension.loadNextPageData(
+      dimension,
+      {
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
+      },
+      fatherDimension
+    );
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loadMoreLoading[dimension] = false;
   }
@@ -213,11 +249,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
         <div class='panel-title'>{this.$t('K8s对象')}</div>
         <bk-input
           class='left-panel-search'
+          v-model={this.searchValue}
           right-icon='bk-icon icon-search'
           show-clear-only-hover={true}
-          value={this.searchValue}
           clearable
-          onChange={this.handleSearch}
+          on-enter={this.handleSearch}
+          on-right-icon-click={this.handleSearch}
         />
 
         <div class='object-group'>

@@ -1806,7 +1806,9 @@ class ValidateQueryString(Resource):
             SearchType.EVENT: EventQueryHandler.query_transformer,
         }
         search_type = validated_request_data["search_type"]
-        return transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        query_cache.clear()
+        return ret
 
 
 class BaseTopNResource(Resource):

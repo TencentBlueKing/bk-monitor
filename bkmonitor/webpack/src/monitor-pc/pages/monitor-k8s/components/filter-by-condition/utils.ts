@@ -33,7 +33,6 @@ export enum EGroupBy {
 export interface IFilterByItem {
   key: string;
   value: string[];
-  method?: string;
 }
 
 interface IValue {

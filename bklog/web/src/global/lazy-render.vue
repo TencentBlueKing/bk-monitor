@@ -81,7 +81,7 @@
   .bklog-lazy-render-cell {
     box-sizing: border-box;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     height: 100%;
     min-height: 40px;
 
