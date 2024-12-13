@@ -9,10 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Protocol, Tuple, Type
 
 from django.utils.module_loading import import_string
-from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     from alarm_backends.core.control.item import Item

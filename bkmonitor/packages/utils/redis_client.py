@@ -12,11 +12,11 @@ specific language governing permissions and limitations under the License.
 import logging
 import os
 import random
+from typing import Literal
 
 import redis
 from django.conf import settings
 from redis.sentinel import Sentinel
-from typing_extensions import Literal
 
 from bkmonitor.utils.common_utils import ignored
 
