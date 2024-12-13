@@ -103,6 +103,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
             yield from self.generic_visit(node, context)
         else:
             origin_node_name = node.name
+            # NESTED_KV_FIELDS 为监控定义的特殊字段，tags.key, tags.value, tags.value.raw
             for field, es_field in self.NESTED_KV_FIELDS.items():
                 if node.name.startswith(f"{field}."):
                     self.has_nested_field = True
@@ -111,7 +112,8 @@ class BaseQueryTransformer(BaseTreeTransformer):
                         es_field,
                         FieldGroup(
                             AndOperation(
-                                SearchField("key", Word(node.name[len(field) + 1 :])), SearchField("value", node.expr)
+                                SearchField("key", Word(node.name[len(field) + 1 :])),
+                                SearchField("value.raw", node.expr),
                             )
                         ),
                     )

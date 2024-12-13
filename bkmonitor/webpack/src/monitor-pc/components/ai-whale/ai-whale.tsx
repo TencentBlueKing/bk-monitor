@@ -160,10 +160,6 @@ export default class AiWhale extends tsc<{
     left: 0,
     right: 0,
   };
-  sizeLimit = {
-    height: 600,
-    width: 480,
-  };
   startPosition = {
     right: 10,
     left: window.innerWidth - 480 - 10,
@@ -801,7 +797,6 @@ export default class AiWhale extends tsc<{
         placeholder={this.$t('您可以键入“/”查看更多提问示例')}
         position-limit={this.positionLimit}
         prompts={this.prompts}
-        size-limit={this.sizeLimit}
         start-position={this.startPosition}
         on-ai-click={this.handleAiBluekingClick}
         onChoose-prompt={this.handleAiBluekingChoosePrompt}
