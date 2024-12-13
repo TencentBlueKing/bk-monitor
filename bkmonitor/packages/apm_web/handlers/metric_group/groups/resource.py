@@ -65,7 +65,7 @@ class ResourceMetricGroup(base.BaseMetricGroup):
 
     def _filter_dict_to_q(self) -> Q:
         is_nested: bool = False
-        for val in self.filter_dict:
+        for val in self.filter_dict.values():
             if isinstance(val, Mapping):
                 is_nested = True
                 break
