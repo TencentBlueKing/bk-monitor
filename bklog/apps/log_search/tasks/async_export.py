@@ -286,15 +286,10 @@ class AsyncExportUtils(object):
                 # 处理 start_time 和 end_time
                 start_time = self.process_time(self.search_handler.start_time, tz_info)
                 end_time = self.process_time(self.search_handler.end_time, tz_info)
-                storage_cluster_record_objs = (
-                    StorageClusterRecord.objects.filter(
-                        index_set_id=int(self.search_handler.index_set_id),
-                        created_at__gt=(start_time - datetime.timedelta(hours=1)),
-                        created_at__lt=end_time,
-                    )
-                    .exclude(storage_cluster_id=self.search_handler.storage_cluster_id)
-                    .order_by("created_at")
-                )
+                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+                    index_set_id=int(self.search_handler.index_set_id),
+                    created_at__gt=(start_time - datetime.timedelta(hours=1)),
+                ).order_by("created_at")
                 max_created_at = None
                 for obj in storage_cluster_record_objs:
                     if end_time <= obj.created_at:
@@ -302,6 +297,8 @@ class AsyncExportUtils(object):
                         break
                 if max_created_at:
                     storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
+                else:
+                    storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=end_time)
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
         return storage_cluster_record_objs
@@ -335,24 +332,8 @@ class AsyncExportUtils(object):
             return
 
         # 存在集群切换
-        storage_cluster_ids = {self.search_handler.storage_cluster_id}
+        storage_cluster_ids = set()
         multi_execute_func = MultiExecuteFunc()
-        multi_num = 1
-        current_cluster_id = self.search_handler.storage_cluster_id
-        file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
-        params = {
-            "search_handler": self.search_handler,
-            "file_path": file_path,
-        }
-        # 获取当前使用的存储集群数据
-        multi_execute_func.append(
-            result_key=self.search_handler.storage_cluster_id,
-            func=self._async_export,
-            params=params,
-            multi_func_params=True,
-        )
-
-        # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
             if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
                 search_handler = SearchHandler(
@@ -362,7 +343,6 @@ class AsyncExportUtils(object):
                     export_log=True,
                 )
                 search_handler.storage_cluster_id = storage_cluster_record_obj.storage_cluster_id
-                multi_num += 1
                 current_cluster_id = search_handler.storage_cluster_id
                 file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
                 params = {
@@ -413,9 +393,7 @@ class AsyncExportUtils(object):
                     tar.add(file_path, arcname=os.path.basename(file_path))
             return
 
-        self._quick_export(self.search_handler)
-        storage_cluster_ids = {self.search_handler.storage_cluster_id}
-        # 获取历史使用的存储集群数据
+        storage_cluster_ids = set()
         for storage_cluster_record_obj in storage_cluster_record_objs:
             if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
                 self.search_handler.storage_cluster_id = storage_cluster_record_obj.storage_cluster_id
