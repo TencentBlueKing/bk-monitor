@@ -12,10 +12,11 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import time
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, List, Optional, Tuple
 
 import humanize
 from django.utils.translation import ugettext_lazy as _
+from typing_extensions import TypedDict
 
 from common.log import logger
 from core.drf_resource import api

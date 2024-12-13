@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, List, Optional, Tuple
 
 from rest_framework.utils import encoders
+from typing_extensions import TypedDict
 
 from bkmonitor.action.serializers.assign import AssignRuleSlz
 from bkmonitor.models import StrategyLabel

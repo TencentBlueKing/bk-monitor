@@ -1,4 +1,6 @@
-from typing import Any, Dict, Protocol, Type
+from typing import Any, Dict, Type
+
+from typing_extensions import Protocol
 
 from .flamegraph import FlamegraphDiagrammer
 from .sequence import SequenceDiagrammer
