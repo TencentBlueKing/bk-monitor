@@ -22,7 +22,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME

@@ -23,7 +23,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count, Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import Search
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes

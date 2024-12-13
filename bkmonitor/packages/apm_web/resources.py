@@ -12,7 +12,7 @@ import copy
 from abc import ABC
 from datetime import datetime
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.icon import get_icon
 
