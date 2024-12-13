@@ -124,10 +124,10 @@ export default class KvTag extends tsc<IProps> {
           <span class='method'>=</span>
           <span class='values'>
             {this.valuesText.map((item, index) => (
-              <span key={`${item.id}_index`}>
+              <span key={`${item.id}_${index}_index`}>
                 {index > 0 && <span class='split'>, </span>}
                 <span
-                  key={item.id}
+                  key={`${item.id}_${index}`}
                   class='text'
                 >
                   {item.name}
@@ -147,10 +147,10 @@ export default class KvTag extends tsc<IProps> {
           <span class='method'>=</span>
           <span class='values'>
             {this.valuesTextHidden.map((item, index) => (
-              <span key={`${item.id}_index`}>
+              <span key={`${item.id}_${index}_index`}>
                 {index > 0 && <span class='split'>, </span>}
                 <span
-                  key={item.id}
+                  key={`${item.id}_${index}`}
                   class='text'
                 >
                   {item.name}

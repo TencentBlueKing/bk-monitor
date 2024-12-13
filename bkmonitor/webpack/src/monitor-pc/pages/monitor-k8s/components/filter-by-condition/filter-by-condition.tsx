@@ -31,12 +31,17 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { K8sDimension } from '../../k8s-dimension';
-import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
+import { EDimensionKey, type SceneEnum } from '../../typings/k8s-new';
 import KvTag from './kv-tag';
+import {
+  type IGroupOptionsItem,
+  type ITagListItem,
+  type IValueItem,
+  type IFilterByItem,
+  FilterByOptions,
+} from './utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
-import type { IGroupOptionsItem, ITagListItem, IValueItem, IFilterByItem } from './utils';
 
 import './filter-by-condition.scss';
 
@@ -59,7 +64,6 @@ export default class FilterByCondition extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   @Ref('selector') selectorRef: HTMLDivElement;
   @Ref('valueItems') valueItemsRef: HTMLDivElement;
-  groupList: GroupListItem[] = [];
   // tags
   tagList: ITagListItem[] = [];
   popoverInstance = null;
@@ -94,7 +98,7 @@ export default class FilterByCondition extends tsc<IProps> {
   scrollLoading = false;
   valueLoading = false;
   rightValueLoading = false;
-  k8sDimension: K8sDimension;
+  filterByOptions: FilterByOptions;
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
@@ -120,19 +124,17 @@ export default class FilterByCondition extends tsc<IProps> {
     }
     this.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    this.k8sDimension = new K8sDimension({
-      scene: this.scene,
-      pageSize: 10,
-      keyword: '',
-      pageType: 'scrolling',
-      bcsClusterId: this.bcsClusterId,
-    });
-    await this.k8sDimension.init({
+    this.filterByOptions = new FilterByOptions({
+      scenario: this.scene,
+      page_size: 10,
+      page_type: 'scrolling',
+      bcs_cluster_id: this.bcsClusterId,
+      filter_dict: {},
       start_time: startTime,
       end_time: endTime,
     });
-    this.groupList = this.k8sDimension.originDimensionData;
-    this.allOptions = this.getGroupList();
+    await this.filterByOptions.init();
+    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
     this.loading = false;
   }
 
@@ -210,14 +212,14 @@ export default class FilterByCondition extends tsc<IProps> {
    * @description 从上层获取所有选项
    * @returns
    */
-  getGroupList() {
-    return this.groupList.map(item => {
+  getGroupList(list) {
+    return list.map(item => {
       const itemsMap = new Map();
       const result = {
         id: item.id,
         name: item.name,
         count: item.count,
-        list: item.children.map(child => {
+        children: item.children.map(child => {
           if (item.id !== EDimensionKey.workload) {
             itemsMap.set(child.id, child.name);
           }
@@ -225,7 +227,7 @@ export default class FilterByCondition extends tsc<IProps> {
             id: child.id,
             name: child.name,
             count: child?.count,
-            list: child?.children?.map(c => {
+            children: child?.children?.map(c => {
               itemsMap.set(c.id, c.name);
               return {
                 id: c.id,
@@ -280,8 +282,8 @@ export default class FilterByCondition extends tsc<IProps> {
    * @description 选择某项group
    * @param id
    */
-  handleSelectGroup(id: string) {
-    if (this.groupSelected !== id) {
+  handleSelectGroup(id: string, search = false) {
+    if (this.groupSelected !== id || search) {
       this.groupSelected = id;
       const checkedSet = new Set();
       for (const tag of this.tagList) {
@@ -293,26 +295,26 @@ export default class FilterByCondition extends tsc<IProps> {
         }
       }
       if (this.groupSelected === EDimensionKey.workload) {
-        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
+        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueCategoryOptions = groupValues.map(item => ({
           ...item,
           checked: false,
-          list:
-            item?.list?.map(l => ({
+          children:
+            item?.children?.map(l => ({
               ...l,
               checked: checkedSet.has(l.id),
             })) || [],
         }));
         if (this.valueCategorySelected) {
           this.valueOptions =
-            this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
+            this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.children || [];
         } else {
           this.valueCategorySelected = this.valueCategoryOptions[0]?.id || '';
-          this.valueOptions = this.valueCategoryOptions?.[0]?.list || [];
+          this.valueOptions = this.valueCategoryOptions?.[0]?.children || [];
         }
       } else {
         this.valueCategoryOptions = [];
-        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.list || [];
+        const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
       // this.handleSearchChange('');
@@ -332,18 +334,13 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleSearchChange(value: string) {
     this.searchValue = value;
     this.valueLoading = true;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    await this.k8sDimension.search(
+    await this.filterByOptions.search(
       value,
-      {
-        start_time: startTime,
-        end_time: endTime,
-      },
-      this.groupSelected as EDimensionKey
+      this.groupSelected as EDimensionKey,
+      this.groupSelected === EDimensionKey.workload ? this.valueCategorySelected : ''
     );
-    this.groupList = this.k8sDimension.originDimensionData;
-    this.allOptions = this.getGroupList();
-    this.handleSelectGroup(this.groupSelected);
+    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    this.handleSelectGroup(this.groupSelected, true);
     this.valueLoading = false;
   }
 
@@ -356,7 +353,7 @@ export default class FilterByCondition extends tsc<IProps> {
     if (this.groupSelected === EDimensionKey.workload) {
       let isBreak = false;
       for (const option of this.valueCategoryOptions) {
-        for (const l of option.list) {
+        for (const l of option.children) {
           if (l.id === item.id) {
             l.checked = item.checked;
             isBreak = true;
@@ -392,7 +389,7 @@ export default class FilterByCondition extends tsc<IProps> {
     const tempSet = new Set();
     if (this.groupSelected === EDimensionKey.workload) {
       for (const option of this.valueCategoryOptions) {
-        for (const l of option.list) {
+        for (const l of option.children) {
           if (l.checked) {
             curSelected.push(l);
           }
@@ -485,16 +482,10 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleSelectCategory(item: IValueItem) {
     this.valueCategorySelected = item.id;
     this.rightValueLoading = true;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    await this.k8sDimension.getWorkloadChildrenData({
-      filter_dict: { workload: item.id },
-      start_time: startTime,
-      end_time: endTime,
-    });
-    this.groupList = this.k8sDimension.originDimensionData;
-    this.allOptions = this.getGroupList();
+    await this.filterByOptions.initOfType(this.groupSelected as EDimensionKey, item.id);
+    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
     this.handleSelectGroup(this.groupSelected);
-    const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.list || [];
+    const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.children || [];
     this.valueOptions = values;
     this.rightValueLoading = false;
   }
@@ -562,6 +553,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   handleDeleteTag(item: ITagListItem) {
+    this.destroyPopoverInstance();
     this.tagList = this.tagList.filter(tag => tag.key !== item.key);
     this.updateActive = '';
     this.groupSelected = '';
@@ -576,14 +568,15 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleValueOptionsScroll(e: any) {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
     const isEnd = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
-    if (isEnd && !this.scrollLoading) {
+    const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
+    if (isEnd && !this.scrollLoading && !pageEnd) {
       this.scrollLoading = true;
       this.$nextTick(() => {
         this.valueItemsRef.scrollTop = this.valueItemsRef.scrollHeight - clientHeight;
       });
-      await this.k8sDimension.loadNextPageData(this.groupSelected);
-      this.groupList = this.k8sDimension.originDimensionData;
-      this.allOptions = this.getGroupList();
+      await this.filterByOptions.getNextPageData(this.groupSelected as EDimensionKey, this.valueCategorySelected);
+      this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+      this.handleSelectGroup(this.groupSelected, true);
       this.scrollLoading = false;
     }
   }
@@ -596,9 +589,9 @@ export default class FilterByCondition extends tsc<IProps> {
         onScroll={this.handleValueOptionsScrollThrottle}
       >
         {this.valueOptions.length ? (
-          this.valueOptions.map(item => (
+          this.valueOptions.map((item, index) => (
             <div
-              key={item.id}
+              key={`${item.id}_${index}`}
               class={['value-item', { checked: item.checked }]}
               onClick={() => this.handleCheck(item)}
             >
@@ -713,11 +706,7 @@ export default class FilterByCondition extends tsc<IProps> {
   render() {
     return (
       <div class={['filter-by-condition-component', { 'expand-tags': this.isExpand }]}>
-        {!this.loading ? (
-          <div class='tag-list-wrap'>{this.tagsWrap()}</div>
-        ) : (
-          <div class='skeleton-element tags-wrap-loading' />
-        )}
+        <div class='tag-list-wrap'>{this.tagsWrap()}</div>
         <div class='tag-list-wrap-hidden'>{this.tagsWrap(true)}</div>
         <div
           style={{
@@ -728,59 +717,57 @@ export default class FilterByCondition extends tsc<IProps> {
             ref='selector'
             class='filter-by-condition-component-popover'
           >
-            <div class='filter-by-condition-component-popover-header'>
-              {this.groupOptions.map(option => (
-                <div
-                  key={option.id}
-                  class={['group-item', { active: this.groupSelected === option.id }]}
-                  onClick={() => this.handleSelectGroup(option.id)}
-                >
-                  <span class='group-item-name'>{option.name}</span>
-                  <span class='group-item-count'>{option.count}</span>
+            {this.loading ? (
+              <div class='filter-by-condition-skeleton'>
+                <div class='header-skeleton'>
+                  <div class='skeleton-element skeleton-item' />
                 </div>
-              ))}
-            </div>
-            <div class='filter-by-condition-component-popover-content'>
-              <div class='values-search'>
-                <bk-input
-                  behavior='simplicity'
-                  left-icon='bk-icon icon-search'
-                  placeholder={this.$t('请输入关键字')}
-                  value={this.searchValue}
-                  onChange={this.handleSearchChangeDebounce}
-                />
-              </div>
-              {this.valueLoading ? (
-                <div class='skeleton-loading-wrap'>
-                  {new Array(8).fill(null).map((_item, index) => {
-                    return (
-                      <div
-                        key={index}
-                        class='loading-item'
-                      >
-                        <div class='skeleton-element skeleton-item' />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : this.valueCategoryOptions.length ? (
-                <div class='value-items-wrap'>
-                  <div class='left-wrap'>
-                    {this.valueCategoryOptions.map(item => (
-                      <div
-                        key={item.id}
-                        class={['cate-item', { active: this.valueCategorySelected === item.id }]}
-                        onClick={() => this.handleSelectCategory(item)}
-                      >
-                        <span class='cate-item-name'>{item.name}</span>
-                        <span class='cate-item-count'>({item.count})</span>
-                        <span class='cate-item-right'>
-                          <span class='icon-monitor icon-arrow-right' />
-                        </span>
-                      </div>
-                    ))}
+                <div class='content-skeleton'>
+                  <div class='skeleton-loading-wrap'>
+                    {new Array(8).fill(null).map((_item, index) => {
+                      return (
+                        <div
+                          key={index}
+                          class='loading-item'
+                        >
+                          <div class='skeleton-element skeleton-item' />
+                        </div>
+                      );
+                    })}
                   </div>
-                  {this.rightValueLoading ? (
+                </div>
+              </div>
+            ) : (
+              [
+                <div
+                  key='header'
+                  class='filter-by-condition-component-popover-header'
+                >
+                  {this.groupOptions.map(option => (
+                    <div
+                      key={option.id}
+                      class={['group-item', { active: this.groupSelected === option.id }]}
+                      onClick={() => this.handleSelectGroup(option.id)}
+                    >
+                      <span class='group-item-name'>{option.name}</span>
+                      <span class='group-item-count'>{option.count}</span>
+                    </div>
+                  ))}
+                </div>,
+                <div
+                  key='content'
+                  class='filter-by-condition-component-popover-content'
+                >
+                  <div class='values-search'>
+                    <bk-input
+                      behavior='simplicity'
+                      left-icon='bk-icon icon-search'
+                      placeholder={this.$t('请输入关键字')}
+                      value={this.searchValue}
+                      onChange={this.handleSearchChangeDebounce}
+                    />
+                  </div>
+                  {this.valueLoading ? (
                     <div class='skeleton-loading-wrap'>
                       {new Array(8).fill(null).map((_item, index) => {
                         return (
@@ -793,14 +780,46 @@ export default class FilterByCondition extends tsc<IProps> {
                         );
                       })}
                     </div>
+                  ) : this.valueCategoryOptions.length ? (
+                    <div class='value-items-wrap'>
+                      <div class='left-wrap'>
+                        {this.valueCategoryOptions.map(item => (
+                          <div
+                            key={item.id}
+                            class={['cate-item', { active: this.valueCategorySelected === item.id }]}
+                            onClick={() => this.handleSelectCategory(item)}
+                          >
+                            <span class='cate-item-name'>{item.name}</span>
+                            <span class='cate-item-count'>({item.count})</span>
+                            <span class='cate-item-right'>
+                              <span class='icon-monitor icon-arrow-right' />
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {this.rightValueLoading ? (
+                        <div class='skeleton-loading-wrap'>
+                          {new Array(8).fill(null).map((_item, index) => {
+                            return (
+                              <div
+                                key={index}
+                                class='loading-item'
+                              >
+                                <div class='skeleton-element skeleton-item' />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        this.valuesWrap()
+                      )}
+                    </div>
                   ) : (
                     this.valuesWrap()
                   )}
-                </div>
-              ) : (
-                this.valuesWrap()
-              )}
-            </div>
+                </div>,
+              ]
+            )}
           </div>
         </div>
       </div>
