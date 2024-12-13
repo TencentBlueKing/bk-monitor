@@ -231,7 +231,7 @@ class GetTmpData(Resource):
         biz_ids = validated_request_data.get("biz_ids", "")
         thedate = validated_request_data.get("thedate", None)
 
-         # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
+        # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
         if not thedate:
             start_time, end_time = get_previous_month_range_unix()
         else:
@@ -255,7 +255,7 @@ class GetTmpData(Resource):
             }
             biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
-            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数 
+            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数
             # 考虑到还要根据过滤条件 符合的其实更少
 
         ret = {}
@@ -2356,11 +2356,9 @@ class MetricRecommendationResource(AIOpsBaseResource):
                 ]
             except KeyError:
                 recommend_panel["feedback"] = {
-                    {
-                        "good": 0,
-                        "bad": 0,
-                        "self": None,
-                    }
+                    "good": 0,
+                    "bad": 0,
+                    "self": None,
                 }
 
         return result

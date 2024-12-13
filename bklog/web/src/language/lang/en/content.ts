@@ -996,4 +996,5 @@ export default {
   当前缺少维度: 'Current dimensions are missing',
   '当前缺少维度/时间维度': 'Current dimensions/time dimensions are missing',
   '当前缺少指标': 'Current metrics are missing',
+  字段名不支持快速修改: 'Field name does not support quick modification',
 };
