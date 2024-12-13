@@ -1,4 +1,4 @@
-FROM python:3.6-bullseye as builder
+FROM python:3.7-bullseye as builder
 ARG build_frontend=true
 ARG replace_debian_source=false
 
@@ -25,7 +25,7 @@ RUN if [ ${replace_debian_source} ] ; then \
 
 # install node and pnpm
 RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
@@ -54,7 +54,7 @@ fi
 
 RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
-FROM python:3.6-bullseye
+FROM python:3.7-bullseye
 
 ARG username=bkmonitor
 ARG version

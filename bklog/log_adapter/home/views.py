@@ -390,9 +390,10 @@ def dispatch_external_proxy(request):
                     )
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
-        user = auth.authenticate(username=authorizer)
-        auth.login(request, user)
-        setattr(fake_request, "user", request.user)
+        if authorizer:
+            user = auth.authenticate(username=authorizer)
+            auth.login(request, user)
+            setattr(fake_request, "user", request.user)
         logger.info(
             f"dispatch_plugin_query: request:{request}, user:{request.user}, "
             f"external_user: {external_user}, space_uid: {space_uid}"

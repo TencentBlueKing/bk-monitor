@@ -14,6 +14,8 @@ from core.drf_resource import APIResource
 
 
 class SdkResource(APIResource):
+    TIMEOUT = 300
+
     # 模块名
     module_name = "aiops_sdk"
 
@@ -32,6 +34,21 @@ class SdkPredictResource(APIResource):
         backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
 
     action = "/api/aiops/default/"
+    method = "POST"
+
+
+class SdkGroupPredictResource(APIResource):
+    """
+    SDK执行分组预测逻辑
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        group_data = serializers.ListField(required=True, child=serializers.DictField())
+        predict_args = serializers.DictField(required=False, default=dict())
+        interval = serializers.IntegerField(default=60)
+        backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
+
+    action = "/api/aiops/group_predict/"
     method = "POST"
 
 
@@ -59,13 +76,19 @@ class TfSdkResource(SdkResource):
 
 
 class TfPredictResource(TfSdkResource, SdkPredictResource):
-    """SDK执行时序预测逻辑."""
+    """时序预测SDK执行时序预测逻辑."""
 
     pass
 
 
 class TfInitDependResource(TfSdkResource, SdkInitDependResource):
-    """SDK初始化历史依赖."""
+    """时序预测SDK初始化历史依赖."""
+
+    pass
+
+
+class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
+    """时序预测SDK执行分组预测."""
 
     pass
 
@@ -76,12 +99,18 @@ class KpiSdkResource(SdkResource):
 
 
 class KpiPredictResource(KpiSdkResource, SdkPredictResource):
-    """SDK执行时序预测逻辑."""
+    """异常检测SDK执行时序预测逻辑."""
 
     pass
 
 
 class KpiInitDependResource(KpiSdkResource, SdkInitDependResource):
-    """SDK初始化历史依赖."""
+    """异常检测SDK初始化历史依赖."""
+
+    pass
+
+
+class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
+    """异常检测SDK执行分组预测."""
 
     pass

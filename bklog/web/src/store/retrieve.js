@@ -91,6 +91,8 @@ export default {
     getIndexSetList(ctx, payload) {
       const { spaceUid, isLoading = true } = payload;
       if (isLoading) ctx.commit('updateIndexSetLoading', true);
+
+      ctx.commit('updateIndexSetList', []);
       return http
         .request('retrieve/getIndexSetList', {
           query: {

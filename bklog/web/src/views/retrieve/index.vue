@@ -1498,10 +1498,12 @@
             this.handleFieldsUpdated(displayFields, undefined, false);
           }
           if (this.isFavoriteSearch) {
-            this.initSearchList();
-            this.isSqlSearchType = !this.isShowUiType; // 判断是否有表单模式的数组值 如果有 则切换为表单模式
-            this.$refs.searchCompRef.initConditionList(); // 点击收藏 更新添加条件列表
-            this.catchIpChooser = this.retrieveParams.ip_chooser; // 更新ip的条件显示
+            setTimeout(() => {
+              this.initSearchList();
+              this.isSqlSearchType = !this.isShowUiType; // 判断是否有表单模式的数组值 如果有 则切换为表单模式
+              this.$refs.searchCompRef.initConditionList(); // 点击收藏 更新添加条件列表
+              this.catchIpChooser = this.retrieveParams.ip_chooser; // 更新ip的条件显示
+            }, 300);
           }
           // 搜索完毕后，如果开启了自动刷新，会在 timeout 后自动刷新
           this.$refs.resultHeader?.setRefreshTime();

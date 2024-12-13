@@ -21,7 +21,10 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
-from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection
+from alarm_backends.service.detect.strategy import (
+    BasicAlgorithmsCollection,
+    SDKPreDetectMixin,
+)
 from alarm_backends.templatetags.unit import unit_convert_min, unit_suffix
 from bkmonitor.strategy.serializers import TimeSeriesForecastingSerializer
 from bkmonitor.utils.time_tools import hms_string
@@ -32,10 +35,13 @@ from core.unit import load_unit
 logger = logging.getLogger("detect")
 
 
-class TimeSeriesForecasting(BasicAlgorithmsCollection):
+class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
+    PREDICT_FUNC = api.aiops_sdk.tf_predict
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
@@ -63,7 +69,15 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
             if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 raise Exception("Strategy history dependency data not ready")
 
-            return self.detect_by_sdk(data_point)
+            # 优先从预检测结果中获取检测结果
+            if hasattr(self, "_local_pre_detect_results") and self._local_pre_detect_results:
+                predict_result_point = self.fetch_pre_detect_result_point(data_point)
+                if predict_result_point:
+                    return super().detect(predict_result_point)
+                else:
+                    raise Exception("Pre delete error.")
+            else:
+                return self.detect_by_sdk(data_point)
         else:
             return self.detect_by_bkdata(data_point)
 
@@ -81,7 +95,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
             },
         }
 
-        predict_result = api.aiops_sdk.tf_predict(**predict_params)
+        predict_result = self.PREDICT_FUNC(**predict_params)
 
         return self.detect_by_bkdata(
             DataPoint(
@@ -89,7 +103,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
                     "record_id": data_point.record_id,
                     "value": data_point.value,
                     "values": predict_result[0],
-                    "time": predict_result[0]["timestamp"],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
                 },
                 item=data_point.item,

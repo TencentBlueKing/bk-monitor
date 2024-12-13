@@ -87,15 +87,16 @@ class FrontendShieldListResource(Resource):
         if search_terms:
             shields = self.search(search_terms, shields, is_active)
             if page and page_size:
-                shields = shields[(page - 1) * page_size : page * page_size]
+                shields = shields[(page - 1) * page_size: page * page_size]
 
         return {"count": result["count"], "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
         """模糊搜索屏蔽列表。"""
-        active_fields = ["id", "category_name", "content", "begin_time", "cycle_duration", "description", "status_name"]
-        inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name"]
+        active_fields = ["id", "category_name", "content", "begin_time", "cycle_duration", "description", "status_name",
+                         "label"]
+        inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name", "label"]
         search_fields = active_fields if is_active else inactive_fields
 
         def match(shield):
@@ -136,6 +137,7 @@ class FrontendShieldListResource(Resource):
                         "description": shield["description"],
                         "source": shield["source"],
                         "update_user": shield["update_user"],
+                        "label": shield["label"],
                     },
                     shields,
                 )
