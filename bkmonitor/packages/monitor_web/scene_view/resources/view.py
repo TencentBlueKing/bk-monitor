@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 
 import arrow
 from django.http import Http404
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import METRIC_COMMON_DIMENSION

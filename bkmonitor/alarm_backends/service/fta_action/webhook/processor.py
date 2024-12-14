@@ -13,7 +13,7 @@ import json
 import logging
 
 import requests
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.utils.encode import EncodeWebhook

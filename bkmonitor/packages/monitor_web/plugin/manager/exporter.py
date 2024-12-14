@@ -14,7 +14,7 @@ import logging
 import os
 from collections import namedtuple
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource import resource
 from monitor_web.commons.file_manager import PluginFileManager

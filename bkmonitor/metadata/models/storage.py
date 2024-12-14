@@ -33,7 +33,7 @@ from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
 from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pytz import timezone
 from tenacity import (
     RetryError,
