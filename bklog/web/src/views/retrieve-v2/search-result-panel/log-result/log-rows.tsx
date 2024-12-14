@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -95,6 +95,7 @@ export default defineComponent({
     const isLoading = computed(() => indexSetQueryResult.value.is_loading);
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
       if (count._isBigNumber) {
@@ -119,6 +120,33 @@ export default defineComponent({
     const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
     });
+
+    const handleRowResize = (entry, rowIndex) => {
+      const row = tableData.value[rowIndex];
+      const config: RowConfig = row[ROW_CONFIG].value;
+      config.minHeight = entry.contentRect.height;
+      const rowElement = entry.target.querySelector('.bklog-list-row');
+      config.rowMinHeight = rowElement.offsetHeight;
+      Object.assign(tableRowStore.get(row[ROW_KEY]), config);
+    };
+
+    const $_resizeObserver = new ResizeObserver(entries => {
+      requestAnimationFrame(() => {
+        if (!Array.isArray(entries)) {
+          return;
+        }
+        for (const entry of entries) {
+          if (entry.target) {
+            const index = entry.target.getAttribute('data-row-index');
+            if (index) {
+              handleRowResize(entry, parseInt(index));
+            }
+          }
+        }
+      });
+    });
+
+    provide('vscrollResizeObserver', $_resizeObserver);
 
     const renderColumns = computed(() => {
       return [
@@ -409,6 +437,18 @@ export default defineComponent({
       });
     };
 
+    const sizes = computed(() => {
+      let accumulator = 0;
+      return tableData.value.map(row => {
+        const rowConfig = row[ROW_CONFIG];
+        const current = rowConfig.value.minHeight;
+        accumulator += current;
+        return { accumulator: accumulator - current, size: current };
+      });
+    });
+
+    const totalSize = computed(() => sizes.value[sizes.value.length - 1].accumulator);
+
     const expandOption = {
       render: ({ row }) => {
         return (
@@ -494,10 +534,11 @@ export default defineComponent({
     const loadMoreTableData = () => {
       if (totalCount.value > tableData.value.length) {
         isRequesting.value = true;
+
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
-          .then(() => {
-            visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + bufferCount;
+          .then(({ length }) => {
+            visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + (length ?? bufferCount);
             debounceSetLoading();
             return true;
           })
@@ -510,15 +551,6 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    const cumulativeHeights = computed(() => {
-      let preHeight = 0;
-      return tableData.value.map(row => {
-        const rowHeight = row[ROW_CONFIG]?.value?.minHeight;
-        preHeight = preHeight + rowHeight;
-        return preHeight - rowHeight;
-      });
-    });
-
     const getVisibleRows = (scrollTop, visibleHeight) => {
       const rows = tableData.value;
       let startIdx = 0;
@@ -527,7 +559,7 @@ export default defineComponent({
       // 使用二分查找找到第一个可见的行
       while (startIdx < endIdx) {
         let midIdx = Math.floor((startIdx + endIdx) / 2);
-        if (cumulativeHeights.value[midIdx] < scrollTop) {
+        if (sizes.value[midIdx].accumulator < scrollTop) {
           startIdx = midIdx + 1;
         } else {
           endIdx = midIdx;
@@ -537,7 +569,7 @@ export default defineComponent({
       let lastVisibleRow = startIdx;
 
       // 找到最后一个可见的行
-      while (lastVisibleRow < rows.length && cumulativeHeights.value[lastVisibleRow] < scrollTop + visibleHeight) {
+      while (lastVisibleRow < rows.length && sizes.value[lastVisibleRow].accumulator < scrollTop + visibleHeight) {
         lastVisibleRow++;
       }
 
@@ -631,6 +663,14 @@ export default defineComponent({
       return props.contentType === 'table' && tableData.value.length > 0;
     });
 
+    const viewList = computed(() => {
+      const startIndex = visibleIndexs.value.startIndex - bufferCount;
+      const endIndex = visibleIndexs.value.endIndex + bufferCount;
+      const totalCount = tableData.value.length;
+
+      return tableData.value.slice(startIndex >= 0 ? startIndex : 0, endIndex <= totalCount ? endIndex : totalCount);
+    });
+
     const renderHeadVNode = () => {
       if (showHeader.value) {
         return (
@@ -706,44 +746,15 @@ export default defineComponent({
       ];
     };
 
-    const handleRowResize = (entry, row) => {
-      const config: RowConfig = row[ROW_CONFIG].value;
-      config.minHeight = entry.contentRect.height;
-      const rowElement = entry.target.querySelector('.bklog-list-row');
-      config.rowMinHeight = rowElement.offsetHeight;
-      Object.assign(tableRowStore.get(row[ROW_KEY]), config);
-    };
-
     const renderRowVNode = () => {
-      const { startIndex, endIndex } = visibleIndexs.value;
-      const visibleStartIndex = startIndex > bufferCount ? startIndex - bufferCount : 0;
-      const visibleEndIndex = endIndex + bufferCount;
-      return tableData.value.map(row => {
+      return viewList.value.map(row => {
         const rowIndex = row[ROW_INDEX];
-
+        const rowView = sizes.value[rowIndex];
         const rowStyle = {
           minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
+          transform: `translate3d(0, ${rowView.accumulator}px, 0)`,
           '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
         };
-
-        if (rowIndex >= visibleStartIndex && rowIndex < visibleEndIndex) {
-          return (
-            <RowRender
-              key={row[ROW_KEY]}
-              style={rowStyle}
-              class={[
-                'bklog-row-container',
-                {
-                  'has-overflow-x': hasScrollX.value,
-                },
-              ]}
-              row-index={rowIndex}
-              onRow-resize={entry => handleRowResize(entry, row)}
-            >
-              {renderRowCells(row, rowIndex)}
-            </RowRender>
-          );
-        }
 
         return (
           <RowRender
@@ -751,13 +762,15 @@ export default defineComponent({
             style={rowStyle}
             class={[
               'bklog-row-container',
-              'is-pending',
               {
                 'has-overflow-x': hasScrollX.value,
               },
             ]}
             row-index={rowIndex}
-          ></RowRender>
+            onRow-resize={entry => handleRowResize(entry, row)}
+          >
+            {renderRowCells(row, rowIndex)}
+          </RowRender>
         );
       });
     };
@@ -779,7 +792,8 @@ export default defineComponent({
 
     const tableStyle = computed(() => {
       return {
-        transform: `translate3d(-${scrollXOffsetLeft.value}px, 0, 0)`,
+        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
+        minHeight: `${totalSize.value}px`,
       };
     });
 

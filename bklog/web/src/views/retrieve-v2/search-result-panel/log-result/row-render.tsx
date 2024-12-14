@@ -23,9 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, Ref, ref } from 'vue';
-
-import useResizeObserve from '@/hooks/use-resize-observe';
+import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
 
 export default defineComponent({
   props: {
@@ -35,8 +33,27 @@ export default defineComponent({
     },
   },
   emits: ['row-resize'],
-  setup(props, { emit, slots }) {
+  setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
+    const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
+
+    const observeSize = () => {
+      if (!vscrollResizeObserver || !refRowNodeRoot.value) return;
+      vscrollResizeObserver.observe(refRowNodeRoot.value);
+    };
+
+    const unobserveSize = () => {
+      if (!vscrollResizeObserver) return;
+      vscrollResizeObserver.unobserve(refRowNodeRoot.value);
+    };
+
+    onMounted(() => {
+      observeSize();
+    });
+
+    onBeforeUnmount(() => {
+      unobserveSize();
+    });
 
     const renderRowVNode = () => {
       return (
@@ -44,20 +61,13 @@ export default defineComponent({
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe']}
+            data-row-index={props.rowIndex}
           >
             {slots.default?.()}
           </div>
         </div>
       );
     };
-
-    const getTargetElement = () => {
-      return refRowNodeRoot.value;
-    };
-
-    useResizeObserve(getTargetElement, entry => {
-      emit('row-resize', entry);
-    });
 
     return {
       renderRowVNode,

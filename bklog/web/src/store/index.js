@@ -1191,6 +1191,7 @@ const store = new Vuex.Store({
                 message,
                 code,
                 result,
+                length: logList.length,
               };
             });
           }

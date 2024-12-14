@@ -66,9 +66,17 @@
   }
 
   .bklog-row-container {
+    position: absolute;
+    top: 0;
+    left: 0;
     box-sizing: border-box;
+    width: fit-content;
     min-height: 40px;
     transform: translateZ(0);
+
+    .bklog-row-observe {
+      width: fit-content;
+    }
 
     &.is-pending {
       width: 100%;

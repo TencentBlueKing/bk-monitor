@@ -97,10 +97,9 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   };
 
   const computeRect = () => {
-    const target = getParentContainer();
     const current = getCurrentElement();
-    scrollWidth.value = current?.offsetWidth ?? 0;
-    offsetWidth.value = target?.offsetWidth ?? 0;
+    scrollWidth.value = current?.scrollWidth ?? 0;
+    offsetWidth.value = current?.offsetWidth ?? 0;
   };
 
   const debounceComputeRect = debounce(computeRect, 120);
