@@ -3,7 +3,7 @@ gunicorn==20.1.0
 gevent==22.10.2
 
 # django
-Django==3.2.15
+Django==3.2.25
 django-mysql==4.3.0
 
 django-db-connection-pool==1.2.5
