@@ -31,11 +31,16 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    updateKey: {
+      type: Number,
+      default: 0,
+    },
   },
   emits: ['row-resize'],
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
+    const handleRowResize = inject('handleRowResize') as (rowIndex: number, args: { target: HTMLElement }) => void;
     const isPending = ref(false);
 
     const observeSize = () => {
@@ -48,8 +53,38 @@ export default defineComponent({
       vscrollResizeObserver.unobserve(refRowNodeRoot.value);
     };
 
+    let resizeTimer;
+    const updateRowSize = () => {
+      resizeTimer && clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        handleRowResize(props.rowIndex, { target: refRowNodeRoot.value });
+      }, 120);
+    };
+    let delayTimer = null;
+
+    watch(
+      () => props.rowIndex,
+      () => {
+        isPending.value = true;
+        delayTimer && clearTimeout(delayTimer);
+        delayTimer = setTimeout(() => {
+          isPending.value = false;
+          updateRowSize();
+        }, 100);
+      },
+    );
+
+    watch(
+      () => props.updateKey,
+      () => {
+        // updateRowSize();
+      },
+      { immediate: true },
+    );
+
     onMounted(() => {
       observeSize();
+      updateRowSize();
     });
 
     onBeforeUnmount(() => {
@@ -69,19 +104,6 @@ export default defineComponent({
         </div>
       );
     };
-
-    let delayTimer = null;
-
-    watch(
-      () => props.rowIndex,
-      () => {
-        isPending.value = true;
-        delayTimer && clearTimeout(delayTimer);
-        delayTimer = setTimeout(() => {
-          isPending.value = false;
-        }, 120);
-      },
-    );
 
     return {
       renderRowVNode,

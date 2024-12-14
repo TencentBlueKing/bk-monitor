@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide, nextTick } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -78,6 +78,7 @@ export default defineComponent({
     const tableData = ref([]);
     const refRootElement: Ref<HTMLElement> = ref();
     const refBoxElement: Ref<HTMLElement> = ref();
+    const rowUpdateCounter = ref(0);
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -121,13 +122,21 @@ export default defineComponent({
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
     });
 
-    const handleRowResize = (entry, rowIndex) => {
+    const updateRowHeight = (rowIndex: number, target: HTMLElement) => {
       const row = tableData.value[rowIndex];
+      if (!row?.[ROW_KEY] || !target) {
+        return;
+      }
+
       const config: RowConfig = row[ROW_CONFIG].value;
-      config.minHeight = entry.contentRect.height;
-      const rowElement = entry.target.querySelector('.bklog-list-row');
+      config.minHeight = target.offsetHeight;
+      const rowElement = target.querySelector('.bklog-list-row') as HTMLElement;
       config.rowMinHeight = rowElement.offsetHeight;
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
+    };
+
+    const handleRowResize = (rowIndex, entry) => {
+      updateRowHeight(rowIndex, entry.target);
     };
 
     const $resizeObserver = new ResizeObserver(entries => {
@@ -139,7 +148,7 @@ export default defineComponent({
           if (entry.target) {
             const index = entry.target.getAttribute('data-row-index');
             if (index) {
-              handleRowResize(entry, parseInt(index));
+              handleRowResize(parseInt(index), entry);
             }
           }
         }
@@ -147,6 +156,7 @@ export default defineComponent({
     });
 
     provide('vscrollResizeObserver', $resizeObserver);
+    provide('handleRowResize', handleRowResize);
 
     const renderColumns = computed(() => {
       return [
@@ -399,7 +409,14 @@ export default defineComponent({
       tableRowStore.keys().forEach(key => {
         const index = Number(key.split('_')[1]);
         if (index >= length) {
-          tableRowStore.delete(key);
+          [
+            ['expand', false],
+            ['minHeight', 40],
+            ['rowMinHeight', 40],
+          ].forEach(args => {
+            const field = args[0] as string;
+            Object.assign(tableRowStore.get(key), { [field]: args[1] });
+          });
         }
       });
     };
@@ -408,19 +425,20 @@ export default defineComponent({
      * 当切换操作时，重新计算行高
      * 原则上，此时滚动到最上方，可视区域开始的Index为0
      */
-    const resetTableMinheight = () => {
-      const endIndex = visibleIndexs.value.endIndex;
+    const resetTableMinheight = (length?) => {
+      const endIndex = length ?? visibleIndexs.value.endIndex;
       clearRowConfigCache(endIndex - 1);
       const startIndex = endIndex - 1;
       for (let i = startIndex; i < tableData.value.length; i++) {
-        if (tableData.value[ROW_CONFIG]?.minHeight) {
-          tableData.value[ROW_CONFIG].minHeight = 40;
-        }
-
-        if (tableData.value[ROW_CONFIG]?.rowMinHeight) {
-          tableData.value[ROW_CONFIG].rowMinHeight = 40;
-        }
+        const config = tableData.value[i][ROW_CONFIG]?.value;
+        ['minHeight', 'rowMinHeight'].forEach(key => {
+          config[key] = 40;
+        });
       }
+
+      nextTick(() => {
+        rowUpdateCounter.value++;
+      });
     };
 
     const loadTableData = () => {
@@ -467,6 +485,7 @@ export default defineComponent({
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
+        resetTableMinheight(1);
         columns.value = loadTableColumns();
         setTimeout(() => {
           computeRect();
@@ -484,9 +503,7 @@ export default defineComponent({
     watch(
       () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
       () => {
-        setTimeout(() => {
-          resetTableMinheight();
-        });
+        resetTableMinheight(1);
       },
     );
 
@@ -790,9 +807,10 @@ export default defineComponent({
           '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
         };
 
+        const rowKey = `${props.contentType}-${row?.[ROW_KEY]}`;
         return (
           <RowRender
-            key={row[ROW_KEY]}
+            key={rowKey}
             style={rowStyle}
             class={[
               'bklog-row-container',
@@ -801,7 +819,7 @@ export default defineComponent({
               },
             ]}
             row-index={rowIndex}
-            onRow-resize={entry => handleRowResize(entry, row)}
+            updateKey={rowUpdateCounter.value}
           >
             {renderRowCells(row, rowIndex)}
           </RowRender>
