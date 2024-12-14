@@ -53,33 +53,28 @@ export default defineComponent({
       vscrollResizeObserver.unobserve(refRowNodeRoot.value);
     };
 
-    let resizeTimer;
     const updateRowSize = () => {
-      resizeTimer && clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
+      requestAnimationFrame(() => {
         handleRowResize(props.rowIndex, { target: refRowNodeRoot.value });
-      }, 120);
+      });
     };
-    let delayTimer = null;
 
     watch(
       () => props.rowIndex,
       () => {
         isPending.value = true;
-        delayTimer && clearTimeout(delayTimer);
-        delayTimer = setTimeout(() => {
+        requestAnimationFrame(() => {
           isPending.value = false;
           updateRowSize();
-        }, 100);
+        });
       },
     );
 
     watch(
       () => props.updateKey,
       () => {
-        // updateRowSize();
+        updateRowSize();
       },
-      { immediate: true },
     );
 
     onMounted(() => {

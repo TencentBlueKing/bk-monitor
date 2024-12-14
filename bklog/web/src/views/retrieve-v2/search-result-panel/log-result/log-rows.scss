@@ -58,15 +58,16 @@
     left: 0;
     box-sizing: border-box;
     width: fit-content;
+    min-width: 100%;
     min-height: 40px;
     transform: translateZ(0);
 
     .bklog-row-observe {
       width: fit-content;
+      min-width: 100%;
 
       &.is-pending {
         &::after {
-
           position: absolute;
           top: 0;
           right: 0;

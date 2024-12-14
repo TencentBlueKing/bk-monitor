@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -124,7 +124,7 @@ export default defineComponent({
 
     const updateRowHeight = (rowIndex: number, target: HTMLElement) => {
       const row = tableData.value[rowIndex];
-      if (!row?.[ROW_KEY] || !target) {
+      if (!row?.[ROW_KEY] || !target || !tableRowStore.has(row[ROW_KEY])) {
         return;
       }
 
@@ -435,10 +435,6 @@ export default defineComponent({
           config[key] = 40;
         });
       }
-
-      nextTick(() => {
-        rowUpdateCounter.value++;
-      });
     };
 
     const loadTableData = () => {
@@ -485,8 +481,9 @@ export default defineComponent({
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
-        resetTableMinheight(1);
         columns.value = loadTableColumns();
+        rowUpdateCounter.value++;
+        resetTableMinheight(1);
         setTimeout(() => {
           computeRect();
         });
@@ -503,7 +500,7 @@ export default defineComponent({
     watch(
       () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
       () => {
-        resetTableMinheight(1);
+        rowUpdateCounter.value++;
       },
     );
 
@@ -807,10 +804,9 @@ export default defineComponent({
           '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
         };
 
-        const rowKey = `${props.contentType}-${row?.[ROW_KEY]}`;
         return (
           <RowRender
-            key={rowKey}
+            key={row?.[ROW_KEY]}
             style={rowStyle}
             class={[
               'bklog-row-container',
