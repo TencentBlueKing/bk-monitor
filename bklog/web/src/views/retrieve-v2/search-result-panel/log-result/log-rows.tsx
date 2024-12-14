@@ -130,7 +130,7 @@ export default defineComponent({
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
     };
 
-    const $_resizeObserver = new ResizeObserver(entries => {
+    const $resizeObserver = new ResizeObserver(entries => {
       requestAnimationFrame(() => {
         if (!Array.isArray(entries)) {
           return;
@@ -146,7 +146,7 @@ export default defineComponent({
       });
     });
 
-    provide('vscrollResizeObserver', $_resizeObserver);
+    provide('vscrollResizeObserver', $resizeObserver);
 
     const renderColumns = computed(() => {
       return [
@@ -580,6 +580,10 @@ export default defineComponent({
     let $startIndex = 0;
 
     const updateVisibleItems = (event, scrollTop, offsetTop) => {
+      if (!event?.target) {
+        return;
+      }
+
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
@@ -615,7 +619,9 @@ export default defineComponent({
 
           if (!continuous) {
             clearTimeout(refreshTimout);
-            refreshTimout = setTimeout(handleScrollEvent, 100);
+            refreshTimout = setTimeout(() => {
+              handleScrollEvent(event, scrollTop, offsetTop);
+            }, 100);
           }
         });
       }
