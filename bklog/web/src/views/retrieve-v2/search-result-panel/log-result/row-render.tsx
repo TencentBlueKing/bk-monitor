@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
 
 export default defineComponent({
   props: {
@@ -36,6 +36,7 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
+    const isPending = ref(false);
 
     const observeSize = () => {
       if (!vscrollResizeObserver || !refRowNodeRoot.value) return;
@@ -60,14 +61,27 @@ export default defineComponent({
         <div data-row-index={props.rowIndex}>
           <div
             ref={refRowNodeRoot}
-            class={['bklog-row-observe']}
+            class={['bklog-row-observe', { 'is-pending': isPending.value }]}
             data-row-index={props.rowIndex}
           >
-            {slots.default?.()}
+            {isPending.value ? null : slots.default?.()}
           </div>
         </div>
       );
     };
+
+    let delayTimer = null;
+
+    watch(
+      () => props.rowIndex,
+      () => {
+        isPending.value = true;
+        delayTimer && clearTimeout(delayTimer);
+        delayTimer = setTimeout(() => {
+          isPending.value = false;
+        }, 120);
+      },
+    );
 
     return {
       renderRowVNode,

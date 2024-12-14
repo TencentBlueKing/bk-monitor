@@ -8,19 +8,6 @@
   min-height: 400px;
   margin-top: 12px;
 
-  .preloading-placeholder {
-    &.has-animation {
-      width: 100%;
-      background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
-        linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
-      background-repeat: no-repeat;
-      background-size:
-        100% 100%,
-        50% 100%;
-      animation: loading-animation 1.5s infinite;
-    }
-  }
-
   .bklog-requsting-loading {
     text-align: center;
     pointer-events: none;
@@ -76,17 +63,26 @@
 
     .bklog-row-observe {
       width: fit-content;
-    }
 
-    &.is-pending {
-      width: 100%;
-      background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
-        linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
-      background-repeat: no-repeat;
-      background-size:
-        100% 100%,
-        50% 100%;
-      animation: loading-animation 1.5s infinite;
+      &.is-pending {
+        &::after {
+
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          content: '';
+          background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
+            linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
+          background-repeat: no-repeat;
+          background-size:
+            100% 100%,
+            50% 100%;
+          animation: loading-animation 1.5s infinite;
+        }
+      }
     }
 
     .bklog-list-row {
