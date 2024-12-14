@@ -576,11 +576,10 @@ export default defineComponent({
       return [startIdx, lastVisibleRow];
     };
 
-    const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
-      if (isRequesting.value) {
-        return;
-      }
+    let $endIndex = 0;
+    let $startIndex = 0;
 
+    const updateVisibleItems = (event, scrollTop, offsetTop) => {
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
 
@@ -591,6 +590,35 @@ export default defineComponent({
       visibleIndexs.value.startIndex = startIndex;
       visibleIndexs.value.endIndex = endIndex;
       rowsOffsetTop.value = useScrollHeight;
+      const continuous = startIndex <= $endIndex && endIndex >= $startIndex;
+
+      $startIndex = startIndex;
+      $endIndex = endIndex;
+
+      return {
+        continuous,
+      };
+    };
+
+    let scrollDirty = false;
+    let refreshTimout;
+    const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
+      if (isRequesting.value) {
+        return;
+      }
+
+      if (!scrollDirty) {
+        scrollDirty = true;
+        requestAnimationFrame(() => {
+          scrollDirty = false;
+          const { continuous } = updateVisibleItems(event, scrollTop, offsetTop);
+
+          if (!continuous) {
+            clearTimeout(refreshTimout);
+            refreshTimout = setTimeout(handleScrollEvent, 100);
+          }
+        });
+      }
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
