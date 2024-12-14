@@ -12,7 +12,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.profile.diagrams.base import FunctionNode
 from apm_web.profile.diagrams.tree_converter import TreeConverter
@@ -37,7 +37,6 @@ class GrafanaFlameDiagrammer:
         selfs: List[int] = None,
         values: List[int] = None,
     ):
-
         if levels is None:
             levels = []
         if labels is None:

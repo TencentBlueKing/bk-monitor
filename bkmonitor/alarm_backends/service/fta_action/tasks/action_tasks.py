@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 from celery.task import task
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager

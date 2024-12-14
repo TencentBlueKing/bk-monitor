@@ -18,7 +18,7 @@ from typing import List
 
 from django.conf import settings
 from django.template import Context, Template
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.data.records import DataRecord
