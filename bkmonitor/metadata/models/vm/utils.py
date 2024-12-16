@@ -16,7 +16,7 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.models import Q
-from tenacity import RetryError, retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -454,10 +454,10 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     return TimestampLen.MILLISECOND_LEN.value
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
+@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
 def get_data_source(data_id):
     """
-    根据 data_id 获取对应的 DataSource，重试三次，间隔1秒，规避事务未及时提交导致的查询失败问题
+    根据 data_id 获取对应的 DataSource，重试三次，间隔1->2-4秒，规避事务未及时提交导致的查询失败问题
     """
     return DataSource.objects.get(bk_data_id=data_id)
 
