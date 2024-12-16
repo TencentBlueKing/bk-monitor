@@ -10,6 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 RECEIVER_TYPE = (("user", _("用户")), ("group", _("用户组")))

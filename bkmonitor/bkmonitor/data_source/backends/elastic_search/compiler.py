@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.data_source import CpAggMethods
 from bkmonitor.data_source.backends.base import compiler

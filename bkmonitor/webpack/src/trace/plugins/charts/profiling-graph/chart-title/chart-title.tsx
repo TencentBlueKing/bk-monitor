@@ -55,13 +55,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    const downloadTypeMaps = [
-      'png',
-      //  'json',
-      'pprof',
-      //  'html'
-    ];
-
     const keyword = ref('');
 
     const viewModeList = computed<ViewModeItem[]>(() => {
@@ -76,6 +69,15 @@ export default defineComponent({
       }
 
       return list;
+    });
+
+    // 表格火焰图 && 火焰图 展示png下载
+    const downloadTypeMaps = computed(() => {
+      const baseTypes = ['pprof'];
+      if ([ViewModeType.Flame, ViewModeType.Combine].includes(props.activeMode)) {
+        baseTypes.unshift('png');
+      }
+      return baseTypes;
     });
 
     /** 切换视图模式 */

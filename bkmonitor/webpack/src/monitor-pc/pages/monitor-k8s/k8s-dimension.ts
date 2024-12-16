@@ -35,29 +35,27 @@ import {
 
 import type { K8sTableColumnResourceKey } from './components/k8s-table-new/k8s-table-new';
 
-export class K8sDimension {
-  bcsClusterId = '';
-  endTime = 1733905598;
+/**
+ * k8s维度列表基类
+ */
+export abstract class K8sDimensionBase {
+  // 集群Id
+  public bcsClusterId = '';
   /** 搜索关键字 */
-  keyword = '';
+  public keyword = '';
   /** 所有的维度数据 */
-  originDimensionData: GroupListItem[] = [];
+  public originDimensionData: GroupListItem[] = [];
   /** 各维度分页 */
-  pageMap = {};
+  public pageMap = {};
   /** 分页数量 */
-  pageSize = 5;
+  public pageSize = 5;
   /** 分页类型 */
-  pageType: K8sDimensionParams['pageType'] = 'traditional';
+  public pageType: K8sDimensionParams['pageType'] = 'traditional';
   /** 场景 */
-  scene: SceneEnum = SceneEnum.Performance;
-  /** 场景维度枚举 */
-  sceneDimensionMap = {
-    performance: [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container],
-  };
-
-  startTime = 1733819169;
-
-  withHistory = false;
+  public scene: SceneEnum = SceneEnum.Performance;
+  /** 维度列表Key */
+  // eslint-disable-next-line perfectionist/sort-classes
+  abstract dimensionKey: string[];
 
   constructor(params: K8sDimensionParams) {
     this.scene = params.scene;
@@ -67,28 +65,42 @@ export class K8sDimension {
     this.bcsClusterId = params.bcsClusterId || '';
   }
 
-  get commonParams() {
+  public get commonParams() {
     return {
-      sernario: this.scene,
+      scenario: this.scene,
       bcs_cluster_id: this.bcsClusterId,
       page_size: this.pageSize,
       page_type: this.pageType,
       query_string: this.keyword,
       with_history: false,
+      filter_dict: {},
     };
   }
 
-  /** 当前场景的维度列表 */
-  get currentDimension() {
-    return this.sceneDimensionMap[this.scene];
-  }
+  abstract get showDimensionData(): GroupListItem[];
 
-  /** 当前场景下的维度请求接口 */
-  get currentSceneDimensionRequest() {
-    const requestMap = {
-      performance: this.getPerformanceDimensionData,
-    };
-    return requestMap[this.scene];
+  abstract init(params: Record<string, any>): Promise<void>;
+
+  abstract loadNextPageData(dimensions: string[], params: Record<string, any>): Promise<void>;
+
+  abstract search(keyword: string, params: Record<string, any>, dimensions: string[]): Promise<void>;
+}
+
+/**
+ * k8s性能场景维度列表
+ */
+export class K8sPerformanceDimension extends K8sDimensionBase {
+  // /** 场景维度枚举 */
+  dimensionKey = [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container];
+
+  constructor(params: K8sDimensionParams) {
+    super(params);
+    this.originDimensionData = this.dimensionKey.map(key => ({
+      id: key,
+      name: key,
+      count: 0,
+      children: [],
+    }));
   }
 
   /** 当前展示的维度数据 */
@@ -114,9 +126,9 @@ export class K8sDimension {
 
   /**
    * @description 整理items数据
-   * @param type
-   * @param dataItem
-   * @returns
+   * @param type 维度类型
+   * @param dataItem 接口数据
+   * @returns 格式化的数据
    */
   formatData(type: EDimensionKey, dataItem) {
     return {
@@ -128,7 +140,7 @@ export class K8sDimension {
 
   /**
    * 获取常规维度数据（性能场景除workload维度）
-   * @param params
+   * @param params 请求参数
    */
   async getDimensionData({ resource_type, ...params }) {
     const data = await listK8sResources({
@@ -137,82 +149,23 @@ export class K8sDimension {
       page: this.pageMap[resource_type] || 1,
       ...params,
     }).catch(() => ({ count: 0, items: [] }));
-    const index = this.currentDimension.findIndex(item => item === resource_type);
-    const dimensionList = this.originDimensionData[index];
-    if (!dimensionList) {
-      this.originDimensionData[index] = {
-        id: resource_type,
-        name: resource_type,
-        count: data.count,
-        children: data.items.map(item => this.formatData(resource_type, item)),
-      };
+    const dimensionList = this.originDimensionData.find(item => item.id === resource_type);
+    dimensionList.count = data.count;
+    if (this.pageType === 'scrolling') {
+      dimensionList.children = data.items.map(item => this.formatData(resource_type, item));
     } else {
-      if (this.pageType === 'scrolling') {
-        dimensionList.children = data.items.map(item => this.formatData(resource_type, item));
-      } else {
-        dimensionList.children = dimensionList.children.concat(
-          data.items.map(item => this.formatData(resource_type, item))
-        );
-      }
+      dimensionList.children = dimensionList.children.concat(
+        data.items.map(item => this.formatData(resource_type, item))
+      );
     }
     this.originDimensionData = [...this.originDimensionData];
   }
 
   /**
-   * 获取性能场景所有维度的数据, 并初始化各维度的page为1
-   * @param params 请求参数
-   */
-  async getPerformanceDimensionData(params = {}) {
-    this.originDimensionData = [];
-    const pageMap = {};
-    let workloadCategory = [];
-    const promiseList = this.currentDimension.map(async (dimension, index) => {
-      if (dimension === EDimensionKey.workload) {
-        workloadCategory = await workloadOverview({
-          bcs_cluster_id: this.bcsClusterId,
-          query_string: this.keyword,
-        }).catch(() => []);
-        let total = 0;
-        const children = workloadCategory.map(item => {
-          total += item[1];
-          pageMap[item[0]] = 1;
-          return {
-            id: item[0],
-            name: item[0],
-            count: item[1],
-            children: [],
-          };
-        });
-        this.originDimensionData[index] = {
-          id: dimension,
-          name: dimension,
-          count: total,
-          children,
-        };
-      } else {
-        await this.getDimensionData({
-          resource_type: dimension,
-          ...params,
-        });
-        pageMap[dimension] = 1;
-      }
-    });
-    this.pageMap = pageMap;
-    await Promise.all(promiseList);
-    if (workloadCategory.length) {
-      await this.getWorkloadChildrenData({
-        filter_dict: {
-          workload: `${workloadCategory[0][0]}:`,
-        },
-        ...params,
-      });
-    }
-  }
-
-  /**
    * @description 获取workload维度下某个分类的数据
    */
-  async getWorkloadChildrenData({ filter_dict, ...params }) {
+  async getWorkloadChildrenData(params) {
+    const { filter_dict, ...otherParams } = params;
     const { workload: workloadParams } = filter_dict;
     const [category] = workloadParams.split(':');
     const data = await listK8sResources({
@@ -220,7 +173,7 @@ export class K8sDimension {
       resource_type: EDimensionKey.workload,
       page: this.pageMap[category],
       filter_dict,
-      ...params,
+      ...otherParams,
     }).catch(() => ({ count: 0, items: [] }));
     const workloadList = this.originDimensionData.find(item => item.id === EDimensionKey.workload);
     const categoryList = workloadList.children.find(item => item.id === category);
@@ -239,50 +192,91 @@ export class K8sDimension {
    */
   async init(params = {}) {
     this.pageMap = {};
-    await this.currentSceneDimensionRequest(params);
+    const pageMap = {};
+    const workloadCategory = await workloadOverview({
+      bcs_cluster_id: this.bcsClusterId,
+      query_string: this.keyword,
+    }).catch(() => []);
+
+    const promiseList = this.originDimensionData.map(async item => {
+      if (item.id === EDimensionKey.workload) {
+        item.children = workloadCategory.map(category => {
+          item.count += category[1];
+          pageMap[category[0]] = 1;
+          return {
+            id: category[0],
+            name: category[0],
+            count: category[1],
+            children: [],
+          };
+        });
+        if (workloadCategory.length) {
+          await this.getWorkloadChildrenData({
+            filter_dict: {
+              workload: `${workloadCategory[0][0]}:`,
+            },
+            ...params,
+          });
+        }
+      } else {
+        await this.getDimensionData({
+          resource_type: item.id,
+          ...params,
+        });
+        pageMap[item.id] = 1;
+      }
+    });
+
+    this.pageMap = pageMap;
+    await Promise.all(promiseList);
   }
 
   /**
    * 加载某个维度（类目）下一页数据
-   * @param dimension
+   * @param dimensions 维度链接（一级维度 -> 二级类目）
+   * @param params 查询参数
    */
-  async loadNextPageData(dimension, params = {}, fatherDimension?: string) {
-    this.pageMap[dimension] += 1;
-    /**
-     *  1. 如果是搜索状态，接口返回的是全量数据，加载更多不需要请求接口
-     *  2. 不是搜索状态，接口返回的分页数据，加载更多需要重新请求接口，并追加到原数据中
-     */
-    if (!this.keyword) {
-      if (fatherDimension === EDimensionKey.workload) {
-        await this.getWorkloadChildrenData({
-          filter_dict: {
-            workload: `${dimension}:`,
-          },
-          ...params,
-        });
-      } else {
-        await this.getDimensionData({
-          resource_type: dimension,
-          page: this.pageMap[dimension],
-          ...params,
-        });
-      }
+  async loadNextPageData(dimensions: string[] = [], params = {}) {
+    const [dimension, category] = dimensions;
+    if (dimension === EDimensionKey.workload) {
+      this.pageMap[category] += 1;
+    } else {
+      this.pageMap[dimension] += 1;
+    }
+
+    if (dimension === EDimensionKey.workload) {
+      await this.getWorkloadChildrenData({
+        filter_dict: {
+          workload: `${category}:`,
+        },
+        ...params,
+      });
+    } else {
+      await this.getDimensionData({
+        resource_type: dimension,
+        page: this.pageMap[dimension],
+        ...params,
+      });
     }
   }
 
-  /** 搜索 */
-  async search(keyword: string, params = {}, dimension?: string, fatherDimension?: EDimensionKey) {
+  /**
+   * 搜索所有维度或者单个维度
+   * @param keyword 搜索关键字
+   * @param params 搜索参数
+   * @param dimensions 维度链接（一级维度 -> 二级类目）
+   */
+  async search(keyword: string, params = {}, dimensions = []) {
+    const [dimension, category] = dimensions;
     this.keyword = keyword;
     if (dimension) {
-      this.pageMap[dimension] = 1;
-      if (fatherDimension === EDimensionKey.workload) {
+      if (dimension === EDimensionKey.workload) {
+        this.pageMap[category] = 1;
         await this.getWorkloadChildrenData({
-          filter_dict: {
-            workload: `${dimension}:`,
-          },
           ...params,
         });
       } else {
+        this.pageMap[dimension] = 1;
         await this.getDimensionData({
           resource_type: dimension,
           page: this.pageMap[dimension],

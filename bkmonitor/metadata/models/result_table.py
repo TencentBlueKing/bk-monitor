@@ -22,7 +22,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api

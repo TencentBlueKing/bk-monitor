@@ -213,14 +213,6 @@ else:
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "username"
 
-# sentry support
-SENTRY_DSN = os.environ.get("SENTRY_DSN")
-if SENTRY_DSN:
-    INSTALLED_APPS += ("raven.contrib.django.raven_compat",)
-    RAVEN_CONFIG = {
-        "dsn": SENTRY_DSN,
-    }
-
 # Target: Observation data collection
 SERVICE_NAME = APP_CODE + "_web"
 if ROLE == "api":

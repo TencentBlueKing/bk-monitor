@@ -15,19 +15,19 @@ from blueapps.account.decorators import login_exempt
 from django.apps import apps
 from django.conf import settings
 from django.utils.decorators import classonlymethod
-from django.utils.translation import ugettext as _
-from monitor import models as app_models
-from monitor.constants import SHELL_COLLECTOR_DB, UPTIME_CHECK_DB
-from monitor_api import filtersets, models, serializers
+from django.utils.translation import gettext as _
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.mixins import ListModelMixin
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.viewsets import GenericViewSet
-from utils.host_index_backend import host_index_backend
 
 from bkmonitor.models import BaseAlarm
+from monitor import models as app_models
+from monitor.constants import SHELL_COLLECTOR_DB, UPTIME_CHECK_DB
+from monitor_api import filtersets, models, serializers
+from utils.host_index_backend import host_index_backend
 
 
 class NestedRouterMixin(object):

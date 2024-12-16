@@ -14,7 +14,7 @@ from typing import Dict
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBase, BCSBaseManager, BCSBaseResources, BCSLabel
 from bkmonitor.utils.casting import force_float

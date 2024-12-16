@@ -12,7 +12,8 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import uuid
-from django.utils.translation import ugettext as _
+
+from django.utils.translation import gettext as _
 
 
 def uniqid():
