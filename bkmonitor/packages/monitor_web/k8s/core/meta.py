@@ -328,7 +328,7 @@ class K8sContainerMeta(K8sResourceMeta):
         )
 
 
-def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: int) -> Optional[K8sResourceMeta]:
+def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) -> Optional[K8sResourceMeta]:
     resource_meta_map = {
         'node': K8sNodeMeta,
         'container': K8sContainerMeta,
