@@ -132,9 +132,12 @@ export default class FilterByCondition extends tsc<IProps> {
       filter_dict: {},
       start_time: startTime,
       end_time: endTime,
+      with_history: false,
+      query_string: this.searchValue,
     });
     await this.filterByOptions.init();
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    await this.initNextPage();
     this.loading = false;
   }
 
@@ -145,7 +148,7 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   mounted() {
-    this.handleValueOptionsScrollThrottle = throttle(300, this.handleValueOptionsScroll);
+    this.handleValueOptionsScrollThrottle = throttle(500, this.handleValueOptionsScroll);
     this.overflowCountRenderDebounce = debounce(300, this.overflowCountRender);
     this.resizeObserver = new ResizeObserver(entries => {
       for (const _entry of entries) {
@@ -213,36 +216,79 @@ export default class FilterByCondition extends tsc<IProps> {
    * @returns
    */
   getGroupList(list) {
-    return list.map(item => {
-      const itemsMap = new Map();
-      const result = {
+    const result = [];
+    for (const item of list) {
+      const obj = {
         id: item.id,
         name: item.name,
         count: item.count,
-        children: item.children.map(child => {
-          if (item.id !== EDimensionKey.workload) {
-            itemsMap.set(child.id, child.name);
-          }
-          return {
+        children: [],
+      };
+      if (item.id === EDimensionKey.workload) {
+        for (const child of item.children) {
+          const tempSet = new Set();
+          const objChild = {
             id: child.id,
             name: child.name,
             count: child?.count,
-            children: child?.children?.map(c => {
-              itemsMap.set(c.id, c.name);
-              return {
-                id: c.id,
-                name: c.name,
-              };
-            }),
+            children: [],
           };
-        }),
-      };
-      this.allOptionsMap.set(item.id, {
-        itemsMap: itemsMap,
-        name: item.name,
-      });
-      return result;
-    });
+          for (const cc of child.children) {
+            if (!tempSet.has(cc.id)) {
+              objChild.children.push({
+                id: cc.id,
+                name: cc.name,
+              });
+            }
+            tempSet.add(cc.id);
+          }
+          obj.children.push(objChild);
+        }
+      } else {
+        const tempSet = new Set();
+        for (const c of item.children) {
+          if (!tempSet.has(c.id)) {
+            obj.children.push({
+              id: c.id,
+              name: c.name,
+            });
+          }
+          tempSet.add(c.id);
+        }
+      }
+      result.push(obj);
+    }
+    return result;
+    // return list.map(item => {
+    //   const itemsMap = new Map();
+    //   const result = {
+    //     id: item.id,
+    //     name: item.name,
+    //     count: item.count,
+    //     children: item.children.map(child => {
+    //       if (item.id !== EDimensionKey.workload) {
+    //         itemsMap.set(child.id, child.name);
+    //       }
+    //       return {
+    //         id: child.id,
+    //         name: child.name,
+    //         count: child?.count,
+    //         children: child?.children?.map(c => {
+    //           itemsMap.set(c.id, c.name);
+    //           return {
+    //             id: c.id,
+    //             name: c.name,
+    //           };
+    //         }),
+    //       };
+    //     }),
+    //   };
+    //   this.allOptionsMap.set(item.id, {
+    //     itemsMap: itemsMap,
+    //     name: item.name,
+    //   });
+    //   return result;
+    // });
   }
 
   async handleAdd(event: MouseEvent) {
@@ -340,6 +386,7 @@ export default class FilterByCondition extends tsc<IProps> {
       this.groupSelected === EDimensionKey.workload ? this.valueCategorySelected : ''
     );
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    await this.initNextPage();
     this.handleSelectGroup(this.groupSelected, true);
     this.valueLoading = false;
   }
@@ -351,17 +398,27 @@ export default class FilterByCondition extends tsc<IProps> {
   handleCheck(item: IValueItem) {
     item.checked = !item.checked;
     if (this.groupSelected === EDimensionKey.workload) {
-      let isBreak = false;
+      // let isBreak = false;
+      // for (const option of this.valueCategoryOptions) {
+      //   for (const l of option.children) {
+      //     if (l.id === item.id) {
+      //       l.checked = item.checked;
+      //       isBreak = true;
+      //       break;
+      //     }
+      //   }
+      //   if (isBreak) {
+      //     break;
+      //   }
+      // }
+      // workload 当前只能单选
       for (const option of this.valueCategoryOptions) {
         for (const l of option.children) {
           if (l.id === item.id) {
             l.checked = item.checked;
-            isBreak = true;
-            break;
+          } else {
+            l.checked = false;
           }
-        }
-        if (isBreak) {
-          break;
         }
       }
     } else {
@@ -484,9 +541,7 @@ export default class FilterByCondition extends tsc<IProps> {
     this.rightValueLoading = true;
     await this.filterByOptions.initOfType(this.groupSelected as EDimensionKey, item.id);
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-    this.handleSelectGroup(this.groupSelected);
-    const values = this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.children || [];
-    this.valueOptions = values;
+    this.handleSelectGroup(this.groupSelected, true);
     this.rightValueLoading = false;
   }
 
@@ -583,6 +638,39 @@ export default class FilterByCondition extends tsc<IProps> {
 
   handleEmptyOperation() {
     this.handleSearchChange('');
+  }
+
+  // 去重后发现数据过少，需立即加载下一页
+  async initNextPage() {
+    const promiseList = [];
+    const nextPage = async (dimension: EDimensionKey, categoryDim?: string) => {
+      const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
+      if (!pageEnd) {
+        await this.filterByOptions.getNextPageData(dimension, categoryDim);
+      }
+    };
+    for (const item of this.allOptions) {
+      if (item.id === EDimensionKey.workload) {
+        for (const child of item.children) {
+          if (child.children.length < 10 && child.count >= 10) {
+            promiseList.push(nextPage(item.id, child.id));
+          }
+        }
+      } else {
+        if (item.children.length < 10 && item.count >= 10) {
+          promiseList.push(nextPage(item.id));
+        }
+      }
+    }
+    await Promise.all(promiseList);
+    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+  }
+
+  async handleSelectGroupProxy(id: string) {
+    this.handleSelectGroup(id);
+    if (this.searchValue) {
+      await this.handleSearchChange(this.searchValue);
+    }
   }
 
   valuesWrap() {
@@ -759,7 +847,7 @@ export default class FilterByCondition extends tsc<IProps> {
                     <div
                       key={option.id}
                       class={['group-item', { active: this.groupSelected === option.id }]}
-                      onClick={() => this.handleSelectGroup(option.id)}
+                      onClick={() => this.handleSelectGroupProxy(option.id)}
                     >
                       <span class='group-item-name'>{option.name}</span>
                       <span class='group-item-count'>{option.count}</span>
