@@ -13,7 +13,7 @@ import copy
 import logging
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six import string_types
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
@@ -32,6 +32,7 @@ from bkmonitor.utils.range.conditions import AndCondition, EqualCondition, OrCon
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
 from constants.shield import ScopeType, ShieldCategory
+from core.errors.alarm_backends import StrategyNotFound
 
 logger = logging.getLogger("fta_action")
 
@@ -399,6 +400,10 @@ class AlertShieldObj(ShieldObj):
         if alert.strategy_id:
             # 需要判断当前的alert是否有策略ID
             strategy = Strategy(alert.strategy_id, default_config=alert.strategy)
+            # 策略缓存获取不到，则无法后续判定，此时 直接抛出异常
+            if not strategy.config:
+                raise StrategyNotFound(key=alert.strategy_id)
+
             for query_config in strategy.config["items"][0]["query_configs"]:
                 metric_ids.append(query_config["metric_id"])
 

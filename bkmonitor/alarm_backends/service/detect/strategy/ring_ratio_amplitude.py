@@ -14,7 +14,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.service.detect.strategy import ExprDetectAlgorithms
 from alarm_backends.service.detect.strategy.simple_ring_ratio import SimpleRingRatio

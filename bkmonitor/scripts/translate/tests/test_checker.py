@@ -20,7 +20,7 @@ class TranslateFuncFinderTest(unittest.TestCase):
     def test_import_finder(self):
         node = ast.parse(
             """
-from django.utils.translation import gettext as _, ugettext_lazy as _lazy
+from django.utils.translation import gettext as _, gettext_lazy as _lazy
         """
         )
         parser = TranslateFuncFinder()

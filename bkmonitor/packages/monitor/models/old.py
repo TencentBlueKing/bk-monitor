@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db import JsonField
 

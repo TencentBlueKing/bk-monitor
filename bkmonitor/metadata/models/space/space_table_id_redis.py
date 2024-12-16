@@ -267,7 +267,7 @@ class SpaceTableIDRedis:
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
             try:
-                storage_record = models.ESStorageClusterRecord.compose_table_id_storage_cluster_records(tid)
+                storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", tid, e)
                 storage_record = []

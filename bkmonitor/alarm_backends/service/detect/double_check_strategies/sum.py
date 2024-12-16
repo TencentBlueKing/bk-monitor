@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, List, Tuple, Type, Union
 
 import arrow
 from django.conf import settings
-from django.utils.translation import ugettext as _lazy
+from django.utils.translation import gettext as _lazy
 
 from alarm_backends.constants import STD_LOG_DT_FORMAT
 from alarm_backends.core.cache import key
