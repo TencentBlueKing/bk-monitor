@@ -119,6 +119,12 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     };
   }
 
+  get showOperate() {
+    const { tag } = this.activeTitle;
+    const dimensions = this.groupInstance.dimensionsMap[tag];
+    return this.isShow && dimensions?.length;
+  }
+
   @Watch('isShow')
   handleResourceChange(v) {
     if (!v) return;
@@ -132,7 +138,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     this.viewOptions.resource_type = v;
   }
 
-  @Watch('clusterId')
+  @Watch('clusterId', { immediate: true })
   handleClusterIdChange(v) {
     if (!v) return;
     // @ts-ignore
@@ -245,30 +251,32 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
             v-bk-tooltips={{ content: '复制链接', placement: 'right' }}
           />
         </div>
-        <div class='title-right'>
-          <bk-button
-            class={['title-btn', this.filterParams.textColorClass]}
-            theme={this.filterParams.btnTheme}
-            onClick={this.filterChange}
-          >
-            <span class={['icon-monitor', this.filterParams.icon]} />
-            <span class='title-btn-label'>{this.$t(this.filterParams.btnText)}</span>
-          </bk-button>
-          <K8sDimensionDrillDown
-            dimension={this.activeTitle.tag}
-            enableTip={false}
-            value={this.activeTitle.tag}
-            onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
-          >
+        {this.showOperate ? (
+          <div class='title-right'>
             <bk-button
-              class='title-btn is-default'
-              slot='trigger'
+              class={['title-btn', this.filterParams.textColorClass]}
+              theme={this.filterParams.btnTheme}
+              onClick={this.filterChange}
             >
-              <span class='icon-monitor icon-xiazuan' />
-              <span class='title-btn-label'>{this.$t('下钻')}</span>
+              <span class={['icon-monitor', this.filterParams.icon]} />
+              <span class='title-btn-label'>{this.$t(this.filterParams.btnText)}</span>
             </bk-button>
-          </K8sDimensionDrillDown>
-        </div>
+            <K8sDimensionDrillDown
+              dimension={this.activeTitle.tag}
+              enableTip={false}
+              value={this.activeTitle.tag}
+              onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
+            >
+              <bk-button
+                class='title-btn is-default'
+                slot='trigger'
+              >
+                <span class='icon-monitor icon-xiazuan' />
+                <span class='title-btn-label'>{this.$t('下钻')}</span>
+              </bk-button>
+            </K8sDimensionDrillDown>
+          </div>
+        ) : null}
       </div>
     );
   }
