@@ -166,7 +166,6 @@ class DeepFlowProfileQueryResource(Resource):
         向目标 deepflow server 请求对应的 profile 数据
         """
         deep_flow_server_info = DeepflowHandler(params["bk_biz_id"])
-        deep_flow_server_clusters = list(deep_flow_server_info._clusters)
         deep_flow_server_clusters_mapping = deep_flow_server_info.app_addresses
         deep_flow_server_addr = deep_flow_server_clusters_mapping.get(params["cluster_id"], "")
         if not deep_flow_server_addr:
