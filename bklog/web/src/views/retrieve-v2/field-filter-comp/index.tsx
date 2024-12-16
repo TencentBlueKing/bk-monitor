@@ -59,6 +59,7 @@ export default class FieldFilterComp extends tsc<object> {
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
+
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = [
     'gseIndex',
@@ -83,6 +84,8 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 可选字段 */
   get hiddenFields() {
+    console.log(this.totalFields);
+    
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
   get statisticalFieldsData() {
@@ -144,11 +147,42 @@ export default class FieldFilterComp extends tsc<object> {
         filterHeaderBuiltFields: [],
       },
     );
+    console.log([...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]);
+    
     return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
+  /** object格式字段的层级展示 */
+  objectHierarchy(arr) {
+    // 此处应该是拿到field_type拿到object的逻辑
+    // let objectField = arr.filter(item => item.field_type === 'object')
+    let objectField = [{
+      field_name: "ext",
+      type: "object",
+      tag: "dimension",
+      default_value: null,
+      is_config_by_user: true,
+      description: "额外信息字段",
+      unit: "",
+      alias_name: "__ext",
+      option: {
+        es_type: "object"
+      },
+      is_disabled: false,
+      is_built_in: true,
+      is_time: false,
+      field_type: "object",
+      is_analyzed: false,
+      is_delete: false,
+      is_dimension: true
+    }]
+  }
+
+
+
   /** 内置字段展示对象 */
   builtInFieldsShowObj() {
-    const { initHiddenList, otherList } = this.builtInFields().reduce(
+    const builtInFieldsValue = this.builtInFields()
+    const { initHiddenList, otherList } = builtInFieldsValue.reduce(
       (acc, cur) => {
         if (this.builtInInitHiddenList.includes(cur.field_name)) {
           acc.initHiddenList.push(cur);
@@ -162,9 +196,9 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
-    const visibleBuiltLength = this.builtInFields().filter(item => item.filterVisible).length;
+    const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
     const hiddenFieldVisible =
-      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === this.builtInFields().length;
+      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
@@ -297,7 +331,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.$emit('fields-updated', displayFieldNames);
   }
   /**
-   * @desc: 字段命排序
+   * @desc: 字段名排序
    * @param {Array} list
    * @returns {Array}
    */

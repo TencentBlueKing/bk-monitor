@@ -227,7 +227,7 @@ export default class FieldItem extends tsc<object> {
           <div>
             {/* 三角符号 */}
             <div class={{ 'filed-item-triangle': true }}>
-              <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+              {/* <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span> */}
             </div>
 
             {/* 字段类型对应的图标 */}
@@ -317,7 +317,7 @@ export default class FieldItem extends tsc<object> {
           </div>
         </div>
         {/* 显示聚合字段图表信息 */}
-        {!!this.showFieldsChart && this.isExpand && (
+        {/* {!!this.showFieldsChart && this.isExpand && (
           <AggChart
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
@@ -326,7 +326,7 @@ export default class FieldItem extends tsc<object> {
             retrieve-params={this.retrieveParams}
             statistical-field-data={this.statisticalFieldData}
           />
-        )}
+        )} */}
         <bk-sideslider
           width={600}
           is-show={this.ifShowMore}
