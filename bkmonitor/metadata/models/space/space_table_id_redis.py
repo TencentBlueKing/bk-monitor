@@ -689,20 +689,22 @@ class SpaceTableIDRedis:
             is_exist_space = data_id in _space_data_ids
             bk_biz_id_alias = bk_biz_id_alias_dict.get(tid, '')  # 获取业务ID别名
             # 拼装过滤条件, 如果有指定，则按照指定数据设置过滤条件
-            if bk_biz_id_alias:  # 若存在业务ID别名，按照别名组装过滤条件
-                logger.info(
-                    "_push_bkcc_space_table_ids: table_id->[%s] got bk_biz_id_alias ->[%s]", tid, bk_biz_id_alias
-                )
-                filters = [{bk_biz_id_alias: space_id}]
-                _values[tid] = {"filters": filters}
-            elif default_filters:
+            if default_filters:
                 _values[tid] = {"filters": default_filters}
             else:
                 filters = []
                 if self._is_need_filter_for_bkcc(
                     measurement_type, space_type, space_id, _data_id_detail, is_exist_space
                 ):
-                    filters = [{"bk_biz_id": space_id}]
+                    if bk_biz_id_alias:  # 若存在业务ID别名，按照别名组装过滤条件
+                        logger.info(
+                            "_push_bkcc_space_table_ids: table_id->[%s] got bk_biz_id_alias ->[%s]",
+                            tid,
+                            bk_biz_id_alias,
+                        )
+                        filters = [{bk_biz_id_alias: space_id}]
+                    else:
+                        filters = [{"bk_biz_id": space_id}]
                 _values[tid] = {"filters": filters}
 
         return _values

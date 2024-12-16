@@ -23,16 +23,18 @@ def create_or_delete_records(mocker):
         data_name="data_link_test",
         mq_cluster_id=1,
         mq_config_id=1,
-        etl_config="test",
+        etl_config="bk_standard_v2_time_series",
         is_custom_source=False,
+        is_platform_data_id=True,
     )
     models.DataSource.objects.create(
         bk_data_id=50011,
         data_name="data_link_test_2",
         mq_cluster_id=1,
         mq_config_id=1,
-        etl_config="test",
+        etl_config="bk_standard_v2_time_series",
         is_custom_source=False,
+        is_platform_data_id=True,
     )
     models.DataSource.objects.create(
         bk_data_id=50012,
@@ -92,10 +94,19 @@ def create_or_delete_records(mocker):
 @pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_compose_data_for_space_router(create_or_delete_records):
     self = SpaceTableIDRedis()
-    values = self._compose_data('bkcc', '1001')
+    values_for_creator = self._compose_data('bkcc', '1001')
 
-    expected = {
-        '1001_bkmonitor_time_series_50011.__default__': {'filters': [{'bk_biz_id': '1001'}]},
-        '1001_bkmonitor_time_series_50010.__default__': {'filters': [{'appid': '1001'}]},
+    # 测试全局数据源创建者业务下的空间路由
+    expected_for_creator_space = {
+        '1001_bkmonitor_time_series_50011.__default__': {'filters': []},
+        '1001_bkmonitor_time_series_50010.__default__': {'filters': []},
     }
-    assert values == expected
+    assert values_for_creator == expected_for_creator_space
+
+    # 测试全局数据源在其他业务下的空间路由
+    values_for_others = self._compose_data('bkcc', '1003')
+    expected_for_other_space = {
+        '1001_bkmonitor_time_series_50011.__default__': {'filters': [{'bk_biz_id': '1003'}]},
+        '1001_bkmonitor_time_series_50010.__default__': {'filters': [{'appid': '1003'}]},
+    }
+    assert values_for_others == expected_for_other_space
