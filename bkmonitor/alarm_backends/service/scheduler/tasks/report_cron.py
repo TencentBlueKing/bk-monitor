@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from celery.schedules import crontab
+from celery.task import periodic_task
 from django.conf import settings
 
 from alarm_backends.core.cluster import get_cluster
@@ -22,7 +23,6 @@ from alarm_backends.service.report.tasks import (
     operation_data_custom_report_v2,
     report_mail_detect,
 )
-from alarm_backends.service.scheduler.app import periodic_task
 from alarm_backends.service.scheduler.tasks.cron import task_duration
 from bkmonitor.utils.custom_report_aggate import register_report_task
 

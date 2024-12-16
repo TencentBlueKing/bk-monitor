@@ -2,7 +2,7 @@ import logging
 import time
 from collections import defaultdict
 
-from celery import shared_task
+from celery.task import task
 from django.conf import settings
 from django.db.models import Q
 from django.utils.functional import cached_property
@@ -24,7 +24,7 @@ from core.errors.alarm_backends import LockError
 logger = logging.getLogger("fta_action.run")
 
 
-@shared_task(ignore_result=True, queue="celery_action")
+@task(ignore_result=True, queue="celery_action")
 def run_noise_reduce_task(processor):
     processor.process()
 

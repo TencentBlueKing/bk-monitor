@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from celery import shared_task
+from celery.task import task
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.detect.process import DetectProcess
@@ -21,7 +21,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("detect")
 
 
-@shared_task(ignore_result=True, queue="celery_service")
+@task(ignore_result=True, queue="celery_service")
 def run_detect(strategy_id):
     client = key.DATA_SIGNAL_KEY.client
     data_signal_key = key.DATA_SIGNAL_KEY.get_key()
@@ -48,6 +48,6 @@ def run_detect(strategy_id):
     metrics.report_all()
 
 
-@shared_task(ingnore_result=True, queue="celery_service_aiops")
+@task(ingnore_result=True, queue="celery_service_aiops")
 def run_detect_with_sdk(strategy_id):
     return run_detect(strategy_id)

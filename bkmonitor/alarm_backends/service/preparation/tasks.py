@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from celery import shared_task
+from celery.task import task
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.strategy import StrategyCacheManager
@@ -26,7 +26,7 @@ from core.errors.alarm_backends import LockError
 logger = logging.getLogger("preparation")
 
 
-@shared_task(ignore_result=True, queue="celery_cron")
+@task(ignore_result=True, queue="celery_cron")
 def refresh_aiops_sdk_depend_data(strategy_id, update_time: int = None):
     """刷新用于AIOPS SDK异常检测的历史依赖数据.
 
@@ -41,7 +41,7 @@ def refresh_aiops_sdk_depend_data(strategy_id, update_time: int = None):
         logger.exception("Process strategy({strategy_id}) exception, " "{msg}".format(strategy_id=strategy_id, msg=e))
 
 
-@shared_task(ignore_result=True, queue="celery_cron")
+@task(ignore_result=True, queue="celery_cron")
 def maintain_all_aiops_sdk_depend_data():
     """通过轮训的方式管理AIOPS SDK的历史依赖.
 
