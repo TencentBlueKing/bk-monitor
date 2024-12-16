@@ -60,16 +60,15 @@
                 size="small"
                 class="expand-table"
                 col-border>
-                  <bk-table-column label="字段名" prop="field_name"   width="120">
+                  <bk-table-column label="字段名" prop="field_name"   width="180">
                     <template #default="props">
                       <div class="ext-field_name">
-                        <span>{{ props.row.field_name }}</span>
+                        <span v-bk-tooltips.top="props.row.field_name">{{ props.row.field_name }}</span>
                       </div>
                     </template>
                   </bk-table-column>
-                  <bk-table-column label="别名" width="120">
+                  <bk-table-column label="别名" width="140">
                     <template #default="props">
-                      <!-- 这个is_edit干嘛,接口也没返回啊 -->
                       <div
                         v-if="isPreviewMode || tableType === 'originLog'"
                         class="overflow-tips"
@@ -97,7 +96,7 @@
                       </bk-form-item>
                     </template>
                   </bk-table-column>
-                  <bk-table-column label="数据类型" prop="field_type" width="100" align="center"></bk-table-column>
+                  <bk-table-column label="数据类型" prop="field_type" width="120" align="center"></bk-table-column>
                   <bk-table-column label="分词符" prop="" width="200"></bk-table-column>
               </bk-table>
               </template>
@@ -107,7 +106,7 @@
             <bk-table-column
               :render-header="renderHeaderFieldName"
               :resizable="false"
-              width="120"
+              width="180"
             >
               <template #default="props">
                 <div
@@ -144,7 +143,7 @@
             <bk-table-column
               :render-header="renderHeaderAliasName"
               :resizable="false"
-              width="120"
+              width="140"
             >
               <template #default="props">
                 <div
@@ -179,7 +178,7 @@
               :render-header="renderHeaderDataType"
               :resizable="false"
               align="center"
-              width="100"
+              width="120"
             >
               <template #default="props">
                 <div
@@ -1005,7 +1004,7 @@
     },
   };
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
   @import '@/scss/mixins/clearfix';
   @import '@/scss/mixins/overflow-tips.scss';
 
@@ -1032,26 +1031,31 @@
     }
 
     .field-table.add-field-table {
-      thead tr th:first-child {
+      :deep(thead tr th:first-child) {
         border-right: none;
       }
-      tbody tr td:first-child {
+
+      :deep(tbody tr td:first-child) {
         border-right: none;
-        .bk-icon{
-          display: none;
-        }
       }
-      .bk-table-expanded-cell{
+
+      :deep(tbody tr td:first-child .bk-icon) {
+        display: none;
+      }
+      :deep(.bk-table-expanded-cell){
         padding: 0 
       }
-      .expand-table{
+      .expand-table {
         border: none;
-        tbody tr td:first-child {
+
+        // 使用深度选择器来选择嵌套的 tbody tr td:first-child
+        :deep(tbody tr td:first-child) {
           border-right: 1px solid #dfe0e5;
         }
-        .ext-field_name{
-          margin-left: 20px;
 
+        // 使用深度选择器来选择嵌套的 .ext-field_name
+        :deep(.ext-field_name) {
+          margin-left: 20px;
         }
       }
       .bk-table-body {

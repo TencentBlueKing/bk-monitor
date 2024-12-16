@@ -139,9 +139,6 @@
                     </div>
                     <div class="participle-field-name-input">{{ props.row.query_alias }}</div>
                   </template>
-                   <!-- <div  >
-                   
-                  </div> -->
                   <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
                       style="right: 8px"
@@ -164,7 +161,7 @@
                         <bk-input
                           class="participle-popconfirm-btn-input"
                           v-model.trim="currentQueryAlias"
-                          @blur="checkqueryNameItem(props.row)"
+                          @blur="checkQueryNameItem(props.row)"
                         ></bk-input>
                       </div>
                       <bk-button  
@@ -191,7 +188,7 @@
                         <bk-input
                           class="participle-popconfirm-btn-input"
                           v-model.trim="currentQueryAlias"
-                          @blur="checkqueryNameItem(props.row)"
+                          @blur="checkQueryNameItem(props.row)"
                         ></bk-input>
                       </div>
                       <i
@@ -871,6 +868,7 @@
           this.checkFieldNameItem(row)
         }
         this.$set(row, 'query_alias', this.currentQueryAlias);
+        this.currentQueryAlias = ''
       },
       handelChangeAnalyzed() {
         if (!this.currentIsAnalyzed) {
@@ -990,10 +988,11 @@
         row.fieldErr = result;
         this.$set(row, 'fieldQueryErr', queryResult);
         this.$emit('handle-table-data', this.changeTableList);
-
-        return result;
+        console.log(result || queryResult);
+        
+        return result || queryResult;
       },
-      checkqueryNameItem(row) {
+      checkQueryNameItem(row) {
         let  { query_alias, is_delete, field_index } = row;
         if(!this.currentQueryAlias){
           return
@@ -1025,15 +1024,18 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (this.checkFieldNameItem(row)) {
+              // 如果有别名，不判断字段名，判断别名
+              if (!row.query_alias && !!this.checkFieldNameItem(row)) {
                 // 返回 true 的时候未通过
+                result = false;
+              }else if(this.checkQueryNameItem(row)){
                 result = false;
               }
             });
             if (result) {
               resolve();
             } else {
-              console.warn('FieldName校验错误');
+              console.warn('FieldName或QueryName校验错误');
               reject(result);
             }
           } catch (err) {

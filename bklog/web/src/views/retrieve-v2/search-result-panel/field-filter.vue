@@ -42,7 +42,6 @@
         ?  item.field_name || item.field_alias
         : item.query_alias || item.field_alias  || item.field_name;
     });
-    console.log('fieldAliasMap',fieldAliasMap);
     
     return fieldAliasMap;
   });
