@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import logging
 
-from celery import shared_task
+from celery.task import task
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -27,7 +27,7 @@ from fta_web.action.utils import (
 logger = logging.getLogger("root")
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def scheduled_register_bk_plugin():
     """
     批量注册蓝鲸插件到系统中
@@ -59,7 +59,7 @@ def scheduled_register_bk_plugin():
     )
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def notify_to_appointee(validated_request_data):
     """
     通知分派人员

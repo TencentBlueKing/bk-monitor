@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from celery import shared_task
+from celery.task import task
 
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
@@ -44,7 +44,7 @@ def check_and_send_shield_notice():
 
 
 # sharded task
-@shared_task(ignore_result=True, queue="celery_cron")
+@task(ignore_result=True, queue="celery_cron")
 def do_check_and_send_shield_notice(ids):
     shield_configs = list(
         Shield.objects.filter(

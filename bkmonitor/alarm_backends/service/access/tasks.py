@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from celery import shared_task
+from celery.task import task
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
@@ -20,7 +20,7 @@ from alarm_backends.service.access.incident import AccessIncidentProcess
 from core.prometheus import metrics
 
 
-@shared_task(ignore_result=True, queue="celery_service")
+@task(ignore_result=True, queue="celery_service")
 def run_access_data(strategy_group_key, interval=60):
     with service_lock(key.SERVICE_LOCK_ACCESS, strategy_group_key=strategy_group_key):
         task_tb = TokenBucket(strategy_group_key, interval)
@@ -35,20 +35,20 @@ def run_access_data(strategy_group_key, interval=60):
             task_tb.release(max([int(processor.pull_duration), 1]))
 
 
-@shared_task(queue="celery_service_batch", ignore_result=True)
+@task(queue="celery_service_batch", ignore_result=True)
 def run_access_batch_data(strategy_group_key: str, sub_task_id: str):
     processor = AccessBatchDataProcess(strategy_group_key=strategy_group_key, sub_task_id=sub_task_id)
     return processor.process()
 
 
-@shared_task(ignore_result=True, queue="celery_service")
+@task(ignore_result=True, queue="celery_service")
 def run_access_event(access_type):
     access_type_cls = ACCESS_TYPE_TO_CLASS.get(access_type)
     access_type_cls().process()
     metrics.report_all()
 
 
-@shared_task(ignore_result=True, queue="celery_service_access_event")
+@task(ignore_result=True, queue="celery_service_access_event")
 def run_access_event_handler(data_id):
     """
     事件处理器
