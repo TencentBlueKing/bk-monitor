@@ -70,6 +70,10 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
+    is_deepflow = serializers.BooleanField(label="是否是deepflow应用", required=False, default=False)
+    cluster_id = serializers.CharField(label="deepflow 对应的部署集群 ID", required=False)
+    service_name = serializers.CharField(label="要查询的 deepflow app_service", required=False)
+
 
 class ProfileQueryExportSerializer(ProfileQuerySerializer):
     # export

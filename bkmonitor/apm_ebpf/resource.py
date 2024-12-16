@@ -45,7 +45,6 @@ class TraceQueryResource(Resource):
 
     @classmethod
     def query_ebpf_data(cls, base_url, params):
-
         url = urljoin(base_url, cls.path.format(**params))
         requests_params = {"method": cls.method, "url": url, "json": params}
         r = requests.request(timeout=60, **requests_params)
@@ -85,3 +84,269 @@ class TraceQueryResource(Resource):
         query_params = self.build_param(params)
         deep_flow_server_base_urls = list(DeepflowHandler(params["bk_biz_id"]).server_addresses.values())
         return self.batch_query_ebpf(deep_flow_server_base_urls, query_params)
+
+
+class AppServiceQueryResource(Resource):
+    """
+    查询 deepflow 集群信息-app_service 信息映射
+    """
+
+    method = "POST"
+    path = "/v1/query/"
+
+    @classmethod
+    def batch_query_deepflow_service(
+        cls, deepflow_server_clusters: dict, deepflow_server_clusters_mapping: dict, params: dict
+    ):
+        def inner(base_url, ebpf_param):
+            # 借用 TraceQueryResource 封装的用于请求 deepflow server 的方法
+            return TraceQueryResource.query_ebpf_data(base_url, ebpf_param)
+
+        futures = {}
+        pool = ThreadPool()
+
+        # 遍历集群信息列表
+        for cluster_id in deepflow_server_clusters.keys():
+            # 获取对应的 server 地址
+            base_url = deepflow_server_clusters_mapping.get(cluster_id)
+            if base_url:
+                # 如果找到了对应的 base_url，则创建异步请求
+                futures[cluster_id] = pool.apply_async(inner, args=(base_url, params))
+            else:
+                logger.info(f"No base URL found for cluster ID: {cluster_id}")
+
+        serivce_data = []
+        # 批量查询使用字典来保存最后结果 因为需要得到映射关系
+        for cluster_id, future in futures.items():
+            try:
+                services_list = future.get()
+                cluster_service = {}
+                # 需要将 deepflow 的查询结果伪装成 application 的格式
+                cluster_service["application_id"] = cluster_id
+                cluster_service["bk_biz_id"] = params["bk_biz_id"]
+                cluster_name = deepflow_server_clusters.get(cluster_id).get("clusterName", "")
+                cluster_service["app_name"] = cluster_name
+                cluster_service["app_alias"] = cluster_name
+                cluster_service["description"] = deepflow_server_clusters.get(cluster_id).get("description", "")
+                cluster_service["is_ebpf"] = True
+                services = []
+                for app_service in services_list:
+                    service = {"name": app_service.get("app_service", "")}
+                    services.append(service)
+                cluster_service["services"] = services
+                serivce_data.append(cluster_service)
+            except Exception as e:
+                logger.error(f"batch_query_deepflow error, cluster ID {cluster_id}, {e}")
+        return serivce_data
+
+    def perform_request(self, params):
+        #deepflow_server_info = DeepflowHandler(params["bk_biz_id"])
+        #deepflow_server_clusters = list(deepflow_server_info._clusters)
+        deepflow_server_clusters = [
+            {
+                'clusterID': 'BCS-K8S-00000',
+                'clusterName': '蓝鲸7.0',
+                'federationClusterID': '',
+                'provider': 'bluekingCloud',
+                'region': 'default',
+                'vpcID': '',
+                'projectID': '7538606f025efa007f3e750477982c23',
+                'businessID': '2',
+                'environment': 'prod',
+                'engineType': 'k8s',
+                'isExclusive': True,
+                'clusterType': 'single',
+                'labels': {},
+                'creator': 'admin',
+                'createTime': '2024-08-13T11:19:56+08:00',
+                'updateTime': '2024-08-13T11:19:56+08:00',
+                'bcsAddons': {},
+                'extraAddons': {},
+                'systemID': '',
+                'manageType': 'INDEPENDENT_CLUSTER',
+                'master': {
+                    '11.135.152.229': {
+                        'nodeID': '',
+                        'innerIP': '11.135.152.229',
+                        'instanceType': '',
+                        'CPU': 0,
+                        'mem': 0,
+                        'GPU': 0,
+                        'status': '',
+                        'zoneID': '',
+                        'nodeGroupID': '',
+                        'clusterID': '',
+                        'VPC': '',
+                        'region': 'default',
+                        'passwd': '',
+                        'zone': 0,
+                        'deviceID': '',
+                        'nodeTemplateID': '',
+                        'nodeType': '',
+                        'nodeName': '',
+                        'innerIPv6': '',
+                        'zoneName': '',
+                        'taskID': '',
+                        'failedReason': '',
+                        'chargeType': '',
+                    },
+                    '11.135.153.41': {
+                        'nodeID': '',
+                        'innerIP': '11.135.153.41',
+                        'instanceType': '',
+                        'CPU': 0,
+                        'mem': 0,
+                        'GPU': 0,
+                        'status': '',
+                        'zoneID': '',
+                        'nodeGroupID': '',
+                        'clusterID': '',
+                        'VPC': '',
+                        'region': 'default',
+                        'passwd': '',
+                        'zone': 0,
+                        'deviceID': '',
+                        'nodeTemplateID': '',
+                        'nodeType': '',
+                        'nodeName': '',
+                        'innerIPv6': '',
+                        'zoneName': '',
+                        'taskID': '',
+                        'failedReason': '',
+                        'chargeType': '',
+                    },
+                    '11.149.24.90': {
+                        'nodeID': '',
+                        'innerIP': '11.149.24.90',
+                        'instanceType': '',
+                        'CPU': 0,
+                        'mem': 0,
+                        'GPU': 0,
+                        'status': '',
+                        'zoneID': '',
+                        'nodeGroupID': '',
+                        'clusterID': '',
+                        'VPC': '',
+                        'region': 'default',
+                        'passwd': '',
+                        'zone': 0,
+                        'deviceID': '',
+                        'nodeTemplateID': '',
+                        'nodeType': '',
+                        'nodeName': '',
+                        'innerIPv6': '',
+                        'zoneName': '',
+                        'taskID': '',
+                        'failedReason': '',
+                        'chargeType': '',
+                    },
+                },
+                'networkSettings': {
+                    'clusterIPv4CIDR': '',
+                    'serviceIPv4CIDR': '',
+                    'maxNodePodNum': 0,
+                    'maxServiceNum': 0,
+                    'enableVPCCni': False,
+                    'eniSubnetIDs': [],
+                    'subnetSource': None,
+                    'isStaticIpMode': False,
+                    'claimExpiredSeconds': 0,
+                    'multiClusterCIDR': [],
+                    'cidrStep': 0,
+                    'clusterIpType': '',
+                    'clusterIPv6CIDR': '',
+                    'serviceIPv6CIDR': '',
+                },
+                'clusterBasicSettings': {
+                    'OS': 'Linux',
+                    'version': 'v1.20.11',
+                    'clusterTags': {},
+                    'versionName': 'v1.20.11',
+                    'subnetID': '',
+                    'clusterLevel': '',
+                    'isAutoUpgradeClusterLevel': False,
+                    'area': None,
+                    'module': None,
+                },
+                'clusterAdvanceSettings': {
+                    'IPVS': True,
+                    'containerRuntime': 'docker',
+                    'runtimeVersion': '',
+                    'extraArgs': {'Etcd': 'node-data-dir=/data/bcs/lib/etcd;'},
+                    'networkType': '',
+                    'deletionProtection': False,
+                    'auditEnabled': False,
+                    'enableHa': False,
+                    'clusterConnectSetting': None,
+                },
+                'nodeSettings': {
+                    'dockerGraphPath': '/data/bcs/lib/docker',
+                    'mountTarget': '/data',
+                    'unSchedulable': 1,
+                    'labels': {},
+                    'extraArgs': {},
+                    'taints': [],
+                    'masterLogin': None,
+                    'workerLogin': None,
+                    'masterSecurityGroups': [],
+                    'workerSecurityGroups': [],
+                },
+                'status': 'RUNNING',
+                'updater': '',
+                'networkType': 'overlay',
+                'autoGenerateMasterNodes': False,
+                'template': [],
+                'extraInfo': {},
+                'moduleID': '',
+                'extraClusterID': '',
+                'isCommonCluster': False,
+                'description': '蓝鲸7.0集群',
+                'clusterCategory': '',
+                'is_shared': False,
+                'kubeConfig': '',
+                'importCategory': '',
+                'cloudAccountID': '',
+                'message': '',
+            }
+        ]
+        deepflow_server_clusters = {cluster["clusterID"]: cluster for cluster in deepflow_server_clusters}
+        deepflow_server_clusters_mapping = {'BCS-K8S-00000': 'http://9.135.97.5:32609'}
+        #deepflow_server_clusters_mapping = deep_flow_server_info.app_addresses
+        #根据集群列表和集群 - deepflow-server 地址映射关系 查询对应的 app_service 层级关系对应为 集群 -> app_service
+
+        return self.batch_query_deepflow_service(deepflow_server_clusters, deepflow_server_clusters_mapping, params)
+
+
+class DeepFlowProfileQueryResource(Resource):
+    """
+    查询 deepflow profile 数据
+    """
+
+    method = "POST"
+    path = "/v1/profile/ProfileTracing"
+
+    @classmethod
+    def query_profile_data(cls, base_url, params):
+        url = urljoin(base_url, cls.path.format(**params))
+        requests_params = {"method": cls.method, "url": url, "json": params}
+        r = requests.request(timeout=60, **requests_params)
+        result = r.status_code in [200]
+        if not result:
+            raise BKAPIError(system_name="deepflow", url=url, result=r.text)
+
+        # 数据解析 profile data 是平铺的列表结果
+        response = r.json()
+        results = response.get("result", [])
+        return results
+
+    def perform_request(self, params):
+        """
+        向目标 deepflow server 请求对应的 profile 数据
+        """
+        #deep_flow_server_info = DeepflowHandler(params["bk_biz_id"])
+        #deep_flow_server_clusters_mapping = deep_flow_server_info.app_addresses
+        deep_flow_server_clusters_mapping = {'BCS-K8S-00000': 'http://9.135.97.5:31761'}
+        deep_flow_server_addr = deep_flow_server_clusters_mapping.get(params["cluster_id"], "")
+        if not deep_flow_server_addr:
+            return []
+        return self.query_profile_data(deep_flow_server_addr, params)
