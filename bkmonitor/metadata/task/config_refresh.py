@@ -18,7 +18,7 @@ from confluent_kafka import TopicCollection
 from confluent_kafka.admin import AdminClient
 from django.conf import settings
 from django.db.models import F
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.lock.service_lock import share_lock
 from core.prometheus import metrics

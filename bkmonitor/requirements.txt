@@ -73,7 +73,6 @@ bk-notice-sdk==1.2.0
 # monitor
 raven==6.9.0
 supervisor==4.2.5
-sentry-sdk==0.9.0
 pyinstrument==3.4.2
 ddtrace==1.7.5
 

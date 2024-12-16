@@ -296,8 +296,12 @@ class LogDataSource(ApmDataSourceConfigBase):
     def app_name_to_log_config_name(cls, app_name: str):
         """
         LOG 和 APM 的英文名不同规则：APM 允许中划线(-)，LOG 不允许，所以这里替换为下划线(_)
+        并且日志的名称必须大于等于 5 个字符
         """
-        return app_name.replace("-", "_")
+        res = app_name.replace("-", "_")
+        if len(res) < 5:
+            res = f"otlp_{res}"
+        return res
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)

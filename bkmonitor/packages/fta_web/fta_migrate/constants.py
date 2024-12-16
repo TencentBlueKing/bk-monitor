@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
-from django.utils.translation import ugettext as _
+
+from django.utils.translation import gettext as _
 
 SOPS_CONSTANTS_MAPPING = {
     "${fault_ip}": "{{target.host.bk_host_innerip}}",

@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.utils.translation import get_language
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space

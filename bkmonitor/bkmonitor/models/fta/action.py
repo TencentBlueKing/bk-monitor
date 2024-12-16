@@ -18,7 +18,7 @@ from importlib import import_module
 import jmespath
 from django.conf import settings
 from django.db import connections, models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertLog
 from bkmonitor.utils.db import JsonField

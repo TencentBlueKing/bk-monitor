@@ -25,6 +25,7 @@ from constants.apm import OtlpKey
 
 
 class InstanceDiscover(DiscoverBase):
+    DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     INSTANCE_ID_SPLIT = ":"
     model = TopoInstance

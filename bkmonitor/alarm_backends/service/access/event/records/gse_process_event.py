@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from constants.strategy import GSE_PROCESS_EVENT_NAME
 

@@ -54,10 +54,10 @@ def create_or_delete_records(mocker):
         is_default_cluster=True,
         version="5.x",
     )
-    models.ESStorageClusterRecord.objects.create(
+    models.StorageClusterRecord.objects.create(
         table_id='1001_bklog.stdout', cluster_id=11, is_current=True, enable_time=base_time - timedelta(days=30)
     )
-    models.ESStorageClusterRecord.objects.create(
+    models.StorageClusterRecord.objects.create(
         table_id='1001_bklog.stdout',
         cluster_id=12,
         is_current=False,
@@ -69,7 +69,7 @@ def create_or_delete_records(mocker):
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.ESStorage.objects.all().delete()
     models.ClusterInfo.objects.all().delete()
-    models.ESStorageClusterRecord.objects.all().delete()
+    models.StorageClusterRecord.objects.all().delete()
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -77,10 +77,10 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
     client = SpaceTableIDRedis()
 
     enable_timestamp = int(
-        models.ESStorageClusterRecord.objects.get(cluster_id=11, table_id='1001_bklog.stdout').enable_time.timestamp()
+        models.StorageClusterRecord.objects.get(cluster_id=11, table_id='1001_bklog.stdout').enable_time.timestamp()
     )
     enable_timestamp_12 = int(
-        models.ESStorageClusterRecord.objects.get(cluster_id=12, table_id='1001_bklog.stdout').enable_time.timestamp()
+        models.StorageClusterRecord.objects.get(cluster_id=12, table_id='1001_bklog.stdout').enable_time.timestamp()
     )
     data = client._compose_es_table_id_detail(table_id_list=['1001_bklog.stdout'])
     # 构建 expected
