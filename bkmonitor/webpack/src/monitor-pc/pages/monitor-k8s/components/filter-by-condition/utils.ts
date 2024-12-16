@@ -95,14 +95,14 @@ export class FilterByOptions {
       ...this.commonParams,
       resource_type: dimension,
       page: page,
-      query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:` : '',
+      ...this.queryStringParams(dimension, categoryDim),
     }).catch(() => ({ count: 0, items: [] }));
     this.setData(dimension, categoryDim, data);
     return this.dimensionData;
   }
 
   getPage(dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       return this.pageMap?.[`${dimension}_____${categoryDim}`] || 0;
     }
     return this.pageMap?.[dimension] || 0;
@@ -154,38 +154,65 @@ export class FilterByOptions {
       ...this.commonParams,
       resource_type: dimension,
       page: page,
-      query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:` : '',
+      ...this.queryStringParams(dimension, categoryDim),
     }).catch(() => ({ count: 0, items: [] }));
     this.setData(dimension, categoryDim, data);
   }
 
   nextPage(dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = this.getPage(dimension, categoryDim) + 1;
     }
     this.pageMap[dimension] = this.getPage(dimension) + 1;
   }
 
+  queryStringParams(dimension: EDimensionKey, categoryDim?: string) {
+    if (this.commonParams.query_string) {
+      return {
+        query_string: this.commonParams.query_string,
+        filter_dict:
+          dimension === EDimensionKey.workload && categoryDim
+            ? {
+                [EDimensionKey.workload]: `${categoryDim}:`,
+              }
+            : {},
+      };
+    }
+    return {
+      query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:` : '',
+      filter_dict: {},
+    };
+  }
+
   // 搜索
   async search(search: string, dimension: EDimensionKey, categoryDim?: string) {
+    this.commonParams.query_string = search;
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
     const data = await listK8sResources({
       ...this.commonParams,
       resource_type: dimension,
       page: page,
-      query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:${search}` : search,
+      ...this.queryStringParams(dimension, categoryDim),
     }).catch(() => ({ count: 0, items: [] }));
     this.setData(dimension, categoryDim, data);
+  }
+
+  setCommonParams(params) {
+    this.commonParams = {
+      ...this.commonParams,
+      ...params,
+    };
   }
 
   setData(dimension: EDimensionKey, categoryDim: string, data: any) {
     if (dimension === EDimensionKey.workload) {
       for (const dim of this.dimensionData) {
         if (dim.id === dimension) {
-          dim.count = data.count;
+          // dim.count = data.count;
           for (const child of dim.children) {
             if (child.id === categoryDim) {
+              child.count = data.count;
               child.children = data.items.map(item => {
                 const id = item[dimension];
                 return {
@@ -218,7 +245,7 @@ export class FilterByOptions {
   }
 
   setPage(page: number, dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = page;
     }
     this.pageMap[dimension] = page;
@@ -227,9 +254,11 @@ export class FilterByOptions {
     const data = await workloadOverview(params).catch(() => []);
     for (const dim of this.dimensionData) {
       if (dim.id === EDimensionKey.workload) {
+        let total = 0;
         dim.children = data.map(item => {
           const id = item[0];
           const count = item[1];
+          total += count;
           return {
             id: id,
             name: id,
@@ -237,6 +266,7 @@ export class FilterByOptions {
             children: [],
           };
         });
+        dim.count = total;
         break;
       }
     }
