@@ -11,12 +11,11 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from django.conf import settings
 
 from alarm_backends.core.cache import key
-from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.lock.service_lock import (
@@ -56,6 +55,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
     def process(self, strategy_id: int, update_time: int = None) -> None:
         logger.info(f"Start to refresh depend data for strategy({strategy_id})")
 
+        processed_dimensions = set()
         with refresh_service_lock(self.prepare_key, update_time, strategy_id=strategy_id):
             strategy = Strategy(strategy_id)
             query_config = strategy.config["items"][0]["query_configs"][0]
@@ -63,14 +63,18 @@ class TsDependPreparationProcess(BasePreparationProcess):
             if query_config.get("intelligent_detect") and query_config["intelligent_detect"].get("use_sdk", False):
                 # 历史依赖准备就绪才开始检测
                 if query_config["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
-                    self.refresh_strategy_depend_data(strategy, update_time)
+                    self.refresh_strategy_depend_data(strategy, processed_dimensions, update_time)
                     query_config = QueryConfig.from_models(QueryConfigModel.objects.filter(id=query_config["id"]))[0]
                     query_config.intelligent_detect["status"] = SDKDetectStatus.READY
                     query_config.save()
-                    StrategyCacheManager.refresh_strategy_ids([{"id": strategy_id}])
-                    logger.info(f"Finish to refresh depend data for strategy({strategy_id})")
+                    logger.info(
+                        f"Finish to refresh depend data for strategy({strategy_id}),"
+                        f"total dimensions: {len(processed_dimensions)}"
+                    )
 
-    def refresh_strategy_depend_data(self, strategy: Strategy, update_time: int = None) -> None:
+    def refresh_strategy_depend_data(
+        self, strategy: Strategy, processed_dimensions: Set, update_time: int = None
+    ) -> None:
         """根据同步信息，从Cache中获取策略的配置，并调用SDK初始化历史依赖数据.
 
         :param strategy: 策略
@@ -78,16 +82,30 @@ class TsDependPreparationProcess(BasePreparationProcess):
         logger.info("Start to init depend data for intelligent strategy({})".format(strategy.id))
         item: Item = strategy.items[0]
 
-        if item.algorithms:
-            algorithm_type = item.algorithms[0]["type"]
+        for algorithm in item.algorithms:
+            algorithm_type = algorithm["type"]
+            if algorithm_type not in AlgorithmModel.AIOPS_ALGORITHMS:
+                continue
+
             init_depend_api_func = INIT_DEPEND_MAPPINGS.get(algorithm_type)
             if not init_depend_api_func:
                 logger.warning("Not supported init depend data for '{}' type algorithm".format(algorithm_type))
-                return
+                continue
 
             start_time, end_time = self.generate_depend_time_range(item)
 
-            self.init_depend_data(strategy, init_depend_api_func, start_time, end_time, update_time)
+            self.init_depend_data(
+                strategy, init_depend_api_func, start_time, end_time, processed_dimensions, update_time
+            )
+
+            # 如果初始化完历史依赖后发现当前时间过长，则再添补刷新过程中的时间范围（但是如果超过12小时）
+            latest_end_time = int(time.time())
+            if latest_end_time - end_time >= 86400:
+                raise Exception(f"Init strategy({strategy.id}) depend data too long")
+            if latest_end_time - end_time >= 3600:
+                self.init_depend_data(
+                    strategy, init_depend_api_func, latest_end_time, end_time, processed_dimensions, update_time
+                )
 
     def generate_depend_time_range(self, item: Item) -> Tuple[int, int]:
         """根据配置生成历史依赖的开始时间和结束时间."""
@@ -103,6 +121,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
         init_depend_api_func: callable,
         start_time: int,
         end_time: int,
+        processed_dimensions: Set,
         update_time: int = None,
     ) -> None:
         item: Item = strategy.items[0]
@@ -131,7 +150,11 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
             item_records = item.query_record(step_start_time, step_end_time)
             step_end_time = step_start_time
-            self.init_depend_data_by_records(strategy, init_depend_api_func, item_records)
+            if len(item_records) == 0:
+                minute_step = DEPEND_DATA_MAX_FETCH_TIME_RANGE
+                continue
+
+            self.init_depend_data_by_records(strategy, init_depend_api_func, item_records, processed_dimensions)
 
             # 根据实际数据量调整每次查询的时间范围
             minute_step = max(
@@ -140,13 +163,21 @@ class TsDependPreparationProcess(BasePreparationProcess):
             minute_step = min(minute_step, DEPEND_DATA_MAX_FETCH_TIME_RANGE)
 
     def init_depend_data_by_records(
-        self, strategy: Strategy, init_depend_api_func: callable, strategy_records: List[Dict]
+        self,
+        strategy: Strategy,
+        init_depend_api_func: callable,
+        strategy_records: List[Dict],
+        processed_dimensions: Set,
     ) -> None:
         item: Item = strategy.items[0]
 
         depend_data_by_dimensions = {}
         for item_record in strategy_records:
-            dimensions_key = tuple(item_record[dim] for dim in item.query_configs[0]["agg_dimension"])
+            try:
+                dimensions_key = tuple(item_record[dim] for dim in item.query_configs[0]["agg_dimension"])
+            except KeyError:
+                # 如果缺少维度，则认为数据无效，跳过
+                continue
             if dimensions_key not in depend_data_by_dimensions:
                 dimensions = {dim: item_record[dim] for dim in item.query_configs[0]["agg_dimension"]}
                 depend_data_by_dimensions[dimensions_key] = {
@@ -162,12 +193,13 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
         tasks = []
         with ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_INIT_CONCURRENCY) as executor:
-            for series_info in depend_data_by_dimensions.values():
+            for dimensions_key, series_info in depend_data_by_dimensions.items():
                 series_info["dimensions"]["strategy_id"] = strategy.id
 
+                # 第一次刷新某个维度的时候使用覆盖式刷新，后面时间段刷新时在进行增量刷新
                 executor.submit(
                     init_depend_api_func,
-                    replace=False,
+                    replace=dimensions_key not in processed_dimensions,
                     dependency_data=[
                         {
                             "data": series_info["data"],
@@ -175,4 +207,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                         }
                     ],
                 )
+
+                processed_dimensions.add(dimensions_key)
+
         as_completed(tasks)

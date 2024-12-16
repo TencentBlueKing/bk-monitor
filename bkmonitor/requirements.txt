@@ -83,7 +83,7 @@ six==1.16.0
 requests==2.27.1
 requests_toolbelt==0.10.1
 sqlparse==0.4.2
-ujson==1.35
+ujson==5.7.0
 schematics==2.0.1
 Pillow==8.4.0
 PyYAML==5.4.1
