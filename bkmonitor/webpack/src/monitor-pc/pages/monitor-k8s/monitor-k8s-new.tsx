@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, ProvideReactive } from 'vue-property-decorator';
+import { Component, Mixins, ProvideReactive, Watch } from 'vue-property-decorator';
 
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
@@ -102,10 +102,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   cacheFilterBy: IFilterByItem[] = [];
   cacheGroupBy = [];
-
+  /** 指标列表 */
   metricList = [];
-
   metricLoading = true;
+  timer = null;
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -128,12 +128,24 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.groupInstance.deleteGroupFilter(item.groupId);
   }
 
+  @Watch('groupFilters')
+  watchGroupFiltersChange() {
+    this.setRouteParams();
+  }
+
+  @Watch('filterBy')
+  watchFilterByChange() {
+    this.setRouteParams();
+  }
+
   created() {
+    this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
+    this.setRouteParams();
   }
 
   async getClusterList() {
@@ -168,10 +180,18 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   handleRefreshChange(value: number) {
     this.refreshInterval = value;
+    this.setRouteParams();
+    this.timer && clearInterval(this.timer);
+    if (value > -1) {
+      this.timer = setInterval(() => {
+        this.handleImmediateRefresh();
+      }, value);
+    }
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.timeRange = timeRange;
+    this.setRouteParams();
   }
 
   handleTimezoneChange(timezone: string) {
@@ -189,7 +209,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 左侧面板group状态切换 */
   groupByChange({ groupId, isSelect }) {
     this.showCancelDrill = false;
-    this.setGroupFilters({ groupId, checked: isSelect });
+    if (isSelect) {
+      this.setGroupFilters({ groupId, checked: isSelect });
+    } else {
+      this.groupInstance.deleteGroupFilterForce(groupId);
+    }
   }
 
   /** 左侧面板下钻功能 */
@@ -257,8 +281,51 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   handleFilterByChange(v: IFilterByItem[]) {
-    console.log(v);
     this.filterBy = v;
+  }
+
+  getRouteParams() {
+    const {
+      from = 'now-1h',
+      to = 'now',
+      refreshInterval = '-1',
+      filterBy = '[]',
+      groupBy = '[]',
+      cluster = '',
+      scene = SceneEnum.Performance,
+    } = this.$route.query || {};
+    this.timeRange = [from as string, to as string];
+    this.refreshInterval = Number(refreshInterval);
+    this.filterBy = JSON.parse(filterBy as string);
+    this.cluster = cluster as string;
+    this.scene = scene as SceneEnum;
+    if (JSON.parse(groupBy as string).length) {
+      this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
+    }
+  }
+
+  setRouteParams() {
+    const query = {
+      sceneId: 'kubernetes',
+      from: this.timeRange[0],
+      to: this.timeRange[1],
+      refreshInterval: String(this.refreshInterval),
+      filterBy: JSON.stringify(this.filterBy),
+      groupBy: JSON.stringify(this.groupInstance.groupFilters),
+      cluster: this.cluster,
+      scene: this.scene,
+    };
+
+    const targetRoute = this.$router.resolve({
+      query,
+    });
+
+    /** 防止出现跳转当前地址导致报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.replace({
+        query,
+      });
+    }
   }
 
   tabContentRender() {

@@ -26,18 +26,20 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { K8sPerformanceDimension } from '../../k8s-dimension';
 import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
-// import type { GroupListItem } from '../../typings/k8s-new';
+import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IFilterByItem } from '../filter-by-condition/utils';
 
 import './k8s-dimension-list.scss';
 
 interface K8sDimensionListProps {
   scene: SceneEnum;
-  filterBy: any;
+  filterBy: IFilterByItem[];
   groupBy: string[];
   clusterId: string;
 }
@@ -88,18 +90,17 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.init();
   }
 
-  @Watch('refreshInterval')
-  handleRefleshIntervalChange() {
-    this.init();
-  }
-
   @Watch('refreshImmediate')
-  handleRefleshImmediateChange() {
+  handleRefreshImmediateChange() {
     this.init();
   }
 
   @Watch('formatTimeRange')
   handleFormatTimeRangeChange() {
+    this.init();
+  }
+
+  mounted() {
     this.init();
   }
 
@@ -120,10 +121,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.loading = false;
     this.showDimensionList = dimension.showDimensionData;
     this.initLoading(this.showDimensionList);
-    this.localFilterBy = dimension.dimensionKey.reduce((pre, cur) => {
-      pre[cur] = [];
-      return pre;
-    }, {});
   }
 
   initLoading(data: GroupListItem[]) {
@@ -137,14 +134,13 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   @Watch('filterBy', { immediate: true })
-  handleFilterByChange(val: K8sDimensionListProps['filterBy']) {
+  handleFilterByChange(val: IFilterByItem[]) {
+    Object.keys(this.localFilterBy).map(key => {
+      this.localFilterBy[key] = [];
+    });
     if (val.length) {
       val.map(item => {
-        this.localFilterBy[item.key] = item.value;
-      });
-    } else {
-      Object.keys(this.localFilterBy).map(key => {
-        this.localFilterBy[key] = [];
+        this.$set(this.localFilterBy, item.key, item.value);
       });
     }
   }
@@ -168,7 +164,22 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   /** 检索 */
   @Emit('filterByChange')
-  handleGroupSearch(ids: string[], groupId: string) {
+  handleGroupSearch(id: string, groupId: string) {
+    if (!id)
+      return {
+        ids: [],
+        groupId,
+      };
+
+    let ids = [...(this.localFilterBy[groupId] || [])];
+    if (groupId === EDimensionKey.workload) {
+      ids = [id];
+    } else if (!ids.includes(id)) {
+      ids.push(id);
+    } else {
+      ids = ids.filter(item => item !== id);
+    }
+
     return {
       ids,
       groupId,
@@ -178,8 +189,10 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 下钻 */
   @Emit('drillDown')
   handleDrillDown({ id, dimension }, groupId: string) {
-    const ids = [...(this.localFilterBy[groupId] || [])];
-    if (!ids.includes(id)) {
+    let ids = [...(this.localFilterBy[groupId] || [])];
+    if (groupId === EDimensionKey.workload) {
+      ids = [id];
+    } else if (!ids.includes(id)) {
       ids.push(id);
     }
     return {
@@ -239,6 +252,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     );
   }
 
+  handleEmptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.handleSearch('');
+    }
+  }
+
   render() {
     return (
       <div class='k8s-dimension-list'>
@@ -265,13 +284,20 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
                   isGroupBy={this.groupByList.includes(group.id)}
                   list={group}
                   loadMoreLoading={this.loadMoreLoading}
+                  tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
                   value={this.localFilterBy[group.id]}
                   onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
                   onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
                   onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
                   onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
                   onHandleSearch={val => this.handleGroupSearch(val, group.id)}
-                />
+                >
+                  <EmptyStatus
+                    slot='empty'
+                    type={this.searchValue ? 'search-empty' : 'empty'}
+                    onOperation={this.handleEmptyOperation}
+                  />
+                </GroupItem>
               ))}
         </div>
       </div>

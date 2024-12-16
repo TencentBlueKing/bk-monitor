@@ -33,7 +33,7 @@ import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
 
-type Tools = 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
+type Tools = '' | 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
 
 interface GroupItemProps {
   list: GroupListItem;
@@ -48,7 +48,7 @@ interface GroupItemProps {
 }
 
 interface GroupItemEvent {
-  onHandleSearch: (ids: string[]) => void;
+  onHandleSearch: (id: string) => void;
   onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
   onHandleGroupByChange: (val: boolean) => void;
   onHandleMoreClick: (val: { dimension: string }) => void;
@@ -106,11 +106,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   @Emit('handleSearch')
   handleSearch(id?: string) {
-    if (id) {
-      const res = this.value.includes(id);
-      return res ? this.value.filter(item => item !== id) : [...this.value, id];
-    }
-    return [];
+    return id;
   }
 
   /** 下钻 */
@@ -150,29 +146,28 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   renderLoadMore(id: string) {
     return (
       <div class='show-more'>
-        {this.loadMoreLoading[id] ? (
-          <bk-spin size='mini' />
-        ) : (
-          <span
-            class='text'
-            onClick={() => this.handleShowMore(id)}
-          >
-            {this.$t('点击加载更多')}
-          </span>
-        )}
+        <bk-spin
+          style={{ display: this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
+          size='mini'
+        />
+        <span
+          style={{ display: !this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
+          class='text'
+          onClick={() => this.handleShowMore(id)}
+        >
+          {this.$t('点击加载更多')}
+        </span>
       </div>
     );
   }
 
   renderGroupContent(item: GroupListItem) {
-    const isSelectSearch = this.value.includes(item.id);
-    const isHidden = this.hiddenList.includes(item.id);
-    let showMore = true;
-    if (!item.children?.length) return <EmptyStatus type='empty' />;
+    if (!item.children?.length) return this.$slots.empty || <EmptyStatus type='empty' />;
     return [
       item.children.map((child, ind) => {
+        const isSelectSearch = this.value.includes(child.id);
+        const isHidden = this.hiddenList.includes(child.id);
         if (child.children) {
-          showMore = false;
           return (
             <div class='child-item'>
               <div
@@ -229,7 +224,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           </div>
         );
       }),
-      showMore && item.count > item.children.length && this.renderLoadMore(item.id),
+      item.showMore && this.renderLoadMore(item.id),
     ];
   }
 
@@ -246,10 +241,12 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             <div class='group-count'>{this.list.count}</div>
             {this.value.length > 0 && this.tools.includes('clear') && (
               <div
-                class='clear-filter-icon'
+                class='clear-filter'
                 v-bk-tooltips={{ content: this.$t('清空整组筛选项') }}
                 onClick={this.handleClear}
-              />
+              >
+                <div class='clear-filter-icon' />
+              </div>
             )}
           </div>
           {this.tools.includes('groupBy') && (

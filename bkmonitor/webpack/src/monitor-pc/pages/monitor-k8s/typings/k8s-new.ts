@@ -94,6 +94,7 @@ export interface GroupListItem {
   id: EDimensionKey;
   name: string;
   count?: number;
+  showMore?: boolean;
   children?: GroupListItem[];
   relation?: Record<EDimensionKey, string>; // 关联维度
   [key: string]: any;

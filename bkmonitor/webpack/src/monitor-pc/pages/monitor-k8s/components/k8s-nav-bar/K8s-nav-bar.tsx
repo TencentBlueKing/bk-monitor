@@ -26,6 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import TemporaryShareNew from '../../../../components/temporary-share/temporary-share';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import DashboardTools from '../dashboard-tools';
 
@@ -58,6 +59,13 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
   @Prop({ default: -1 }) readonly refreshInterval: number;
   // 时区
   @Prop({ type: String }) timezone: string;
+  routeList = [
+    {
+      id: 'k8s',
+      name: 'Kubernetes',
+      subName: '',
+    },
+  ];
 
   curTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
 
@@ -129,7 +137,11 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
               </bk-option>
             ))}
           </bk-select>
-          <i class='icon-monitor icon-copy-link' />
+          <TemporaryShareNew
+            icon='icon-copy-link'
+            navList={this.routeList}
+            navMode='share'
+          />
         </div>
         {this.$slots.default}
         <div class='k8s-nav-tools'>
