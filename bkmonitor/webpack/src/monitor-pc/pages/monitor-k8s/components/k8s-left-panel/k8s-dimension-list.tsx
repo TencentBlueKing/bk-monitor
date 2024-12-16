@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { K8sDimension } from '../../k8s-dimension';
+import { K8sPerformanceDimension } from '../../k8s-dimension';
 import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
@@ -105,7 +105,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   async init() {
     if (!this.clusterId) return;
-    const dimension = new K8sDimension({
+    const dimension = new K8sPerformanceDimension({
       scene: this.scene,
       keyword: this.searchValue,
       bcsClusterId: this.clusterId,
@@ -120,7 +120,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.loading = false;
     this.showDimensionList = dimension.showDimensionData;
     this.initLoading(this.showDimensionList);
-    this.localFilterBy = dimension.currentDimension.reduce((pre, cur) => {
+    this.localFilterBy = dimension.dimensionKey.reduce((pre, cur) => {
       pre[cur] = [];
       return pre;
     }, {});
@@ -201,8 +201,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   /** 首次展开workload的二级菜单后，请求数据 */
-  async handleFirstExpand(dimension, fatherDimension) {
-    if (fatherDimension === EDimensionKey.workload && dimension !== fatherDimension) {
+  async handleFirstExpand(dimension, parentDimension) {
+    if (parentDimension === EDimensionKey.workload && dimension !== parentDimension) {
       this.expandLoading[dimension] = true;
       await (this as any).dimension.getWorkloadChildrenData({
         filter_dict: {
@@ -217,16 +217,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   /** 加载更多 */
-  async handleMoreClick(dimension, fatherDimension) {
+  async handleMoreClick(dimension, parentDimension) {
     this.loadMoreLoading[dimension] = true;
-    await (this as any).dimension.loadNextPageData(
-      dimension,
-      {
-        start_time: this.formatTimeRange[0],
-        end_time: this.formatTimeRange[1],
-      },
-      fatherDimension
-    );
+    await (this as any).dimension.loadNextPageData([parentDimension, dimension], {
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    });
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loadMoreLoading[dimension] = false;
   }
