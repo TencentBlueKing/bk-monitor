@@ -651,8 +651,6 @@ export default defineComponent({
         lastVisibleRow++;
       }
 
-      console.log('getVisibleRows', new Date().getTime());
-
       return [startIdx, lastVisibleRow];
     };
 
