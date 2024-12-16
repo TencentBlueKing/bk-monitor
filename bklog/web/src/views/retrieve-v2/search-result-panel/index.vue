@@ -127,7 +127,12 @@
   const fieldListStyle = computed(() => {
     // 高度计算：滚动容器高度 - 搜索框高度 - 二级导航高度 - Tab框高度 + 有效滚动填充
     const height =
-      scrollContainerHeight.value - searchInputHeight.value - subBarHeight.value - tabHeight.value + paddingTop.value;
+      scrollContainerHeight.value -
+      searchInputHeight.value -
+      subBarHeight.value -
+      tabHeight.value +
+      paddingTop.value -
+      4;
 
     return {
       height: isShowFieldStatistics.value ? `${height}px` : 'auto',

@@ -54,19 +54,13 @@ export default defineComponent({
     };
 
     const updateRowSize = () => {
-      requestAnimationFrame(() => {
-        handleRowResize(props.rowIndex, { target: refRowNodeRoot.value });
-      });
+      handleRowResize(props.rowIndex, { target: refRowNodeRoot.value });
     };
 
     watch(
       () => props.rowIndex,
       () => {
-        isPending.value = true;
-        requestAnimationFrame(() => {
-          isPending.value = false;
-          updateRowSize();
-        });
+        updateRowSize();
       },
     );
 

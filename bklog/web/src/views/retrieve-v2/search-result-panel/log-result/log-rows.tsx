@@ -89,13 +89,13 @@ export default defineComponent({
     const isLimitExpandView = computed(() => store.state.isLimitExpandView);
     const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
-    const listRequestCounter = computed(() => indexSetQueryResult.value.request_counter);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading);
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+    const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -118,6 +118,20 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const tableRowStore = new Map<string, RowConfig>();
+
+    const sizes = ref([]);
+    const updateSizes = () => {
+      let accumulator = 0;
+      sizes.value = tableData.value.map(row => {
+        const rowConfig = row[ROW_CONFIG];
+        const current = rowConfig.minHeight;
+        accumulator += current;
+        return { accumulator: accumulator - current, size: current };
+      });
+    };
+
+    const debounceUpdateSizes = debounce(updateSizes, 100);
+
     const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
     });
@@ -128,11 +142,12 @@ export default defineComponent({
         return;
       }
 
-      const config: RowConfig = row[ROW_CONFIG].value;
+      const config: RowConfig = row[ROW_CONFIG];
       config.minHeight = target.offsetHeight;
       const rowElement = target.querySelector('.bklog-list-row') as HTMLElement;
       config.rowMinHeight = rowElement.offsetHeight;
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
+      debounceUpdateSizes();
     };
 
     const handleRowResize = (rowIndex, entry) => {
@@ -171,16 +186,16 @@ export default defineComponent({
           resize: false,
           fixed: 'left',
           renderBodyCell: ({ row }) => {
-            const config: Ref<RowConfig> = row[ROW_CONFIG];
+            const config: RowConfig = row[ROW_CONFIG];
 
             const hanldeExpandClick = () => {
-              config.value.expand = !config.value.expand;
-              tableRowStore.get(row[ROW_KEY]).expand = config.value.expand;
+              config.expand = !config.expand;
+              tableRowStore.get(row[ROW_KEY]).expand = config.expand;
             };
 
             return (
               <span
-                class={['bklog-expand-icon', { 'is-expaned': config.value.expand }]}
+                class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
                 onClick={hanldeExpandClick}
               >
                 <i class='bk-icon icon-play-shape'></i>
@@ -430,7 +445,7 @@ export default defineComponent({
       clearRowConfigCache(endIndex - 1);
       const startIndex = endIndex - 1;
       for (let i = startIndex; i < tableData.value.length; i++) {
-        const config = tableData.value[i][ROW_CONFIG]?.value;
+        const config = tableData.value[i][ROW_CONFIG];
         ['minHeight', 'rowMinHeight'].forEach(key => {
           config[key] = 40;
         });
@@ -442,26 +457,21 @@ export default defineComponent({
       return (indexSetQueryResult.value.list || []).map((row, index) => {
         const rowKey = `${ROW_KEY}_${index}`;
 
-        Object.assign(row, {
+        return Object.assign({}, row, {
           [ROW_KEY]: rowKey,
           [ROW_INDEX]: index,
-          [ROW_CONFIG]: ref(getRowConfigWithCache(index)),
+          [ROW_CONFIG]: getRowConfigWithCache(index),
         });
-        return row;
       });
     };
 
-    const sizes = computed(() => {
-      let accumulator = 0;
-      return tableData.value.map(row => {
-        const rowConfig = row[ROW_CONFIG];
-        const current = rowConfig.value.minHeight;
-        accumulator += current;
-        return { accumulator: accumulator - current, size: current };
-      });
-    });
+    const totalSize = computed(() => {
+      if (sizes.value?.length) {
+        return sizes.value[sizes.value.length - 1].accumulator;
+      }
 
-    const totalSize = computed(() => sizes.value[sizes.value.length - 1].accumulator);
+      return 0;
+    });
 
     const expandOption = {
       render: ({ row }) => {
@@ -491,9 +501,10 @@ export default defineComponent({
     );
 
     watch(
-      () => [listRequestCounter.value],
+      () => [tableDataSize.value],
       () => {
         tableData.value = loadTableData();
+        updateSizes();
       },
     );
 
@@ -541,9 +552,11 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
-    const debounceSetLoading = debounce(() => {
-      isRequesting.value = false;
-    }, 300);
+    const debounceSetLoading = () => {
+      requestAnimationFrame(() => {
+        isRequesting.value = false;
+      });
+    };
 
     const loadMoreTableData = () => {
       if (totalCount.value > tableData.value.length) {
@@ -669,14 +682,12 @@ export default defineComponent({
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
-        if (event.deltaY === 0) {
-          event.preventDefault();
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-        }
-
         const maxOffset = scrollWidth.value - offsetWidth.value;
         if (event.deltaX !== 0 && hasScrollX.value) {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          event.preventDefault();
+
           const nextOffset = scrollXOffsetLeft.value + event.deltaX;
           if (nextOffset <= maxOffset && nextOffset >= 0) {
             scrollXOffsetLeft.value += event.deltaX;
@@ -769,7 +780,7 @@ export default defineComponent({
     };
 
     const renderRowCells = (row, rowIndex) => {
-      const { expand } = row[ROW_CONFIG].value;
+      const { expand } = row[ROW_CONFIG];
       return [
         <div class='bklog-list-row'>
           {renderColumns.value.map(column => (
@@ -799,9 +810,9 @@ export default defineComponent({
         const rowIndex = row[ROW_INDEX];
         const rowView = sizes.value[rowIndex];
         const rowStyle = {
-          minHeight: `${row[ROW_CONFIG].value.minHeight}px`,
+          minHeight: `${row[ROW_CONFIG].minHeight}px`,
           transform: `translate3d(0, ${rowView.accumulator}px, 0)`,
-          '--row-min-height': `${row[ROW_CONFIG].value.rowMinHeight - 2}px`,
+          '--row-min-height': `${row[ROW_CONFIG].rowMinHeight - 2}px`,
         };
 
         return (

@@ -195,14 +195,14 @@
     setMaxWidth();
     renderText.value = truncateTextWithCanvas();
     debounceSetSegmentTag();
-  });
+  }, 300);
 
   useResizeObserve(getCellElement, debounceUpdateSegmentTag);
 
   onMounted(() => {
     setMaxWidth();
     renderText.value = truncateTextWithCanvas();
-    debounceSetSegmentTag();
+    debounceUpdateSegmentTag();
   });
 
   onBeforeUnmount(() => {
