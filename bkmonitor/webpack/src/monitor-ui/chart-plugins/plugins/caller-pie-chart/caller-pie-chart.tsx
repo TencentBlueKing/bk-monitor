@@ -33,6 +33,8 @@ import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { MONITOR_PIE_OPTIONS } from '../../../chart-plugins/constants';
 import PieLegend from '../../components/chart-legend/pie-legend';
 import { VariablesService } from '../../utils/variable';
+import { type IChartOption } from '../apm-service-caller-callee/type';
+import { createDrillDownList } from '../apm-service-caller-callee/utils';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -47,7 +49,7 @@ interface IPieEchartProps {
 }
 @Component
 class CallerPieChart extends CommonSimpleChart {
-  height = 600;
+  height = 560;
   width = 960;
   needResetChart = true;
   inited = false;
@@ -57,6 +59,14 @@ class CallerPieChart extends CommonSimpleChart {
   cancelTokens = [];
   options = {};
   legendData = [];
+  seriesList = [];
+  enableContextmenu = true;
+  drillFilter = [];
+  currentValue: IChartOption = {};
+  drillGroupBy = [];
+  contextmenuInfo = {
+    options: [],
+  };
   defaultColors = Object.freeze([
     '#96C989',
     '#F1CE1A',
@@ -86,6 +96,21 @@ class CallerPieChart extends CommonSimpleChart {
   onCallOptionsChange() {
     this.getPanelData();
   }
+
+  @Watch('dimensionParam.dimensionList', { deep: true, immediate: true })
+  onDimensionListChange() {
+    const { dimensionList, call_filter } = this.dimensionParam;
+    const data = (dimensionList || []).map(item => {
+      const isHas = (call_filter || []).findIndex(ele => ele.key === item.value) !== -1;
+      return {
+        id: item.value,
+        name: item.text,
+        disabled: isHas,
+        selected: false,
+      };
+    });
+    this.contextmenuInfo.options = data;
+  }
   /**
    * @description: 获取图表数据
    */
@@ -104,7 +129,13 @@ class CallerPieChart extends CommonSimpleChart {
         ...this.viewOptions,
         ...this.dimensionParam,
       });
-      const { metric_cal_type, time_shift } = this.dimensionChartOpt;
+      const {
+        metric_cal_type,
+        time_shift,
+        drillFilterData = [],
+        drillGroupBy = [],
+        dimensionTime,
+      } = this.dimensionChartOpt;
       const promiseList = this.panel.targets.map(item => {
         const params = variablesService.transformVariables(item.data, {
           ...this.viewOptions.filters,
@@ -113,14 +144,20 @@ class CallerPieChart extends CommonSimpleChart {
           ...this.viewOptions.variables,
           ...this.dimensionParam,
         });
+        /** 图表下钻带有时间 */
+        let timeParams = this.dimensionParam.timeParams;
+        if (dimensionTime?.start_time) {
+          timeParams = dimensionTime;
+        }
         (this as any).$api[item.apiModule]
           ?.[item.apiFunc](
             {
               ...params,
               metric_cal_type,
               time_shift,
-              where: this.dimensionParam.whereParams,
-              ...this.dimensionParam.timeParams,
+              group_by: [...this.dimensionParam.group_by, ...drillGroupBy.slice(-1)],
+              where: [...(this.dimensionParam?.whereParams || []), ...drillFilterData],
+              ...timeParams,
             },
             {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -161,10 +198,11 @@ class CallerPieChart extends CommonSimpleChart {
     // biome-ignore lint/complexity/noForEach: <explanation>
     srcData.forEach((item, index) => {
       const defaultColor = this.defaultColors[index % this.defaultColors.length];
-      const { proportion, name, value, color = defaultColor, borderColor = defaultColor } = item;
+      const { proportion, name, value, color = defaultColor, borderColor = defaultColor, dimensions } = item;
       legendList.push({ proportion, name, value, color, borderColor, show: true });
-      dataList.push({ proportion, name, value, itemStyle: { color } });
+      dataList.push({ proportion, dimensions, name, value, itemStyle: { color } });
     });
+    this.seriesList = dataList;
     this.legendData = legendList;
     const echartOptions = deepClone(MONITOR_PIE_OPTIONS);
     this.options = Object.freeze(
@@ -211,20 +249,50 @@ class CallerPieChart extends CommonSimpleChart {
   handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
     this.handleSelectPieLegend({ option: this.options, actionType, item });
   }
+
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    event.preventDefault();
+    if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      const instance = (this.$refs.baseChart as any).instance;
+      createDrillDownList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          this.handleClickMenuItem(id);
+        },
+        instance
+      );
+    }
+  }
+  handleClickMenuItem(id: string) {
+    this.$emit('menuClick', Object.assign(this.currentValue, { dimensionKey: id }));
+    this.contextmenuInfo.options.map(item => (item.selected = item.id === id));
+    this.getPanelData();
+  }
+
+  menuClick(params: { dataIndex: number }) {
+    this.currentValue = this.seriesList[params.dataIndex];
+  }
+
   render() {
     return (
       <div class='caller-pie-chart'>
-        {!this.empty ? (
+        {this.seriesList.length > 0 ? (
           <div class='pie-echart-content right-legend'>
             <div
               ref='chart'
               class='chart-instance'
+              onContextmenu={this.handleChartContextmenu}
             >
               <BaseEchart
                 ref='baseChart'
                 width={this.width}
                 height={this.height}
+                needMenuClick={true}
                 options={this.options}
+                onMenuClick={this.menuClick}
               />
             </div>
             {

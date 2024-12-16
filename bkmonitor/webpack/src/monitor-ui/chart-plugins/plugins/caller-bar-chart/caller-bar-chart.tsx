@@ -30,9 +30,9 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce } from 'monitor-common/utils/utils';
 
-// import ListLegend from '../../components/chart-legend/common-legend';
-
 import { VariablesService } from '../../utils/variable';
+import { type IChartOption } from '../apm-service-caller-callee/type';
+import { createDrillDownList } from '../apm-service-caller-callee/utils';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -47,7 +47,7 @@ interface IPieEchartProps {
 }
 @Component
 class CallerBarChart extends CommonSimpleChart {
-  height = 600;
+  height = 580;
   width = 960;
   minBase = 0;
   needResetChart = true;
@@ -107,13 +107,33 @@ class CallerBarChart extends CommonSimpleChart {
       },
     },
   };
-  // legendData = [];
+  drillFilter = [];
+  enableContextmenu = true;
+  seriesList = [];
+  currentValue: IChartOption = {};
+  contextmenuInfo = {
+    options: [],
+  };
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @InjectReactive('dimensionChartOpt') readonly dimensionChartOpt: IDataItem;
 
   @Watch('dimensionParam', { deep: true })
   onCallOptionsChange() {
     this.getPanelData();
+  }
+  @Watch('dimensionParam.dimensionList', { deep: true, immediate: true })
+  onDimensionListChange() {
+    const { dimensionList, call_filter } = this.dimensionParam;
+    const data = (dimensionList || []).map(item => {
+      const isHas = (call_filter || []).findIndex(ele => ele.key === item.value) !== -1;
+      return {
+        id: item.value,
+        name: item.text,
+        disabled: isHas,
+        selected: false,
+      };
+    });
+    this.contextmenuInfo.options = data;
   }
   /**
    * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
@@ -160,7 +180,13 @@ class CallerBarChart extends CommonSimpleChart {
         ...this.viewOptions,
         ...this.dimensionParam,
       });
-      const { metric_cal_type, time_shift } = this.dimensionChartOpt;
+      const {
+        metric_cal_type,
+        time_shift,
+        drillFilterData = [],
+        drillGroupBy = [],
+        dimensionTime,
+      } = this.dimensionChartOpt;
       const promiseList = this.panel.targets.map(item => {
         const params = variablesService.transformVariables(item.data, {
           ...this.viewOptions.filters,
@@ -169,14 +195,20 @@ class CallerBarChart extends CommonSimpleChart {
           ...this.viewOptions.variables,
           ...this.dimensionParam,
         });
+        /** 图表下钻带有时间 */
+        let timeParams = this.dimensionParam.timeParams;
+        if (dimensionTime?.start_time) {
+          timeParams = dimensionTime;
+        }
         (this as any).$api[item.apiModule]
           ?.[item.apiFunc](
             {
               ...params,
               metric_cal_type,
               time_shift,
-              where: this.dimensionParam.whereParams,
-              ...this.dimensionParam.timeParams,
+              group_by: [...this.dimensionParam.group_by, ...drillGroupBy.slice(-1)],
+              where: [...(this.dimensionParam?.whereParams || []), ...drillFilterData],
+              ...timeParams,
             },
             {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -194,6 +226,7 @@ class CallerBarChart extends CommonSimpleChart {
           });
       });
       const res = await Promise.all(promiseList);
+
       if (res) {
         this.inited = true;
         this.empty = false;
@@ -218,11 +251,12 @@ class CallerBarChart extends CommonSimpleChart {
     const metricCalTypeName = this.dimensionChartOpt?.metric_cal_type_name;
     // biome-ignore lint/complexity/noForEach: <explanation>
     srcData.forEach(item => {
-      const { proportion, name, value } = item;
-      dataList.push({ proportion, name, value: value, metricCalTypeName });
+      const { proportion, name, value, dimensions } = item;
+      dataList.push({ proportion, name, value: value, metricCalTypeName, dimensions });
       xAxisLabel.push(item.name);
     });
     // this.legendData = legendList;
+    this.seriesList = dataList;
     const seriesData = [
       {
         barMaxWidth: 20,
@@ -253,21 +287,49 @@ class CallerBarChart extends CommonSimpleChart {
   handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
     this.handleSelectPieLegend({ option: this.options, actionType, item });
   }
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    event.preventDefault();
+    if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      const instance = (this.$refs.baseChart as any).instance;
+      createDrillDownList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          this.handleClickMenuItem(id);
+        },
+        instance
+      );
+    }
+  }
+  handleClickMenuItem(id: string) {
+    this.$emit('menuClick', Object.assign(this.currentValue, { dimensionKey: id }));
+    this.contextmenuInfo.options.map(item => (item.selected = item.id === id));
+    this.getPanelData();
+  }
+
+  menuClick(params: { dataIndex: number }) {
+    this.currentValue = this.seriesList[params.dataIndex];
+  }
   render() {
     return (
       <div class='caller-bar-chart'>
-        {!this.empty ? (
+        {this.seriesList.length > 0 ? (
           <div class={'time-series-content'}>
             <div
               ref='chart'
               class='chart-instance'
+              onContextmenu={this.handleChartContextmenu}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
+                  needMenuClick={true}
                   options={this.options}
+                  onMenuClick={this.menuClick}
                 />
               )}
             </div>
