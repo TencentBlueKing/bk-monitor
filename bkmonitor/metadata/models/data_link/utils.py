@@ -51,6 +51,15 @@ def get_bkdata_table_id(table_id: str) -> str:
     return table_id[:40]
 
 
+def clean_redundant_underscores(table_id: str) -> str:
+    """
+    清理连续的下划线，确保只保留单个下划线
+    """
+    while '__' in table_id:
+        table_id = table_id.replace('__', '_')
+    return table_id
+
+
 def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     """
     获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
@@ -69,21 +78,14 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     if chinese_characters:
         table_id = ''.join(''.join(lazy_pinyin(char)) if '\u4e00' <= char <= '\u9fff' else char for char in table_id)
 
-    # 确保不会出现连续的下划线
-    while '__' in table_id:
-        table_id = table_id.replace('__', '_')
-
     # 处理负数开头和其他特殊情况
     if table_id.startswith('_'):
         table_id = f'bkm_neg_{table_id.lstrip("_")}'
-    elif table_id[0].isdigit():
-        table_id = f'bkm_{table_id}'
     else:
         table_id = f'bkm_{table_id}'
 
-    # 确保不会出现连续的下划线（再次清理）
-    while '__' in table_id:
-        table_id = table_id.replace('__', '_')
+    # 确保不会出现连续的下划线
+    table_id = clean_redundant_underscores(table_id)
 
     # 计算哈希值, 采用 hash 方式确保 table_id 唯一
     hash_suffix = hashlib.md5(table_id.encode()).hexdigest()[:5]

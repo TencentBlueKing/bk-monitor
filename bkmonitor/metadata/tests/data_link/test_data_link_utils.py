@@ -55,6 +55,7 @@ def test_compose_bkdata_table_id():
     expected = "bkm_1001_bkmonitor_time_series_123_e81c3"
     assert compose_bkdata_table_id(table_id) == expected
 
+    # Case6、 联邦场景,双下划线问题
     expected = "bkm_1001_bkmonitor_time_series_e81c3_fed"
     assert compose_bkdata_table_id(table_id, strategy='bcs_federal_subset_time_series') == expected
 
