@@ -146,16 +146,17 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   renderLoadMore(id: string) {
     return (
       <div class='show-more'>
-        {this.loadMoreLoading[id] ? (
-          <bk-spin size='mini' />
-        ) : (
-          <span
-            class='text'
-            onClick={() => this.handleShowMore(id)}
-          >
-            {this.$t('点击加载更多')}
-          </span>
-        )}
+        <bk-spin
+          style={{ display: this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
+          size='mini'
+        />
+        <span
+          style={{ display: !this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
+          class='text'
+          onClick={() => this.handleShowMore(id)}
+        >
+          {this.$t('点击加载更多')}
+        </span>
       </div>
     );
   }
