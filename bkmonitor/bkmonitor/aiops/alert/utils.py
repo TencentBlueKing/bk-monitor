@@ -558,7 +558,6 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
             base_graph_panel["targets"][0]["alias"] = ""
             base_graph_panel["targets"][0]["data"]["id"] = alert.id
-            base_graph_panel["targets"][0]["data"]["function"] = {}
 
             # 因为告警维度已经确认，所以这里查询需要清空原始维度聚合配置
             query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
