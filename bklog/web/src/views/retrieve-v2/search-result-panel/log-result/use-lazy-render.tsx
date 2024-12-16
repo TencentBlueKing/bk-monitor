@@ -31,7 +31,6 @@ import { throttle, debounce } from 'lodash';
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
 export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
-  const isRunning = ref(false);
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
@@ -63,12 +62,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   };
 
   const debounceCallback = () => {
-    if (!isRunning.value) {
-      isRunning.value = true;
-      loadMoreFn?.()?.finally?.(() => {
-        isRunning.value = false;
-      });
-    }
+    loadMoreFn?.();
   };
 
   let lastPosition = 0;

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
 
 export default defineComponent({
   props: {
@@ -40,7 +40,6 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
-    const handleRowResize = inject('handleRowResize') as (rowIndex: number, args: { target: HTMLElement }) => void;
     const isPending = ref(false);
 
     const observeSize = () => {
@@ -53,27 +52,8 @@ export default defineComponent({
       vscrollResizeObserver.unobserve(refRowNodeRoot.value);
     };
 
-    const updateRowSize = () => {
-      handleRowResize(props.rowIndex, { target: refRowNodeRoot.value });
-    };
-
-    watch(
-      () => props.rowIndex,
-      () => {
-        updateRowSize();
-      },
-    );
-
-    watch(
-      () => props.updateKey,
-      () => {
-        updateRowSize();
-      },
-    );
-
     onMounted(() => {
       observeSize();
-      updateRowSize();
     });
 
     onBeforeUnmount(() => {

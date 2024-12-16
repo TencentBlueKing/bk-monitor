@@ -79,6 +79,9 @@ export default defineComponent({
     const refRootElement: Ref<HTMLElement> = ref();
     const refBoxElement: Ref<HTMLElement> = ref();
     const rowUpdateCounter = ref(0);
+    // 本地分页
+    const pageIndex = ref(1);
+    const pageSize = 50;
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -128,9 +131,11 @@ export default defineComponent({
         accumulator += current;
         return { accumulator: accumulator - current, size: current };
       });
+
+      console.log('-------updateSizes 444444444');
     };
 
-    const debounceUpdateSizes = debounce(updateSizes, 100);
+    const debounceUpdateSizes = debounce(updateSizes, 90);
 
     const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
@@ -141,7 +146,7 @@ export default defineComponent({
       if (!row?.[ROW_KEY] || !target || !tableRowStore.has(row[ROW_KEY])) {
         return;
       }
-
+      console.log('-------updateRowHeight 33333333333333');
       const config: RowConfig = row[ROW_CONFIG];
       config.minHeight = target.offsetHeight;
       const rowElement = target.querySelector('.bklog-list-row') as HTMLElement;
@@ -454,7 +459,9 @@ export default defineComponent({
 
     const loadTableData = () => {
       clearRowConfigCache(tableData.value.length);
-      return (indexSetQueryResult.value.list || []).map((row, index) => {
+      const startIdx = 0;
+      const endIdx = pageIndex.value * pageSize;
+      return (indexSetQueryResult.value.list || []).slice(startIdx, endIdx).map((row, index) => {
         const rowKey = `${ROW_KEY}_${index}`;
 
         return Object.assign({}, row, {
@@ -489,8 +496,18 @@ export default defineComponent({
     };
 
     watch(
+      () => pageIndex.value,
+      () => {
+        tableData.value = loadTableData();
+        updateSizes();
+        debounceSetLoading();
+      },
+    );
+
+    watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
+        pageIndex.value = 1;
         columns.value = loadTableColumns();
         rowUpdateCounter.value++;
         resetTableMinheight(1);
@@ -503,14 +520,18 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       () => {
-        tableData.value = loadTableData();
-        updateSizes();
+        // 如果是初始请求，执行默认赋值操作
+        if (pageIndex.value === 1) {
+          tableData.value = loadTableData();
+          updateSizes();
+        }
       },
     );
 
     watch(
       () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
       () => {
+        pageIndex.value = 1;
         rowUpdateCounter.value++;
       },
     );
@@ -552,26 +573,37 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
+    let delay = 100;
+    let delayLoadingTimer;
     const debounceSetLoading = () => {
-      requestAnimationFrame(() => {
+      delayLoadingTimer && clearTimeout(delayLoadingTimer);
+      delayLoadingTimer = setTimeout(() => {
         isRequesting.value = false;
-      });
+      }, delay);
     };
 
     const loadMoreTableData = () => {
+      if (isRequesting.value) {
+        return;
+      }
       if (totalCount.value > tableData.value.length) {
         isRequesting.value = true;
+        delay = 300;
+        // 如果是前端已经请求缓存，这里直接启用缓存数据
+        if (pageIndex.value * pageSize < tableDataSize.value) {
+          pageIndex.value = pageIndex.value + 1;
+          return;
+        }
 
+        delay = 120;
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(({ length }) => {
             visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + (length ?? bufferCount);
-            debounceSetLoading();
-            return true;
+            pageIndex.value = pageIndex.value + 1;
           })
-          .finally(() => {
+          .catch(() => {
             debounceSetLoading();
-            return true;
           });
       }
 
@@ -648,7 +680,7 @@ export default defineComponent({
             clearTimeout(refreshTimout);
             refreshTimout = setTimeout(() => {
               handleScrollEvent(event, scrollTop, offsetTop);
-            }, 100);
+            }, 60);
           }
         });
       }
