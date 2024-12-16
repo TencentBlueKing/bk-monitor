@@ -234,9 +234,6 @@ class ListK8SResources(Resource):
                 )
             )
 
-        # 获取过滤后从数据库中查询到的 queryset
-        # resource_meta_queryset = resource_meta.get_from_meta()
-
         # 当 with_history = False 对返回结果进行分页查询
         if not with_history:
             # 获取总的
