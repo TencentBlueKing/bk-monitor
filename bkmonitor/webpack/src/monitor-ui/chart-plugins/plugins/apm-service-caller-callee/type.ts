@@ -97,6 +97,7 @@ export type IChartOption = {
   time?: string;
   dimensions?: IDataItem;
   interval?: number;
+  name?: string;
 };
 export type IDimensionChartOpt = {
   metric_cal_type: string;

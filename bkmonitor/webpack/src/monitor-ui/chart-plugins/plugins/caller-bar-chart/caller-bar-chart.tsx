@@ -30,9 +30,9 @@ import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce } from 'monitor-common/utils/utils';
 
-// import ListLegend from '../../components/chart-legend/common-legend';
-
 import { VariablesService } from '../../utils/variable';
+import { type IChartOption } from '../apm-service-caller-callee/type';
+import { createDrillDownList } from '../apm-service-caller-callee/utils';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -107,13 +107,33 @@ class CallerBarChart extends CommonSimpleChart {
       },
     },
   };
-  // legendData = [];
+  drillFilter = [];
+  enableContextmenu = true;
+  seriesList = [];
+  currentValue: IChartOption = {};
+  drillGroupBy = [];
+  contextmenuInfo = {
+    options: [],
+  };
   @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
   @InjectReactive('dimensionChartOpt') readonly dimensionChartOpt: IDataItem;
 
   @Watch('dimensionParam', { deep: true })
   onCallOptionsChange() {
     this.getPanelData();
+  }
+  @Watch('dimensionParam.dimensionList', { deep: true, immediate: true })
+  onDimensionListChange() {
+    const { dimensionList, call_filter } = this.dimensionParam;
+    const data = (dimensionList || []).map(item => {
+      const isHas = (call_filter || []).findIndex(ele => ele.key === item.value) !== -1;
+      return {
+        id: item.value,
+        name: item.text,
+        disabled: isHas,
+      };
+    });
+    this.contextmenuInfo.options = data;
   }
   /**
    * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
@@ -169,13 +189,31 @@ class CallerBarChart extends CommonSimpleChart {
           ...this.viewOptions.variables,
           ...this.dimensionParam,
         });
+        const drillFilterWhere = [];
+        if (this.drillFilter.length > 0) {
+          this.drillFilter.map(item => {
+            Object.keys(item.dimensions || {}).map(key => {
+              const ind = drillFilterWhere.findIndex(item => item.key === key);
+              if (ind !== -1) {
+                drillFilterWhere.splice(ind, 1);
+              }
+              drillFilterWhere.push({
+                condition: 'and',
+                key,
+                method: 'eq',
+                value: [item.dimensions[key]],
+              });
+            });
+          });
+        }
         (this as any).$api[item.apiModule]
           ?.[item.apiFunc](
             {
               ...params,
               metric_cal_type,
               time_shift,
-              where: this.dimensionParam.whereParams,
+              group_by: [...this.dimensionParam.group_by, ...this.drillGroupBy.slice(-1)],
+              where: [...this.dimensionParam.whereParams, ...drillFilterWhere],
               ...this.dimensionParam.timeParams,
             },
             {
@@ -194,7 +232,9 @@ class CallerBarChart extends CommonSimpleChart {
           });
       });
       const res = await Promise.all(promiseList);
+
       if (res) {
+        console.log(res, 'res---');
         this.inited = true;
         this.empty = false;
       } else {
@@ -218,11 +258,12 @@ class CallerBarChart extends CommonSimpleChart {
     const metricCalTypeName = this.dimensionChartOpt?.metric_cal_type_name;
     // biome-ignore lint/complexity/noForEach: <explanation>
     srcData.forEach(item => {
-      const { proportion, name, value } = item;
-      dataList.push({ proportion, name, value: value, metricCalTypeName });
+      const { proportion, name, value, dimensions } = item;
+      dataList.push({ proportion, name, value: value, metricCalTypeName, dimensions });
       xAxisLabel.push(item.name);
     });
     // this.legendData = legendList;
+    this.seriesList = dataList;
     const seriesData = [
       {
         barMaxWidth: 20,
@@ -253,21 +294,78 @@ class CallerBarChart extends CommonSimpleChart {
   handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
     this.handleSelectPieLegend({ option: this.options, actionType, item });
   }
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    event.preventDefault();
+    if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      const instance = (this.$refs.baseChart as any).instance;
+      createDrillDownList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          this.handleClickMenuItem(id);
+        },
+        instance
+      );
+    }
+  }
+  handleClickMenuItem(id: string) {
+    const { dimensionList } = this.dimensionParam;
+    const ind = this.drillGroupBy.indexOf(id);
+    if (ind !== -1) {
+      this.drillGroupBy.splice(ind, 1);
+    }
+    this.drillGroupBy.push(id);
+    const groupBy = [...this.dimensionParam.group_by, ...this.drillGroupBy];
+    const info = dimensionList.find(item => item.value === groupBy[groupBy.length - 2]);
+    this.drillFilter.push({
+      id,
+      value: this.currentValue.name,
+      label: info.text,
+      dimensions: this.currentValue.dimensions,
+    });
+    this.getPanelData();
+  }
+
+  handleCloseTag(tag: { id: string; value: string; label: string }) {
+    const data = this.drillFilter.filter(item => item.id !== tag.id);
+    this.drillFilter = data;
+    this.drillGroupBy.splice(this.drillGroupBy.indexOf(tag.id), 1);
+    this.getPanelData();
+  }
+  menuClick(params: { dataIndex: number }) {
+    this.currentValue = this.seriesList[params.dataIndex];
+  }
   render() {
     return (
       <div class='caller-bar-chart'>
-        {!this.empty ? (
+        <div class='chart-drill-main'>
+          {this.drillFilter.map(item => (
+            <bk-tag
+              key={item.id}
+              closable
+              onClose={() => this.handleCloseTag(item)}
+            >
+              {item.label} <span class='tag-symbol'>=</span> {item.value}
+            </bk-tag>
+          ))}
+        </div>
+        {this.seriesList.length > 0 ? (
           <div class={'time-series-content'}>
             <div
               ref='chart'
               class='chart-instance'
+              onContextmenu={this.handleChartContextmenu}
             >
               {this.inited && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
+                  needMenuClick={true}
                   options={this.options}
+                  onMenuClick={this.menuClick}
                 />
               )}
             </div>

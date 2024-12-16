@@ -1119,7 +1119,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             </bk-select>
           </div>
           <div class='multi-dialog-content'>
-            <span class='multi-tips'>{this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}</span>
+            <span class='multi-tips'>
+              {this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}
+              <span class='multi-tips-more'>
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+              </span>
+            </span>
             {this.isShowDimension && (
               <DashboardPanel
                 id={'apm-table-dimension_panels'}
