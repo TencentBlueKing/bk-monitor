@@ -321,4 +321,5 @@ export default {
   移除下钻: 'Remove drill down',
   添加为筛选项: 'Add as filter',
   移除该筛选项: 'Remove this filter',
+  点击加载更多: 'Click to load more',
 };

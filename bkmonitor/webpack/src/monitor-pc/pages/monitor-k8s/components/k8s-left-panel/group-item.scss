@@ -48,6 +48,13 @@
         color: #313238;
       }
 
+      .clear-filter {
+        display: flex;
+        align-items: center;
+        width: 16px;
+        height: 16px;
+      }
+
       .clear-filter-icon {
         width: 13.09px;
         height: 12.36px;
@@ -58,6 +65,7 @@
 
     .group-select {
       font-size: 12px;
+      line-height: 32px;
       color: #3a84ff;
     }
   }
@@ -112,6 +120,14 @@
 
     .empty-status-container {
       padding: 0;
+
+      .empty-text-content {
+        margin-top: 0;
+      }
+
+      .empty-text {
+        margin: 0;
+      }
     }
 
     .show-more {

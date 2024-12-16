@@ -106,19 +106,23 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
   /** 当前展示的维度数据 */
   get showDimensionData() {
     return this.originDimensionData.map(dimension => {
+      let showMore = false;
       let children = [];
       if (dimension.id === EDimensionKey.workload) {
         children = dimension.children.map(item => {
           return {
             ...item,
-            children: item.children.slice(0, this.pageSize * this.pageMap[item.id] || 1),
+            showMore: item.count > this.pageSize * (this.pageMap[item.id] || 1),
+            children: this.removeDuplicate(item.children.slice(0, this.pageSize * this.pageMap[item.id] || 1)),
           };
         });
       } else {
-        children = dimension.children.slice(0, this.pageSize * this.pageMap[dimension.id] || 1);
+        showMore = dimension.count > this.pageSize * (this.pageMap[dimension.id] || 1);
+        children = this.removeDuplicate(dimension.children.slice(0, this.pageSize * this.pageMap[dimension.id] || 1));
       }
       return {
         ...dimension,
+        showMore,
         children,
       };
     });
@@ -151,6 +155,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
     }).catch(() => ({ count: 0, items: [] }));
     const dimensionList = this.originDimensionData.find(item => item.id === resource_type);
     dimensionList.count = data.count;
+
     if (this.pageType === 'scrolling') {
       dimensionList.children = data.items.map(item => this.formatData(resource_type, item));
     } else {
@@ -200,6 +205,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
 
     const promiseList = this.originDimensionData.map(async item => {
       if (item.id === EDimensionKey.workload) {
+        item.count = 0;
         item.children = workloadCategory.map(category => {
           item.count += category[1];
           pageMap[category[0]] = 1;
@@ -258,6 +264,17 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
         ...params,
       });
     }
+  }
+
+  /** 数组去重 */
+  removeDuplicate(list: { id: string; name: string }[]) {
+    const map = new Map();
+
+    return list.filter(item => {
+      if (map.has(item.id)) return false;
+      map.set(item.id, item);
+      return true;
+    });
   }
 
   /**
