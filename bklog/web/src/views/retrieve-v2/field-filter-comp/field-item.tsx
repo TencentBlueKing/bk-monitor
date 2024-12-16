@@ -44,6 +44,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
+  @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
 
   isExpand = false;
   analysisActive = false;
@@ -226,8 +227,7 @@ export default class FieldItem extends tsc<object> {
         >
           <div>
             {/* 三角符号 */}
-            <div class={{ 'filed-item-triangle': true }}>
-              {/* <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span> */}
+            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }> 
             </div>
 
             {/* 字段类型对应的图标 */}
@@ -247,10 +247,9 @@ export default class FieldItem extends tsc<object> {
             </div>
 
             {/* 字段名 */}
-            <span class='field-name'>
-              <span>
-                {/* {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name} */}
-                {this.fieldAliasMap[this.fieldItem.field_name]}
+            <span >
+               <span class='field-name'>
+                {this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias || this.fieldItem.field_alias  || this.fieldItem.alias_name || this.fieldItem.field_name}
               </span>
               <span
                 class='field-count'
@@ -298,18 +297,23 @@ export default class FieldItem extends tsc<object> {
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
-            <div
-              class='operation-icon-box'
-              v-bk-tooltips={{
-                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                this.handleShowOrHiddenItem();
-              }}
-            >
-              <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
-            </div>
+            {
+              !this.fieldItem.children?.length && (
+                <div
+                class='operation-icon-box'
+                v-bk-tooltips={{
+                  content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleShowOrHiddenItem();
+                }}
+              >
+                <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+              </div>
+              )
+            }
+          
             {/* 拖动字段位置按钮 */}
             <div>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>

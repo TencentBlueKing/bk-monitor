@@ -1047,13 +1047,9 @@
       }
       .expand-table {
         border: none;
-
-        // 使用深度选择器来选择嵌套的 tbody tr td:first-child
         :deep(tbody tr td:first-child) {
           border-right: 1px solid #dfe0e5;
         }
-
-        // 使用深度选择器来选择嵌套的 .ext-field_name
         :deep(.ext-field_name) {
           margin-left: 20px;
         }
