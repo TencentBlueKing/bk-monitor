@@ -380,13 +380,13 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleSearchChange(value: string) {
     this.searchValue = value;
     this.valueLoading = true;
-    await this.filterByOptions.search(
-      value,
-      this.groupSelected as EDimensionKey,
-      this.groupSelected === EDimensionKey.workload ? this.valueCategorySelected : ''
-    );
+    const params = {
+      0: this.groupSelected as EDimensionKey,
+      1: this.groupSelected === EDimensionKey.workload ? this.valueCategorySelected : '',
+    };
+    await this.filterByOptions.search(value, params[0], params[1]);
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-    await this.initNextPage();
+    await this.initNextPage(params[0], params[1]);
     this.handleSelectGroup(this.groupSelected, true);
     this.valueLoading = false;
   }
@@ -641,7 +641,7 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   // 去重后发现数据过少，需立即加载下一页
-  async initNextPage(type?: EDimensionKey) {
+  async initNextPage(type?: EDimensionKey, categoryDim?: string) {
     const promiseList = [];
     const nextPage = async (dimension: EDimensionKey, categoryDim?: string) => {
       const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
@@ -653,6 +653,7 @@ export default class FilterByCondition extends tsc<IProps> {
       if (type && item.id !== type) continue;
       if (item.id === EDimensionKey.workload) {
         for (const child of item.children) {
+          if (child && child.id !== categoryDim) continue;
           if (child.children.length < 10 && child.count >= 10) {
             promiseList.push(nextPage(item.id, child.id));
           }
