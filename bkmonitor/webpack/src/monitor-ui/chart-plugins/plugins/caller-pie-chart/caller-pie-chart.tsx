@@ -47,8 +47,8 @@ interface IPieEchartProps {
 }
 @Component
 class CallerPieChart extends CommonSimpleChart {
-  height = 300;
-  width = 640;
+  height = 600;
+  width = 960;
   needResetChart = true;
   inited = false;
   metrics: IExtendMetricData[];
@@ -188,15 +188,6 @@ class CallerPieChart extends CommonSimpleChart {
         },
         series: [
           {
-            label: {
-              show: false,
-              position: 'center',
-            },
-            labelLine: {
-              normal: {
-                show: false,
-              },
-            },
             radius: '50%',
             data: dataList,
             emphasis: {
@@ -237,7 +228,7 @@ class CallerPieChart extends CommonSimpleChart {
               />
             </div>
             {
-              <div class='chart-legend right-legend'>
+              <div class='chart-legend right-legend caller-legend'>
                 <PieLegend
                   legendData={this.legendData as any}
                   onSelectLegend={this.handleSelectLegend}

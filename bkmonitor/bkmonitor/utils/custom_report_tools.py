@@ -12,10 +12,10 @@ import json
 import logging
 import os
 import posixpath
-from django.utils.translation import ugettext as _
 
 import requests
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.thread_backend import ThreadPool
 
@@ -112,8 +112,8 @@ class custom_report_tool:
         :param access_token: token
         :param parallel: 是否并发请求
         """
-        assert settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, (
-            _("全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]" "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！")
+        assert settings.CUSTOM_REPORT_DEFAULT_PROXY_IP, _(
+            "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]" "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
         )
         send_list = [[]]
         chunk_index = 0

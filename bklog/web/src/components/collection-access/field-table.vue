@@ -142,7 +142,6 @@
             </bk-table-column>
             <!-- 重命名 -->
             <bk-table-column
-              v-if="isPreviewMode || extractMethod === 'bk_log_json'"
               :render-header="renderHeaderAliasName"
               :resizable="false"
               min-width="100"
@@ -1092,7 +1091,7 @@
       right: 0;
     }
 
-    .field-table.add-field-table {
+    :deep(.field-table.add-field-table) {
       .bk-table-body {
         .cell {
           display: contents;

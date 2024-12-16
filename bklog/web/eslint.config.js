@@ -34,8 +34,14 @@ module.exports = [
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-var-requires': 'off',
+      '@typescript-eslint/dot-notation': [
+        'error',
+        {
+          allowKeywords: true,
+        },
+      ],
       'perfectionist/sort-classes': 'off',
-      'declaration-no-important': 'off'
+      'declaration-no-important': 'off',
     },
   },
   {

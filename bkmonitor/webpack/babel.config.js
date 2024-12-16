@@ -45,7 +45,11 @@ module.exports = api => {
       ? [
           '@vue/babel-preset-jsx',
           {
-            compositionAPI: 'auto',
+            compositionAPI: 'native',
+            functional: true,
+            injectH: true,
+            vModel: true,
+            vOn: true,
           },
         ]
       : undefined,

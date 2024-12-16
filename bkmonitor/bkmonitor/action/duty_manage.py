@@ -688,9 +688,11 @@ class GroupDutyRuleManager:
             DutyRuleSnap.objects.filter(duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id).delete()
 
             # 已经设置的好的排班计划，也需要设置为不生效
-            DutyPlan.objects.filter(
+            enabled_duty_plan = DutyPlan.objects.filter(
                 duty_rule_id__in=disabled_duty_rules, user_group_id=self.user_group.id, is_effective=1
-            ).update(is_effective=0)
+            )
+            if enabled_duty_plan.exists():
+                enabled_duty_plan.update(is_effective=0)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
         """

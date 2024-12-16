@@ -38,7 +38,6 @@ import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
 import TimeSeriesForecasting from '../../../../static/images/svg/time-series-forecasting.svg';
 import YearRound from '../../../../static/images/svg/year-round.svg';
-import IntelligentModelsStore, { type IntelligentModelsType } from '../../../../store/modules/intelligent-models';
 import { createOnlyId } from '../../../../utils';
 import {
   DetectionRuleTypeEnum,
@@ -51,6 +50,7 @@ import {
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
 import RulesSelect from './rules-select';
 
+import type { IntelligentModelsType } from '../../../../store/modules/intelligent-models';
 import type { ChartType } from './components/intelligent-detect/intelligent-detect';
 import type { IModelData } from './components/time-series-forecast/time-series-forecast';
 
@@ -67,6 +67,7 @@ interface IDetectionRules {
   isEdit?: boolean;
   dataMode?: dataModeType;
   needShowUnit: boolean;
+  intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>>;
 }
 interface IEvent {
   onUnitChange?: string;
@@ -89,6 +90,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   @Prop({ default: () => {}, type: Array }) metricData: MetricDetail[];
   @Prop({ default: '', type: String }) dataMode: dataModeType;
   @Prop({ default: false, type: Boolean }) needShowUnit: boolean;
+  @Prop({ default: () => new Map(), type: Map }) intelligentDetect: Map<
+    IntelligentModelsType,
+    Array<Record<string, any>>
+  >;
 
   /** 记录编辑进入第一次localValue值更新 */
   isFirstChange = true;
@@ -246,6 +251,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 根据条件设置算法是否禁用 */
   get detectionTypeListFilter() {
+    for (const obj of this.detectionTypeList) {
+      obj.disabled = false;
+      obj.disabledTip = '';
+    }
     const uptimeItem = this.uptimeCheckMap?.[this.uptimeCheckType];
     // 是否已选择离群算法
     const hasAbnormalCluster = this.addType.some(item => item.id === DetectionRuleTypeEnum.AbnormalCluster);
@@ -295,8 +304,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         }
         if (!item.disabled) {
           item.disabled = !(
-            window.enable_aiops &&
-            IntelligentModelsStore.intelligentModelsMap.get(item.id.toString() as IntelligentModelsType)?.length > 0
+            window.enable_aiops && this.intelligentDetect.get(item.id.toString() as IntelligentModelsType)?.length > 0
           );
           item.disabledTip = '';
         }

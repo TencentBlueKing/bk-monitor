@@ -31,6 +31,7 @@ import { Debounce, deepClone, typeTools } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   filterSelectorPanelSearchList,
   transformConditionSearchList,
@@ -39,6 +40,7 @@ import {
   updateBkSearchSelectName,
 } from '../../../monitor-k8s/utils';
 
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IStatusData } from '../../../collector-config/collector-view-detail/status-tab-list';
 import type { IQueryData, IQueryDataSearch } from '../../../monitor-k8s/typings';
 import type { StatusClassNameType } from '../host-tree/host-tree';
@@ -87,7 +89,7 @@ export interface IEvents {
   };
   onCompareChange: string[];
   onTitleChange: any;
-  onOverviewChange: void;
+  onOverviewChange: () => void;
   onCheckedChange: (a: boolean) => void;
   onSearchChange: any[];
 }
@@ -104,6 +106,8 @@ export default class HostList extends tsc<IProps, IEvents> {
   @Ref() hostListRef: any;
 
   @InjectReactive('queryData') readonly queryData!: IQueryData;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+
   /** 侧栏搜索条件更新url方法 */
   @Inject('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
 
@@ -166,12 +170,16 @@ export default class HostList extends tsc<IProps, IEvents> {
   }
   /** 状态筛选数据 */
   get statusList() {
-    return DEFAULT_TAB_LIST.map(item => ({
-      id: item.type,
-      name: item.name || (this.hostStatusData[item.type]?.count ?? 0),
-      tips: item.tips,
-      status: item.status,
-    }));
+    const statusList = this.panel.options?.target_list?.status_tab_list || [];
+    return (statusList?.length ? statusList : DEFAULT_TAB_LIST).map(item => {
+      const id = item?.id || item.type;
+      return {
+        id,
+        name: item.name || (this.hostStatusData[id]?.count ?? 0),
+        tips: item.tips,
+        status: item.status,
+      };
+    });
   }
 
   /** 接口数据 */
@@ -217,7 +225,12 @@ export default class HostList extends tsc<IProps, IEvents> {
     );
   }
 
+  get timeRangeChangeRefresh() {
+    return !!this.panel.options?.target_list?.time_range_change_refresh;
+  }
+
   async created() {
+    this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     await this.handleGetDataList();
     this.initDisplayBack();
   }
@@ -238,21 +251,35 @@ export default class HostList extends tsc<IProps, IEvents> {
     this.localCompareTargets = deepClone(this.viewOptions?.compares?.targets || []);
   }
 
+  @Watch('timeRange')
+  handleWatchTimeRange() {
+    if (this.timeRangeChangeRefresh) {
+      this.handleGetDataList();
+    }
+  }
+
   /** 处理选中回显 */
   initDisplayBack() {
-    this.selectId = this.panel.targets?.[0]?.handleCreateItemId?.(this.viewOptions.filters, true) || 'overview';
     const item = this.hostListData.find(item => this.panel.targets?.[0]?.handleCreateItemId?.(item) === this.selectId);
-    this.$emit('titleChange', !!item ? item.name : this.$tc('概览'));
+    this.$emit('titleChange', item ? item.name : this.$tc('概览'));
   }
 
   /** 请求接口 */
   async handleGetDataList() {
-    const variablesService = new VariablesService(this.viewOptions);
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const variablesService = new VariablesService({
+      ...this.viewOptions,
+      ...this.viewOptions.filters,
+      start_time: startTime,
+      end_time: endTime,
+    });
     const promiseList = this.targets.map(item =>
       this.$api[item.apiModule]
         [item.apiFunc]({
           ...variablesService.transformVariables(item.data),
           condition_list: transformConditionValueParams(this.searchCondition),
+          start_time: startTime,
+          end_time: endTime,
         })
         .then(data => {
           const list = typeTools.isObject(data) ? data.data : data;
@@ -271,8 +298,25 @@ export default class HostList extends tsc<IProps, IEvents> {
       return [];
     });
     this.loading = false;
-    this.hostListData = res.reduce((total, cur) => total.concat(cur), []);
-    this.handleListChange(this.hostListData);
+    const hostListData = res.reduce((total, cur) => total.concat(cur), []);
+    // 如果没有配置overview 而且没有初始回填的数据 则默认选中第一条
+    this.hostListData = this.handleListChange(hostListData);
+    if (!this.enableOverview && this.selectId === 'overview') {
+      const firstItem = this.hostListData[0];
+      firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
+    } else if (this.selectId !== 'overview') {
+      /* 如果已选中了某条数据则判断列表是否存在这个条数据 */
+      const listHasSelectId = this.hostListData.some(item => item.id === this.selectId);
+      if (!listHasSelectId) {
+        if (this.enableOverview) {
+          this.selectId = 'overview';
+          this.handleClickOverview();
+        } else {
+          const firstItem = this.hostListData[0];
+          firstItem?.id && this.handleClickItem(firstItem.id, firstItem);
+        }
+      }
+    }
     this.hoastListDataCache = deepClone(this.hostListData);
     this.updataHostStatus();
     this.updateHostList();
@@ -301,12 +345,12 @@ export default class HostList extends tsc<IProps, IEvents> {
     });
   }
   /** 生成唯一的id */
-  getItemId(item: Object) {
+  getItemId(item: object) {
     const itemIds = [];
-    this.fieldsSort.forEach(set => {
+    for (const set of this.fieldsSort) {
       const [key] = set;
       itemIds.push(item[key]);
-    });
+    }
     return itemIds.join('-');
   }
 
@@ -433,7 +477,7 @@ export default class HostList extends tsc<IProps, IEvents> {
             v-bk-overflow-tips={{ content: item.ip || item.name }}
             onClick={() => this.handleClickItem(itemId, item)}
           >
-            {!!this.hostStatusMap[item.status] ? (
+            {this.hostStatusMap[item.status] ? (
               <span
                 class={[
                   'host-status',
@@ -443,7 +487,7 @@ export default class HostList extends tsc<IProps, IEvents> {
               />
             ) : undefined}
             <span class={['host-item-ip']}>{item.ip || item.name}</span>
-            {!!item.bk_host_name ? <span class='host-item-host-name'>({item.bk_host_name})</span> : undefined}
+            {item.bk_host_name ? <span class='host-item-host-name'>({item.bk_host_name})</span> : undefined}
             {this.isTargetCompare ? (
               <span class='compare-btn-wrap'>
                 {this.compareTargets.includes(itemId) ? (
@@ -524,6 +568,7 @@ export default class HostList extends tsc<IProps, IEvents> {
               //   : undefined,
               this.hostListData.length ? (
                 <bk-virtual-scroll
+                  key={'bk-virtual-scroll'}
                   ref='hostListRef'
                   style={{ height: `${this.listHeight}px` }}
                   item-height={32}

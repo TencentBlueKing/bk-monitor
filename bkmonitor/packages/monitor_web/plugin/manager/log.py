@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import re
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api

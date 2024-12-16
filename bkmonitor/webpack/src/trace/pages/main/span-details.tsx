@@ -79,12 +79,13 @@ export default defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
+    isShowPrevNextButtons: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
   },
-  emits: ['show'],
+  emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
     const { t } = useI18n();
@@ -114,6 +115,8 @@ export default defineComponent({
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
     const bizId = computed(() => useAppStore().bizId || 0);
+
+    const spans = computed(() => store.spanGroupTree);
 
     const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
@@ -175,7 +178,7 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        if (val && !props.withSideSlider) {
+        if (val && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
           getDetails();
         }
       },
@@ -299,7 +302,7 @@ export default defineComponent({
             title: SPAN_KIND_MAPS[kind],
           },
           {
-            label: t('版本'),
+            label: t('SDK 版本'),
             content: resource['telemetry.sdk.version'] || '--',
             title: resource['telemetry.sdk.version'] || '',
           },
@@ -324,7 +327,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Tags',
+          title: 'Attributes',
           [EListItemType.tags]: {
             list:
               attributes.map(
@@ -476,7 +479,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Process',
+          title: 'Resource',
           [EListItemType.tags]: {
             list:
               process?.tags.map(
@@ -534,6 +537,12 @@ export default defineComponent({
     const handleHiddenChange = () => {
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /* 上一跳/下一跳 */
+    const handlePrevNextClick = val => {
+      handleActiveTabChange();
+      emit('prevNextClicked', val);
     };
 
     /* 展开收起 */
@@ -615,13 +624,22 @@ export default defineComponent({
     function handleTitleCopy(content: string) {
       let text = '';
       const { spanID } = props.spanDetails;
-      if (content === 'text') {
-        text = spanID;
-      } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
-          appName.value
-        }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
-        text = location.href.replace(location.hash, hash);
+      switch (content) {
+        case 'text': {
+          text = spanID;
+          break;
+        }
+        case 'original': {
+          text = JSON.stringify(originalData.value);
+          break;
+        }
+        default: {
+          const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
+            appName.value
+          }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
+          text = location.href.replace(location.hash, hash);
+          break;
+        }
       }
       copyText(text, (msg: string) => {
         Message({
@@ -718,6 +736,9 @@ export default defineComponent({
 
     /* kv 结构数据展示 */
     const tagsTemplate = (data: ITagsItem['list']) => {
+      data.sort(({ label: labelA }, { label: labelB }) => {
+        return labelA.toUpperCase() >= labelB.toUpperCase() ? 1 : -1;
+      });
       return (
         <div class='tags-template'>
           {data.map((item, index) => (
@@ -895,6 +916,14 @@ export default defineComponent({
           : true)
       );
     });
+    // 第一个span禁用上一跳
+    const isDisabledPre = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === 0
+    );
+    // 最后一个span禁用下一跳
+    const isDisabledNext = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
+    );
     const isTabPanelLoading = ref(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
@@ -971,6 +1000,22 @@ export default defineComponent({
         </Popover>
       </div>
     );
+
+    // 复制json字符串数据的icon
+    const copyOriginalElem = () => (
+      <div class='json-head'>
+        <Popover
+          content={t('复制')}
+          placement='right'
+          theme='light'
+        >
+          <span
+            class='icon-monitor icon-mc-copy'
+            onClick={() => handleTitleCopy('original')}
+          />
+        </Popover>
+      </div>
+    );
     if (window.enable_apm_profiling) {
       tabList.push({
         label: t('性能分析'),
@@ -979,6 +1024,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
+      if (!originalData.value) return;
       const halfHour = 18 * 10 ** 8;
       const profilingRerieveStartTime = originalData.value.start_time - halfHour;
       const profilingRerieveEndTime = originalData.value.start_time + halfHour;
@@ -989,6 +1035,7 @@ export default defineComponent({
         >
           {props.withSideSlider && showOriginalData.value ? (
             <div class='json-text-style'>
+              {copyOriginalElem()}
               <VueJsonPretty data={originalData.value} />
             </div>
           ) : (
@@ -1017,6 +1064,7 @@ export default defineComponent({
                 <div class='accurate-original-panel'>
                   {titleInfoElem()}
                   <div class='json-text-style'>
+                    {copyOriginalElem()}
                     <VueJsonPretty data={originalData.value} />
                   </div>
                 </div>
@@ -1284,7 +1332,39 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
-              <span>{info.title}</span>
+              <div>
+                <span>{info.title}</span>
+                {props.isShowPrevNextButtons ? (
+                  <>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledPre.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledPre.value ? t('已经是第一个span') : t('上一跳'),
+                      }}
+                      onClick={() => {
+                        if (!isDisabledPre.value) {
+                          handlePrevNextClick('previous');
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-up' />
+                    </div>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledNext.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledNext.value ? t('已经是最后一个span') : t('下一跳'),
+                      }}
+                      onClick={() => {
+                        if (!isDisabledNext.value) {
+                          handlePrevNextClick('next');
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-down' />
+                    </div>
+                  </>
+                ) : null}
+              </div>
               <div class='header-tool'>
                 <Switcher
                   class='switcher'

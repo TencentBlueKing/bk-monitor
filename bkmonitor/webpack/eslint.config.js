@@ -247,6 +247,7 @@ module.exports = [
           },
           newlinesBetween: 'always',
           internalPattern: ['@/*', '@router/*', '@store/*', '@page/*', '@static/*'],
+          sortSideEffects: true,
         },
       ],
       // 'perfectionist/sort-intersection-types': [

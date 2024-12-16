@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 from typing import List
 
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models import NO_DATA_TAG_DIMENSION

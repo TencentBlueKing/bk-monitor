@@ -14,11 +14,12 @@ import re
 from collections import defaultdict
 from os import path
 
+import arrow
 from django.conf import settings
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.utils import translation
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2 import Environment, Undefined
 from jinja2.compiler import CodeGenerator
 from markupsafe import Markup
@@ -183,7 +184,7 @@ class Jinja2Renderer(object):
         return (
             jinja2_environment(autoescape=autoescape, escape_func=escape_func)
             .from_string(content)
-            .render({"json": json, "re": re, **context})
+            .render({"json": json, "re": re, "arrow": arrow, **context})
         )
 
 

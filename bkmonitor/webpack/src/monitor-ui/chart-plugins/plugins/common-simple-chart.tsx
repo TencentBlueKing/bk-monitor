@@ -90,7 +90,7 @@ export class CommonSimpleChart
   handleTimeRangeChange() {
     this.getPanelData();
   }
-  @Watch('refleshInterval')
+  @Watch('refleshInterval', { immediate: true })
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {

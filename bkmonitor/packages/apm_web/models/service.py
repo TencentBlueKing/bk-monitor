@@ -46,7 +46,7 @@ class AppServiceRelation(ServiceBase):
 
 
 class UriServiceRelation(ServiceBase):
-    uri = models.CharField("Uri", max_length=528)
+    uri = models.CharField("Uri", max_length=512)
     rank = models.IntegerField("排序")
 
 

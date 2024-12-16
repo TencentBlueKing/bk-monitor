@@ -2,17 +2,9 @@
 import collections
 import json
 import logging
-from django.utils.translation import ugettext as _
 
 from django.db.models import Q
-from fta_web.constants import QuickSolutionsConfig
-from fta_web.fta_migrate.constants import FTA_MONITOR_MAPPING, NoticeGroupMapping
-from fta_web.fta_migrate.solution import MigrateDiySolution
-from fta_web.fta_migrate.utils import (
-    list_module_instance,
-    list_service_template_by_module_ids,
-)
-from fta_web.models.old_fta import AlarmDef, AlarmType, Solution
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import (
     ActionConfig,
@@ -26,6 +18,14 @@ from bkmonitor.models import (
     UserGroup,
 )
 from core.drf_resource import api
+from fta_web.constants import QuickSolutionsConfig
+from fta_web.fta_migrate.constants import FTA_MONITOR_MAPPING, NoticeGroupMapping
+from fta_web.fta_migrate.solution import MigrateDiySolution
+from fta_web.fta_migrate.utils import (
+    list_module_instance,
+    list_service_template_by_module_ids,
+)
+from fta_web.models.old_fta import AlarmDef, AlarmType, Solution
 
 logger = logging.getLogger("root")
 
@@ -432,7 +432,6 @@ class MigrateFTAStrategy:
             return
 
         try:
-
             for item in ItemModel.objects.filter(strategy_id=strategy_id):
                 old_item_id = item.id
                 item.target = [target]
@@ -481,7 +480,6 @@ class MigrateFTAStrategy:
         self.create_action_strategy_relation(alarm_def, strategy.id, new_group_id, relation)
 
     def convert_solution_config(self):
-
         actions = self.migrate_normal_solutions()
         diy_actions = MigrateDiySolution(self.bk_biz_id, self.builtin_action_templates).migrate_solutions()
         if diy_actions:

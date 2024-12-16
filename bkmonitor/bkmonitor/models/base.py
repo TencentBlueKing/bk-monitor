@@ -19,8 +19,8 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 from six import string_types
 
 from bkmonitor.middlewares.source import get_source_app_code
@@ -814,6 +814,7 @@ class Shield(AbstractRecordModel):
 
     is_quick = models.BooleanField(verbose_name="是否是快捷屏蔽", default=False)
     source = models.CharField(verbose_name="来源系统", default=get_source_app_code, max_length=32)
+    label = models.CharField(verbose_name="标签", max_length=255, default="", blank=True, db_index=True)
 
     class Meta:
         verbose_name = "屏蔽配置"

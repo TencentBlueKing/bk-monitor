@@ -13,6 +13,7 @@ from typing_extensions import Protocol
 
 from apm_web.profile.diagrams.callgraph import CallGraphDiagrammer
 from apm_web.profile.diagrams.flamegraph import FlamegraphDiagrammer
+from apm_web.profile.diagrams.grafana_flame import GrafanaFlameDiagrammer
 from apm_web.profile.diagrams.table import TableDiagrammer
 from apm_web.profile.diagrams.tendency import TendencyDiagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
@@ -55,3 +56,4 @@ register_diagrammer_cls("flamegraph", FlamegraphDiagrammer)
 register_diagrammer_cls("callgraph", CallGraphDiagrammer)
 register_diagrammer_cls("table", TableDiagrammer)
 register_diagrammer_cls("tendency", TendencyDiagrammer)
+register_diagrammer_cls("grafana_flame", GrafanaFlameDiagrammer)

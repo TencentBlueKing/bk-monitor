@@ -21,6 +21,7 @@ from apm_web.metric.resources import (
     ErrorListResource,
     ExceptionDetailListResource,
     GetFieldOptionValuesResource,
+    HostDetailResource,
     HostInstanceDetailListResource,
     InstanceListResource,
     MetricDetailStatisticsResource,
@@ -53,6 +54,9 @@ class MetricViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        if self.action in ["host_instance_detail"]:
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
@@ -103,6 +107,14 @@ class MetricViewSet(ResourceViewSet):
                 user_visit_record,
             ],
         ),
+        ResourceRoute(
+            "POST",
+            HostDetailResource,
+            endpoint="host_instance_detail",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
         # 调用分析功能埋点
         ResourceRoute(
             "POST",
@@ -134,6 +146,4 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
         ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
-        ResourceRoute("POST", CalculateByRangeResource, "calculate_by_range"),
-        ResourceRoute("POST", QueryDimensionsByLimitResource, "query_dimensions_by_limit"),
     ]

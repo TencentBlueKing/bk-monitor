@@ -13,8 +13,7 @@ jobs:
   check_project_label:
     name: 检查项目标签
     # runs-on: ubuntu-latest
-    runs-on:
-      group: cvm-liunx-x64
+    runs-on: self-hosted
     steps:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
@@ -30,8 +29,7 @@ jobs:
   check_type_label:
     name: 检查类型标签
     # runs-on: ubuntu-latest
-    runs-on:
-      group: cvm-liunx-x64
+    runs-on: self-hosted
     steps:
       - name: Check type label
         uses: docker://agilepathway/pull-request-label-checker:latest

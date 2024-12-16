@@ -326,7 +326,7 @@ class KafkaNoData(ResolvedProblem):
 
 
 class KafkaDataDelay(ResolvedProblem):
-    solution = "请确认gse_data服务状态，或确认被管控机器是否启动了basereport进程"
+    solution = "请确认gse_data服务状态，或确认被管控机器是否启动了bkmonitorbeat进程"
 
 
 class Kafka1000Delay(ResolvedProblem):

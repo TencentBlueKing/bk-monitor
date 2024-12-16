@@ -446,7 +446,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 if validate_data.get("is_compared"):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
-        
         tree_converter = self.converter_query(essentials, validate_data, extra_params)
 
         if validate_data["global_query"] and not tree_converter:
@@ -497,7 +496,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             return Response(data=data)
           
         return Response(data=self.converter_to_data(validate_data, tree_converter))
-
 
     @classmethod
     @using_cache(CacheType.APM(60 * 60))

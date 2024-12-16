@@ -15,7 +15,10 @@
   const refTrigger = ref();
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
-  const indexSetItem = computed(() => store.state.indexItem.items[0]);
+  const indexSetId = computed(() => store.state.indexId);
+  const indexSetItem = computed(() =>
+    store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
+  );
   const isPopoverShow = ref(false);
 
   const isUnionSearch = computed(() => store.isUnionSearch);
@@ -176,7 +179,10 @@
     trigger="click"
   >
     <slot name="trigger">
-      <div class="more-operation" ref="refTrigger">
+      <div
+        class="more-operation"
+        ref="refTrigger"
+      >
         <span class="bklog-icon">{{ $t('设置') }}</span>
         <span
           class="setting-icon"

@@ -483,18 +483,14 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   type='number'
                   on-change={this.emitValueChange}
                 />
-                <bk-checkbox
-                  v-bk-tooltips={{
-                    content: this.$t('只有监控指标关键字可配置无数据'),
-                    placements: ['top'],
-                    disabled: !isRecoveryDisable(this.metricData),
-                  }}
-                  disabled={isRecoveryDisable(this.metricData)}
-                  value={isStatusSetterNoData(this.localData.recoveryConfig.statusSetter)}
-                  onChange={this.handleRecoveryConfigChange}
-                >
-                  {this.$t('或无数据')}
-                </bk-checkbox>
+                {!isRecoveryDisable(this.metricData) ? (
+                  <bk-checkbox
+                    value={isStatusSetterNoData(this.localData.recoveryConfig.statusSetter)}
+                    onChange={this.handleRecoveryConfigChange}
+                  >
+                    {this.$t('或无数据')}
+                  </bk-checkbox>
+                ) : null}
               </i18n>
             </div>
           </VerifyItem>

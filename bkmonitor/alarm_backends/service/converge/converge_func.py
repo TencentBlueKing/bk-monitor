@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import logging
-from django.utils.translation import ugettext as _
+
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.service.converge.utils import (
@@ -249,7 +250,9 @@ class ConvergeFunc:
         )
         collect_desc = _("汇总通知") if self.instance_type == ConvergeType.ACTION else _("业务汇总通知")
 
-        action_name = "[{}]{}".format(collect_desc, related_action.action_config["name"] if related_action else _("告警通知"))
+        action_name = "[{}]{}".format(
+            collect_desc, related_action.action_config["name"] if related_action else _("告警通知")
+        )
 
         # 汇总为内置的一种处理方式，因此不需要设置动作参数和动作插件
         action_config = copy.deepcopy(related_action.action_config) if related_action else {}

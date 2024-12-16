@@ -372,15 +372,15 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         theme: 'monitor-metric-input',
         arrow: true,
         flip: false,
+        interactive: true,
+        interactiveBorder: 6,
+        onHidden: () => {
+          this.metricpopoerInstance?.destroy?.();
+          this.metricpopoerInstance = null;
+        },
       });
       this.metricpopoerInstance?.show?.(100);
     }
-  }
-
-  handleMetricMouseleave() {
-    this.metricpopoerInstance?.hide?.();
-    this.metricpopoerInstance?.destroy?.();
-    this.metricpopoerInstance = null;
   }
 
   /**
@@ -545,7 +545,6 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                         <span
                           key={metric.metric_id}
                           onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
-                          onMouseleave={this.handleMetricMouseleave}
                         >
                           <bk-tag>{metric.name}</bk-tag>
                         </span>

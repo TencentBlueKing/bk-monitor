@@ -167,5 +167,5 @@ class ProfileQueryBuilder:
             "_user_request": True,
         }
         logger.info(f"[ProfileQuery] origin_params: \n-----\n{json.dumps(params)}\n-----\n")
-        response = api.bkdata.query_data(**params)
+        response = api.bkdata.query_profile_data(**params)
         return response.get("list", [])

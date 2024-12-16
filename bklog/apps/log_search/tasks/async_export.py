@@ -67,6 +67,8 @@ def async_export(
     search_url_path: str,
     language: str,
     is_external: bool = False,
+    is_quick_export: bool = False,
+    export_file_type: str = "txt",
     external_user_email: str = "",
 ):
     """
@@ -78,6 +80,8 @@ def async_export(
     @param search_url_path {Str}
     @param language {Str}
     @param is_external {Bool}
+    @param is_quick_export {Bool}
+    @param export_file_type {str}
     @param external_user_email {Str}
     """
     random_hash = get_random_string(length=10)
@@ -91,6 +95,8 @@ def async_export(
         file_name=file_name,
         tar_file_name=tar_file_name,
         is_external=is_external,
+        is_quick_export=is_quick_export,
+        export_file_type=export_file_type,
         external_user_email=external_user_email,
     )
     try:
@@ -218,6 +224,8 @@ class AsyncExportUtils(object):
         file_name: str,
         tar_file_name: str,
         is_external: bool = False,
+        is_quick_export: bool = False,
+        export_file_type: str = "txt",
         external_user_email: str = "",
     ):
         """
@@ -232,11 +240,14 @@ class AsyncExportUtils(object):
         self.file_name = file_name
         self.tar_file_name = tar_file_name
         self.is_external = is_external
+        self.is_quick_export = is_quick_export
+        self.export_file_type = export_file_type
         self.external_user_email = external_user_email
-        self.file_path = f"{ASYNC_DIR}/{self.file_name}"
+        self.file_path = f"{ASYNC_DIR}/{self.file_name}.{self.export_file_type}"
         self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
         self.storage = self.init_remote_storage()
         self.notify = self.init_notify_type()
+        self.file_path_list = []
 
     def export_package(self):
         """
@@ -244,6 +255,10 @@ class AsyncExportUtils(object):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
+        export_method = self.quick_export if self.is_quick_export else self.async_export
+        export_method()
+
+    def async_export(self):
         max_result_window = self.search_handler.index_set_obj.result_window
         result = self.search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
         # 判断是否成功
@@ -262,6 +277,18 @@ class AsyncExportUtils(object):
 
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             tar.add(self.file_path, arcname=self.file_name)
+
+    def quick_export(self):
+        result_list = self.search_handler.multi_get_slice_data(
+            pre_file_name=self.file_name, export_file_type=self.export_file_type
+        )
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            for idx, result in enumerate(result_list):
+                if isinstance(result, Exception):
+                    logger.error(f"{self.file_name}_slice_{idx}_error: {result}\n")
+                else:
+                    self.file_path_list.append(result)
+                    tar.add(result, arcname=os.path.basename(result))
 
     def export_upload(self):
         """
@@ -327,6 +354,15 @@ class AsyncExportUtils(object):
         """
         清空产生的临时文件
         """
+        clean_method = self.clean_quick_export if self.is_quick_export else self.clean_async_export
+        clean_method()
+
+    def clean_quick_export(self):
+        for file_path in self.file_path_list:
+            os.remove(file_path)
+        os.remove(self.tar_file_path)
+
+    def clean_async_export(self):
         os.remove(self.file_path)
         os.remove(self.tar_file_path)
 

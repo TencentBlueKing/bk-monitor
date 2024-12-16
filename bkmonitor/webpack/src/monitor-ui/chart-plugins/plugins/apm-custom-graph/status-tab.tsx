@@ -59,16 +59,14 @@ export default class StatusTab extends tsc<IProps> {
     this.tabList = [...this.statusList];
     this.moreList = [];
     this.moreText = '';
-    this.throttleSetList = throttle(200, this.setList, {
+    this.throttleSetList = throttle(400, this.setList, {
       debounceMode: true,
     });
   }
 
   @Watch('maxWidth', { immediate: true })
   handleWatchMaxWidth() {
-    this.$nextTick(() => {
-      this.throttleSetList();
-    });
+    this.throttleSetList();
   }
 
   @Watch('value', { immediate: true })

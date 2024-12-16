@@ -17,6 +17,7 @@ from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.user import get_backend_username, get_global_user, make_userinfo
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
@@ -513,6 +514,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     action = "api/host/proxies/"
     method = "GET"
+    backend_cache_type = CacheType.NODE_MAN
 
     class RequestSerializer(serializers.Serializer):
         bk_cloud_id = serializers.IntegerField(label="云区域ID", required=True)
@@ -525,6 +527,7 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     action = "api/host/biz_proxies/"
     method = "GET"
+    backend_cache_type = CacheType.NODE_MAN
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -579,6 +582,8 @@ class PluginSearch(NodeManAPIGWResource):
 
     action = "api/plugin/search/"
     method = "POST"
+    # 用1min缓存，缓解短时间批量请求
+    backend_cache_type = CacheType.SCENE_VIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.ListField(label="业务ID", required=False)

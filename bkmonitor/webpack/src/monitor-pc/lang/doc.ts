@@ -338,4 +338,9 @@ export default {
   服务实例数: 'Number of service instances',
   无匹配数据: 'No matching data',
   时间段重复了: 'Time period repeated',
+  '该服务所在 APM 应用未开启 指标 功能': 'The APM application of this service has not enabled the Metrics function',
+  '暂未开启 指标 功能': 'The Metrics function has not been enabled yet',
+  '已开启 指标 功能，请参考接入指引进行数据上报':
+    'The Metrics function has been enabled, please refer to the access guide for data reporting',
+  '暂无 指标 数据': 'No Metrics data',
 };

@@ -1,0 +1,120 @@
+/* stylelint-disable declaration-no-important */
+.group-compare-select___group-by {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding-left: 16px;
+
+  .ml-8 {
+    margin-left: 8px;
+  }
+
+  .bk-tag {
+    margin-left: 8px;
+  }
+
+  .placeholder {
+    font-size: 12px;
+    color: #C4C6CC;
+  }
+
+  .group-by-add {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    margin-left: 12px;
+    line-height: 20px;
+    color: #979ba5;
+    text-align: center;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+  }
+
+  .limit-selector {
+    display: flex;
+    align-items: center;
+    margin-left: 24px;
+  }
+
+  .group-by-select {
+    position: relative;
+    width: 150px;
+    height: 32px;
+    padding: 0 20px 0 5px;
+    overflow: hidden;
+    line-height: 32px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 1px solid #dddfe6;
+
+    .icon-arrow-down {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 20px;
+      color: #979ba5;
+    }
+  }
+
+  .group-by-tag-view {
+    margin-right: 4px;
+  }
+}
+
+.group-compare-select___group-by-selector {
+  .tippy-tooltip {
+    padding: 3px 0 !important;
+  }
+
+  .group-by-select-list-wrap {
+    background: #fff;
+
+    .group-by-select-list {
+      position: relative;
+      width: 170px;
+      min-height: 148px;
+      max-height: 300px;
+      overflow: auto;
+      background: #fff;
+  
+      .group-by-select-item {
+        position: relative;
+        height: 30px;
+        padding: 0 8px 0 12px;
+        line-height: 30px;
+        cursor: pointer;
+  
+        &:hover {
+          color: #3a84ff;
+          background: #e1ecff;
+        }
+  
+        &.active {
+          color: #3a84ff;
+          background: #f4f6fa;
+  
+          .icon-mc-check-small {
+            position: absolute;
+            right: 5px;
+            font-size: 20px;
+            color: #3a84ff;
+          }
+        }
+      }
+
+      .no-data {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 148px;
+      }
+    }
+  }
+  
+}

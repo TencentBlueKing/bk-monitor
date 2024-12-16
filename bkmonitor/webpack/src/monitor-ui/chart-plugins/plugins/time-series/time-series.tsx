@@ -88,6 +88,7 @@ interface ITimeSeriesProps {
   customTimeRange?: [string, string];
   customMenuList?: ChartTitleMenuType[];
   needSetEvent?: boolean;
+  isSingleChart?: boolean;
 }
 interface ITimeSeriesEvent {
   onFullScreen: PanelModel;
@@ -120,6 +121,8 @@ export class LineChart
   // 自定义更多菜单
   @Prop({ type: Array }) customMenuList: ChartTitleMenuType[];
   @Prop({ type: Boolean, default: true }) needSetEvent: boolean;
+  // 是否为单图模式
+  @Prop({ default: false, type: Boolean }) isSingleChart: boolean;
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   // 图表刷新间隔
@@ -395,6 +398,7 @@ export class LineChart
       const variablesService = new VariablesService({
         ...this.viewOptions,
         interval,
+        ...(this.viewOptions?.groupByVariables || {}),
         ...this.customScopedVars,
       });
       for (const time_shift of timeShiftList) {
@@ -408,6 +412,7 @@ export class LineChart
                 ...(this.viewOptions.filters?.current_target || {}),
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
+                ...(this.viewOptions?.groupByVariables || {}),
                 time_shift,
                 interval,
                 ...this.customScopedVars,
@@ -427,6 +432,9 @@ export class LineChart
               ...config,
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
+          }
+          if (!this.viewOptions?.groupByVariables?.group_by_limit_enabled) {
+            newPrarams.group_by_limit = undefined;
           }
           const primaryKey = item?.primary_key;
           const paramsArr = [];
@@ -451,6 +459,10 @@ export class LineChart
                     }`,
                   }))
                 );
+              // 用于获取原始query_config
+              if (res.query_config) {
+                this.panel.setRawQueryConfigs(item, res.query_config);
+              }
               this.clearErrorMsg();
               return true;
             })
@@ -554,7 +566,8 @@ export class LineChart
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const { width } = this.$el.getBoundingClientRect();
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -955,7 +968,7 @@ export class LineChart
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || precision,
         lineStyle: {
           width: 1,
         },

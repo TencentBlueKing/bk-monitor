@@ -12,7 +12,7 @@ from typing import List
 
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_control
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets

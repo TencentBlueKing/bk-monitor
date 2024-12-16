@@ -17,7 +17,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from metadata import config
 from metadata.models.common import BaseModel

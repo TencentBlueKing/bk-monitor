@@ -402,7 +402,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 data_source_label: 'prometheus',
                 data_type_label: 'time_series',
                 promql: this.sourceData.sourceCode.replace(/\n/g, ''),
-                agg_interval: this.sourceData.step,
+                interval: this.sourceData.step,
               },
             ]
           : this.metricData.map(

@@ -11,13 +11,13 @@ import logging
 
 from django.conf import settings
 from django.utils.functional import cached_property
-from monitor_web.models.data_explorer import QueryHistory
-from monitor_web.statistics.v2.base import BaseCollector
 from prometheus_client import Counter
 
-from core.drf_resource import api
+from bkm_space.api import SpaceApi
 from core.prometheus.base import OPERATION_REGISTRY
 from core.statistics.metric import Metric, register
+from monitor_web.models.data_explorer import QueryHistory
+from monitor_web.statistics.v2.base import BaseCollector
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,8 @@ _data_type_label_map = {"time_series": METRIC_QUERY_COUNT, "event": EVENT_QUERY_
 def unify_query_count(data_type_label: str, bk_biz_id: str, **labels):
     """unify query 查询运营打点"""
     try:
-        biz_display_name = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])[0].display_name
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        biz_display_name = space.display_name
     except Exception:
         logger.exception("failed to get biz info, may cause incorrect label in metrics")
         biz_display_name = None

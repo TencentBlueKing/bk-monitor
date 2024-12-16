@@ -44,7 +44,7 @@ export default class UseJsonFormatter {
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<any>;
+  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -86,8 +86,16 @@ export default class UseJsonFormatter {
     segmentPopInstance.hide();
   }
 
+  isValidTraceId(traceId) {
+    const traceIdPattern = /^[a-f0-9]{32}$/;
+    return traceIdPattern.test(traceId);
+  }
+
   handleSegmentClick(e, value) {
     if (!value.toString() || value === '--') return;
+    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
+    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
+    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
     segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
@@ -148,10 +156,24 @@ export default class UseJsonFormatter {
     return result;
   }
 
+  escapeString(val: string) {
+    const map = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#x27;': "'",
+    };
+
+    return typeof val !== 'string'
+      ? val
+      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+  }
+
   getSplitList(field: any, content: any) {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
-    const value = `${content}`;
+    const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
       // 这里进来的都是开了分词的情况
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
@@ -175,6 +197,7 @@ export default class UseJsonFormatter {
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
       mrkNode.innerHTML = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.classList.add('valid-text');
       return mrkNode;
     }
 
@@ -224,7 +247,7 @@ export default class UseJsonFormatter {
     // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
     target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = textValue ?? (element as HTMLDivElement).innerText;
+        const text = textValue ?? (element as HTMLDivElement).innerHTML;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
@@ -233,7 +256,7 @@ export default class UseJsonFormatter {
         element.append(this.creatSegmentNodes(vlaues));
         element.addEventListener('click', e => {
           if ((e.target as HTMLElement).classList.contains('valid-text')) {
-            this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
+            this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
           }
         });
 

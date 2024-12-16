@@ -184,6 +184,21 @@ class StrategyConfigParser(BaseConfigParser):
 
         scenario = "other_rt"
         for origin_config in config["query"]["query_configs"]:
+            # grafana类型策略处理
+            if config["query"]["data_source"] == DataSourceLabel.DASHBOARD:
+                query_configs.append(
+                    {
+                        "data_source_label": config["query"]["data_source"],
+                        "data_type_label": config["query"]["data_type"],
+                        "alias": origin_config["alias"],
+                        "dashboard_id": origin_config["dashboard_id"],
+                        "panel_id": origin_config["panel_id"],
+                        "ref_id": origin_config["ref_id"],
+                        "variables": origin_config.get("variables", {}),
+                    }
+                )
+                continue
+
             # fta依赖detect表达式进行检测
             if config["query"]["data_type"] == DataTypeLabel.ALERT:
                 detect["expression"] = config["query"]["expression"]
@@ -658,6 +673,17 @@ class StrategyConfigParser(BaseConfigParser):
         data_type = query_configs[0]["data_type_label"]
         query = {"data_source": data_source, "data_type": data_type, "query_configs": []}
         for query_config in query_configs:
+            # grafana类型策略处理
+            if data_source == DataSourceLabel.DASHBOARD:
+                code_query_config = {
+                    "dashboard_id": query_config["dashboard_id"],
+                    "panel_id": query_config["panel_id"],
+                    "ref_id": query_config["ref_id"],
+                    "variables": query_config.get("variables", {}),
+                }
+                query["query_configs"].append(code_query_config)
+                continue
+
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
             # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
             data_label = query_config.get("data_label", None)

@@ -554,7 +554,8 @@
               </bk-input>
               <bk-button
                 class="debug-btn"
-                :disabled="!showDebugPathRegexBtn"
+                :disabled="!showDebugPathRegexBtn || isDebugLoading"
+                :loading="isDebugLoading"
                 data-test-id="fieldExtractionBox_button_debugging"
                 theme="primary"
                 @click="debuggerPathRegex"
@@ -1110,6 +1111,7 @@
         templateKeyWord: '',
         timeCheckContent: '',
         metaDataList: [],
+        isDebugLoading: false,
       };
     },
     computed: {
@@ -1226,7 +1228,7 @@
       },
       'formData.etl_params.metadata_fields': {
         handler(val) {
-          this.metaDataList = val;
+          this.metaDataList = val ?? [];
         },
       },
     },
@@ -1464,19 +1466,26 @@
         const data = {
           etl_config: 'bk_log_regexp',
           etl_params: {
-            separator_regexp: this.formData.etl_params.path_regexp,
+            separator_regexp: this.formData.etl_params?.path_regexp,
           },
           data: this.pathExample,
         };
         const urlParams = {};
+        this.isDebugLoading = true;
         urlParams.collector_config_id = this.curCollect.collector_config_id;
         const updateData = { params: urlParams, data };
         // 先置空防止接口失败显示旧数据
-        this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
-        this.metaDataList?.splice?.(0, this.metaDataList.length);
-        this.$http.request('collect/getEtlPreview', updateData).then(res => {
-          this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));
-        });
+        this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields?.length);
+        this.metaDataList.splice(0, this.metaDataList.length);
+        this.$http
+          .request('collect/getEtlPreview', updateData)
+          .then(res => {
+            const fields = res.data?.fields || [];
+            this.formData.etl_params?.metadata_fields.push(...fields);
+          })
+          .finally(() => {
+            this.isDebugLoading = false;
+          });
       },
       debugHandler() {
         this.formData.fields.splice(0, this.formData.fields.length);
@@ -1875,7 +1884,12 @@
               path_regexp: '',
               metadata_fields: [],
             },
-            etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
+            etlParams
+              ? {
+                  ...JSON.parse(JSON.stringify(etlParams)),
+                  metadata_fields: etlParams.metadata_fields || [],
+                }
+              : {},
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
@@ -2266,7 +2280,12 @@
                     retain_extra_json: false,
                     enable_retain_content: true,
                   },
-                  etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
+                  etlParams
+                    ? {
+                        ...JSON.parse(JSON.stringify(etlParams)),
+                        metadata_fields: etlParams.metadata_fields || [],
+                      }
+                    : {},
                 ),
                 fields: previousStateFields,
                 ...logTimeOption,

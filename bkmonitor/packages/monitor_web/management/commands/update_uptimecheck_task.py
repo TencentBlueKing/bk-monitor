@@ -17,12 +17,12 @@ import time
 
 from django.conf import settings
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext as _
-from monitor.models import UptimeCheckNode, UptimeCheckTask
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.common_utils import host_key, logger
 from bkmonitor.utils.local import local
 from core.drf_resource import api
+from monitor.models import UptimeCheckNode, UptimeCheckTask
 
 BASE_PATH_WINDOWS = settings.WINDOWS_GSE_AGENT_PATH
 BASE_PATH_LINUX = settings.LINUX_GSE_AGENT_PATH

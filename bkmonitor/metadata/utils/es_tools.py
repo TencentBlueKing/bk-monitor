@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 import requests
@@ -19,6 +20,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 DEFAULT_ES_TIMEOUT = 10
+
+logger = logging.getLogger("metadata")
 
 
 def get_value_if_not_none(value, default):

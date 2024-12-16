@@ -156,6 +156,22 @@ class RouteUrlResolver {
     });
   }
 
+  private searchModeResolver() {
+    if (['sql', 'ui'].includes(this.query.search_mode)) {
+      return this.query.search_mode;
+    }
+
+    if (this.query.keyword?.length) {
+      return 'sql';
+    }
+
+    if (this.query.additon?.length) {
+      return 'ui';
+    }
+
+    return 'ui';
+  }
+
   private setDefaultResolver() {
     this.resolver.set('addition', this.additionResolver.bind(this));
     this.resolver.set('unionList', this.arrayResolver.bind(this));
@@ -163,6 +179,7 @@ class RouteUrlResolver {
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
     this.resolver.set('clusterParams', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
+    this.resolver.set('search_mode', this.searchModeResolver.bind(this));
 
     // datePicker默认直接获取URL中的 start_time, end_time
     this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));

@@ -29,7 +29,7 @@ import six
 import sqlparse
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from sqlparse import sql as S
 from sqlparse import tokens as T
@@ -64,7 +64,6 @@ CUSTOM_RT_MAP = {}
 
 class InfluxDBDriver(DriverProxy):
     def __init__(self, sql, rt_instance=None):
-
         super(InfluxDBDriver, self).__init__(sql)
 
         self.minute_x = None
@@ -295,7 +294,6 @@ class InfluxDBDriver(DriverProxy):
         return field_name
 
     def _process_minutex(self):
-
         self._process_minutex_items(self.q.select_items, "select", fn_get_item_name=self._get_select_field_name)
 
         self._process_minutex_items(

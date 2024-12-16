@@ -26,7 +26,7 @@ logger = logging.getLogger("apm")
 class DorisStorageConfig:
     # storage_cluster may be updated by bkData, we could update it by changing settings.APM_DORIS_STORAGE_CONFIG
     storage_cluster: str
-    expires: str = "30d"
+    expires: str = "3d"
     storage_type: str = "doris"
     data_scenario: str = "custom"
 

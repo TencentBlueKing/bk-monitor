@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -1151,7 +1151,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
-                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc)
+                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False)
                     category["alerts"].append(alert)
 
         return incident_alerts

@@ -1,13 +1,16 @@
-from apps.log_commons.models import ApiAuthToken
 from blueapps.account import get_user_model
 from blueapps.account.middlewares import LoginRequiredMiddleware
 from django.contrib import auth
 from django.contrib.auth.backends import ModelBackend
 from django.http import HttpResponseForbidden
 
+from apps.log_commons.models import ApiAuthToken
+
 
 class ApiTokenAuthBackend(ModelBackend):
     def authenticate(self, request, username=None, **kwargs):
+        if not username:
+            return None
         try:
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})

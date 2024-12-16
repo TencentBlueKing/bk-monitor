@@ -155,6 +155,9 @@ const TListViewProps = {
     type: Array,
     default: [],
   },
+  activeSpanId: {
+    type: String,
+  },
 };
 
 export default defineComponent({
@@ -170,7 +173,6 @@ export default defineComponent({
 
     const wrapperElm = ref<HTMLElement | TNil>(null);
     const itemHolderElm = ref<HTMLElement | TNil>(null);
-    const curShowDetailSpanId = ref<string>('');
     const knownHeights = ref(new Map());
     const startIndexDrawn = ref(2 ** 20);
     const endIndexDrawn = ref(-(2 ** 20));
@@ -451,7 +453,7 @@ export default defineComponent({
       const isDetailExpanded = detailStates?.has(spanID);
       const isMatchingFilter = focusMatchesStore?.findMatchesIDs.value?.has(spanID) ?? false;
       const isFocusMatching = spanID === focusMatchesStore?.focusMatchesId.value;
-      const isActiveMatching = spanID === curShowDetailSpanId.value;
+      const isActiveMatching = spanID === props.activeSpanId;
       const isHaveRead = haveReadSpanIds.includes(spanID);
       const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(spans.value, spanIndex));
       const attributes = { ...attrs, id: spanID };
@@ -520,7 +522,6 @@ export default defineComponent({
     }
 
     function handleClick(itemKey: Span) {
-      curShowDetailSpanId.value = itemKey.spanID;
       emit('itemClick', itemKey);
     }
 

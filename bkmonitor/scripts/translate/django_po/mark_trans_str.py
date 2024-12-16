@@ -83,13 +83,15 @@ class TagString(object):
     def handle_string(self, token):
         try:
             # TODO: 跳过不需要标记的文本
-            if is_contain_chinese(token.token) \
-                    and not token.token.startswith('"""') \
-                    and not token.token.startswith('r"""') \
-                    and not token.token.startswith("'''") \
-                    and not token.token.startswith("r'''") \
-                    and not token.source_line.startswith('__author__ = u"蓝鲸智云"')\
-                    and not token.source_line.startswith('logger'):  # 日志暂时不翻译
+            if (
+                is_contain_chinese(token.token)
+                and not token.token.startswith('"""')
+                and not token.token.startswith('r"""')
+                and not token.token.startswith("'''")
+                and not token.token.startswith("r'''")
+                and not token.source_line.startswith('__author__ = u"蓝鲸智云"')
+                and not token.source_line.startswith('logger')
+            ):  # 日志暂时不翻译
                 self.string_token.append(token)
             self.line = token.source_line
         except Exception as e:
@@ -112,7 +114,13 @@ class TagString(object):
                 if line == token.source_line:
                     if start_row == end_row:
                         # 如果字符串你中有format 则把)放到format前面
-                        line = line[:start_col + cur_line_grow_char] + "_(" + line[start_col + cur_line_grow_char:end_col + cur_line_grow_char] + ")" + line[end_col + cur_line_grow_char:]
+                        line = (
+                            line[: start_col + cur_line_grow_char]
+                            + "_("
+                            + line[start_col + cur_line_grow_char : end_col + cur_line_grow_char]
+                            + ")"
+                            + line[end_col + cur_line_grow_char :]
+                        )
                         cur_line_grow_char += 3
                         self.lines[index] = line
                         # 如果 f-string标记符在字符串中间，或者字符串中不包含{}, 则需要改写
@@ -126,9 +134,9 @@ class TagString(object):
             for idx, line in enumerate(self.lines):
                 try:
                     if (
-                            (line.startswith("import") or line.startswith("from"))
-                            and idx < len(self.lines) - 1
-                            and self.lines[idx + 1] == os.linesep
+                        (line.startswith("import") or line.startswith("from"))
+                        and idx < len(self.lines) - 1
+                        and self.lines[idx + 1] == os.linesep
                     ):
                         insert_idx = idx + 1
                         break
@@ -143,9 +151,11 @@ class TagString(object):
                         break
 
             # 是否插入import
-            if "from django.utils.translation import ugettext_lazy as _\n" not in self.lines\
-                    and "from django.utils.translation import ugettext as _\n" not in self.lines:
-                self.lines.insert(insert_idx, "from django.utils.translation import ugettext as _\n")
+            if (
+                "from django.utils.translation import gettext_lazy as _\n" not in self.lines
+                and "from django.utils.translation import gettext as _\n" not in self.lines
+            ):
+                self.lines.insert(insert_idx, "from django.utils.translation import gettext as _\n")
 
     def process(self, s):
         g = tokenize.generate_tokens(StringIO(s).readline)  # tokenize the string
@@ -242,6 +252,7 @@ def main():
         file_lists = list_dir(args.path, suffix=suffix, exclude_path_list=args.exclude)
         if args.without_test:
             import re
+
             target_file_lists = []
             for file_path in file_lists:
                 # 筛选哪些文件能否参与标记
@@ -258,13 +269,7 @@ def main():
             args.path,
         ]
 
-    exclude_files = [
-        "manage.py",
-        "urls.py",
-        "wsgi.py",
-        "tests.py",
-        "__init__.py"
-    ]
+    exclude_files = ["manage.py", "urls.py", "wsgi.py", "tests.py", "__init__.py"]
     for each_file in file_lists:
         content = read_file(each_file)
         if each_file.endswith("py"):

@@ -88,6 +88,7 @@ interface IChartWrapperProps {
   needHoverStryle?: boolean;
   needCheck?: boolean;
   customMenuList?: ChartTitleMenuType[];
+  isSingleChart?: boolean;
 }
 interface IChartWrapperEvent {
   onChartCheck: boolean;
@@ -120,6 +121,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Boolean, default: undefined }) collapse: boolean;
   @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
   @Prop({ type: Array, default: null }) customMenuList: ChartTitleMenuType[];
+  // 是否为单图模式
+  @Prop({ default: false, type: Boolean }) isSingleChart: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -575,6 +578,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return (
           <ApmCustomGraph
             clearErrorMsg={this.handleClearErrorMsg}
+            isSingleChart={this.isSingleChart}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
             onCollectChart={this.handleCollectChart}

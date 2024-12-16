@@ -306,7 +306,7 @@ class ApplicationConfig(BkCollectorConfig):
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
-            "drop": {"keys": ["resource.bk.data.token"]},
+            "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
     def get_sub_configs(self, unique_key: str, config_level):

@@ -48,6 +48,7 @@ import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -58,6 +59,7 @@ import type {
   IMenuChildItem,
   IMenuItem,
   IPanelModel,
+  ITitleAlarm,
   ITimeSeriesItem,
   PanelModel,
   ZrClickEvent,
@@ -69,14 +71,6 @@ import './caller-line-chart.scss';
 
 interface IProps {
   panel: PanelModel;
-}
-
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
 }
 
 function removeTrailingZeros(num) {
@@ -137,7 +131,7 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
-  panelsSelector = 'timeout_rate';
+  panelsSelector = 'exception_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -192,9 +186,16 @@ class CallerLineChart extends CommonSimpleChart {
   onCallOptionsChange() {
     this.getPanelData();
   }
+  @Watch('panel', { immediate: true })
+  handlePanel() {
+    if (this.enablePanelsSelector) {
+      this.panelsSelector = getRecordCallOptionChart(this.viewOptions.filters);
+    }
+  }
 
-  handlePanelsSelector() {
+  handlePanelsSelector(val) {
     this.getPanelData();
+    setRecordCallOptionChart(this.viewOptions.filters, val);
   }
   /**
    * @description: 获取图表数据
@@ -228,9 +229,7 @@ class CallerLineChart extends CommonSimpleChart {
       const promiseList = [];
       const timeShiftList = [
         '',
-        ...(this.isSupportCompare && this.callOptions.time_shift?.length
-          ? this.callOptions.time_shift.map(t => t.alias)
-          : []),
+        ...(this.isSupportCompare && this.callOptions.time_shift?.length ? this.callOptions.time_shift : []),
       ];
       const down_sample_range = this.downSampleRangeComputed(
         'auto',
@@ -256,7 +255,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
-      for (const time_shift of timeShiftList) {
+      for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
           const paramsResult = data;
@@ -275,7 +274,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 ...(this.callOptions || {}),
-                time_shift: timeShiftFormat(time_shift),
+                time_shift: timeShift,
                 group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
                 interval,
               },
@@ -322,12 +321,12 @@ class CallerLineChart extends CommonSimpleChart {
                     if (this.enablePanelsSelector) {
                       item.alias = this.curTitle;
                     }
-                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
                       name: name,
-                      timeShift: time_shift,
+                      timeShift: timeShift,
                     });
                     return {
                       ...set,
@@ -421,7 +420,8 @@ class CallerLineChart extends CommonSimpleChart {
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const width = this.$el?.getBoundingClientRect?.()?.width;
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -630,7 +630,7 @@ class CallerLineChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || 2,
         lineStyle: {
           width: 2,
         },
@@ -995,6 +995,30 @@ class CallerLineChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+  /** 处理点击左侧响铃图标 跳转策略的逻辑 */ /** 处理点击左侧响铃图标 跳转策略的逻辑 */
+  handleAlarmClick(alarmStatus: ITitleAlarm) {
+    const metricIds = this.metrics.map(item => item.metric_id);
+    switch (alarmStatus.status) {
+      case 0:
+        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        break;
+      case 1:
+        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        break;
+      case 2: {
+        const eventTargetStr = alarmStatus.targetStr;
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+              eventTargetStr ? ` AND ${eventTargetStr}` : ''
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          )
+        );
+        break;
+      }
+    }
+  }
 
   render() {
     return (
@@ -1011,6 +1035,7 @@ class CallerLineChart extends CommonSimpleChart {
           showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.curTitle}
+          onAlarmClick={this.handleAlarmClick}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
           onMetricClick={this.handleMetricClick}

@@ -10,11 +10,11 @@
   z-index: 7;
   .chart-instance {
     width: 100%;
-    height: 100%;
+    height: 600px;
     .chart-base {
       width: 100%;
       margin: 0 auto;
-      height: 100%;
+      height: 600px;
     }
   }
   .empty-chart {
@@ -23,6 +23,9 @@
     justify-content: center;
     height: 100%;
     flex: 1;
+  }
+  .pie-echart-content .caller-legend {
+    height: 600px;
   }
 }
 .caller-pie-chart-tooltips {

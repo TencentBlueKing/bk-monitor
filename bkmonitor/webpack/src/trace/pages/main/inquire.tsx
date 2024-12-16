@@ -41,6 +41,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
+import axios from 'axios';
 import { Button, Cascader, Dialog, Input, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
@@ -74,7 +75,7 @@ import {
   VIEWOPTIONS_KEY,
   useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
-import { DEFAULT_TRACE_DATA } from '../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
 import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
 import { monitorDrag } from '../../utils/drag-directive';
@@ -109,6 +110,14 @@ interface IState {
   isAlreadyAccurateQuery: boolean;
   isAlreadyScopeQuery: boolean;
   cacheQueryAppName: string;
+}
+
+interface Params {
+  bk_biz_id: number | string;
+  app_name: string;
+  trace_id?: number | string;
+  span_id?: number | string;
+  query_trace_relation_app?: boolean;
 }
 
 /** 头部工具栏高度 */
@@ -174,6 +183,7 @@ export default defineComponent({
     const cacheTimeRange = ref('');
     const enableSelectionRestoreAll = ref(true);
     const showRestore = ref(false);
+    let cancelTokenSource = null;
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
@@ -261,6 +271,8 @@ export default defineComponent({
     const enableProfiling = computed(
       () => !!appList.value.find(item => item.app_name === state.app)?.is_enabled_profiling
     );
+
+    const traceViewFilters = computed(() => store.traceViewFilters);
 
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
@@ -359,11 +371,14 @@ export default defineComponent({
 
       const isTraceIDSearch = searchIdType.value === 'traceID';
       const requestFn = isTraceIDSearch ? traceDetail : spanDetail;
-      const params = {
+      const params: Params = {
         bk_biz_id: window.bk_biz_id,
         app_name: state.app,
         [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
+      if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
+        params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
+      }
       const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {
@@ -606,7 +621,7 @@ export default defineComponent({
       if (selectedListType.value === 'trace') {
         store.setTraceLoading(true);
         try {
-          const listData = await listTrace(params).catch(() => []);
+          const listData = await listTrace(params, { cancelToken: cancelTokenSource?.token }).catch(() => []);
           const { total, data, type = 'pre_calculation' } = listData;
           store.setTraceListMode(type);
           store.setTraceTotalCount(total);
@@ -792,6 +807,8 @@ export default defineComponent({
     /* 切换查询方式 */
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
+      cancelTokenSource?.cancel?.();
+      cancelTokenSource = axios.CancelToken.source();
       if (id === 'scope') {
         if (!state.isAlreadyScopeQuery) {
           state.isAlreadyScopeQuery = true;
@@ -1020,6 +1037,8 @@ export default defineComponent({
 
         item.selectedConditionValue.length = 0;
       });
+      // 无应用时不调用getFieldOptionValues API
+      if (!params.app_name) return;
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
@@ -1288,6 +1307,7 @@ export default defineComponent({
       };
       conditionList[index].conditionValueList.length = 0;
       isAddConditionButtonLoading.value = true;
+      if (!params.app_name) return; // 无应用时不调用getFieldOptionValues API
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
@@ -1329,9 +1349,9 @@ export default defineComponent({
 
     const standardFieldList = ref([]);
     const getStandardFields = async () => {
-      const result = await listStandardFilterFields().catch(() => {});
+      const result = await listStandardFilterFields({}, { cancelToken: cancelTokenSource?.token }).catch(() => {});
 
-      result.map(item => (item.disabled = false));
+      result?.map(item => (item.disabled = false));
       standardFieldList.value = result;
       setDefaultConditionList();
     };
@@ -1351,7 +1371,7 @@ export default defineComponent({
       selectedConditions.value = defaultShowCondition;
       // 初始化条件要置灰
       selectedConditions.value.forEach(targetID => {
-        standardFieldList.value.forEach(item => {
+        standardFieldList.value?.forEach(item => {
           traverseIds(item, targetID, true);
         });
       });
@@ -1385,7 +1405,7 @@ export default defineComponent({
     const handleConditionBlur = async () => {
       // 置灰
       const targetID = selectedConditions.value[0];
-      standardFieldList.value.forEach(item => {
+      standardFieldList.value?.forEach(item => {
         traverseIds(item, targetID, true);
       });
       // 需要把已选过的置灰，然后放在最底部。
@@ -1400,16 +1420,16 @@ export default defineComponent({
         bk_biz_id: window.bk_biz_id,
         fields: selectedConditions.value,
       };
-      // 没有选择或配置正确的筛选项就不应该发生请求。
-      if (params.fields.length === 0) return;
+      // 没有选择或配置正确的筛选项就不应该发生请求 || 无应用时不调用getFieldOptionValues API。
+      if (params.fields.length === 0 || !params.app_name) return;
       isAddConditionButtonLoading.value = true;
-      const result = await getFieldOptionValues(params)
+      const result = await getFieldOptionValues(params, { cancelToken: cancelTokenSource?.token })
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      for (const key of Object.keys(result)) {
+      for (const key of Object.keys(result || {})) {
         const singleCondition = {
           selectedCondition: {
             label: '=',

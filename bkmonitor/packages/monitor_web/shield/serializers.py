@@ -38,6 +38,7 @@ class BaseSerializer(serializers.Serializer):
     notice_config = NoticeConfigSlz(required=False, label="通知配置")
     description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
     is_quick = serializers.BooleanField(required=False, label="是否是快捷屏蔽", default=False)
+    label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
 
 
 class ScopeSerializer(BaseSerializer):

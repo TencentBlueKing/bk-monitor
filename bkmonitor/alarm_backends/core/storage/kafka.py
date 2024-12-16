@@ -25,6 +25,7 @@ logger = logging.getLogger("core.storage.kafka")
 
 class KafkaQueue(object):
     reconnect_seconds = getattr(settings, "KAFKA_RECONNECT_SECONDS", 60)
+    msg_push_batch_size = 1000
 
     def __init__(self, topic="", group_prefix="", redis_offset=True, kfk_conf=None, timeout=6):
         self.redis_offset = redis_offset
@@ -119,9 +120,7 @@ class KafkaQueue(object):
             logger.error("topic %s load metadata failed", topic)
             raise Exception("topic {} load metadata failed".format(topic))
 
-    def put(self, value, topic=""):
-        if not isinstance(value, list):
-            value = [value]
+    def _put(self, value, topic=""):
         try:
             if topic:
                 return self.get_producer().send_messages(topic, *value)
@@ -132,6 +131,13 @@ class KafkaQueue(object):
                 return self.get_producer().send_messages(topic, *value)
             else:
                 return self.get_producer().send_messages(self.topic, *value)
+
+    def put(self, value, topic=""):
+        if not isinstance(value, list):
+            value = [value]
+        for i in range(0, len(value), self.msg_push_batch_size):
+            batch = value[i : i + self.msg_push_batch_size]
+            self._put(batch, topic)
 
     def reset_offset(self, force_offset=-1):
         if force_offset >= 0:

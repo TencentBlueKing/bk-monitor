@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.models import StrategyModel
-from monitor_web.search.handlers.base import BaseSearchHandler, SearchScope, SearchResultItem
+from monitor_web.search.handlers.base import (
+    BaseSearchHandler,
+    SearchResultItem,
+    SearchScope,
+)
 
 
 class StrategySearchHandler(BaseSearchHandler):
-
     SCENE = "strategy"
 
     def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:

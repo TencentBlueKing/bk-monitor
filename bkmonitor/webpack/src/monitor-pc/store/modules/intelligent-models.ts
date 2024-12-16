@@ -73,12 +73,18 @@ class IntelligentModels extends VuexModule {
     return data;
   }
   @Action
-  public async initAllListIntelligentModels() {
-    Object.values(IntelligentModelsType).forEach(async v => {
-      const data = await listIntelligentModels({ algorithm: v }).catch(() => []);
-      this.setIntelligentModels({
-        key: v,
-        data,
+  public initAllListIntelligentModels(): Promise<Map<IntelligentModelsType, Array<Record<string, any>>>> {
+    return new Promise(resolve => {
+      Promise.allSettled(
+        Object.values(IntelligentModelsType).map(async v => {
+          const data = await listIntelligentModels({ algorithm: v }).catch(() => []);
+          this.setIntelligentModels({
+            key: v,
+            data,
+          });
+        })
+      ).then(() => {
+        resolve(this.intelligentModelsMap);
       });
     });
   }

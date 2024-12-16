@@ -10,13 +10,13 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from common.log import logger
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.views import serializers
+from common.log import logger
 from constants.data_source import LabelType
 from core.drf_resource import api, resource
 from core.drf_resource.contrib.cache import CacheResource

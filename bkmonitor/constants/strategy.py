@@ -10,8 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
+from constants.common import CustomEnum
 from constants.data_source import DataSourceLabel, DataTypeLabel, ResultTableLabelObj
 
 EVENT_SPECIAL_LIST = ["uptime", "proc_exists", ""]
@@ -310,3 +311,11 @@ HOST_SCENARIO = ["os", "host_process", "host_device"]
 SERVICE_SCENARIO = ["service_module", "component", "service_process"]
 
 DATALINK_SOURCE = "__datalink_collecting__"
+
+
+class StrategySyncType(CustomEnum):
+    """策略事件同步类型."""
+
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"

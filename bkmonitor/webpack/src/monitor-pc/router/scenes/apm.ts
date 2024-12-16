@@ -44,7 +44,6 @@ export default applyGuidePage([
       navId: 'apm-home',
       customTitle: false,
       noNavBar: true,
-      needClearQuery: true,
       route: {
         parent: 'scenes',
       },

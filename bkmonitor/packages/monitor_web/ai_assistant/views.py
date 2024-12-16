@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 
 import requests
 from django.conf import settings
@@ -16,6 +17,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.drf_resource import api
+from monitor.models import GlobalConfig
 
 
 class ChatSerializer(serializers.Serializer):
@@ -61,6 +63,21 @@ class ChatViewSet(viewsets.GenericViewSet):
         sr.headers["Cache-Control"] = "no-cache"
         sr.headers["X-Accel-Buffering"] = "no"
         return sr
+
+    @action(methods=['get'], detail=False, url_path='join')
+    def apply_join(self, request, *args, **kwargs):
+        username = request.user.username
+        config, is_new = GlobalConfig.objects.get_or_create(key="AI_USER_LIST")
+        if is_new:
+            config.value = json.dumps([username])
+        else:
+            ul = json.loads(config.value)
+            if username in ul:
+                return Response({"result": "already joined!"})
+            ul.append(username)
+            config.value = json.dumps(ul)
+        config.save()
+        return Response({"result": "joined!"})
 
     @action(methods=['post'], detail=False, url_path='chat_v2')
     def chat_v2(self, request, *args, **kwargs):

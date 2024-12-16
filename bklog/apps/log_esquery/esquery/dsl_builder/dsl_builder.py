@@ -46,6 +46,10 @@ class DslBuilder(object):
         search_after=[],
         use_time_range=True,
         mappings: list = [],
+        time_field: str = "",
+        slice_search: bool = False,
+        slice_id: int = 0,
+        slice_max: int = 0,
     ):  # pylint: disable=dangerous-default-value
         """
 
@@ -126,6 +130,22 @@ class DslBuilder(object):
         if self.search_after:
             self._body.update({"search_after": self.search_after})
             self._body.pop("from")
+
+        # 分片参数
+        self.time_field = time_field
+        self.slice_search = slice_search
+        self.slice_id = slice_id
+        self.slice_max = slice_max
+        if self.slice_search:
+            self._body.update(
+                {
+                    "slice": {
+                        "field": time_field,
+                        "id": self.slice_id,
+                        "max": self.slice_max,
+                    }
+                }
+            )
 
     @property
     def body(self):

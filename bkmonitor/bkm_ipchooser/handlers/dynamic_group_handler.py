@@ -7,6 +7,9 @@ from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.handlers.topo_handler import TopoHandler
 from bkm_ipchooser.tools.batch_request import batch_request, request_multi_thread
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -17,10 +20,18 @@ class DynamicGroupHandler:
     def __init__(self, scope_list: types.ScopeList) -> None:
         # 暂时不支持多业务同时查询
         self.bk_biz_id = [scope["bk_biz_id"] for scope in scope_list][0]
+        # 兼容非cmdb业务空间
+        space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+        if space:
+            self.bk_biz_id = space.bk_biz_id
         self.meta = BaseHandler.get_meta_data(self.bk_biz_id)
 
     def list(self, dynamic_group_list: List[Dict] = None) -> List[types.DynamicGroup]:
         """获取动态分组列表"""
+        if self.bk_biz_id < 0:
+            return []
+
         dynamic_group_ids = [dynamic_group["id"] for dynamic_group in dynamic_group_list]
         params = {"bk_biz_id": self.bk_biz_id, "no_request": True}
         groups = batch_request(func=BkApi.search_dynamic_group, params=params)

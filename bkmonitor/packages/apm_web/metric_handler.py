@@ -651,3 +651,60 @@ def batch_metric_query(
             )
     run_threads(th_list)
     return data_map
+
+
+class Base62Decoder:
+    charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    decode_map = {ord(c): i for i, c in enumerate(charset)}
+    compact_mask = 0x1E  # 00011110
+    mask5bits = 0x1F  # 00011111
+    prefix = "base62"
+
+    @classmethod
+    def decode_string(cls, encoded_string: str) -> str:
+        if not encoded_string.startswith(cls.prefix):
+            return encoded_string
+        encoded_bytes = encoded_string[len(cls.prefix) :].encode("utf-8")
+        try:
+            decoded_bytes = cls.decode(encoded_bytes)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"Decode base62 string [{encoded_string}] failed: {e}")
+            # 如果解码失败 打印日志，然后返回原字符串
+            return encoded_string
+        return decoded_bytes.decode("utf-8", errors="ignore")
+
+    @classmethod
+    def decode(cls, encoded_bytes: bytes) -> bytes:
+        # Initialize the destination list
+        dst = [0] * ((len(encoded_bytes) * 6 // 8) + 1)
+        idx = len(dst)
+        pos = 0
+        b = 0
+
+        for i, c in enumerate(encoded_bytes):
+            x = cls.decode_map.get(c, 0xFF)
+
+            if x == 0xFF:
+                raise ValueError(f"Corrupt input at byte {i}")
+
+            if i == len(encoded_bytes) - 1:
+                b |= x << pos
+                pos += x.bit_length()
+            elif x & cls.compact_mask == cls.compact_mask:
+                b |= x << pos
+                pos += 5
+            else:
+                b |= x << pos
+                pos += 6
+
+            if pos >= 8:
+                idx -= 1
+                dst[idx] = b & 0xFF
+                pos %= 8
+                b >>= 8
+
+        if pos > 0:
+            idx -= 1
+            dst[idx] = b & 0xFF
+
+        return bytes(dst[idx:])

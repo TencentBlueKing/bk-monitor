@@ -149,7 +149,6 @@ class AlarmEventChart
     this.unregisterOberver();
     this.handleLoadingChange(true);
     const data = await this.mockData().finally(() => this.handleLoadingChange(false));
-    console.log(data);
     data && this.updateChartData(data);
   }
 
@@ -215,7 +214,7 @@ class AlarmEventChart
     this.seriesList = Object.freeze(series) as any;
     this.setMarkArea(series[0]);
     const maxXInterval = getSeriesMaxInterval(srcData);
-    const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
+    const xInterval = getTimeSeriesXInterval(maxXInterval.maxXInterval, this.width, maxXInterval.maxSeriesCount);
     const formatterFunc = this.handleSetFormatterFunc(srcData[0].datapoints);
     const data = {
       xAxis: {

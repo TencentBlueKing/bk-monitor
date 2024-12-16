@@ -30,7 +30,6 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import 'monitor-pc/common/import-magicbox-ui';
 import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
@@ -43,6 +42,7 @@ import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/import-magicbox-ui';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';

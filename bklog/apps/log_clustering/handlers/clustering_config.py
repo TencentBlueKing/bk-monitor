@@ -473,12 +473,7 @@ class ClusteringConfigHandler(object):
         判断字段是否符合要求
         """
         for field in fields:
-            field_name = field.get("field_name")
             alias_name = field.get("alias_name") or field.get("field_name")
-            # 正则需要符合计算平台正则要求
-            if etl_config == EtlConfig.BK_LOG_REGEXP and not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9]*", field_name):
-                logger.error(_("正则表达式字段名: {}不符合计算平台标准[a-zA-Z][a-zA-Z0-9]*").format(field_name))
-                raise BkdataRegexException(BkdataRegexException.MESSAGE.format(field_name=field_name))
             # 存在聚类字段则允许跳出循环
             if alias_name == clustering_fields:
                 break

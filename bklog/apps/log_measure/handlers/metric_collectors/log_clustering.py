@@ -25,7 +25,7 @@ from django.utils.translation import ugettext as _
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 
 
 class ClusteringMetricCollector(object):
@@ -33,7 +33,7 @@ class ClusteringMetricCollector(object):
     @register_metric("clustering", description=_("聚类计数"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5)
     def clustering_count():
         clustering_query_set = (
-            ClusteringConfig.objects.filter(modify_flow__isnull=False)
+            ClusteringConfig.objects.filter(signature_enable=True, access_finished=True)
             .values("bk_biz_id")
             .annotate(total=Count("bk_biz_id"))
             .order_by()
@@ -41,7 +41,6 @@ class ClusteringMetricCollector(object):
         metrics = []
         total = 0
         for clustering_obj in clustering_query_set:
-
             metrics.append(
                 Metric(
                     metric_name="count",

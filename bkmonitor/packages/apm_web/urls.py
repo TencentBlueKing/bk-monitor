@@ -25,4 +25,5 @@ urlpatterns = [
     url(r"^service/", include("apm_web.service.urls")),
     url(r"^service_log/", include("apm_web.log.urls")),
     url(r"^service_db/", include("apm_web.db.urls")),
+    url(r"^container/", include("apm_web.container.urls")),
 ]

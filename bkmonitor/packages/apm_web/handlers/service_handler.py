@@ -15,7 +15,7 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -37,6 +37,7 @@ from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomS
 from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey, TelemetryDataType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -45,6 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceHandler:
+    # 避免数据量过大 只查询30分钟内数据 超过30分钟数据由拓扑发现获取
+    QUERY_FLOW_MAX_TIME_RANGE = 30
+
     @classmethod
     def build_cache_key(cls, application):
         return APM_APPLICATION_METRIC.format(
@@ -284,12 +288,13 @@ class ServiceHandler:
 
         # Step1: 从 Flow 指标中获取
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        start_time, end_time = application.list_retention_time_range()
+        s, e = get_datetime_range(period="minute", distance=cls.QUERY_FLOW_MAX_TIME_RANGE, rounding=False)
+
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
+                "start_time": int(s.timestamp()),
+                "end_time": int(e.timestamp()),
                 "where": [],
                 "group_by": [
                     "from_apm_service_name",  # index: 0
@@ -403,7 +408,16 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def get_service_metric(cls, metric, application, start_time, end_time, service_name, bk_instance_id=None):
+    def get_service_metric(
+        cls,
+        metric,
+        application,
+        start_time,
+        end_time,
+        service_name,
+        bk_instance_id=None,
+        raise_exception=True,
+    ):
         """获取某个 service 的指标项"""
         # 根据 service 的类型使用不同的逻辑
         from apm_web.handlers.component_handler import ComponentHandler
@@ -413,7 +427,7 @@ class ServiceHandler:
             "start_time": start_time,
             "end_time": end_time,
         }
-        node = ServiceHandler.get_node(application.bk_biz_id, application.app_name, service_name)
+        node = ServiceHandler.get_node(application.bk_biz_id, application.app_name, service_name, raise_exception)
         if ComponentHandler.is_component_by_node(node):
             return metric(
                 **endpoint_metrics_param,
@@ -577,7 +591,7 @@ class ServiceHandler:
     def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
         """获取应用下各个服务的数据状态"""
         if len(all_services) == 0:
-            return []
+            return {}
 
         status = {
             TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,

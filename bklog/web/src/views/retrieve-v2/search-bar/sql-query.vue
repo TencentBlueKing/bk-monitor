@@ -87,7 +87,7 @@
   };
 
   const isEmptySqlString = computed(() => {
-    return /^\s*\*\s*$/.test(modelValue.value) || !modelValue.value.length;
+    return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
   });
 
   const debounceRetrieve = () => {

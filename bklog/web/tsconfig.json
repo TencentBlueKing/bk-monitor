@@ -1,8 +1,13 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js", "src/**/*"],
   "exclude": ["node_modules", "dist", "local.settings.js"],
+  "vueCompilerOptions": {
+    "target": 2.7
+  },
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "experimentalDecorators": true,
     "importHelpers": true,
     "resolveJsonModule": true,
@@ -16,6 +21,6 @@
     "pretty": true,
     "jsx": "preserve",
     "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"],
-    "removeComments": false
+    "removeComments": false,
   }
 }

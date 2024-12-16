@@ -22,6 +22,7 @@ from bkmonitor.action.serializers.report import (
 )
 from bkmonitor.models import ReportItems
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -134,6 +135,19 @@ class SendReportMail(Resource):
         except ReportItems.DoesNotExist:
             raise ValidationError(f"ReportItems id({params['id']}) does not exist")
 
+        # 获取当前用户
+        request = get_request(peaceful=True)
+        if not request:
+            raise ValidationError("request does not exist")
+        username = request.user.username
+        if not username:
+            raise ValidationError("username does not exist")
+
+        # 判断当前用户是否有权限
+        manager_users = [manager["id"] for manager in report_item.managers if manager["type"] == "user"]
+        if username not in manager_users:
+            raise ValidationError("You have no permission to send this report")
+
         ReportHandler(report_item.id).process_and_render_mails()
 
 
@@ -148,5 +162,6 @@ class MailReportViewSet(ResourceViewSet):
         ResourceRoute("POST", TestReportMail, endpoint="test_report_mail"),
         ResourceRoute("POST", SendReportMail, endpoint="send_report_mail"),
         ResourceRoute("GET", resource.report.group_list, endpoint="group_list"),
+        ResourceRoute("GET", resource.report.report_list, endpoint="report_mail_list"),
         ResourceRoute("POST", IsSuperuser, endpoint="is_superuser"),
     ]

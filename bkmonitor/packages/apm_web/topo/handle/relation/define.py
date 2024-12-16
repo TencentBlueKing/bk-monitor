@@ -254,4 +254,6 @@ class TreeInfo:
 @dataclass
 class Relation:
     parent_id: str
+    # source_info: 接口返回的 source_info 非结构化
+    source_info: dict
     nodes: List[Node]

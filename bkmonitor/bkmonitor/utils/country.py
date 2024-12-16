@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 ISP_LIST = [
     {"code": "2", "en": "China Unicom", "cn": _lazy("联通")},

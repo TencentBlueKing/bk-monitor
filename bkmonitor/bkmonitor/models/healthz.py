@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.utils.model_manager import Model
 
@@ -29,7 +29,6 @@ class HealthzTopoNode(Model):
 
 
 class HealthzMetricRecord(Model):
-
     metric_alias = models.CharField(max_length=128, verbose_name="指标别名")
     result = models.TextField(verbose_name="采集结果")
     last_update = models.DateTimeField(verbose_name="最后更新")
@@ -41,7 +40,6 @@ class HealthzMetricRecord(Model):
 
 
 class HealthzMetricConfig(Model):
-
     CATEGORY_CHOICES = (
         ("redis", "Redis"),
         ("kafka", "Kafka"),

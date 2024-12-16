@@ -36,14 +36,14 @@ import { SPACE_TYPE_MAP } from './utils';
 import type { ISpaceItem } from '../../types';
 
 import './space-select.scss';
-interface ItagsItem {
+interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
 }
-interface IlocalSpaceList extends ISpaceItem {
+interface ILocalSpaceList extends ISpaceItem {
   isCheck?: boolean;
-  tags?: ItagsItem[];
+  tags?: ITagsItem[];
   name?: string;
   show?: boolean;
   preciseMatch?: boolean;
@@ -57,7 +57,8 @@ interface IProps {
   multiple?: boolean;
   needAuthorityOption?: boolean;
   needAlarmOption?: boolean;
-  needDefalutOptions?: boolean;
+  needDefaultOptions?: boolean;
+  needIncidentOption?: boolean;
   disabled?: boolean;
   hasAuthApply?: boolean;
   currentSpace?: number | string;
@@ -99,7 +100,7 @@ export default class SpaceSelect extends tsc<
   /* 是否包含我有告警的选项 */
   @Prop({ default: true, type: Boolean }) needAlarmOption: boolean;
   /* 是否包含有权限的业务（最大20个）, 配置管理业务  告警接收业务  三个选项  */
-  @Prop({ default: false, type: Boolean }) needDefalutOptions: boolean;
+  @Prop({ default: false, type: Boolean }) needDefaultOptions: boolean;
   /* 禁用 */
   @Prop({ default: false, type: Boolean }) disabled: boolean;
   /* 是否包含申请权限功能 */
@@ -117,7 +118,7 @@ export default class SpaceSelect extends tsc<
   /* 搜索 */
   searchValue = '';
   /* 空间列表 */
-  localSpaceList: IlocalSpaceList[] = [];
+  localSpaceList: ILocalSpaceList[] = [];
   /* 空间类型列表 */
   spaceTypeIdList = [];
   /* 当前选中的空间类型 */
@@ -139,7 +140,7 @@ export default class SpaceSelect extends tsc<
     current: number;
     count: number;
     limit: number;
-    data: IlocalSpaceList[];
+    data: ILocalSpaceList[];
   } = {
     current: 1,
     count: 0,
@@ -163,25 +164,26 @@ export default class SpaceSelect extends tsc<
     }
     const defaultRadioListIds = defaultRadioList.map(d => d.id);
     this.localValue = [...v].map(b => (defaultRadioListIds.includes(String(b)) ? b : Number(b)));
-    const strs = [];
+    const nameList = [];
     const strList = [];
+    // biome-ignore lint/complexity/noForEach: <explanation>
     this.localSpaceList.forEach(item => {
       const has = this.localValue.includes(item.id);
       item.isCheck = has;
       if (has) {
-        strs.push(item.name);
+        nameList.push(item.name);
         strList.push({
           name: item.name,
           id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
         });
       }
     });
-    this.valueStr = strs.join(',');
+    this.valueStr = nameList.join(',');
     this.valueStrList = strList;
     this.sortSpaceList();
   }
   @Watch('currentSpace', { immediate: true })
-  handleWatchCureentSpace(v: number) {
+  handleWatchCurrentSpace(v: number) {
     if (v !== null) {
       this.localCurrentSpace = v;
     }
@@ -228,7 +230,7 @@ export default class SpaceSelect extends tsc<
         name: this.$t('-我有权限的空间-'),
       } as any);
     }
-    if (this.needDefalutOptions) {
+    if (this.needDefaultOptions) {
       this.localSpaceList = [...defaultRadioList.map(d => ({ ...nullItem, ...d })), ...this.localSpaceList] as any;
     }
     if (this.hasAuthApply) {
@@ -246,7 +248,7 @@ export default class SpaceSelect extends tsc<
   }
   @Watch('needIncidentOption')
   handleWatchNeedIncidentOption(v: boolean) {
-    const hasSpace: IlocalSpaceList = this.localSpaceList.find(space => space.id === hasDataBizId) as IlocalSpaceList;
+    const hasSpace: ILocalSpaceList = this.localSpaceList.find(space => space.id === hasDataBizId) as ILocalSpaceList;
     hasSpace.name = (v ? this.$t('-我有故障的空间-') : this.$t('-我有告警的空间-')) as string;
   }
   created() {
@@ -263,12 +265,12 @@ export default class SpaceSelect extends tsc<
       name: item.bk_biz_name,
     }));
     // const businessWithPermissionSet = new Set();
-    const curidsSet = new Set();
-    this.localSpaceList.forEach(item => {
+    const curIdsSet = new Set();
+    for (const item of this.localSpaceList) {
       if (!specialIds.includes(item.id)) {
-        curidsSet.add(item.id);
+        curIdsSet.add(item.id);
       }
-    });
+    }
     const nullItem = {
       space_name: '',
       isSpecial: false,
@@ -282,9 +284,9 @@ export default class SpaceSelect extends tsc<
     };
     const otherSpaces = [];
     if (business_with_alert?.length) {
-      business_with_alert.forEach(item => {
-        if (!curidsSet.has(item.bk_biz_id)) {
-          curidsSet.add(item.bk_biz_id);
+      for (const item of business_with_alert) {
+        if (!curIdsSet.has(item.bk_biz_id)) {
+          curIdsSet.add(item.bk_biz_id);
           otherSpaces.push({
             ...nullItem,
             ...item,
@@ -294,7 +296,7 @@ export default class SpaceSelect extends tsc<
             hasData: true,
           });
         }
-      });
+      }
     }
     const data =
       business_with_permission.map(item => ({
@@ -302,11 +304,11 @@ export default class SpaceSelect extends tsc<
         id: item.bk_biz_id,
         name: `[${item.bk_biz_id}] ${item.bk_biz_name}`,
       })) || [];
-    this.value.forEach(id => {
+    for (const id of this.value) {
       const bizItem = allBizList.find(set => set.id === id);
       if (bizItem && !data.some(set => set.id === id)) {
-        if (!curidsSet.has(bizItem.id)) {
-          curidsSet.add(bizItem.id);
+        if (!curIdsSet.has(bizItem.id)) {
+          curIdsSet.add(bizItem.id);
           otherSpaces.push({
             ...nullItem,
             ...bizItem,
@@ -317,7 +319,7 @@ export default class SpaceSelect extends tsc<
           });
         }
       }
-    });
+    }
     this.localSpaceList.push(...otherSpaces);
     this.localValue = [];
     this.handleWatchValue(this.value);
@@ -360,6 +362,7 @@ export default class SpaceSelect extends tsc<
   getSpaceList(spaceList: ISpaceItem[]) {
     const list = [];
     const spaceTypeMap: Record<string, any> = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     spaceList.forEach(item => {
       const tags = [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }];
       if (item.space_type_id === 'bkci' && item.space_code) {
@@ -457,10 +460,10 @@ export default class SpaceSelect extends tsc<
     this.popInstance = null;
     this.controller?.abort?.();
     this.isOpen = false;
-    this.localSpaceList.forEach(item => {
+    for (const item of this.localSpaceList) {
       item.show = true;
       item.preciseMatch = false;
-    });
+    }
     if (this.needCurSpace) {
       this.resetCurBiz();
     }
@@ -473,6 +476,7 @@ export default class SpaceSelect extends tsc<
   /* 搜索 */
   @Debounce(300)
   handleSearchChange(value: string) {
+    // biome-ignore lint/complexity/noForEach: <explanation>
     this.localSpaceList.forEach(item => {
       const keyword = value.trim().toLocaleLowerCase();
       const typeShow = (() => {
@@ -492,9 +496,9 @@ export default class SpaceSelect extends tsc<
 
       const searchShow =
         preciseMatch ||
-        item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-        item.py_text.indexOf(keyword) > -1 ||
-        item.pyf_text.indexOf(keyword) > -1 ||
+        item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
+        item.py_text?.indexOf(keyword) > -1 ||
+        item.pyf_text?.indexOf(keyword) > -1 ||
         `${item.id}`.includes(keyword) ||
         `${item.space_id}`.toLocaleLowerCase().includes(keyword) ||
         item.tags?.some(t => !!keyword && t.name.indexOf(keyword) > -1);
@@ -503,31 +507,31 @@ export default class SpaceSelect extends tsc<
     });
     this.setPaginationData(true);
   }
-  selectOption(item: IlocalSpaceList, v: boolean) {
+  selectOption(item: ILocalSpaceList, v: boolean) {
     if (this.multiple) {
-      this.localSpaceList.forEach(l => {
+      for (const space of this.localSpaceList) {
         if (specialIds.includes(item.id)) {
-          if (l.id === item.id) {
-            l.isCheck = v;
+          if (space.id === item.id) {
+            space.isCheck = v;
           } else {
-            l.isCheck = false;
+            space.isCheck = false;
           }
         } else {
-          if (specialIds.includes(l.id)) {
-            l.isCheck = false;
-          } else if (l.id === item.id) {
-            l.isCheck = v;
+          if (specialIds.includes(space.id)) {
+            space.isCheck = false;
+          } else if (space.id === item.id) {
+            space.isCheck = v;
           }
         }
-      });
+      }
     } else {
-      this.localSpaceList.forEach(l => {
-        l.isCheck = l.id === item.id;
-      });
+      for (const space of this.localSpaceList) {
+        space.isCheck = space.id === item.id;
+      }
     }
   }
   /* check */
-  handleSelectOption(item: IlocalSpaceList) {
+  handleSelectOption(item: ILocalSpaceList) {
     if (!!item.noAuth && !item.hasData) {
       return;
     }
@@ -538,7 +542,7 @@ export default class SpaceSelect extends tsc<
       this.handlePopoverHidden();
     }
   }
-  handleCheckOption(v: boolean, item: IlocalSpaceList) {
+  handleCheckOption(v: boolean, item: ILocalSpaceList) {
     this.selectOption(item, v);
     this.getLocalValue();
     this.setPaginationData(true);
@@ -547,7 +551,7 @@ export default class SpaceSelect extends tsc<
    * @description 设为当前空间
    * @param item
    */
-  handleSetCurBiz(item: IlocalSpaceList) {
+  handleSetCurBiz(item: ILocalSpaceList) {
     this.localCurrentSpace = item.id;
     if (!item.isCheck) {
       this.handleSelectOption(item);
@@ -561,26 +565,26 @@ export default class SpaceSelect extends tsc<
       return;
     }
     this.$store.commit('app/SET_BIZ_ID', +this.localCurrentSpace);
-    const serachParams = new URLSearchParams({ bizId: `${+this.localCurrentSpace}` });
-    const newUrl = `${window.location.pathname}?${serachParams.toString()}#${this.$route.fullPath}`;
+    const searchParams = new URLSearchParams({ bizId: `${+this.localCurrentSpace}` });
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}#${this.$route.fullPath}`;
     history.replaceState({}, '', newUrl);
   }
   /* 获取当前选中的值 */
   getLocalValue() {
     const value = [];
-    const strs = [];
+    const valueList = [];
     const strList = [];
-    this.localSpaceList.forEach(item => {
+    for (const item of this.localSpaceList) {
       if (item.isCheck) {
         value.push(item.id);
-        strs.push(item.name);
+        valueList.push(item.name);
         strList.push({
           name: item.name,
           id: item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code,
         });
       }
-    });
-    this.valueStr = strs.join(',');
+    }
+    this.valueStr = valueList.join(',');
     this.valueStrList = strList;
     this.localValue = value;
     this.isErr = !this.localValue.length;
@@ -595,9 +599,9 @@ export default class SpaceSelect extends tsc<
     this.localValue = [];
     this.valueStr = '';
     this.valueStrList = [];
-    this.localSpaceList.forEach(item => {
+    for (const item of this.localSpaceList) {
       item.isCheck = false;
-    });
+    }
     this.setPaginationData(true);
   }
   /* 排序，已选择默认置于我有告警的下方 */

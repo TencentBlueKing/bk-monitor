@@ -303,7 +303,7 @@ export default defineComponent({
           .then(data => {
             if (data) {
               empty.value = false;
-              relatedBkBizId.value = data.related_bk_biz_id;
+              relatedBkBizId.value = data.related_bk_biz_id || data.bk_biz_id;
               // 增加前置条件（索引集）列表获取
               const conditionTarget = props.panel.targets.find(item => item.dataType === 'condition');
               if (conditionTarget) {
@@ -348,16 +348,18 @@ export default defineComponent({
     /** 处理关联信息展示 */
     const handleRealtionData = (info, start_time = '', end_time = '') => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { log_type: logType, index_set_id: indexSetId, related_bk_biz_id } = info;
-      if (logType === 'bk_log') {
-        relatedBkBizId.value = related_bk_biz_id;
-        updateBarChartData(start_time, end_time);
-        updateTableData(start_time, end_time);
-        alertText.value = t('如果需要查看完整日志，可跳转日志检索进行查看');
-      } else {
-        alertText.value = t('关联了非蓝鲸日志平台的日志，只能进行日志的跳转');
-        thirdPartyLog.value = indexSetId;
-      }
+      const { related_bk_biz_id, bk_biz_id } = info;
+      // if (logType === 'bk_log') {
+      relatedBkBizId.value = related_bk_biz_id || bk_biz_id;
+      updateBarChartData(start_time, end_time);
+      updateTableData(start_time, end_time);
+      alertText.value = t('如果需要查看完整日志，可跳转日志检索进行查看');
+      // } else {
+      //   alertText.value = t('关联了非蓝鲸日志平台的日志，只能进行日志的跳转');
+      //   thirdPartyLog.value = indexSetId;
+      //   relatedBkBizId.value = related_bk_biz_id || bk_biz_id;
+      //   handleLoadingChange(false);
+      // }
     };
 
     /**

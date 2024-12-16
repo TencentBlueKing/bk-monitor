@@ -14,14 +14,14 @@ import json
 import os
 
 import yaml
-from django.utils.translation import ugettext as _
-from monitor_web.export_import.constant import ImportDetailStatus
-from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
-from monitor_web.plugin.manager import PluginManagerFactory
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from bkmonitor.strategy.new_strategy import Strategy
 from core.errors.plugin import PluginParseError
+from monitor_web.export_import.constant import ImportDetailStatus
+from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
+from monitor_web.plugin.manager import PluginManagerFactory
 
 
 class BaseParse(object):

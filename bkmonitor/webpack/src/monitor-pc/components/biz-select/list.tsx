@@ -46,11 +46,11 @@ export interface IListItem {
   space_code?: string;
   space_type_id?: string;
   space_id?: string;
-  tags?: ItagsItem[];
+  tags?: ITagsItem[];
   children?: IListItem[];
   is_hidden_tag?: boolean;
 }
-interface ItagsItem {
+interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
@@ -72,20 +72,23 @@ export default class List extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: val => ['dark', 'light'].includes(val),
+    validator: (val: string) => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
 
   @Emit('selected')
-  handleSelected(id: number) {
+  handleSelected(id: number | string) {
     return id;
   }
   render() {
     return (
       <div class={['biz-list-wrap', this.theme]}>
-        {!!this.list.length ? (
+        {this.list.length ? (
           this.list.map(item => (
-            <div class={['list-group', this.theme, { 'no-name': !item.name }]}>
+            <div
+              key={item.name}
+              class={['list-group', this.theme, { 'no-name': !item.name }]}
+            >
               {item.name && <div class='list-group-name'>{item.name}</div>}
               {item.children.map((child, i) => (
                 <div
@@ -111,6 +114,7 @@ export default class List extends tsc<IProps, IEvents> {
                     <span class='list-item-right'>
                       {child.tags?.map?.(tag => (
                         <span
+                          key={tag.id}
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.[this.theme] }}
                           class='list-item-tag'
                         >

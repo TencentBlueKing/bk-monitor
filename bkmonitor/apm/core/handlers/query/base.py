@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from django.db.models import Q
 from django.utils.functional import cached_property, classproperty
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -107,7 +107,6 @@ class LogicSupportOperator:
 
 
 class BaseQuery:
-
     USING_LOG: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
     USING_METRIC: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
@@ -197,7 +196,6 @@ class BaseQuery:
     def _query_option_values(
         self, q: QueryConfigBuilder, fields: List[str], start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> Dict[str, List[str]]:
-
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(self.OPTION_VALUES_MAX_SIZE)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？
@@ -294,8 +292,9 @@ class BaseQuery:
             logger.info("[add_query_string] filter_dict -> %s", filter_dict)
             if filter_dict:
                 return q.filter(dict_to_q(filter_dict))
-        except Exception:
-            logger.exception("[add_query_string] failed to parse dsl -> %s", dsl)
+        except Exception:  # pylint: disable=broad-except
+            # 可忽略异常，仅打印 warn 日志
+            logger.warning("[add_query_string] failed to parse dsl but skipped -> %s", dsl)
 
         query_string, nested_paths = cls._parse_query_string_from_dsl(dsl)
         logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)

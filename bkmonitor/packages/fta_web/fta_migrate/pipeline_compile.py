@@ -1,20 +1,29 @@
 # -*- coding: utf-8 -*-
 
-import ujson as json
 import re
 from copy import deepcopy
-from django.utils.translation import ugettext as _
+
+import ujson as json
+from django.utils.translation import gettext as _
 
 from core.drf_resource import api
-from fta_web.fta_migrate.pipeline.flow import ServiceActivity, EmptyEndEvent, ExclusiveGateway, SubProcess
+from fta_web.fta_migrate.constants import (
+    FTA_COMPONENTS_DICT,
+    FTA_SOPS_MAPPING,
+    FTA_SOPS_QUICK_ACTION_MAPPING,
+)
+from fta_web.fta_migrate.pipeline.flow import (
+    EmptyEndEvent,
+    ExclusiveGateway,
+    ServiceActivity,
+    SubProcess,
+)
 from fta_web.fta_migrate.pipeline.tree_components import (
     activity_result_constant,
-    sops_constant_skeleton,
     fta_bak_ip_constants,
+    node_uniqid,
+    sops_constant_skeleton,
 )
-
-from fta_web.fta_migrate.constants import FTA_COMPONENTS_DICT, FTA_SOPS_MAPPING, FTA_SOPS_QUICK_ACTION_MAPPING
-from fta_web.fta_migrate.pipeline.tree_components import node_uniqid
 
 VAR_STR_MATCH = re.compile(r"\$\{\s*[\w\|]+\s*\}")
 VAR_NAME_MATCH = re.compile(r"\$\{\s*([\w\|]+)\s*\}")
@@ -61,7 +70,6 @@ class FtaTreeDecode:
             act.extend(next_event)
 
     def compile_tree(self, real_solutions):
-
         # 计算出二叉树的高度
         height = self.compute_flow_height()
         acts = {node_id: self.compile_service_activity(real_solutions, node_id) for node_id in self.all_nodes}

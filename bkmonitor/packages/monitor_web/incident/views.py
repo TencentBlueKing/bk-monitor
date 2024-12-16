@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.conf import settings
+
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -17,7 +19,13 @@ class IncidentViewSet(ResourceViewSet):
     query_post_actions = []
 
     def get_permissions(self):
-        return [ViewBusinessPermission()]
+        if self.action in ["incident_overview"]:
+            return []
+
+        # 业务开启故障分析才有权限校验，未开启不需要校验，因为查不出数据
+        if self.request.biz_id in settings.AIOPS_INCIDENT_BIZ_WHITE_LIST:
+            return [ViewBusinessPermission()]
+        return []
 
     resource_routes = [
         # 故障列表接口

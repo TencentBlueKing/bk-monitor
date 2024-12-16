@@ -74,6 +74,44 @@ class BkLogJsonEtlStorage(EtlStorage):
             "time_option": result_table_fields["time_field"]["option"],
         }
 
+    def get_bkdata_fields_configs(self, bkdata_fields):
+        fields_type_object = [field for field in bkdata_fields if field["field_type"] == "object"]
+        fields_no_type_object = [field for field in bkdata_fields if field["field_type"] != "object"]
+        fields_configs = []
+        if fields_no_type_object:
+            fields_configs.append(
+                {
+                    "next": None,
+                    "subtype": "assign_obj",
+                    "label": "labela2dfe3",
+                    "assign": [self._to_bkdata_assign(field) for field in fields_no_type_object],
+                    "type": "assign",
+                }
+            )
+        if fields_type_object:
+            fields_configs.extend(
+                [
+                    {
+                        "type": "access",
+                        "subtype": "access_obj",
+                        "label": "label2c773e" + str(count),
+                        "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
+                        "result": f'{field.get("alias_name") if field.get("alias_name") else field.get("field_name")}_json',
+                        "default_type": "null",
+                        "default_value": "",
+                        "next": {
+                            "type": "assign",
+                            "subtype": "assign_json",
+                            "label": "label6d9ab9" + str(count),
+                            "assign": [self._to_bkdata_assign_obj(field)],
+                            "next": None,
+                        },
+                    }
+                    for count, field in enumerate(fields_type_object)
+                ]
+            )
+        return fields_configs
+
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         retain_original_text = etl_params.get("retain_original_text", False)
         built_in_fields = built_in_config.get("fields", [])
@@ -86,6 +124,7 @@ class BkLogJsonEtlStorage(EtlStorage):
         result_table_fields = self.get_result_table_fields(fields, etl_params, copy.deepcopy(built_in_config))
         time_field = result_table_fields.get("time_field")
         bkdata_fields = [field for field in fields if not field["is_delete"]]
+        bkdata_fields_configs = self.get_bkdata_fields_configs(bkdata_fields)
         return {
             "extract": {
                 "method": "from_json",
@@ -106,13 +145,10 @@ class BkLogJsonEtlStorage(EtlStorage):
                                                     {
                                                         "method": "from_json",
                                                         "next": {
-                                                            "next": None,
-                                                            "subtype": "assign_obj",
-                                                            "label": "labela2dfe3",
-                                                            "assign": [
-                                                                self._to_bkdata_assign(field) for field in bkdata_fields
-                                                            ],
-                                                            "type": "assign",
+                                                            "label": None,
+                                                            "name": "",
+                                                            "next": bkdata_fields_configs,
+                                                            "type": "branch",
                                                         },
                                                         "result": "log_json",
                                                         "label": "label5e3d6f",

@@ -765,7 +765,7 @@ class CollectorHandler(object):
             bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=instance.bk_data_id,
                 data_link_id=instance.data_link_id,
-                data_name=build_bk_data_name(instance.get_bk_biz_id(), instance.get_name()),
+                data_name=build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
             )
@@ -2174,7 +2174,7 @@ class CollectorHandler(object):
         match_lines = 0
         for line in lines:
             try:
-                if re.match(data["multiline_pattern"], line):
+                if re.search(data["multiline_pattern"], line):
                     match_lines += 1
             except re.error as e:
                 raise RegexInvalidException(RegexInvalidException.MESSAGE.format(error=e))
@@ -2326,7 +2326,7 @@ class CollectorHandler(object):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
         if not clean_stash:
             return None
-        config = model_to_dict(CleanStash.objects.filter(collector_config_id=self.collector_config_id).first())
+        config = model_to_dict(clean_stash)
         # 给未配置自定义分词符和大小写敏感的清洗配置添加默认值
         etl_params = config.get("etl_params", {})
         etl_params.setdefault("original_text_is_case_sensitive", False)
@@ -2449,7 +2449,7 @@ class CollectorHandler(object):
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(bkdata_biz_id, collector_config_name),
+                data_name=build_bk_data_name(bkdata_biz_id, collector_config_name_en),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -2819,7 +2819,7 @@ class CollectorHandler(object):
             self.data.bk_data_id = collector_scenario.update_or_create_data_id(
                 bk_data_id=self.data.bk_data_id,
                 data_link_id=self.data.data_link_id,
-                data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name"]),
+                data_name=build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
             )
@@ -3402,7 +3402,7 @@ class CollectorHandler(object):
         self.data.bk_data_id = collector_scenario.update_or_create_data_id(
             bk_data_id=self.data.bk_data_id,
             data_link_id=self.data.data_link_id,
-            data_name=build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name"]),
+            data_name=build_bk_data_name(self.data.bk_biz_id, collector_config_params["collector_config_name_en"]),
             description=collector_config_params["description"]
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],

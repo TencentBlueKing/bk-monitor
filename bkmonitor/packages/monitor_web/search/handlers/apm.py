@@ -2,19 +2,18 @@
 from typing import List
 
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+
+from apm.models import ApmApplication, TopoNode
+from bkmonitor.iam import ActionEnum
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
     SearchResultItem,
     SearchScope,
 )
 
-from apm.models import ApmApplication, TopoNode
-from bkmonitor.iam import ActionEnum
-
 
 class ApmSearchHandler(BaseSearchHandler):
-
     SCENE = "apm"
 
     def search_application(self, query: str, limit: int = 10) -> List[SearchResultItem]:

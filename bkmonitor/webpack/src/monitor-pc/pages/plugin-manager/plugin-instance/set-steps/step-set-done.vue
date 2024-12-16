@@ -53,7 +53,7 @@
             <path d="M28,8c0-2.2,1.8-4,4-4s4,1.8,4,4v4c0,2.2-1.8,4-4,4s-4-1.8-4-4V8z" />
           </g>
         </svg>
-        <div class="loading-message">
+        <div class="loading-message-container">
           <h4 class="message-title">
             {{ $t('保存插件中，请稍后...') }}
           </h4>
@@ -100,8 +100,8 @@
           class="result-fail"
         >
           <svg
-            viewBox="0 0 64 64"
             class="fail-svg"
+            viewBox="0 0 64 64"
           >
             <g>
               <path
@@ -344,7 +344,7 @@ export default {
         }
       }
 
-      .loading-message {
+      .loading-message-container {
         .message-title {
           height: 21px;
           font-size: 16px;

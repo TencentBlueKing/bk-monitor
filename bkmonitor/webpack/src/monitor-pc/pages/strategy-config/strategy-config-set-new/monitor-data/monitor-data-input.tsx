@@ -54,7 +54,7 @@ const expressPlaceholders = (type: string) => {
 };
 interface IMericDataInputProps {
   metricData: MetricDetail[];
-  metricNameLabel: TranslateResult | string;
+  metricNameLabel: string | TranslateResult;
   expression: string;
   isRealTimeModel?: boolean;
   readonly: boolean;
@@ -80,7 +80,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   // 是否是实时模式
   @Prop({ type: Boolean, default: false }) isRealTimeModel: boolean;
   @Prop({ default: false, type: Boolean }) readonly: boolean;
-  @Prop({ type: String, default: '' }) metricNameLabel: TranslateResult | string;
+  @Prop({ type: String, default: '' }) metricNameLabel: string | TranslateResult;
   @Prop({ type: String, default: '' }) expression: string;
   @Prop({ default: false, type: Boolean }) hasAIntelligentDetect: boolean; // 存在一个智能检测算法
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[]; /** 表达式函数 */
@@ -354,14 +354,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         theme: 'monitor-metric-input',
         arrow: true,
         flip: false,
+        interactive: true,
+        interactiveBorder: 6,
+        onHidden: () => {
+          this.metricpopoerInstance?.destroy?.();
+          this.metricpopoerInstance = null;
+        },
       });
       this.metricpopoerInstance?.show?.(100);
     }
-  }
-  handleMetricMouseleave() {
-    this.metricpopoerInstance?.hide?.();
-    this.metricpopoerInstance?.destroy?.();
-    this.metricpopoerInstance = null;
   }
   handleQueryStringChange(e: Event, item: MetricDetail) {
     item.keywords_query_string = String((e.target as any).value).trim();
@@ -403,7 +404,6 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='form-content monitor-input metric-wrap'
                       on-click={() => !this.readonly && this.handleAddMetric(item)}
                       onMouseenter={e => this.handleMetricMouseenter(e, item)}
-                      onMouseleave={this.handleMetricMouseleave}
                     >
                       <div
                         id={`set-panel-item-${this.dataTypeLabel}${item.key || ''}`}

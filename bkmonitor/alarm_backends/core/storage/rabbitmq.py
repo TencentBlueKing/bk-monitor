@@ -13,7 +13,7 @@ import time
 from typing import Callable, Dict
 
 import pika
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from kombu.utils.url import url_to_parts
 from pika.exceptions import ChannelClosedByBroker
 

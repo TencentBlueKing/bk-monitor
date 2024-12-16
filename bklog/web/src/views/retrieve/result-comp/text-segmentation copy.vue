@@ -362,6 +362,7 @@
     }
 
     .icon-minus-circle,
+    .bklog-trace-view,
     .icon-plus-circle {
       margin-right: 6px;
     }

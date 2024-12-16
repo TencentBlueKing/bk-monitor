@@ -16,7 +16,7 @@ from typing import Dict
 
 import arrow
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR, NO_DATA_LEVEL
 from alarm_backends.core.cache import key
@@ -47,6 +47,14 @@ class Strategy(object):
             return ""
 
         return self.config["items"][0].get("query_md5", "")
+
+    @property
+    def use_api_sdk(self):
+        for query_config in self.config["items"][0]["query_configs"]:
+            if "intelligent_detect" in query_config:
+                return bool(query_config["intelligent_detect"].get("use_sdk"))
+
+        return False
 
     def get_interval(self) -> int:
         """

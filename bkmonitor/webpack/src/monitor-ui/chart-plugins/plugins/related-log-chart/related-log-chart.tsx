@@ -175,7 +175,6 @@ class RelatedLogChart extends CommonSimpleChart {
           } else {
             this.empty = true;
             this.emptyText = '';
-            this.handleLoadingChange(false);
           }
           this.clearErrorMsg();
         })
@@ -183,6 +182,8 @@ class RelatedLogChart extends CommonSimpleChart {
           this.empty = true;
           this.handleErrorMsgChange(error.msg || error.message);
           this.emptyText = window.i18n.tc('出错了');
+        })
+        .finally(() => {
           this.handleLoadingChange(false);
         });
     }

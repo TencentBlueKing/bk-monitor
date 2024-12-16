@@ -593,7 +593,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         {!this.isOnlyShowIndex && this.maxIndexListHeight < this.indexListHeight && <div class='shadow-bar' />}
         {this.isOnlyShowIndex ? (
           <div>
-            <div class='only-index-tree-header'>{this.$t('索引')}</div>
+            <div class='only-index-tree-header'>{this.$t('指标列表')}</div>
             <div
               class='only-index-search-input'
               onClick={e => e.stopPropagation()}
@@ -649,7 +649,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         <div />
         <div
           style={{
-            height: `${this.indexListHeight - 40}px`,
+            height: this.isOnlyShowIndex ? `${this.indexListHeight - 80}px` : `${this.indexListHeight - 40}px`,
           }}
           class='index-tree-main'
         >

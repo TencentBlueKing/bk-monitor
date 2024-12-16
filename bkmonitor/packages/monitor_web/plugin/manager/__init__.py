@@ -16,7 +16,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.user import get_global_user
 from monitor_web.commons.file_manager import PluginFileManager

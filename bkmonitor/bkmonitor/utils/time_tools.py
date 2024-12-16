@@ -340,7 +340,11 @@ def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
     else:
         if time_offset[-1] in "smhdw":
             time_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
-            time_offset = -int(float(time_offset[:-1]) * time_unit[time_offset[-1]])
+            try:
+                time_offset = -int(float(time_offset[:-1]) * time_unit[time_offset[-1]])
+            except ValueError:
+                # 降采样低于1s后， 单位为ms， 上面逻辑不适用，最低设置为1s即可。
+                time_offset = -1
         else:
             current_time = arrow.now()
             if time_offset[-1] == "M":

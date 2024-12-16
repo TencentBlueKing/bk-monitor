@@ -62,6 +62,9 @@ DEFAULT_DOC = DOCS_LIST[0]
 
 @login_exempt
 def get_docs_link(request):
+    if settings.BK_DOC_STATIC_URL:
+        return JsonResponse({"result": True, "code": 0, "message": "OK", "data": settings.BK_DOC_STATIC_URL})
+
     md_path = request.GET.get("md_path", "").strip("/")
     if not md_path:
         e = BaseCommonsException(_("md_path参数不能为空"))

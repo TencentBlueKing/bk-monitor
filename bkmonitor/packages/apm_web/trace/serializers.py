@@ -8,13 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from rest_framework import serializers
+
 from apm_web.models import (
     Application,
     AppServiceRelation,
     CMDBServiceRelation,
     LogServiceRelation,
 )
-from rest_framework import serializers
 
 
 class StatusCodeSerializer(serializers.Serializer):
@@ -71,7 +72,6 @@ class FilterSerializer(serializers.Serializer):
 
 
 class QuerySerializer(serializers.Serializer):
-
     bk_biz_id = serializers.IntegerField(label="业务ID")
     app_name = serializers.CharField(label="应用名称")
     offset = serializers.IntegerField(required=False, label="偏移量", default=0)

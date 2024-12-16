@@ -182,7 +182,7 @@
   import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
   import { deepClone } from '../../../../common/util';
-
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   export default {
     components: {
       DataFingerprint,
@@ -371,6 +371,23 @@
       },
     },
     methods: {
+      setRouteParams() {
+        const route = this.$route;
+        const store = this.$store;
+        const router = this.$router;
+
+        const query = { ...route.query };
+
+        const resolver = new RetrieveUrlResolver({
+          clusterParams: store.state.clusterParams,
+        });
+
+        Object.assign(query, resolver.resolveParamsToUrl());
+
+        router.replace({
+          query,
+        });
+      },
       /**
        * @desc: 初始化table所需的一些参数
        */
@@ -428,6 +445,7 @@
         }
         Object.assign(this.requestData, queryRequestData);
         this.$store.commit('updateClusterParams', this.requestData);
+        this.setRouteParams();
         this.isInitPage = false;
       },
       /**
@@ -459,6 +477,7 @@
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
             this.$store.commit('updateClusterParams', this.requestData);
+            this.setRouteParams();
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
             Object.assign(this.fingerOperateData, val);
@@ -668,11 +687,15 @@
     activated() {
       this.isClusterActive = true;
       if (this.isClickSearch && !this.isInitPage) this.requestFinger();
-      if (!this.isInitPage) this.$store.commit('updateClusterParams', this.requestData);
+      if (!this.isInitPage) {
+        this.$store.commit('updateClusterParams', this.requestData);
+        this.setRouteParams();
+      }
     },
     deactivated() {
       this.isClusterActive = false;
       this.$store.commit('updateClusterParams', null);
+      this.setRouteParams();
       this.stopPolling(); // 停止状态轮询
     },
     beforeDestroy() {

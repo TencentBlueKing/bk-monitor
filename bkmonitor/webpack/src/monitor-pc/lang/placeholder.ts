@@ -124,6 +124,7 @@ export default {
   输入仪表盘名称: 'Enter dashboard name',
   '输入 ID 可精准查询': 'Enter the ID for exact query',
   输入群ID: 'Enter group ID',
+  '请输入Trace ID': 'Enter Trace ID',
 
   // 规范: 选择xxx  Select xxx
   选择IP目标: 'Select an IP target',
@@ -184,6 +185,8 @@ export default {
   选择索引集: 'Select Indices',
   '选择{0}调试主机': 'Select {0} debug host',
   请选择空间: 'Please select a space',
+  请选择目标目录: 'Please select the target directory',
+  请选择所属目录: 'Please select the directory',
 
   // 请选择文件
 

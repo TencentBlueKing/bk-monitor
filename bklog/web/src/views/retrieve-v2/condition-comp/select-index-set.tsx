@@ -41,7 +41,7 @@ type ActiveType = 'favorite' | 'history';
 const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
-export default class QueryStatement extends tsc<object> {
+export default class SelectIndexSet extends tsc<object> {
   @Prop({ default: {} }) popoverOptions;
 
   /** 表示集合数据是否正在加载 */
@@ -173,9 +173,9 @@ export default class QueryStatement extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_APM__) {
-      return this.$route.query.indexId;
+      return String(this.$route.query.indexId);
     } else {
-      return this.$route.params.indexId;
+      return String(this.$route.params.indexId);
     }
   }
 
@@ -366,18 +366,31 @@ export default class QueryStatement extends tsc<object> {
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
-    const { start_time, end_time, timezone } = this.indexItem;
+    const { start_time, end_time, timezone, keyword, search_mode, addition } = this.indexItem;
     const payload = {
       start_time,
       end_time,
       timezone,
       ids,
+      addition: addition || [],
+      keyword: keyword || '',
+      search_mode,
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
       isUnionIndex: !this.isAloneType,
       sort_list: [],
     };
-
+    if (payload.items.length === 1 && !payload.addition.length && !payload.keyword) {
+      if (payload.items[0].query_string) {
+        payload.keyword = payload.items[0].query_string;
+        payload.search_mode = 'sql';
+        payload.addition = [];
+      } else if (payload.items[0].addition) {
+        payload.addition = payload.items[0].addition;
+        payload.search_mode = 'ui';
+        payload.keyword = '';
+      }
+    }
     return payload;
   }
 
@@ -461,8 +474,8 @@ export default class QueryStatement extends tsc<object> {
         localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
       }
 
-      this.aloneHistory = [];
-      this.multipleHistory = [];
+      this.aloneHistory.length = 0;
+      this.multipleHistory.length = 0;
       this.changeTypeCatchIDlist = [];
       this.filterTagID = null;
       setTimeout(() => {
@@ -768,14 +781,15 @@ export default class QueryStatement extends tsc<object> {
    * @param {IndexSetType} queryType 历史记录类型
    * @param {Boolean} isForceRequest 是否强制请求
    */
-  async getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
+  getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
     // 判断当前历史记录数组是否需要请求
     const isShouldQuery = queryType === 'single' ? !!this.aloneHistory.length : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
     if ((!isForceRequest && isShouldQuery) || this.historyLoading) return;
 
     this.historyLoading = true;
-    await $http
+    const target = queryType === 'single' ? this.aloneHistory : this.multipleHistory;
+    $http
       .request('unionSearch/unionHistoryList', {
         data: {
           space_uid: this.spaceUid,
@@ -783,11 +797,8 @@ export default class QueryStatement extends tsc<object> {
         },
       })
       .then(res => {
-        if (queryType === 'single') {
-          this.aloneHistory = (res.data ?? []).slice(10);
-        } else {
-          this.multipleHistory = (res.data ?? []).slice(10);
-        }
+        const result = (res.data ?? []).slice(0, 10);
+        target.splice(0, target.length, ...result);
       })
       .finally(() => {
         this.historyLoading = false;
@@ -1125,17 +1136,21 @@ export default class QueryStatement extends tsc<object> {
       </div>
     );
     const indexHandDom = item => {
-      return this.isAloneType ? (
-        <span
-          class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
-          onClick={e => this.handleCollection(item, e)}
-        />
-      ) : (
-        <bk-checkbox
-          checked={this.getCheckedVal(item.index_set_id)}
-          disabled={this.getDisabled(item.index_set_id)}
-        />
-      );
+      if (this.isAloneType) {
+        return !window.__IS_MONITOR_APM__ ? (
+          <span
+            class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
+            onClick={e => this.handleCollection(item, e)}
+          />
+        ) : undefined;
+      } else {
+        return (
+          <bk-checkbox
+            checked={this.getCheckedVal(item.index_set_id)}
+            disabled={this.getDisabled(item.index_set_id)}
+          />
+        );
+      }
     };
     const selectGroupDom = () => {
       return (
@@ -1173,7 +1188,7 @@ export default class QueryStatement extends tsc<object> {
                       onClick={() => this.handelClickIndexSet(item)}
                     >
                       <span class='index-info'>
-                        {!window.__IS_MONITOR_APM__ && indexHandDom(item)}
+                        {indexHandDom(item)}
                         {item.isNotVal && <i class='not-val' />}
                         <span
                           class='index-name'

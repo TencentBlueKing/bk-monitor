@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache

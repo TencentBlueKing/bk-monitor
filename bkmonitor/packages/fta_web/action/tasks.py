@@ -10,19 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 import logging
-from django.utils.translation import ugettext as _
 
 from celery.task import task
 from django.conf import settings
-from fta_web.action.utils import (
-    compile_assign_action_config,
-    parse_bk_plugin_deployed_info,
-)
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils.send import NoneTemplateSender
 from constants.action import ActionSignal, ActionStatus
 from core.drf_resource import api
+from fta_web.action.utils import (
+    compile_assign_action_config,
+    parse_bk_plugin_deployed_info,
+)
 
 logger = logging.getLogger("root")
 

@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_HALF_MINUTE, CONST_MINUTES, CONST_SECOND
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
@@ -41,7 +41,7 @@ from constants.action import (
     ActionStatus,
     ConvergeType,
 )
-from core.errors.alarm_backends import ActionAlreadyFinishedError
+from core.errors.alarm_backends import ActionAlreadyFinishedError, StrategyNotFound
 from core.prometheus import metrics
 
 logger = logging.getLogger("fta_action.converge")
@@ -201,13 +201,22 @@ class ConvergeProcessor(object):
         except ConvergeLockError as error:
             raise error
         except ActionAlreadyFinishedError as error:
-            logger.info("run action converge failed: %s", str(error))
+            logger.info("run action converge(%s) failed: %s", self.instance_id, str(error))
             return
-        except BaseException as error:
+        except StrategyNotFound:
+            logger.info(
+                "run action converge(%s) skip: strategy(%s) not found", self.instance_id, self.instance.strategy_id
+            )
+            self.status = ActionStatus.SKIPPED
+            self.comment = _("策略({}) 被删除或停用, 跳过.").format(
+                self.instance.strategy_id,
+            )
+            self.push_to_queue()
+            return
+        except BaseException:
             logger.exception(
-                "run converge[%s] failed: %s",
+                "run converge failed: [%s]",
                 self.converge_config,
-                error,
             )
             # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
             self.push_converge_queue()
@@ -415,7 +424,7 @@ class ConvergeProcessor(object):
         if isinstance(self.instance, ActionInstance):
             # 如果是处理动作的收敛，需要更新处理动作的状态和对象
             self.instance.status = self.status if self.status else ActionStatus.CONVERGED
-            self.instance.output = {"message": self.comment}
+            self.instance.outputs = {"message": self.comment}
             self.instance.end_time = end_time
             self.instance.update_time = end_time
             if end_time:

@@ -92,7 +92,7 @@ export default defineComponent({
     }
 
     watch(
-      () => props.formData.dateComparisonEnable,
+      () => props.formData?.dateComparisonEnable,
       val => {
         if (!val) {
           comparisonPosition.splice(0);
@@ -115,11 +115,11 @@ export default defineComponent({
       return {
         filter_labels: {
           ...filter_labels,
-          ...(props.formData.dateComparisonEnable && start && end ? { start, end } : {}),
+          ...(props.formData?.dateComparisonEnable && start && end ? { start, end } : {}),
         },
         diff_filter_labels: {
           ...diff_filter_labels,
-          ...(props.formData.dateComparisonEnable && diffStart && diffEnd ? { start: diffStart, end: diffEnd } : {}),
+          ...(props.formData?.dateComparisonEnable && diffStart && diffEnd ? { start: diffStart, end: diffEnd } : {}),
         },
         ...rest,
       };
@@ -195,7 +195,7 @@ export default defineComponent({
           onLoading={this.handleTrendLoading}
         />
 
-        {this.formData.dateComparisonEnable && (
+        {this.formData?.dateComparisonEnable && (
           <div class='date-comparison-view'>
             <ComparisonChart
               colorIndex={0}

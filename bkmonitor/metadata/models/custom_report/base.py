@@ -14,7 +14,7 @@ from typing import Optional
 
 from django.db import models
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from metadata import config
 from metadata.models.common import Label

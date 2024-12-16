@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
 from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY

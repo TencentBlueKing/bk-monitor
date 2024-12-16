@@ -211,9 +211,9 @@ class AlertViewSet(ResourceViewSet):
         # 主机多指标异常检测告警详情图表
         ResourceRoute("GET", resource.alert.multi_anomaly_detect_graph, endpoint="alert/multi_anomaly_detect_graph"),
         # 业务统计相关接口
-        ResourceRoute("GET", resource.alert.get_fta_strategy, endpoint="alert/get_fta_strategy"),
+        ResourceRoute("GET", resource.alert.get_four_metrics_strategy, endpoint="alert/get_four_metrics_strategy"),
         ResourceRoute("GET", resource.alert.get_tmp_data, endpoint="alert/get_tmp_data"),
-        ResourceRoute("GET", resource.alert.get_fta_data, endpoint="alert/get_fta_data")
+        ResourceRoute("GET", resource.alert.get_four_metrics_data, endpoint="alert/get_four_metrics_data")
     ]
 
 

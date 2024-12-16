@@ -63,8 +63,13 @@ const getCloudAreaList = {
   url: '/search/index_set/$index_set_id/:tailf/',
   method: 'post',
 };
+
 const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
+  method: 'post',
+};
+const quickDownload = {
+  url: '/search/index_set/:index_set_id/quick_export/',
   method: 'post',
 };
 const unionDownloadLog = {
@@ -221,6 +226,7 @@ export {
   downloadLog,
   unionDownloadLog,
   exportAsync,
+  quickDownload,
   getRealTimeLog,
   getContentLog,
   saveTitleInfo,

@@ -39,8 +39,8 @@ Messages = {
 StringRegex = r"[\u4e00-\u9fff]"  # noqa
 
 ImportPath = "django.utils.translation"
-ImportNames = ["gettext", "ugettext", "pgettext", "ngettext", "npgettext", "ungettext"]
-LazyImportNames = ["{}_lazy".format(name) for name in ImportNames] + ["gettext_noop", "ugettext_noop"]
+ImportNames = ["gettext", "pgettext", "ngettext", "npgettext"]
+LazyImportNames = ["{}_lazy".format(name) for name in ImportNames] + ["gettext_noop"]
 
 
 class TranslateFuncFinder(ast.NodeVisitor):

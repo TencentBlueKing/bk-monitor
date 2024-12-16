@@ -66,10 +66,16 @@
     padding: 0 14px;
     font-size: 12px;
     color: #313238;
-
+    ;
     .left-title {
       font-weight: 700;
       color: #63656E;
+      .left-title-setting{
+        cursor: pointer;
+        .bklog-log-setting{
+          font-size: 15px;
+        }
+      }
     }
 
     .is-text-click {

@@ -59,7 +59,7 @@ import { isRecoveryDisable, isStatusSetterNoData } from '../common';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
-import { DetectionRuleTypeEnum, MetricDetail, MetricType } from '../strategy-config-set-new/typings';
+import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
@@ -413,6 +413,10 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   get selectMetric() {
     if (!this.table.select.length) return [];
     return this.table.select[0].queryConfigs.map(item => new MetricDetail({ ...item }));
+  }
+
+  deactivated() {
+    this.selectKey += 1;
   }
 
   @Watch('table.data')

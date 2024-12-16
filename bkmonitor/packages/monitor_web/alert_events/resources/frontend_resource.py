@@ -21,7 +21,7 @@ from django.core.exceptions import EmptyResultSet
 from django.core.paginator import Paginator
 from django.db.models import Max, Q, Sum
 from django.utils.translation import get_language
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pytz import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError

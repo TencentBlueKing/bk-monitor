@@ -17,10 +17,14 @@ import os
 import mock
 from django.conf import settings
 from django.test import TestCase, override_settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource import APIResource
-from monitor_web.models import CollectorPluginConfig, CollectorPluginInfo, PluginVersionHistory
+from monitor_web.models import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    PluginVersionHistory,
+)
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import DebugStatus, PluginType
 

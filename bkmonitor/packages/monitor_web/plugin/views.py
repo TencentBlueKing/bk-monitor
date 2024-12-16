@@ -14,7 +14,7 @@ from typing import Dict, List
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action

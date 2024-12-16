@@ -182,6 +182,8 @@ export default defineComponent({
           <Select
             v-model={this.localValue.value}
             scroll-loading={this.scrollLoading}
+            allowCreate
+            disableFocusBehavior
             filterable
             onChange={this.handleEmitData}
             onScroll-end={this.getLabelValuesDebounce}

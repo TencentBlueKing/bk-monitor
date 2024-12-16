@@ -3,23 +3,24 @@ import base64
 import datetime
 import hashlib
 import json
-import ujson
 import logging
-from django.utils.translation import ugettext as _
+
+import ujson
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import ActionConfig
 from core.drf_resource import api
-from fta_web.fta_migrate.constants import SOPS_CONSTANTS_MAPPING, SALT
+from fta_web.fta_migrate.constants import SALT, SOPS_CONSTANTS_MAPPING
 from fta_web.fta_migrate.pipeline import builder
-from fta_web.fta_migrate.pipeline.flow import EmptyStartEvent, EmptyEndEvent
-from fta_web.fta_migrate.pipeline.utils import replace_all_id
-from fta_web.fta_migrate.pipeline_compile import FtaTreeDecode
+from fta_web.fta_migrate.pipeline.flow import EmptyEndEvent, EmptyStartEvent
 from fta_web.fta_migrate.pipeline.tree_components import (
-    node_uniqid,
-    get_template_skeleton,
     fta_public_constants,
+    get_template_skeleton,
+    node_uniqid,
     tree_skeleton,
 )
+from fta_web.fta_migrate.pipeline.utils import replace_all_id
+from fta_web.fta_migrate.pipeline_compile import FtaTreeDecode
 from fta_web.models.old_fta import Solution
 
 logger = logging.getLogger("root")

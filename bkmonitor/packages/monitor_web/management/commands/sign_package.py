@@ -17,13 +17,13 @@ import tempfile
 
 import yaml
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.signature import load_plugin_signature_manager
-
-from core.errors.plugin import PluginParseError
 
 
 class Command(BaseCommand):

@@ -50,12 +50,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ required: true, type: String }) textDirection: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
 
-  downloadTypeMaps = [
-    'png',
-    // 'json',
-    'pprof',
-    // 'html'
-  ];
   keyword = '';
 
   get viewModeList() {
@@ -70,6 +64,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     }
 
     return list;
+  }
+
+  // 表格火焰图 && 火焰图 展示png下载
+  get downloadTypeMaps() {
+    const baseTypes = ['pprof'];
+    if ([ViewModeType.Flame, ViewModeType.Combine].includes(this.activeMode as ViewModeType)) {
+      baseTypes.unshift('png');
+    }
+    return baseTypes;
   }
 
   @Emit('modeChange')
@@ -99,6 +102,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <div class='view-mode button-group'>
           {this.viewModeList.map(mode => (
             <div
+              key={mode.id}
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
               onClick={() => this.handleModeChange(mode.id)}
             >
@@ -114,6 +118,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <div class='ellipsis-direction button-group'>
           {Object.values(TextDirectionType).map(item => (
             <div
+              key={item}
               class={`button-group-item ${item === this.textDirection ? 'active' : ''}`}
               onClick={() => this.handleTextDirectionChange(item)}
             >
@@ -137,6 +142,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           >
             {this.downloadTypeMaps.map(item => (
               <li
+                key={item}
                 class='profiling-view-download-menu-item'
                 onClick={() => this.handleDownload(item)}
               >

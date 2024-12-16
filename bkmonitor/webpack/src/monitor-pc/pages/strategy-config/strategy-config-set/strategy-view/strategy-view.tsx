@@ -512,7 +512,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         query_configs: queryConfigs,
         dimension_field: item.id,
       };
-      promiseList.push(dimensionUnifyQuery(params));
+      // promql模式下不需要再去查询维度值列表
+      if (this.editMode !== 'Source') {
+        promiseList.push(dimensionUnifyQuery(params));
+      }
     });
     const data = await Promise.all(promiseList).catch(() => []);
     this.dimensionList.forEach((dimension, index) => {

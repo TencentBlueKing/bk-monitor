@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import os
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from common.context_processors import Platform
 

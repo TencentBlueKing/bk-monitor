@@ -2,15 +2,18 @@
 import time
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.iam import ActionEnum
 from fta_web.alert.handlers.action import ActionQueryHandler
-from monitor_web.search.handlers.base import BaseSearchHandler, SearchScope, SearchResultItem
+from monitor_web.search.handlers.base import (
+    BaseSearchHandler,
+    SearchResultItem,
+    SearchScope,
+)
 
 
 class ActionSearchHandler(BaseSearchHandler):
-
     SCENE = "action"
     QUERY_DAYS = 7
 

@@ -593,11 +593,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
-      // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
-      const needShowDetail = !!vm.$route.query.collectId && location.search.includes('specEvent');
-      if (needShowDetail) {
-        vm.handleFirstShowDetail();
-      }
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
       if (
         [EBatchAction.alarmConfirm, EBatchAction.quickShield].includes(params.batchAction) &&
@@ -611,6 +606,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           }
         });
         vm.handleBatchAlert(params.batchAction);
+      } else {
+        // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
+        const needShowDetail = !!vm.$route.query.collectId && location.search.includes('specEvent');
+        if (needShowDetail) {
+          vm.handleFirstShowDetail();
+        }
       }
     });
   }

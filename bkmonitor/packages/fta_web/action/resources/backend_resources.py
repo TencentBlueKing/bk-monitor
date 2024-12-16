@@ -15,7 +15,7 @@ import re
 import time
 from datetime import datetime
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.itsm.default import TokenVerifyResource
 from bkmonitor.action.serializers import (
@@ -60,7 +60,6 @@ class ITSMCallbackResource(Resource):
         token = serializers.CharField(required=True, label="校验token")
 
     def perform_request(self, validated_request_data):
-
         verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
         if not verify_data.get("is_valid", False):
             return {"message": "Error Token", "result": False}

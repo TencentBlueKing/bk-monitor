@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 
 from apm_web.models import Application
@@ -133,7 +133,7 @@ class Query:
                 "prefer_storage": "doris",
                 "_user_request": True,
             }
-            return api.bkdata.query_data(**params)
+            return api.bkdata.query_profile_data(**params)
         except BKAPIError as e:
             logger.exception(f"query bkdata doris failed, error: {e}")
 
