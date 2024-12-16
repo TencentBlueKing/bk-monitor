@@ -74,7 +74,7 @@ bk-notice-sdk==1.2.0
 raven==6.9.0
 supervisor==4.2.5
 pyinstrument==3.4.2
-ddtrace==1.7.5
+ddtrace==1.8.3
 
 # other
 pyppeteer==0.2.5
