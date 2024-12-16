@@ -15,12 +15,12 @@ import re
 from django.conf import settings
 from django.db import models
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
-from monitor.constants import STRATEGY_CHOICES
+from django.utils.translation import gettext as _
 
 from bkmonitor import models as base_models
 from bkmonitor.utils.common_utils import DatetimeEncoder, DictObj, ignored, safe_int
 from core.drf_resource import resource
+from monitor.constants import STRATEGY_CHOICES
 
 INT_REG = re.compile(r"\d+")
 

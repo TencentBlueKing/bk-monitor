@@ -19,7 +19,7 @@ from django.conf import settings
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.utils import translation
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2 import Environment, Undefined
 from jinja2.compiler import CodeGenerator
 from markupsafe import Markup

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
 
