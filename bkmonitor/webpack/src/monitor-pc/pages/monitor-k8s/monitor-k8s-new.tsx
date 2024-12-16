@@ -257,6 +257,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
+    this.showCancelDrill = false;
     this.setGroupFilters({ groupId: item.id, checked: item.checked });
   }
 
@@ -273,11 +274,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param {K8sTableGroupByEvent} item
    */
   handleTableGroupChange(item: K8sTableGroupByEvent) {
+    this.showCancelDrill = true;
+    this.cacheGroupBy = this.groupInstance.groupFilters;
     this.setGroupFilters(item);
   }
 
   handleTableClearSearch() {
-    console.log('table clear search callback');
+    this.filterBy = [];
   }
 
   handleFilterByChange(v: IFilterByItem[]) {

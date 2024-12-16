@@ -170,8 +170,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Prop({ type: String }) scene: SceneEnum;
   /** 集群 */
   @Prop({ type: String }) clusterId: string;
-  // 数据时间间隔
+  // 数据时间间隔 - monitor-k8s-new 传入
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  // 刷新间隔 - monitor-k8s-new 传入
+  @InjectReactive('refleshInterval') readonly refreshInterval!: number;
+  // 是否立即刷新 - monitor-k8s-new 传入
+  @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
 
   tableLoading = {
     /** table 骨架屏 loading */
@@ -294,6 +298,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Watch('scene')
   onSceneChange(v) {
     if (!v) return;
+    this.getK8sList({ needRefresh: true });
+  }
+
+  @Watch('timeRange')
+  onTimeRangeChange() {
+    this.getK8sList({ needRefresh: true });
+  }
+
+  @Watch('refreshImmediate')
+  onRefreshImmediateChange() {
+    this.getK8sList({ needRefresh: true });
+  }
+
+  @Watch('refreshImmediate')
+  handleRefreshImmediateChange() {
     this.getK8sList({ needRefresh: true });
   }
 
