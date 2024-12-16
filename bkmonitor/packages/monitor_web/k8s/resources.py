@@ -132,9 +132,6 @@ class GetResourceDetail(Resource):
         elif resource_type == "container":
             fields = ["pod_name", "container_name"]
             self.validate_field_exist(resource_type, fields, request_data)
-        elif resource_type == "cluster":
-            # 只有 bk_biz_id, bcs_cluster_id 是必传的
-            pass
 
         return super().validate_request_data(request_data)
 
