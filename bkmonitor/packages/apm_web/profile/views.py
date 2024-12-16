@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
@@ -38,6 +39,7 @@ from apm_web.profile.constants import (
     CallGraphResponseDataMode,
 )
 from apm_web.profile.diagrams import get_diagrammer
+from apm_web.profile.diagrams.deepflow_converter import DeepFlowConverter
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.doris.querier import APIParams, APIType, ConverterType, Query
@@ -165,6 +167,31 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
     @staticmethod
+    def deepflow_query(
+        bk_biz_id: int,
+        cluster_id: str,
+        service_name: str,
+        start: int,
+        end: int,
+        sample_type: str,
+        converter: Optional[ConverterType] = None,
+    ) -> DeepFlowConverter:
+        """
+        从 deepflow 获取 profile 数据
+        """
+        profile_data = DeepFlowQuery.get_profile(
+            bk_biz_id=bk_biz_id,
+            cluster_id=cluster_id,
+            service_name=service_name,
+            start=start,
+            data_type=sample_type,
+            end=end,
+        )
+        deep_flow_converter = DeepFlowConverter()
+        deep_flow_converter.convert(raw=profile_data, data_type=sample_type)
+        return deep_flow_converter
+
+    @staticmethod
     def query(
         bk_biz_id: int,
         app_name: str,
@@ -284,6 +311,15 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             # we keep the same rule for now
             bk_biz_id = api.cmdb.get_blueking_biz()
             result_table_id = f"{bk_biz_id}_profile_{BUILTIN_APP_NAME}"
+        elif validated_data["is_deepflow"]:
+            cluster_id = validated_data["cluster_id"]
+            service_name = validated_data["service_name"]
+            bk_biz_id = validated_data["bk_biz_id"]
+            return {
+                "bk_biz_id": bk_biz_id,
+                "cluster_id": cluster_id,
+                "service_name": service_name,
+            }
         else:
             bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
@@ -305,7 +341,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer = ProfileQuerySerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
         start, end = self._enlarge_duration(data["start"], data["end"], offset=data.get("offset", 0))
         essentials = self._get_essentials(data)
         logger.info(f"[Samples] query essentials: {essentials}")
@@ -331,8 +366,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
 
-        # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if self.is_large_service(
+        # 根据是否是大应用调整获取的消息条数 避免接口耗时过长 deepflow 应用跳过
+        if not data["is_deepflow"] and self.is_large_service(
             essentials["bk_biz_id"],
             essentials["app_name"],
             essentials["service_name"],
@@ -348,20 +383,31 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             query_start_time, query_end_time = self._enlarge_duration(
                 query_start_time, query_end_time, offset=data.get("offset", 0)
             )
-        tree_converter = self.query(
-            bk_biz_id=essentials["bk_biz_id"],
-            app_name=essentials["app_name"],
-            service_name=essentials["service_name"],
-            start=query_start_time or start,
-            end=query_end_time or end,
-            profile_id=data.get("profile_id"),
-            filter_labels=data.get("filter_labels"),
-            result_table_id=essentials["result_table_id"],
-            sample_type=data["data_type"],
-            converter=ConverterType.Tree,
-            extra_params=extra_params,
-        )
 
+        if data["is_deepflow"]:
+            tree_converter = self.deepflow_query(
+                bk_biz_id=essentials["bk_biz_id"],
+                cluster_id=essentials["cluster_id"],
+                service_name=essentials["service_name"],
+                start=query_start_time or start,
+                end=query_end_time or end,
+                sample_type=data["data_type"],
+                converter=ConverterType.DeepFlow,
+            )
+        else:
+            tree_converter = self.query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=query_start_time or start,
+                end=query_end_time or end,
+                profile_id=data.get("profile_id"),
+                filter_labels=data.get("filter_labels"),
+                result_table_id=essentials["result_table_id"],
+                sample_type=data["data_type"],
+                converter=ConverterType.Tree,
+                extra_params=extra_params,
+            )
         if data["global_query"] and not tree_converter:
             # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
             # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
@@ -409,7 +455,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             data.update(tree_converter.get_sample_type())
             data.update(compare_tendency_result)
             return Response(data=data)
-
         diagram_dicts = (get_diagrammer(d_type).draw(tree_converter, **options) for d_type in diagram_types)
         data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
         data.update(tree_converter.get_sample_type())

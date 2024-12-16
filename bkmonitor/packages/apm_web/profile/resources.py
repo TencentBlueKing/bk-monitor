@@ -15,6 +15,7 @@ from collections import defaultdict
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm_web.models import Application
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.utils import get_interval, split_by_interval
@@ -150,6 +151,10 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
+        is_get_deepflow = serializers.BooleanField()
+        """
+        is_get_deepflow 开关是否将 deepflow 集群/应用装载在列表中一同返回
+        """
 
     @classmethod
     def batch_query_profile_services_detail(cls, validated_data):
@@ -167,10 +172,9 @@ class ListApplicationServicesResource(Resource):
 
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
-
         apps = []
         nodata_apps = []
-
+        is_get_deepflow = data["is_get_deepflow"]
         service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
             services = service_map.get((application.bk_biz_id, application.app_name), [])
@@ -197,9 +201,12 @@ class ListApplicationServicesResource(Resource):
                         "services": [],
                     }
                 )
-
+        if is_get_deepflow:
+            deepflow_data = DeepFlowQuery.list_app_service(bk_biz_id=data["bk_biz_id"])
+            # 查询 deepflow 集群和 service 装载入结果
         return {
             "normal": apps,
+            "deepflow": deepflow_data,
             "no_data": nodata_apps,
         }
 
