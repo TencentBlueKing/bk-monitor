@@ -610,6 +610,20 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        fields_dict = result.get("fields")
+        log_list = result.get("list")
+        object_field_keys = [key for key in fields_dict.keys() if "." in key]
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_dict = data.get("query_alias_settings")
+            if alias_dict:
+                for log in log_list:
+                    for object_field in object_field_keys:
+                        key, field = object_field.split(".", 1)
+                        if key in log and field in log[key]:
+                            log[object_field] = log[key][field]
         return result
 
     def get_sort_group(self):
@@ -2162,20 +2176,6 @@ class SearchHandler(object):
             if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
-
-        if log_list:
-            collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-            if collector_config:
-                data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-                alias_dict = data.get("query_alias_settings")
-                if alias_dict:
-                    for log in log_list:
-                        ext_data = log.get("__ext")
-                        if ext_data:
-                            for alias_name, info in alias_dict.items():
-                                field_name = info["path"].split(".")[1]
-                                if field_name in ext_data:
-                                    log[alias_name] = ext_data[field_name]
 
         result.update(
             {
