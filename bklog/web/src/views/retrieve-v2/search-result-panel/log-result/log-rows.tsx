@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide } from 'vue';
+import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide, set } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -121,6 +121,7 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const tableRowStore = new Map<string, RowConfig>();
+    let updateRow: 'all' | null | number = null;
 
     const sizes = ref([]);
     const updateSizes = () => {
@@ -131,8 +132,6 @@ export default defineComponent({
         accumulator += current;
         return { accumulator: accumulator - current, size: current };
       });
-
-      console.log('-------updateSizes 444444444');
     };
 
     const debounceUpdateSizes = debounce(updateSizes, 90);
@@ -146,11 +145,11 @@ export default defineComponent({
       if (!row?.[ROW_KEY] || !target || !tableRowStore.has(row[ROW_KEY])) {
         return;
       }
-      console.log('-------updateRowHeight 33333333333333');
+
       const config: RowConfig = row[ROW_CONFIG];
-      config.minHeight = target.offsetHeight;
+      set(config, 'minHeight', target.offsetHeight);
       const rowElement = target.querySelector('.bklog-list-row') as HTMLElement;
-      config.rowMinHeight = rowElement.offsetHeight;
+      set(config, 'rowMinHeight', rowElement.offsetHeight);
       Object.assign(tableRowStore.get(row[ROW_KEY]), config);
       debounceUpdateSizes();
     };
@@ -159,24 +158,34 @@ export default defineComponent({
       updateRowHeight(rowIndex, entry.target);
     };
 
+    const dounceSetUpdateRow = debounce((val = null, callback?) => {
+      updateRow = val;
+      callback?.();
+    });
+
     const $resizeObserver = new ResizeObserver(entries => {
-      requestAnimationFrame(() => {
-        if (!Array.isArray(entries)) {
-          return;
-        }
-        for (const entry of entries) {
-          if (entry.target) {
-            const index = entry.target.getAttribute('data-row-index');
-            if (index) {
-              handleRowResize(parseInt(index), entry);
+      if (updateRow === 'all') {
+        requestAnimationFrame(() => {
+          if (!Array.isArray(entries)) {
+            return;
+          }
+          for (const entry of entries) {
+            if (entry.target) {
+              const index = entry.target.getAttribute('data-row-index');
+              if (index) {
+                updateRowHeight(parseInt(index), entry.target as HTMLElement);
+              }
             }
           }
-        }
-      });
+        });
+
+        dounceSetUpdateRow();
+      }
     });
 
     provide('vscrollResizeObserver', $resizeObserver);
     provide('handleRowResize', handleRowResize);
+    provide('dounceSetUpdateRow', dounceSetUpdateRow);
 
     const renderColumns = computed(() => {
       return [
@@ -194,8 +203,10 @@ export default defineComponent({
             const config: RowConfig = row[ROW_CONFIG];
 
             const hanldeExpandClick = () => {
-              config.expand = !config.expand;
-              tableRowStore.get(row[ROW_KEY]).expand = config.expand;
+              dounceSetUpdateRow('all', () => {
+                config.expand = !config.expand;
+                tableRowStore.get(row[ROW_KEY]).expand = config.expand;
+              });
             };
 
             return (
@@ -457,18 +468,22 @@ export default defineComponent({
       }
     };
 
-    const loadTableData = () => {
+    const loadTableData = (next?) => {
       clearRowConfigCache(tableData.value.length);
       const startIdx = 0;
       const endIdx = pageIndex.value * pageSize;
-      return (indexSetQueryResult.value.list || []).slice(startIdx, endIdx).map((row, index) => {
-        const rowKey = `${ROW_KEY}_${index}`;
+      dounceSetUpdateRow('all', () => {
+        tableData.value = (indexSetQueryResult.value.list || []).slice(startIdx, endIdx).map((row, index) => {
+          const rowKey = `${ROW_KEY}_${index}`;
 
-        return Object.assign({}, row, {
-          [ROW_KEY]: rowKey,
-          [ROW_INDEX]: index,
-          [ROW_CONFIG]: getRowConfigWithCache(index),
+          return Object.assign({}, row, {
+            [ROW_KEY]: rowKey,
+            [ROW_INDEX]: index,
+            [ROW_CONFIG]: getRowConfigWithCache(index),
+          });
         });
+
+        next?.();
       });
     };
 
@@ -498,21 +513,23 @@ export default defineComponent({
     watch(
       () => pageIndex.value,
       () => {
-        tableData.value = loadTableData();
-        updateSizes();
-        debounceSetLoading();
+        loadTableData(() => {
+          updateSizes();
+          debounceSetLoading();
+        });
       },
     );
 
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
-        pageIndex.value = 1;
-        columns.value = loadTableColumns();
-        rowUpdateCounter.value++;
-        resetTableMinheight(1);
-        setTimeout(() => {
-          computeRect();
+        dounceSetUpdateRow('all', () => {
+          pageIndex.value = 1;
+          columns.value = loadTableColumns();
+          resetTableMinheight(1);
+          setTimeout(() => {
+            computeRect();
+          });
         });
       },
     );
@@ -522,8 +539,10 @@ export default defineComponent({
       () => {
         // 如果是初始请求，执行默认赋值操作
         if (pageIndex.value === 1) {
-          tableData.value = loadTableData();
-          updateSizes();
+          columns.value = loadTableColumns();
+          loadTableData(() => {
+            updateSizes();
+          });
         }
       },
     );
@@ -632,6 +651,8 @@ export default defineComponent({
         lastVisibleRow++;
       }
 
+      console.log('getVisibleRows', new Date().getTime());
+
       return [startIdx, lastVisibleRow];
     };
 
@@ -663,27 +684,16 @@ export default defineComponent({
       };
     };
 
-    let scrollDirty = false;
     let refreshTimout;
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
       if (isRequesting.value) {
         return;
       }
 
-      if (!scrollDirty) {
-        scrollDirty = true;
-        requestAnimationFrame(() => {
-          scrollDirty = false;
-          const { continuous } = updateVisibleItems(event, scrollTop, offsetTop);
-
-          if (!continuous) {
-            clearTimeout(refreshTimout);
-            refreshTimout = setTimeout(() => {
-              handleScrollEvent(event, scrollTop, offsetTop);
-            }, 60);
-          }
-        });
-      }
+      clearTimeout(refreshTimout);
+      refreshTimout = setTimeout(() => {
+        updateVisibleItems(event, scrollTop, offsetTop);
+      }, 100);
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -758,8 +768,10 @@ export default defineComponent({
       const startIndex = visibleIndexs.value.startIndex - bufferCount;
       const endIndex = visibleIndexs.value.endIndex + bufferCount;
       const totalCount = tableData.value.length;
-
-      return tableData.value.slice(startIndex >= 0 ? startIndex : 0, endIndex <= totalCount ? endIndex : totalCount);
+      const startIdx = startIndex >= 0 ? startIndex : 0;
+      const endIdx = endIndex <= totalCount ? endIndex : totalCount;
+      const result = new Array(endIdx - startIdx).fill('').map((_, index) => index + startIdx);
+      return result;
     });
 
     const renderHeadVNode = () => {
@@ -838,8 +850,8 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return viewList.value.map(row => {
-        const rowIndex = row[ROW_INDEX];
+      return viewList.value.map(rowIndex => {
+        const row = tableData.value[rowIndex];
         const rowView = sizes.value[rowIndex];
         const rowStyle = {
           minHeight: `${row[ROW_CONFIG].minHeight}px`,
@@ -849,7 +861,6 @@ export default defineComponent({
 
         return (
           <RowRender
-            key={row?.[ROW_KEY]}
             style={rowStyle}
             class={[
               'bklog-row-container',
@@ -858,7 +869,6 @@ export default defineComponent({
               },
             ]}
             row-index={rowIndex}
-            updateKey={rowUpdateCounter.value}
           >
             {renderRowCells(row, rowIndex)}
           </RowRender>

@@ -40,6 +40,7 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
+
     const isPending = ref(false);
 
     const observeSize = () => {
@@ -68,7 +69,7 @@ export default defineComponent({
             class={['bklog-row-observe', { 'is-pending': isPending.value }]}
             data-row-index={props.rowIndex}
           >
-            {isPending.value ? null : slots.default?.()}
+            {slots.default?.()}
           </div>
         </div>
       );

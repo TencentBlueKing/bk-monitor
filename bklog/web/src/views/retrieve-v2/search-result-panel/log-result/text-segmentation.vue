@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, watch, computed, onMounted, onBeforeUnmount, inject } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
@@ -49,6 +49,7 @@
   const showAll = ref(false);
   const maxWidth = ref(0);
   const renderText = ref(props.content);
+  const dounceSetUpdateRow = inject('dounceSetUpdateRow');
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -175,7 +176,9 @@
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    showAll.value = !showAll.value;
+    dounceSetUpdateRow('all', () => {
+      showAll.value = !showAll.value;
+    });
   };
 
   const getCellElement = () => {
@@ -191,11 +194,11 @@
     }
   };
 
-  const debounceUpdateSegmentTag = debounce(() => {
+  const debounceUpdateSegmentTag = () => {
     setMaxWidth();
     renderText.value = truncateTextWithCanvas();
     debounceSetSegmentTag();
-  }, 300);
+  };
 
   useResizeObserve(getCellElement, debounceUpdateSegmentTag);
 

@@ -23,6 +23,7 @@
     position: fixed;
     right: 0;
     bottom: 0;
+    z-index: 4;
     height: 14px;
     overflow-x: auto;
     background-color: transparent;
@@ -34,11 +35,29 @@
   }
 
   .bklog-row-box {
+    z-index: 1;
     display: flex;
     flex-direction: column;
     width: fit-content;
     min-width: 100%;
     min-height: 400px;
+
+    &::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      content: '';
+      background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
+        linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
+      background-repeat: no-repeat;
+      background-size:
+        100% 100%,
+        50% 100%;
+      animation: loading-animation 1.5s infinite;
+    }
   }
 
   .fixed-right-shadown {
@@ -57,35 +76,18 @@
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 2;
     box-sizing: border-box;
     width: fit-content;
     min-width: 100%;
     min-height: 40px;
+    background-color: #fff;
     transform: translateZ(0);
     will-change: transform;
 
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
-
-      &.is-pending {
-        &::after {
-          position: absolute;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          content: '';
-          background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
-            linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
-          background-repeat: no-repeat;
-          background-size:
-            100% 100%,
-            50% 100%;
-          animation: loading-animation 1.5s infinite;
-        }
-      }
     }
 
     .bklog-list-row {
@@ -327,6 +329,7 @@
     position: fixed;
     right: 30px;
     bottom: 50px;
+    z-index: 3;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -349,7 +352,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    z-index: 2;
+    z-index: 10;
     display: none; /* Initially hidden */
     width: 1px;
     height: 100%;

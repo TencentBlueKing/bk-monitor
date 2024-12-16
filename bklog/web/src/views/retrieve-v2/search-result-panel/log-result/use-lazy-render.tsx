@@ -26,7 +26,7 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 
 import useResizeObserve from '@/hooks/use-resize-observe';
-import { throttle, debounce } from 'lodash';
+import { debounce } from 'lodash';
 
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
@@ -61,24 +61,31 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     }
   };
 
-  const debounceCallback = () => {
+  const debounceLoadCallback = () => {
     loadMoreFn?.();
   };
 
   let lastPosition = 0;
-  const handleScrollEvent = throttle((event: MouseEvent) => {
+  const throttleUpdate = event => {
     calculateOffsetTop();
     const target = event.target as HTMLDivElement;
     const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
     if (target.scrollTop > lastPosition && scrollDiff < 20) {
-      debounceCallback();
+      debounceLoadCallback();
     }
 
     scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
-
-    scrollCallbackFn?.(event, target.scrollTop, scrollElementOffset, scrollDirection.value);
     lastPosition = target.scrollTop;
+  };
+
+  const debounceCallback = debounce(event => {
+    const target = event.target as HTMLDivElement;
+    scrollCallbackFn?.(event, target.scrollTop, scrollElementOffset, scrollDirection.value);
   });
+  const handleScrollEvent = (event: MouseEvent) => {
+    throttleUpdate(event);
+    debounceCallback(event);
+  };
 
   const scrollToTop = (smooth = true) => {
     getScrollElement().scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
