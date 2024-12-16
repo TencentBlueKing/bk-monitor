@@ -61,6 +61,7 @@
     min-width: 100%;
     min-height: 40px;
     transform: translateZ(0);
+    will-change: transform;
 
     .bklog-row-observe {
       width: fit-content;
