@@ -28,7 +28,7 @@ django-bulk-update==2.2.0
 
 # celery
 celery==5.1.2
-django-celery-beat==2.5.0
+django-celery-beat==2.2.1
 django-celery-results==2.2.0
 celery-redbeat==2.2.0
 
