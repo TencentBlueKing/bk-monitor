@@ -116,6 +116,37 @@
     min-width: 400px;
     font-size: 12px;
 
+    .filter-by-condition-skeleton {
+      .header-skeleton {
+        display: flex;
+        align-items: center;
+        height: 42px;
+
+        .skeleton-item {
+          height: 20px;
+          margin: 0 12px;
+        }
+      }
+    }
+
+    .skeleton-loading-wrap {
+      position: relative;
+      width: 100%;
+      max-height: 304px;
+
+      .loading-item {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        height: 32px;
+
+        .skeleton-item {
+          height: 20px;
+          margin: 0 12px;
+        }
+      }
+    }
+
     .filter-by-condition-component-popover-header {
       position: relative;
       display: flex;
@@ -177,24 +208,6 @@
     .filter-by-condition-component-popover-content {
       width: 100%;
       max-height: 304px;
-
-      .skeleton-loading-wrap {
-        position: relative;
-        width: 100%;
-        max-height: 304px;
-
-        .loading-item {
-          display: flex;
-          flex: 1;
-          align-items: center;
-          height: 32px;
-
-          .skeleton-item {
-            height: 20px;
-            margin: 0 12px;
-          }
-        }
-      }
 
       .values-search {
         padding: 8px 8px 0 8px;

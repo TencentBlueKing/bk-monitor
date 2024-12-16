@@ -119,15 +119,21 @@ export default class KvTag extends tsc<IProps> {
         class={['filter-by-condition-tag___type-kv', { active: this.active }]}
         onClick={this.handleClickTag}
       >
-        <div class='tag-content'>
+        <div
+          class='tag-content'
+          v-bk-tooltips={{
+            content: `${this.value.id} = ${this.value.values.map(v => v.id).join(', ')}`,
+            delay: [300, 0],
+          }}
+        >
           <span>{this.value.name}</span>
           <span class='method'>=</span>
           <span class='values'>
             {this.valuesText.map((item, index) => (
-              <span key={`${item.id}_index`}>
+              <span key={`${item.id}_${index}_index`}>
                 {index > 0 && <span class='split'>, </span>}
                 <span
-                  key={item.id}
+                  key={`${item.id}_${index}`}
                   class='text'
                 >
                   {item.name}
@@ -147,10 +153,10 @@ export default class KvTag extends tsc<IProps> {
           <span class='method'>=</span>
           <span class='values'>
             {this.valuesTextHidden.map((item, index) => (
-              <span key={`${item.id}_index`}>
+              <span key={`${item.id}_${index}_index`}>
                 {index > 0 && <span class='split'>, </span>}
                 <span
-                  key={item.id}
+                  key={`${item.id}_${index}`}
                   class='text'
                 >
                   {item.name}
