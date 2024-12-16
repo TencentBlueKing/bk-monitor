@@ -696,15 +696,16 @@ class SpaceTableIDRedis:
                 if self._is_need_filter_for_bkcc(
                     measurement_type, space_type, space_id, _data_id_detail, is_exist_space
                 ):
+                    bk_biz_id_key = "bk_biz_id"  # 默认按照业务ID过滤
                     if bk_biz_id_alias:  # 若存在业务ID别名，按照别名组装过滤条件
                         logger.info(
                             "_push_bkcc_space_table_ids: table_id->[%s] got bk_biz_id_alias ->[%s]",
                             tid,
                             bk_biz_id_alias,
                         )
-                        filters = [{bk_biz_id_alias: space_id}]
-                    else:
-                        filters = [{"bk_biz_id": space_id}]
+                        bk_biz_id_key = bk_biz_id_alias
+                    filters = [{bk_biz_id_key: space_id}]
+
                 _values[tid] = {"filters": filters}
 
         return _values
