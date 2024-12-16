@@ -26,22 +26,23 @@ except ImportError:
 else:
     __implements__ = ["load", "dump", "loads", "dumps"]
 
+
 SAFE_OPTIONS = {
     "encode_html_chars",
     "ensure_ascii",
     "double_precision",
     "escape_forward_slashes",
     "indent",
+    "precise_float",
 }
 
 
 def load(*args, **kwargs):
-    try:
-        # ujson5.9.0 只支持一个参数，precise_float=True是默认行为
-        obj = kwargs.get("obj") or args[0]
-        return ujson.load(obj)
-    except ValueError:
-        pass
+    if SAFE_OPTIONS.issuperset(kwargs.keys()):
+        try:
+            return ujson.load(*args, **kwargs)
+        except ValueError:
+            pass
     return json_load(*args, **kwargs)
 
 
@@ -56,12 +57,13 @@ def dump(*args, **kwargs):
 
 
 def loads(*args, **kwargs):
-    try:
-        # ujson5.9.0 只支持一个参数，precise_float=True是默认行为
-        obj = kwargs.get("obj") or args[0]
-        return ujson.loads(obj)
-    except ValueError:
-        pass
+    if SAFE_OPTIONS.issuperset(kwargs.keys()):
+        try:
+            kwargs.update({"precise_float": True})
+            return ujson.loads(*args, **kwargs)
+        except ValueError:
+            kwargs.pop("precise_float")
+            pass
     return json_loads(*args, **kwargs)
 
 
