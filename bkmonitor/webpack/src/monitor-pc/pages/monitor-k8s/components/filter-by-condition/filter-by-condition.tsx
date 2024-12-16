@@ -641,7 +641,7 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   // 去重后发现数据过少，需立即加载下一页
-  async initNextPage() {
+  async initNextPage(type?: EDimensionKey) {
     const promiseList = [];
     const nextPage = async (dimension: EDimensionKey, categoryDim?: string) => {
       const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
@@ -650,6 +650,7 @@ export default class FilterByCondition extends tsc<IProps> {
       }
     };
     for (const item of this.allOptions) {
+      if (type && item.id !== type) continue;
       if (item.id === EDimensionKey.workload) {
         for (const child of item.children) {
           if (child.children.length < 10 && child.count >= 10) {

@@ -102,7 +102,7 @@ export class FilterByOptions {
   }
 
   getPage(dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       return this.pageMap?.[`${dimension}_____${categoryDim}`] || 0;
     }
     return this.pageMap?.[dimension] || 0;
@@ -160,7 +160,7 @@ export class FilterByOptions {
   }
 
   nextPage(dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = this.getPage(dimension, categoryDim) + 1;
     }
     this.pageMap[dimension] = this.getPage(dimension) + 1;
@@ -245,7 +245,7 @@ export class FilterByOptions {
   }
 
   setPage(page: number, dimension: EDimensionKey, categoryDim?: string) {
-    if (categoryDim) {
+    if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = page;
     }
     this.pageMap[dimension] = page;
