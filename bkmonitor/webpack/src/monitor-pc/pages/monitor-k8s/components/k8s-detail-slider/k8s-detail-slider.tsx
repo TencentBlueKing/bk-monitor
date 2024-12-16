@@ -115,11 +115,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
         };
     return {
       hasFilter,
-      ids: param.ids,
-      icon: param.icon,
-      btnText: param.btnText,
-      btnTheme: param.btnTheme,
-      textColorClass: param.textColorClass,
+      ...param,
     };
   }
 
@@ -140,7 +136,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   handleClusterIdChange(v) {
     if (!v) return;
     // @ts-ignore
-    this.viewOptions.clusterId = v;
+    this.viewOptions[K8sTableColumnKeysEnum.CLUSTER] = v;
   }
 
   @Watch('activeRowIndex')
@@ -190,8 +186,8 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
           dataType: 'info',
           api: 'k8s.getResourceDetail',
           data: {
-            bcs_cluster_id: '$clusterId',
-            namespace: '$namespace',
+            bcs_cluster_id: `$${K8sTableColumnKeysEnum.CLUSTER}`,
+            namespace: `$${K8sTableColumnKeysEnum.NAMESPACE}`,
             resource_type: '$resource_type',
           },
         },
@@ -209,12 +205,12 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
         };
       case K8sTableColumnKeysEnum.POD:
         return {
-          pod_name: '$pod',
+          pod_name: `$${K8sTableColumnKeysEnum.POD}`,
         };
       case K8sTableColumnKeysEnum.CONTAINER:
         return {
-          pod_name: '$pod',
-          container_name: '$container',
+          pod_name: `$${K8sTableColumnKeysEnum.POD}`,
+          container_name: `$${K8sTableColumnKeysEnum.CONTAINER}`,
         };
       default:
         return {};

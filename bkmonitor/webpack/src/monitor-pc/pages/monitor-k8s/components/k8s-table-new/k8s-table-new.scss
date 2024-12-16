@@ -38,10 +38,13 @@
       flex-basis: auto;
       min-width: 0;
       overflow: hidden;
-      color: #3a84ff;
       text-overflow: ellipsis;
       white-space: nowrap;
-      cursor: pointer;
+
+      &.can-click {
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
 
     .col-item-operate {
