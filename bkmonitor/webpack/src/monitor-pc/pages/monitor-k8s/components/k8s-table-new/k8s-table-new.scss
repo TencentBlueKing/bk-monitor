@@ -15,6 +15,22 @@
       .bk-table-body {
         min-width: 100%;
       }
+
+      .bk-table-append-wrapper {
+        display: flex;
+        justify-content: center;
+
+        .bk-spin {
+          display: flex;
+          align-items: center;
+          height: 42px;
+
+          .bk-spin-title-right {
+            font-size: 12px;
+            color: #979ba5;
+          }
+        }
+      }
     }
 
     .bk-table-row.hover-row {

@@ -333,7 +333,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param {K8sTableFilterByEvent} item
    */
   handleFilterChange(item: K8sTableFilterByEvent) {
-    this.filterByChange(item);
+    const { id, groupId, isSelect } = item;
+    this.filterByChange(id, groupId, isSelect);
   }
 
   /**
@@ -420,10 +421,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         return (
           <K8sTableNew
             activeTab={this.activeTab}
-            clusterId={this.cluster}
             filterBy={this.filterBy}
+            filterCommonParams={this.filterCommonParams}
             groupInstance={this.groupInstance}
-            scene={this.scene}
             onClearSearch={this.handleTableClearSearch}
             onFilterChange={this.handleFilterChange}
             onGroupChange={this.handleTableGroupChange}
@@ -494,7 +494,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             </div>
             <div class='filter-by-wrap __group-by__'>
               <GroupByCondition
-                dimensionOptions={this.groupList}
+                dimensionTotal={this.dimensionTotal}
                 groupInstance={this.groupInstance}
                 title='Group by'
                 onChange={this.handleGroupChecked}

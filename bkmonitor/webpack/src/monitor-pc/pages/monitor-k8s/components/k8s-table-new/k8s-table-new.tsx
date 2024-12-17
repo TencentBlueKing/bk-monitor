@@ -35,15 +35,12 @@ import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mi
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneEnum } from '../../typings/k8s-new';
-import K8sDetailSlider, { type K8sDetailSliderActiveTitle } from '../k8s-detail-slider/k8s-detail-slider';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum } from '../../typings/k8s-new';
+import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import { getK8sTableAsyncDataMock } from './utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { ITableItemMap } from '../../typings/table';
-import type { IFilterByItem } from '../filter-by-condition/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { TranslateResult } from 'vue-i18n';
 
 import './k8s-table-new.scss';
@@ -99,7 +96,7 @@ export interface K8sTableClickEvent {
   index: number;
 }
 
-export type K8sTableFilterByEvent = { groupId: K8sTableColumnResourceKey; ids: Array<number | string> };
+export type K8sTableFilterByEvent = { groupId: K8sTableColumnResourceKey; id: string; isSelect: boolean };
 export type K8sTableGroupByEvent = { groupId: K8sTableColumnResourceKey; checked: boolean };
 
 interface K8sTableNewProps {
@@ -108,11 +105,9 @@ interface K8sTableNewProps {
   /** GroupBy 选择器选中数据类实例 */
   groupInstance: K8sGroupDimension;
   /** 筛选 Filter By 过滤项 */
-  filterBy: IFilterByItem[];
-  /** 场景 */
-  scene: SceneEnum;
-  /** 集群Id */
-  clusterId: string;
+  filterBy: Record<string, string[]>;
+  /** 获取资源列表公共请求参数 */
+  filterCommonParams: Record<string, any>;
 }
 interface K8sTableNewEvent {
   onFilterChange: (item: K8sTableFilterByEvent) => void;
@@ -165,13 +160,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** GroupBy 选择器选中数据类实例 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
   /** FilterBy 选择器选中数据 */
-  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
-  /** 场景 */
-  @Prop({ type: String }) scene: SceneEnum;
-  /** 集群 */
-  @Prop({ type: String }) clusterId: string;
-  // 数据时间间隔 - monitor-k8s-new 传入
-  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
+  /** 获取资源列表公共请求参数 */
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
   // 刷新间隔 - monitor-k8s-new 传入
   @InjectReactive('refleshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
@@ -207,8 +198,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   sliderShow = false;
   /** 当前点击的数据行索引 */
   activeRowIndex = -1;
-  /** 当前点击的数据列 */
-  activeTitle: K8sDetailSliderActiveTitle = { tag: '--', field: '--' };
   /** 图表异步请求数据缓存 */
   asyncDataCache = new Map();
 
@@ -218,7 +207,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   get tableRowKey() {
     if (this.isListTab) {
-      return this.groupInstance.getLastGroupFilter();
+      return this.groupInstance.getResourceType();
     }
     const dimensions = this.groupInstance.dimensions;
     const len = dimensions.length;
@@ -270,6 +259,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return 'empty';
   }
 
+  get resourceParam() {
+    if (this.activeRowIndex === -1) {
+      return {};
+    }
+    const rowData = this.tableData?.[this.activeRowIndex];
+    const { CLUSTER, NAMESPACE, WORKLOAD, POD, CONTAINER } = K8sTableColumnKeysEnum;
+    return {
+      [CLUSTER]: this.filterCommonParams.bcs_cluster_id,
+      [NAMESPACE]: rowData?.[NAMESPACE],
+      [WORKLOAD]: rowData?.[WORKLOAD],
+      [POD]: rowData?.[POD],
+      [CONTAINER]: rowData?.[CONTAINER],
+    };
+  }
+
   @Watch('activeTab')
   onActiveTabChange(v) {
     if (v !== K8sNewTabEnum.CHART) {
@@ -278,35 +282,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
   }
 
-  @Watch('groupInstance.groupFilters')
-  onGroupFiltersChange() {
-    if (!this.isListTab) return;
+  // @Watch('groupInstance.groupFilters')
+  // onGroupFiltersChange() {
+  //   if (!this.isListTab) return;
+  //   this.getK8sList({ needRefresh: true });
+  // }
+  @Watch('filterCommonParams', { immediate: true })
+  onFilterCommonParamsChange() {
     this.getK8sList({ needRefresh: true });
   }
 
-  @Watch('filterBy')
-  onFilterByChange() {
-    this.getK8sList({ needRefresh: true });
-  }
-
-  @Watch('clusterId')
-  onClusterIdChange(v) {
-    if (!v) return;
-    this.getK8sList({ needRefresh: true });
-  }
-
-  @Watch('scene')
-  onSceneChange(v) {
-    if (!v) return;
-    this.getK8sList({ needRefresh: true });
-  }
-
-  @Watch('timeRange')
-  onTimeRangeChange() {
-    this.getK8sList({ needRefresh: true });
-  }
-
-  @Watch('refreshImmediate')
+  @Watch('refreshInterval')
   onRefreshImmediateChange() {
     this.getK8sList({ needRefresh: true });
   }
@@ -317,8 +303,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   @Emit('filterChange')
-  filterChange(groupId: K8sTableColumnResourceKey, ids: Array<number | string>) {
-    return { groupId, ids };
+  filterChange(groupId: K8sTableColumnResourceKey, id: string, isSelect: boolean) {
+    return { id, groupId, isSelect };
   }
 
   @Emit('groupChange')
@@ -347,7 +333,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 90,
         canClick: true,
-        getValue: () => this.clusterId,
+        getValue: () => this.filterCommonParams.bcs_cluster_id,
       },
       [POD]: {
         id: POD,
@@ -429,7 +415,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
   async getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
-    if (!this.clusterId) {
+    if (!this.filterCommonParams.bcs_cluster_id) {
       return;
     }
     let loadingKey = 'scrollLoading';
@@ -440,29 +426,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
 
     this.tableLoading[loadingKey] = true;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const { dimensions } = this.groupInstance;
     const resourceType = this.isListTab
-      ? this.groupInstance?.getLastGroupFilter()
+      ? this.groupInstance?.getResourceType()
       : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
-    const filter_dict = this.filterBy.reduce((prev, curr) => {
-      if (curr.value?.length) {
-        prev[curr.key] = curr.value;
-      }
-      return prev;
-    }, {});
     const requestParam = {
-      bcs_cluster_id: this.clusterId,
+      ...this.filterCommonParams,
       resource_type: resourceType,
-      filter_dict,
-      start_time: startTime,
-      end_time: endTime,
-      scenario: this.scene,
       with_history: false,
       page_size: this.pagination.pageSize,
       page: this.pagination.page,
       page_type: this.pagination.pageType,
     };
+
     const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam).catch(() => ({
       count: 0,
       items: [],
@@ -481,7 +457,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       this.refreshTable();
     }
     this.tableLoading[loadingKey] = false;
-    this.loadAsyncData(startTime, endTime, resourceType, resourceParam);
+    this.loadAsyncData(requestParam, resourceType, resourceParam);
   }
 
   /**
@@ -519,15 +495,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
-  loadAsyncData(startTime: number, endTime: number, resourceType: K8sTableColumnResourceKey, resourceParam) {
+  loadAsyncData(requestParam: Record<string, any>, resourceType: K8sTableColumnResourceKey, resourceParam) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { start_time, end_time } = requestParam;
     const asyncColumns = (this.tableColumns || []).filter(col =>
       // @ts-ignore
       Object.hasOwn(col, 'asyncable')
     );
     for (const field of asyncColumns) {
       getK8sTableAsyncDataMock({
-        start_time: startTime,
-        end_time: endTime,
+        start_time,
+        end_time,
         column: field.id,
         resourceType,
         [resourceType]: resourceParam.ids,
@@ -606,8 +584,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   handleLabelClick(item: K8sTableClickEvent) {
     this.activeRowIndex = item.index;
-    this.activeTitle.tag = item.column.id;
-    this.activeTitle.field = K8sTableNew.getResourcesTextRowValue(item.row, item.column);
     this.handleSliderChange(true);
   }
 
@@ -644,8 +620,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.sliderShow = v;
     if (!v) {
       this.activeRowIndex = -1;
-      this.activeTitle.tag = '--';
-      this.activeTitle.field = '--';
     }
   }
 
@@ -662,7 +636,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableFilterByEvent} item
    */
   handleSliderFilterChange(item: K8sTableFilterByEvent) {
-    this.filterChange(item.groupId, item.ids);
+    const { groupId, id, isSelect } = item;
+    this.filterChange(groupId, id, isSelect);
     this.handleSliderChange(false);
   }
 
@@ -675,22 +650,18 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!column.k8s_filter) {
       return null;
     }
-    const id = K8sTableNew.getResourcesTextRowValue(row, column);
-    if (id) {
-      const groupItem = this.filterBy?.find?.(v => v.key === column.id);
-      const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== id)) || [];
-      const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
-      return hasFilter ? (
+    const resourceValue = K8sTableNew.getResourcesTextRowValue(row, column);
+    if (resourceValue) {
+      const groupItem = this.filterBy?.[column.id];
+      const hasFilter = groupItem?.includes(resourceValue);
+      const elAttr = hasFilter
+        ? { className: ['icon-sousuo-', 'is-active'], text: '移除该筛选项' }
+        : { className: ['icon-a-sousuo'], text: '添加为筛选项' };
+      return (
         <i
-          class='icon-monitor icon-sousuo- is-active'
-          v-bk-tooltips={{ content: this.$t('移除该筛选项'), interactive: false }}
-          onClick={() => this.filterChange(column.id, filterIds)}
-        />
-      ) : (
-        <i
-          class='icon-monitor icon-a-sousuo'
-          v-bk-tooltips={{ content: this.$t('添加为筛选项'), interactive: false }}
-          onClick={() => this.filterChange(column.id, [...filterIds, id])}
+          class={['icon-monitor', ...elAttr.className]}
+          v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
+          onClick={() => this.filterChange(column.id, resourceValue, !hasFilter)}
         />
       );
     }
@@ -822,13 +793,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             prop: K8sTableColumnKeysEnum.CPU,
             order: 'descending',
           }}
-          scrollLoading={{
-            isLoading: this.tableLoading.scrollLoading,
-            size: 'mini',
-            theme: 'info',
-            icon: 'circle-2-1',
-            placement: 'right',
-          }}
           data={this.tableData}
           // row-key={this.tableRowKey}
           size='small'
@@ -836,6 +800,20 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           on-sort-change={val => this.handleSortChange(val as K8sTableSort)}
         >
           {this.tableColumns.map(column => this.transformColumn(column))}
+          <div
+            class='k8s-table-loading'
+            slot='append'
+          >
+            <bk-spin
+              style={{
+                display: this.tableLoading.scrollLoading ? 'flex' : 'none',
+              }}
+              placement='right'
+              size='mini'
+            >
+              加载中
+            </bk-spin>
+          </div>
           <EmptyStatus
             slot='empty'
             textMap={{
@@ -852,18 +830,15 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           />
         ) : null}
 
-        <K8sDetailSlider
-          activeRowIndex={this.activeRowIndex}
-          activeTitle={this.activeTitle}
-          clusterId={this.clusterId}
+        {/* <K8sDetailSlider
           filterBy={this.filterBy}
           groupInstance={this.groupInstance}
           isShow={this.sliderShow}
-          tableData={this.tableData}
+          resourceParam={this.resourceParam}
           onFilterChange={this.handleSliderFilterChange}
           onGroupChange={this.handleSliderGroupChange}
           onShowChange={this.handleSliderChange}
-        />
+        /> */}
       </div>
     );
   }
