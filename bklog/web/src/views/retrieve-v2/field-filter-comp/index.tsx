@@ -148,6 +148,8 @@ export default class FieldFilterComp extends tsc<object> {
     );
     let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]
     let result = this.objectHierarchy(arr)
+    console.log(result);
+    
     return result
     // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
@@ -173,6 +175,7 @@ export default class FieldFilterComp extends tsc<object> {
       });
       return isNotMatched; // 返回是否没有匹配到
     });
+    console.log(this.objectField);
     
     return [...filterArr,...this.objectField]
   }
@@ -380,18 +383,20 @@ export default class FieldFilterComp extends tsc<object> {
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
   bigTreeRender(item){
+    console.log(item);
+    
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
           v-show={data.filterVisible}
-          datePickerValue={this.datePickerValue} // 使用小驼峰命名法
-          fieldAliasMap={this.fieldAliasMap}
-          fieldItem={data}
-          isFrontStatistics={this.isFrontStatistics}
-          retrieveParams={this.retrieveParams}
-          showFieldAlias={this.showFieldAlias}
-          statisticalFieldData={this.statisticalFieldsData[item.field_name]}
-          type="hidden"
+          date-picker-value={this.datePickerValue}
+          field-alias-map={this.fieldAliasMap}
+          field-item={data}
+          is-front-statistics={this.isFrontStatistics}
+          retrieve-params={this.retrieveParams}
+          show-field-alias={this.showFieldAlias}
+          statistical-field-data={this.statisticalFieldsData[data.field_name]}
+          type='hidden'
           isFieldObject={true}
           onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
       />
@@ -537,14 +542,14 @@ export default class FieldFilterComp extends tsc<object> {
                   item.children?.length ? this.bigTreeRender(item) : (
                     <FieldItem
                       v-show={item.filterVisible}
-                      datePickerValue={this.datePickerValue} // 使用小驼峰命名法
-                      fieldAliasMap={this.fieldAliasMap}
-                      fieldItem={item}
-                      isFrontStatistics={this.isFrontStatistics}
-                      retrieveParams={this.retrieveParams}
-                      showFieldAlias={this.showFieldAlias}
-                      statisticalFieldData={this.statisticalFieldsData[item.field_name]}
-                      type="hidden"
+                      date-picker-value={this.datePickerValue}
+                      field-alias-map={this.fieldAliasMap}
+                      field-item={item}
+                      is-front-statistics={this.isFrontStatistics}
+                      retrieve-params={this.retrieveParams}
+                      show-field-alias={this.showFieldAlias}
+                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                      type='hidden'
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
                   )

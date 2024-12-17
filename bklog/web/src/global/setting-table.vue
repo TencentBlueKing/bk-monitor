@@ -524,8 +524,6 @@
       },
       changeTableList() {
         const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
-        console.log('currentTableList',currentTableList);
-        
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
@@ -548,9 +546,6 @@
       },
     },
     async mounted() {
-      console.log(this.totalFields);
-      console.log(this.$store.state.indexFieldInfo.fields);
-      
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
     },
@@ -992,8 +987,6 @@
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
       expandObject(row, show){
-        console.log(this.$refs.fieldsTable);
-        
         this.extExpand = show
         if(show){
           this.expandRowKeys.push(row.field_name)

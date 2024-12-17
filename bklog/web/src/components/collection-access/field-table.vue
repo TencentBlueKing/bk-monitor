@@ -319,7 +319,7 @@
                     >
                     </bk-option>
                   </bk-select>
-                  <template  v-if="props.row.typeErr">
+                  <template v-if="props.row.typeErr">
                     <i
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
@@ -862,7 +862,6 @@
       },
       // 字段名设置重命名 如果重命名有值不校验字段名，反之校验
       handleConfirmRename(row) {
-        console.log(row);
         row.btnShow = false
         if(!this.currentQueryAlias){
           this.checkFieldNameItem(row)
@@ -988,8 +987,6 @@
         row.fieldErr = result;
         this.$set(row, 'fieldQueryErr', queryResult);
         this.$emit('handle-table-data', this.changeTableList);
-        console.log(result || queryResult);
-        
         return result || queryResult;
       },
       checkQueryNameItem(row) {
@@ -1118,16 +1115,6 @@
           },
           [
             h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
-            // h('span', this.$t('(选填)')),
-            // h('span', {
-            //   class: 'icon bklog-icon bklog-info-fill',
-            //   directives: [
-            //     {
-            //       name: 'bk-tooltips',
-            //       value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
-            //     },
-            //   ],
-            // }),
           ],
         );
       },

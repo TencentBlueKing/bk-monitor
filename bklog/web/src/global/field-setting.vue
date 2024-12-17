@@ -511,8 +511,6 @@
 
             const originfieldTableData = originfieldTable.value.getData();
             const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
-            // console.log(indexfieldTableData);
-            // return
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
