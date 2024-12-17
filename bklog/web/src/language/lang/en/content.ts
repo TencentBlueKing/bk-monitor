@@ -995,7 +995,11 @@ export default {
   '当前缺少指标和维度/时间维度': 'Current metrics and dimensions/time dimensions are missing',
   当前缺少维度: 'Current dimensions are missing',
   '当前缺少维度/时间维度': 'Current dimensions/time dimensions are missing',
-  '当前缺少指标': 'Current metrics are missing',
+  当前缺少指标: 'Current metrics are missing',
   字段名不支持快速修改: 'Field name does not support quick modification',
   去重后字段统计: 'Field statistics after deduplication',
+  请选择常用过滤字段: 'Please select a common filter fields',
+  常用过滤字段: 'Common Filter Fields',
+  自动清空条件: 'Automatic Clearing Conditions',
+  不清空: 'Not Clear',
 };

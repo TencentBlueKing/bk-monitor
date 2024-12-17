@@ -82,6 +82,7 @@ export default {
         {
           fieldsWidth: {},
           displayFields: {},
+          filterSetting: {}
         },
         payload ?? {},
       );

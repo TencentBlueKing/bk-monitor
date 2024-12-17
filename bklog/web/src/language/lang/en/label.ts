@@ -725,4 +725,5 @@ export default {
   字段类型不支持快速修改: 'Field type does not support quick modification',
   时间维度: 'Time dimension',
   关联Trace检索: 'Associated Trace Search',
+  查询设置: "Query settings"
 };
