@@ -925,7 +925,7 @@ class ApmCacheKey:
     # 存放应用下服务的数据状态
     APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
     # 存放应用下监控项数据的映射
-    APP_SCOPE_NAME_KEY = "apm:application_scope_name_mapping:{bk_biz_id}:{application_id}"
+    APP_SCOPE_NAME_KEY = "apm:application_metric_scope_name_mapping:{bk_biz_id}:{application_id}"
 
 
 class LogIndexSource:

@@ -29,18 +29,18 @@ RUN npm install -g pnpm@9
 
 WORKDIR /app
 
+# build frontend
+COPY ./webpack /app/webpack
+RUN if [ "${build_frontend}" = true ] ; then \
+  cd /app/webpack/ && pnpm i && npm run prod; \
+fi
+
 # install python packages
 COPY ./requirements.txt /app
 RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
 && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
 && rm -rf /app/requirements.txt
-
-# build frontend
-COPY ./webpack /app/webpack
-RUN if [ "${build_frontend}" = true ] ; then \
-  cd /app/webpack/ && pnpm i && npm run prod; \
-fi
 
 # copy code
 COPY ./ /app/code

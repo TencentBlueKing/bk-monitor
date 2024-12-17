@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import math
-import re
 import os
+import re
 from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
@@ -20,7 +20,6 @@ from graphviz import Digraph
 from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 from apm_web.profile.diagrams.tree_converter import TreeConverter
-
 
 # 定义正则表达式 来过滤切割不同语言的 pkg 名称
 cpp_anonymous_prefix_re = re.compile(r'^\(anonymous namespace\)::')
@@ -147,12 +146,14 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
         node_name = multiline_printable_name(node["name"])
-        title = f"""{node_name} {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})"""
+        title = (
+            f"""{node_name} {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})"""
+        )
         node_color = dot_color(score=ratio, is_back_ground=True)
         background_color = dot_color(score=ratio, is_back_ground=False)
         width, height = calculate_node_size(ratio)
         base_font_size, max_font_size = 10, 32
-        font_size = int(base_font_size + (max_font_size - base_font_size) * ratio ** 2)
+        font_size = int(base_font_size + (max_font_size - base_font_size) * ratio**2)
 
         dot.node(
             str(node["id"]),
@@ -164,7 +165,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
             tooltip=node["name"],
             width=str(width),
             height=str(height),
-            shape="box"
+            shape="box",
         )
 
     for edge in call_graph_data.get("call_graph_relation", []):
@@ -206,7 +207,7 @@ def calculate_node_size(percentage, exponent=2):
     """根据百分比计算节点大小 指数级放大增强对比"""
 
     percentage = max(0, min(1, percentage))
-    adjusted_percentage = percentage ** exponent
+    adjusted_percentage = percentage**exponent
 
     # 计算节点宽度和高度
     node_width = CallGraph.BASE_SIZE + adjusted_percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
@@ -269,7 +270,7 @@ def convert_seconds(seconds):
 class CallGraphDiagrammer:
     def draw(self, c: TreeConverter, **options) -> Any:
         nodes = list(c.tree.function_node_map.values())
-        edges = build_edge_relation(c.tree.root.children)
+        edges = build_edge_relation(list(c.tree.root.children))
         data = {
             "call_graph_data": {
                 "call_graph_nodes": [

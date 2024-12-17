@@ -505,6 +505,7 @@ class IncidentSnapshot(object):
             # 根据调用关系聚类结果进行聚合
             groups_by_clusters = self.generate_groups_by_edge_clusters()
             groups_by_clusters = self.drop_groups_duplicates(groups_by_clusters)
+            groups_by_clusters = self.split_by_logic_key(groups_by_clusters)
             self.aggregate_by_groups(groups_by_clusters, entities_orders)
 
     def generate_groups_by_aggregate_configs(
@@ -661,6 +662,24 @@ class IncidentSnapshot(object):
             # 如果当前集合不是任何集合的子集，则保留
             if not is_subset:
                 result_groups[edge_cluster_id] = groups
+
+        return result_groups
+
+    def split_by_logic_key(self, groups_by_clusters: Dict[Tuple, set]) -> Dict[Tuple, set]:
+        """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 去重后的分组
+        """
+        result_groups = {}
+
+        for edge_cluster_id, groups in groups_by_clusters.items():
+            for entity_id in groups:
+                entity = self.incident_graph_entities[entity_id]
+                if (entity.logic_key(), edge_cluster_id) not in result_groups:
+                    result_groups[(entity.logic_key(), edge_cluster_id)] = set()
+
+                result_groups[(entity.logic_key(), edge_cluster_id)].add(entity_id)
 
         return result_groups
 

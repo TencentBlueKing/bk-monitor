@@ -20,9 +20,9 @@ SEARCH_PARAMS = {
         {"field": "number", "operator": "gte", "value": [100, 50]},
         {"field": "id", "operator": "lte", "value": [500]},
         {"field": "gseIndex", "operator": "=~", "value": ["?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"]},
-        {"field": "path", "operator": "!=~", "value": ["?app/*/python.*", "*/python.*"]},
-        {"field": "cloudId", "operator": "contains", "value": ["6", "9"]},
-        {"field": "cloudId", "operator": "not contains", "value": ["1", "3"]},
+        {"field": "path", "operator": "!=~", "value": ["?app python.*", "*/python.*"]},
+        {"field": "cloudId", "operator": "contains", "value": ["6+6", "9+1=10"]},
+        {"field": "cloudId", "operator": "not contains", "value": ["1&&2", "3*3"]},
         {"field": "is_deleted", "operator": "is false", "value": []},
         {"field": "flag", "operator": "is true", "value": [1]},
         {"field": "log", "operator": "contains match phrase", "value": ["html", "hello world"]},
@@ -30,8 +30,8 @@ SEARCH_PARAMS = {
         {"field": "log", "operator": "all contains match phrase", "value": ["su 7"]},
         {"field": "log", "operator": "all not contains match phrase", "value": ["error", "500"]},
         {"field": "log", "operator": "all not contains match phrase", "value": ["This is a \"test\" string"]},
-        {"field": "describe", "operator": "&=~", "value": ["?el*", "wor?d"]},
-        {"field": "theme", "operator": "&!=~", "value": ["pg*", "?h?"]},
+        {"field": "describe", "operator": "&=~", "value": ["?e:l*", "w(or)?d"]},
+        {"field": "theme", "operator": "&!=~", "value": ["pg||db*", r"?h\h?"]},
         {"field": "*", "operator": "contains match phrase", "value": ["error"]},
         {"field": "querystring", "operator": "contains match phrase", "value": ["success", "200"]},
         {"field": "querystring", "operator": "=", "value": []},
@@ -40,29 +40,20 @@ SEARCH_PARAMS = {
     ],
 }
 
-
 TRANSFORM_RESULT = (
-    "bk_host_id: (1 OR 2)"
+    "bk_host_id: (\"1\" OR \"2\")"
     " AND "
-    "bk_host_id: (3 OR 4)"
+    "bk_host_id: (\"3\" OR \"4\")"
     " AND "
-    "bk_host_id: (5 OR 6)"
+    "bk_host_id: (\"5\" OR \"6\")"
     " AND "
-    "NOT service: php"
+    "NOT service: \"php\""
     " AND "
-    "NOT service: (a OR b)"
+    "NOT service: (\"a\" OR \"b\")"
     " AND "
-    "service: (c OR d)"
+    "service: (\"c\" OR \"d\")"
     " AND "
-    "NOT service: (e OR f)"
-    " AND "
-    "count: <200"
-    " AND "
-    "index: >500"
-    " AND "
-    "number: >=50"
-    " AND "
-    "id: <=500"
+    "NOT service: (\"e\" OR \"f\")"
     " AND "
     "count: <200"
     " AND "
@@ -72,13 +63,21 @@ TRANSFORM_RESULT = (
     " AND "
     "id: <=500"
     " AND "
-    "gseIndex: ?proz/Saved/Logs/ProjectA_2024.10.20-23.17.50*"
+    "count: <200"
     " AND "
-    "NOT path: (?app/*/python.* OR */python.*)"
+    "index: >500"
     " AND "
-    "cloudId: (*6* OR *9*)"
+    "number: >=50"
     " AND "
-    "NOT cloudId: (*1* OR *3*)"
+    "id: <=500"
+    " AND "
+    r"gseIndex: ?proz\/Saved\/Logs\/ProjectA_2024.10.20\-23.17.50*"
+    " AND "
+    r"NOT path: (?app\ python.* OR *\/python.*)"
+    " AND "
+    r"cloudId: (*6\+6* OR *9\+1\=10*)"
+    " AND "
+    r"NOT cloudId: (*1\&&2* OR *3\*3*)"
     " AND "
     "is_deleted: false"
     " AND "
@@ -94,9 +93,9 @@ TRANSFORM_RESULT = (
     " AND "
     "NOT log: \"This is a \\\"test\\\" string\""
     " AND "
-    "describe: (?el* AND wor?d)"
+    r"describe: (?e\:l* AND w\(or\)?d)"
     " AND "
-    "NOT theme: (pg* AND ?h?)"
+    r"NOT theme: (pg\||db* AND ?h\\h?)"
     " AND "
     "(\"error\")"
     " AND "
