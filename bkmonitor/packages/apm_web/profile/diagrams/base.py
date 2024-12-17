@@ -186,7 +186,7 @@ class ValueCalculator:
         for node in tree.function_node_map.values():
             node.value = c.calculate(node.values)
 
-        tree.root.value = sum([child.value for child in tree.node.children])
+        tree.root.value = sum([child.value for child in tree.root.children])
 
     @classmethod
     def adjust_node_values(cls, node: FunctionNode):
