@@ -620,10 +620,12 @@ class SearchHandler(object):
             alias_dict = data.get("query_alias_settings")
             if alias_dict:
                 for log in log_list:
+                    # object类型的字段
                     for object_field in object_field_keys:
                         key, field = object_field.split(".", 1)
-                        if key in log and field in log[key]:
-                            log[object_field] = log[key][field]
+                        for query_alias in alias_dict.keys():
+                            if key in log and field in log[key]:
+                                log[query_alias] = log[key][field]
         return result
 
     def get_sort_group(self):
