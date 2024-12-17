@@ -328,12 +328,10 @@ export abstract class K8sGroupDimension {
   }
 
   /**
-   * @description 删除 groupFilters
+   * @description 删除 groupFilter (单项删除)
    * @param {K8sTableColumnResourceKey} groupId
    */
   deleteGroupFilter(groupId: K8sTableColumnResourceKey) {
-    const indexOrMsg = this.verifyDeleteGroupFilter(groupId);
-    if (typeof indexOrMsg === 'string') return;
     this.deleteGroupFilterForce(groupId);
   }
 
@@ -354,11 +352,11 @@ export abstract class K8sGroupDimension {
   }
 
   /**
-   * @description 获取最后一个 groupFilter
+   * @description 获取当前维度的资源类型 (最后一个 groupFilter)
    * @returns {K8sTableColumnResourceKey}
    */
-  getLastGroupFilter() {
-    return this.groupFilters[this.groupFilters.length - 1];
+  getResourceType() {
+    return this.groupFilters.at(-1);
   }
 
   /**
@@ -386,22 +384,6 @@ export abstract class K8sGroupDimension {
   setGroupFilters(groupFilters: K8sTableColumnResourceKey[]) {
     this.groupFilters = groupFilters;
     this.groupFiltersSet = new Set(groupFilters);
-  }
-
-  /**
-   * @description 校验传入 groupId 是否可删除
-   * @param {K8sTableColumnResourceKey} groupId
-   * @returns {string | number} string 类型表示不可删除，number 类型表示删除成功
-   */
-  verifyDeleteGroupFilter(groupId: K8sTableColumnResourceKey) {
-    if (this.defaultGroupFilter.has(groupId)) {
-      return '默认值不可删除';
-    }
-    const index = this.groupFilters.findIndex(item => item === groupId);
-    if (index !== this.groupFilters.length - 1) {
-      return '请先删除子级维度';
-    }
-    return index;
   }
 }
 
