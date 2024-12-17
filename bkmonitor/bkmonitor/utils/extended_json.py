@@ -18,6 +18,7 @@ from uuid import UUID
 import arrow
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
+from elasticsearch_dsl import AttrDict, AttrList
 
 STD_DT_FORMAT = "%Y-%m-%d %H:%M:%S"
 SUPPORTED_TYPES = {datetime, date, time, Decimal, UUID, set}
@@ -45,6 +46,10 @@ class CustomJSONEncoder(json.JSONEncoder):
                 return list(obj)
             if issubclass(type_, Promise):
                 return force_text(object)
+            if issubclass(type_, AttrList):
+                return list(obj)
+            if issubclass(type_, AttrDict):
+                return obj.to_dict()
         return json.JSONEncoder.default(self, obj)
 
 
