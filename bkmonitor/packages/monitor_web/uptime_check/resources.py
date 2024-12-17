@@ -224,6 +224,12 @@ class UptimeCheckTaskListResource(Resource):
             else:
                 ret[int(item["task_id"])].update(task_duration=Decimal(item["_result_"]).quantize(Decimal("0.00")))
 
+    @staticmethod
+    def chunk_list(lst, chunk_size):
+        """将列表拆分为多个指定长度的子列表"""
+        for i in range(0, len(lst), chunk_size):
+            yield lst[i : i + chunk_size]
+
     def perform_request(self, validated_request_data):
         task_data = validated_request_data["task_data"]
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -251,23 +257,24 @@ class UptimeCheckTaskListResource(Resource):
         for protocol, data in query_group.items():
             data_label = "{}_{}".format(UPTIME_CHECK_DB, protocol.lower())
             for period, task_id_list in data.items():
-                where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
+                for chunked_task_id_list in self.chunk_list(task_id_list, 500):
+                    where = [{"key": "task_id", "method": "contains", "value": chunked_task_id_list}]
 
-                if validated_request_data["get_available"]:
-                    th_list.append(
-                        InheritParentThread(
-                            target=self.query_available_or_duration,
-                            args=("available", bk_biz_id, data_label, where, period, end, task_data_mapping),
+                    if validated_request_data["get_available"]:
+                        th_list.append(
+                            InheritParentThread(
+                                target=self.query_available_or_duration,
+                                args=("available", bk_biz_id, data_label, where, period, end, task_data_mapping),
+                            )
                         )
-                    )
 
-                if validated_request_data["get_task_duration"]:
-                    th_list.append(
-                        InheritParentThread(
-                            target=self.query_available_or_duration,
-                            args=("task_duration", bk_biz_id, data_label, where, period, end, task_data_mapping),
+                    if validated_request_data["get_task_duration"]:
+                        th_list.append(
+                            InheritParentThread(
+                                target=self.query_available_or_duration,
+                                args=("task_duration", bk_biz_id, data_label, where, period, end, task_data_mapping),
+                            )
                         )
-                    )
 
         list([t.start() for t in th_list])
         list([t.join() for t in th_list])
