@@ -176,17 +176,17 @@ rest/v2/k8s/resources/list_k8s_resources/
 
 ### 请求参数
 
-| 字段               | 类型       | 必选    | 描述                                                                   |
+| 字段               | 类型       | 必选    | 描述                                                                   |
 | ---------------- | -------- | ----- | -------------------------------------------------------------------- |
-| bk_biz_id        | id       | 是     | 业务 id                                                                |
-| bcs_cluster_id   | string   | 是     | 集群 id                                                                |
-| resource_type    | string   | 是     | 资源类型, 可选值为 ["pod", "workload", "namespace", "container"]       |
-| query_string     | string   | 否     | 名字过滤                                                                 |
-| filter_dict      | dict     | 否     | 精确过滤                                                                 |
-| start_time       | int      | 是     | 开始时间                                                                 |
-| end_time         | int      | 是     | 结束时间                                                                 |
-| sernario         | str      | 是     | 场景，可选值为 ”performance“                                                |
-| with_history     | bool     | 否     | 历史出现过的资源, 默认为                                                        |
+| bk_biz_id        | id       | 是     | 业务 id                                                                |
+| bcs_cluster_id   | string   | 是     | 集群 id                                                                |
+| resource_type    | string   | 是     | 资源类型, 可选值为 ["pod", "workload", "namespace", "container"]       |
+| query_string     | string   | 否     | 名字过滤                                                                 |
+| filter_dict      | dict     | 否     | 精确过滤                                                                 |
+| start_time       | int      | 是     | 开始时间                                                                 |
+| end_time         | int      | 是     | 结束时间                                                                 |
+| sernario         | str      | 是     | 场景，可选值为 ”performance“                                                |
+| with_history     | bool     | 否     | 历史出现过的资源, 默认为                                                        |
 | page_size        | int      | 否     | 分页数量, 默认为 5, 且 with_history=false 可用                                   |
 | page             | int      | 否     | 页数，默认为 1，且 with_history=false 可用                                       |
 | page_type        | str      | 否     | 分页类型, 可选值为: “scrolling”(滚动分页), "traditional"(传统分页), 默认为“traditional” |
@@ -637,16 +637,16 @@ rest/v2/k8s/resources/get_resource_detail
 
 ### 请求参数
 
-| 字段              | 类型   | 必填   | 描述                                                 |
+| 字段              | 类型   | 必填   | 描述                                                 |
 | --------------- | ---- | ---- | -------------------------------------------------- |
-| bcs_cluster_id  | str  | 是    | 集群 id                                              |
-| bk_biz_id       | int  | 是    | 业务 id                                              |
-| namespace       | str  | 是    | 命名空间                                               |
-| resource_type   | str  | 是    | 资源类型，可选值为 “pod”,"workload","container"             |
-| pod_name        | str  | 否    | pod 名称，当 resource_type 为 "pod" \| "container" 时必填  |
-| container_name  | str  | 否    | 容器名称，当 resource_type 为 “container" 时必填             |
-| workload_name   | str  | 否    | 工作负载名称， 当 resource_type 为 ”workload" 时必填           |
-| workload_type   | str  | 否    | 工作负载类型， 当 resource_type 为 ”workload" 时必填           |
+| bcs_cluster_id  | str  | 是    | 集群 id                                              |
+| bk_biz_id       | int  | 是    | 业务 id                                              |
+| namespace       | str  | 是    | 命名空间                                               |
+| resource_type   | str  | 是    | 资源类型，可选值为 “pod”,"workload","container"             |
+| pod_name        | str  | 否    | pod 名称，当 resource_type 为 "pod" \| "container" 时必填  |
+| container_name  | str  | 否    | 容器名称，当 resource_type 为 “container" 时必填             |
+| workload_name   | str  | 否    | 工作负载名称， 当 resource_type 为 ”workload" 时必填           |
+| workload_type   | str  | 否    | 工作负载类型， 当 resource_type 为 ”workload" 时必填           |
 
 ### 请求示例
 
