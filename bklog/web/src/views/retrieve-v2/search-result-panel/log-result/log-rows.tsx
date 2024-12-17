@@ -98,6 +98,7 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
+    const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -263,7 +264,6 @@ export default defineComponent({
       if (props.contentType === 'table') {
         return [
           ...visibleFields.value.map(field => {
-            console.log('--', field.minWidth, field.width, field.field_name);
             return {
               field: field.field_name,
               key: field.field_name,
@@ -378,17 +378,13 @@ export default defineComponent({
       },
     };
 
-    const debounceLoadColumns = debounce(() => {
-      columns.value = loadTableColumns();
-      requestAnimationFrame(() => {
-        computeRect();
-      });
-    }, 100);
-
     watch(
-      () => [indexFieldInfo.value.request_counter, props.contentType],
+      () => [fieldRequestCounter.value, props.contentType],
       () => {
-        debounceLoadColumns();
+        columns.value = loadTableColumns();
+        requestAnimationFrame(() => {
+          computeRect();
+        });
       },
     );
 

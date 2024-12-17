@@ -604,12 +604,10 @@ const store = new Vuex.Store({
     },
     updateVisibleFields(state, val) {
       state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
-      state.indexFieldInfo.request_counter++;
     },
     updateVisibleFieldMinWidth(state, tableList, fieldList) {
       const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
       setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
-      state.indexFieldInfo.request_counter++;
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -1047,7 +1045,7 @@ const store = new Vuex.Store({
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
-          commit('updateIsSetDefaultTableColumn');
+          // commit('updateIsSetDefaultTableColumn');
           return res;
         })
         .catch(err => {

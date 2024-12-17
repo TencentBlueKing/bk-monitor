@@ -90,8 +90,12 @@
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
       }
-      store.dispatch('requestIndexSetFieldInfo');
-      store.dispatch('requestIndexSetQuery');
+
+      store.commit('updateSqlQueryFieldList', []);
+      store.commit('updateIndexSetQueryResult', []);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery');
+      });
     }
   };
 
