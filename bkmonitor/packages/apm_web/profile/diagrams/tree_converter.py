@@ -65,7 +65,7 @@ class TreeConverter:
         # 补充根节点
         for node in tree.function_node_map.values():
             if not node.has_parent:
-                tree.root.children.append(node)
+                tree.root.children.add(node)
 
         # 不同数据类型的节点 value 计算方式有所不同
         ValueCalculator.calculate_nodes(tree, self.get_sample_type())
@@ -108,5 +108,7 @@ class TreeConverter:
                     else:
                         node = tree.function_node_map[key]
                         node.add_value(value)
+                        if parent:
+                            parent.add_child(node)
                     tree.lock.release()
                     parent = node
