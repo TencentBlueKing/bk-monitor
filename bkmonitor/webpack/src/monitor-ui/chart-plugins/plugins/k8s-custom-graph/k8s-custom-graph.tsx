@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -41,16 +41,15 @@ import {
 } from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
-import ListLegend from '../../components/chart-legend/common-legend';
+import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
+import { downFile, handleRelateAlert, isShadowEqual, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
-import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
-import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+import K8sDimensionDrillDown from './k8s-dimension-drilldown';
 
 import type {
   DataQuery,
@@ -62,12 +61,10 @@ import type {
   ITitleAlarm,
   ITimeSeriesItem,
   PanelModel,
-  ZrClickEvent,
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
-import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
 
-import './caller-line-chart.scss';
+import './k8s-custom-graph.scss';
 
 interface IProps {
   panel: PanelModel;
@@ -109,14 +106,14 @@ class CallerLineChart extends CommonSimpleChart {
   @InjectReactive('downSampleRange') readonly downSampleRange: number | string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
-  @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
-
+  // 时间对比的偏移量
+  @InjectReactive('timeOffset') readonly timeOffset: string[];
   metrics = [];
   options = {};
   empty = true;
@@ -131,7 +128,6 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
-  panelsSelector = 'exception_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -147,32 +143,10 @@ class CallerLineChart extends CommonSimpleChart {
     return this.panel.options?.time_series?.hoverAllTooltips;
   }
 
-  // 是否允许对比
-  get isSupportCompare() {
-    return typeof this.panel.options?.is_support_compare !== 'boolean' ? true : this.panel.options.is_support_compare;
-  }
-
-  // 是否允许自定groupBy
-  get isSupportGroupBy() {
-    return !!this.panel.options?.is_support_group_by;
-  }
-
-  // title是否需要展示下拉框
-  get enablePanelsSelector() {
-    return !!this.panel.options?.enable_panels_selector;
-  }
-
-  get curSelectPanel() {
-    return (this.childPanelsSelectorVariables || []).find(item => this.panelsSelector === item.id);
-  }
-
   get curTitle() {
-    return this.enablePanelsSelector ? this.curSelectPanel?.title : this.panel.title;
+    return this.panel.title;
   }
 
-  get childPanelsSelectorVariables() {
-    return this.panel.options?.child_panels_selector_variables || [];
-  }
   get menuList() {
     return ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
@@ -182,21 +156,18 @@ class CallerLineChart extends CommonSimpleChart {
     this.showRestore = v;
   }
 
-  @Watch('callOptions')
-  onCallOptionsChange() {
+  @Watch('panel')
+  panelChange(val, old) {
+    if (isShadowEqual(val, old)) return;
     this.getPanelData();
-  }
-  @Watch('panel', { immediate: true })
-  handlePanel() {
-    if (this.enablePanelsSelector) {
-      this.panelsSelector = getRecordCallOptionChart(this.viewOptions.filters);
-    }
   }
 
-  handlePanelsSelector(val) {
+  @Watch('timeOffset')
+  handleTimeOffsetChange(v: string[], o: string[]) {
+    if (JSON.stringify(v) === JSON.stringify(o)) return;
     this.getPanelData();
-    setRecordCallOptionChart(this.viewOptions.filters, val);
   }
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -227,10 +198,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
       }
       const promiseList = [];
-      const timeShiftList = [
-        '',
-        ...(this.isSupportCompare && this.callOptions.time_shift?.length ? this.callOptions.time_shift : []),
-      ];
+      const timeShiftList = ['', ...this.timeOffset];
       const down_sample_range = this.downSampleRangeComputed(
         'auto',
         [params.start_time, params.end_time],
@@ -239,29 +207,13 @@ class CallerLineChart extends CommonSimpleChart {
       const [v] = down_sample_range.split('s');
       const interval = Math.ceil(+v / 60);
       this.collectIntervalDisplay = `${interval}m`;
-      const callOptions = {};
-      for (const key in this.callOptions) {
-        if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
-          callOptions[key] = this.callOptions[key];
-        }
-      }
-      let selectPanelParams = {};
-      if (this.enablePanelsSelector) {
-        selectPanelParams = this.curSelectPanel.variables;
-      }
-
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        ...callOptions,
-        ...selectPanelParams,
       });
       for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
           const paramsResult = data;
-          if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
-            paramsResult.group_by_limit = undefined;
-          }
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
@@ -273,9 +225,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...(this.viewOptions.filters?.current_target || {}),
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
-                ...(this.callOptions || {}),
                 time_shift: timeShift,
-                group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
                 interval,
               },
               noTransformVariables
@@ -283,18 +233,6 @@ class CallerLineChart extends CommonSimpleChart {
             ...params,
             down_sample_range,
           });
-          if (this.callOptions?.call_filter?.length) {
-            const callFilter: IFilterCondition[] = this.callOptions?.call_filter.filter(f => f.key !== 'time');
-            for (const item of newParams?.query_configs || []) {
-              item.where = [...(item?.where || []), ...replaceRegexWhere(callFilter)];
-            }
-            for (const item of newParams?.unify_query_param?.query_configs || []) {
-              item.where = [...(item?.where || []), ...replaceRegexWhere(callFilter)];
-            }
-            if (newParams?.group_by_limit?.where) {
-              newParams.group_by_limit.where = [...newParams.group_by_limit.where, ...replaceRegexWhere(callFilter)];
-            }
-          }
           const primaryKey = item?.primary_key;
           const paramsArr = [];
           if (primaryKey) {
@@ -318,10 +256,7 @@ class CallerLineChart extends CommonSimpleChart {
               res.series &&
                 series.push(
                   ...res.series.map(set => {
-                    if (this.enablePanelsSelector) {
-                      item.alias = this.curTitle;
-                    }
-                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
+                    const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
@@ -768,10 +703,6 @@ class CallerLineChart extends CommonSimpleChart {
       return total;
     }, []);
   }
-  @Emit('zrClick')
-  handleZrClick(params: ZrClickEvent) {
-    return params;
-  }
 
   dataZoom(startTime: string, endTime: string) {
     if (this.enableSelectionRestoreAll) {
@@ -794,12 +725,6 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleMenuToolsSelect(menuItem: IMenuItem) {
-    const callOptions = {};
-    for (const key in this.callOptions) {
-      if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
-        callOptions[key] = this.callOptions[key];
-      }
-    }
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
         this.handleCollectChart();
@@ -867,25 +792,6 @@ class CallerLineChart extends CommonSimpleChart {
     }
   }
 
-  queryConfigsSetCallOptions(targetData) {
-    if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
-      targetData.group_by_limit = undefined;
-    } else {
-    }
-    if (this.callOptions?.call_filter?.length) {
-      const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
-      for (const item of targetData?.query_configs || []) {
-        item.where = [...(item?.where || []), ...callFilter];
-      }
-      for (const item of targetData?.unify_query_param?.query_configs || []) {
-        item.where = [...(item?.where || []), ...callFilter];
-      }
-      if (targetData?.group_by_limit?.where) {
-        targetData.group_by_limit.where = [...targetData.group_by_limit.where, ...callFilter];
-      }
-    }
-  }
-
   /**
    * @description: 下载图表为png图片
    * @param {string} title 图片标题
@@ -930,50 +836,26 @@ class CallerLineChart extends CommonSimpleChart {
 
   getCopyPanel() {
     try {
-      const callOptions = {};
-      for (const key in this.callOptions) {
-        if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
-          callOptions[key] = this.callOptions[key];
-        }
-      }
       let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
       copyPanel.dashboardId = random(8);
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      let selectPanelParams = {};
-      if (this.enablePanelsSelector) {
-        selectPanelParams = this.curSelectPanel.variables;
-      }
       const variablesService = new VariablesService({
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
         ...this.viewOptions.variables,
-        ...callOptions,
-        group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
         interval: reviewInterval(
           this.viewOptions.interval,
           dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
           this.panel.collect_interval
         ),
-        ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
       for (const t of copyPanel.targets) {
         for (const q of t?.data?.query_configs || []) {
           q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
         }
-        this.queryConfigsSetCallOptions(t?.data);
       }
-      if (this.enablePanelsSelector) {
-        copyPanel.title = this.curTitle;
-        copyPanel.targets.map(item => (item.alias = this.curTitle));
-      }
-      (copyPanel.targets || []).map(item => {
-        (item.data.query_configs || []).map(ele => {
-          const where = replaceRegexWhere(ele.where);
-          ele.where = where;
-        });
-      });
       return copyPanel;
     } catch (error) {
       console.log(error);
@@ -1022,7 +904,7 @@ class CallerLineChart extends CommonSimpleChart {
 
   render() {
     return (
-      <div class='k8s-custom-chart'>
+      <div class='k8s-custom-graph'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
@@ -1040,37 +922,12 @@ class CallerLineChart extends CommonSimpleChart {
           onMenuClick={this.handleMenuToolsSelect}
           onMetricClick={this.handleMetricClick}
           onSelectChild={this.handleSelectChildMenu}
-        >
-          <div slot='title'>
-            {this.enablePanelsSelector ? (
-              <div>
-                <bk-select
-                  class='enable-select'
-                  v-model={this.panelsSelector}
-                  behavior='simplicity'
-                  clearable={false}
-                  size='small'
-                  onChange={this.handlePanelsSelector}
-                >
-                  {(this.childPanelsSelectorVariables || []).map(option => (
-                    <bk-option
-                      id={option.id}
-                      key={option.id}
-                      name={option.title}
-                    />
-                  ))}
-                </bk-select>
-              </div>
-            ) : (
-              <span>{this.panel.title}</span>
-            )}
-          </div>
-        </ChartHeader>
+        />
         {!this.empty ? (
-          <div class={'time-series-content'}>
+          <div class={'time-series-content right-legend'}>
             <div
               ref='chart'
-              class='chart-instance'
+              class={'chart-instance is-table-legend'}
             >
               {this.inited && (
                 <BaseEchart
@@ -1079,18 +936,38 @@ class CallerLineChart extends CommonSimpleChart {
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
-                  needZrClick={this.panel?.options?.need_zr_click_event}
+                  needZrClick={this.panel.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
-                  onZrClick={this.handleZrClick}
                 />
               )}
             </div>
-            <div class={'chart-legend'}>
-              <ListLegend
-                legendData={this.legendData || []}
+            <div class={'chart-legend right-legend'}>
+              <TableLegend
+                scopedSlots={{
+                  name: ({ item }) => (
+                    <div
+                      class='k8s-legend-name'
+                      onMousedown={(e: MouseEvent) => e.stopPropagation()}
+                    >
+                      <span
+                        style={{ color: item.show ? '#3a84ff' : '#ccc' }}
+                        class='metric-name'
+                        v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                      >
+                        {item.name}
+                      </span>
+                      <K8sDimensionDrillDown
+                        dimension={'namespace'}
+                        value={'namespace'}
+                      />
+                    </div>
+                  ),
+                }}
+                legendData={this.legendData}
+                preventEvent={true}
                 onSelectLegend={this.handleSelectLegend}
               />
             </div>
@@ -1103,9 +980,4 @@ class CallerLineChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<
-  IProps,
-  {
-    onZrClick?: (event: ZrClickEvent) => void;
-  }
->().convert(CallerLineChart);
+export default ofType<IProps>().convert(CallerLineChart);

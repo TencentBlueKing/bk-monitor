@@ -30,6 +30,7 @@ import { connect, disconnect } from 'echarts/core';
 import { listK8sResources } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -37,7 +38,6 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { K8sNewTabEnum, K8sTableColumnKeysEnum, type SceneEnum } from '../../typings/k8s-new';
 import K8sDetailSlider, { type K8sDetailSliderActiveTitle } from '../k8s-detail-slider/k8s-detail-slider';
-import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
 import { getK8sTableAsyncDataMock } from './utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';

@@ -379,7 +379,10 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
           </div>
         ) : (
           [
-            <div class='flex-dashboard'>
+            <div
+              key={'flex-dashboard'}
+              class='flex-dashboard'
+            >
               {(this as any).localPanels.slice(0, 1000).map((panel, index) => (
                 <div
                   id={`${panel.id}__key__`}
@@ -411,6 +414,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             </div>,
             (this as any).localPanels.length ? (
               <ChartCollect
+                key={'collect'}
                 isCollectSingle={this.isCollectSingle}
                 localPanels={(this as any).localPanels}
                 observablePanelsField={this.observablePanelsField}

@@ -44,7 +44,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { type K8sGroupDimension, K8sPerformanceGroupDimension } from './k8s-dimension';
-import { K8sNewTabEnum, K8sTableColumnKeysEnum, SceneEnum } from './typings/k8s-new';
+import { type IK8SMetricItem, K8sNewTabEnum, K8sTableColumnKeysEnum, SceneEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFilterByItem } from './components/filter-by-condition/utils';
@@ -93,8 +93,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   filterBy: IFilterByItem[] = [];
   // Group By 选择器的值
   groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
-  // 指标隐藏项
-  hideMetrics = [];
 
   // 是否展示取消下钻
   showCancelDrill = false;
@@ -102,8 +100,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   cacheFilterBy: IFilterByItem[] = [];
   cacheGroupBy = [];
+
   /** 指标列表 */
-  metricList = [];
+  metricList: IK8SMetricItem[] = [];
+  // 指标隐藏项
+  hideMetrics: string[] = [];
+
   metricLoading = true;
   timer = null;
 
@@ -118,6 +120,24 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @ProvideReactive('formatTimeRange')
   get formatTimeRange() {
     return handleTransformToTimestamp(this.timeRange);
+  }
+
+  get filterCommonParams() {
+    const [start_time, end_time] = this.formatTimeRange;
+    return {
+      bcs_cluster_id: this.cluster,
+      resource_type: this.groupInstance.groupFilters.at(-1),
+      filter_dict: this.filterBy.reduce((prev, curr) => {
+        if (curr.value?.length) {
+          prev[curr.key] = curr.value;
+        }
+        return prev;
+      }, {}),
+      start_time,
+      end_time,
+      scenario: this.scene,
+      with_history: false,
+    };
   }
 
   setGroupFilters(item: { groupId: K8sTableColumnResourceKey; checked: boolean }) {
@@ -230,7 +250,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       target.value = ids;
       this.filterBy = [...this.filterBy];
     } else {
-      this.filterBy.push({ key: groupId, value: ids });
+      this.filterBy = [...this.filterBy, { key: groupId, value: ids }];
     }
   }
 
@@ -334,7 +354,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   tabContentRender() {
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
-        return <K8SCharts />;
+        return (
+          <K8SCharts
+            filterCommonParams={this.filterCommonParams}
+            groupBy={this.groupFilters}
+            hideMetrics={this.hideMetrics}
+            metricList={this.metricList}
+          />
+        );
       default:
         return (
           <K8sTableNew

@@ -26,8 +26,9 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
+
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import K8sDimensionDrillDown from './k8s-dimension-drilldown';
 
 import type { GroupListItem } from '../../typings/k8s-new';
 

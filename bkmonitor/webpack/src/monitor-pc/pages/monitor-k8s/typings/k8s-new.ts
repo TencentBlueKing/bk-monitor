@@ -107,3 +107,10 @@ export interface K8sDimensionParams {
   pageType?: 'scrolling' | 'traditional';
   bcsClusterId?: string;
 }
+
+export interface IK8SMetricItem {
+  id: string;
+  name: string;
+  count?: number;
+  children: IK8SMetricItem[];
+}

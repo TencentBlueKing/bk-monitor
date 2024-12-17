@@ -1,5 +1,4 @@
-/* stylelint-disable declaration-no-important */
-.apm-caller-line-chart {
+.k8s-custom-graph {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -7,18 +6,7 @@
   height: 100%;
   background-color: transparent;
 
-  .enable-select {
-    width: 72px;
-
-    .bk-select-name {
-      padding: 0 0px 0 0;
-      font-size: 14px;
-      font-weight: 400;
-      color: #313238;
-    }
-  }
-
-  .time-series-header {
+  &-header {
     display: flex;
     flex: 0 0 46px;
     align-items: center;
@@ -26,7 +14,7 @@
     height: 46px;
   }
 
-  .time-series-content {
+  &-content {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -42,12 +30,6 @@
       display: flex;
       flex: 1;
       flex-grow: 2;
-
-      .chart-base {
-        & > div {
-          cursor: pointer !important;
-        }
-      }
 
       &.is-table-legend {
         width: calc(100% - 320px);
@@ -70,6 +52,11 @@
         max-height: 100%;
       }
     }
+  }
+
+  .k8s-legend-name {
+    display: flex;
+    align-items: center;
   }
 
   .empty-chart {

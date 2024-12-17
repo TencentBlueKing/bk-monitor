@@ -26,11 +26,11 @@
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import CommonDetail from '../common-detail';
-import K8sDimensionDrillDown from '../k8s-left-panel/k8s-dimension-drilldown';
 import K8sTableNew from '../k8s-table-new/k8s-table-new';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';

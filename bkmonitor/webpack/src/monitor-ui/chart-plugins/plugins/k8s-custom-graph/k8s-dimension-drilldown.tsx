@@ -36,7 +36,12 @@ import './k8s-dimension-drilldown.scss';
 interface K8sDimensionDrillDownEvents {
   onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
 }
-
+const drillListMap = {
+  namespace: ['workload', 'pod', 'container'],
+  workload: ['pod', 'container'],
+  pod: ['container'],
+  container: [],
+};
 @Component
 export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {
   /** 维度 */
@@ -54,12 +59,6 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   popoverInstance = null;
 
   get drillDownList() {
-    const drillListMap = {
-      namespace: ['workload', 'pod', 'container'],
-      workload: ['pod', 'container'],
-      pod: ['container'],
-      container: [],
-    };
     return drillListMap[this.dimension];
   }
 
