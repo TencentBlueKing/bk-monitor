@@ -45,8 +45,10 @@ import type { TimeRangeType } from '../../../../components/time-range/time-range
 
 import './filter-by-condition.scss';
 
+type TFilterByDict = Record<EDimensionKey, string[]>;
+
 interface IProps {
-  filterBy?: IFilterByItem[];
+  filterBy?: IFilterByItem[] | TFilterByDict;
   scene?: SceneEnum;
   bcsClusterId?: string;
   timeRange?: TimeRangeType;
@@ -55,7 +57,7 @@ interface IProps {
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
+  @Prop({ type: [Array, Object], default: () => [] }) filterBy: IFilterByItem[] | TFilterByDict;
   /* 场景 */
   @Prop({ type: String, default: '' }) scene: SceneEnum;
   /* 集群id */
@@ -160,11 +162,22 @@ export default class FilterByCondition extends tsc<IProps> {
 
   @Watch('filterBy', { immediate: true })
   handleWatchFilterBy() {
-    const filterByStr = JSON.stringify(this.filterBy);
+    let filterBy = [];
+    if (Array.isArray(this.filterBy)) {
+      filterBy = this.filterBy;
+    } else {
+      for (const key in this.filterBy) {
+        filterBy.push({
+          key,
+          value: this.filterBy[key],
+        });
+      }
+    }
+    const filterByStr = JSON.stringify(filterBy);
     const localFilterByStr = JSON.stringify(this.localFilterBy);
     if (filterByStr !== localFilterByStr) {
-      this.localFilterBy = JSON.parse(JSON.stringify(this.filterBy));
-      this.oldLocalFilterBy = JSON.parse(JSON.stringify(this.filterBy));
+      this.localFilterBy = JSON.parse(JSON.stringify(filterBy));
+      this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
       this.filterByToTags();
       this.overflowCountRender();
     }
@@ -183,7 +196,11 @@ export default class FilterByCondition extends tsc<IProps> {
     }
     this.localFilterBy = JSON.parse(JSON.stringify(filterBy));
     if (JSON.stringify(this.oldLocalFilterBy) !== JSON.stringify(this.localFilterBy)) {
-      this.$emit('change', filterBy);
+      const filterDict = {};
+      for (const item of filterBy) {
+        filterDict[item.key] = item.value;
+      }
+      this.$emit('change', filterDict);
     }
     this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
