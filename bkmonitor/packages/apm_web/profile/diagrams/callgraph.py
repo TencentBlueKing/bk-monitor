@@ -64,14 +64,21 @@ def multiline_printable_name(name, file_path=''):
 
 def build_edge_relation(node_list: List[FunctionNode]) -> list:
     edges = {}
+    visited_nodes = set()
+
     queue = deque(node_list)
     while queue:
         node = queue.popleft()
         for child in node.children:
             edge_key = (node.id, child.id)
+            if edge_key in edges:
+                continue
+
             edge_value = min(node.value, child.value)
-            edges.setdefault(edge_key, {"source_id": node.id, "target_id": child.id, "value": edge_value})
-            queue.append(child)
+            edges[edge_key] = {"source_id": node.id, "target_id": child.id, "value": edge_value}
+            if child.id not in visited_nodes:
+                visited_nodes.add(child.id)
+                queue.append(child)
     return list(edges.values())
 
 
