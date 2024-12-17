@@ -9,19 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import typing
 
-from .base import BaseMetricGroup, MetricGroupRegistry
-from .define import CalculationType, GroupEnum
-from .groups.resource import ResourceMetricGroup
-from .groups.trpc import TrpcMetricGroup
-from .helper import MetricHelper
+StrategyT = typing.Dict[str, typing.Any]
 
-__all__ = [
-    MetricGroupRegistry,
-    ResourceMetricGroup,
-    TrpcMetricGroup,
-    GroupEnum,
-    CalculationType,
-    MetricHelper,
-    BaseMetricGroup,
-]
+StrategyKeyT = str
