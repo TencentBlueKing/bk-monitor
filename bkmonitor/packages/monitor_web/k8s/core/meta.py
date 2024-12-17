@@ -202,7 +202,7 @@ class K8sPodMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             "sum by (workload_kind, workload_name, namespace, pod_name) "
-            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
     @property
@@ -286,7 +286,7 @@ class K8sNamespaceMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_cpu(self):
-        return "sum by (namespace) " f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+        return "sum by (namespace) " f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
 
     @classmethod
     def distinct(cls, objs):
@@ -310,7 +310,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace) "
-            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
 
@@ -324,11 +324,11 @@ class K8sContainerMeta(K8sResourceMeta):
     def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
-            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}})[1m])"
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
 
-def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: int) -> Optional[K8sResourceMeta]:
+def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) -> Optional[K8sResourceMeta]:
     resource_meta_map = {
         'node': K8sNodeMeta,
         'container': K8sContainerMeta,
