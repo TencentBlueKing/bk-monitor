@@ -31,6 +31,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import CommonDetail from '../common-detail';
+// import K8SCharts from '../k8s-charts/k8s-charts';
 import K8sTableNew from '../k8s-table-new/k8s-table-new';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
@@ -285,7 +286,14 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   tplContent() {
     return (
       <div class='k8s-detail-content'>
-        <div class='detail-content-left'>left</div>
+        <div class='detail-content-left'>
+          {/* <K8SCharts
+            filterCommonParams={this.filterCommonParams}
+            groupBy={this.groupInstance.groupFilters}
+            hideMetrics={this.hideMetrics}
+            metricList={this.metricList}
+          /> */}
+        </div>
         <div class='detail-content-right'>
           <CommonDetail
             collapse={false}

@@ -23,17 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources } from 'monitor-api/modules/k8s';
 import { Debounce } from 'monitor-common/utils';
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
-import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 
-import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
-import { K8sTableColumnKeysEnum, type IK8SMetricItem } from '../../typings/k8s-new';
-import { METHOD_LIST } from '../../typings/panel-tools';
+import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
+import { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, type IK8SMetricItem } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 
@@ -61,7 +59,7 @@ export default class K8SCharts extends tsc<{
   interval: number | string = 'auto';
   limit = 10;
   // 汇聚方法
-  method = DEFAULT_METHOD;
+  method = K8S_METHOD_LIST[0].id;
   showTimeCompare = false;
   panels: IPanelModel[] = [];
   loading = false;
@@ -82,7 +80,14 @@ export default class K8SCharts extends tsc<{
   onFilterCommonParamsChange() {
     this.createPanelList();
   }
+  @Provide('onDrillDown')
+  @Emit('drillDown')
+  handleDrillDown(group: string) {
+    return group;
+  }
+
   created() {
+    this.updateViewOptions();
     this.createPanelList();
   }
   @Debounce(300)
@@ -108,6 +113,7 @@ export default class K8SCharts extends tsc<{
                 displayMode: 'list',
                 placement: 'right',
               },
+              unit: K8SPerformanceMetricUnitMap[panel.id] || '',
             },
             targets: [
               {
@@ -118,7 +124,7 @@ export default class K8SCharts extends tsc<{
                       data_source_label: 'prometheus',
                       data_type_label: 'time_series',
                       promql: this.createPerformancePanelPromql(panel.id),
-                      interval: 60,
+                      interval: '$interval_second',
                       alias: 'a',
                       filter_dict: {},
                     },
@@ -137,8 +143,8 @@ export default class K8SCharts extends tsc<{
   }
   createCommonPromqlMethod() {
     return this.resourceLength > 1
-      ? `sum by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
-      : 'sum';
+      ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
+      : '$method';
   }
   createCommonPromqlContent() {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
@@ -164,13 +170,13 @@ export default class K8SCharts extends tsc<{
   createPerformancePanelPromql(metric: string) {
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
-        return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent()}}[1m]))`;
+        return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent()}}[$interval]))`;
       case 'kube_pod_cpu_limits_ratio': // CPU limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD) return '';
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[1m])) / sum(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval])) / sum(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`;
       case 'kube_pod_cpu_requests_ratio': // CPU request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD) return '';
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[1m])) / sum(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval])) / sum(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`;
       case 'container_memory_rss': // 内存使用量(rss)
         return `${this.createCommonPromqlMethod()}(${metric}{${this.createCommonPromqlContent()}})`;
       case 'kube_pod_memory_limits_ratio': // 内存limit使用率
@@ -193,7 +199,7 @@ export default class K8SCharts extends tsc<{
     })
       .then(data => {
         if (!data?.items?.length) return [];
-        return data.items;
+        return data.items.slice(0, 10);
       })
       .catch(() => []);
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([
@@ -271,7 +277,7 @@ export default class K8SCharts extends tsc<{
               class='ml-36'
               field={'method'}
               label={this.$t('汇聚方法')}
-              options={METHOD_LIST.concat(...CP_METHOD_LIST)}
+              options={K8S_METHOD_LIST}
               value={this.method}
               onChange={this.handleMethodChange}
             />

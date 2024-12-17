@@ -44,7 +44,7 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, isShadowEqual, reviewInterval } from '../../utils';
+import { convertToSeconds, downFile, handleRelateAlert, isShadowEqual, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -182,242 +182,233 @@ class CallerLineChart extends CommonSimpleChart {
     this.cancelTokens = [];
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
-    try {
-      this.unregisterOberver();
-      const series = [];
-      const metrics = [];
-      this.legendSorts = [];
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      let params = {
-        start_time: start_time ? dayjs(start_time).unix() : startTime,
-        end_time: end_time ? dayjs(end_time).unix() : endTime,
-      };
-      if (this.bkBizId) {
-        params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId,
-        });
-      }
-      const promiseList = [];
-      const timeShiftList = ['', ...this.timeOffset];
-      const down_sample_range = this.downSampleRangeComputed(
-        'auto',
-        [params.start_time, params.end_time],
-        'unifyQuery'
-      );
-      const [v] = down_sample_range.split('s');
-      const interval = Math.ceil(+v / 60);
-      this.collectIntervalDisplay = `${interval}m`;
-      const variablesService = new VariablesService({
-        ...this.viewOptions,
-      });
-      for (const timeShift of timeShiftList) {
-        const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
-        const dataFormat = data => {
-          const paramsResult = data;
-          return paramsResult;
-        };
-        const list = this.panel.targets.map(item => {
-          const newParams = structuredClone({
-            ...variablesService.transformVariables(
-              dataFormat({ ...item.data }),
-              {
-                ...this.viewOptions.filters,
-                ...(this.viewOptions.filters?.current_target || {}),
-                ...this.viewOptions,
-                ...this.viewOptions.variables,
-                time_shift: timeShift,
-                interval,
-              },
-              noTransformVariables
-            ),
-            ...params,
-            down_sample_range,
-          });
-          const primaryKey = item?.primary_key;
-          const paramsArr = [];
-          if (primaryKey) {
-            paramsArr.push(primaryKey);
-          }
-          paramsArr.push({
-            ...newParams,
-            unify_query_param: {
-              ...newParams.unify_query_param,
-              down_sample_range,
-            },
-          });
-          return (this as any).$api[item.apiModule]
-            [item.apiFunc](...paramsArr, {
-              cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
-              needMessage: false,
-            })
-            .then(res => {
-              this.$emit('seriesData', res);
-              res.metrics && metrics.push(...res.metrics);
-              res.series &&
-                series.push(
-                  ...res.series.map(set => {
-                    const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
-                      this.handleSeriesName(item, set) || set.target
-                    }`;
-                    this.legendSorts.push({
-                      name: name,
-                      timeShift: timeShift,
-                    });
-                    return {
-                      ...set,
-                      name,
-                    };
-                  })
-                );
-              // 用于获取原始query_config
-              if (res.query_config) {
-                this.panel.setRawQueryConfigs(item, res.query_config);
-              }
-              this.clearErrorMsg();
-              return true;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            });
-        });
-        promiseList.push(...list);
-      }
-      await Promise.all(promiseList).catch(() => false);
-      this.metrics = metrics || [];
-      if (series.length) {
-        const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
-        /* 派出图表数据包含的维度*/
-        this.series = Object.freeze(series) as any;
-        const seriesResult = series
-          .filter(item => ['extra_info', '_result_'].includes(item.alias))
-          .map(item => ({
-            ...item,
-            name: item.name,
-            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
-          }));
-        let seriesList = this.handleTransformSeries(
-          seriesResult.map(item => ({
-            name: item.name,
-            cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
-            data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
-            stack: item.stack || random(10),
-            unit: this.panel.options?.unit || item.unit,
-            z: 1,
-            traceData: item.trace_data ?? '',
-            dimensions: item.dimensions ?? {},
-          })) as any
-        );
-        seriesList = seriesList.map((item: any) => ({
-          ...item,
-          minBase: this.minBase,
-          data: item.data.map((set: any) => {
-            if (set?.length) {
-              return [set[0], set[1] !== null ? set[1] + this.minBase : null];
-            }
-            return {
-              ...set,
-              value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
-            };
-          }),
-        }));
-        this.seriesList = Object.freeze(seriesList) as any;
-        // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
-        // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
-        // 所以此处折中设置 在有孤立点情况下进行开启animation 连续的情况不开启
-        const hasShowSymbol = seriesList.some(item => item.showSymbol);
-        if (hasShowSymbol) {
-          for (const item of seriesList) {
-            item.data = item.data.map(set => {
-              if (set?.symbolSize) {
-                return {
-                  ...set,
-                  symbolSize: set.symbolSize > 6 ? 6 : 1,
-                  itemStyle: {
-                    borderWidth: set.symbolSize > 6 ? 6 : 1,
-                    enabled: true,
-                    shadowBlur: 0,
-                    opacity: 1,
-                  },
-                };
-              }
-              return set;
-            });
-          }
-        }
-        const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
-        const formatterFunc = this.handleSetFormatterFunc(formatData);
-
-        const chartBaseOptions = MONITOR_LINE_OPTIONS;
-        const echartOptions = deepmerge(
-          deepClone(chartBaseOptions),
-          this.panel.options?.time_series?.echart_option || {},
-          { arrayMerge: (_, newArr) => newArr }
-        );
-        const isBar = this.panel.options?.time_series?.type === 'bar';
-        const width = this.$el?.getBoundingClientRect?.()?.width;
-        const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
-        this.options = Object.freeze(
-          deepmerge(echartOptions, {
-            animation: hasShowSymbol,
-            color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
-            animationThreshold: 1,
-            yAxis: {
-              axisLabel: {
-                formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
-                  ? (v: any) => {
-                      if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
-                      }
-                      return v;
-                    }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
-              },
-              splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
-              max: 'dataMax',
-              min: 0,
-              scale: false,
-            },
-            xAxis: {
-              axisLabel: {
-                formatter: formatterFunc || '{value}',
-              },
-              ...xInterval,
-              splitNumber: 4,
-            },
-            series: seriesList,
-            tooltip: {
-              extraCssText: 'max-width: 50%',
-            },
-            customData: {
-              // customData 自定义的一些配置 用户后面echarts实例化后的配置
-              maxXInterval,
-              maxSeriesCount,
-            },
-          })
-        );
-        this.handleDrillDownOption(this.metrics);
-        this.inited = true;
-        this.empty = false;
-        if (!this.hasSetEvent) {
-          setTimeout(this.handleSetLegendEvent, 300);
-          this.hasSetEvent = true;
-        }
-        setTimeout(() => {
-          this.handleResize();
-        }, 100);
-      } else {
-        this.inited = this.metrics.length > 0;
-        this.emptyText = window.i18n.tc('暂无数据');
-        this.empty = true;
-      }
-    } catch (e) {
-      console.error(e);
+    if (
+      this.panel.targets.some(item =>
+        item.data?.query_configs?.some(q => q.data_source_label === 'prometheus' && !q.promql)
+      )
+    ) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.tc('暂不支持');
+    } else {
+      try {
+        this.unregisterOberver();
+        const series = [];
+        const metrics = [];
+        this.legendSorts = [];
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        let params = {
+          start_time: start_time ? dayjs(start_time).unix() : startTime,
+          end_time: end_time ? dayjs(end_time).unix() : endTime,
+        };
+        if (this.bkBizId) {
+          params = Object.assign({}, params, {
+            bk_biz_id: this.bkBizId,
+          });
+        }
+        const promiseList = [];
+        const timeShiftList = ['', ...this.timeOffset];
+        const down_sample_range = this.downSampleRangeComputed(
+          this.viewOptions.interval.toString(),
+          [params.start_time, params.end_time],
+          'unifyQuery'
+        );
+        const [v] = down_sample_range.split('s');
+        const interval = this.viewOptions.interval === 'auto' ? `${Math.ceil(+v / 60)}m` : down_sample_range;
+        this.collectIntervalDisplay = interval;
+        const variablesService = new VariablesService({});
+        for (const timeShift of timeShiftList) {
+          const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
+          const list = this.panel.targets.map(item => {
+            const newParams = structuredClone({
+              ...variablesService.transformVariables(
+                item.data,
+                {
+                  ...this.viewOptions.filters,
+                  ...this.viewOptions,
+                  ...this.viewOptions.variables,
+                  time_shift: timeShift,
+                  interval,
+                  interval_second: convertToSeconds(interval),
+                },
+                noTransformVariables
+              ),
+              ...params,
+              down_sample_range,
+            });
+            return (this as any).$api[item.apiModule]
+              [item.apiFunc](newParams, {
+                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+                needMessage: false,
+              })
+              .then(res => {
+                res.metrics && metrics.push(...res.metrics);
+                res.series &&
+                  series.push(
+                    ...res.series.map(set => {
+                      const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
+                        this.handleSeriesName(item, set) || set.target
+                      }`;
+                      this.legendSorts.push({
+                        name: name,
+                        timeShift: timeShift,
+                      });
+                      return {
+                        ...set,
+                        name,
+                      };
+                    })
+                  );
+                // 用于获取原始query_config
+                if (res.query_config) {
+                  this.panel.setRawQueryConfigs(item, res.query_config);
+                }
+                this.clearErrorMsg();
+                return true;
+              })
+              .catch(error => {
+                this.handleErrorMsgChange(error.msg || error.message);
+              });
+          });
+          promiseList.push(...list);
+        }
+        await Promise.all(promiseList).catch(() => false);
+        this.metrics = metrics || [];
+        if (series.length) {
+          const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+          /* 派出图表数据包含的维度*/
+          this.series = Object.freeze(series) as any;
+          const seriesResult = series
+            .filter(item => ['extra_info', '_result_'].includes(item.alias))
+            .map(item => ({
+              ...item,
+              name: item.name,
+              datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
+            }));
+          let seriesList = this.handleTransformSeries(
+            seriesResult.map(item => ({
+              name: item.name,
+              cursor: 'auto',
+              // biome-ignore lint/style/noCommaOperator: <explanation>
+              data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
+              stack: item.stack || random(10),
+              unit: this.panel.options?.unit || item.unit,
+              z: 1,
+              traceData: item.trace_data ?? '',
+              dimensions: item.dimensions ?? {},
+            })) as any
+          );
+          seriesList = seriesList.map((item: any) => ({
+            ...item,
+            minBase: this.minBase,
+            data: item.data.map((set: any) => {
+              if (set?.length) {
+                return [set[0], set[1] !== null ? set[1] + this.minBase : null];
+              }
+              return {
+                ...set,
+                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
+              };
+            }),
+          }));
+          this.seriesList = Object.freeze(seriesList) as any;
+          // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
+          // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
+          // 所以此处折中设置 在有孤立点情况下进行开启animation 连续的情况不开启
+          const hasShowSymbol = seriesList.some(item => item.showSymbol);
+          if (hasShowSymbol) {
+            for (const item of seriesList) {
+              item.data = item.data.map(set => {
+                if (set?.symbolSize) {
+                  return {
+                    ...set,
+                    symbolSize: set.symbolSize > 6 ? 6 : 1,
+                    itemStyle: {
+                      borderWidth: set.symbolSize > 6 ? 6 : 1,
+                      enabled: true,
+                      shadowBlur: 0,
+                      opacity: 1,
+                    },
+                  };
+                }
+                return set;
+              });
+            }
+          }
+          const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
+          const formatterFunc = this.handleSetFormatterFunc(formatData);
+
+          const chartBaseOptions = MONITOR_LINE_OPTIONS;
+          const echartOptions = deepmerge(
+            deepClone(chartBaseOptions),
+            this.panel.options?.time_series?.echart_option || {},
+            { arrayMerge: (_, newArr) => newArr }
+          );
+          const isBar = this.panel.options?.time_series?.type === 'bar';
+          const width = this.$el?.getBoundingClientRect?.()?.width;
+          const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
+          this.options = Object.freeze(
+            deepmerge(echartOptions, {
+              animation: hasShowSymbol,
+              color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
+              animationThreshold: 1,
+              yAxis: {
+                axisLabel: {
+                  formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
+                    ? (v: any) => {
+                        if (seriesList[0].unit !== 'none') {
+                          const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                          return removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        }
+                        return v;
+                      }
+                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                },
+                splitNumber: this.height < 120 ? 2 : 4,
+                minInterval: 1,
+                max: 'dataMax',
+                min: 0,
+                scale: false,
+              },
+              xAxis: {
+                axisLabel: {
+                  formatter: formatterFunc || '{value}',
+                },
+                ...xInterval,
+                splitNumber: 4,
+              },
+              series: seriesList,
+              tooltip: {
+                extraCssText: 'max-width: 50%',
+              },
+              customData: {
+                // customData 自定义的一些配置 用户后面echarts实例化后的配置
+                maxXInterval,
+                maxSeriesCount,
+              },
+            })
+          );
+          this.handleDrillDownOption(this.metrics);
+          this.inited = true;
+          this.empty = false;
+          if (!this.hasSetEvent) {
+            setTimeout(this.handleSetLegendEvent, 300);
+            this.hasSetEvent = true;
+          }
+          setTimeout(() => {
+            this.handleResize();
+          }, 100);
+        } else {
+          this.inited = this.metrics.length > 0;
+          this.emptyText = window.i18n.tc('暂无数据');
+          this.empty = true;
+        }
+      } catch (e) {
+        console.error(e);
+        this.empty = true;
+        this.emptyText = window.i18n.tc('出错了');
+      }
     }
+
     this.cancelTokens = [];
     this.handleLoadingChange(false);
     this.unregisterOberver();

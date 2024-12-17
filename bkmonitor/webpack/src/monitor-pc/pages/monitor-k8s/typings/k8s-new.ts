@@ -112,5 +112,15 @@ export interface IK8SMetricItem {
   id: string;
   name: string;
   count?: number;
+  unit?: string;
   children: IK8SMetricItem[];
 }
+
+export const K8SPerformanceMetricUnitMap = {
+  container_cpu_usage_seconds_total: 'short',
+  kube_pod_cpu_limits_ratio: 'percentunit',
+  kube_pod_cpu_requests_ratio: 'percentunit',
+  kube_pod_memory_limits_ratio: 'percentunit',
+  kube_pod_memory_requests_ratio: 'percentunit',
+  container_memory_rss: 'bytes',
+};
