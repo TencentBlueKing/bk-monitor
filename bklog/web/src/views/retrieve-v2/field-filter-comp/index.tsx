@@ -34,6 +34,7 @@ import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
 import $http from '@/api/index.js';
+import { cloneDeep } from 'lodash';
 import './index.scss';
 
 @Component
@@ -147,23 +148,22 @@ export default class FieldFilterComp extends tsc<object> {
     );
     let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]
     let result = this.objectHierarchy(arr)
-    console.log(result);
-    
     return result
     // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
   /** object格式字段的层级展示 */
-   objectHierarchy(arr) {
+   objectHierarchy(arrData) {
     if(!this.objectField.length){
-      return arr
+      return arrData
     }
-    
+    const arr = cloneDeep(arrData);
     let filterArr = arr.filter(field => {
       let isNotMatched = true; // 如果没有匹配到，默认为 true
       this.objectField.forEach(objectField => {
         objectField.filterVisible = true
         const regex = new RegExp(`${objectField.field_name}\\.`);
         if (regex.test(field.field_name)) {
+          field.field_name = field.field_name.split('.')[1]
           const exists = objectField.children && objectField.children.some(child => child.field_name === field.field_name);
           if (!exists) {
             objectField.children = [...(objectField.children || []), field];
@@ -292,6 +292,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.fieldType = 'any';
     this.isShowAllBuiltIn = false;
     this.isShowAllIndexSet = false;
+    this.initFieldData()
   }
 
   @Watch('visibleFields', { immediate: true, deep: true })
@@ -300,8 +301,6 @@ export default class FieldFilterComp extends tsc<object> {
   }
 
   mounted() {
-    console.log(2333);
-    
     window.addEventListener('resize', this.updateContainerHeight);
     this.updateContainerHeight();
     this.initFieldData()
@@ -383,7 +382,6 @@ export default class FieldFilterComp extends tsc<object> {
   bigTreeRender(item){
     const scopedSlots = {
       default: ({ data }) => (
-
         <FieldItem
           v-show={data.filterVisible}
           datePickerValue={this.datePickerValue} // 使用小驼峰命名法
@@ -406,18 +404,14 @@ export default class FieldFilterComp extends tsc<object> {
         scopedSlots={scopedSlots}
         class='bk-big-tree'
         expand-on-click={true}
+        expand-change={this.treeChange}
       >
-        <div
-          class='search-empty-wrap'
-          slot='empty'
-        >
-          <bk-exception
-            scene='part'
-            type='search-empty'
-          />
-        </div>
       </bk-big-tree>
     )
+  }
+  treeChange(val){
+    console.log(val,'233');
+    
   }
   render() {
     return (
