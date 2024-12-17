@@ -54,12 +54,15 @@ class CustomJSONEncoder(JSONEncoder):
 
     def default(self, obj):
         type_ = type(obj)
-        if issubclass(type_, set):
-            return list(obj)
-        if AttrList and issubclass(type_, AttrList):
-            return list(obj)
-        if AttrDict and issubclass(type_, AttrDict):
-            return obj.to_dict()
+        if type_ in (set, bytes, AttrList, AttrDict):
+            if issubclass(type_, set):
+                return list(obj)
+            if issubclass(type_, bytes):
+                return obj.decode()
+            if AttrList and issubclass(type_, AttrList):
+                return list(obj)
+            if AttrDict and issubclass(type_, AttrDict):
+                return obj.to_dict()
         return JSONEncoder.default(self, obj)
 
 
