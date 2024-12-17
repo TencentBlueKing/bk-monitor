@@ -11,7 +11,7 @@ import logging
 import re
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger("apm")
 
@@ -33,11 +33,17 @@ class FunctionNode:
 
     is_root: bool = False
     has_parent: bool = False
-    children: List["FunctionNode"] = field(default_factory=list)
+    children: Set["FunctionNode"] = field(default_factory=set)
     value: int = 0
     values: List[int] = field(default=list)
 
     lock: threading.Lock = field(default=threading.Lock())
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
     @property
     def self_time(self) -> int:
@@ -58,7 +64,7 @@ class FunctionNode:
     def add_child(self, child):
         self.lock.acquire()
         child.has_parent = True
-        self.children.append(child)
+        self.children.add(child)
         self.lock.release()
 
     def add_value(self, value):
@@ -180,7 +186,7 @@ class ValueCalculator:
         for node in tree.function_node_map.values():
             node.value = c.calculate(node.values)
 
-        tree.root.value = cls.adjust_node_values(tree.root)
+        tree.root.value = sum([child.value for child in tree.node.children])
 
     @classmethod
     def adjust_node_values(cls, node: FunctionNode):
