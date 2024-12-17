@@ -158,12 +158,13 @@ export default class FilterByCondition extends tsc<IProps> {
     this.resizeObserver.observe(this.$el);
   }
 
-  @Watch('filterBy')
+  @Watch('filterBy', { immediate: true })
   handleWatchFilterBy() {
     const filterByStr = JSON.stringify(this.filterBy);
     const localFilterByStr = JSON.stringify(this.localFilterBy);
     if (filterByStr !== localFilterByStr) {
       this.localFilterBy = JSON.parse(JSON.stringify(this.filterBy));
+      this.oldLocalFilterBy = JSON.parse(JSON.stringify(this.filterBy));
       this.filterByToTags();
       this.overflowCountRender();
     }
