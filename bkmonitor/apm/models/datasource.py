@@ -296,8 +296,12 @@ class LogDataSource(ApmDataSourceConfigBase):
     def app_name_to_log_config_name(cls, app_name: str):
         """
         LOG 和 APM 的英文名不同规则：APM 允许中划线(-)，LOG 不允许，所以这里替换为下划线(_)
+        并且日志的名称必须大于等于 5 个字符
         """
-        return app_name.replace("-", "_")
+        res = app_name.replace("-", "_")
+        if len(res) < 5:
+            res = f"otlp_{res}"
+        return res
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
@@ -1203,7 +1207,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def create_builtin_source(cls):
         builtin_biz = api.cmdb.get_blueking_biz()
         # datasource is enough, no real app created.
-        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME, option=True)
         cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
 
     @classmethod

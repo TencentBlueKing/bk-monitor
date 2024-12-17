@@ -20,7 +20,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.forms.models import model_to_dict
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.action.serializers.report import (

@@ -108,6 +108,25 @@ export enum MetricType {
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
   TimeSeries = 'time_series',
 }
+
+// 系统或插件指标前缀（result_table_id）
+const sysOrPluginMetricsPrefix = [
+  'dbm_system',
+  'system',
+  'devx_system',
+  'perforce_system',
+  'exporter_',
+  'datadog_',
+  'jmx_',
+  'pushgateway_',
+  'script_',
+];
+// 按指标类型划分的指标
+const metricByType = {
+  host: ['bk_target_ip', 'bk_target_cloud_id'],
+  service: ['bk_target_service_instance_id'],
+  node: ['bk_obj_id', 'bk_inst_id'],
+};
 export class MetricDetail {
   _agg_condition = [];
   agg_dimension: string[] = [];
@@ -402,6 +421,18 @@ export class MetricDetail {
         this.result_table_id === 'uptimecheck.http' &&
         ['message', 'response_code'].includes(this.metric_field))
     );
+  }
+  get sysBuiltInMetricList() {
+    // 获取指标类型
+    const dataTarget = this.data_target.replace('_target', '');
+    // 根据指标类型获取相关维度
+    const res = [metricByType[dataTarget] || []];
+    // 检查是否有前缀匹配，并设置节点维度
+    const startsWithAnyPrefix = sysOrPluginMetricsPrefix.some(prefix => this.result_table_id.startsWith(prefix));
+    if (startsWithAnyPrefix && dataTarget === 'host') {
+      res.push(metricByType.node);
+    }
+    return res;
   }
   setChecked(v: boolean) {
     this.checked = v;

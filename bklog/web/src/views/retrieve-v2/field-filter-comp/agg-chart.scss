@@ -110,19 +110,19 @@
 
 }
 
-.aggSidesHeader{
+.agg-sides-header{
   display: flex;
   justify-content: space-between;
   
-  .distinctNum{
+  .distinct-num{
     display: flex;
     align-items: center;
   }
 
   .distinct-count-num{
-    width: 24px;
+    min-width: 24px;
     height: 16px;
-    margin: 0 4px;
+    padding: 0 4px;
     font-size: 12px;
     line-height: 16px;
     text-align: center;

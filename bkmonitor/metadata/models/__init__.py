@@ -92,6 +92,7 @@ from .storage import (
     KafkaStorage,
     KafkaTopicInfo,
     RedisStorage,
+    StorageClusterRecord,
     StorageResultTable,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
@@ -128,6 +129,7 @@ __all__ = [
     "DownsampledContinuousQueries",
     "DownsampleByDateFlow",
     "ArgusStorage",
+    "StorageClusterRecord",
     # custom_report
     "EventGroup",
     "Event",

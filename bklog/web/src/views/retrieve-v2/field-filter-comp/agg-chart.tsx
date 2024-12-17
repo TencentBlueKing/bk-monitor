@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import _escape from 'lodash/escape';
 
 import $http from '@/api';
-import router from '@/router';
 import store from '@/store';
 
 import './agg-chart.scss';
@@ -43,8 +43,8 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
+  @Prop({ type: Number, default: 5}) limit: number;
   showAllList = false;
-  shouldShowMore = false;
   listLoading = false;
   mappingKay = {
     // is is not 值映射
@@ -78,11 +78,9 @@ export default class AggChart extends tsc<object> {
         item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
       }
     });
-    this.shouldShowMore = totalList.length > 5;
     return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
-    console.log(this.isFrontStatistics, this.topFiveList, this.fieldValueData.values);
 
     return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
   }
@@ -93,7 +91,6 @@ export default class AggChart extends tsc<object> {
     return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
   }
   get watchQueryParams() {
-    console.log(this, store.state.indexItem);
     const { datePickerValue, ip_chooser, addition, timezone, keyword } = store.state.indexItem;
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
@@ -104,9 +101,13 @@ export default class AggChart extends tsc<object> {
     this.queryFieldFetchTopList(this.limitSize);
   }
 
+  @Emit('distinctCount')
+  emitDistinctCount(val) {
+    return val;
+  }
+
   mounted() {
-    console.log(store, router);
-    if (!this.isFrontStatistics) this.queryFieldFetchTopList();
+    if (!this.isFrontStatistics) this.queryFieldFetchTopList(this.limit);
   }
 
   // 计算百分比
@@ -118,7 +119,25 @@ export default class AggChart extends tsc<object> {
   }
   addCondition(operator, value) {
     if (this.fieldType === '__virtual__') return;
-    store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] });
+
+    const router = this.$router;
+    const route = this.$route;
+    const store = this.$store;
+
+    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] }).then(() => {
+      const query = { ...route.query };
+
+      const resolver = new RetrieveUrlResolver({
+        keyword: store.getters.retrieveParams.keyword,
+        addition: store.getters.retrieveParams.addition,
+      });
+
+      Object.assign(query, resolver.resolveParamsToUrl());
+
+      router.replace({
+        query,
+      });
+    });
   }
   getIconPopover(operator, value) {
     if (this.fieldType === '__virtual__') return this.t('该字段为平台补充 不可检索');
@@ -141,7 +160,6 @@ export default class AggChart extends tsc<object> {
   }
   async queryFieldFetchTopList(limit = 5) {
     this.limitSize = limit;
-    console.log(this);
 
     try {
       const indexSetIDs = this.isUnionSearch
@@ -159,7 +177,7 @@ export default class AggChart extends tsc<object> {
       });
       if (res.code === 0) {
         await this.$nextTick();
-        this.shouldShowMore = res.data.distinct_count > 5;
+        this.emitDistinctCount(res.data.distinct_count)
         Object.assign(this.fieldValueData, res.data);
       }
     } catch (error) {
@@ -214,24 +232,6 @@ export default class AggChart extends tsc<object> {
                   </div>
                 </li>
               ))}
-              {
-                <li class='more-item'>
-                  <div>
-                    {!this.showAllList && this.shouldShowMore && (
-                      <span
-                        onClick={() => {
-                          this.showAllList = !this.showAllList;
-                          if (this.isFrontStatistics) return;
-                          this.queryFieldFetchTopList(100);
-                        }}
-                      >
-                        {/* {this.t('更多')} */}
-                      </span>
-                    )}
-                  </div>
-                  <span>{/* <i class='bk-icon icon-download'></i> <span>{this.t('下载')}</span> */}</span>
-                </li>
-              }
             </ul>
           </div>
         ) : (

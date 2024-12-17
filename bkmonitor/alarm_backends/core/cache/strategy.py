@@ -347,6 +347,7 @@ class StrategyCacheManager(CacheManager):
             StrategyModel.InvalidType.INVALID_TARGET: set(),
             StrategyModel.InvalidType.DELETED_RELATED_STRATEGY: set(),
             StrategyModel.InvalidType.INVALID_RELATED_STRATEGY: set(),
+            StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL: set(),
             # 关联策略id映射
             "related_ids_map": defaultdict(set),
         }
@@ -738,7 +739,7 @@ class StrategyCacheManager(CacheManager):
         bk_biz_ids = {strategy["bk_biz_id"] for strategy in strategies}
         if partial is None:
             # 全量刷新
-            return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(bk_biz_ids), cls.CACHE_TIMEOUT)
+            return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(list(bk_biz_ids)), cls.CACHE_TIMEOUT)
 
         # 增量刷新
         old_bk_biz_ids = cls.get_all_bk_biz_ids()
@@ -1267,7 +1268,7 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
         # 推送aiops策略变更至 sdk 依赖的 历史数据维护服务
-        change_records = histories.values("operate", "strategy_id", "create_time")
+        change_records = histories.values("operate", "strategy_id", "content", "create_time")
         for change_record in change_records:
             changed_time = change_record["create_time"].timestamp()
             if change_record["operate"] == "delete":
@@ -1428,7 +1429,7 @@ def main():
     StrategyCacheManager.refresh()
 
 
-def sync_aiops_strategy_signal(strategy_id, signal, update_time):
+def sync_aiops_strategy_signal(signal, strategy_id, update_time):
     """
     推送策略变更信号至rabbitmq
     {
@@ -1442,4 +1443,8 @@ def sync_aiops_strategy_signal(strategy_id, signal, update_time):
     delete: 已删除的策略（不论是否是aiops策略）, 修改后的策略不包含aiops算法
     modify: 新增的，修改后的 策略包含了aiops算法
     """
+    from alarm_backends.service.preparation.tasks import refresh_aiops_sdk_depend_data
+
     logger.info(f"sync_aiops_strategy_signal: {strategy_id}, {signal}, {update_time}")
+    if signal == "modify":
+        refresh_aiops_sdk_depend_data.delay(strategy_id, update_time)

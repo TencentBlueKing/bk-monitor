@@ -18,7 +18,7 @@ import influxdb
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource.exceptions import CustomException
 from metadata import config

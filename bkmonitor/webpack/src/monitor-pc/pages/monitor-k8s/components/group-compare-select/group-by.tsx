@@ -23,64 +23,63 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
-import type { IListItem, IServiceConfig } from '../../type';
+import type { IListItem, IGroupOption } from './utils';
 
-import './group-by-view.scss';
-interface IGroupByViewProps {
-  searchList: IServiceConfig[];
+import './group-by.scss';
+
+interface IProps {
+  groupOptions?: IGroupOption[];
+  limitTypes?: IListItem[];
   groupBy?: string[];
-  supportedCalculationTypes?: IListItem[];
-  supportedMethods?: IListItem[];
   method?: string;
   limit?: number;
-  metricCalType?: string;
+  limitType?: string;
+  methods?: IListItem[];
+  onChange?: (v: string[]) => void;
+  onLimitType?: (v: string) => void;
+  onMethodChange?: (v: string) => void;
+  onLimitChange?: (v: number) => void;
+  onGroupByLimitEnabledChange?: (v: boolean) => void;
 }
-interface IGroupByViewEvent {
-  onChange?: (val: string[]) => void;
-  onMethodChange?: (val: string) => void;
-  onLimitChange?: (val: number) => void;
-  onMetricCalType?: (val: string) => void;
-}
-@Component({
-  name: 'GroupByView',
-  components: {},
-})
-export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEvent> {
-  @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
-  @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
+
+@Component
+export default class GroupBy extends tsc<IProps> {
+  @Prop({ required: true, type: Array, default: () => [] }) groupOptions: IGroupOption[];
+  @Prop({ type: Array, default: () => [] }) limitTypes: IListItem[];
+  @Prop({ type: Array, default: () => [] }) methods: IListItem[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: String, default: '' }) method: string;
-  @Prop({ type: Number, default: 0 }) limit: number;
-  @Prop({ type: String, default: '' }) metricCalType: string;
+  @Prop({ type: Number, default: 1 }) limit: number;
+  @Prop({ type: String, default: '' }) limitType: string;
 
   @Ref('dimension-select') dimensionSelectRef: any;
 
   /* groupBy已选项tag */
-  groupBySelectedTags: IServiceConfig[] = [];
+  groupBySelectedTags: IGroupOption[] = [];
   /* groupBy已选项key */
   groupBySelectedKey = [];
   oldGroupBySelectedKey = [];
   /* groupBy可选项  */
-  groupByList: IServiceConfig[] = [];
+  groupByList: IGroupOption[] = [];
   /* 是否显示选择器 */
   isShowPicker = false;
-  localLimit = 0;
+  localLimit = 1;
   localMethod = '';
-  localMetricCalType = '';
+  localLimitType = '';
 
   groupBySearch = '';
+
+  everyTopLimitEnable = false;
 
   get groupByListFilter() {
     return this.groupByList.filter(item => {
       if (this.groupBySearch) {
-        return item.text.toLowerCase().includes(this.groupBySearch.toLowerCase());
+        return item.name.toLowerCase().includes(this.groupBySearch.toLowerCase());
       }
       return true;
     });
@@ -92,8 +91,8 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       this.groupBySelectedKey = [...this.groupBy];
       const groupByTags = [];
       const groupBySet = new Set(this.groupBy);
-      this.groupByList = this.searchList.map(item => {
-        const checked = groupBySet.has(item.value);
+      this.groupByList = this.groupOptions.map(item => {
+        const checked = groupBySet.has(item.id);
         if (checked) {
           groupByTags.push(item);
         }
@@ -103,15 +102,17 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
         };
       });
       this.groupBySelectedTags = groupByTags;
+      this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+      this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
     }
   }
 
-  @Watch('searchList', { immediate: true })
+  @Watch('groupOptions', { immediate: true })
   handleWatchSearchList() {
     const groupBySet = new Set(this.groupBy);
     const groupByTags = [];
-    this.groupByList = this.searchList.map(item => {
-      const checked = groupBySet.has(item.value);
+    this.groupByList = this.groupOptions.map(item => {
+      const checked = groupBySet.has(item.id);
       if (checked) {
         groupByTags.push(item);
       }
@@ -121,6 +122,8 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       };
     });
     this.groupBySelectedTags = groupByTags;
+    this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+    this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
   }
 
   @Watch('limit', { immediate: true })
@@ -135,21 +138,33 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       this.localMethod = val;
     }
   }
-  @Watch('metricCalType', { immediate: true })
-  handleWatchMetricCalType(val) {
-    if (this.localMetricCalType !== val) {
-      this.localMetricCalType = val;
+  @Watch('limitType', { immediate: true })
+  handleWatchLimitType(val) {
+    if (this.localLimitType !== val) {
+      this.localLimitType = val;
     }
   }
 
-  @Emit('change')
   emitChange() {
-    return this.groupBySelectedKey;
+    this.everyTopLimitEnable = this.handleGroupByLimitEnabledChange();
+    if (this.everyTopLimitEnable) {
+      if (this.limitTypes.length && !this.localLimitType) {
+        this.handleChangeLimitType(this.limitTypes[0].id);
+      }
+      if (this.methods.length && !this.localMethod) {
+        this.handleChangeMethod(this.methods[0].value);
+      }
+    } else {
+      this.handleChangeLimitType('');
+      this.handleChangeMethod('');
+    }
+    this.$emit('change', this.groupBySelectedKey);
+    this.$emit('groupByLimitEnabledChange', this.everyTopLimitEnable);
   }
 
-  @Emit('metricCalType')
-  handleChangeMetricCalType(val) {
-    this.localMetricCalType = val;
+  @Emit('limitType')
+  handleChangeLimitType(val) {
+    this.localLimitType = val;
     return val;
   }
   @Emit('methodChange')
@@ -157,11 +172,27 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     this.localMethod = val;
     return val;
   }
+
+  handleGroupByLimitEnabledChange() {
+    let everyTopLimitEnable = false;
+    for (const item of this.groupByList) {
+      if (item.checked) {
+        if (item?.top_limit_enable) {
+          everyTopLimitEnable = true;
+        } else {
+          everyTopLimitEnable = false;
+          break;
+        }
+      }
+    }
+    return everyTopLimitEnable;
+  }
+
   @Debounce(300)
   handleChangeLimit(val) {
     if (val && val >= 1 && val <= 30) {
-      this.localLimit = val;
-      this.$emit('limitChange', val);
+      this.localLimit = +val;
+      this.$emit('limitChange', +val);
     }
   }
 
@@ -170,7 +201,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     const groupByTags = [];
     for (const item of this.groupByList) {
       if (item.checked) {
-        groupByKey.push(item.value);
+        groupByKey.push(item.id);
         groupByTags.push(item);
       }
     }
@@ -215,7 +246,12 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   }
   /** 删除标签 */
   closeGroupBy(val) {
-    this.chooseSelect(val);
+    for (const item of this.groupByList) {
+      if (item.id === val.id) {
+        item.checked = false;
+      }
+    }
+    this.handleChange();
     this.emitChange();
   }
 
@@ -227,17 +263,17 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
         <div>
           {list.map(item => (
             <bk-tag
-              key={item.value}
+              key={item.id}
               closable
               on-close={() => this.closeGroupBy(item)}
             >
-              {item.text}
+              {item.name}
             </bk-tag>
           ))}
           <bk-tag
             v-bk-tooltips={this.groupBySelectedTags
               .slice(2)
-              .map(item => item.text)
+              .map(item => item.name)
               .join('、')}
           >
             {' '}
@@ -248,25 +284,24 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     }
     return this.groupBySelectedTags.map(item => (
       <bk-tag
-        key={item.value}
+        key={item.id}
         closable
         on-close={() => this.closeGroupBy(item)}
       >
-        {item.text}
+        {item.name}
       </bk-tag>
     ));
   }
-
   render() {
     return (
-      <div class='apm-service-caller-callee-group-by-view'>
+      <div class='group-compare-select___group-by'>
         <div class='group-by-tag-view'>
           {!this.isShowPicker && this.groupBySelectedKey.length > 0 && this.renderTagView()}
         </div>
         {this.isShowPicker ? (
           <bk-popover
             ref='dimension-select'
-            ext-cls='apm-service-caller-callee-group-by-selector'
+            ext-cls='group-compare-select___group-by-selector'
             arrow={false}
             placement='bottom'
             theme='light'
@@ -277,10 +312,10 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
           >
             <div
               class='group-by-select'
-              title={this.groupBySelectedTags.map(item => item.text).join(',')}
+              title={this.groupBySelectedTags.map(item => item.name).join(',')}
             >
               {this.groupBySelectedTags.length ? (
-                this.groupBySelectedTags.map(item => item.text).join(',')
+                this.groupBySelectedTags.map(item => item.name).join(',')
               ) : (
                 <span class='placeholder'>{this.$t('请选择维度')}</span>
               )}
@@ -304,12 +339,12 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
                   this.groupByListFilter.map(option => {
                     return (
                       <div
-                        key={option.value}
+                        key={option.id}
                         class={['group-by-select-item', { active: option.checked }]}
-                        title={option.value}
+                        title={option.id}
                         onClick={() => this.chooseSelect(option)}
                       >
-                        {option.text}
+                        {option.name}
                         {option.checked && <i class='icon-monitor icon-mc-check-small' />}
                       </div>
                     );
@@ -328,22 +363,22 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
             <i class='icon-monitor icon-plus-line' />
           </span>
         )}
-        {this.groupBySelectedKey.length > 0 && !this.isShowPicker && (
+        {this.groupBySelectedKey.length > 0 && !this.isShowPicker && this.everyTopLimitEnable && (
           <div class='limit-selector'>
             <span>limit</span>
             <bk-select
               style='width: 150px;'
               ext-cls='ml-8'
-              v-model={this.localMetricCalType}
+              v-model={this.localLimitType}
               behavior='simplicity'
               clearable={false}
-              onChange={this.handleChangeMetricCalType}
+              onChange={this.handleChangeLimitType}
             >
-              {this.supportedCalculationTypes.map(option => (
+              {this.limitTypes.map(option => (
                 <bk-option
-                  id={option.value}
-                  key={option.value}
-                  name={option.text}
+                  id={option.id}
+                  key={option.id}
+                  name={option.name}
                 />
               ))}
             </bk-select>
@@ -355,7 +390,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               clearable={false}
               onChange={this.handleChangeMethod}
             >
-              {this.supportedMethods.map(option => (
+              {this.methods.map(option => (
                 <bk-option
                   id={option.value}
                   key={option.value}

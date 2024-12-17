@@ -213,14 +213,6 @@ else:
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "username"
 
-# sentry support
-SENTRY_DSN = os.environ.get("SENTRY_DSN")
-if SENTRY_DSN:
-    INSTALLED_APPS += ("raven.contrib.django.raven_compat",)
-    RAVEN_CONFIG = {
-        "dsn": SENTRY_DSN,
-    }
-
 # Target: Observation data collection
 SERVICE_NAME = APP_CODE + "_web"
 if ROLE == "api":
@@ -522,6 +514,8 @@ APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 
 # 新建应用的创建时间到当前时间的时长范围，单位：分钟
 APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+# 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
+APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
@@ -1413,6 +1407,8 @@ ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False
 
+# BCS集群自动发现任务周期
+BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []

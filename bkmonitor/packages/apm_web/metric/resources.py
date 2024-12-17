@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.core.cache import cache
 from django.db.models import Q
+from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
@@ -218,6 +218,7 @@ class DynamicUnifyQueryResource(Resource):
                 label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
             )
             options = OptionsSerializer(label="配置", required=False, default={})
+            enabled = serializers.BooleanField(label="是否可用", required=False, default=True)
 
             def validate(self, attrs):
                 # 合并查询条件
@@ -275,7 +276,7 @@ class DynamicUnifyQueryResource(Resource):
 
             require_fill_series = True
 
-        if validate_data.get("group_by_limit"):
+        if validate_data.get("group_by_limit") and validate_data["group_by_limit"].get("enabled", True):
             group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
                 {
                     "bk_biz_id": validate_data["bk_biz_id"],
@@ -932,7 +933,7 @@ class ServiceListResource(PageListResource):
                 end_time,
                 services,
             )
-            cache.set(cache_key, json.dumps(data_status_mapping))
+            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
 
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
@@ -955,14 +956,16 @@ class ServiceListResource(PageListResource):
                     "service_name": name,
                     "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": data_status_mapping[name].get(
+                    "metric_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.METRIC.value, DataStatus.DISABLED
                     ),
-                    "log_data_status": data_status_mapping[name].get(TelemetryDataType.LOG.value, DataStatus.DISABLED),
-                    "trace_data_status": data_status_mapping[name].get(
+                    "log_data_status": data_status_mapping.get(name, {}).get(
+                        TelemetryDataType.LOG.value, DataStatus.DISABLED
+                    ),
+                    "trace_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.TRACE.value, DataStatus.DISABLED
                     ),
-                    "profiling_data_status": data_status_mapping[name].get(
+                    "profiling_data_status": data_status_mapping.get(name, {}).get(
                         TelemetryDataType.PROFILING.value, DataStatus.DISABLED
                     ),
                     "operation": {
@@ -3341,10 +3344,15 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             value: float = cls.format_value(metric_cal_type, record["result"])
             total += value
 
-            # tooltips 按 GroupBy 顺序拼接
-            name: str = "|".join([record["dimensions"].get(field) or "" for field in group_fields])
+            group_values: List[str] = []
+            processed_record: Dict[str, Any] = {"value": value, "dimensions": {}}
+            for field in group_fields:
+                # 按 GroupBy 序处理
+                processed_record["dimensions"][field] = record["dimensions"].get(field) or ""
+                group_values.append(processed_record["dimensions"][field])
 
-            processed_records.append({"name": name, "value": value})
+            processed_record["name"] = "|".join(group_values)
+            processed_records.append(processed_record)
 
         for record in processed_records:
             # 分母为 0，占比也设置为 0

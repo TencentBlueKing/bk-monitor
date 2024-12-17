@@ -16,12 +16,13 @@ import json
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
     RangeRatioAlgorithmsCollection,
+    SDKPreDetectMixin,
 )
 from constants.aiops import SDKDetectStatus
 from core.drf_resource import api
@@ -35,10 +36,13 @@ class DetectDirect(object):
     ALL = "all"
 
 
-class IntelligentDetect(RangeRatioAlgorithmsCollection):
+class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
+    PREDICT_FUNC = api.aiops_sdk.kpi_predict
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -46,13 +50,21 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
             if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 raise Exception("Strategy history dependency data not ready")
 
-            return self.detect_by_sdk(data_point)
+            # 优先从预检测结果中获取检测结果
+            if hasattr(self, "_local_pre_detect_results"):
+                predict_result_point = self.fetch_pre_detect_result_point(data_point)
+                if predict_result_point:
+                    return super().detect(predict_result_point)
+                else:
+                    raise Exception("Pre delete error.")
+            else:
+                return self.detect_by_sdk(data_point)
         else:
             return super().detect(data_point)
 
     def detect_by_sdk(self, data_point):
         dimensions = copy.deepcopy(data_point.dimensions)
-        dimensions["strategy_id"] = data_point.item.strategy.id
+        dimensions["strategy_id"] = int(data_point.item.strategy.id)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,
@@ -67,7 +79,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
             },
         }
 
-        predict_result = api.aiops_sdk.kpi_predict(**predict_params)
+        predict_result = self.PREDICT_FUNC(**predict_params)
 
         return super().detect(
             DataPoint(
@@ -75,7 +87,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
                     "record_id": data_point.record_id,
                     "value": data_point.value,
                     "values": predict_result[0],
-                    "time": predict_result[0]["timestamp"],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
                 },
                 item=data_point.item,

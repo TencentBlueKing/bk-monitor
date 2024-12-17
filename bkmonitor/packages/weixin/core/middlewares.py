@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import render
 from django.utils.functional import SimpleLazyObject
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from .accounts import WeixinAccount
 from .models import BkWeixinUser

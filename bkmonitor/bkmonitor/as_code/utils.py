@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.as_code.ply.conditions import condition_lexer, conditions_parser
 from bkmonitor.as_code.ply.function import function_lexer, function_parser

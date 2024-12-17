@@ -51,18 +51,22 @@
     }
   }
 
-  .distinctCountNum{
+  .distinct-count-num-box{
     display: flex;
     justify-content: space-between;
     margin: 8px 0;
 
-    .countNum{
+    .count-num{
       display: flex;
       line-height: 16px;
-
+      .count-num-title{
+        font-size: 12px;
+        font-weight: bold;
+        color: #313238;
+      }
       .distinct-count-num{
-        width: 24px;
-        margin: 0 4px;
+        min-width: 24px;
+        padding: 0 4px;
         text-align: center;
         background: #F0F1F5;
         border-radius: 8px;
@@ -110,6 +114,7 @@
   .chart-title {
     margin: 12px 0;
     font-size: 12px;
+    font-weight: bold;
     color: #313238;
 
     @include flex-justify(space-between);

@@ -14,7 +14,7 @@ from typing import List, Union
 from django.conf import settings
 from django.core.cache import caches
 from django.db import connections
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkm_space import api as space_api

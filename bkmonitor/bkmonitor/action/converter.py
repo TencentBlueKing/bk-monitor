@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 from collections import defaultdict
 from typing import List
-from django.utils.translation import ugettext as _
 
 from django.conf import settings
 from django.db import transaction

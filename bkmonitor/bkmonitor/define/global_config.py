@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 from django.conf import settings
 from django.db.utils import DatabaseError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
@@ -157,6 +157,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
         ("APM_APPLICATION_QUICK_REFRESH_DELTA", slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30)),
+        (
+            "APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA",
+            slz.IntegerField(label=_("指标数据源数据发现时需要将周期切分为每批查询几分钟的数据"), default=200),
+        ),
         (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
             slz.IntegerField(label="APM应用操作BkdataFlow时拉取运行状态的最大操作次数", default=10),
@@ -320,9 +324,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
         ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
+        ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
     ]
 )
-
 
 # ！！！注意！！！
 # 上面高级配置定义， 不提供用户配置页面， 所以 label 不要标记！不要标记！不要标记！

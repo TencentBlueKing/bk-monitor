@@ -724,7 +724,7 @@
         return data;
       },
       getAllData() {
-        const data = cloneDeep(this.totalFields);
+        const data = cloneDeep(this.tableAllList);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AggChart from './agg-chart';
@@ -37,7 +37,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
+  @Prop({ type: Boolean, default: false }) showFieldAlias: Boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -52,6 +52,7 @@ export default class FieldItem extends tsc<object> {
   fieldAnalysisInstance = null;
   ifShowMore = false;
   fieldData = null;
+  distinctCount = 0
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -96,7 +97,11 @@ export default class FieldItem extends tsc<object> {
   beforeDestroy() {
     this.instanceDestroy();
   }
-
+  // 数据变化后关闭图表分析
+  @Watch('statisticalFieldData')
+  statisticalFieldDataChange(v) {
+    this.instanceDestroy();
+  }
   @Emit('toggleItem')
   emitToggleItem(v) {
     return v;
@@ -218,6 +223,9 @@ export default class FieldItem extends tsc<object> {
       
       });
   }
+  getdistinctCount(val){
+    this.distinctCount = val
+  }
   render() {
     return (
       <li class='filed-item'>
@@ -320,7 +328,7 @@ export default class FieldItem extends tsc<object> {
             </div>
           </div>
         </div>
-        {/* 显示聚合字段图表信息 */}
+        {/* 显示聚合字段图表信息
         {/* {!!this.showFieldsChart && this.isExpand && (
           <AggChart
             field-name={this.fieldItem.field_name}
@@ -334,17 +342,17 @@ export default class FieldItem extends tsc<object> {
         <bk-sideslider
           width={600}
           is-show={this.ifShowMore}
-          quick-close={false}
+          quick-close={true}
           // transfer
           show-mask={false}
           onAnimation-end={this.closeSlider}
           class='sideslider'
         >
           <template slot='header'>
-            <div class='aggSidesHeader'>
-              <div class='distinctNum'>
-                <span>去重后字段统计</span>
-                <span class='distinct-count-num'>{this.fieldData?.distinct_count}</span>
+            <div class='agg-sides-header'>
+              <div class='distinct-num'>
+                <span>{this.$t('去重后字段统计')}</span>
+                <span class='distinct-count-num'>{ this.distinctCount}</span>
               </div>
               <div class='fnBtn'>
                 <bk-button
@@ -355,14 +363,14 @@ export default class FieldItem extends tsc<object> {
                     this.downloadFieldStatistics();
                   }}
                 >
-                  下载
+                {this.$t('下载')}
                 </bk-button>
-                <bk-button size='small'>查看仪表盘</bk-button>
+                {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
             </div>
           </template>
           <template slot='content'>
-            <div class='aggSidesContent'>
+            <div class='agg-sides-content'>
               <AggChart
                 field-name={this.fieldItem.field_name}
                 field-type={this.fieldItem.field_type}
@@ -370,6 +378,8 @@ export default class FieldItem extends tsc<object> {
                 parent-expand={this.isExpand}
                 retrieve-params={this.retrieveParams}
                 statistical-field-data={this.statisticalFieldData}
+                limit={this.fieldData?.distinct_count}
+                onDistinctCount={ val => this.getdistinctCount(val)}
               />
             </div>
           </template>
