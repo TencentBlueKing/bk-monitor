@@ -103,6 +103,9 @@ export type IDimensionChartOpt = {
   metric_cal_type: string;
   time_shift: string;
   metric_cal_type_name: string;
+  drillFilterData?: IDataItem[];
+  drillGroupBy?: string[];
+  dimensionTime?: IDataItem;
 };
 export type IFilterData = {
   caller: IColumn[];

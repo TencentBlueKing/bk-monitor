@@ -47,7 +47,7 @@ interface IPieEchartProps {
 }
 @Component
 class CallerBarChart extends CommonSimpleChart {
-  height = 600;
+  height = 580;
   width = 960;
   minBase = 0;
   needResetChart = true;
@@ -111,7 +111,6 @@ class CallerBarChart extends CommonSimpleChart {
   enableContextmenu = true;
   seriesList = [];
   currentValue: IChartOption = {};
-  drillGroupBy = [];
   contextmenuInfo = {
     options: [],
   };
@@ -131,6 +130,7 @@ class CallerBarChart extends CommonSimpleChart {
         id: item.value,
         name: item.text,
         disabled: isHas,
+        selected: false,
       };
     });
     this.contextmenuInfo.options = data;
@@ -180,7 +180,13 @@ class CallerBarChart extends CommonSimpleChart {
         ...this.viewOptions,
         ...this.dimensionParam,
       });
-      const { metric_cal_type, time_shift } = this.dimensionChartOpt;
+      const {
+        metric_cal_type,
+        time_shift,
+        drillFilterData = [],
+        drillGroupBy = [],
+        dimensionTime,
+      } = this.dimensionChartOpt;
       const promiseList = this.panel.targets.map(item => {
         const params = variablesService.transformVariables(item.data, {
           ...this.viewOptions.filters,
@@ -189,22 +195,10 @@ class CallerBarChart extends CommonSimpleChart {
           ...this.viewOptions.variables,
           ...this.dimensionParam,
         });
-        const drillFilterWhere = [];
-        if (this.drillFilter.length > 0) {
-          this.drillFilter.map(item => {
-            Object.keys(item.dimensions || {}).map(key => {
-              const ind = drillFilterWhere.findIndex(item => item.key === key);
-              if (ind !== -1) {
-                drillFilterWhere.splice(ind, 1);
-              }
-              drillFilterWhere.push({
-                condition: 'and',
-                key,
-                method: 'eq',
-                value: [item.dimensions[key]],
-              });
-            });
-          });
+        /** 图表下钻带有时间 */
+        let timeParams = this.dimensionParam.timeParams;
+        if (dimensionTime?.start_time) {
+          timeParams = dimensionTime;
         }
         (this as any).$api[item.apiModule]
           ?.[item.apiFunc](
@@ -212,9 +206,9 @@ class CallerBarChart extends CommonSimpleChart {
               ...params,
               metric_cal_type,
               time_shift,
-              group_by: [...this.dimensionParam.group_by, ...this.drillGroupBy.slice(-1)],
-              where: [...this.dimensionParam.whereParams, ...drillFilterWhere],
-              ...this.dimensionParam.timeParams,
+              group_by: [...this.dimensionParam.group_by, ...drillGroupBy.slice(-1)],
+              where: [...(this.dimensionParam?.whereParams || []), ...drillFilterData],
+              ...timeParams,
             },
             {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -234,7 +228,6 @@ class CallerBarChart extends CommonSimpleChart {
       const res = await Promise.all(promiseList);
 
       if (res) {
-        console.log(res, 'res---');
         this.inited = true;
         this.empty = false;
       } else {
@@ -311,46 +304,17 @@ class CallerBarChart extends CommonSimpleChart {
     }
   }
   handleClickMenuItem(id: string) {
-    const { dimensionList } = this.dimensionParam;
-    const ind = this.drillGroupBy.indexOf(id);
-    if (ind !== -1) {
-      this.drillGroupBy.splice(ind, 1);
-    }
-    this.drillGroupBy.push(id);
-    const groupBy = [...this.dimensionParam.group_by, ...this.drillGroupBy];
-    const info = dimensionList.find(item => item.value === groupBy[groupBy.length - 2]);
-    this.drillFilter.push({
-      id,
-      value: this.currentValue.name,
-      label: info.text,
-      dimensions: this.currentValue.dimensions,
-    });
+    this.$emit('menuClick', Object.assign(this.currentValue, { dimensionKey: id }));
+    this.contextmenuInfo.options.map(item => (item.selected = item.id === id));
     this.getPanelData();
   }
 
-  handleCloseTag(tag: { id: string; value: string; label: string }) {
-    const data = this.drillFilter.filter(item => item.id !== tag.id);
-    this.drillFilter = data;
-    this.drillGroupBy.splice(this.drillGroupBy.indexOf(tag.id), 1);
-    this.getPanelData();
-  }
   menuClick(params: { dataIndex: number }) {
     this.currentValue = this.seriesList[params.dataIndex];
   }
   render() {
     return (
       <div class='caller-bar-chart'>
-        <div class='chart-drill-main'>
-          {this.drillFilter.map(item => (
-            <bk-tag
-              key={item.id}
-              closable
-              onClose={() => this.handleCloseTag(item)}
-            >
-              {item.label} <span class='tag-symbol'>=</span> {item.value}
-            </bk-tag>
-          ))}
-        </div>
         {this.seriesList.length > 0 ? (
           <div class={'time-series-content'}>
             <div

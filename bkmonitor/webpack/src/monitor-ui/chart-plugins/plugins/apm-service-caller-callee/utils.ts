@@ -273,7 +273,7 @@ export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
 }
 
 export const createDrillDownList = (
-  menuList: { id: string; name: string; disabled: boolean }[],
+  menuList: { id: string; name: string; disabled: boolean; selected: boolean }[],
   position: { x: number; y: number },
   clickHandler: (id: string) => void,
   instance: any
@@ -295,7 +295,6 @@ export const createDrillDownList = (
         });
       }, 500);
     }
-    document.removeEventListener('wheel', removeWrapWheel);
   };
 
   removeEl();
@@ -328,7 +327,7 @@ export const createDrillDownList = (
   const listEl = menuList
     .map(
       item =>
-        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
+        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
     )
     .join('');
   el.innerHTML = `<div class="contextmenu-list-item-title">${window.i18n.tc('下钻至')}</div>` + listEl;
@@ -350,11 +349,5 @@ export const createDrillDownList = (
       removeEl();
     }
   }
-  function removeWrapWheel(event: WheelEvent) {
-    if (Math.abs(event.deltaY) > 10) {
-      removeEl();
-    }
-  }
   document.addEventListener('click', removeWrap);
-  document.addEventListener('wheel', removeWrapWheel);
 };

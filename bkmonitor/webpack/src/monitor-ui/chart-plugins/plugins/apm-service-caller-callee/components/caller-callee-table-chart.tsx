@@ -541,8 +541,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   handleResizeTab(status: boolean) {
     this.resizeStatus = status;
   }
-  dimensionKeyChange(id) {
-    this.dimensionParam = { ...this.dimensionParam, dimension: id };
+  dimensionKeyChange(data) {
+    this.dimensionParam = { ...this.dimensionParam, ...data };
   }
 
   render() {
