@@ -12,7 +12,7 @@ import time
 from abc import ABC
 from typing import Callable, Dict, Iterable, List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
 from elasticsearch_dsl.aggs import Bucket
 from elasticsearch_dsl.response import Response

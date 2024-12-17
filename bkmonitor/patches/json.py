@@ -51,7 +51,7 @@ def dump(*args, **kwargs):
         try:
             kwargs.setdefault("escape_forward_slashes", False)
             return ujson.dump(*args, **kwargs)
-        except OverflowError:
+        except (OverflowError, TypeError):
             kwargs.pop("escape_forward_slashes")
     return json_dump(*args, **kwargs)
 
@@ -76,6 +76,6 @@ def dumps(*args, **kwargs):
         try:
             kwargs.setdefault("escape_forward_slashes", False)
             return ujson.dumps(*args, **kwargs)
-        except OverflowError:
+        except (OverflowError, TypeError):
             kwargs.pop("escape_forward_slashes")
     return json_dumps(*args, **kwargs)

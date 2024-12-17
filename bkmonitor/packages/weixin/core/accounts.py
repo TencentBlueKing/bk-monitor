@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six.moves import range, urllib
 
 from common.log import logger

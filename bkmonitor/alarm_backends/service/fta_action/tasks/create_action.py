@@ -6,7 +6,7 @@ from typing import List
 
 from celery.task import task
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch import ConflictError
 
 from alarm_backends.constants import CONST_SECOND

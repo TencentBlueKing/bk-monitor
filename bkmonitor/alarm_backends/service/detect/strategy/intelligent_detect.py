@@ -16,7 +16,7 @@ import json
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (
@@ -51,7 +51,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 raise Exception("Strategy history dependency data not ready")
 
             # 优先从预检测结果中获取检测结果
-            if hasattr(self, "_local_pre_detect_results") and self._local_pre_detect_results:
+            if hasattr(self, "_local_pre_detect_results"):
                 predict_result_point = self.fetch_pre_detect_result_point(data_point)
                 if predict_result_point:
                     return super().detect(predict_result_point)
@@ -64,7 +64,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
 
     def detect_by_sdk(self, data_point):
         dimensions = copy.deepcopy(data_point.dimensions)
-        dimensions["strategy_id"] = data_point.item.strategy.id
+        dimensions["strategy_id"] = int(data_point.item.strategy.id)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,

@@ -20,8 +20,8 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.utils.db.fields import JsonField, YamlField
@@ -269,8 +269,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
         """
         result = []
         # tag的缓存，避免重复，初始值为保留维度字段
-        tag_cache = set(self.reserved_dimension_list + [field["name"] for field in table_fields.get("fields", [])
-                                                        if field["monitor_type"] == "dimension"])
+        tag_cache = set(
+            self.reserved_dimension_list
+            + [field["name"] for field in table_fields.get("fields", []) if field["monitor_type"] == "dimension"]
+        )
         for metric in metrics:
             result.append(
                 {
@@ -401,13 +403,16 @@ class CollectorPluginMeta(OperateRecordModelBase):
                 # 将新增的指标添加到匹配到的table中。
                 table_fields["fields"].extend(self.convert_metric_to_field_dict(not_match_rule_metric, table_fields))
 
-            current_field_names = {field["name"] for field in table_fields["fields"] if
-                                   field["monitor_type"] == "metric"}
+            current_field_names = {
+                field["name"] for field in table_fields["fields"] if field["monitor_type"] == "metric"
+            }
             fields_to_remove = current_field_names - set(map_of_metric_and_tag.keys())
             # 删除当前table中不需要的指标
-            table_fields["fields"] = [field for field in table_fields["fields"] if
-                                      field["monitor_type"] == "dimension" or
-                                      field["name"] not in fields_to_remove]
+            table_fields["fields"] = [
+                field
+                for field in table_fields["fields"]
+                if field["monitor_type"] == "dimension" or field["name"] not in fields_to_remove
+            ]
 
             # 如果当前table不存在match_rule_metric_under_table中，证明这个table不需要进行扩展，跳过
             if table_fields["table_name"] not in match_rule_metric_under_table:
@@ -451,8 +456,11 @@ class CollectorPluginMeta(OperateRecordModelBase):
             # step2:删除多余的维度
             removed_tag = raw_dimension_under_table - (tag_list_set - set(self.reserved_dimension_list))
             if removed_tag:
-                table_fields["fields"] = [field for field in table_fields["fields"]
-                                          if field["monitor_type"] == "metric" or field["name"] not in removed_tag]
+                table_fields["fields"] = [
+                    field
+                    for field in table_fields["fields"]
+                    if field["monitor_type"] == "metric" or field["name"] not in removed_tag
+                ]
 
             # step3:添加新增的维度
             additional_tag = tag_list_set - raw_dimension_under_table - set(self.reserved_dimension_list)
