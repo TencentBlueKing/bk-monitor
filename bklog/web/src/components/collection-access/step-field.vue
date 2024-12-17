@@ -1511,6 +1511,13 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
+          data.alias_settings =  fieldTableData.filter(item => item.query_alias).map(item => {
+            return {
+              field_name: item.field_name,
+              query_alias: item.query_alias,
+              path_type: item.field_type
+            }
+          })
         } else {
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
@@ -1601,7 +1608,7 @@
       },
       /** 入库请求 */
       async fieldCollectionRequest(atLastFormData, callback) {
-        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
+        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
         // 检索设置 直接入库
         const {
           table_id,
@@ -1625,6 +1632,7 @@
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
+          alias_settings,
         };
         const updateData = {
           params: {

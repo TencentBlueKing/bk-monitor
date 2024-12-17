@@ -33,7 +33,8 @@ import VueDraggable from 'vuedraggable';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-
+import $http from '@/api/index.js';
+import { cloneDeep } from 'lodash';
 import './index.scss';
 
 @Component
@@ -42,7 +43,7 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: String, default: false }) showFieldAlias: object;
+  @Prop({ type: Boolean, default: false }) showFieldAlias: object;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
@@ -59,6 +60,7 @@ export default class FieldFilterComp extends tsc<object> {
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
+
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = [
     'gseIndex',
@@ -76,7 +78,7 @@ export default class FieldFilterComp extends tsc<object> {
   fieldContainerHeight = 400;
 
   isShowErrInfo = false;
-
+  objectField = []
   get errInfo() {
     const key = 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
@@ -144,11 +146,67 @@ export default class FieldFilterComp extends tsc<object> {
         filterHeaderBuiltFields: [],
       },
     );
-    return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
+    let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]
+    let result = this.objectHierarchy(arr)
+    console.log(result);
+    
+    return result
+    // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
+  /** object格式字段的层级展示 */
+   objectHierarchy(arrData) {
+    if(!this.objectField.length){
+      return arrData
+    }
+    const arr = cloneDeep(arrData);
+    let filterArr = arr.filter(field => {
+      let isNotMatched = true; // 如果没有匹配到，默认为 true
+      this.objectField.forEach(objectField => {
+        objectField.filterVisible = true
+        const regex = new RegExp(`${objectField.field_name}\\.`);
+        if (regex.test(field.field_name)) {
+          field.field_name = field.field_name.split('.')[1]
+          const exists = objectField.children && objectField.children.some(child => child.field_name === field.field_name);
+          if (!exists) {
+            objectField.children = [...(objectField.children || []), field];
+          }
+          isNotMatched = false;
+        }
+      });
+      return isNotMatched; // 返回是否没有匹配到
+    });
+    console.log(this.objectField);
+    
+    return [...filterArr,...this.objectField]
+  }
+
+  async initFieldData () {
+    const indexSetList = this.$store.state.retrieve.indexSetList;
+    const indexSetId = this.$route.params?.indexId;
+    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+    if (!currentIndexSet?.collector_config_id) {
+      const retryInterval = 200;
+      setTimeout(() => {
+        this.initFieldData();
+      }, retryInterval);
+      return;
+    }
+    try {
+      const res = await $http.request('collect/details', {
+        params: {
+          collector_config_id: currentIndexSet.collector_config_id,
+        },
+      });
+      this.objectField = res.data.fields.filter(item => item.field_type === 'object');
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
   /** 内置字段展示对象 */
   builtInFieldsShowObj() {
-    const { initHiddenList, otherList } = this.builtInFields().reduce(
+    const builtInFieldsValue = this.builtInFields()
+    const { initHiddenList, otherList } = builtInFieldsValue.reduce(
       (acc, cur) => {
         if (this.builtInInitHiddenList.includes(cur.field_name)) {
           acc.initHiddenList.push(cur);
@@ -162,9 +220,9 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
-    const visibleBuiltLength = this.builtInFields().filter(item => item.filterVisible).length;
+    const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
     const hiddenFieldVisible =
-      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === this.builtInFields().length;
+      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
@@ -237,6 +295,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.fieldType = 'any';
     this.isShowAllBuiltIn = false;
     this.isShowAllIndexSet = false;
+    this.initFieldData()
   }
 
   @Watch('visibleFields', { immediate: true, deep: true })
@@ -247,6 +306,7 @@ export default class FieldFilterComp extends tsc<object> {
   mounted() {
     window.addEventListener('resize', this.updateContainerHeight);
     this.updateContainerHeight();
+    this.initFieldData()
   }
 
   beforeDestroy() {
@@ -297,7 +357,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.$emit('fields-updated', displayFieldNames);
   }
   /**
-   * @desc: 字段命排序
+   * @desc: 字段名排序
    * @param {Array} list
    * @returns {Array}
    */
@@ -322,7 +382,42 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowErrInfo = false;
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
-
+  bigTreeRender(item){
+    console.log(item);
+    
+    const scopedSlots = {
+      default: ({ data }) => (
+        <FieldItem
+          v-show={data.filterVisible}
+          date-picker-value={this.datePickerValue}
+          field-alias-map={this.fieldAliasMap}
+          field-item={data}
+          is-front-statistics={this.isFrontStatistics}
+          retrieve-params={this.retrieveParams}
+          show-field-alias={this.showFieldAlias}
+          statistical-field-data={this.statisticalFieldsData[data.field_name]}
+          type='hidden'
+          isFieldObject={true}
+          onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+      />
+      ),
+    };
+    return(
+      <bk-big-tree
+        ref='bigTreeRef'
+        data={[item]}
+        scopedSlots={scopedSlots}
+        class='bk-big-tree'
+        expand-on-click={true}
+        expand-change={this.treeChange}
+      >
+      </bk-big-tree>
+    )
+  }
+  treeChange(val){
+    console.log(val,'233');
+    
+  }
   render() {
     return (
       <div class='field-filter-box'>
@@ -443,7 +538,8 @@ export default class FieldFilterComp extends tsc<object> {
               <div class='fields-container not-selected'>
                 <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
                 <ul class='filed-list'>
-                  {this.builtInFieldsShowObj().builtInShowFields.map(item => (
+                {this.builtInFieldsShowObj().builtInShowFields.map(item => (
+                  item.children?.length ? this.bigTreeRender(item) : (
                     <FieldItem
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
@@ -456,7 +552,8 @@ export default class FieldFilterComp extends tsc<object> {
                       type='hidden'
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
-                  ))}
+                  )
+                ))}
                   {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
                     <div
                       class='expand-all'

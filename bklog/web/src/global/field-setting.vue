@@ -10,7 +10,7 @@
       :is-show.sync="showSlider"
       :quick-close="true"
       :title="$t('索引集配置')"
-      :width="640"
+      :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
@@ -510,6 +510,7 @@
             confirmLoading.value = true;
 
             const originfieldTableData = originfieldTable.value.getData();
+            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
@@ -525,6 +526,14 @@
               },
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData(),
+              alias_settings: [
+                ...indexfieldTableData.map(item =>{
+                  return  {
+                    field_name: item.field_name,
+                    query_alias: item.query_alias, 
+                    path_type:  item.field_type}
+                }),
+              ],
             };
             await http
               .request('collect/fastUpdateCollection', {

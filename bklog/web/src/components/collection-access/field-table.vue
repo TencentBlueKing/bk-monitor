@@ -109,7 +109,7 @@
               :label="$t('字段名')"
               :render-header="$renderHeader"
               :resizable="false"
-              min-width="100"
+              min-width="120"
             >
               <template #default="props">
                 <div
@@ -121,15 +121,25 @@
                 </div>
                 <bk-form-item
                   v-else
-                  :class="{ 'is-required is-error': props.row.fieldErr }"
+                  :class="{ 'is-required is-error': props.row.fieldErr || props.row.fieldQueryErr}"
+                  class="participle-form-item"
                 >
                   <bk-input
-                    class="participle-disabled-input"
+                    :class="props.row.query_alias?'participle-field-name-input':''"
                     v-model.trim="props.row.field_name"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
-                  <template v-if="props.row.fieldErr">
+                  <template v-if="props.row.query_alias">
+                    <div>
+                      <i
+                      style ='color: #3A84FF;margin: 0 10px;'
+                      class="bk-icon bklog-icon bklog-filled-right-arrow"
+                    ></i>
+                    </div>
+                    <div class="participle-field-name-input">{{ props.row.query_alias }}</div>
+                  </template>
+                  <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
@@ -137,10 +147,63 @@
                     >
                     </i>
                   </template>
+                  <!-- 重命名按钮，在json格式下重复内置字段触发 -->
+                  <template v-if="selectEtlConfig === 'bk_log_json' && props.row.btnShow && !props.row.query_alias">
+                    <bk-popconfirm
+                      class="participle-popconfirm-btn"
+                      trigger="click"
+                      @confirm="handleConfirmRename(props.row, props.$index)"
+                    >
+                      <div slot="content">
+                        <div class="participle-popconfirm-btn-title">
+                          字段名称映射
+                        </div>
+                        <bk-input
+                          class="participle-popconfirm-btn-input"
+                          v-model.trim="currentQueryAlias"
+                          @blur="checkQueryNameItem(props.row)"
+                        ></bk-input>
+                      </div>
+                      <bk-button  
+                        :theme="'danger'" 
+                        class="tooltips-btn" 
+                        @click="handlePopoverRename(props.row)"
+                        v-bk-tooltips.top="props.row.fieldQueryErr || '点击定义字段名映射'"
+                      >
+                          重命名
+                      </bk-button>
+                    </bk-popconfirm>
+                  </template>
+                  <!-- 重命名提示，永久触发 -->
+                  <template v-if="selectEtlConfig === 'bk_log_json' && !props.row.btnShow && !props.row.fieldErr && props.row.field_name">
+                    <bk-popconfirm
+                      class="participle-popconfirm-btn"
+                      trigger="click"
+                      @confirm="handleConfirmRename(props.row, props.$index)"
+                    >
+                      <div slot="content">
+                        <div class="participle-popconfirm-btn-title">
+                          字段名称映射
+                        </div>
+                        <bk-input
+                          class="participle-popconfirm-btn-input"
+                          v-model.trim="currentQueryAlias"
+                          @blur="checkQueryNameItem(props.row)"
+                        ></bk-input>
+                      </div>
+                      <i
+                        style="right: 8px"
+                        :class="props.row.fieldQueryErr? 'red-icon' : ''"
+                        class="bk-icon icon-exclamation-circle tooltips-icon2"
+                        v-bk-tooltips.top="props.row.fieldQueryErr || '点击定义字段名映射'"
+                      >
+                      </i>
+                    </bk-popconfirm>
+                  </template>
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 重命名 -->
+            <!-- 别名 -->
             <bk-table-column
               :render-header="renderHeaderAliasName"
               :resizable="false"
@@ -556,6 +619,7 @@
         currentParticipleState: '',
         currentTokenizeOnChars: '',
         currentIsCaseSensitive: false,
+        currentQueryAlias: '',
         participleList: [
           {
             id: 'default',
@@ -793,6 +857,18 @@
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
         this.$set(row, 'participleState', this.currentParticipleState);
       },
+      handlePopoverRename(row) {
+        this.currentQueryAlias = row.query_alias;
+      },
+      // 字段名设置重命名 如果重命名有值不校验字段名，反之校验
+      handleConfirmRename(row) {
+        row.btnShow = false
+        if(!this.currentQueryAlias){
+          this.checkFieldNameItem(row)
+        }
+        this.$set(row, 'query_alias', this.currentQueryAlias);
+        this.currentQueryAlias = ''
+      },
       handelChangeAnalyzed() {
         if (!this.currentIsAnalyzed) {
           this.currentIsCaseSensitive = false;
@@ -871,12 +947,18 @@
       checkFieldNameItem(row) {
         const { field_name, is_delete, field_index } = row;
         let result = '';
-
+        let queryResult = ''
+        let btnShow = false
         if (!is_delete) {
           if (!field_name) {
             result = this.$t('必填项');
-          } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
-            result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
+          } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+            if(this.selectEtlConfig === 'bk_log_json'){
+              btnShow = true
+              queryResult = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
+            }else{
+              result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
+            }
           } else if (
             this.extractMethod !== 'bk_log_json' &&
             this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
@@ -885,6 +967,12 @@
               this.extractMethod === 'bk_log_regexp'
                 ? this.$t('字段名与系统字段重复，必须修改正则表达式')
                 : this.$t('字段名与系统内置字段重复');
+          }  else if (
+            this.extractMethod == 'bk_log_json' &&
+            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+          ) {
+            btnShow = true
+            queryResult = this.$t('重命名与系统内置字段重复')
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
             result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
@@ -893,25 +981,58 @@
         } else {
           result = '';
         }
+        if(!row.query_alias){
+          this.$set(row, 'btnShow', btnShow);
+        }
         row.fieldErr = result;
+        this.$set(row, 'fieldQueryErr', queryResult);
         this.$emit('handle-table-data', this.changeTableList);
-
-        return result;
+        return result || queryResult;
+      },
+      checkQueryNameItem(row) {
+        let  { query_alias, is_delete, field_index } = row;
+        if(!this.currentQueryAlias){
+          return
+        }
+        query_alias = this.currentQueryAlias
+        let queryResult = ''
+        if (!is_delete) { 
+          if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(query_alias)) {
+              queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
+          } else if (
+            this.globalsData.field_built_in.find(item => item.id === query_alias.toLocaleLowerCase())
+          ) {
+            queryResult = this.$t('重命名与系统内置字段重复')
+          } else if (this.selectEtlConfig === 'bk_log_json') {
+            // 此处对比还是字段名，要改成重名间对比
+            queryResult = this.filedNameIsConflict(field_index, query_alias) ? this.$t('重命名字段名称冲突, 请调整') : '';
+          } else {
+            queryResult = '';
+          }
+        } else {
+          queryResult = '';
+        }
+        this.$set(row, 'fieldQueryErr', queryResult);
+        this.$emit('handle-table-data', this.changeTableList);
+        return queryResult;
       },
       checkFieldName() {
         return new Promise((resolve, reject) => {
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (this.checkFieldNameItem(row)) {
+              // 如果有别名，不判断字段名，判断别名
+              if (!row.query_alias && !!this.checkFieldNameItem(row)) {
                 // 返回 true 的时候未通过
+                result = false;
+              }else if(this.checkQueryNameItem(row)){
                 result = false;
               }
             });
             if (result) {
               resolve();
             } else {
-              console.warn('FieldName校验错误');
+              console.warn('FieldName或QueryName校验错误');
               reject(result);
             }
           } catch (err) {
@@ -993,17 +1114,7 @@
             class: 'render-header',
           },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('重命名')]),
-            h('span', this.$t('(选填)')),
-            h('span', {
-              class: 'icon bklog-icon bklog-info-fill',
-              directives: [
-                {
-                  name: 'bk-tooltips',
-                  value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
-                },
-              ],
-            }),
+            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')]),
           ],
         );
       },
@@ -1099,9 +1210,36 @@
 
           /* stylelint-disable-next-line declaration-no-important */
           padding: 0 !important;
-
+          .participle-form-item{
+            .bk-form-content{
+              display: flex;
+              align-items: center;
+            }
+          }
+          .participle-field-name-input{
+            width: 50%;
+          }
           .tooltips-icon {
             top: 16px;
+          }
+          .red-icon{
+            color: #EA3636;
+          }
+          .tooltips-icon2{
+            cursor: pointer;
+            font-size: 16px;
+            &:hover{
+              color: #EA3636;
+            }
+          }
+          .participle-popconfirm-btn{
+            position: absolute;
+            top: 10px;
+            right: 8px;
+            .tooltips-btn{
+              background: #EA3636;
+              border-radius: 2px;
+            }
           }
         }
       }
@@ -1277,8 +1415,13 @@
         color: #3a84ff;
       }
     }
-  }
 
+  }
+  .popconfirm-content{
+    .participle-popconfirm-btn-input{
+      margin:5px 0;
+    }
+  }
   .field-date-dialog {
     .prompt {
       padding: 6px 7px;
