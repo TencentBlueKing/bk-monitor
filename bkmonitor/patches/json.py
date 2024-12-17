@@ -107,6 +107,9 @@ def loads(*args, **kwargs):
 
 
 def dumps(*args, **kwargs):
+    if args and isinstance(args[0], set):
+        args = (list(args[0]),) + args[1:]
+
     # 当前文件为django的File对象时，不进行转换，避免segmentation fault错误
     if args and File and isinstance(args[0], File):
         return json_dumps(*args, **kwargs)
