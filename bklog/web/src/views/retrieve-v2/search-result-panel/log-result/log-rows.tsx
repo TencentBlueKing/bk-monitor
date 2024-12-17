@@ -82,6 +82,7 @@ export default defineComponent({
     const pageSize = 50;
 
     const tableRowConfig = new WeakMap();
+    const isPending = ref(true);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -451,6 +452,13 @@ export default defineComponent({
       },
     );
 
+    watch(
+      () => isLoading.value,
+      () => {
+        isPending.value = false;
+      },
+    );
+
     const handleColumnWidthChange = (w, col) => {
       const width = w > 4 ? w : 40;
       const longFiels = visibleFields.value.filter(
@@ -766,8 +774,10 @@ export default defineComponent({
           style='margin-top: 100px;'
           class='exception-wrap-item exception-part'
           scene='part'
-          type='empty'
-        ></bk-exception>
+          type='search-empty'
+        >
+          {isRequesting.value || isLoading.value || isPending ? 'loading...' : $t('检索结果为空')}
+        </bk-exception>
       );
     };
 
