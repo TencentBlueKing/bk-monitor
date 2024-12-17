@@ -29,14 +29,17 @@ def get_metrics() -> List:
                 Metric(
                     id="container_cpu_usage_seconds_total",
                     name=_lazy("CPU使用量"),
+                    unit="short",
                 ),
                 Metric(
                     id="kube_pod_cpu_requests_ratio",
                     name=_lazy("CPU request使用率"),
+                    unit="percentunit",
                 ),
                 Metric(
                     id="kube_pod_cpu_limits_ratio",
                     name=_lazy("CPU limit使用率"),
+                    unit="percentunit",
                 ),
             ],
         ),
@@ -47,14 +50,17 @@ def get_metrics() -> List:
                 Metric(
                     id="container_memory_rss",
                     name=_lazy("内存使用量(rss)"),
+                    unit="bytes",
                 ),
                 Metric(
                     id="kube_pod_memory_requests_ratio",
                     name=_lazy("内存 request使用率"),
+                    unit="percentunit",
                 ),
                 Metric(
                     id="kube_pod_memory_limits_ratio",
                     name=_lazy("内存 limit使用率"),
+                    unit="percentunit",
                 ),
             ],
         ),

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from collections import OrderedDict
 from typing import Dict, List
 
+from django.core.exceptions import FieldError
 from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework import serializers
@@ -238,16 +239,19 @@ class ListK8SResources(Resource):
         # resource_meta_queryset = resource_meta.get_from_meta()
 
         # 当 with_history = False 对返回结果进行分页查询
-        if not with_history:
-            # 获取总的
-            count: int = resource_meta.get_from_meta().count()
-            resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+        try:
+            if not with_history:
+                # 获取总的
+                count: int = resource_meta.get_from_meta().count()
+                resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
 
-            resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
-        else:
-            resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
-
+                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
+            else:
+                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+        except FieldError:
+            resource_list = []
         resource_id = [tuple(sorted(r.items())) for r in resource_list]
+
         if with_history:
             # 3.0 基于promql 查询历史上报数据
             history_resource_list = resource_meta.get_from_promql(
@@ -296,3 +300,19 @@ class ListK8SResources(Resource):
         """
         for resource_type, values in filter_dict.items():
             meta.filter.add(load_resource_filter(resource_type, values))
+
+
+class ResourceTrendResource(Resource):
+    """资源趋势缩略图"""
+
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        resource_type = serializers.ChoiceField(
+            required=True,
+            choices=["pod", "node", "workload", "namespace", "container"],
+            label="资源类型",
+        )
+        resource_list = serializers.ListField(required=True, label="资源列表")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
