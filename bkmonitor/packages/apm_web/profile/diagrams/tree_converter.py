@@ -85,7 +85,7 @@ class TreeConverter:
                     parent = None
                     continue
 
-                for line in stacktrace["lines"]:
+                for line in reversed(stacktrace["lines"]):
                     if not line:
                         parent = None
                         continue
