@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
-import { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
+import { type IK8SMetricItem, K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import CommonDetail from '../common-detail';
-// import K8SCharts from '../k8s-charts/k8s-charts';
+import K8SCharts from '../k8s-charts/k8s-charts';
 
 import type { K8sTableFilterByEvent, K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
@@ -47,6 +47,8 @@ interface K8sDetailSliderProps {
   /** 抽屉页是否显示 */
   isShow?: boolean;
   resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
+  metricList: IK8SMetricItem[];
+  hideMetrics: string[];
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
@@ -56,14 +58,15 @@ interface K8sDetailSliderEvent {
 
 @Component
 export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetailSliderEvent> {
+  @InjectReactive('commonParams') commonParams: Record<string, any>;
+  @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
+  @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   /** 抽屉页是否显示 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
 
   @Prop({
     type: Object,
-    default: () => ({
-      pod: 'bk-consul-1',
-    }),
+    required: true,
   })
   resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>>;
   @ProvideReactive() viewOptions: IViewOptions = {
@@ -84,6 +87,18 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
 
   get showOperate() {
     return this.isShow && this.groupByField !== K8sTableColumnKeysEnum.CONTAINER;
+  }
+  get filterCommonParams() {
+    return {
+      ...this.commonParams,
+      resource_type: this.groupByField,
+      filter_dict: Object.fromEntries(
+        Object.entries(this.resourceDetail)
+          .filter(([k, v]) => v?.length && k !== K8sTableColumnKeysEnum.CLUSTER)
+          .map(([k, v]) => [k, [v]])
+      ),
+      with_history: true,
+    };
   }
 
   @Watch('isShow')
@@ -183,29 +198,32 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     return (
       <div class='k8s-detail-content'>
         <div class='detail-content-left'>
-          {/* <K8SCharts
+          <K8SCharts
             filterCommonParams={this.filterCommonParams}
-            groupBy={this.groupInstance.groupFilters}
+            groupBy={[this.groupByField]}
             hideMetrics={this.hideMetrics}
             metricList={this.metricList}
-          /> */}
-        </div>
-        <div class='detail-content-right'>
-          <CommonDetail
-            collapse={false}
-            maxWidth={500}
-            needShrinkBtn={false}
-            panel={this.panel}
-            placement={'right'}
-            selectorPanelType={''}
-            startPlacement={'left'}
-            title={this.$tc('详情')}
-            toggleSet={true}
-            onLinkToDetail={() => {}}
-            onShowChange={() => {}}
-            onTitleChange={() => {}}
           />
         </div>
+        {this.groupByField !== K8sTableColumnKeysEnum.NAMESPACE ? (
+          <div class='detail-content-right'>
+            <CommonDetail
+              collapse={false}
+              defaultWidth={400}
+              maxWidth={500}
+              needShrinkBtn={false}
+              panel={this.panel}
+              placement={'right'}
+              selectorPanelType={''}
+              startPlacement={'left'}
+              title={this.$tc('详情')}
+              toggleSet={true}
+              onLinkToDetail={() => {}}
+              onShowChange={() => {}}
+              onTitleChange={() => {}}
+            />
+          </div>
+        ) : undefined}
       </div>
     );
   }

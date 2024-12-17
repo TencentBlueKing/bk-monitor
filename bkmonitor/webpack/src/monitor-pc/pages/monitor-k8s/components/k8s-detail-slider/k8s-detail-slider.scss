@@ -89,6 +89,8 @@
       .detail-content-left {
         flex: 1;
         min-width: 0;
+        padding: 20px 24px 0;
+        overflow: auto;
       }
 
       .detail-content-right {

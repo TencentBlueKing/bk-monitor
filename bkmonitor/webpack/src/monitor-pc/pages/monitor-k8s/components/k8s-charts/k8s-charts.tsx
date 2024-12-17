@@ -102,7 +102,6 @@ export default class K8SCharts extends tsc<{
     }
     if (!item) return;
     this.sideDetail = {
-      ...this.filterCommonParams,
       ...item,
       cluster: item.cluster || this.filterCommonParams?.bcs_cluster_id,
     };
@@ -332,7 +331,9 @@ export default class K8SCharts extends tsc<{
           />
         </div>
         <K8sDetailSlider
+          hideMetrics={this.hideMetrics}
           isShow={this.sideDetailShow}
+          metricList={this.metricList}
           resourceDetail={this.sideDetail}
           onShowChange={v => {
             this.sideDetailShow = v;

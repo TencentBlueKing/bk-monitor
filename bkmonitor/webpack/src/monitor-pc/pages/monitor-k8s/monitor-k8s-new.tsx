@@ -131,6 +131,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /** 公共参数 */
+  @ProvideReactive('commonParams')
   get commonParams(): ICommonParams {
     return {
       scenario: this.scene,
