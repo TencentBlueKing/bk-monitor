@@ -49,7 +49,6 @@
   const showAll = ref(false);
   const maxWidth = ref(0);
   const renderText = ref(props.content);
-  const dounceSetUpdateRow = inject('dounceSetUpdateRow');
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -176,9 +175,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    dounceSetUpdateRow('all', () => {
-      showAll.value = !showAll.value;
-    });
+    showAll.value = !showAll.value;
   };
 
   const getCellElement = () => {

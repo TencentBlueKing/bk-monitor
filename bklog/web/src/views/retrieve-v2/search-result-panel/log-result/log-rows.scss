@@ -6,7 +6,6 @@
   width: 100%;
   min-width: 100%;
   min-height: 400px;
-  padding-bottom: 80px;
   margin-top: 12px;
 
   .bklog-requsting-loading {
@@ -73,9 +72,9 @@
   }
 
   .bklog-row-container {
-    position: absolute;
-    top: 0;
-    left: 0;
+    // position: absolute;
+    // top: 0;
+    // left: 0;
     z-index: 2;
     box-sizing: border-box;
     width: fit-content;
@@ -83,7 +82,7 @@
     min-height: 40px;
     background-color: #fff;
     transform: translateZ(0);
-    will-change: transform;
+    will-change: auto;
 
     .bklog-row-observe {
       width: fit-content;
@@ -284,6 +283,10 @@
         }
 
         &.hidden-field {
+          &.has-scroll-x {
+            display: none;
+          }
+
           visibility: hidden;
         }
       }
@@ -319,7 +322,18 @@
           &.right {
             position: sticky;
             right: var(--scroll-left);
+            z-index: 1;
           }
+        }
+
+        &::after {
+          content: '';
+          background-color: #fff;
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: var(--last-column-left);
+          width: var(--padding-right);
         }
       }
     }
