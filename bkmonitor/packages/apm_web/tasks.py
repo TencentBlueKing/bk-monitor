@@ -220,9 +220,10 @@ def cache_application_scope_name():
                 TelemetryDataType.METRIC.value, attr_name="result_table_id"
             )
             collection = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
-            cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
-            cache_agent.set(cache_key, compress_and_serialize(collection))
-            cache_agent.expire(cache_key, 60 * 60 * 24)
+            if collection and isinstance(collection, dict):
+                cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
+                cache_agent.set(cache_key, compress_and_serialize(collection))
+                cache_agent.expire(cache_key, 60 * 60 * 24)
         except Exception as e:  # noqa
             logger.warning(
                 f"[REFRESH_APPLICATION] "
