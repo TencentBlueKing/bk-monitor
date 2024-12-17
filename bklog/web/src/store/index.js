@@ -603,11 +603,13 @@ const store = new Vuex.Store({
       state.externalMenu = val;
     },
     updateVisibleFields(state, val) {
-      state.visibleFields = val;
+      state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
+      state.indexFieldInfo.request_counter++;
     },
     updateVisibleFieldMinWidth(state, tableList, fieldList) {
       const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
       setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
+      state.indexFieldInfo.request_counter++;
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -1006,6 +1008,7 @@ const store = new Vuex.Store({
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
       commit('updateIndexSetFieldConfig', {});
+      commit('updateVisibleFields', []);
 
       if (!ids.length) {
         return;
@@ -1044,10 +1047,7 @@ const store = new Vuex.Store({
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
-
-          // 请求字段联想相关配置
-          // dispatch('requestIndexSetValueList');
-
+          commit('updateIsSetDefaultTableColumn');
           return res;
         })
         .catch(err => {
@@ -1170,6 +1170,7 @@ const store = new Vuex.Store({
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
                 : originLogList;
 
+              console.log('load table info');
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
               state.tookTime = payload.isPagination
                 ? state.tookTime + Number(data?.took || 0)
@@ -1251,7 +1252,6 @@ const store = new Vuex.Store({
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
-      // commit('updateIsSetDefaultTableColumn', false);
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);

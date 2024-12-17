@@ -91,11 +91,10 @@ export default defineComponent({
     const formatJson = computed(() => store.state.tableJsonFormat);
     const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
     const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
-    const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
-    const isLoading = computed(() => indexSetQueryResult.value.is_loading);
+    const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
@@ -264,6 +263,7 @@ export default defineComponent({
       if (props.contentType === 'table') {
         return [
           ...visibleFields.value.map(field => {
+            console.log('--', field.minWidth, field.width, field.field_name);
             return {
               field: field.field_name,
               key: field.field_name,
@@ -378,13 +378,17 @@ export default defineComponent({
       },
     };
 
+    const debounceLoadColumns = debounce(() => {
+      columns.value = loadTableColumns();
+      requestAnimationFrame(() => {
+        computeRect();
+      });
+    }, 100);
+
     watch(
-      () => [fieldRequestCounter.value, props.contentType],
+      () => [indexFieldInfo.value.request_counter, props.contentType],
       () => {
-        columns.value = loadTableColumns();
-        requestAnimationFrame(() => {
-          computeRect();
-        });
+        debounceLoadColumns();
       },
     );
 
@@ -698,7 +702,7 @@ export default defineComponent({
     };
 
     const renderResultContainer = () => {
-      if (tableList.length) {
+      if (tableList.length && columns.value.length) {
         return [
           renderHeadVNode(),
           <div

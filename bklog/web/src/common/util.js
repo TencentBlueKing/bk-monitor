@@ -33,6 +33,7 @@ import dayjs from 'dayjs';
 import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
+import { set } from 'vue';
 /**
  * 函数柯里化
  *
@@ -1077,8 +1078,8 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
           width = catchWidth ?? fieldWidth;
         }
 
-        field.width = width;
-        field.minWidth = minWidth;
+        set(field, 'width', width);
+        set(field, 'minWidth', minWidth);
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
@@ -1089,12 +1090,12 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
         if (longFiels.length) {
           const addWidth = (availableWidth - columnsWidth) / longFiels.length;
           longFiels.forEach(item => {
-            item.width = item.width + Math.ceil(addWidth);
+            set(field, 'width', item.width + Math.ceil(addWidth));
           });
         } else {
           const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
           visibleFields.forEach(field => {
-            field.width = field.width + Math.ceil(addWidth);
+            set(field, 'width', field.width + Math.ceil(addWidth));
           });
         }
       }
