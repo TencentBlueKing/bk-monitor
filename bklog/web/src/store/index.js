@@ -1046,7 +1046,7 @@ const store = new Vuex.Store({
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
-          // commit('updateIsSetDefaultTableColumn');
+          commit('updateIsSetDefaultTableColumn');
           return res;
         })
         .catch(err => {

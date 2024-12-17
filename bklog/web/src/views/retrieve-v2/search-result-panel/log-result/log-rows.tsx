@@ -25,7 +25,14 @@
  */
 import { computed, defineComponent, ref, watch, h, Ref } from 'vue';
 
-import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
+import {
+  parseTableRowData,
+  formatDateNanos,
+  formatDate,
+  copyMessage,
+  setDefaultTableWidth,
+  TABLE_LOG_FIELDS_SORT_REGULAR,
+} from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -38,6 +45,7 @@ import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
+  LOG_SOURCE_F,
   ROW_EXPAND,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
@@ -99,6 +107,7 @@ export default defineComponent({
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
+    const isUnionSearch = computed(() => store.getters.isUnionSearch);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -260,10 +269,42 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
+
+    const getRenderColumns = () => {
+      if (visibleFields.value.length) {
+        return visibleFields.value;
+      }
+      /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
+      const dataFields = [];
+      const indexSetFields = [];
+      const logFields = [];
+      indexFieldInfo.value.fields.forEach(item => {
+        if (item.field_type === 'date') {
+          dataFields.push(item);
+        } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
+          logFields.push(item);
+        } else if (!(item.field_type === '__virtual__' || item.is_built_in)) {
+          indexSetFields.push(item);
+        }
+      });
+      const sortIndexSetFieldsList = indexSetFields.sort((a, b) => {
+        const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+        return sortA.localeCompare(sortB);
+      });
+      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
+        sortFieldsList.unshift(LOG_SOURCE_F());
+      }
+
+      setDefaultTableWidth(sortFieldsList, tableList);
+      return sortFieldsList;
+    };
+
     const loadTableColumns = () => {
       if (props.contentType === 'table') {
         return [
-          ...visibleFields.value.map(field => {
+          ...getRenderColumns().map(field => {
             return {
               field: field.field_name,
               key: field.field_name,
@@ -381,8 +422,11 @@ export default defineComponent({
     watch(
       () => [fieldRequestCounter.value, props.contentType],
       () => {
+        scrollXOffsetLeft.value = 0;
+        refScrollXBar.value?.scrollLeft(0);
+
         columns.value = loadTableColumns();
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           computeRect();
         });
       },
@@ -632,13 +676,13 @@ export default defineComponent({
               {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
             </LogCell>
           ))}
+          <LogCell
+            width={operatorToolsWidth.value}
+            class={['hidden-field bklog-row-cell', { 'has-scroll-x': hasScrollX.value }]}
+            minWidth={operatorToolsWidth.value ?? 'auto'}
+          ></LogCell>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        <LogCell
-          width={operatorToolsWidth.value}
-          class={['hidden-field bklog-row-cell', { 'has-scroll-x': hasScrollX.value }]}
-          minWidth={operatorToolsWidth.value ?? 'auto'}
-        ></LogCell>,
       ];
     };
 

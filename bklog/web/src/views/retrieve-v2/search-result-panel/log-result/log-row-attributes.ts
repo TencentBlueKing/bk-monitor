@@ -39,3 +39,22 @@ export const SECTION_SEARCH_INPUT = '.search-bar-container';
 
 // 搜索结果内容容器选择器
 export const SEARCH_RESULT_CONTENT = '.bklog-result-container';
+
+export const LOG_SOURCE_F = () => {
+  return {
+    description: null,
+    es_doc_values: false,
+    field_alias: '',
+    field_name: (window as any).$t('日志来源'),
+    field_operator: [],
+    field_type: 'keyword',
+    filterExpand: false,
+    filterVisible: false,
+    is_analyzed: false,
+    is_display: false,
+    is_editable: false,
+    minWidth: 0,
+    tag: 'union-source',
+    width: 230,
+  };
+};
