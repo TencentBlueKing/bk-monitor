@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, onMounted, onBeforeUnmount, Ref, provide, set, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -83,14 +83,12 @@ export default defineComponent({
     const pageSize = 50;
 
     const tableRowConfig = new WeakMap();
-    // const viewList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const formatJson = computed(() => store.state.tableJsonFormat);
     const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
-    const isLimitExpandView = computed(() => store.state.isLimitExpandView);
     const tableLineIsWrap = computed(() => store.state.tableLineIsWrap);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
@@ -388,8 +386,7 @@ export default defineComponent({
       ];
     };
 
-    const getRowConfigWithCache = index => {
-      // const rowKey = `${ROW_KEY}_${index}`;
+    const getRowConfigWithCache = () => {
       return [
         ['expand', false],
         ['isIntersect', true],
@@ -398,23 +395,6 @@ export default defineComponent({
         ['stickyTop', 0],
       ].reduce((cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }), {});
     };
-
-    /**
-     * 当切换操作时，重新计算行高
-     * 原则上，此时滚动到最上方，可视区域开始的Index为0
-     */
-    // const resetTableMinheight = (length?) => {
-    //   const endIndex = length ?? visibleIndexs.value.endIndex;
-    //   const startIndex = endIndex - 1;
-    //   for (let i = startIndex; i < tableList.value.length; i++) {
-    //     if (tableRowConfig.has(tableList.value[i])) {
-    //       const config = tableRowConfig.get(tableList.value[i]).value;
-    //       ['minHeight', 'rowMinHeight'].forEach(key => {
-    //         config[key] = 40;
-    //       });
-    //     }
-    //   }
-    // };
 
     const updateTableRowConfig = (nextIdx = 0) => {
       for (let index = nextIdx; index < tableDataSize.value; index++) {
@@ -426,7 +406,7 @@ export default defineComponent({
             ref({
               [ROW_KEY]: rowKey,
               [ROW_INDEX]: index,
-              ...getRowConfigWithCache(index),
+              ...getRowConfigWithCache(),
             }),
           );
         }
@@ -440,17 +420,6 @@ export default defineComponent({
 
       return 0;
     });
-
-    // const updateViewList = () => {
-    //   const startIndex = visibleIndexs.value.startIndex - pageSize;
-    //   const endIndex = visibleIndexs.value.endIndex + pageSize;
-    //   const totalCount = tableList.value.length;
-    //   const startIdx = startIndex >= 0 ? startIndex : 0;
-    //   const endIdx = endIndex <= totalCount ? endIndex : totalCount;
-    //   const result = new Array(endIdx).fill('').map((_, index) => index);
-    //   viewList.value.splice(0, viewList.value.length);
-    //   viewList.value.push(...result);
-    // };
 
     const expandOption = {
       render: ({ row }) => {
@@ -480,22 +449,9 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (_, oldVal) => {
-        // const { startIndex, endIndex } = visibleIndexs.value;
-        // if (startIndex === endIndex && startIndex === 0) {
-        //   visibleIndexs.value.endIndex = pageSize;
-        // }
         updateTableRowConfig(oldVal?.[0] ?? 0);
-        // updateViewList();
-        // updateSizes();
       },
     );
-
-    // watch(
-    //   () => [tableLineIsWrap.value, formatJson.value, isLimitExpandView.value],
-    //   () => {
-    //     rowUpdateCounter.value++;
-    //   },
-    // );
 
     const handleColumnWidthChange = (w, col) => {
       const width = w > 4 ? w : 40;
@@ -563,8 +519,7 @@ export default defineComponent({
 
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
-          .then(({ length }) => {
-            // visibleIndexs.value.endIndex = visibleIndexs.value.endIndex + (length ?? bufferCount);
+          .then(() => {
             pageIndex.value++;
           })
           .finally(() => {
@@ -575,33 +530,6 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    // const getVisibleRows = (scrollTop, visibleHeight) => {
-    //   const rows = tableList.value;
-    //   let startIdx = 0;
-    //   let endIdx = rows.length - 1;
-
-    //   // 使用二分查找找到第一个可见的行
-    //   while (startIdx < endIdx) {
-    //     let midIdx = Math.floor((startIdx + endIdx) / 2);
-    //     if (sizes.value[midIdx].accumulator < scrollTop) {
-    //       startIdx = midIdx + 1;
-    //     } else {
-    //       endIdx = midIdx;
-    //     }
-    //   }
-
-    //   let lastVisibleRow = startIdx;
-
-    //   // 找到最后一个可见的行
-    //   while (lastVisibleRow < rows.length && sizes.value[lastVisibleRow].accumulator < scrollTop + visibleHeight) {
-    //     lastVisibleRow++;
-    //   }
-
-    //   return [startIdx, lastVisibleRow];
-    // };
-
-    // let lastPosition = 0;
-
     const updateVisibleItems = (event, scrollTop, offsetTop) => {
       if (!event?.target) {
         return;
@@ -609,28 +537,13 @@ export default defineComponent({
 
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
-
-      // const target = event.target as HTMLElement;
-      // const visibleHeight = target.offsetHeight;
-
-      // const [startIndex, endIndex] = getVisibleRows(useScrollHeight, visibleHeight);
-
-      // visibleIndexs.value.startIndex = startIndex;
-      // visibleIndexs.value.endIndex = endIndex;
       if (useScrollHeight === 0) {
         pageIndex.value = 1;
       }
 
       rowsOffsetTop.value = useScrollHeight;
-      // const continuous = lastPosition !== target.scrollTop;
-      // updateViewList();
-
-      // return {
-      //   continuous,
-      // };
     };
 
-    let refreshTimout;
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
       if (isRequesting.value) {
         return;
@@ -639,11 +552,6 @@ export default defineComponent({
       requestAnimationFrame(() => {
         updateVisibleItems(event, scrollTop, offsetTop);
       });
-      // lastPosition = (event.target as HTMLElement).scrollTop;
-      // clearTimeout(refreshTimout);
-      // refreshTimout = setTimeout(() => {
-      //   updateVisibleItems(event, scrollTop, offsetTop);
-      // }, 100);
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -781,18 +689,8 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return viewList.value.map((row, rowIndex) => {
-        // const row = tableList.value[rowIndex];
-        // const rowView = sizes.value[rowIndex];
-        // const config = tableRowConfig.get(row).value;
-        const rowStyle = {
-          // minHeight: `${config.minHeight}px`,
-          // transform: `translate3d(0, ${rowView.accumulator}px, 0)`,
-          // '--row-min-height': `${config.rowMinHeight - 2}px`,
-        };
-
         return (
           <RowRender
-            style={rowStyle}
             class={[
               'bklog-row-container',
               {
