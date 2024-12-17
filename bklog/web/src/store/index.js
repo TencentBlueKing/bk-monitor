@@ -393,7 +393,6 @@ const store = new Vuex.Store({
 
     updateIndexSetQueryResult(state, payload) {
       Object.assign(state.indexSetQueryResult, payload ?? {});
-      state.indexSetQueryResult.request_counter = state.indexSetQueryResult.request_counter + 1;
     },
 
     updateIndexItemParams(state, payload) {
@@ -605,7 +604,6 @@ const store = new Vuex.Store({
     },
     updateVisibleFields(state, val) {
       state.visibleFields = val;
-      state.indexFieldInfo.request_counter += 1;
     },
     updateVisibleFieldMinWidth(state, tableList, fieldList) {
       const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
@@ -1253,7 +1251,7 @@ const store = new Vuex.Store({
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
-      commit('updateIsSetDefaultTableColumn', false);
+      // commit('updateIsSetDefaultTableColumn', false);
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);

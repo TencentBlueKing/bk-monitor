@@ -38,7 +38,6 @@ import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
 import {
-  ROW_CONFIG,
   ROW_EXPAND,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
@@ -115,7 +114,6 @@ export default defineComponent({
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
-    const bufferCount = 30;
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
     const resultContainerIdSelector = `#${resultContainerId.value}`;
@@ -154,7 +152,7 @@ export default defineComponent({
       updateRowHeight(rowIndex, entry.target);
     };
 
-    const $resizeObserver = new ResizeObserver(entries => {
+    const $resizeObserver = new ResizeObserver(() => {
       // requestAnimationFrame(() => {
       //   if (!Array.isArray(entries)) {
       //     return;
@@ -643,8 +641,6 @@ export default defineComponent({
 
     const scrollTop = () => {
       scrollToTop(visibleIndexs.value.endIndex < 100);
-      // visibleIndexs.value.startIndex = 0;
-      // visibleIndexs.value.endIndex = bufferCount * 2;
     };
 
     const renderScrollTop = () => {
@@ -769,7 +765,7 @@ export default defineComponent({
           style='margin-top: 100px;'
           class='exception-wrap-item exception-part'
           scene='part'
-          type='search-empty'
+          type='empty'
         ></bk-exception>
       );
     };
