@@ -48,6 +48,9 @@ target_biz_list = list(
     )
 )
 
+# 是否开启预览
+enable_preview = True
+
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
