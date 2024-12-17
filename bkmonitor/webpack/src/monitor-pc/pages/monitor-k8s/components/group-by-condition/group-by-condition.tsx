@@ -35,11 +35,6 @@ import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 
 import './group-by-condition.scss';
 
-export interface IGroupByChangeEvent {
-  id: K8sTableColumnResourceKey;
-  checked: boolean;
-}
-
 export interface GroupByConditionProps {
   title: string;
   groupInstance: K8sGroupDimension;
@@ -47,7 +42,7 @@ export interface GroupByConditionProps {
 }
 
 export interface GroupByConditionEvents {
-  onChange: (item: IGroupByChangeEvent) => void;
+  onChange: (id: K8sTableColumnResourceKey) => void;
 }
 @Component
 export default class GroupByCondition extends tsc<GroupByConditionProps, GroupByConditionEvents> {
@@ -70,13 +65,13 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
 
   /** 添加、删除 */
   @Emit('change')
-  handleValueChange(id, checked) {
-    return { id, checked };
+  handleValueChange(id: K8sTableColumnResourceKey) {
+    return id;
   }
 
   handleSelect(ids) {
     const changeId = ids[ids.length - 1];
-    this.handleValueChange(changeId, !this.groupInstance.hasGroupFilter(changeId));
+    this.handleValueChange(changeId);
     nextTick(() => {
       if (!this.options?.length) {
         this.customSelectRef?.handleHideDropDown?.();
@@ -86,7 +81,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
 
   /** 删除操作 */
   handleDeleteItem(groupId: K8sTableColumnResourceKey) {
-    this.handleValueChange(groupId, false);
+    this.handleValueChange(groupId);
     this.customSelectRef?.handleShowDropDown?.();
   }
 

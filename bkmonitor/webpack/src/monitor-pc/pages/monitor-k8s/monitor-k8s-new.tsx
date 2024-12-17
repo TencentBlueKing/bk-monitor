@@ -34,7 +34,7 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import GroupByCondition, { type IGroupByChangeEvent } from './components/group-by-condition/group-by-condition';
+import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
 import K8sDimensionList from './components/k8s-left-panel/k8s-dimension-list';
 import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
@@ -42,7 +42,6 @@ import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
   type K8sTableColumnResourceKey,
-  type K8sTableFilterByEvent,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { type K8sGroupDimension, K8sPerformanceGroupDimension, sceneDimensionMap } from './k8s-dimension';
@@ -155,21 +154,27 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return handleTransformToTimestamp(this.timeRange);
   }
 
-  get filterCommonParams() {
+  get tableCommonParam() {
     return {
       ...this.commonParams,
-      resource_type: this.groupInstance.groupFilters.at(-1),
       filter_dict: Object.fromEntries(Object.entries(this.filterBy).filter(([, v]) => v?.length)),
+    };
+  }
+
+  get filterCommonParams() {
+    return {
+      ...this.tableCommonParam,
+      resource_type: this.groupInstance.groupFilters.at(-1),
       with_history: false,
     };
   }
 
-  setGroupFilters(item: { groupId: K8sTableColumnResourceKey; checked: boolean }) {
-    if (item.checked) {
-      this.groupInstance?.addGroupFilter(item.groupId);
+  setGroupFilters(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
+    if (this.groupInstance.hasGroupFilter(groupId)) {
+      this.groupInstance.deleteGroupFilter(groupId, config);
       return;
     }
-    this.groupInstance.deleteGroupFilter(item.groupId);
+    this.groupInstance?.addGroupFilter(groupId, config);
   }
 
   @Watch('groupFilters')
@@ -269,12 +274,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param isSelect 是否选中
    */
   groupByChange(groupId: string, isSelect: boolean) {
+    if (isSelect && this.groupInstance.hasGroupFilter(groupId as K8sTableColumnResourceKey)) return;
     this.showCancelDrill = false;
-    if (isSelect) {
-      this.setGroupFilters({ groupId, checked: isSelect });
-    } else {
-      this.groupInstance.deleteGroupFilterForce(groupId);
-    }
+    this.setGroupFilters(groupId as K8sTableColumnResourceKey);
   }
 
   /**
@@ -339,28 +341,23 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.setRouteParams();
   }
 
-  handleGroupChecked(item: IGroupByChangeEvent) {
+  handleGroupChecked(groupId: K8sTableColumnResourceKey) {
     this.showCancelDrill = false;
-    this.setGroupFilters({ groupId: item.id, checked: item.checked });
-  }
-
-  /**
-   * @description 表格 添加筛选/移除筛选 icon点击回调
-   * @param {K8sTableFilterByEvent} item
-   */
-  handleFilterChange(item: K8sTableFilterByEvent) {
-    const { id, groupId, isSelect } = item;
-    this.filterByChange(id, groupId, isSelect);
+    this.setGroupFilters(groupId, { single: true });
   }
 
   /**
    * @description 表格下钻点击回调
    * @param {K8sTableGroupByEvent} item
    */
-  handleTableGroupChange(item: K8sTableGroupByEvent) {
-    this.showCancelDrill = true;
-    this.cacheGroupBy = this.groupInstance.groupFilters;
-    this.setGroupFilters(item);
+  handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
+    const cacheGroupBy = [...this.groupInstance.groupFilters];
+    const { filterById, id, dimension } = item;
+    this.handleDrillDown(filterById, id, dimension);
+    if (showCancelDrill) {
+      this.showCancelDrill = true;
+      this.cacheGroupBy = cacheGroupBy;
+    }
   }
 
   handleTableClearSearch() {
@@ -445,10 +442,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           <K8sTableNew
             activeTab={this.activeTab}
             filterBy={this.filterBy}
-            filterCommonParams={this.filterCommonParams}
+            filterCommonParams={this.tableCommonParam}
             groupInstance={this.groupInstance}
+            hideMetrics={this.hideMetrics}
+            metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
-            onFilterChange={this.handleFilterChange}
+            onFilterChange={this.filterByChange}
             onGroupChange={this.handleTableGroupChange}
           />
         );

@@ -33,7 +33,7 @@ import { type IK8SMetricItem, K8sTableColumnKeysEnum } from '../../typings/k8s-n
 import CommonDetail from '../common-detail';
 import K8SCharts from '../k8s-charts/k8s-charts';
 
-import type { K8sTableFilterByEvent, K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-detail-slider.scss';
@@ -53,7 +53,7 @@ interface K8sDetailSliderProps {
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
   onGroupChange: (groupId: K8sTableColumnResourceKey) => void;
-  onFilterChange: (item: K8sTableFilterByEvent) => void;
+  onFilterChange: (id: string, groupId: K8sTableColumnResourceKey, isSelect: boolean) => void;
 }
 
 @Component
