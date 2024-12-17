@@ -1144,7 +1144,7 @@ class SearchHandler(object):
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
-        return list(result.values())
+        return result
 
     def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
         """
@@ -1159,7 +1159,7 @@ class SearchHandler(object):
         generate_result = self.sliced_scroll_result(result)
 
         # 文件路径
-        file_path = f"{ASYNC_DIR}/{file_name}.{export_file_type}"
+        file_path = f"{ASYNC_DIR}/{file_name}_cluster_{self.storage_cluster_id}.{export_file_type}"
 
         def content_generator():
             for item in result.get("hits", {}).get("hits", []):
