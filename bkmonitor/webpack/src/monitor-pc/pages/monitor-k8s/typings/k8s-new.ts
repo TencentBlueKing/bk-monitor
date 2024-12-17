@@ -100,12 +100,17 @@ export interface GroupListItem {
   [key: string]: any;
 }
 
-export interface K8sDimensionParams {
-  scene: SceneEnum;
+export interface K8sDimensionParams extends ICommonParams {
   keyword: string;
-  pageSize?: number;
-  pageType?: 'scrolling' | 'traditional';
-  bcsClusterId?: string;
+  pageSize: number;
+  page_type: 'scrolling' | 'traditional';
+}
+
+export interface ICommonParams {
+  scenario: SceneEnum;
+  bcs_cluster_id: string;
+  start_time: number;
+  end_time: number;
 }
 
 export interface IK8SMetricItem {

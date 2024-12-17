@@ -49,11 +49,12 @@ interface GroupItemProps {
 }
 
 interface GroupItemEvent {
-  onHandleSearch: (id: string) => void;
-  onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
+  onHandleSearch: (val: { id: string; isSelect: boolean }) => void;
+  onHandleDrillDown: (val: { id: string; drillDownDimension: string }) => void;
   onHandleGroupByChange: (val: boolean) => void;
   onHandleMoreClick: (val: { dimension: string }) => void;
   onHandleHiddenChange: (ids: string[]) => void;
+  onClear: () => void;
   onFirstExpand: (id: string) => void;
 }
 
@@ -100,20 +101,26 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
     return id;
   }
 
+  @Emit('clear')
   handleClear(e: Event) {
     e.stopPropagation();
-    this.handleSearch();
   }
 
   @Emit('handleSearch')
-  handleSearch(id?: string) {
-    return id;
+  handleSearch(id: string, isSelect: boolean) {
+    return {
+      id,
+      isSelect,
+    };
   }
 
   /** 下钻 */
   @Emit('handleDrillDown')
   handleDrillDownChange(val) {
-    return val;
+    return {
+      id: val.id,
+      drillDownDimension: val.dimension,
+    };
   }
 
   @Emit('handleGroupByChange')
@@ -204,7 +211,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
                 <i
                   class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
                   v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
-                  onClick={() => this.handleSearch(child.id)}
+                  onClick={() => this.handleSearch(child.id, !isSelectSearch)}
                 />
               )}
               {this.tools.includes('drillDown') && (

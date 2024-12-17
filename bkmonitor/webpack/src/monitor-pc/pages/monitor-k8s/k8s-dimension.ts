@@ -35,12 +35,19 @@ import {
 
 import type { K8sTableColumnResourceKey } from './components/k8s-table-new/k8s-table-new';
 
+export const sceneDimensionMap = {
+  [SceneEnum.Performance]: [
+    EDimensionKey.namespace,
+    EDimensionKey.workload,
+    EDimensionKey.pod,
+    EDimensionKey.container,
+  ],
+};
+
 /**
  * k8s维度列表基类
  */
 export abstract class K8sDimensionBase {
-  // 集群Id
-  public bcsClusterId = '';
   /** 搜索关键字 */
   public keyword = '';
   /** 所有的维度数据 */
@@ -50,31 +57,15 @@ export abstract class K8sDimensionBase {
   /** 分页数量 */
   public pageSize = 5;
   /** 分页类型 */
-  public pageType: K8sDimensionParams['pageType'] = 'traditional';
-  /** 场景 */
-  public scene: SceneEnum = SceneEnum.Performance;
+  public pageType: K8sDimensionParams['page_type'] = 'scrolling';
   /** 维度列表Key */
   // eslint-disable-next-line perfectionist/sort-classes
   abstract dimensionKey: string[];
 
   constructor(params: K8sDimensionParams) {
-    this.scene = params.scene;
     this.keyword = params.keyword;
-    this.pageSize = params.pageSize || 5;
-    this.pageType = params.pageType || 'traditional';
-    this.bcsClusterId = params.bcsClusterId || '';
-  }
-
-  public get commonParams() {
-    return {
-      scenario: this.scene,
-      bcs_cluster_id: this.bcsClusterId,
-      page_size: this.pageSize,
-      page_type: this.pageType,
-      query_string: this.keyword,
-      with_history: false,
-      filter_dict: {},
-    };
+    this.pageSize = params.pageSize;
+    this.pageType = params.page_type;
   }
 
   abstract get showDimensionData(): GroupListItem[];
@@ -90,11 +81,14 @@ export abstract class K8sDimensionBase {
  * k8s性能场景维度列表
  */
 export class K8sPerformanceDimension extends K8sDimensionBase {
+  commonParams: K8sDimensionParams = null;
+
   // /** 场景维度枚举 */
-  dimensionKey = [EDimensionKey.namespace, EDimensionKey.workload, EDimensionKey.pod, EDimensionKey.container];
+  dimensionKey = sceneDimensionMap[SceneEnum.Performance];
 
   constructor(params: K8sDimensionParams) {
     super(params);
+    this.commonParams = params;
     this.originDimensionData = this.dimensionKey.map(key => ({
       id: key,
       name: key,
@@ -199,7 +193,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
     this.pageMap = {};
     const pageMap = {};
     const workloadCategory = await workloadOverview({
-      bcs_cluster_id: this.bcsClusterId,
+      bcs_cluster_id: this.commonParams.bcs_cluster_id,
       query_string: this.keyword,
     }).catch(() => []);
 
