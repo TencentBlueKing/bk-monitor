@@ -191,6 +191,6 @@ module.exports = (baseConfig, { app, mobile, production, fta, email = false }) =
           })
         : plugin;
     }),
-    cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache,
+    cache: true,
   };
 };

@@ -95,7 +95,7 @@ export default class PopInstanceUtil {
     }
   }
 
-  onUnmounted() {
+  onBeforeUnmount() {
     this.resizeObserver?.disconnect();
   }
 
@@ -144,7 +144,7 @@ export default class PopInstanceUtil {
             return false;
           }
 
-          this.onUnmounted();
+          this.onBeforeUnmount();
         },
         ...(this.tippyOptions ?? {}),
       });

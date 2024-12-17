@@ -14,11 +14,10 @@
 
   import { ConditionOperator } from '@/store/condition-operator';
 
-  import $http from '../../../api';
-  import { deepClone } from '../../../common/util';
+  import $http from '@/api';
+  import { deepClone } from '@/common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-
   const props = defineProps({
     activeFavorite: {
       default: null,
@@ -91,6 +90,7 @@
   watch(clearSearchValueNum, () => {
     handleClearBtnClick();
   });
+
   const formatAddition = addition => {
     return addition.map(v => {
       const value = {
@@ -293,7 +293,7 @@
   // };
 </script>
 <template>
-  <div :class="['search-bar-container', { readonly: isChartMode }]">
+  <div :class="['search-bar-container', { readonly: isChartMode, 'is-fix-top': false }]">
     <div
       class="search-options"
       @click="handleQueryTypeChange"

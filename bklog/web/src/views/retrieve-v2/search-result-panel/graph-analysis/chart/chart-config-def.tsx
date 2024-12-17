@@ -128,7 +128,7 @@ export const lineOrBarOptions = {
     trigger: 'item',
     axisPointer: {
       type: 'cross',
-      snap: true ,
+      snap: true,
       label: {
         backgroundColor: '#6a7985',
       },
