@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-enums */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -57,6 +58,10 @@ export enum K8sTableColumnKeysEnum {
    */
   CLUSTER = 'cluster',
   /**
+   * @description: namespace - namespace
+   */
+  NAMESPACE = 'namespace',
+  /**
    * @description: container - 容器
    */
   CONTAINER = 'container',
@@ -68,10 +73,6 @@ export enum K8sTableColumnKeysEnum {
    * @description: internal_memory - 内存使用率
    */
   INTERNAL_MEMORY = 'internal_memory',
-  /**
-   * @description: namespace - namespace
-   */
-  NAMESPACE = 'namespace',
   /**
    * @description: pod - pod
    */

@@ -33,6 +33,7 @@ import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboa
 import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, type IK8SMetricItem } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
+import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 
 import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
@@ -64,7 +65,9 @@ export default class K8SCharts extends tsc<{
   panels: IPanelModel[] = [];
   loading = false;
   resourceMap: Map<K8sTableColumnKeysEnum, string> = new Map();
-  resourceLength = 0;
+  resourceList: Set<Record<K8sTableColumnKeysEnum, string>> = new Set();
+  sideDetailShow = false;
+  sideDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
   get groupByField() {
     return this.groupBy.at(-1) || K8sTableColumnKeysEnum.NAMESPACE;
   }
@@ -84,6 +87,18 @@ export default class K8SCharts extends tsc<{
   @Emit('drillDown')
   handleDrillDown(group: string) {
     return group;
+  }
+
+  @Provide('onShowDetail')
+  handleShowDetail(dimension: string) {
+    const item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
+    if (!item) return;
+    this.sideDetail = {
+      ...this.filterCommonParams,
+      ...item,
+      cluster: item.cluster || this.filterCommonParams?.bcs_cluster_id,
+    };
+    this.sideDetailShow = true;
   }
 
   created() {
@@ -142,9 +157,10 @@ export default class K8SCharts extends tsc<{
     this.loading = false;
   }
   createCommonPromqlMethod() {
-    return this.resourceLength > 1
-      ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
-      : '$method';
+    return `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`;
+    // return this.resourceLength > 1
+    //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
+    //   : '$method';
   }
   createCommonPromqlContent() {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
@@ -190,7 +206,7 @@ export default class K8SCharts extends tsc<{
     }
   }
   async getResourceList() {
-    const data = await listK8sResources({
+    const data: Array<Record<K8sTableColumnKeysEnum, string>> = await listK8sResources({
       ...this.filterCommonParams,
       with_history: false,
       page_size: 10,
@@ -199,7 +215,7 @@ export default class K8SCharts extends tsc<{
     })
       .then(data => {
         if (!data?.items?.length) return [];
-        return data.items.slice(0, 10);
+        return data.items;
       })
       .catch(() => []);
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([
@@ -215,7 +231,7 @@ export default class K8SCharts extends tsc<{
       const workload = new Set<string>();
       const workloadKind = new Set<string>();
       const namespace = new Set<string>();
-      for (const item of data) {
+      for (const item of data.slice(0, 10)) {
         item.container && container.add(item.container);
         item.pod && pod.add(item.pod);
         if (item.workload) {
@@ -231,7 +247,7 @@ export default class K8SCharts extends tsc<{
       resourceMap.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
       resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
     }
-    this.resourceLength = data.length;
+    this.resourceList = new Set(data);
     this.resourceMap = resourceMap;
   }
   updateViewOptions() {
@@ -305,6 +321,13 @@ export default class K8SCharts extends tsc<{
             panels={this.panels}
           />
         </div>
+        <K8sDetailSlider
+          isShow={this.sideDetailShow}
+          resourceDetail={this.sideDetail}
+          onShowChange={v => {
+            this.sideDetailShow = v;
+          }}
+        />
       </div>
     );
   }

@@ -1022,7 +1022,7 @@ class CallerLineChart extends CommonSimpleChart {
 
   render() {
     return (
-      <div class='k8s-custom-chart'>
+      <div class='apm-caller-line-chart'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}

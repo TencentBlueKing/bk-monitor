@@ -32,11 +32,8 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 import { K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import CommonDetail from '../common-detail';
 // import K8SCharts from '../k8s-charts/k8s-charts';
-import K8sTableNew from '../k8s-table-new/k8s-table-new';
 
-import type { K8sGroupDimension } from '../../k8s-dimension';
-import type { IFilterByItem } from '../filter-by-condition/utils';
-import type { K8sTableFilterByEvent, K8sTableColumnResourceKey, K8sTableRow } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableFilterByEvent, K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-detail-slider.scss';
@@ -49,18 +46,7 @@ export interface K8sDetailSliderActiveTitle {
 interface K8sDetailSliderProps {
   /** 抽屉页是否显示 */
   isShow?: boolean;
-  /** table表格数据 */
-  tableData: K8sTableRow[];
-  /** GroupBy 选择器选中数据类实例 */
-  groupInstance: K8sGroupDimension;
-  /** 筛选 Filter By 过滤项 */
-  filterBy: IFilterByItem[];
-  /** 当前选中tabel数据项索引 */
-  activeRowIndex: number;
-  /** 当前数据项标题 */
-  activeTitle: K8sDetailSliderActiveTitle;
-  /** 集群Id */
-  clusterId: string;
+  resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
@@ -72,19 +58,14 @@ interface K8sDetailSliderEvent {
 export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetailSliderEvent> {
   /** 抽屉页是否显示 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
-  /** table表格数据 */
-  @Prop({ type: Array, default: () => [] }) tableData: K8sTableRow[];
-  /** GroupBy 选择器选中数据类实例 */
-  @Prop({ type: Object }) groupInstance: K8sGroupDimension;
-  /** 筛选 Filter By 过滤项 */
-  @Prop({ type: Array, default: () => [] }) filterBy: IFilterByItem[];
-  /** 当前选中tabel数据项索引 */
-  @Prop({ type: Number }) activeRowIndex: number;
-  /** 当前数据项标题 */
-  @Prop({ type: Object }) activeTitle: K8sDetailSliderActiveTitle;
-  /** 集群 */
-  @Prop({ type: String }) clusterId: string;
 
+  @Prop({
+    type: Object,
+    default: () => ({
+      pod: 'bk-consul-1',
+    }),
+  })
+  resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>>;
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
     variables: {},
@@ -94,76 +75,21 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   loading = false;
   popoverInstance = null;
 
-  get filterParams() {
-    const field = this.activeTitle.field;
-    const groupItem = this.filterBy?.find?.(v => v.key === this.activeTitle.tag);
-    const filterIds = (groupItem?.value?.length && groupItem?.value.filter(v => v !== field)) || [];
-    const hasFilter = groupItem?.value?.length && filterIds?.length !== groupItem?.value?.length;
-    const param = hasFilter
-      ? {
-          icon: 'icon-sousuo-',
-          ids: filterIds,
-          btnText: '移除该筛选项',
-          btnTheme: 'primary',
-          textColorClass: '',
-        }
-      : {
-          icon: 'icon-a-sousuo',
-          ids: [...filterIds, field],
-          btnText: '添加为筛选项',
-          btnTheme: 'default',
-          textColorClass: 'is-default',
-        };
-    return {
-      hasFilter,
-      ...param,
-    };
+  get groupByField() {
+    if (this.resourceDetail.container) return K8sTableColumnKeysEnum.CONTAINER;
+    if (this.resourceDetail.pod) return K8sTableColumnKeysEnum.POD;
+    if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
+    return K8sTableColumnKeysEnum.NAMESPACE;
   }
 
   get showOperate() {
-    const { tag } = this.activeTitle;
-    const dimensions = this.groupInstance.dimensionsMap[tag];
-    return this.isShow && dimensions?.length;
+    return this.isShow && this.groupByField !== K8sTableColumnKeysEnum.CONTAINER;
   }
 
   @Watch('isShow')
-  handleResourceChange(v) {
+  handleResourceChange(v: boolean) {
     if (!v) return;
-    this.modifyApiOptions();
-  }
-
-  @Watch('activeTitle.tag')
-  handleActiveTitleTagChange(v) {
-    if (!v) return;
-    // @ts-ignore
-    this.viewOptions.resource_type = v;
-  }
-
-  @Watch('clusterId', { immediate: true })
-  handleClusterIdChange(v) {
-    if (!v) return;
-    // @ts-ignore
-    this.viewOptions[K8sTableColumnKeysEnum.CLUSTER] = v;
-  }
-
-  @Watch('activeRowIndex')
-  handleActiveRowIndexChange(v) {
-    if (v === -1) return;
-    const rowData = this.tableData[v];
-    const { tag } = this.activeTitle;
-    const viewOptions = {
-      ...this.viewOptions,
-      ...rowData,
-      filters: {},
-      variables: {},
-    };
-    if (tag === K8sTableColumnKeysEnum.WORKLOAD) {
-      // @ts-ignore
-      viewOptions.workload_name = K8sTableNew.getWorkloadValue(tag, 0)(rowData);
-      viewOptions.workload_type = K8sTableNew.getWorkloadValue(tag, 1)(rowData);
-    }
-
-    this.viewOptions = viewOptions;
+    this.updateDetailPanel();
   }
 
   @Emit('showChange')
@@ -178,61 +104,35 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
 
   @Emit('filterChange')
   filterChange() {
-    return {
-      groupId: this.activeTitle.tag,
-      ids: this.filterParams.ids,
-    };
+    // return {
+    //   groupId: this.activeTitle.tag,
+    //   ids: this.filterParams.ids,
+    // };
   }
 
-  /** 获取默认的详情接口配置 */
-  getDefaultApiOptions() {
-    return {
+  /** 更新 详情接口 配置 */
+  updateDetailPanel() {
+    const [workload_type, workload_name] = this.resourceDetail.workload?.split(':') || [];
+    this.panel = new PanelModel({
       targets: [
         {
           datasource: 'info',
           dataType: 'info',
           api: 'k8s.getResourceDetail',
-          data: {
-            bcs_cluster_id: `$${K8sTableColumnKeysEnum.CLUSTER}`,
-            namespace: `$${K8sTableColumnKeysEnum.NAMESPACE}`,
-            resource_type: '$resource_type',
-          },
+          data: Object.fromEntries(
+            Object.entries({
+              bcs_cluster_id: this.resourceDetail?.cluster,
+              namespace: this.resourceDetail?.namespace,
+              resource_type: this.groupByField,
+              workload_name: workload_name,
+              workload_type: workload_type,
+              pod_name: this.resourceDetail?.pod,
+              container_name: this.resourceDetail?.container,
+            }).filter(([, v]) => !!v)
+          ),
         },
       ],
-    };
-  }
-
-  /** 定义请求详情接口时所需要传的参数 */
-  defineApiDynamicParams() {
-    switch (this.activeTitle.tag) {
-      case K8sTableColumnKeysEnum.WORKLOAD:
-        return {
-          workload_name: '$workload_name',
-          workload_type: '$workload_type',
-        };
-      case K8sTableColumnKeysEnum.POD:
-        return {
-          pod_name: `$${K8sTableColumnKeysEnum.POD}`,
-        };
-      case K8sTableColumnKeysEnum.CONTAINER:
-        return {
-          pod_name: `$${K8sTableColumnKeysEnum.POD}`,
-          container_name: `$${K8sTableColumnKeysEnum.CONTAINER}`,
-        };
-      default:
-        return {};
-    }
-  }
-
-  /** 更新 详情接口 配置 */
-  modifyApiOptions() {
-    const apiOptions = this.getDefaultApiOptions();
-    const dynamicParam = this.defineApiDynamicParams();
-    apiOptions.targets[0].data = {
-      ...apiOptions.targets[0].data,
-      ...dynamicParam,
-    };
-    this.panel = new PanelModel(apiOptions);
+    });
   }
 
   /** 隐藏详情 */
@@ -245,27 +145,23 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     return (
       <div class='title-wrap'>
         <div class='title-left'>
-          <span class='title-tag'>{this.activeTitle.tag}</span>
-          <span class='title-value'> {this.activeTitle.field}</span>
-          <span
-            class='icon-monitor icon-copy-link title-icon'
-            v-bk-tooltips={{ content: '复制链接', placement: 'right' }}
-          />
+          <span class='title-tag'>{this.groupByField}</span>
+          <span class='title-value'> {this.resourceDetail[this.groupByField]}</span>
         </div>
         {this.showOperate ? (
           <div class='title-right'>
             <bk-button
-              class={['title-btn', this.filterParams.textColorClass]}
-              theme={this.filterParams.btnTheme}
+              class={['title-btn is-default']}
+              theme={'default'}
               onClick={this.filterChange}
             >
-              <span class={['icon-monitor', this.filterParams.icon]} />
-              <span class='title-btn-label'>{this.$t(this.filterParams.btnText)}</span>
+              <span class={['icon-monitor icon-a-sousuo']} />
+              <span class='title-btn-label'>{this.$t('添加为筛选项')}</span>
             </bk-button>
             <K8sDimensionDrillDown
-              dimension={this.activeTitle.tag}
+              dimension={this.groupByField}
               enableTip={false}
-              value={this.activeTitle.tag}
+              value={this.groupByField}
               onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
             >
               <bk-button

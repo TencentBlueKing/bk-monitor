@@ -149,7 +149,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return {
       ...this.commonParams,
       resource_type: this.groupInstance.groupFilters.at(-1),
-      filter_dict: this.filterBy,
+      filter_dict: Object.fromEntries(Object.entries(this.filterBy).filter(([, v]) => v?.length)),
       with_history: false,
     };
   }

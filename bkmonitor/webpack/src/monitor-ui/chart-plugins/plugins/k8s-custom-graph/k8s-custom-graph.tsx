@@ -111,6 +111,10 @@ class CallerLineChart extends CommonSimpleChart {
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string) => void;
+  @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
+    dimensions: Record<string, string>
+  ) => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
@@ -947,12 +951,14 @@ class CallerLineChart extends CommonSimpleChart {
                         style={{ color: item.show ? '#3a84ff' : '#ccc' }}
                         class='metric-name'
                         v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                        onClick={() => this.onShowDetail(item.name)}
                       >
                         {item.name}
                       </span>
                       <K8sDimensionDrillDown
                         dimension={'namespace'}
                         value={'namespace'}
+                        onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
                       />
                     </div>
                   ),
