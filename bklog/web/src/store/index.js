@@ -1170,7 +1170,6 @@ const store = new Vuex.Store({
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
                 : originLogList;
 
-              console.log('load table info');
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
               state.tookTime = payload.isPagination
                 ? state.tookTime + Number(data?.took || 0)
