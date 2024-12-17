@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import time
 from enum import Enum
 
-from celery import shared_task
+from celery.task import task
 from django.conf import settings
 from django.core.cache import caches
 from django.utils.functional import cached_property
@@ -109,12 +109,12 @@ def build_event_body(
     return [event_body_map]
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def update_application_config(application_id):
     Application.objects.get(application_id=application_id).refresh_config()
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
@@ -133,7 +133,7 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task finished")
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def report_apm_application_event(
     bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types: list = None
 ):
@@ -154,7 +154,7 @@ def report_apm_application_event(
     )
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task start")
 
@@ -168,7 +168,7 @@ def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task finished")
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, service_name: str):
     """
     :param key : 文件完整路径
@@ -188,7 +188,7 @@ def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, ser
     logger.info(f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), profile_id({profile_id})")
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def application_create_check():
     """
     每分钟检查异步创建的应用是否已经创建完成
@@ -204,7 +204,7 @@ def application_create_check():
         app.sync_datasource()
 
 
-@shared_task(ignore_result=True)
+@task(ignore_result=True)
 def cache_application_scope_name():
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
     if "redis" not in caches:
