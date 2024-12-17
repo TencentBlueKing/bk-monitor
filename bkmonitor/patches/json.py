@@ -34,7 +34,7 @@ else:
     __implements__ = ["load", "dump", "loads", "dumps"]
 
 
-logger = getLogger("json")
+logger = getLogger("bkmonitor")
 
 
 SAFE_OPTIONS = {
