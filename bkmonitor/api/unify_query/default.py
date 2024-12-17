@@ -216,6 +216,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     path = "/query/ts/info/{info_type}"
 
     class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
@@ -329,4 +330,5 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
