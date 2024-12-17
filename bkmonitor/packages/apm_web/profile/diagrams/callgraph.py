@@ -63,14 +63,16 @@ def multiline_printable_name(name, file_path=''):
 
 
 def build_edge_relation(node_list: List[FunctionNode]) -> list:
-    edges = []
+    edges = {}
     queue = deque(node_list)
     while queue:
         node = queue.popleft()
         for child in node.children:
-            edges.append({"source_id": node.id, "target_id": child.id, "value": child.value})
+            edge_key = (node.id, child.id)
+            edge_value = min(node.value, child.value)
+            edges.setdefault(edge_key, {"source_id": node.id, "target_id": child.id, "value": edge_value})
             queue.append(child)
-    return edges
+    return list(edges.values())
 
 
 def dot_color(score: float, is_back_ground: bool = False) -> str:
