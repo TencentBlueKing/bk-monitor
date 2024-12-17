@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref } from 'vue';
 
 import { parseTableRowData, formatDateNanos, formatDate, copyMessage } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -78,8 +78,9 @@ export default defineComponent({
     const refBoxElement: Ref<HTMLElement> = ref();
     // const rowUpdateCounter = ref(0);
     // 本地分页
-    const pageIndex = ref(1);
+    const pageIndex = ref(0);
     const pageSize = 50;
+    let tableList = [];
 
     const tableRowConfig = new WeakMap();
     const isPending = ref(true);
@@ -98,7 +99,6 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
-    const tableList = computed(() => indexSetQueryResult.value.list ?? []);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -109,7 +109,7 @@ export default defineComponent({
       return count;
     });
 
-    const hasMoreList = computed(() => totalCount.value > tableList.value.length);
+    const hasMoreList = computed(() => totalCount.value > tableList.length);
 
     const visibleIndexs = ref({ startIndex: 0, endIndex: 0 });
 
@@ -119,58 +119,9 @@ export default defineComponent({
     const resultContainerId = ref(uniqueId('result_container_key_'));
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
-    const sizes = ref([]);
-    const updateSizes = () => {
-      let accumulator = 0;
-      sizes.value = tableList.value.map(row => {
-        const rowConfig = tableRowConfig.get(row).value;
-        const current = rowConfig.minHeight;
-        accumulator += current;
-        return { accumulator: accumulator - current, size: current };
-      });
-    };
-
-    const debounceUpdateSizes = debounce(updateSizes, 90);
-
     const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
     });
-
-    const updateRowHeight = (rowIndex: number, target: HTMLElement) => {
-      const row = tableList.value[rowIndex];
-      const config = tableRowConfig.get(row).value;
-      if (!config || !target) {
-        return;
-      }
-
-      set(config, 'minHeight', target.offsetHeight);
-      const rowElement = target.querySelector('.bklog-list-row') as HTMLElement;
-      set(config, 'rowMinHeight', rowElement.offsetHeight);
-      debounceUpdateSizes();
-    };
-
-    const handleRowResize = (rowIndex, entry) => {
-      updateRowHeight(rowIndex, entry.target);
-    };
-
-    const $resizeObserver = new ResizeObserver(() => {
-      // requestAnimationFrame(() => {
-      //   if (!Array.isArray(entries)) {
-      //     return;
-      //   }
-      //   for (const entry of entries) {
-      //     if (entry.target) {
-      //       const index = entry.target.getAttribute('data-row-index');
-      //       if (index) {
-      //         updateRowHeight(parseInt(index), entry.target as HTMLElement);
-      //       }
-      //     }
-      //   }
-      // });
-    });
-
-    provide('vscrollResizeObserver', $resizeObserver);
-    provide('handleRowResize', handleRowResize);
 
     const renderColumns = computed(() => {
       return [
@@ -397,7 +348,7 @@ export default defineComponent({
 
     const updateTableRowConfig = (nextIdx = 0) => {
       for (let index = nextIdx; index < tableDataSize.value; index++) {
-        const nextRow = tableList.value[index];
+        const nextRow = tableList[index];
         if (!tableRowConfig.has(nextRow)) {
           const rowKey = `${ROW_KEY}_${index}`;
           tableRowConfig.set(
@@ -411,14 +362,6 @@ export default defineComponent({
         }
       }
     };
-
-    const totalSize = computed(() => {
-      if (sizes.value?.length) {
-        return sizes.value[sizes.value.length - 1].accumulator;
-      }
-
-      return 0;
-    });
 
     const expandOption = {
       render: ({ row }) => {
@@ -447,7 +390,12 @@ export default defineComponent({
 
     watch(
       () => [tableDataSize.value],
-      (_, oldVal) => {
+      (val, oldVal) => {
+        if (!val[0] || !oldVal[0]) {
+          tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
+          pageIndex.value = 1;
+        }
+
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
     );
@@ -506,18 +454,19 @@ export default defineComponent({
     };
 
     const viewList = computed(() => {
-      const endIdx = pageIndex.value * pageSize;
-      return tableList.value.slice(0, endIdx);
+      const endIdx = pageIndex.value * pageSize - 1;
+      const endIndex = endIdx > tableDataSize.value ? tableDataSize.value : endIdx;
+      return new Array(endIndex).fill('').map((_, index) => index);
     });
 
     const loadMoreTableData = () => {
       if (isRequesting.value) {
         return;
       }
-      if (totalCount.value > tableList.value.length) {
+      if (totalCount.value > tableList.length) {
         isRequesting.value = true;
 
-        if (pageIndex.value * pageSize < tableList.value.length) {
+        if (pageIndex.value * pageSize < tableList.length) {
           pageIndex.value++;
           debounceSetLoading();
           return;
@@ -526,6 +475,7 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(() => {
+            tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
             pageIndex.value++;
           })
           .finally(() => {
@@ -536,7 +486,7 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    const updateVisibleItems = (event, scrollTop, offsetTop) => {
+    const updateVisibleItems = debounce((event, scrollTop, offsetTop) => {
       if (!event?.target) {
         return;
       }
@@ -548,16 +498,14 @@ export default defineComponent({
       }
 
       rowsOffsetTop.value = useScrollHeight;
-    };
+    }, 120);
 
     const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
       if (isRequesting.value) {
         return;
       }
 
-      requestAnimationFrame(() => {
-        updateVisibleItems(event, scrollTop, offsetTop);
-      });
+      updateVisibleItems(event, scrollTop, offsetTop);
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -618,7 +566,7 @@ export default defineComponent({
     });
 
     const showHeader = computed(() => {
-      return props.contentType === 'table' && tableList.value.length > 0;
+      return props.contentType === 'table' && tableList.length > 0;
     });
 
     const renderHeadVNode = () => {
@@ -693,7 +641,8 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return viewList.value.map((row, rowIndex) => {
+      return viewList.value.map(rowIndex => {
+        const row = tableList[rowIndex];
         return (
           <RowRender
             class={[
@@ -728,7 +677,6 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
-        minHeight: `${totalSize.value}px`,
       };
     });
 
@@ -739,7 +687,7 @@ export default defineComponent({
             style={{ width: `${offsetWidth.value}px` }}
             v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
           >
-            {hasMoreList.value || tableList.value.length === 0 ? '' : `已加载所有数据`}
+            {hasMoreList.value || tableList.length === 0 ? '' : `已加载所有数据`}
           </div>
         </div>
       );
@@ -750,7 +698,7 @@ export default defineComponent({
     };
 
     const renderResultContainer = () => {
-      if (tableList.value.length) {
+      if (tableList.length) {
         return [
           renderHeadVNode(),
           <div
