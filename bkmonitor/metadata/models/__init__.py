@@ -88,11 +88,11 @@ from .storage import (
     BkDataStorage,
     ClusterInfo,
     ESStorage,
-    ESStorageClusterRecord,
     InfluxDBStorage,
     KafkaStorage,
     KafkaTopicInfo,
     RedisStorage,
+    StorageClusterRecord,
     StorageResultTable,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
@@ -129,7 +129,7 @@ __all__ = [
     "DownsampledContinuousQueries",
     "DownsampleByDateFlow",
     "ArgusStorage",
-    "ESStorageClusterRecord",
+    "StorageClusterRecord",
     # custom_report
     "EventGroup",
     "Event",

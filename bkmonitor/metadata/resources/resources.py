@@ -23,7 +23,7 @@ from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.query import QuerySet
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kafka import KafkaConsumer, TopicPartition
 from kubernetes import utils
 from rest_framework import serializers

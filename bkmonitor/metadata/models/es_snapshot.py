@@ -19,7 +19,7 @@ from django.db.models import Count, Sum
 from django.db.transaction import atomic, on_commit
 from django.forms import model_to_dict
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.time_tools import biz2utc_str
 from metadata import config

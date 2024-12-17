@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.dataflow.constant import VisualType
@@ -235,6 +235,7 @@ class QueryConfigSerializer(serializers.Serializer):
     """
 
     functions = serializers.ListField(label="计算函数", default=[])
+    intelligent_detect = serializers.DictField(label="智能监控配置", required=False)
 
     _config_field_names = None
 
@@ -261,7 +262,6 @@ class TimeSeriesQueryConfigSerializer(QueryConfigSerializer):
 
 class BkMonitorTimeSeriesSerializer(TimeSeriesQueryConfigSerializer):
     origin_config = serializers.DictField(label="原始配置", required=False)
-    intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
 
 
@@ -332,7 +332,6 @@ class BkDataTimeSeriesSerializer(QueryConfigSerializer):
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
     metric_field = serializers.CharField(label="指标")
     unit = serializers.CharField(label="单位", allow_blank=True, default="")
-    intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
     extend_fields = serializers.DictField(label="拓展字段", required=False)

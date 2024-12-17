@@ -33,7 +33,7 @@ from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
 from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pytz import timezone
 from tenacity import (
     RetryError,
@@ -664,11 +664,11 @@ class StorageResultTable(object):
                     self.table_id,
                     kwargs.get("storage_cluster_id"),
                 )
-                # 当集群发生迁移时，创建ESStorageClusterRecord记录
+                # 当集群发生迁移时，创建StorageClusterRecord记录
                 last_storage_cluster_id = self.storage_cluster_id
                 new_storage_cluster_id = kwargs.get("storage_cluster_id")
                 # 更新上一次集群记录，更新停止写入时间
-                record, _ = ESStorageClusterRecord.objects.update_or_create(
+                record, _ = StorageClusterRecord.objects.update_or_create(
                     table_id=self.table_id,
                     cluster_id=last_storage_cluster_id,
                     defaults={
@@ -682,7 +682,7 @@ class StorageResultTable(object):
                     record.cluster_id,
                 )
                 # 创建新纪录
-                new_record, _ = ESStorageClusterRecord.objects.update_or_create(
+                new_record, _ = StorageClusterRecord.objects.update_or_create(
                     table_id=self.table_id,
                     cluster_id=new_storage_cluster_id,
                     enable_time=django_timezone.now(),
@@ -2015,7 +2015,7 @@ class ESStorage(models.Model, StorageResultTable):
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 
-        storage_record, tag = ESStorageClusterRecord.objects.update_or_create(
+        storage_record, tag = StorageClusterRecord.objects.update_or_create(
             table_id=table_id,
             cluster_id=cluster_id,
             enable_time=django_timezone.now(),
@@ -4573,9 +4573,9 @@ class ArgusStorage(models.Model, StorageResultTable):
         pass
 
 
-class ESStorageClusterRecord(models.Model):
+class StorageClusterRecord(models.Model):
     """
-    采集项历史ES存储记录表
+    采集项历史存储记录表
     """
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")

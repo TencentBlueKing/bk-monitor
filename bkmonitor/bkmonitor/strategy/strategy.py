@@ -15,7 +15,7 @@ import logging
 from itertools import product
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import (

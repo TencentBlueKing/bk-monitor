@@ -12,7 +12,7 @@ import logging
 import time
 
 from celery.task import task
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import ActionConfig, AlertAssignGroup, AlertAssignRule
 from core.drf_resource import api, resource

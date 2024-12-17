@@ -13,7 +13,7 @@ from functools import lru_cache
 from typing import Dict, Optional
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.request import get_request
 from core.drf_resource import api

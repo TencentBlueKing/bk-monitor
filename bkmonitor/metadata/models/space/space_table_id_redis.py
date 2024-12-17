@@ -267,7 +267,7 @@ class SpaceTableIDRedis:
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
             try:
-                storage_record = models.ESStorageClusterRecord.compose_table_id_storage_cluster_records(tid)
+                storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", tid, e)
                 storage_record = []
@@ -600,6 +600,9 @@ class SpaceTableIDRedis:
         from_authorization: Optional[bool] = None,
         default_filters: Optional[List] = None,
     ) -> Dict:
+        logger.info(
+            "_push_bkcc_space_table_ids,start to _compose_data for space_type: %s, space_id: %s", space_type, space_id
+        )
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
             space_type,
@@ -643,10 +646,18 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label"],
-        )
+            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias"],
+        )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list, table_id_data_id)
+
+        # 获取结果表-业务ID过滤别名 字典
+        try:
+            bk_biz_id_alias_dict = {data["table_id"]: data["bk_biz_id_alias"] for data in _table_list}
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("_push_bkcc_space_table_ids: get bk_biz_id_alias error->[%s]", e)
+            bk_biz_id_alias_dict = {}
+
         # 获取空间所属的数据源 ID
         _space_data_ids = models.SpaceDataSource.objects.filter(
             space_type_id=space_type, space_id=space_id, from_authorization=False
@@ -676,6 +687,7 @@ class SpaceTableIDRedis:
                 continue
             _data_id_detail = data_id_detail.get(data_id)
             is_exist_space = data_id in _space_data_ids
+            bk_biz_id_alias = bk_biz_id_alias_dict.get(tid, '')  # 获取业务ID别名
             # 拼装过滤条件, 如果有指定，则按照指定数据设置过滤条件
             if default_filters:
                 _values[tid] = {"filters": default_filters}
@@ -684,7 +696,16 @@ class SpaceTableIDRedis:
                 if self._is_need_filter_for_bkcc(
                     measurement_type, space_type, space_id, _data_id_detail, is_exist_space
                 ):
-                    filters = [{"bk_biz_id": space_id}]
+                    bk_biz_id_key = "bk_biz_id"  # 默认按照业务ID过滤
+                    if bk_biz_id_alias:  # 若存在业务ID别名，按照别名组装过滤条件
+                        logger.info(
+                            "_push_bkcc_space_table_ids: table_id->[%s] got bk_biz_id_alias ->[%s]",
+                            tid,
+                            bk_biz_id_alias,
+                        )
+                        bk_biz_id_key = bk_biz_id_alias
+                    filters = [{bk_biz_id_key: space_id}]
+
                 _values[tid] = {"filters": filters}
 
         return _values

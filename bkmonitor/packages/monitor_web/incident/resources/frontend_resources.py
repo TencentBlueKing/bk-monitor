@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -448,26 +448,47 @@ class IncidentTopologyResource(IncidentBaseResource):
             if last_snapshot_content
             else {}
         )
-        for node in current["nodes"]:
-            if node["id"] not in last_nodes:
-                new_nodes.append(node)
-                complete_topologies["nodes"][node["id"]] = node
-            elif self.check_node_diff(node, last_nodes[node["id"]]):
-                new_nodes.append(node)
-                complete_topologies["nodes"][node["id"]] = node
-            elif node["id"] not in complete_topologies["nodes"]:
-                complete_topologies["nodes"][node["id"]] = node
 
-        for edge in current["edges"]:
-            edge_id = (edge["source"], edge["target"], edge["edge_type"])
+        # 找出所有在上一帧没有出现过的节点(边)或者出现过但是已经修改的节点(边)
+        for current_node in current["nodes"]:
+            if current_node["id"] not in last_nodes:
+                new_nodes.append(current_node)
+                complete_topologies["nodes"][current_node["id"]] = current_node
+            elif self.check_node_diff(current_node, last_nodes[current_node["id"]]):
+                new_nodes.append(current_node)
+                complete_topologies["nodes"][current_node["id"]] = current_node
+            elif current_node["id"] not in complete_topologies["nodes"]:
+                complete_topologies["nodes"][current_node["id"]] = current_node
+
+        for current_edge in current["edges"]:
+            edge_id = (current_edge["source"], current_edge["target"], current_edge["edge_type"])
             if edge_id not in last_edges:
-                new_edges.append(edge)
-                complete_topologies["edges"][edge_id] = edge
-            elif self.check_edge_diff(edge, last_edges[edge_id]):
-                new_edges.append(edge)
-                complete_topologies["edges"][edge_id] = edge
+                new_edges.append(current_edge)
+                complete_topologies["edges"][edge_id] = current_edge
+            elif self.check_edge_diff(current_edge, last_edges[edge_id]):
+                new_edges.append(current_edge)
+                complete_topologies["edges"][edge_id] = current_edge
             elif edge_id not in complete_topologies["edges"]:
-                complete_topologies["edges"][edge_id] = edge
+                complete_topologies["edges"][edge_id] = current_edge
+
+        # 找出所有在之前帧出现过，且未删除，但是在当前帧没有的节点(边)节点(边)
+        current_nodes = {node["id"]: node for node in current["nodes"]}
+        current_edges = {(edge["source"], edge["target"], edge["edge_type"]): edge for edge in current["edges"]}
+        for complete_node_id, complete_node in complete_topologies["nodes"].items():
+            if complete_node.get("is_deleted", False):
+                continue
+
+            if complete_node_id not in current_nodes:
+                complete_node["is_deleted"] = True
+                new_nodes.append(complete_node)
+
+        for complete_edge_id, complete_edge in complete_topologies["edges"].items():
+            if complete_edge.get("is_deleted", False):
+                continue
+
+            if complete_edge_id not in current_edges:
+                complete_edge["is_deleted"] = True
+                new_edges.append(complete_edge)
 
         return current, {
             "nodes": new_nodes,

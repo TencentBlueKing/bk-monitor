@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
 from bkmonitor.aiops.alert.utils import (

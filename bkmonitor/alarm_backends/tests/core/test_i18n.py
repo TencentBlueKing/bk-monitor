@@ -30,7 +30,7 @@ class TestI18n(object):
         assert i18n.get_locale() == "zh_Hans"
         assert i18n.get_timezone() == "Asia/Shanghai"
 
-        assert translation.ugettext("蓝鲸") == "蓝鲸"
+        assert translation.gettext("蓝鲸") == "蓝鲸"
 
         i18n.set_biz(2)
         assert i18n.get_locale() == "en"
@@ -38,7 +38,7 @@ class TestI18n(object):
         assert translation.get_language() == "en"
         assert timezone.get_current_timezone_name() == "Asia/Tokyo"
 
-        assert translation.ugettext("蓝鲸") == "BK"
+        assert translation.gettext("蓝鲸") == "BK"
 
         _business.language = "1"
         i18n.set_biz(2)
