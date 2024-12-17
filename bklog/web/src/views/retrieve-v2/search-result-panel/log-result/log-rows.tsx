@@ -403,7 +403,9 @@ export default defineComponent({
     watch(
       () => isLoading.value,
       () => {
-        isPending.value = false;
+        if (isLoading.value) {
+          isPending.value = false;
+        }
       },
     );
 
@@ -724,7 +726,7 @@ export default defineComponent({
           scene='part'
           type='search-empty'
         >
-          {isRequesting.value || isLoading.value || isPending ? 'loading...' : $t('检索结果为空')}
+          {isRequesting.value || isLoading.value || isPending.value ? 'loading...' : $t('检索结果为空')}
         </bk-exception>
       );
     };
