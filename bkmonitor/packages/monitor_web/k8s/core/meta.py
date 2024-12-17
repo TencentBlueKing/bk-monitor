@@ -126,7 +126,7 @@ class K8sResourceMeta(object):
         """
         return self.filter.filter_queryset
 
-    def get_from_promql(self, start_time, end_time, order_by=""):
+    def get_from_promql(self, start_time, end_time, order_by="", page_size=20):
         """
         数据获取来源
         TODO
@@ -143,7 +143,7 @@ class K8sResourceMeta(object):
                 {
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
-                    "promql": self.meta_prom_by_sort(order_by=order_by),
+                    "promql": self.meta_prom_by_sort(order_by=order_by, page_size=page_size),
                     "interval": get_interval_number(start_time, end_time, interval="auto"),
                     "alias": "result",
                 }

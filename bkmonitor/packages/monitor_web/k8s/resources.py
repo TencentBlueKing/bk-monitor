@@ -235,25 +235,25 @@ class ListK8SResources(Resource):
                 )
             )
 
-        # 获取过滤后从数据库中查询到的 queryset
-        # resource_meta_queryset = resource_meta.get_from_meta()
-
-        # 当 with_history = False 对返回结果进行分页查询
-        try:
-            if not with_history:
-                # 获取总的
+        # 当 with_history = False 对应左侧列表查询
+        if not with_history:
+            try:
                 count: int = resource_meta.get_from_meta().count()
                 resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
-
                 resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
-            else:
-                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
-        except FieldError:
-            resource_list = []
-        resource_id = [tuple(sorted(r.items())) for r in resource_list]
+            except FieldError:
+                count = 0
+                resource_list = []
+            return {"count": count, "items": resource_list}
 
         if with_history:
-            # 3.0 基于promql 查询历史上报数据
+            # 右侧列表查询
+            try:
+                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            except FieldError:
+                resource_list = []
+            resource_id = [tuple(sorted(r.items())) for r in resource_list]
+            # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
             history_resource_list = resource_meta.get_from_promql(
                 validated_request_data["start_time"], validated_request_data["end_time"]
             )
