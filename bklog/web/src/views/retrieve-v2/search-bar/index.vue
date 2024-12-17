@@ -15,9 +15,10 @@
   import { ConditionOperator } from '@/store/condition-operator';
 
   import $http from '../../../api';
-  import { deepClone } from '../../../common/util';
+  import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
+  import { bkMessage } from 'bk-magic-vue';
 
   const props = defineProps({
     activeFavorite: {
@@ -286,11 +287,32 @@
     } catch (error) {}
   };
 
-  // const handleCopyQueryValue = () => {
-  //   const { search_mode, keyword, addition } = store.getters.retrieveParams;
-  //   const copyValue = search_mode === 'sql' ? keyword : addition;
-  //   copyMessage(JSON.stringify(copyValue), '复制成功');
-  // };
+  const handleCopyQueryValue = async () => {
+    const { search_mode, keyword, addition } = store.getters.retrieveParams;
+    if (search_mode === 'ui') {
+      $http
+        .request('retrieve/generateQueryString', {
+          data: {
+            addition,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            copyMessage(res.data?.querystring || '', $t('复制成功'));
+          } else {
+            bkMessage({
+              theme: 'error',
+              message: $t('复制失败'),
+            });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    } else {
+      copyMessage(JSON.stringify(keyword), $t('复制成功'));
+    }
+  };
 </script>
 <template>
   <div :class="['search-bar-container', { readonly: isChartMode }]">
@@ -318,11 +340,11 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <!-- <div
+        <div
           v-bk-tooltips="'复制当前查询'"
           :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
           @click.stop="handleCopyQueryValue"
-        ></div> -->
+        ></div>
         <div
           v-bk-tooltips="'清理当前查询'"
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
