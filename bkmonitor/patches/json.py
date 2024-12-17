@@ -16,6 +16,8 @@ from json import load as json_load
 from json import loads as json_loads
 from logging import getLogger
 
+from django.utils.functional import Promise
+
 try:
     from django.core.files import File
 except ImportError:
@@ -54,15 +56,16 @@ class CustomJSONEncoder(JSONEncoder):
 
     def default(self, obj):
         type_ = type(obj)
-        if type_ in (set, bytes, AttrList, AttrDict):
-            if issubclass(type_, set):
-                return list(obj)
-            if issubclass(type_, bytes):
-                return obj.decode()
-            if AttrList and issubclass(type_, AttrList):
-                return list(obj)
-            if AttrDict and issubclass(type_, AttrDict):
-                return obj.to_dict()
+        if issubclass(type_, set):
+            return list(obj)
+        if issubclass(type_, bytes):
+            return obj.decode()
+        if AttrList and issubclass(type_, AttrList):
+            return list(obj)
+        if AttrDict and issubclass(type_, AttrDict):
+            return obj.to_dict()
+        if issubclass(type_, Promise):
+            return str(obj)
         return JSONEncoder.default(self, obj)
 
 
