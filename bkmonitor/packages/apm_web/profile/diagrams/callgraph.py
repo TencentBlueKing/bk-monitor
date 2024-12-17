@@ -155,9 +155,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
         node_name = multiline_printable_name(node["name"])
-        title = (
-            f"""{node_name} {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})"""
-        )
+        title = f"""{node_name} {display(node["self"], unit)} of {display(node["value"], unit)} ({ratio_str})"""
         node_color = dot_color(score=ratio, is_back_ground=True)
         background_color = dot_color(score=ratio, is_back_ground=False)
         width, height = calculate_node_size(ratio)
