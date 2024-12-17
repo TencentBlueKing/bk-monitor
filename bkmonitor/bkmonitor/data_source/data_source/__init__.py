@@ -879,8 +879,11 @@ class TimeSeriesDataSource(DataSource):
             if operator in ["include", "exclude"]:
                 value = [re.escape(v) for v in value]
             conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator})
+        for con in conditions["field_list"]:
+            if None in con["value"]:
+                con["value"].remove(None)
+                con["value"].append("")
 
-        # 聚合方法参数
         query_list = []
         for metric in self.metrics:
             if self.data_source_label == DataSourceLabel.BK_DATA:
