@@ -536,7 +536,7 @@ class ApplicationConfig(BkCollectorConfig):
                     return _sec
 
         gzip_content = gzip.compress(application_config.encode())
-        b64_content = base64.b64encode(gzip_content)
+        b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
         namespace = ClusterConfig.bk_collector_namespace(cluster_id)
