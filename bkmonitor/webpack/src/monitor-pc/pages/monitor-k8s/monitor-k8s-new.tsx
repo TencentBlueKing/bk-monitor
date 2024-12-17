@@ -351,7 +351,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   handleFilterByChange(v) {
-    this.filterBy = v;
+    this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
+      if (v[cur]) {
+        pre[cur] = v[cur];
+      } else {
+        pre[cur] = [];
+      }
+      return pre;
+    }, {});
   }
 
   getRouteParams() {

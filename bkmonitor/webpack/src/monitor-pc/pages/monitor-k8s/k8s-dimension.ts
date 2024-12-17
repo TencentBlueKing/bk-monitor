@@ -157,7 +157,6 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
         data.items.map(item => this.formatData(resource_type, item))
       );
     }
-    console.log(this.originDimensionData, data, this.commonParams);
     this.originDimensionData = [...this.originDimensionData];
   }
 
