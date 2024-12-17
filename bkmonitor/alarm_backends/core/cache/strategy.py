@@ -739,7 +739,7 @@ class StrategyCacheManager(CacheManager):
         bk_biz_ids = {strategy["bk_biz_id"] for strategy in strategies}
         if partial is None:
             # 全量刷新
-            return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(bk_biz_ids), cls.CACHE_TIMEOUT)
+            return cls.cache.set(cls.BK_BIZ_IDS_CACHE_KEY, json.dumps(list(bk_biz_ids)), cls.CACHE_TIMEOUT)
 
         # 增量刷新
         old_bk_biz_ids = cls.get_all_bk_biz_ids()
