@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import traceback
 from json import JSONEncoder
 from json import dump as json_dump
 from json import dumps as json_dumps
@@ -86,7 +87,7 @@ def dump(*args, **kwargs):
             kwargs.pop("escape_forward_slashes")
         except TypeError:
             kwargs.pop("escape_forward_slashes")
-            logger.exception("ujson dump error")
+            logger.error("ujson dump error: %s" % traceback.format_exc())
             return json_dump(*args, cls=CustomJSONEncoder, **kwargs)
 
     return json_dump(*args, **kwargs)
@@ -118,7 +119,7 @@ def dumps(*args, **kwargs):
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
         except TypeError:
-            logger.exception("ujson dumps error")
+            logger.error("ujson dumps error: %s" % traceback.format_exc())
             kwargs.pop("escape_forward_slashes")
             return json_dumps(*args, cls=CustomJSONEncoder, **kwargs)
     return json_dumps(*args, **kwargs)
