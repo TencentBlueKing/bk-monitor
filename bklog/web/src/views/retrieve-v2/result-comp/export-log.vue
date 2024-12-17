@@ -264,7 +264,7 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
-        documentType: 'txt',
+        documentType: 'log',
         documentTypeList: [
           // {
           //   id: 'csv',
