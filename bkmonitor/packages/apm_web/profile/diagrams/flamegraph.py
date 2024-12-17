@@ -18,16 +18,6 @@ from apm_web.profile.diagrams.tree_converter import TreeConverter
 logger = logging.getLogger("apm")
 
 
-def function_node_to_element(function_node: FunctionNode) -> dict:
-    return {
-        "id": function_node.id,
-        "name": function_node.name,
-        "value": function_node.value,
-        "self": function_node.self_time,
-        "children": [function_node_to_element(child) for child in function_node.children],
-    }
-
-
 def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
     return {
         **diff_node.default.to_dict(),
@@ -39,8 +29,34 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 @dataclass
 class FlamegraphDiagrammer:
     def draw(self, c: TreeConverter, **_) -> dict:
+        visited_node = {c.tree.root.id}
+
+        def function_node_to_element(function_node: FunctionNode) -> dict:
+            children_elements = []
+            for child in function_node.children:
+                if child.id in visited_node:
+                    continue
+
+                visited_node.add(child.id)
+                element = function_node_to_element(child)
+                if element:
+                    children_elements.append(element)
+
+            if children_elements:
+                return {
+                    "id": function_node.id,
+                    "name": function_node.name,
+                    "value": function_node.value,
+                    "self": function_node.self_time,
+                    "children": children_elements,
+                }
+
         root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
         for r in c.tree.root.children:
+            if r.id in visited_node:
+                continue
+
+            visited_node.add(r.id)
             root["children"].append(function_node_to_element(r))
 
         return {"flame_data": root}
