@@ -28,35 +28,32 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { K8sPerformanceDimension } from '../../k8s-dimension';
-import { EDimensionKey, type GroupListItem, type SceneEnum } from '../../typings/k8s-new';
+import { EDimensionKey, type ICommonParams, type GroupListItem } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
 import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
-import type { IFilterByItem } from '../filter-by-condition/utils';
 
 import './k8s-dimension-list.scss';
 
 interface K8sDimensionListProps {
-  scene: SceneEnum;
-  filterBy: IFilterByItem[];
   groupBy: string[];
-  clusterId: string;
+  filterBy: Record<string, string[]>;
+  commonParams: ICommonParams;
 }
 
 interface K8sDimensionListEvents {
-  onFilterByChange: (val: { ids: string[]; groupId: string }) => void;
-  onDrillDown: (val: { filterBy: { key: string; value: string[] }; groupId: string }) => void;
-  onGroupByChange: (val: { groupId: string; isSelect: boolean }) => void;
+  onFilterByChange: (id: string, dimensionId: string, isSelect: boolean) => void;
+  onDrillDown: (filterById: string, filterByDimension: string, drillDownDimension: string) => void;
+  onGroupByChange: (groupId: string, isSelect: boolean) => void;
+  onClearFilterBy: (dimensionId: string) => void;
+  onDimensionTotal: (val: Record<string, number>) => void;
 }
 
 @Component
 export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDimensionListEvents> {
-  @Prop({ type: Array, default: () => [] }) filterBy: any;
-  @Prop({ type: String }) scene: SceneEnum;
-  @Prop({ type: String, required: true }) clusterId: string;
+  @Prop({ type: Object, required: true }) commonParams: ICommonParams;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
-  @InjectReactive('formatTimeRange') readonly formatTimeRange!: TimeRangeType;
+  @Prop({ type: Array, default: () => ({}) }) filterBy: string[];
   @InjectReactive('timezone') readonly timezone!: string;
   @InjectReactive('refleshInterval') readonly refreshInterval!: number;
   @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
@@ -66,10 +63,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   searchValue = '';
   /** 已选择filterBy列表 */
   showDimensionList: GroupListItem[] = [];
-  /** 已选择的groupBy列表 */
-  groupByList = [];
-  /** 已选择的检索 */
-  localFilterBy = {};
   /** 下钻弹窗列表 */
   drillDownList = [];
 
@@ -80,13 +73,22 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 加载更多loading */
   loadMoreLoading = {};
 
-  @Watch('scene')
-  handleSceneChange() {
-    this.init();
+  get localCommonParams() {
+    return {
+      ...this.commonParams,
+      filter_dict: {},
+    };
   }
 
-  @Watch('clusterId')
-  handleClusterIdChange() {
+  get dimensionTotal() {
+    return this.showDimensionList.reduce((pre, cur) => {
+      pre[cur.id] = cur.count;
+      return pre;
+    }, {});
+  }
+
+  @Watch('localCommonParams')
+  handleCommonParamsChange() {
     this.init();
   }
 
@@ -95,9 +97,9 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.init();
   }
 
-  @Watch('formatTimeRange')
-  handleFormatTimeRangeChange() {
-    this.init();
+  @Watch('dimensionTotal')
+  handleDimensionTotalChange() {
+    this.$emit('dimensionTotal', this.dimensionTotal);
   }
 
   mounted() {
@@ -105,19 +107,16 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   async init() {
-    if (!this.clusterId) return;
+    if (!this.localCommonParams.bcs_cluster_id) return;
     const dimension = new K8sPerformanceDimension({
-      scene: this.scene,
+      ...this.localCommonParams,
       keyword: this.searchValue,
-      bcsClusterId: this.clusterId,
-      pageType: 'scrolling',
+      pageSize: 5,
+      page_type: 'scrolling',
     });
     (this as any).dimension = dimension;
     this.loading = true;
-    await dimension.init({
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
-    });
+    await dimension.init();
     this.loading = false;
     this.showDimensionList = dimension.showDimensionData;
     this.initLoading(this.showDimensionList);
@@ -133,84 +132,33 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     }
   }
 
-  @Watch('filterBy', { immediate: true })
-  handleFilterByChange(val: IFilterByItem[]) {
-    Object.keys(this.localFilterBy).map(key => {
-      this.localFilterBy[key] = [];
-    });
-    if (val.length) {
-      val.map(item => {
-        this.$set(this.localFilterBy, item.key, item.value);
-      });
-    }
-  }
-
-  @Watch('groupBy', { immediate: true })
-  watchGroupByChange(val: string[]) {
-    this.groupByList = val;
-  }
-
   /** 搜索 */
   async handleSearch(val: string) {
     this.searchValue = val;
     this.loading = true;
-    await (this as any).dimension.search(val, {
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
-    });
+    await (this as any).dimension.search(val);
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loading = false;
   }
 
   /** 检索 */
   @Emit('filterByChange')
-  handleGroupSearch(id: string, groupId: string) {
-    if (!id)
-      return {
-        ids: [],
-        groupId,
-      };
-
-    let ids = [...(this.localFilterBy[groupId] || [])];
-    if (groupId === EDimensionKey.workload) {
-      ids = [id];
-    } else if (!ids.includes(id)) {
-      ids.push(id);
-    } else {
-      ids = ids.filter(item => item !== id);
-    }
-
-    return {
-      ids,
-      groupId,
-    };
+  handleGroupSearch({ id, isSelect }, dimension: string) {
+    this.$emit('filterByChange', id, dimension, isSelect);
   }
 
-  /** 下钻 */
-  @Emit('drillDown')
-  handleDrillDown({ id, dimension }, groupId: string) {
-    let ids = [...(this.localFilterBy[groupId] || [])];
-    if (groupId === EDimensionKey.workload) {
-      ids = [id];
-    } else if (!ids.includes(id)) {
-      ids.push(id);
-    }
-    return {
-      filterBy: {
-        key: groupId,
-        value: ids,
-      },
-      groupId: dimension,
-    };
+  /**
+   * 下钻
+   * @param param0  下钻id 和下钻维度
+   * @param drillDownId
+   */
+  handleDrillDown({ id, drillDownDimension }, dimension: string) {
+    this.$emit('drillDown', id, dimension, drillDownDimension);
   }
 
   /** 修改groupBy */
-  @Emit('groupByChange')
-  handleGroupByChange(val: boolean, groupId: string) {
-    return {
-      groupId,
-      isSelect: val,
-    };
+  handleGroupByChange(isSelect: boolean, groupId: string) {
+    this.$emit('groupByChange', groupId, isSelect);
   }
 
   /** 首次展开workload的二级菜单后，请求数据 */
@@ -221,8 +169,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
         filter_dict: {
           workload: `${dimension}:`,
         },
-        start_time: this.formatTimeRange[0],
-        end_time: this.formatTimeRange[1],
       });
       this.showDimensionList = (this as any).dimension.showDimensionData;
       this.expandLoading[dimension] = false;
@@ -232,10 +178,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 加载更多 */
   async handleMoreClick(dimension, parentDimension) {
     this.loadMoreLoading[dimension] = true;
-    await (this as any).dimension.loadNextPageData([parentDimension, dimension], {
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
-    });
+    await (this as any).dimension.loadNextPageData([parentDimension, dimension]);
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loadMoreLoading[dimension] = false;
   }
@@ -256,6 +199,11 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     if (type === 'clear-filter') {
       this.handleSearch('');
     }
+  }
+
+  @Emit('clearFilterBy')
+  handleClear(dimension: string) {
+    return dimension;
   }
 
   render() {
@@ -281,11 +229,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
                   defaultExpand={index === 0}
                   drillDownList={this.drillDownList}
                   expandLoading={this.expandLoading}
-                  isGroupBy={this.groupByList.includes(group.id)}
+                  isGroupBy={this.groupBy.includes(group.id)}
                   list={group}
                   loadMoreLoading={this.loadMoreLoading}
                   tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
-                  value={this.localFilterBy[group.id]}
+                  value={this.filterBy[group.id]}
+                  onClear={() => this.handleClear(group.id)}
                   onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
                   onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
                   onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
