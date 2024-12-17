@@ -572,6 +572,7 @@ export default defineComponent({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
+
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();

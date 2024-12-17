@@ -29,9 +29,7 @@ import { getTargetElement } from './hooks-helper';
 
 export default ({ target, callback }) => {
   const throttleCallback = (e: WheelEvent) => {
-    requestAnimationFrame(() => {
-      callback?.(e);
-    });
+    callback?.(e);
   };
 
   onMounted(() => {
