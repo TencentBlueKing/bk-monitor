@@ -11,7 +11,7 @@
       &.is-show {
         position: sticky;
         top: var(--offset-search-bar);
-        z-index: 2;
+        z-index: 3;
         align-self: start;
       }
     }
