@@ -249,9 +249,10 @@ class CallerLineChart extends CommonSimpleChart {
                 res.series &&
                   series.push(
                     ...res.series.map(set => {
-                      const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
-                        this.handleSeriesName(item, set) || set.target
-                      }`;
+                      const name =
+                        `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
+                          this.handleSeriesName(item, set) || set.target
+                        }`.replace(/\|/gim, ':');
                       this.legendSorts.push({
                         name: name,
                         timeShift: timeShift,

@@ -91,7 +91,15 @@ export default class K8SCharts extends tsc<{
 
   @Provide('onShowDetail')
   handleShowDetail(dimension: string) {
-    const item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
+    let item: Record<K8sTableColumnKeysEnum, string>;
+    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+      const [container, pod] = dimension.split(':');
+      item = Array.from(this.resourceList).find(
+        item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container
+      );
+    } else {
+      item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
+    }
     if (!item) return;
     this.sideDetail = {
       ...this.filterCommonParams,
@@ -157,6 +165,7 @@ export default class K8SCharts extends tsc<{
     this.loading = false;
   }
   createCommonPromqlMethod() {
+    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) return '$method by(pod_name,container_name)';
     return `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`;
     // return this.resourceLength > 1
     //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
@@ -166,20 +175,20 @@ export default class K8SCharts extends tsc<{
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
     const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE);
     if (namespace.length > 2) {
-      content += `,namespace=~"${namespace}"`;
+      content += `,namespace=~"^(${namespace})$"`;
     }
     switch (this.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-        content += `,container_name=~"${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)}"`;
-        break;
+      // content += `,container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+      // break;
       case K8sTableColumnKeysEnum.POD:
-        content += `,pod_name=~"${this.resourceMap.get(K8sTableColumnKeysEnum.POD)}"`;
+        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name!="POD"`;
         break;
       case K8sTableColumnKeysEnum.WORKLOAD:
-        content += `,workload_kind=~"${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_TYPE)}",workload_name=~"${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)}"`;
+        content += `,workload_kind=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_TYPE)})$",workload_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
         break;
       default:
-        content += `,namespace=~"${namespace}"`;
+        content += '';
     }
     return content;
   }
@@ -208,7 +217,7 @@ export default class K8SCharts extends tsc<{
   async getResourceList() {
     const data: Array<Record<K8sTableColumnKeysEnum, string>> = await listK8sResources({
       ...this.filterCommonParams,
-      with_history: false,
+      with_history: true,
       page_size: 10,
       page: 1,
       page_type: 'scrolling',
@@ -231,7 +240,8 @@ export default class K8SCharts extends tsc<{
       const workload = new Set<string>();
       const workloadKind = new Set<string>();
       const namespace = new Set<string>();
-      for (const item of data.slice(0, 10)) {
+      const list = data.slice(0, 10);
+      for (const item of list) {
         item.container && container.add(item.container);
         item.pod && pod.add(item.pod);
         if (item.workload) {
