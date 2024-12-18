@@ -25,6 +25,9 @@ class Config:
     result_serializer = "pickle"
     accept_content = ["pickle"]
 
+    # 如果是 API 服务，celery 任务不进行异步执行
+    task_always_eager = True if settings.ROLE == "api" else False
+
     timezone = "Asia/Shanghai"
 
     schedule = {
