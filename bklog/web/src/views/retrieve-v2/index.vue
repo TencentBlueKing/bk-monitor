@@ -173,11 +173,13 @@
   );
 
   const debounceUpdateTabValue = debounce(() => {
+    const isClustering = activeTab.value === 'clustering';
     router.replace({
       params: { ...(route.params ?? {}) },
       query: {
         ...(route.query ?? {}),
         tab: activeTab.value,
+        ...(isClustering ? {} : { clusterParams: undefined }),
       },
     });
   }, 60);

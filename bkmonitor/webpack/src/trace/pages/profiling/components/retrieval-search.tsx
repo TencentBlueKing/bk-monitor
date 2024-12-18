@@ -100,6 +100,7 @@ export default defineComponent({
       () => toolsFormData.value.timeRange,
       () => {
         getApplicationList();
+        getLabelList();
       }
     );
 

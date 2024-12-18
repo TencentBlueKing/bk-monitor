@@ -232,8 +232,8 @@ export default defineComponent({
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;
     const labelDetail = `${displayServiceName}::${displayOperationName}`;
-    let longLabel;
-    let hintSide;
+    let longLabel: string;
+    let hintSide: string;
     if (viewStart && viewEnd && viewStart > 1 - viewEnd) {
       longLabel = `${labelDetail}${label ? ` | ${label}` : ''}`;
       hintSide = 'left';
@@ -340,7 +340,7 @@ export default defineComponent({
                       this.ellipsisDirection === 'rtl' ? 'is-rtl' : ''
                     }`}
                   >
-                    {displayServiceName}{' '}
+                    <span class={isHaveRead ? 'read-service' : ''}>{displayServiceName}</span>{' '}
                     {rpc && (
                       <span>
                         <img

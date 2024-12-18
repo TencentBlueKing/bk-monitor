@@ -16,7 +16,11 @@ from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.backends.base.compiler import SQLCompiler
 from bkmonitor.data_source.backends.base.connection import BaseDatabaseConnection
 from bkmonitor.data_source.backends.base.operations import BaseDatabaseOperations
-from bkmonitor.data_source.data_source import DataSource, q_to_dict
+from bkmonitor.data_source.data_source import (
+    DataSource,
+    filter_dict_to_conditions,
+    q_to_dict,
+)
 from bkmonitor.data_source.models.query import (
     BaseDataQuery,
     DslMixin,
@@ -168,6 +172,8 @@ class QueryHelper:
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
+            # 业务层处理鉴权（读取 requests 的空间信息），底层模块无需额外增加鉴权信息，确保在后台使用不会抛出无权限
+            space_uid=None,
         )
 
         values_list: List[List[str]] = []
@@ -355,7 +361,36 @@ class UnifyQueryConfig:
         return connection.ops.compiler(self.compiler)(self, connection, using)
 
 
-class UnifyQuerySet(IterMixin):
+class CompilerMixin:
+    @property
+    def query_config(self):
+        """导出数据查询配置"""
+        compiler = self.query.get_compiler(using=self.using)
+        __, params = compiler.as_sql()
+        query_configs: List[Dict[str, Any]] = []
+        for query_config in params["query_configs"]:
+            query_configs.append(
+                {
+                    "data_source_label": query_config["data_source_label"],
+                    "data_type_label": query_config["data_type_label"],
+                    "agg_condition": filter_dict_to_conditions(query_config["filter_dict"], []),
+                    "agg_dimension": query_config["group_by"],
+                    "agg_interval": query_config["interval"],
+                    "agg_method": query_config["metrics"][0]["method"],
+                    "alias": query_config["metrics"][0]["alias"],
+                    "functions": [function for function in query_config["functions"] if function["id"] != "time_shift"],
+                    "metric_field": query_config["metrics"][0]["field"],
+                    "result_table_id": query_config["table"],
+                    "name": query_config["metrics"][0]["field"],
+                    "unit": "",
+                }
+            )
+
+        conf = {"expression": params["expression"], "query_configs": query_configs, "functions": []}
+        return conf
+
+
+class UnifyQuerySet(IterMixin, CompilerMixin):
     def __init__(self, query: UnifyQueryConfig = None):
         self.using = None
         self._result_cache = None

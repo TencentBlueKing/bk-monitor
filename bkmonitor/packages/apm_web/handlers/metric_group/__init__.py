@@ -12,7 +12,16 @@ specific language governing permissions and limitations under the License.
 
 from .base import BaseMetricGroup, MetricGroupRegistry
 from .define import CalculationType, GroupEnum
+from .groups.resource import ResourceMetricGroup
 from .groups.trpc import TrpcMetricGroup
 from .helper import MetricHelper
 
-__all__ = [MetricGroupRegistry, TrpcMetricGroup, GroupEnum, CalculationType, MetricHelper, BaseMetricGroup]
+__all__ = [
+    MetricGroupRegistry,
+    ResourceMetricGroup,
+    TrpcMetricGroup,
+    GroupEnum,
+    CalculationType,
+    MetricHelper,
+    BaseMetricGroup,
+]
