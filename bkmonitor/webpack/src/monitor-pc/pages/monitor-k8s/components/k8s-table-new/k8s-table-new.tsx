@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit, Watch, InjectReactive } from 'vue-property-decorator';
+import { Prop, Component, Emit, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -118,8 +118,6 @@ interface K8sTableNewProps {
   hideMetrics: string[];
 }
 interface K8sTableNewEvent {
-  onFilterChange: (id: K8sTableColumnResourceKey, dimensionId: string, isSelect: boolean) => void;
-  onGroupChange: (item: K8sTableGroupByEvent, showCancelDrill: boolean) => void;
   onClearSearch: () => void;
 }
 
@@ -177,6 +175,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @InjectReactive('refleshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
+  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
+    id: string,
+    groupId: K8sTableColumnResourceKey,
+    isSelect: boolean
+  ) => void;
+
+  @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
+    item: K8sTableGroupByEvent,
+    showCancelDrill?: boolean
+  ) => void;
 
   tableLoading = {
     /** table 骨架屏 loading */
@@ -281,6 +289,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Watch('groupInstance.groupFilters')
   onGroupFiltersChange() {
     if (!this.isListTab) return;
+    this.tableLoading.loading = true;
     this.getK8sList({ needRefresh: true });
   }
   @Watch('filterCommonParams', { immediate: true })
@@ -301,25 +310,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Emit('clearSearch')
   clearSearch() {
     return {};
-  }
-
-  /**
-   * @description 下钻 按钮点击回调
-   * @param {K8sTableGroupByEvent} tableGroupByEvent  下转按钮事件对象
-   * @param showCancelDrill 是否展示顶部栏 取消下钻按钮
-   */
-  groupChange(tableGroupByEvent: K8sTableGroupByEvent, showCancelDrill = false) {
-    this.$emit('groupChange', tableGroupByEvent, showCancelDrill);
-  }
-
-  /**
-   * @description 添加筛选/移除筛选 按钮点击回调
-   * @param id 数据Id
-   * @param groupId 维度Id
-   * @param isSelect 是否选中
-   */
-  filterChange(id: string, groupId: K8sTableColumnResourceKey, isSelect: boolean) {
-    this.$emit('filterChange', id, groupId, isSelect);
   }
 
   created() {
@@ -634,25 +624,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   /**
-   * @description 抽屉页 下钻 按钮点击回调
-   */
-  handleSliderGroupChange(tableGroupByEvent: K8sTableGroupByEvent) {
-    this.groupChange(tableGroupByEvent, true);
-    this.handleSliderChange(false);
-  }
-
-  /**
-   * @description 抽屉页 添加筛选/移除筛选 按钮点击回调
-   * @param id 数据Id
-   * @param groupId 维度Id
-   * @param isSelect 是否选中
-   */
-  handleSliderFilterChange(id: string, groupId: K8sTableColumnResourceKey) {
-    this.filterChange(id, groupId, true);
-    this.handleSliderChange(false);
-  }
-
-  /**
    * @description 表格列 filter icon 渲染配置方法
    * @param {K8sTableRow} row
    * @param {K8sTableColumn} column
@@ -672,7 +643,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         <i
           class={['icon-monitor', ...elAttr.className]}
           v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
-          onClick={() => this.filterChange(resourceValue, column.id, !hasFilter)}
+          onClick={() => this.onFilterChange(resourceValue, column.id, !hasFilter)}
         />
       );
     }
@@ -693,7 +664,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       <K8sDimensionDrillDown
         dimension={column.id}
         value={column.id}
-        onHandleDrillDown={v => this.groupChange({ ...(v as DrillDownEvent), filterById })}
+        onHandleDrillDown={v => this.onDrillDown({ ...(v as DrillDownEvent), filterById })}
       />
     );
   }
@@ -847,8 +818,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           isShow={this.sliderShow}
           metricList={this.metricList}
           resourceDetail={this.resourceDetail}
-          onFilterChange={this.handleSliderFilterChange}
-          onGroupChange={this.handleSliderGroupChange}
           onShowChange={this.handleSliderChange}
         />
       </div>
