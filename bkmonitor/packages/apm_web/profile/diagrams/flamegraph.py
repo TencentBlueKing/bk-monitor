@@ -39,17 +39,15 @@ class FlamegraphDiagrammer:
 
                 visited_node.add(child.id)
                 element = function_node_to_element(child)
-                if element:
-                    children_elements.append(element)
+                children_elements.append(element)
 
-            if children_elements:
-                return {
-                    "id": function_node.id,
-                    "name": function_node.name,
-                    "value": function_node.value,
-                    "self": function_node.self_time,
-                    "children": children_elements,
-                }
+            return {
+                "id": function_node.id,
+                "name": function_node.name,
+                "value": function_node.value,
+                "self": function_node.self_time,
+                "children": children_elements,
+            }
 
         root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
         for r in c.tree.root.children:
