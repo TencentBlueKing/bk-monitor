@@ -228,18 +228,17 @@ export default class LogFilter extends tsc<object> {
         return;
       }
       let isCanSubmit = true;
-      const container = this.$refs.filterTableRef as any;
 
       for (const fIndex in this.filterData) {
+        const container = this.$refs[`filterTableRef-${fIndex}`] as any;
         for (const iIndex in this.filterData[fIndex]) {
           let matchNotError = true;
 
           // 字符串类型过滤暂时无过滤参数（全文）
           if (this.activeType === 'separator') {
-            matchNotError = await (container?.$refs[`match-${fIndex}-${iIndex}`] as Form)?.validate();
+            matchNotError = await (container?.$refs[`match-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
           }
-          const valueNotError = await (container?.$refs[`value-${fIndex}-${iIndex}`] as Form)?.validate();
-
+          const valueNotError = await (container?.$refs[`value-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
           if (isCanSubmit) isCanSubmit = matchNotError && valueNotError;
         }
       }
@@ -328,30 +327,36 @@ export default class LogFilter extends tsc<object> {
   }
 
   render() {
-    const fieldIndexInputSlot = {
-      default: ({ $index, row }) => (
-        <ValidatorInput
-          ref={`match-${row.tableIndex}-${$index}`}
-          v-model={row.fieldindex}
-          active-type={this.activeType}
-          input-type={'number'}
-          original-filter-item-select={this.originalFilterItemSelect}
-          placeholder={this.$t('请输入列数')}
-          row-data={row}
-          table-index={row.tableIndex}
-        />
-      ),
+    const fieldIndexInputSlot = groupid => {
+      return {
+        default: ({ $index, row }) => (
+          <ValidatorInput
+            ref={`match-${groupid}-${row.tableIndex}-${$index}`}
+            v-model={row.fieldindex}
+            active-type={this.activeType}
+            input-type={'number'}
+            original-filter-item-select={this.originalFilterItemSelect}
+            placeholder={this.$t('请输入列数')}
+            row-data={row}
+            table-index={row.tableIndex}
+          />
+        ),
+      };
     };
-    const valueInputSlot = {
-      default: ({ $index, row }) => (
-        <ValidatorInput
-          ref={`value-${row.tableIndex}-${$index}`}
-          v-model={row.word}
-          active-type={this.activeType}
-          placeholder={['regex', 'nregex'].includes(row.op) ? this.$t('支持正则匹配，如18*123') : this.$t('请输入')}
-          row-data={row}
-        />
-      ),
+    const valueInputSlot = groupId => {
+      return {
+        default: ({ $index, row }) => (
+          <div>
+            <ValidatorInput
+              ref={`value-${groupId}-${row.tableIndex}-${$index}`}
+              v-model={row.word}
+              active-type={this.activeType}
+              placeholder={['regex', 'nregex'].includes(row.op) ? this.$t('支持正则匹配，如18*123') : this.$t('请输入')}
+              row-data={row}
+            />
+          </div>
+        ),
+      };
     };
     const selectSlot = {
       default: ({ row }) => (
@@ -455,7 +460,7 @@ export default class LogFilter extends tsc<object> {
                   ></i>
                 </div>
                 <bk-table
-                  ref='filterTableRef'
+                  ref={`filterTableRef-${index}`}
                   data={item}
                   col-border
                   dark-header
@@ -475,7 +480,7 @@ export default class LogFilter extends tsc<object> {
                   <bk-table-column
                     label='Value'
                     prop='word'
-                    scopedSlots={valueInputSlot}
+                    scopedSlots={valueInputSlot(index)}
                   />
                   <bk-table-column
                     width='95'

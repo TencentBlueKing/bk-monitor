@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -925,7 +925,7 @@ class ApmCacheKey:
     # 存放应用下服务的数据状态
     APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
     # 存放应用下监控项数据的映射
-    APP_SCOPE_NAME_KEY = "apm:application_scope_name_mapping:{bk_biz_id}:{application_id}"
+    APP_SCOPE_NAME_KEY = "apm:application_metric_scope_name_mapping:{bk_biz_id}:{application_id}"
 
 
 class LogIndexSource:

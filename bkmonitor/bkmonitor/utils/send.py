@@ -20,7 +20,7 @@ import requests
 from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import GlobalConfig
 from bkmonitor.utils.template import AlarmNoticeTemplate, AlarmOperateNoticeTemplate

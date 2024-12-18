@@ -22,7 +22,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
@@ -95,6 +95,7 @@ class ResultTable(models.Model):
     # 数据标签
     data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
     is_builtin = models.BooleanField("是否内置", default=False)
+    bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
     class Meta:
         verbose_name = "逻辑结果表"

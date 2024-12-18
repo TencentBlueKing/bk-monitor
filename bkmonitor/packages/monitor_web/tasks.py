@@ -29,7 +29,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.dispatch import receiver as celery_receiver
 from django.forms import model_to_dict
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.api import SpaceApi

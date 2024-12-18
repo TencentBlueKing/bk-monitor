@@ -479,7 +479,7 @@ SERVICE_LOCK_PREPARATION = register_key_with_config(
         "label": "preparation.lock.strategy_{strategy_id}",
         "key_type": "string",
         "key_tpl": "preparation.lock.{strategy_id}",
-        "ttl": CONST_ONE_HOUR,
+        "ttl": CONST_ONE_HOUR * 12,
         "backend": "service",
     }
 )
