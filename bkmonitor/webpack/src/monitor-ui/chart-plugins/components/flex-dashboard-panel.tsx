@@ -62,6 +62,7 @@ interface IDashboardPanelProps {
   customHeightFn?: ((a: any) => number) | null;
   dashboardId?: string;
   matchFields?: Record<string, any>;
+  needCheck?: boolean;
 }
 interface IDashboardPanelEvents {
   onBackToOverview: () => void;
@@ -91,6 +92,8 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   @Prop({ type: Object }) matchFields: Record<string, any>;
   /** 自定义高度 */
   @Prop({ default: null }) customHeightFn: ((a: any) => number) | null;
+  /* 是否可选中图表 */
+  @Prop({ type: Boolean, default: true }) needCheck: boolean;
   // 视图实例集合
   // localPanels: PanelModel[] = [];
   /** 需要有响应式变化的属性 */
@@ -411,6 +414,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
                     key={`${panel.id}__key__`}
                     chartChecked={this.observablePanelsField[panel.id].checked}
                     collapse={this.observablePanelsField[panel.id].collapsed}
+                    needCheck={this.needCheck}
                     panel={panel}
                     onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     onChartCheck={v => this.handleChartCheck(v, panel)}

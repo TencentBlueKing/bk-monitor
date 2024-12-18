@@ -97,7 +97,7 @@ export default class ResizeMixin extends Vue {
       this.$emit('selectLegend', this.legendData);
     } else if (actionType === 'click') {
       const hasOtherShow = this.legendData.filter(item => !item.hidden).some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
+      for (const legend of this.legendData) {
         chartInstance.dispatchAction({
           type:
             legend.name === item.name ||
@@ -108,7 +108,7 @@ export default class ResizeMixin extends Vue {
           name: legend.name,
         });
         legend.show = legend.name === item.name || !hasOtherShow;
-      });
+      }
       this.$emit('selectLegend', this.legendData);
     }
   }

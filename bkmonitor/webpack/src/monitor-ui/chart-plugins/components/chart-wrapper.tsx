@@ -224,7 +224,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
    * @param {*}
    */
   @Emit('collectChart')
-  handleCollectChart() {}
+  handleCollectChart(v) {
+    return v;
+  }
   /**
    * @description: 关闭查看大图弹窗
    */

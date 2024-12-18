@@ -152,7 +152,7 @@ class CallerLineChart extends CommonSimpleChart {
   }
 
   get menuList() {
-    return ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert'];
+    return ['save', 'more', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
 
   @Watch('showRestoreInject')
@@ -254,12 +254,13 @@ class CallerLineChart extends CommonSimpleChart {
                   res.series &&
                     series.push(
                       ...res.series.map(set => {
-                        let name = this.handleSeriesName(item, set) || set.target;
+                        let name: string = this.handleSeriesName(item, set) || set.target;
                         if (this.timeOffset.length) {
                           name = `${this.handleTransformTimeShift(timeShift || 'current')}-${name}`;
                         } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
                           name = newParams.query_configs?.[0]?.alias;
                         }
+                        name = name.replace(/\|/, ':');
                         this.legendSorts.push({
                           name: name,
                           timeShift: timeShift,
@@ -271,9 +272,12 @@ class CallerLineChart extends CommonSimpleChart {
                       })
                     );
                   // 用于获取原始query_config
-                  if (res.query_config) {
-                    this.panel.setRawQueryConfigs(item, res.query_config);
-                  }
+                  this.panel.setRawQueryConfigs(
+                    item,
+                    res.query_config || {
+                      ...newParams,
+                    }
+                  );
                   this.clearErrorMsg();
                   return true;
                 })
@@ -774,7 +778,7 @@ class CallerLineChart extends CommonSimpleChart {
   handleMenuToolsSelect(menuItem: IMenuItem) {
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
-        this.handleCollectChart();
+        this.handleCollectChart(this.panel);
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
@@ -783,14 +787,10 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'fullscreen': {
         // 大图检索
-        const copyPanel = this.getCopyPanel();
-        this.handleFullScreen(copyPanel as any);
+        const panel = this.panel.toDataRetrieval();
+        this.handleFullScreen(panel as any);
         break;
       }
-
-      case 'area': // 面积图
-        (this.$refs.baseChart as any)?.handleTransformArea(menuItem.checked);
-        break;
       case 'set': // 转换Y轴大小
         (this.$refs.baseChart as any)?.handleSetYAxisSetScale(!menuItem.checked);
         break;
@@ -807,7 +807,7 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       }
       case 'relate-alert': {
-        // 大图检索
+        // 关联告警
         const copyPanel = this.getCopyPanel();
         handleRelateAlert(copyPanel as any, this.timeRange);
         break;

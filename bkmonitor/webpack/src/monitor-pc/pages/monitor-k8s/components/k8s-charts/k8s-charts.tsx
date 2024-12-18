@@ -400,8 +400,9 @@ export default class K8SCharts extends tsc<{
         </div>
         <div class='k8s-charts-list'>
           <FlexDashboardPanel
-            id='k8s-charts'
+            id={this.isDetailMode ? 'k8s-detail' : 'k8s-charts'}
             column={1}
+            needCheck={false}
             panels={this.panels}
           />
         </div>

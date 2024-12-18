@@ -588,9 +588,14 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart', 'apm-custom-graph'].includes(
-      this.type
-    );
+    return [
+      'graph',
+      'performance-chart',
+      'caller-line-chart',
+      'apm-timeseries-chart',
+      'apm-custom-graph',
+      'k8s_custom_graph',
+    ].includes(this.type);
   }
   setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
     this.rawTargetQueryMap.set(target, data);
