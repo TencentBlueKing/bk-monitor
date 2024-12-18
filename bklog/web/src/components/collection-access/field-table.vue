@@ -1060,7 +1060,10 @@
             return false;
           }
         } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          // 字段名与内置字段冲突，必须设置别名
+          // 字段名与内置字段冲突，如果没有设置重命名，必须设置别名
+          if(row.query_alias){
+            return true
+          }
           row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
           return false;
         }

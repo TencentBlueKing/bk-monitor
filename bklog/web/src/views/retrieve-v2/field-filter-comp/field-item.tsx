@@ -307,7 +307,7 @@ export default class FieldItem extends tsc<object> {
             )}
             {/* 设置字段显示或隐藏 */}
             {
-              !this.fieldItem.children?.length && (
+              this.fieldItem.field_type !== 'object' && (
                 <div
                 class='operation-icon-box'
                 v-bk-tooltips={{
