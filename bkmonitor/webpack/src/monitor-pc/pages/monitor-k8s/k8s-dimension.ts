@@ -322,16 +322,35 @@ export abstract class K8sGroupDimension {
   /**
    * @description 添加 groupFilters
    * @param {K8sTableColumnResourceKey} groupId
+   * @param {boolean} config.single 是否单项操作（true: 单项添加，false: 将所在层级及所有父级对象加入）
    */
-  addGroupFilter(groupId: K8sTableColumnResourceKey) {
+  addGroupFilter(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
+    if (this.hasGroupFilter(groupId)) return;
+    if (config?.single) {
+      const groupFilters = this.dimensions.reduce((prev, curr) => {
+        if (this.groupFiltersSet.has(curr) || curr === groupId) {
+          prev.push(curr);
+        }
+        return prev;
+      }, []);
+      this.setGroupFilters(groupFilters);
+      return;
+    }
     this.setGroupFilters(this.dimensionsMap[groupId] as K8sTableColumnResourceKey[]);
   }
 
   /**
-   * @description 删除 groupFilter (单项删除)
+   * @description 删除 groupFilter
    * @param {K8sTableColumnResourceKey} groupId
+   * @param {boolean} config.single 是否单项操作（true: 单项删除，false: 将所在层级及所有子级对象删除）
    */
-  deleteGroupFilter(groupId: K8sTableColumnResourceKey) {
+  deleteGroupFilter(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
+    if (!this.hasGroupFilter(groupId)) return;
+    if (config?.single) {
+      this.groupFiltersSet.delete(groupId);
+      this.setGroupFilters([...this.groupFiltersSet] as K8sTableColumnResourceKey[]);
+      return;
+    }
     this.deleteGroupFilterForce(groupId);
   }
 
