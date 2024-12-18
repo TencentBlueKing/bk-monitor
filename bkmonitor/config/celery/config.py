@@ -1,38 +1,23 @@
 # -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import os
-
-from celery import Celery, platforms
 from celery.schedules import crontab
 from django.conf import settings
-from django.utils.functional import cached_property
 
-# http://docs.celeryproject.org/en/latest/userguide/daemonizing.html#running-the-worker-with-superuser-privileges-root
-# for root start celery
-platforms.C_FORCE_ROOT = True
+from config.tools.rabbitmq import get_rabbitmq_settings
 
-# set the default Django settings module for the 'celery' program.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
-
-app = Celery("proj")
+*_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
 
 
 class Config:
-    @cached_property
-    def broker_url(self):
-        from config.tools.rabbitmq import get_rabbitmq_settings
-
-        *_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
-        return celery_broker_url
-
+    broker_url = celery_broker_url
     result_backend = "django_celery_results.backends:DatabaseBackend"
     beat_scheduler = "monitor.schedulers.MonitorDatabaseScheduler"
 
@@ -132,18 +117,3 @@ class Config:
             "enabled": True,
         },
     }
-
-
-# Using a string here means the worker don't have to serialize
-# the configuration object to child processes.
-# - namespace='CELERY' means all celery-related configuration keys
-#   should have a `CELERY_` prefix.
-app.config_from_object(Config)
-
-# Load task modules from all registered Django app configs.
-app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
-
-
-@app.task(bind=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')
