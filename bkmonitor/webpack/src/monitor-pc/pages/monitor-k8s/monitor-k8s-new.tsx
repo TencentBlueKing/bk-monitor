@@ -174,10 +174,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   created() {
+    this.initFilterBy();
     this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
-    this.initFilterBy();
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
@@ -485,10 +485,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <div class='filter-by-title'>Filter by</div>
               <div class='filter-by-content'>
                 <FilterByCondition
-                  bcsClusterId={this.cluster}
+                  commonParams={this.commonParams}
                   filterBy={this.filterBy}
-                  scene={this.scene}
-                  timeRange={this.timeRange}
                   onChange={this.handleFilterByChange}
                 />
               </div>
