@@ -33,6 +33,7 @@ export enum IntroduceRouteKey {
   'collect-config' = 'collect-config',
   'custom-scenes' = 'custom-scenes',
   k8s = 'k8s',
+  'k8s-new' = 'k8s-new',
   // 'k8s-old' = 'k8s-old',
   performance = 'performance',
   'plugin-manager' = 'plugin-manager',
@@ -81,7 +82,9 @@ class IntroduceStore {
 
     // 设置加载状态，发送请求并更新数据
     this.data[tag].loading = true;
-    const data = await spaceIntroduce({ tag }).catch(() => undefined);
+    const data = await spaceIntroduce({
+      tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag,
+    }).catch(() => undefined);
     this.data[tag].loading = false;
     this.data[tag].introduce = data;
   }
@@ -111,7 +114,7 @@ class IntroduceStore {
             setTimeout(() => {
               if (this.data[tag].introduce || this.data[tag].loading) return;
               this.data[tag].loading = true;
-              spaceIntroduce({ tag })
+              spaceIntroduce({ tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag })
                 .then(data => {
                   this.data[tag].introduce = data;
                 })
