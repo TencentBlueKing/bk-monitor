@@ -656,45 +656,49 @@ class StorageResultTable(object):
 
         space_client = SpaceTableIDRedis()
 
-        # self.storage_type == 'elasticsearch'
+        # 仅当 last_storage_cluster_id 和 new_storage_cluster_id 不一致时，更新存储集群记录。
         if self.storage_type == ClusterInfo.TYPE_ES and kwargs.get("storage_cluster_id", '') != '':
             try:
-                logger.info(
-                    "update_storage: table_id->[%s] update es_storage_cluster_id->[%s]",
-                    self.table_id,
-                    kwargs.get("storage_cluster_id"),
-                )
                 # 当集群发生迁移时，创建StorageClusterRecord记录
                 last_storage_cluster_id = self.storage_cluster_id
                 new_storage_cluster_id = kwargs.get("storage_cluster_id")
-                # 更新上一次集群记录，更新停止写入时间
-                record, _ = StorageClusterRecord.objects.update_or_create(
-                    table_id=self.table_id,
-                    cluster_id=last_storage_cluster_id,
-                    defaults={
-                        "is_current": False,
-                        "disable_time": django_timezone.now(),
-                    },
-                )
+
                 logger.info(
-                    "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                    "update_storage: table_id->[%s] update es_storage_cluster_id to ->[%s].old_cluster->[%s]",
                     self.table_id,
-                    record.cluster_id,
+                    new_storage_cluster_id,
+                    last_storage_cluster_id,
                 )
-                # 创建新纪录
-                new_record, _ = StorageClusterRecord.objects.update_or_create(
-                    table_id=self.table_id,
-                    cluster_id=new_storage_cluster_id,
-                    enable_time=django_timezone.now(),
-                    defaults={
-                        "is_current": True,
-                    },
-                )
-                logger.info(
-                    "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
-                    self.table_id,
-                    new_record.cluster_id,
-                )
+
+                if last_storage_cluster_id != new_storage_cluster_id:
+                    # 更新上一次集群记录，更新停止写入时间
+                    record, _ = StorageClusterRecord.objects.update_or_create(
+                        table_id=self.table_id,
+                        cluster_id=last_storage_cluster_id,
+                        defaults={
+                            "is_current": False,
+                            "disable_time": django_timezone.now(),
+                        },
+                    )
+                    logger.info(
+                        "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                        self.table_id,
+                        record.cluster_id,
+                    )
+                    # 创建新纪录
+                    new_record, _ = StorageClusterRecord.objects.update_or_create(
+                        table_id=self.table_id,
+                        cluster_id=new_storage_cluster_id,
+                        enable_time=django_timezone.now(),
+                        defaults={
+                            "is_current": True,
+                        },
+                    )
+                    logger.info(
+                        "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
+                        self.table_id,
+                        new_record.cluster_id,
+                    )
 
                 # 刷新RESULT_TABLE_DETAIL路由
                 space_client.push_table_id_detail(
@@ -4603,19 +4607,17 @@ class StorageClusterRecord(models.Model):
         [
             {
                 "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
-                "is_current": True,         # 是否是当前最新集群
-                "create_time": 1111111111,  # Unix 时间戳
-                "end_time": 2222222222,     # Unix 时间戳 / None
+                "enable_time": 1111111111,  # Unix 时间戳
             },
         ]
         """
         logger.info(
             "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
         )
-        # 过滤出指定 table_id 且未删除的记录，按 create_time 升序排列
+        # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
         records = (
             cls.objects.filter(table_id=table_id, is_deleted=False)
-            .order_by('create_time')
+            .order_by('-create_time')
             .values('cluster_id', 'is_current', 'enable_time')
         )
 
