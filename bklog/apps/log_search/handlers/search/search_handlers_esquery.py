@@ -611,19 +611,17 @@ class SearchHandler(object):
             result.update({"scroll_id": _scroll_id})
 
         # 补充别名信息
-        fields_dict = result.get("fields")
         log_list = result.get("list")
-        object_field_keys = [key for key in fields_dict.keys() if "." in key]
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
             data = TransferApi.get_result_table({"table_id": collector_config.table_id})
             alias_dict = data.get("query_alias_settings")
             if alias_dict:
                 for log in log_list:
-                    for object_field in object_field_keys:
-                        key, field = object_field.split(".", 1)
+                    for query_alias, info in alias_dict.items():
+                        key, field = info.get("path").split(".", 1)
                         if key in log and field in log[key]:
-                            log[object_field] = log[key][field]
+                            log[query_alias] = log[key][field]
         return result
 
     def get_sort_group(self):
