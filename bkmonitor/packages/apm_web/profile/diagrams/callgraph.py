@@ -63,14 +63,23 @@ def multiline_printable_name(name, file_path=''):
 
 
 def build_edge_relation(node_list: List[FunctionNode]) -> list:
-    edges = []
+    edges = {}
+    visited_nodes = set()
+
     queue = deque(node_list)
     while queue:
         node = queue.popleft()
         for child in node.children:
-            edges.append({"source_id": node.id, "target_id": child.id, "value": child.value})
-            queue.append(child)
-    return edges
+            edge_key = (node.id, child.id)
+            if edge_key in edges:
+                continue
+
+            edge_value = min(node.value, child.value)
+            edges[edge_key] = {"source_id": node.id, "target_id": child.id, "value": edge_value}
+            if child.id not in visited_nodes:
+                visited_nodes.add(child.id)
+                queue.append(child)
+    return list(edges.values())
 
 
 def dot_color(score: float, is_back_ground: bool = False) -> str:
@@ -146,9 +155,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
         node_name = multiline_printable_name(node["name"])
-        title = (
-            f"""{node_name} {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})"""
-        )
+        title = f"""{node_name} {display(node["self"], unit)} of {display(node["value"], unit)} ({ratio_str})"""
         node_color = dot_color(score=ratio, is_back_ground=True)
         background_color = dot_color(score=ratio, is_back_ground=False)
         width, height = calculate_node_size(ratio)
