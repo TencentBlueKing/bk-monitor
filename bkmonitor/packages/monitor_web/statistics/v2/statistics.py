@@ -10,10 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import arrow
 from django.conf import settings
-from monitor_web.statistics.v2.base import BaseCollector, MySQLStorage
 
 from bkmonitor.models import StatisticsMetric
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector, MySQLStorage
 
 
 class StatisticCollector(BaseCollector):
@@ -23,7 +23,7 @@ class StatisticCollector(BaseCollector):
     def outdated_statistic_metrics_count(self, metric: Metric):
         """超过一天未更新的运营指标"""
         now_ts = arrow.now()
-        last_day = now_ts.replace(days=-1)
+        last_day = now_ts.shift(days=-1)
 
         for statistic in StatisticsMetric.objects.filter(update_time__lte=last_day.timestamp):
             metric.labels(metric_name=statistic.name, updated_time=arrow.get(statistic.update_time).humanize()).inc()

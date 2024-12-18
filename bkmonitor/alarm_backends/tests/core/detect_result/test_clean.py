@@ -72,7 +72,6 @@ STRATEGIES = [
 
 
 class TestCleanResult(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
@@ -87,8 +86,8 @@ class TestCleanResult(TestCase):
 
         self.strategies = STRATEGIES
         self.now_timestamp = arrow.utcnow().int_timestamp
-        self.three_hours_ago = arrow.utcnow().replace(hours=-3).int_timestamp
-        self.two_hours_ago = arrow.utcnow().replace(hours=-2).int_timestamp
+        self.three_hours_ago = arrow.utcnow().shift(hours=-3).int_timestamp
+        self.two_hours_ago = arrow.utcnow().shift(hours=-2).int_timestamp
         check_result_data = {
             "{}|{}".format(self.three_hours_ago, "ANOMALY"): self.three_hours_ago,
             "{}|{}".format(self.now_timestamp, "ANOMALY"): self.now_timestamp,

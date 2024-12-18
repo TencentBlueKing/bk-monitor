@@ -249,7 +249,7 @@ class OsMonitorInfo(BaseMonitorInfo):
         query = UnifyQuery(bk_biz_id=self.bk_biz_id, data_sources=[data_source], expression="")
         now_ts = arrow.now()
         records = query.query_data(
-            start_time=now_ts.replace(minutes=-1).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
+            start_time=now_ts.shift(minutes=-1).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
         )
         return MonitorStatus.NORMAL if records and records[0]["_result_"] > 0 else MonitorStatus.UNSET
 
