@@ -145,10 +145,12 @@ export default class FilterByCondition extends tsc<IProps> {
       filterBy = this.filterBy;
     } else {
       for (const key in this.filterBy) {
-        filterBy.push({
-          key,
-          value: this.filterBy[key],
-        });
+        if (this.filterBy[key]?.length) {
+          filterBy.push({
+            key,
+            value: this.filterBy[key],
+          });
+        }
       }
     }
     const filterByStr = JSON.stringify(filterBy);
