@@ -9,16 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
+from functools import cached_property
 
 from celery import Celery, platforms
 from celery.schedules import crontab
 from django.conf import settings
 
-from config.tools.rabbitmq import get_rabbitmq_settings
-
 # http://docs.celeryproject.org/en/latest/userguide/daemonizing.html#running-the-worker-with-superuser-privileges-root
 # for root start celery
-
 platforms.C_FORCE_ROOT = True
 
 # set the default Django settings module for the 'celery' program.
@@ -26,11 +24,15 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
 app = Celery("proj")
 
-*_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
-
 
 class Config:
-    broker_url = celery_broker_url
+    @cached_property
+    def broker_url(self):
+        from config.tools.rabbitmq import get_rabbitmq_settings
+
+        *_, celery_broker_url = get_rabbitmq_settings(settings.APP_CODE)
+        return celery_broker_url
+
     result_backend = "django_celery_results.backends:DatabaseBackend"
     beat_scheduler = "monitor.schedulers.MonitorDatabaseScheduler"
 
