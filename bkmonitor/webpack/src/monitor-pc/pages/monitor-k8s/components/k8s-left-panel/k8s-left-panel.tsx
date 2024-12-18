@@ -34,7 +34,7 @@ import './k8s-left-panel.scss';
 export default class K8sLeftPanel extends tsc<object> {
   isShow = true;
   maxWidth = 600;
-  minWidth = 100;
+  minWidth = 230;
   width = 320;
 
   handleDragChange(width: number) {
