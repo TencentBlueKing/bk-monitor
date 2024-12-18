@@ -252,6 +252,7 @@ export default class GroupCompareSelect extends tsc<IProps> {
         <div class='group-compare-wrap'>
           {this.typeSelected === ETypeSelect.compare ? (
             <CompareTime
+              refreshImmediate={this.refreshImmediate}
               refreshInterval={this.refreshInterval}
               timeRange={this.timeRange}
               value={this.timeValue}

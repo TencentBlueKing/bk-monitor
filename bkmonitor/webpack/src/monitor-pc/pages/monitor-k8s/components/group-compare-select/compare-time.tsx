@@ -73,8 +73,8 @@ function preDateToTimeRangeStr(timeRange: TimeRangeType) {
   for (const item of preDateTypeList) {
     const [startTime, endTime] = handleTransformToTimestamp(timeRange);
     const day = item.value === EPreDateType.yesterday ? 1 : 7;
-    const startDate = dayjs().subtract(day, 'day');
-    const endDate = dayjs(startDate.unix() * 1000 + (endTime - startTime) * 1000);
+    const endDate = dayjs().subtract(day, 'day');
+    const startDate = dayjs(endDate.unix() * 1000 - (endTime - startTime) * 1000);
     result[item.value] =
       `${startDate.format('YYYY')} (${startDate.format('MM-DD HH:mm:ss')} ~ ${endDate.format('MM-DD HH:mm:ss')})`;
   }
@@ -176,6 +176,7 @@ export default class CompareTime extends tsc<IProps> {
   }
   @Watch('refreshImmediate')
   handleWatchRefreshImmediate() {
+    console.log('xx');
     this.getPreDateTimeRangeMap();
   }
   /**
