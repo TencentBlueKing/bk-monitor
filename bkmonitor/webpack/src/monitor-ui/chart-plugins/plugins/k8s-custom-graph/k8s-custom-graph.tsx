@@ -222,63 +222,65 @@ class CallerLineChart extends CommonSimpleChart {
         const variablesService = new VariablesService({});
         for (const timeShift of timeShiftList) {
           const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
-          const list = this.panel.targets.map(item => {
-            const newParams = structuredClone({
-              ...variablesService.transformVariables(
-                item.data,
-                {
-                  ...this.viewOptions.filters,
-                  ...this.viewOptions,
-                  ...this.viewOptions.variables,
-                  time_shift: timeShift,
-                  interval,
-                  interval_second: convertToSeconds(interval),
-                },
-                noTransformVariables
-              ),
-              ...params,
-              down_sample_range,
-            });
-            return (this as any).$api[item.apiModule]
-              [item.apiFunc](newParams, {
-                cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
-                needMessage: false,
-              })
-              .then(res => {
-                res.metrics && metrics.push(...res.metrics);
-                // if (res.series?.length > 1) {
-                //   res.series = res.series.slice(0, 1);
-                // }
-                res.series &&
-                  series.push(
-                    ...res.series.map(set => {
-                      let name = this.handleSeriesName(item, set) || set.target;
-                      if (this.timeOffset.length) {
-                        name = `${this.handleTransformTimeShift(timeShift || 'current')}-${name}`;
-                      } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
-                        name = newParams.query_configs?.[0]?.alias;
-                      }
-                      this.legendSorts.push({
-                        name: name,
-                        timeShift: timeShift,
-                      });
-                      return {
-                        ...set,
-                        name,
-                      };
-                    })
-                  );
-                // 用于获取原始query_config
-                if (res.query_config) {
-                  this.panel.setRawQueryConfigs(item, res.query_config);
-                }
-                this.clearErrorMsg();
-                return true;
-              })
-              .catch(error => {
-                this.handleErrorMsgChange(error.msg || error.message);
+          const list = this.panel.targets
+            .filter(item => (timeShiftList.length > 1 ? !item.request_or_limit : true))
+            .map(item => {
+              const newParams = structuredClone({
+                ...variablesService.transformVariables(
+                  item.data,
+                  {
+                    ...this.viewOptions.filters,
+                    ...this.viewOptions,
+                    ...this.viewOptions.variables,
+                    time_shift: timeShift,
+                    interval,
+                    interval_second: convertToSeconds(interval),
+                  },
+                  noTransformVariables
+                ),
+                ...params,
+                down_sample_range,
               });
-          });
+              return (this as any).$api[item.apiModule]
+                [item.apiFunc](newParams, {
+                  cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+                  needMessage: false,
+                })
+                .then(res => {
+                  res.metrics && metrics.push(...res.metrics);
+                  // if (res.series?.length > 1) {
+                  //   res.series = res.series.slice(0, 1);
+                  // }
+                  res.series &&
+                    series.push(
+                      ...res.series.map(set => {
+                        let name = this.handleSeriesName(item, set) || set.target;
+                        if (this.timeOffset.length) {
+                          name = `${this.handleTransformTimeShift(timeShift || 'current')}-${name}`;
+                        } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
+                          name = newParams.query_configs?.[0]?.alias;
+                        }
+                        this.legendSorts.push({
+                          name: name,
+                          timeShift: timeShift,
+                        });
+                        return {
+                          ...set,
+                          name,
+                        };
+                      })
+                    );
+                  // 用于获取原始query_config
+                  if (res.query_config) {
+                    this.panel.setRawQueryConfigs(item, res.query_config);
+                  }
+                  this.clearErrorMsg();
+                  return true;
+                })
+                .catch(error => {
+                  this.handleErrorMsgChange(error.msg || error.message);
+                });
+            });
           promiseList.push(...list);
         }
         await Promise.all(promiseList).catch(() => false);
@@ -307,19 +309,61 @@ class CallerLineChart extends CommonSimpleChart {
               dimensions: item.dimensions ?? {},
             })) as any
           );
-          seriesList = seriesList.map((item: any) => ({
-            ...item,
-            minBase: this.minBase,
-            data: item.data.map((set: any) => {
-              if (set?.length) {
-                return [set[0], set[1] !== null ? set[1] + this.minBase : null];
-              }
-              return {
-                ...set,
-                value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
+          seriesList = seriesList.map((item: any) => {
+            const isSpecialSeries = this.isSpecialSeries(item.name);
+            let color = item.lineStyle?.color;
+            let markPoint = {};
+            if (isSpecialSeries) {
+              const isLimit = item.name === 'limit';
+              color = !isLimit ? '#FEA56B' : '#FF5656';
+              const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
+              const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
+              markPoint = {
+                symbol: 'rect',
+                symbolSize: [isLimit ? 30 : 46, 16],
+                symbolOffset: ['50%', 0],
+                label: {
+                  show: true,
+                  color: labelColor,
+                  formatter: () => item.name,
+                },
+                itemStyle: {
+                  color: itemColor,
+                },
+                data: [
+                  {
+                    coord: item.data[0]?.value,
+                  },
+                ],
+                emphasis: {
+                  disabled: true,
+                },
               };
-            }),
-          }));
+              const legendItem = this.legendData.find(legend => legend.name === item.name);
+              legendItem.color = color;
+              legendItem.lineStyleType = isSpecialSeries ? 'dashed' : 'solid';
+            }
+            return {
+              ...item,
+              minBase: this.minBase,
+              data: item.data.map((set: any) => {
+                if (set?.length) {
+                  return [set[0], set[1] !== null ? set[1] + this.minBase : null];
+                }
+                return {
+                  ...set,
+                  value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
+                };
+              }),
+              lineStyle: {
+                type: isSpecialSeries ? 'dashed' : 'solid',
+                dashOffset: '4',
+                color,
+                width: 1.5,
+              },
+              markPoint,
+            };
+          });
           this.seriesList = Object.freeze(seriesList) as any;
           // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
           // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
@@ -423,7 +467,9 @@ class CallerLineChart extends CommonSimpleChart {
     this.handleLoadingChange(false);
     this.unregisterOberver();
   }
-
+  isSpecialSeries(name: string) {
+    return ['request', 'limit'].includes(name);
+  }
   // 转换time_shift显示
   handleTransformTimeShift(val: string) {
     const timeMatch = val.match(/(-?\d+)(\w+)/);
@@ -956,18 +1002,22 @@ class CallerLineChart extends CommonSimpleChart {
                         onMousedown={(e: MouseEvent) => e.stopPropagation()}
                       >
                         <span
-                          style={{ color: item.show ? '#3a84ff' : '#ccc' }}
+                          style={{
+                            color: item.show ? (this.isSpecialSeries(item.name) ? '#63656e' : '#3a84ff') : '#ccc',
+                          }}
                           class='metric-name'
                           v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
                           onClick={() => this.onShowDetail(item.name)}
                         >
                           {item.name}
                         </span>
-                        <K8sDimensionDrillDown
-                          dimension={'namespace'}
-                          value={'namespace'}
-                          onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
-                        />
+                        {!this.isSpecialSeries(item.name) && (
+                          <K8sDimensionDrillDown
+                            dimension={'namespace'}
+                            value={'namespace'}
+                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
+                          />
+                        )}
                       </div>
                     ),
                   }}

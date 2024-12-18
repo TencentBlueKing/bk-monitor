@@ -108,6 +108,7 @@ export default class TableLegend extends CommonLegend {
                     <div class='content-wrapper'>
                       {title === 'Min' && (
                         <div
+                          style={`--series-color: ${item.color};`}
                           class='legend-metric'
                           onMousedown={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mousedown')}
                           onMouseenter={e => !this.preventEvent && this.handleLegendEvent(e, 'highlight', item)}
@@ -117,7 +118,8 @@ export default class TableLegend extends CommonLegend {
                         >
                           <span
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
-                            class='metric-label'
+                            class={`metric-label is-${item.lineStyleType}`}
+                            onMousedown={e => this.preventEvent && this.handleLegendEvent(e, 'click', item)}
                           />
                           {this.$scopedSlots.name?.({ item }) || (
                             <span
