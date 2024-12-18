@@ -33,7 +33,7 @@ import { type IK8SMetricItem, K8sTableColumnKeysEnum } from '../../typings/k8s-n
 import CommonDetail from '../common-detail';
 import K8SCharts from '../k8s-charts/k8s-charts';
 
-import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
+import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-detail-slider.scss';
@@ -52,8 +52,8 @@ interface K8sDetailSliderProps {
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
-  onGroupChange: (groupId: K8sTableColumnResourceKey) => void;
-  onFilterChange: (id: string, groupId: K8sTableColumnResourceKey, isSelect: boolean) => void;
+  onGroupChange: (groupByEvent: K8sTableGroupByEvent) => void;
+  onFilterChange: (id: string, groupId: K8sTableColumnResourceKey) => void;
 }
 
 @Component
@@ -112,16 +112,18 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   }
 
   @Emit('groupChange')
-  groupChange(groupId: K8sTableColumnResourceKey) {
-    return groupId;
+  groupChange(drillDown: DrillDownEvent) {
+    return { ...drillDown, filterById: this.resourceDetail[this.groupByField] };
   }
 
-  @Emit('filterChange')
+  /**
+   * @description 添加筛选/移除筛选 按钮点击回调
+   * @param id 数据Id
+   * @param groupId 维度Id
+   * @param isSelect 是否选中
+   */
   filterChange() {
-    // return {
-    //   groupId: this.activeTitle.tag,
-    //   ids: this.filterParams.ids,
-    // };
+    this.$emit('filterChange', this.resourceDetail[this.groupByField], this.groupByField);
   }
 
   /** 更新 详情接口 配置 */
@@ -176,7 +178,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
               dimension={this.groupByField}
               enableTip={false}
               value={this.groupByField}
-              onHandleDrillDown={v => this.groupChange(v.dimension as K8sTableColumnResourceKey)}
+              onHandleDrillDown={v => this.groupChange(v as DrillDownEvent)}
             >
               <bk-button
                 class='title-btn is-default'

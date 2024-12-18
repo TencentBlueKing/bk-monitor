@@ -96,7 +96,7 @@ export interface K8sTableClickEvent {
   index: number;
 }
 
-interface DrillDownEvent {
+export interface DrillDownEvent {
   /** 点击下钻时数据所在维度 */
   id: K8sTableColumnResourceKey;
   /** 用户选择的需要下钻的维度 */
@@ -180,7 +180,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   tableLoading = {
     /** table 骨架屏 loading */
-    loading: false,
+    loading: true,
     /** 表格触底加载更多 loading  */
     scrollLoading: false,
   };
@@ -273,6 +273,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   onActiveTabChange(v) {
     if (v !== K8sNewTabEnum.CHART) {
       // 重新渲染，从而刷新 table sort 状态
+      this.tableLoading.loading = true;
       this.getK8sList({ needRefresh: true });
     }
   }
@@ -646,8 +647,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param groupId 维度Id
    * @param isSelect 是否选中
    */
-  handleSliderFilterChange(id: string, groupId: K8sTableColumnResourceKey, isSelect: boolean) {
-    this.filterChange(id, groupId, isSelect);
+  handleSliderFilterChange(id: string, groupId: K8sTableColumnResourceKey) {
+    this.filterChange(id, groupId, true);
     this.handleSliderChange(false);
   }
 
