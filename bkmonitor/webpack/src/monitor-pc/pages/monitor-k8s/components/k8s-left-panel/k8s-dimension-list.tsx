@@ -239,6 +239,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
         <bk-input
           class='left-panel-search'
           v-model={this.searchValue}
+          placeholder={this.$tc('请输入关键字')}
           right-icon='bk-icon icon-search'
           show-clear-only-hover={true}
           clearable
