@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
@@ -187,6 +187,44 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.setRouteParams();
   }
 
+  /**
+   * @description 表格下钻点击回调
+   * @param {K8sTableGroupByEvent} item
+   */
+  @Provide('onGroupChange')
+  handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
+    const cacheGroupBy = [...this.groupInstance.groupFilters];
+    const { filterById, id, dimension } = item;
+    this.handleDrillDown(filterById, id, dimension);
+    if (showCancelDrill) {
+      this.showCancelDrill = true;
+      this.cacheGroupBy = cacheGroupBy;
+    }
+  }
+
+  /**
+   * 修改filterBy
+   * @param id 数据Id
+   * @param dimensionId 维度Id
+   * @param isSelect 是否选中
+   */
+  @Provide('onFilterChange')
+  filterByChange(id: string, dimensionId: string, isSelect: boolean) {
+    this.showCancelDrill = false;
+    if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
+    if (isSelect) {
+      /** workload维度只能选择一项 */
+      if (dimensionId === EDimensionKey.workload) {
+        this.filterBy[dimensionId] = [id];
+      } else {
+        this.filterBy[dimensionId].push(id);
+      }
+    } else {
+      this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
+    }
+    this.filterBy = { ...this.filterBy };
+  }
+
   created() {
     this.getRouteParams();
     this.getClusterList();
@@ -293,28 +331,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.filterByChange(filterById, filterByDimension, true);
   }
 
-  /**
-   * 修改filterBy
-   * @param id 数据Id
-   * @param dimensionId 维度Id
-   * @param isSelect 是否选中
-   */
-  filterByChange(id: string, dimensionId: string, isSelect: boolean) {
-    this.showCancelDrill = false;
-    if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
-    if (isSelect) {
-      /** workload维度只能选择一项 */
-      if (dimensionId === EDimensionKey.workload) {
-        this.filterBy[dimensionId] = [id];
-      } else {
-        this.filterBy[dimensionId].push(id);
-      }
-    } else {
-      this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
-    }
-    this.filterBy = { ...this.filterBy };
-  }
-
   /** 清除某个维度的filterBy */
   clearFilterBy(dimensionId: string) {
     this.filterBy[dimensionId] = [];
@@ -347,20 +363,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   handleGroupChecked(groupId: K8sTableColumnResourceKey) {
     this.showCancelDrill = false;
     this.setGroupFilters(groupId, { single: true });
-  }
-
-  /**
-   * @description 表格下钻点击回调
-   * @param {K8sTableGroupByEvent} item
-   */
-  handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
-    const cacheGroupBy = [...this.groupInstance.groupFilters];
-    const { filterById, id, dimension } = item;
-    this.handleDrillDown(filterById, id, dimension);
-    if (showCancelDrill) {
-      this.showCancelDrill = true;
-      this.cacheGroupBy = cacheGroupBy;
-    }
   }
 
   handleTableClearSearch() {
@@ -450,8 +452,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             hideMetrics={this.hideMetrics}
             metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
-            onFilterChange={this.filterByChange}
-            onGroupChange={this.handleTableGroupChange}
           />
         );
     }

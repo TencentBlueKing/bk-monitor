@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -52,8 +52,6 @@ interface K8sDetailSliderProps {
 }
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
-  onGroupChange: (groupByEvent: K8sTableGroupByEvent) => void;
-  onFilterChange: (id: string, groupId: K8sTableColumnResourceKey) => void;
 }
 
 @Component
@@ -73,6 +71,16 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     filters: {},
     variables: {},
   };
+  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
+    id: string,
+    groupId: K8sTableColumnResourceKey,
+    isSelect: boolean
+  ) => void;
+  @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
+    item: K8sTableGroupByEvent,
+    showCancelDrill?: boolean
+  ) => void;
+
   panel: PanelModel = null;
   loading = false;
   popoverInstance = null;
@@ -111,9 +119,9 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     return v;
   }
 
-  @Emit('groupChange')
   groupChange(drillDown: DrillDownEvent) {
-    return { ...drillDown, filterById: this.resourceDetail[this.groupByField] };
+    this.onDrillDown({ ...drillDown, filterById: this.resourceDetail[this.groupByField] }, true);
+    this.emitIsShow(false);
   }
 
   /**
@@ -123,7 +131,8 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
    * @param isSelect 是否选中
    */
   filterChange() {
-    this.$emit('filterChange', this.resourceDetail[this.groupByField], this.groupByField);
+    this.onFilterChange(this.resourceDetail[this.groupByField], this.groupByField, true);
+    this.emitIsShow(false);
   }
 
   /** 更新 详情接口 配置 */
