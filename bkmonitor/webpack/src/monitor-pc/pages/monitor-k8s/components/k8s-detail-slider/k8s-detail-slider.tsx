@@ -89,6 +89,10 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     if (this.resourceDetail.container) return K8sTableColumnKeysEnum.CONTAINER;
     if (this.resourceDetail.pod) return K8sTableColumnKeysEnum.POD;
     if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
+    // @ts-ignore
+    if (this.resourceDetail.activeField === K8sTableColumnKeysEnum.CLUSTER) {
+      return K8sTableColumnKeysEnum.CLUSTER;
+    }
     return K8sTableColumnKeysEnum.NAMESPACE;
   }
 
