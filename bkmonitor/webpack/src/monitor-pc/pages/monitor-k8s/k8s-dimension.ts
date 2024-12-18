@@ -48,8 +48,6 @@ export const sceneDimensionMap = {
  * k8s维度列表基类
  */
 export abstract class K8sDimensionBase {
-  /** 搜索关键字 */
-  public keyword = '';
   /** 所有的维度数据 */
   public originDimensionData: GroupListItem[] = [];
   /** 各维度分页 */
@@ -63,7 +61,6 @@ export abstract class K8sDimensionBase {
   abstract dimensionKey: string[];
 
   constructor(params: K8sDimensionParams) {
-    this.keyword = params.keyword;
     this.pageSize = params.pageSize;
     this.pageType = params.page_type;
   }
@@ -194,7 +191,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
     const pageMap = {};
     const workloadCategory = await workloadOverview({
       bcs_cluster_id: this.commonParams.bcs_cluster_id,
-      query_string: this.keyword,
+      query_string: this.commonParams.query_string,
     }).catch(() => []);
 
     const promiseList = this.originDimensionData.map(async item => {
@@ -279,7 +276,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
    */
   async search(keyword: string, params = {}, dimensions = []) {
     const [dimension, category] = dimensions;
-    this.keyword = keyword;
+    this.commonParams.query_string = keyword;
     if (dimension) {
       if (dimension === EDimensionKey.workload) {
         this.pageMap[category] = 1;

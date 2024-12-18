@@ -59,6 +59,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
 
   dimensionList = [];
+  cacheSearchValue = '';
   /** 搜索 */
   searchValue = '';
   /** 已选择filterBy列表 */
@@ -110,7 +111,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     if (!this.localCommonParams.bcs_cluster_id) return;
     const dimension = new K8sPerformanceDimension({
       ...this.localCommonParams,
-      keyword: this.searchValue,
+      query_string: this.searchValue,
       pageSize: 5,
       page_type: 'scrolling',
     });
@@ -139,6 +140,12 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     await (this as any).dimension.search(val);
     this.showDimensionList = (this as any).dimension.showDimensionData;
     this.loading = false;
+    this.cacheSearchValue = this.searchValue;
+  }
+
+  handleBlur(val: string) {
+    if (this.searchValue === this.cacheSearchValue) return;
+    this.handleSearch(val);
   }
 
   /** 检索 */
@@ -216,6 +223,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
           right-icon='bk-icon icon-search'
           show-clear-only-hover={true}
           clearable
+          on-blur={this.handleBlur}
+          on-clear={this.handleSearch}
           on-enter={this.handleSearch}
           on-right-icon-click={this.handleSearch}
         />
