@@ -28,6 +28,8 @@ import { Component, Mixins, ProvideReactive, Watch } from 'vue-property-decorato
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random } from 'monitor-common/utils';
 
+import introduce from '../../common/introduce';
+import GuidePage from '../../components/guide-page/guide-page';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import UserConfigMixin from '../../mixins/userStoreConfig';
@@ -50,6 +52,7 @@ import {
   K8sNewTabEnum,
   K8sTableColumnKeysEnum,
   SceneEnum,
+  EDimensionKey,
 } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
@@ -74,6 +77,7 @@ const tabList = [
     icon: 'icon-mingxi',
   },
 ];
+
 @Component
 export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 数据时间间隔
@@ -115,7 +119,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 自动刷新定时器 */
   timer = null;
   /** 各维度数据总和 */
-  dimensionTotal = {};
+  dimensionTotal: Record<string, number> = {};
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
@@ -128,6 +132,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 当前场景下的维度列表 */
   get sceneDimensionList() {
     return sceneDimensionMap[this.scene] || [];
+  }
+
+  // 获取引导页状态
+  get showGuidePage() {
+    return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
   }
 
   /** 公共参数 */
@@ -174,7 +183,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   created() {
-    this.initFilterBy();
     this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
@@ -288,8 +296,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    */
   filterByChange(id: string, dimensionId: string, isSelect: boolean) {
     this.showCancelDrill = false;
+    if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
     if (isSelect) {
-      this.filterBy[dimensionId].push(id);
+      /** workload维度只能选择一项 */
+      if (dimensionId === EDimensionKey.workload) {
+        this.filterBy[dimensionId] = [id];
+      } else {
+        this.filterBy[dimensionId].push(id);
+      }
     } else {
       this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
     }
@@ -322,6 +336,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    */
   async handleTabChange(v: K8sNewTabEnum) {
     this.activeTab = v;
+    this.setRouteParams();
   }
 
   handleGroupChecked(item: IGroupByChangeEvent) {
@@ -368,18 +383,24 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       from = 'now-1h',
       to = 'now',
       refreshInterval = '-1',
-      filterBy = '[]',
+      filterBy,
       groupBy = '[]',
       cluster = '',
       scene = SceneEnum.Performance,
+      activeTab = K8sNewTabEnum.LIST,
     } = this.$route.query || {};
     this.timeRange = [from as string, to as string];
     this.refreshInterval = Number(refreshInterval);
-    this.filterBy = JSON.parse(filterBy as string);
     this.cluster = cluster as string;
     this.scene = scene as SceneEnum;
+    this.activeTab = activeTab as K8sNewTabEnum;
     if (JSON.parse(groupBy as string).length) {
       this.groupInstance.setGroupFilters(JSON.parse(groupBy as string));
+    }
+    if (!filterBy) {
+      this.initFilterBy();
+    } else {
+      this.filterBy = JSON.parse(filterBy as string);
     }
   }
 
@@ -393,6 +414,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       groupBy: JSON.stringify(this.groupInstance.groupFilters),
       cluster: this.cluster,
       scene: this.scene,
+      activeTab: this.activeTab,
     };
 
     const targetRoute = this.$router.resolve({
@@ -433,6 +455,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
   render() {
+    if (this.showGuidePage)
+      return (
+        <GuidePage
+          guideData={introduce.data['k8s-new'].introduce}
+          guideId='k8s'
+        />
+      );
     return (
       <div class='monitor-k8s-new'>
         <div class='monitor-k8s-new-nav-bar'>

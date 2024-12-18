@@ -53,7 +53,7 @@ interface K8sDimensionListEvents {
 export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDimensionListEvents> {
   @Prop({ type: Object, required: true }) commonParams: ICommonParams;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
-  @Prop({ type: Array, default: () => ({}) }) filterBy: string[];
+  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
   @InjectReactive('timezone') readonly timezone!: string;
   @InjectReactive('refleshInterval') readonly refreshInterval!: number;
   @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
@@ -144,9 +144,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 检索 */
   @Emit('filterByChange')
   handleGroupSearch({ id, isSelect }, dimension: EDimensionKey) {
-    if (dimension === EDimensionKey.workload) {
-      this.handleClear(dimension);
-    }
     this.$emit('filterByChange', id, dimension, isSelect);
   }
 

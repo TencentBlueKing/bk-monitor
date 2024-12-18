@@ -71,7 +71,6 @@ export default applyGuidePage([
       customTitle: true,
       noNavBar: true,
       needClearQuery: true,
-      noSpaceCheck: true,
       route: {
         parent: 'scenes',
       },

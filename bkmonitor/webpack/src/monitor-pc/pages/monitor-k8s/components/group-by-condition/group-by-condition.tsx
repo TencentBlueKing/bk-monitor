@@ -56,7 +56,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   /** 外部已选择数组 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
   /** 外部传入选项options数组 */
-  @Prop({ type: Array }) dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
+  @Prop({ type: Object }) dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
 
   @Ref() customSelectRef: any;
 
