@@ -69,7 +69,7 @@ def build_edge_relation(node_list: List[FunctionNode]) -> list:
     queue = deque(node_list)
     while queue:
         node = queue.popleft()
-        for child in node.children:
+        for child in node.children.values():
             edge_key = (node.id, child.id)
             if edge_key in edges:
                 continue
@@ -277,7 +277,7 @@ def convert_seconds(seconds):
 class CallGraphDiagrammer:
     def draw(self, c: TreeConverter, **options) -> Any:
         nodes = list(c.tree.function_node_map.values())
-        edges = build_edge_relation(list(c.tree.root.children))
+        edges = build_edge_relation(list(c.tree.map_root.children.values()))
         data = {
             "call_graph_data": {
                 "call_graph_nodes": [
