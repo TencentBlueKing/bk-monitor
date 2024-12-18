@@ -100,12 +100,6 @@ DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
 
-# CELERY 开关，使用时请改为 True，修改项目目录下的 Procfile 文件，添加以下两行命令：
-# worker: python manage.py celery worker -l info
-# beat: python manage.py celery beat -l info
-# 不使用时，请修改为 False，并删除项目目录下的 Procfile 文件中 celery 配置
-IS_USE_CELERY = False
-
 # 前后端分离开发配置开关，设置为True时允许跨域访问
 FRONTEND_BACKEND_SEPARATION = True
 
