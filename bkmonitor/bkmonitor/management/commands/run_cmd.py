@@ -389,7 +389,7 @@ def parse_usergroup_not_under_business(preview: bool = None):
     """
     排查关联的但是不在当前业务下的策略及告警组信息
     打印的信息：
-    策略id，策略名称，业务id，关联的通知组id列表，对应的业务id列表，本业务下相同名称的通知组id字典(key为告警组名称，value是同名的通知组id列表)
+    策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典(key为告警组名称，value是同名的告警组id列表)
 
     example:
     >> parse_usergroup_not_under_business(preview=True)
@@ -401,10 +401,10 @@ def parse_usergroup_not_under_business(preview: bool = None):
     # 未指定参数，则使用全局配置的enable_preview值
     preview = enable_preview if preview is None else preview
     if preview:
-        print("策略id，策略名称，业务id，关联的通知组id列表，对应的业务id列表，本业务下相同名称的通知组id字典")
+        print("策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
     else:
         # 不开启预览，将原关联的告警组ID和对应的业务ID，替换为当前业务下具有相同名称的告警组id，和当前业务id
-        print("策略id，策略名称，业务id，相同名称的告警组id列表，对应的业务id列表，本业务下相同名称的通知组id字典")
+        print("策略id，策略名称，业务id，相同名称的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
 
     for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id'):
         try:
