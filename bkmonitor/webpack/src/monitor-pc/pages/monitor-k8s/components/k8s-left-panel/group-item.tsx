@@ -52,7 +52,7 @@ interface GroupItemEvent {
   onHandleSearch: (val: { id: string; isSelect: boolean }) => void;
   onHandleDrillDown: (val: { id: string; drillDownDimension: string }) => void;
   onHandleGroupByChange: (val: boolean) => void;
-  onHandleMoreClick: (val: { dimension: string }) => void;
+  onHandleMoreClick: (dimension: string) => void;
   onHandleHiddenChange: (ids: string[]) => void;
   onClear: () => void;
   onFirstExpand: (id: string) => void;
