@@ -30,8 +30,7 @@ import { Debounce, random } from 'monitor-common/utils';
 import { debounce, throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { EDimensionKey, type SceneEnum } from '../../typings/k8s-new';
+import { EDimensionKey, type ICommonParams } from '../../typings/k8s-new';
 import KvTag from './kv-tag';
 import {
   type IGroupOptionsItem,
@@ -41,29 +40,20 @@ import {
   FilterByOptions,
 } from './utils';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
-
 import './filter-by-condition.scss';
 
-type TFilterByDict = Record<EDimensionKey, string[]>;
+type TFilterByDict = Record<EDimensionKey | string, string[]>;
 
 interface IProps {
   filterBy?: IFilterByItem[] | TFilterByDict;
-  scene?: SceneEnum;
-  bcsClusterId?: string;
-  timeRange?: TimeRangeType;
+  commonParams?: ICommonParams;
   onChange?: (v: IFilterByItem[]) => void;
 }
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {
   @Prop({ type: [Array, Object], default: () => [] }) filterBy: IFilterByItem[] | TFilterByDict;
-  /* 场景 */
-  @Prop({ type: String, default: '' }) scene: SceneEnum;
-  /* 集群id */
-  @Prop({ type: String, default: '' }) bcsClusterId: string;
-  /* 时间范围 */
-  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
+  @Prop({ type: Object, default: () => ({}) }) commonParams: ICommonParams;
   @Ref('selector') selectorRef: HTMLDivElement;
   @Ref('valueItems') valueItemsRef: HTMLDivElement;
   // tags
@@ -106,34 +96,23 @@ export default class FilterByCondition extends tsc<IProps> {
   overflowCountRenderDebounce = null;
   handleValueOptionsScrollThrottle = _v => {};
 
-  @Watch('scene', { immediate: true })
+  @Watch('commonParams', { deep: true, immediate: true })
   handleWatchScene() {
-    this.initData();
-  }
-  @Watch('bcsClusterId', { immediate: true })
-  handleWatchBcsClusterId() {
-    this.initData();
-  }
-  @Watch('timeRange', { immediate: true })
-  handleWatchTimeRange() {
+    console.log(this.commonParams);
     this.initData();
   }
 
   @Debounce(200)
   async initData() {
-    if (!this.bcsClusterId) {
+    if (!this.commonParams?.bcs_cluster_id) {
       return;
     }
     this.loading = true;
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.filterByOptions = new FilterByOptions({
-      scenario: this.scene,
+      ...this.commonParams,
       page_size: 10,
       page_type: 'scrolling',
-      bcs_cluster_id: this.bcsClusterId,
       filter_dict: {},
-      start_time: startTime,
-      end_time: endTime,
       with_history: false,
       query_string: this.searchValue,
     });
