@@ -237,11 +237,6 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
     const [dimension, category] = dimensions;
     if (dimension === EDimensionKey.workload) {
       this.pageMap[category] += 1;
-    } else {
-      this.pageMap[dimension] += 1;
-    }
-
-    if (dimension === EDimensionKey.workload) {
       await this.getWorkloadChildrenData({
         filter_dict: {
           workload: `${category}:`,
@@ -249,6 +244,7 @@ export class K8sPerformanceDimension extends K8sDimensionBase {
         ...params,
       });
     } else {
+      this.pageMap[dimension] += 1;
       await this.getDimensionData({
         resource_type: dimension,
         page: this.pageMap[dimension],

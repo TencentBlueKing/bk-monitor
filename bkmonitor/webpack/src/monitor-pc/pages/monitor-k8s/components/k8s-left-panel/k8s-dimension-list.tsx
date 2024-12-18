@@ -169,7 +169,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   /** 首次展开workload的二级菜单后，请求数据 */
-  async handleFirstExpand(dimension, parentDimension) {
+  async handleFirstExpand(dimension: string, parentDimension: EDimensionKey) {
     if (parentDimension === EDimensionKey.workload && dimension !== parentDimension) {
       this.expandLoading[dimension] = true;
       await (this as any).dimension.getWorkloadChildrenData({
@@ -183,11 +183,30 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   /** 加载更多 */
-  async handleMoreClick(dimension, parentDimension) {
+  async handleMoreClick(dimension: string, parentDimension: EDimensionKey) {
+    /** 没有更多数据后，不进行接口请求 */
+    let oldDimensionData = this.showDimensionList.find(item => item.id === parentDimension);
+    if (parentDimension === EDimensionKey.workload) {
+      // workload 需要获取下级类目进行判断
+      oldDimensionData = oldDimensionData.children.find(item => item.id === dimension);
+    }
+    if (!oldDimensionData.showMore) return;
     this.loadMoreLoading[dimension] = true;
     await (this as any).dimension.loadNextPageData([parentDimension, dimension]);
-    this.showDimensionList = (this as any).dimension.showDimensionData;
-    this.loadMoreLoading[dimension] = false;
+
+    /** 如果请求的新数据全是去重的，继续请求下一页 */
+    const showDimensionData = (this as any).dimension.showDimensionData;
+    let newDimensionData: GroupListItem = showDimensionData.find(item => item.id === parentDimension);
+    if (parentDimension === EDimensionKey.workload) {
+      // workload 需要获取下级类目进行判断
+      newDimensionData = newDimensionData.children.find(item => item.id === dimension);
+    }
+    if (oldDimensionData.children.length === newDimensionData.children.length) {
+      await this.handleMoreClick(dimension, parentDimension);
+    } else {
+      this.showDimensionList = showDimensionData;
+      this.loadMoreLoading[dimension] = false;
+    }
   }
 
   /** 渲染骨架屏 */
