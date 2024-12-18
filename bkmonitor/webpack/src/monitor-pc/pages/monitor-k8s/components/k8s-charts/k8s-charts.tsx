@@ -36,19 +36,24 @@ import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 
-import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import './k8s-charts.scss';
 @Component
-export default class K8SCharts extends tsc<{
-  metricList: IK8SMetricItem[];
-  hideMetrics: string[];
-  groupBy: K8sTableColumnResourceKey[];
-  filterCommonParams: Record<string, any>;
-  isDetailMode?: boolean;
-}> {
+export default class K8SCharts extends tsc<
+  {
+    metricList: IK8SMetricItem[];
+    hideMetrics: string[];
+    groupBy: K8sTableColumnResourceKey[];
+    filterCommonParams: Record<string, any>;
+    isDetailMode?: boolean;
+  },
+  {
+    onDrillDown: (item: K8sTableGroupByEvent) => void;
+  }
+> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
@@ -87,8 +92,12 @@ export default class K8SCharts extends tsc<{
   }
   @Provide('onDrillDown')
   @Emit('drillDown')
-  handleDrillDown(group: string) {
-    return group;
+  handleDrillDown(group: string, name: string) {
+    return {
+      id: this.groupByField,
+      dimension: group,
+      filterById: name,
+    };
   }
 
   @Provide('onShowDetail')

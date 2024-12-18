@@ -312,11 +312,11 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   handleCollapse(collapse: boolean, panel: PanelModel) {
     panel.updateCollapsed(collapse);
     this.observablePanelsField[panel.id].collapsed = collapse;
-    panel.panels?.forEach(item => {
+    for (const item of panel.panels) {
       const panel = (this as any).localPanels.find(set => set.id === item.id);
       this.observablePanelsField[panel.id].show = collapse;
       panel?.updateShow(collapse);
-    });
+    }
   }
 
   /**

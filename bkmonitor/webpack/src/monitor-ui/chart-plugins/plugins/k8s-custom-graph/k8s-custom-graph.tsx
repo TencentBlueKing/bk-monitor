@@ -111,7 +111,7 @@ class CallerLineChart extends CommonSimpleChart {
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
-  @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string) => void;
+  @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string, name: string) => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
     dimensions: Record<string, string>
   ) => void;
@@ -778,7 +778,7 @@ class CallerLineChart extends CommonSimpleChart {
   handleMenuToolsSelect(menuItem: IMenuItem) {
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
-        this.handleCollectChart(this.panel);
+        this.handleCollectChart();
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
@@ -1015,7 +1015,7 @@ class CallerLineChart extends CommonSimpleChart {
                           <K8sDimensionDrillDown
                             dimension={'namespace'}
                             value={'namespace'}
-                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
+                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
                           />
                         )}
                       </div>
