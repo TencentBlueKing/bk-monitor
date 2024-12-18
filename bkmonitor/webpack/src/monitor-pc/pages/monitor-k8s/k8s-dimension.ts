@@ -318,7 +318,6 @@ export abstract class K8sGroupDimension {
    * @param {boolean} config.single 是否单项操作（true: 单项添加，false: 将所在层级及所有父级对象加入）
    */
   addGroupFilter(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
-    if (this.hasGroupFilter(groupId)) return;
     if (config?.single) {
       const groupFilters = this.dimensions.reduce((prev, curr) => {
         if (this.groupFiltersSet.has(curr) || curr === groupId) {

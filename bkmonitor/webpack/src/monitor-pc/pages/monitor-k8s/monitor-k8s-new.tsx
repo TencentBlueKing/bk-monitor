@@ -274,9 +274,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
    * @param isSelect 是否选中
    */
   groupByChange(groupId: string, isSelect: boolean) {
-    if (isSelect && this.groupInstance.hasGroupFilter(groupId as K8sTableColumnResourceKey)) return;
     this.showCancelDrill = false;
-    this.setGroupFilters(groupId as K8sTableColumnResourceKey);
+    if (isSelect) {
+      this.groupInstance.addGroupFilter(groupId as K8sTableColumnResourceKey);
+    } else {
+      this.setGroupFilters(groupId as K8sTableColumnResourceKey);
+    }
   }
 
   /**
@@ -571,7 +574,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                       slot='label'
                     >
                       <i class={['icon-monitor', panel.icon]} />
-                      <span class='panel-name'>{panel.label}</span>
+                      <span class='panel-name'>{this.$t(panel.label)}</span>
                     </div>
                   </bk-tab-panel>
                 ))}
