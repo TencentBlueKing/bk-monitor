@@ -299,7 +299,7 @@ class K8sNamespaceMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_cpu(self):
-        return "sum by (namespace) (rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
+        return f"sum by (namespace) (rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
 
     @property
     def meta_prom_with_mem(self):
@@ -328,7 +328,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @property
     def meta_prom(self):
         return (
-            f"sum by (workload_kind, workload_name, namespace) "
+            "sum by (workload_kind, workload_name, namespace) "
             f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
