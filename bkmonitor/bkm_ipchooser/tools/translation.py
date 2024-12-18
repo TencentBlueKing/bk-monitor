@@ -11,9 +11,9 @@ def respect_language(language):
     """Context manager that changes the current translation language for
     all code inside the following block.
     Can e.g. be used inside tasks like this::
-        from celery import task
+        from celery import shared_task
         from apps.utils.translation import respect_language
-        @task
+        @shared_task
         def my_task(language=None):
             with respect_language(language):
                 pass

@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from celery.task import task
+from celery import shared_task
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import ActionConfig, AlertAssignGroup, AlertAssignRule
@@ -22,7 +22,7 @@ from monitor_web.strategies.user_groups import create_default_notice_group
 logger = logging.getLogger("celery")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_home_statistics():
     # 更新首页的统计数据
     for days in [1, 7, 15, 30]:
@@ -32,7 +32,7 @@ def update_home_statistics():
         logger.info("[update_home_statistics] refresh %s days data in %ss", days, end_time - start_time)
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def run_init_builtin_action_config(bk_biz_id):
     # 为业务初始化快捷套餐
     # 在当前业务下注册对应的快捷内容
