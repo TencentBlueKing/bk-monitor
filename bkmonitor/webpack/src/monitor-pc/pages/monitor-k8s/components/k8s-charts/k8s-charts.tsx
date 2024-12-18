@@ -296,9 +296,10 @@ export default class K8SCharts extends tsc<
     const data: Array<Record<K8sTableColumnKeysEnum, string>> = await listK8sResources({
       ...this.filterCommonParams,
       with_history: true,
-      page_size: 10,
+      page_size: Math.abs(this.limit),
       page: 1,
       page_type: 'scrolling',
+      order_by: this.limit > 0 ? '-cpu' : 'cpu',
     })
       .then(data => {
         if (!data?.items?.length) return [];
@@ -354,6 +355,10 @@ export default class K8SCharts extends tsc<
     this.method = v;
     this.updateViewOptions();
   }
+  handleLimitChange(v: string) {
+    this.limit = +v;
+    this.createPanelList();
+  }
   /** 时间对比值变更 */
   handleCompareTimeChange(timeList: string[]) {
     this.timeOffset = timeList;
@@ -384,6 +389,17 @@ export default class K8SCharts extends tsc<
               options={K8S_METHOD_LIST}
               value={this.method}
               onChange={this.handleMethodChange}
+            />
+            <FilterVarSelectSimple
+              class='ml-36'
+              options={[
+                { name: 'top(10)', id: 10 },
+                { name: 'bottom(10)', id: -10 },
+              ]}
+              field={'limit'}
+              label={this.$t('Limit')}
+              value={this.limit}
+              onChange={this.handleLimitChange}
             />
             <span class='ml-36 mr-8'>{this.$t('时间对比')}</span>
             <bk-switcher
