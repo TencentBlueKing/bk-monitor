@@ -191,7 +191,7 @@ class ListK8SResources(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "node", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container"],
             label="资源类型",
         )
         # 用于模糊查询

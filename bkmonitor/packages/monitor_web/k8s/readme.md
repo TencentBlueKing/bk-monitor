@@ -3,6 +3,10 @@
 
 获取集群列表
 
+### 请求方法
+
+GET
+
 ### 请求 url
 
 rest/v2/k8s/resources/list_bcs_cluster/
@@ -34,6 +38,10 @@ rest/v2/k8s/resources/list_bcs_cluster/
 
 获取左侧工作负载列表的视图预览，展示不同类型的统计数量。
 按照 `["Deployments","StatefulSets","DaemonSets","Jobs","CronJobs"]` 的顺序返回
+
+### 请求方法
+
+GET
 
 ### 请求 url
 
@@ -115,6 +123,10 @@ rest/v2/k8s/resources/workload_overview/
 
 获取指定场景的指标列表
 
+### 请求方法
+
+GET
+
 ### 请求 url
 
 rest/v2/k8s/resources/scenario_metric_list/
@@ -170,26 +182,31 @@ rest/v2/k8s/resources/scenario_metric_list/
 
 获取 k8s 集群资源列表
 
+### 请求方法
+
+POST
+
 ### 请求 url
 
-rest/v2/k8s/resources/list_k8s_resources/
+rest/v2/k8s/resources/list_resources/
 
 ### 请求参数
 
-| 字段               | 类型       | 必选    | 描述                                                                   |
+
+| 字段               | 类型       | 必选    | 描述                                                                   |
 | ---------------- | -------- | ----- | -------------------------------------------------------------------- |
-| bk_biz_id        | id       | 是     | 业务 id                                                                |
-| bcs_cluster_id   | string   | 是     | 集群 id                                                                |
-| resource_type    | string   | 是     | 资源类型, 可选值为 ["pod", "workload", "namespace", "container"]       |
-| query_string     | string   | 否     | 名字过滤                                                                 |
-| filter_dict      | dict     | 否     | 精确过滤                                                                 |
-| start_time       | int      | 是     | 开始时间                                                                 |
-| end_time         | int      | 是     | 结束时间                                                                 |
-| sernario         | str      | 是     | 场景，可选值为 ”performance“                                                |
-| with_history     | bool     | 否     | 历史出现过的资源, 默认为                                                        |
-| page_size        | int      | 否     | 分页数量, 默认为 5, 且 with_history=false 可用                                   |
-| page             | int      | 否     | 页数，默认为 1，且 with_history=false 可用                                       |
-| page_type        | str      | 否     | 分页类型, 可选值为: “scrolling”(滚动分页), "traditional"(传统分页), 默认为“traditional” |
+| bk_biz_id        | id       | 是     | 业务 id                                                                |
+| bcs_cluster_id   | string   | 是     | 集群 id                                                                |
+| resource_type    | string   | 是     | 资源类型, 可选值为 "pod", "workload", "namespace", "container"               |
+| query_string     | string   | 否     | 名字过滤                                                                 |
+| filter_dict      | dict     | 否     | 精确过滤                                                                 |
+| start_time       | int      | 是     | 开始时间                                                                 |
+| end_time         | int      | 是     | 结束时间                                                                 |
+| sernario         | str      | 是     | 场景，可选值为 "performance"                                                |
+| with_history     | bool     | 否     | 历史出现过的资源, 默认为                                                        |
+| page_size        | int      | 否     | 分页数量, 默认为 5, 且 with_history=false 可用                                 |
+| page             | int      | 否     | 页数，默认为 1，且 with_history=false 可用                                     |
+| page_type        | str      | 否     | 分页类型, 可选值为: "scrolling"(滚动分页), "traditional"(传统分页), 默认为"traditional" |
 
 ### 示例
 
@@ -249,7 +266,7 @@ rest/v2/k8s/resources/list_k8s_resources/
 }
 ```
 
-#### 1.3. Pod 列表中 “点击加载更多”
+#### 1.2. Pod 列表中 “点击加载更多”
 
 实际采用滚动分页的方式对剩下的数据进行请求，比如每次都刷新 20 条数据，则每次滚动只需 page + 1 即可
 
@@ -296,7 +313,7 @@ rest/v2/k8s/resources/list_k8s_resources/
 }
 ```
 
-#### 1.2. 查询包含历史数据的 pod 列表
+#### 1.3. 查询包含历史数据的 pod 列表
 
 设置 `with_history` 为 `true` 时将返回所有的 pod 资源， 此时，`page_size`,`page`,`page_type` 将不可用
 
@@ -428,17 +445,20 @@ rest/v2/k8s/resources/list_k8s_resources/
 
 ##### 请求示例
 
-在名字过滤中采用 `<type>:` 可以查询指定类型的列表
+在 `filter_dict["workload"]` 中采用 `<type>:` 可以查询指定类型的列表
 ```json
 {
   "bk_biz_id": 2,
   "bcs_cluster_id": "BCS-K8S-00000",
   "resource_type": "workload",
-  "start_time": 1732240257,
-  "end_time": 1732243857,
-  "sernario": "performance",
-  "query_string": "Deployment:"
+  "start_time": 1733894974,
+  "end_time": 1733898574,
+  "scenario": "performance",
+  "filter_dict": {
+    "workload": "Deployment:"
+  }
 }
+
 ```
 
 ##### 响应示例
@@ -449,22 +469,35 @@ rest/v2/k8s/resources/list_k8s_resources/
   "code": 200,
   "message": "OK",
   "data": {
-    "count": 2,
+    "count": 554,
     "items": [
       {
-        "namespace": "demo",
-        "workload": "Deployment:workload-1"
+        "namespace": "bkbase",
+        "workload": "Deployment:bkbase-flinksql-batch"
       },
       {
-        "namespace": "default",
-        "workload": "Deployment:workload-2"
+        "namespace": "bkapp-qywx-open-plugin-stag",
+        "workload": "Deployment:bkapp-qywx-open-plugin-stag--web"
+      },
+      {
+        "namespace": "bkbase",
+        "workload": "Deployment:bkbase-authapi-celeryworker"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-dbm-hadb-api"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-cmdb-toposerver"
       }
     ]
   }
 }
+
 ```
 
-#### 2.4. 获取 workload 指定类型和相似名字的列表
+#### 2.4. 通过指定 wrokload_type 和 query_string 获取 workload 资源
 
 ##### 请求示例
 
@@ -473,10 +506,66 @@ rest/v2/k8s/resources/list_k8s_resources/
   "bk_biz_id": 2,
   "bcs_cluster_id": "BCS-K8S-00000",
   "resource_type": "workload",
-  "start_time": 1732240257,
-  "end_time": 1732243857,
-  "sernario": "performance",
-  "query_string": "Deployment:workload-1"
+  "start_time": 1733894974,
+  "end_time": 1733898574,
+  "scenario": "performance",
+  "query_string": "monitor",
+  "filter_dict": {
+    "workload": "Deployment:"
+  }
+}
+
+```
+
+##### 响应示例
+
+```json
+{
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": {
+    "count": 50,
+    "items": [
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-alarm-webhook-action-worker"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-web-worker-resource"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-grafana"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-web-query-api"
+      },
+      {
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-ingester"
+      }
+    ]
+  }
+}
+
+```
+
+#### 2.5. 通过指定 workload_type 和 workload_name 获取 workload 资源
+
+##### 请求示例
+
+```json
+{
+  "bk_biz_id": 2,
+  "bcs_cluster_id": "BCS-K8S-00000",
+  "resource_type": "workload",
+  "start_time": 1733894974,
+  "end_time": 1733898574,
+  "scenario": "performance",
+  "filter_dict": { "workload": "Deployment:bk-monitor-grafana" }
 }
 ```
 
@@ -491,12 +580,13 @@ rest/v2/k8s/resources/list_k8s_resources/
     "count": 1,
     "items": [
       {
-        "namespace": "demo",
-        "workload": "Deployment:workload-1"
+        "namespace": "blueking",
+        "workload": "Deployment:bk-monitor-grafana"
       }
     ]
   }
 }
+
 ```
 
 #### 3.1. 获取所有 namespace 的资源列表
@@ -627,9 +717,49 @@ rest/v2/k8s/resources/list_k8s_resources/
 }
 ```
 
+#### 5.1. （暂未实现，文档需更改）获取资源类型为 node 的列表
+
+##### 请求示例
+
+```json
+{
+  "bk_biz_id": 2,
+  "bcs_cluster_id": "BCS-K8S-00000",
+  "resource_type": "node",
+  "start_time": 1732240257,
+  "end_time": 1732243857,
+  "sernario": "performance"
+}
+```
+
+##### 返回示例
+
+```json
+{
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": {
+    "count": 14,
+    "items": [
+      {
+        "pod": "pod-1",
+        "container": "container-1",
+        "namespace": "default",
+        "workload": "Deployment:workload-1"
+      } // ...
+    ]
+  }
+}
+```
+
 ## GetResourceDetail
 
 获取资源详情
+
+### 请求方法
+
+GET
 
 ### 请求 url
 
@@ -637,16 +767,16 @@ rest/v2/k8s/resources/get_resource_detail
 
 ### 请求参数
 
-| 字段              | 类型   | 必填   | 描述                                                 |
+| 字段              | 类型   | 必填   | 描述                                                 |
 | --------------- | ---- | ---- | -------------------------------------------------- |
-| bcs_cluster_id  | str  | 是    | 集群 id                                              |
-| bk_biz_id       | int  | 是    | 业务 id                                              |
-| namespace       | str  | 是    | 命名空间                                               |
-| resource_type   | str  | 是    | 资源类型，可选值为 “pod”,"workload","container"             |
-| pod_name        | str  | 否    | pod 名称，当 resource_type 为 "pod" \| "container" 时必填  |
-| container_name  | str  | 否    | 容器名称，当 resource_type 为 “container" 时必填             |
-| workload_name   | str  | 否    | 工作负载名称， 当 resource_type 为 ”workload" 时必填           |
-| workload_type   | str  | 否    | 工作负载类型， 当 resource_type 为 ”workload" 时必填           |
+| bcs_cluster_id  | str  | 是    | 集群 id                                              |
+| bk_biz_id       | int  | 是    | 业务 id                                              |
+| namespace       | str  | 是    | 命名空间                                               |
+| resource_type   | str  | 是    | 资源类型，可选值为 "pod","workload","container"             |
+| pod_name        | str  | 否    | pod 名称，当 resource_type 为 "pod" \| "container" 时必填  |
+| container_name  | str  | 否    | 容器名称，当 resource_type 为 "container" 时必填             |
+| workload_name   | str  | 否    | 工作负载名称， 当 resource_type 为 "workload" 时必填           |
+| workload_type   | str  | 否    | 工作负载类型， 当 resource_type 为 "workload" 时必填           |
 
 ### 请求示例
 
