@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources } from 'monitor-api/modules/k8s';
 import { Debounce } from 'monitor-common/utils';
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, type IK8SMetricItem } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
@@ -51,7 +52,7 @@ export default class K8SCharts extends tsc<
     isDetailMode?: boolean;
   },
   {
-    onDrillDown: (item: K8sTableGroupByEvent) => void;
+    onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
   }
 > {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
@@ -91,13 +92,8 @@ export default class K8SCharts extends tsc<
     this.createPanelList();
   }
   @Provide('onDrillDown')
-  @Emit('drillDown')
   handleDrillDown(group: string, name: string) {
-    return {
-      id: this.groupByField,
-      dimension: group,
-      filterById: name,
-    };
+    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, false);
   }
 
   @Provide('onShowDetail')
@@ -128,7 +124,6 @@ export default class K8SCharts extends tsc<
     this.loading = true;
     await this.getResourceList();
     const displayMode = this.isDetailMode ? 'hidden' : 'table';
-    console.info(this.isDetailMode, displayMode, '==========');
     const panelList = [];
     for (const item of this.metricList) {
       panelList.push({
@@ -408,12 +403,19 @@ export default class K8SCharts extends tsc<
           </div>
         </div>
         <div class='k8s-charts-list'>
-          <FlexDashboardPanel
-            id={this.isDetailMode ? 'k8s-detail' : 'k8s-charts'}
-            column={1}
-            needCheck={false}
-            panels={this.panels}
-          />
+          {this.loading || !this.panels.length ? (
+            <TableSkeleton
+              class='table-skeleton'
+              type={5}
+            />
+          ) : (
+            <FlexDashboardPanel
+              id={this.isDetailMode ? 'k8s-detail' : 'k8s-charts'}
+              column={1}
+              needCheck={false}
+              panels={this.panels}
+            />
+          )}
         </div>
         <K8sDetailSlider
           hideMetrics={this.hideMetrics}
