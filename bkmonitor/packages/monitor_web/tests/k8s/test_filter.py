@@ -1111,7 +1111,11 @@ class TestK8sListResources(TestCase):
                 ListK8SResources()(validated_request_data),
                 {
                     "count": len(orm_resource + promql_resource[:1]),
-                    "items": orm_resource + promql_resource[:1],
+                    "items": [
+                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'apm-demo'},
+                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'default'},
+                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'blueking'},
+                    ],
                 },
             )
 
@@ -1314,12 +1318,10 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             workload_list = ListK8SResources()(validated_request_data)
-            expect_workload_list = [obj.to_meta_dict() for obj in orm_resource] + [
-                BCSWorkload(
-                    namespace="blueking",
-                    type="Deployment",
-                    name="bk-monitor-web-beat",
-                ).to_meta_dict()
+            expect_workload_list = [
+                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web'},
+                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web-beat'},
+                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web-worker'},
             ]
             self.assertEqual(
                 workload_list,
@@ -1423,14 +1425,14 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             pod_list = ListK8SResources()(validated_request_data)
-            expect_pod_list = [obj.to_meta_dict() for obj in orm_resource] + [
+            expect_pod_list = [
                 BCSPod(
                     workload_type="Deployment",
                     workload_name="bk-monitor-web-worker-scheduler",
                     namespace="blueking",
                     name="bk-monitor-web-worker-scheduler-7b666c7788-2abcd",
                 ).to_meta_dict()
-            ]
+            ] + [obj.to_meta_dict() for obj in orm_resource]
             self.assertEqual(pod_list, {"count": len(expect_pod_list), "items": expect_pod_list})
 
     def test_with_container(self):
@@ -1537,7 +1539,7 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             container_list = ListK8SResources()(validated_request_data)
-            expect_container_list = [obj.to_meta_dict() for obj in orm_resource] + [
+            expect_container_list = [
                 BCSContainer(
                     pod_name="bk-monitor-web-544d4dc768-4564s",
                     name="bk-monitor-web",
@@ -1545,7 +1547,7 @@ class TestK8sListResources(TestCase):
                     workload_type="Deployment",
                     workload_name="bk-monitor-web",
                 ).to_meta_dict()
-            ]
+            ] + [obj.to_meta_dict() for obj in orm_resource]
             self.assertEqual(
                 container_list["items"],
                 expect_container_list,

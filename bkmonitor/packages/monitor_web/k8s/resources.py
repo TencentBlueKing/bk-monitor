@@ -213,6 +213,9 @@ class ListK8SResources(Resource):
             default="traditional",
             label="分页标识",
         )
+        order_by = serializers.ChoiceField(
+            required=False, default="-cpu", label="排序", choices=["cpu", "-cpu", "mem", "-mem"]
+        )
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -234,38 +237,56 @@ class ListK8SResources(Resource):
                     fuzzy=True,
                 )
             )
-
+        resource_list = []
+        total_count = 0
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                count: int = resource_meta.get_from_meta().count()
+                total_count: int = resource_meta.get_from_meta().count()
                 resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
                 resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
             except FieldError:
-                count = 0
-                resource_list = []
-            return {"count": count, "items": resource_list}
+                pass
+            return {"count": total_count, "items": resource_list}
 
         if with_history:
-            # 右侧列表查询
-            try:
-                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
-            except FieldError:
-                resource_list = []
-            resource_id = [tuple(sorted(r.items())) for r in resource_list]
+            page_count = 0
+            # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
             # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
+            if validated_request_data["order_by"]:
+                page_count = validated_request_data["page"] * validated_request_data["page_size"]
+
             history_resource_list = resource_meta.get_from_promql(
-                validated_request_data["start_time"], validated_request_data["end_time"]
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
+                validated_request_data["order_by"],
+                page_count,
             )
-            # 3.1 promql上报数据包含了meta数据，需要去重
+            resource_id_set = set()
             for rs in history_resource_list:
-                rs_dict = rs.to_meta_dict()
-                if tuple(sorted(rs_dict.items())) not in resource_id:
-                    resource_list.append(rs_dict)
+                record = rs.to_meta_dict()
+                resource_list.append(record)
+                resource_id_set.add(tuple(sorted(record.items())))
+            # promql 查询数据量不足，从db中补充
+            try:
+                meta_resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.get_from_meta()]
+            except FieldError:
+                meta_resource_list = []
+            all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
+            total_count = len(all_resource_id_set)
+            # 不需要分页，全量返回
+            page_count = total_count if page_count == 0 else page_count
 
-            count = len(resource_list)
+            if len(resource_list) < page_count:
+                # 基于需要返回的数量，进行分页
+                # 3.1 promql上报数据包含了meta数据，需要去重
+                for rs_dict in meta_resource_list:
+                    if tuple(sorted(rs_dict.items())) not in resource_id_set:
+                        resource_list.append(rs_dict)
+                        if len(resource_list) >= total_count:
+                            break
 
-        return {"count": count, "items": resource_list}
+        return {"count": total_count, "items": resource_list}
 
     def get_resource_meta_by_pagination(
         self, resource_meta: K8sResourceMeta, validated_request_data: Dict
