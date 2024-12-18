@@ -246,13 +246,18 @@ class CallerLineChart extends CommonSimpleChart {
               })
               .then(res => {
                 res.metrics && metrics.push(...res.metrics);
+                // if (res.series?.length > 1) {
+                //   res.series = res.series.slice(0, 1);
+                // }
                 res.series &&
                   series.push(
                     ...res.series.map(set => {
-                      const name =
-                        `${this.timeOffset.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
-                          this.handleSeriesName(item, set) || set.target
-                        }`.replace(/\|/gim, ':');
+                      let name = this.handleSeriesName(item, set) || set.target;
+                      if (this.timeOffset.length) {
+                        name = `${this.handleTransformTimeShift(timeShift || 'current')}-${name}`;
+                      } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
+                        name = newParams.query_configs?.[0]?.alias;
+                      }
                       this.legendSorts.push({
                         name: name,
                         timeShift: timeShift,
@@ -899,6 +904,7 @@ class CallerLineChart extends CommonSimpleChart {
   }
 
   render() {
+    const showLegend = this.panel.options?.legend?.displayMode !== 'hidden';
     return (
       <div class='k8s-custom-graph'>
         <ChartHeader
@@ -923,7 +929,7 @@ class CallerLineChart extends CommonSimpleChart {
           <div class={'time-series-content right-legend'}>
             <div
               ref='chart'
-              class={'chart-instance is-table-legend'}
+              class={`chart-instance ${showLegend ? 'is-table-legend' : ''}`}
             >
               {this.inited && (
                 <BaseEchart
@@ -940,35 +946,37 @@ class CallerLineChart extends CommonSimpleChart {
                 />
               )}
             </div>
-            <div class={'chart-legend right-legend'}>
-              <TableLegend
-                scopedSlots={{
-                  name: ({ item }) => (
-                    <div
-                      class='k8s-legend-name'
-                      onMousedown={(e: MouseEvent) => e.stopPropagation()}
-                    >
-                      <span
-                        style={{ color: item.show ? '#3a84ff' : '#ccc' }}
-                        class='metric-name'
-                        v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                        onClick={() => this.onShowDetail(item.name)}
+            {showLegend && (
+              <div class={'chart-legend right-legend'}>
+                <TableLegend
+                  scopedSlots={{
+                    name: ({ item }) => (
+                      <div
+                        class='k8s-legend-name'
+                        onMousedown={(e: MouseEvent) => e.stopPropagation()}
                       >
-                        {item.name}
-                      </span>
-                      <K8sDimensionDrillDown
-                        dimension={'namespace'}
-                        value={'namespace'}
-                        onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
-                      />
-                    </div>
-                  ),
-                }}
-                legendData={this.legendData}
-                preventEvent={true}
-                onSelectLegend={this.handleSelectLegend}
-              />
-            </div>
+                        <span
+                          style={{ color: item.show ? '#3a84ff' : '#ccc' }}
+                          class='metric-name'
+                          v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                          onClick={() => this.onShowDetail(item.name)}
+                        >
+                          {item.name}
+                        </span>
+                        <K8sDimensionDrillDown
+                          dimension={'namespace'}
+                          value={'namespace'}
+                          onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension)}
+                        />
+                      </div>
+                    ),
+                  }}
+                  legendData={this.legendData}
+                  preventEvent={true}
+                  onSelectLegend={this.handleSelectLegend}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>

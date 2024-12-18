@@ -89,8 +89,12 @@
       .detail-content-left {
         flex: 1;
         min-width: 0;
-        padding: 20px 24px 0;
+        padding: 0px 24px;
         overflow: auto;
+
+        .k8s-charts {
+          padding-top: 20px;
+        }
       }
 
       .detail-content-right {

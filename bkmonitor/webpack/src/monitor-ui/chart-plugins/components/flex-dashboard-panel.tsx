@@ -166,6 +166,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   handleInitPanelsGridpos(panels: IPanelModel[]) {
     if (!panels) return;
     const updatePanelsGridpos = (list: IPanelModel[]) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       list.forEach(item => {
         if (item.type === 'row') {
           if (item.panels?.length) {
@@ -177,6 +178,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             legend: {
               displayMode: this.column === 1 ? 'table' : 'list',
               placement: this.column === 1 ? 'right' : 'bottom',
+              ...item.options?.legend,
             },
           } as any;
         }

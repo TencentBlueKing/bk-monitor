@@ -73,7 +73,6 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     filters: {},
     variables: {},
   };
-
   panel: PanelModel = null;
   loading = false;
   popoverInstance = null;
@@ -202,6 +201,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
             filterCommonParams={this.filterCommonParams}
             groupBy={[this.groupByField]}
             hideMetrics={this.hideMetrics}
+            isDetailMode={true}
             metricList={this.metricList}
           />
         </div>

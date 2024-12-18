@@ -47,11 +47,13 @@ export default class K8SCharts extends tsc<{
   hideMetrics: string[];
   groupBy: K8sTableColumnResourceKey[];
   filterCommonParams: Record<string, any>;
+  isDetailMode?: boolean;
 }> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
+  @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
@@ -116,6 +118,8 @@ export default class K8SCharts extends tsc<{
   async createPanelList() {
     this.loading = true;
     await this.getResourceList();
+    const displayMode = this.isDetailMode ? 'hidden' : 'table';
+    console.info(this.isDetailMode, displayMode, '==========');
     const panelList = [];
     for (const item of this.metricList) {
       panelList.push({
@@ -132,8 +136,7 @@ export default class K8SCharts extends tsc<{
             subTitle: '',
             options: {
               legend: {
-                displayMode: 'list',
-                placement: 'right',
+                displayMode,
               },
               unit: K8SPerformanceMetricUnitMap[panel.id] || '',
             },
@@ -156,7 +159,21 @@ export default class K8SCharts extends tsc<{
                 data_type: 'time_series',
                 api: 'grafana.graphUnifyQuery',
               },
-            ],
+            ].concat(
+              this.createPerformanceDetailPanel(panel.id).map(item => ({
+                data: {
+                  expression: 'A',
+                  query_configs: [
+                    {
+                      ...item,
+                    },
+                  ],
+                },
+                datasource: 'time_series',
+                data_type: 'time_series',
+                api: 'grafana.graphUnifyQuery',
+              }))
+            ),
           })),
       });
     }
@@ -211,6 +228,63 @@ export default class K8SCharts extends tsc<{
         return `${this.createCommonPromqlMethod()}(${'container_memory_rss'}{${this.createCommonPromqlContent()}}) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`;
       default:
         return '';
+    }
+  }
+  createPerformanceDetailPanelPromql(metric: string) {
+    switch (metric) {
+      case 'container_cpu_usage_seconds_total': // CPU使用量
+        return `kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}}`;
+      case 'container_memory_rss': // 内存使用量(rss)
+        return `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limit_memory_bytes{${this.createCommonPromqlContent()}})`;
+      default:
+        return '';
+    }
+  }
+  createPerformanceDetailPanel(metric: string) {
+    if (
+      this.groupByField !== K8sTableColumnKeysEnum.POD ||
+      this.resourceList.size !== 1 ||
+      !['container_cpu_usage_seconds_total', 'container_memory_rss'].includes(metric)
+    )
+      return [];
+    if (metric === 'container_cpu_usage_seconds_total')
+      return [
+        {
+          data_source_label: 'prometheus',
+          data_type_label: 'time_series',
+          promql: `kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}}`,
+          interval: '$interval_second',
+          alias: 'limit',
+          filter_dict: {},
+        },
+        {
+          data_source_label: 'prometheus',
+          data_type_label: 'time_series',
+          promql: `kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}}`,
+          interval: '$interval_second',
+          alias: 'request',
+          filter_dict: {},
+        },
+      ];
+    if (metric === 'container_memory_rss') {
+      return [
+        {
+          data_source_label: 'prometheus',
+          data_type_label: 'time_series',
+          promql: `kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}}`,
+          interval: '$interval_second',
+          alias: 'limit',
+          filter_dict: {},
+        },
+        {
+          data_source_label: 'prometheus',
+          data_type_label: 'time_series',
+          promql: `kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}}`,
+          interval: '$interval_second',
+          alias: 'request',
+          filter_dict: {},
+        },
+      ];
     }
   }
   async getResourceList() {
