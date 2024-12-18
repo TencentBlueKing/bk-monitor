@@ -961,7 +961,7 @@ class CallerLineChart extends CommonSimpleChart {
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
-          needMoreMenu={true}
+          needMoreMenu={!this.empty}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.curTitle}
