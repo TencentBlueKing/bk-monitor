@@ -262,7 +262,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               class='group-select'
               onClick={this.handleGroupByChange}
             >
-              {this.isGroupBy ? 'ungroup' : 'Group'}
+              {this.isGroupBy ? 'UnGroup' : 'Group'}
             </div>
           )}
         </div>

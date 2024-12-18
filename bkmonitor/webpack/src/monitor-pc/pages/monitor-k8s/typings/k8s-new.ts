@@ -102,7 +102,7 @@ export interface GroupListItem {
 }
 
 export interface K8sDimensionParams extends ICommonParams {
-  keyword: string;
+  query_string: string;
   pageSize: number;
   page_type: 'scrolling' | 'traditional';
 }
