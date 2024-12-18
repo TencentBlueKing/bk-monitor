@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { formatPreviousDayAndWeekTimestamps } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/utils';
 
 import { EPreDateType } from './utils';
 
@@ -69,16 +70,7 @@ function timeOffsetDateFormat(t: string) {
 }
 
 function preDateToTimeRangeStr(timeRange: TimeRangeType) {
-  const result = {};
-  for (const item of preDateTypeList) {
-    const [startTime, endTime] = handleTransformToTimestamp(timeRange);
-    const day = item.value === EPreDateType.yesterday ? 1 : 7;
-    const endDate = dayjs().subtract(day, 'day');
-    const startDate = dayjs(endDate.unix() * 1000 - (endTime - startTime) * 1000);
-    result[item.value] =
-      `${startDate.format('YYYY')} (${startDate.format('MM-DD HH:mm:ss')} ~ ${endDate.format('MM-DD HH:mm:ss')})`;
-  }
-  return result;
+  return formatPreviousDayAndWeekTimestamps(handleTransformToTimestamp(timeRange));
 }
 
 interface IProps {
