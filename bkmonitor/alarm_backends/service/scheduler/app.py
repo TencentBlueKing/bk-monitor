@@ -204,7 +204,7 @@ app.autodiscover_tasks(DISCOVER_DIRS)
 
 
 @setup_logging.connect
-def config_loggers(*args, **kwags):
+def config_loggers(*args, **kwargs):
     from logging.config import dictConfig
 
     from django.conf import settings
