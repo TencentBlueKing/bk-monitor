@@ -6,16 +6,16 @@
   align-items: center;
 
   .filter-search {
-    background-color: white;
+    position: relative;
     display: flex;
     flex: 1;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
     align-items: center;
     height: 32px;
     padding: 0 8px;
     color: #63656e;
-    position: relative;
+    background-color: white;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
 
     .filter-icon {
       color: #979ba5;
@@ -23,13 +23,23 @@
       @include icon-size(16px, false);
     }
 
+    .placeholder-text {
+      position: absolute;
+      top: 50%;
+      z-index: 3;
+      color: #c4c6cc;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      transform: translateY(-50%);
+  }
+
     .search-input {
+      z-index: 2;
       display: flex;
-      padding: 0 8px;
       flex: 1;
       height: 100%;
+      padding: 0 8px;
       border: 0;
-      z-index: 2;
 
       &::placeholder {
         color: #c4c6cc;
@@ -37,9 +47,9 @@
     }
 
     .pre-text {
-      visibility: hidden;
-      z-index: -1;
       position: absolute;
+      z-index: -1;
+      visibility: hidden;
     }
 
     .filter-clear {
@@ -54,20 +64,20 @@
   }
 
   .filter-favorites {
-    color: #979ba5;
     display: flex;
-    height: 100%;
     align-items: center;
     justify-content: center;
+    width: 66px;
+    height: 100%;
+    margin-left: -1px;
+    color: #979ba5;
+    background: #f5f6fa;
     border: 1px solid #c4c6cc;
     border-radius: 2px;
-    width: 66px;
-    margin-left: -1px;
-    background: #f5f6fa;
 
     &.en-lang {
-      padding: 0 6px;
-      width: 86px
+      width: 86px;
+      padding: 0 6px
     }
 
     .favorite-icon {
@@ -78,8 +88,8 @@
 
     &.is-disable {
       &:hover {
-        cursor: not-allowed;
         color: #c4c6cc;
+        cursor: not-allowed;
         background-color: #f5f6fa;
       }
     }
@@ -93,16 +103,16 @@
 }
 
 .filter-input-panel {
+  z-index: 9999;
+  display: flex;
   width: 100%;
   height: 280px;
-  display: flex;
-  z-index: 9999;
-  background-color: white;
+  overflow: auto;
   font-size: 12px;
+  background-color: white;
   border: 1px solid #dcdee5;
   border-radius: 2px;
-  box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10); 
-  overflow: auto;
+  box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
 
   .common-panel {
     display: flex;
@@ -110,14 +120,14 @@
     padding-left: 16px;
 
     .panel-title {
-      background-color: #f5f6fa;
       display: flex;
-      height: 28px;
       align-items: center;
-      color: #313238;
-      font-weight: bold;
-      margin-top: 8px;
+      height: 28px;
       padding-left: 8px;
+      margin-top: 8px;
+      font-weight: bold;
+      color: #313238;
+      background-color: #f5f6fa;
       border-radius: 2px;
     }
 
@@ -134,7 +144,7 @@
           /* stylelint-disable-next-line declaration-no-important */
           display: none !important;
           color: #63656e;
-          
+
           @include icon-size(22px, true);
         }
 
@@ -149,8 +159,8 @@
 
           &.is-diabled {
             &:hover {
-              cursor: not-allowed;
               color: #979ba5;
+              cursor: not-allowed;
             }
           }
         }
@@ -171,9 +181,9 @@
     .panel-empty {
       display: flex;
       flex: 1;
-      width: 100%;
       align-items: center;
       justify-content: center;
+      width: 100%;
       color: #c4c6cc;
     }
   }
