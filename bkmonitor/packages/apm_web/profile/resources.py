@@ -155,9 +155,9 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        is_get_deepflow = serializers.BooleanField()
+        is_get_ebpf = serializers.BooleanField()
         """
-        is_get_deepflow 开关是否将 deepflow 集群/应用装载在列表中一同返回
+        is_get_ebpf 开关是否将 不同数据源的 ebpf 数据装载在列表中一同返回
         """
 
     @classmethod
@@ -178,7 +178,10 @@ class ListApplicationServicesResource(Resource):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
         apps = []
         nodata_apps = []
-        is_get_deepflow = data["is_get_deepflow"]
+        deepflow_data = []
+        is_get_ebpf = data["is_get_ebpf"]
+        '''
+        
         service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
             services = service_map.get((application.bk_biz_id, application.app_name), [])
@@ -205,9 +208,11 @@ class ListApplicationServicesResource(Resource):
                         "services": [],
                     }
                 )
-        if is_get_deepflow:
+                '''
+        if is_get_ebpf:
             deepflow_data = DeepFlowQuery.list_app_service(bk_biz_id=data["bk_biz_id"])
             # 查询 deepflow 集群和 service 装载入结果
+            # 其他 ebpf 数据源数据 可横向拓展
         return {
             "normal": apps,
             "deepflow": deepflow_data,

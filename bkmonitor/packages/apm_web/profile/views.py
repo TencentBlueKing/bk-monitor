@@ -167,7 +167,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
     @staticmethod
-    def deepflow_query(
+    def ebpf_query(
         bk_biz_id: int,
         cluster_id: str,
         service_name: str,
@@ -175,21 +175,23 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         end: int,
         sample_type: str,
         converter: Optional[ConverterType] = None,
-    ) -> DeepFlowConverter:
+    ) -> TreeConverter:
         """
-        从 deepflow 获取 profile 数据
+        获取 ebpf profile 数据
         """
-        profile_data = DeepFlowQuery.get_profile(
-            bk_biz_id=bk_biz_id,
-            cluster_id=cluster_id,
-            service_name=service_name,
-            start=start,
-            data_type=sample_type,
-            end=end,
-        )
-        deep_flow_converter = DeepFlowConverter()
-        deep_flow_converter.convert(raw=profile_data, data_type=sample_type)
-        return deep_flow_converter
+        if converter == ConverterType.DeepFlow:
+            # 检查不同类型的 ConverterType 预留横向拓展空间
+            profile_data = DeepFlowQuery.get_profile(
+                bk_biz_id=bk_biz_id,
+                cluster_id=cluster_id,
+                service_name=service_name,
+                start=start,
+                data_type=sample_type,
+                end=end,
+            )
+            deep_flow_converter = DeepFlowConverter()
+            deep_flow_converter.convert(raw=profile_data, data_type=sample_type)
+            return deep_flow_converter
 
     @staticmethod
     def query(
@@ -313,7 +315,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             # we keep the same rule for now
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
-        elif validated_data["is_deepflow"]:
+        elif validated_data["is_ebpf"]:
             cluster_id = validated_data["cluster_id"]
             service_name = validated_data["service_name"]
             bk_biz_id = validated_data["bk_biz_id"]
@@ -344,7 +346,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         essentials = cls.get_essentials(data)
         # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if not data["is_deepflow"] and cls.is_large_service(
+        if not data["is_ebpf"] and cls.is_large_service(
             essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
         ):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
@@ -363,6 +365,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     def converter_query(cls, essentials, validate_data, extra_params):
         offset = validate_data.get("offset", 0)
 
+        EBPF_DICT = {"deepflow": ConverterType.DeepFlow}
+        # 横向可拓展其他 ebpf 数据源
+
         start_time, end_time = validate_data["start"], validate_data["end"]
         filter_start_time = validate_data["filter_labels"].get("start")
         filter_end_time = validate_data["filter_labels"].get("end")
@@ -374,16 +379,16 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         else:
             start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
         
-          
-        if validate_data["is_deepflow"]:
-            return cls.deepflow_query(
+        ebpf_type = validate_data.get("ebpf_type", "")
+        if validate_data["is_ebpf"]:
+            return cls.ebpf_query(
                 bk_biz_id=essentials["bk_biz_id"],
                 cluster_id=essentials["cluster_id"],
                 service_name=essentials["service_name"],
                 start=start_time,
                 end=end_time,
                 sample_type=validate_data["data_type"],
-                converter=ConverterType.DeepFlow,
+                converter=EBPF_DICT.get(ebpf_type, ConverterType.DeepFlow),
             )
         else:
             return cls.query(
