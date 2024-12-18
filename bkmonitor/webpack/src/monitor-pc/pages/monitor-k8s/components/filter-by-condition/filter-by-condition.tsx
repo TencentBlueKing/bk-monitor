@@ -98,7 +98,6 @@ export default class FilterByCondition extends tsc<IProps> {
 
   @Watch('commonParams', { deep: true, immediate: true })
   handleWatchScene() {
-    console.log(this.commonParams);
     this.initData();
   }
 

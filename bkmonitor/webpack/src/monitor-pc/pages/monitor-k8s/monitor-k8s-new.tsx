@@ -174,10 +174,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   created() {
+    this.initFilterBy();
     this.getRouteParams();
     this.getClusterList();
     this.getScenarioMetricList();
-    this.initFilterBy();
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
