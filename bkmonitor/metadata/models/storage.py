@@ -4607,19 +4607,17 @@ class StorageClusterRecord(models.Model):
         [
             {
                 "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
-                "is_current": True,         # 是否是当前最新集群
-                "create_time": 1111111111,  # Unix 时间戳
-                "end_time": 2222222222,     # Unix 时间戳 / None
+                "enable_time": 1111111111,  # Unix 时间戳
             },
         ]
         """
         logger.info(
             "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
         )
-        # 过滤出指定 table_id 且未删除的记录，按 create_time 升序排列
+        # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
         records = (
             cls.objects.filter(table_id=table_id, is_deleted=False)
-            .order_by('create_time')
+            .order_by('-create_time')
             .values('cluster_id', 'is_current', 'enable_time')
         )
 
