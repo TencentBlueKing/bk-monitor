@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 
 import os
 
-from config.celery import app as celery_app
+from config.celery.app import app as celery_app
 
 __author__ = "蓝鲸智云"
 __copyright__ = "Copyright © 2012-2019 Tencent BlueKing. All Rights Reserved."
