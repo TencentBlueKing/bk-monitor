@@ -1047,7 +1047,7 @@
           margin-left: 20px;
         }
       }
-      .bk-table-body {
+      :deep(.bk-table-body) {
         .cell {
           display: contents;
           height: 100%;

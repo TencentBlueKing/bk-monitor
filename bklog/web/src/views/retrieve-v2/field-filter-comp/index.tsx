@@ -148,16 +148,15 @@ export default class FieldFilterComp extends tsc<object> {
     );
     let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]
     let result = this.objectHierarchy(arr)
-    console.log(result);
-    
     return result
     // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
   /** object格式字段的层级展示 */
-   objectHierarchy(arrData) {
+  objectHierarchy(arrData) {
     if(!this.objectField.length){
       return arrData
     }
+    this.objectField.forEach(item => item.children=[])
     const arr = cloneDeep(arrData);
     let filterArr = arr.filter(field => {
       let isNotMatched = true; // 如果没有匹配到，默认为 true
@@ -165,21 +164,19 @@ export default class FieldFilterComp extends tsc<object> {
         objectField.filterVisible = true
         const regex = new RegExp(`${objectField.field_name}\\.`);
         if (regex.test(field.field_name)) {
-          field.field_name = field.field_name.split('.')[1]
           const exists = objectField.children && objectField.children.some(child => child.field_name === field.field_name);
           if (!exists) {
-            objectField.children = [...(objectField.children || []), field];
+            // objectField.children = [...(objectField.children || []), field];
+            objectField.children.push(field)
           }
           isNotMatched = false;
         }
       });
       return isNotMatched; // 返回是否没有匹配到
     });
-    console.log(this.objectField);
-    
     return [...filterArr,...this.objectField]
   }
-
+  // 获取object类型的field
   async initFieldData () {
     const indexSetList = this.$store.state.retrieve.indexSetList;
     const indexSetId = this.$route.params?.indexId;
@@ -198,6 +195,7 @@ export default class FieldFilterComp extends tsc<object> {
         },
       });
       this.objectField = res.data.fields.filter(item => item.field_type === 'object');
+      this.$store.commit('updateIndexFieldInfoField', this.objectField);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -382,12 +380,12 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowErrInfo = false;
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
-  bigTreeRender(item){
-    console.log(item);
-    
+  bigTreeRender(field){
+    // console.log(field);
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
+          key={data.field_name}
           v-show={data.filterVisible}
           date-picker-value={this.datePickerValue}
           field-alias-map={this.fieldAliasMap}
@@ -404,19 +402,16 @@ export default class FieldFilterComp extends tsc<object> {
     };
     return(
       <bk-big-tree
+        key={field.field_name}
         ref='bigTreeRef'
-        data={[item]}
+        data={[field]}
         scopedSlots={scopedSlots}
         class='bk-big-tree'
         expand-on-click={true}
-        expand-change={this.treeChange}
+        options={{ nameKey: 'field_name', idKey: 'field_name', childrenKey: 'children' }}
       >
       </bk-big-tree>
     )
-  }
-  treeChange(val){
-    console.log(val,'233');
-    
   }
   render() {
     return (
@@ -481,6 +476,7 @@ export default class FieldFilterComp extends tsc<object> {
                 >
                   <transition-group>
                     {this.visibleFields.map(item => (
+                      // item.children?.length ? this.bigTreeRender(item) :
                       <FieldItem
                         key={item.field_name}
                         v-show={item.filterVisible}

@@ -110,12 +110,7 @@ export default class FieldItem extends tsc<object> {
   getFieldIcon(fieldType: string) {
     return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
   }
-  // 点击字段行，展开显示聚合信息
-  handleClickItem() {
-    if (this.showFieldsChart) {
-      this.isExpand = !this.isExpand;
-    }
-  }
+
   // 显示或隐藏字段
   handleShowOrHiddenItem() {
     this.instanceDestroy();
@@ -226,12 +221,18 @@ export default class FieldItem extends tsc<object> {
   getdistinctCount(val){
     this.distinctCount = val
   }
+  retuanFieldName(){
+    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias || this.fieldItem.field_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
+    if(this.isFieldObject){
+      name = name.split('.')[1] || name.split('.')[0]
+    }
+    return  name
+  }
   render() {
     return (
       <li class='filed-item'>
         <div
           class={{ 'filed-title': true, expanded: this.isExpand }}
-          onClick={() => this.handleClickItem()}
         >
           <div>
             {/* 三角符号 */}
@@ -257,7 +258,7 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span >
                <span class='field-name'>
-                {this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias || this.fieldItem.field_alias  || this.fieldItem.alias_name || this.fieldItem.field_name}
+                {this.retuanFieldName()}
               </span>
               <span
                 class='field-count'
