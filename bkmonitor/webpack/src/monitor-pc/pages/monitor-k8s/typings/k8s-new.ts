@@ -70,9 +70,9 @@ export enum K8sTableColumnKeysEnum {
    */
   CPU = 'cpu',
   /**
-   * @description: internal_memory - 内存使用率
+   * @description: mem - 内存使用率
    */
-  INTERNAL_MEMORY = 'internal_memory',
+  INTERNAL_MEMORY = 'mem',
   /**
    * @description: pod - pod
    */

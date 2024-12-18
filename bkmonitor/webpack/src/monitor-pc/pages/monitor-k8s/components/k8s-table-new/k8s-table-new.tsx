@@ -414,9 +414,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!this.filterCommonParams.bcs_cluster_id) {
       return;
     }
+    if (config.needRefresh) {
+      this.sortContainer = {
+        prop: K8sTableColumnKeysEnum.CPU,
+        order: 'descending',
+        /** 处理 table 设置了 default-sort 时导致初始化时会自动走一遍sort-change事件问题 */
+        initDone: false,
+      };
+    }
     this.pagination.page = 1;
     this.asyncDataCache.clear();
     this.tableLoading.loading = true;
+    const order_by =
+      this.sortContainer.order === 'descending' ? `-${this.sortContainer.prop}` : this.sortContainer.prop;
     const { dimensions } = this.groupInstance;
     const resourceType = this.isListTab
       ? this.groupInstance?.getResourceType()
@@ -426,6 +436,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       resource_type: resourceType,
       with_history: true,
       page_type: this.pagination.pageType,
+      order_by,
     };
 
     const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam).catch(() => ({
@@ -436,12 +447,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.tableData = data.items;
     this.tableDataTotal = data.count;
     if (config.needRefresh) {
-      this.sortContainer = {
-        prop: K8sTableColumnKeysEnum.CPU,
-        order: 'descending',
-        /** 处理 table 设置了 default-sort 时导致初始化时会自动走一遍sort-change事件问题 */
-        initDone: false,
-      };
       this.refreshTable();
     }
     this.tableLoading.loading = false;

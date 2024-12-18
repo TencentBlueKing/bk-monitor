@@ -194,11 +194,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @Provide('onGroupChange')
   handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
     const cacheGroupBy = [...this.groupInstance.groupFilters];
+    const cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
     const { filterById, id, dimension } = item;
     this.handleDrillDown(filterById, id, dimension);
     if (showCancelDrill) {
       this.showCancelDrill = true;
       this.cacheGroupBy = cacheGroupBy;
+      this.cacheFilterBy = cacheFilterBy;
     }
   }
 
