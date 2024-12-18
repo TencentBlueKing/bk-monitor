@@ -18,7 +18,6 @@ from constants.data_source import DataSourceLabel
 
 
 def escape_sql_field_name(field_name):
-    field_name.strip("`")
     for k in ["`", " ", "(", ")"]:
         if k in field_name:
             return field_name
