@@ -364,7 +364,9 @@ def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) 
     resource_meta_map = {
         'node': K8sNodeMeta,
         'container': K8sContainerMeta,
+        'container_name': K8sContainerMeta,
         'pod': K8sPodMeta,
+        'pod_name': K8sPodMeta,
         'workload': K8sWorkloadMeta,
         'namespace': K8sNamespaceMeta,
     }

@@ -184,10 +184,26 @@ class GetResourceDetail(Resource):
         return items
 
 
+class FilterDictSerializer(serializers.Serializer):
+    # 用于精确过滤查询
+    filter_dict = serializers.DictField(required=False, allow_null=True)
+
+    def validate_filter_dict(self, value):
+        field_map = {
+            "container": "container_name",
+            "pod": "pod_name",
+        }
+        for key in field_map:
+            if key in value:
+                value[field_map[key]] = value.pop(key)
+
+        return value
+
+
 class ListK8SResources(Resource):
     """获取K8s资源列表"""
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
         resource_type = serializers.ChoiceField(
@@ -197,8 +213,6 @@ class ListK8SResources(Resource):
         )
         # 用于模糊查询
         query_string = serializers.CharField(required=False, default="", allow_blank=True, label="名字过滤")
-        # 用于精确过滤查询
-        filter_dict = serializers.DictField(required=False, allow_null=True)
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
@@ -332,7 +346,7 @@ class ResourceTrendResource(Resource):
         "mem": "bytes",
     }
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
         column = serializers.ChoiceField(required=True, choices=["cpu", "mem"])
@@ -344,7 +358,6 @@ class ResourceTrendResource(Resource):
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
-        filter_dict = serializers.DictField(required=False, allow_null=True)
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]

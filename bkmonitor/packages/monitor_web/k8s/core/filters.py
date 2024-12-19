@@ -139,6 +139,9 @@ class SpaceFilter(ResourceFilter):
 
 def load_resource_filter(resource_type, filter_value, fuzzy=False) -> ResourceFilter:
     if resource_type not in filter_options:
+        # 兼容xxx_name字段
+        if resource_type.endswith("_name"):
+            return load_resource_filter(resource_type.split("_name")[0], filter_value, fuzzy)
         raise K8sResourceNotFound(resource_type=resource_type)
     filter_obj = filter_options[resource_type](filter_value, fuzzy)
     return filter_obj
