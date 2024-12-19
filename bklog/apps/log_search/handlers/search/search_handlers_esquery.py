@@ -619,9 +619,14 @@ class SearchHandler(object):
             if alias_dict:
                 for log in log_list:
                     for query_alias, info in alias_dict.items():
-                        key, field = info.get("path").split(".", 1)
-                        if key in log and field in log[key]:
-                            log[query_alias] = log[key][field]
+                        path = info.get("path")
+                        if "." in path:
+                            key, field = info.get("path").split(".", 1)
+                            if key in log and field in log[key]:
+                                log[query_alias] = log[key][field]
+                        else:
+                            if path in log:
+                                log[query_alias] = log[path]
         return result
 
     def get_sort_group(self):
