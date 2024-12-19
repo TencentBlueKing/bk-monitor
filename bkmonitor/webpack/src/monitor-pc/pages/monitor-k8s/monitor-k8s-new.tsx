@@ -87,7 +87,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @ProvideReactive('refleshInterval') refreshInterval = -1;
   // 是否立即刷新
   @ProvideReactive('refleshImmediate') refreshImmediate = '';
-
+  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   // 场景
   scene: SceneEnum = SceneEnum.Performance;
   // 集群

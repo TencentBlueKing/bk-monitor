@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -54,9 +54,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   @Prop({ type: Object, required: true }) commonParams: ICommonParams;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
-  @InjectReactive('timezone') readonly timezone!: string;
-  @InjectReactive('refleshInterval') readonly refreshInterval!: number;
-  @InjectReactive('refleshImmediate') readonly refreshImmediate!: string;
 
   dimensionList = [];
   cacheSearchValue = '';
@@ -89,12 +86,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   @Watch('localCommonParams')
-  handleCommonParamsChange() {
-    this.init();
-  }
-
-  @Watch('refreshImmediate')
-  handleRefreshImmediateChange() {
+  handleCommonParamsChange(newVal: ICommonParams, oldVal: ICommonParams) {
+    if (newVal.scenario === oldVal.scenario && newVal.bcs_cluster_id === oldVal.bcs_cluster_id) return;
     this.init();
   }
 

@@ -101,7 +101,7 @@ function timeToDayNum(t) {
 }
 
 @Component
-class CallerLineChart extends CommonSimpleChart {
+class K8SCustomChart extends CommonSimpleChart {
   // 当前粒度
   @InjectReactive('downSampleRange') readonly downSampleRange: number | string;
   // yAxis是否需要展示单位
@@ -211,11 +211,12 @@ class CallerLineChart extends CommonSimpleChart {
         }
         const promiseList = [];
         const timeShiftList = ['', ...this.timeOffset];
-        const down_sample_range = this.downSampleRangeComputed(
-          this.viewOptions.interval.toString(),
-          [params.start_time, params.end_time],
-          'unifyQuery'
-        );
+        const down_sample_range =
+          this.downSampleRangeComputed(
+            this.viewOptions.interval.toString(),
+            [params.start_time, params.end_time],
+            'unifyQuery'
+          ) || '';
         const [v] = down_sample_range.split('s');
         const interval = this.viewOptions.interval === 'auto' ? `${Math.ceil(+v / 60)}m` : down_sample_range;
         this.collectIntervalDisplay = interval;
@@ -322,6 +323,7 @@ class CallerLineChart extends CommonSimpleChart {
               color = !isLimit ? '#FEA56B' : '#FF5656';
               const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
               const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
+              const firstValue = item.data?.find(item => item.value?.[1]);
               markPoint = {
                 symbol: 'rect',
                 symbolSize: [isLimit ? 30 : 46, 16],
@@ -336,7 +338,7 @@ class CallerLineChart extends CommonSimpleChart {
                 },
                 data: [
                   {
-                    coord: item.data[0]?.value,
+                    coord: firstValue?.value,
                   },
                 ],
                 emphasis: {
@@ -974,7 +976,7 @@ class CallerLineChart extends CommonSimpleChart {
           onSelectChild={this.handleSelectChildMenu}
         />
         {!this.empty ? (
-          <div class={'time-series-content right-legend'}>
+          <div class={`time-series-content ${showLegend ? 'right-legend' : ''}`}>
             <div
               ref='chart'
               class={`chart-instance ${showLegend ? 'is-table-legend' : ''}`}
@@ -1042,4 +1044,4 @@ class CallerLineChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<IProps>().convert(CallerLineChart);
+export default ofType<IProps>().convert(K8SCustomChart);
