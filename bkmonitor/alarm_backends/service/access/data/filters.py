@@ -32,7 +32,7 @@ class ExpireFilter(base.Filter):
         utctime = record.time
         # 丢弃超过max(半个小时 或者 10个周期延迟)的告警
         expire_seconds = max([record.items[0].query_configs[0]["agg_interval"] * 10, 30 * constants.CONST_MINUTES])
-        if arrow.utcnow().timestamp - arrow.get(utctime).timestamp > expire_seconds:
+        if arrow.utcnow().int_timestamp - arrow.get(utctime).int_timestamp > expire_seconds:
             logger.info("Discard the data(%s) because it takes more than 30 minutes" % record.raw_data)
             return True
         else:

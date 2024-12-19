@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from django.db.models import Q
 from django.utils.functional import cached_property, classproperty
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -107,7 +107,6 @@ class LogicSupportOperator:
 
 
 class BaseQuery:
-
     USING_LOG: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
 
     USING_METRIC: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
@@ -197,7 +196,6 @@ class BaseQuery:
     def _query_option_values(
         self, q: QueryConfigBuilder, fields: List[str], start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> Dict[str, List[str]]:
-
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(self.OPTION_VALUES_MAX_SIZE)
 
         # 为什么这里使用多线程，而不是构造多个 aggs？

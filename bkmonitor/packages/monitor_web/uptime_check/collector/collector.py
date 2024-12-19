@@ -17,7 +17,7 @@ import os
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2 import Template as JTemplate
 
 from core.drf_resource import resource

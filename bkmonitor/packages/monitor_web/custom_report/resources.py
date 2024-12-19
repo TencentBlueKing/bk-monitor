@@ -23,7 +23,7 @@ from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -1037,7 +1037,7 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
                         latest_time = time_value
 
         if latest_time:
-            latest_time = arrow.get(latest_time).timestamp
+            latest_time = arrow.get(latest_time).int_timestamp
         else:
             latest_time = None
         return result, latest_time

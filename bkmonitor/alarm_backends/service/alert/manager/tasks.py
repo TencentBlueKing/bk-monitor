@@ -12,7 +12,7 @@ import logging
 import time
 from typing import Dict, List
 
-from celery.task import task
+from celery import shared_task
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch_dsl import Q
 
@@ -190,7 +190,7 @@ def send_check_task(alerts: List[Dict], run_immediately=True):
     )
 
 
-@task(ignore_result=True, queue="celery_alert_manager")
+@shared_task(ignore_result=True, queue="celery_alert_manager")
 def handle_alerts(alert_keys: List[AlertKey]):
     """
     处理告警（异步任务）

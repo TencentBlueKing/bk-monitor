@@ -15,7 +15,7 @@ import logging
 
 import yaml
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.plugin.constant import (

@@ -13,7 +13,7 @@ import copy
 import logging
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six import string_types
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
@@ -46,7 +46,7 @@ class ShieldObj(object):
         self.id = config["id"]
 
         self.dimension_check = None
-        self.time_check = None
+        self.time_check: TimeMatch | None = None
         self.notice_lock_key = NOTICE_SHIELD_KEY_LOCK.get_key(shield_id=self.config["id"])
         self.display_manager = DisplayManager()
         self._parse_dimension_config()
@@ -236,7 +236,7 @@ class ShieldObj(object):
 
         # 判断依据：x 分钟后在屏蔽范围
         begin_time = self.get_now_datetime()
-        end_time = begin_time.replace(minutes=notice_time)
+        end_time = begin_time.shift(minutes=notice_time)
         is_time_match = self.time_check.is_match(end_time)
 
         if not is_time_match:
@@ -262,7 +262,7 @@ class ShieldObj(object):
 
         # 判断依据：x 分钟后不在屏蔽范围
         begin_time = self.get_now_datetime()
-        end_time = begin_time.replace(minutes=notice_time + 1)
+        end_time = begin_time.shift(minutes=notice_time + 1)
         is_time_match = not self.time_check.is_match(end_time)
 
         if not is_time_match:

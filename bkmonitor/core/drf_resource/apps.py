@@ -12,8 +12,13 @@ specific language governing permissions and limitations under the License.
 
 from django.apps import AppConfig
 
+from .management.root import setup
 
-class MonitorWebConfig(AppConfig):
-    name = "drf_resource"
+
+class DRFResourceConfig(AppConfig):
+    name = "core.drf_resource"
     verbose_name = "drf_resource"
     label = "drf_resource"
+
+    def ready(self):
+        setup()

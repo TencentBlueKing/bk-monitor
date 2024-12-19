@@ -15,7 +15,7 @@ import re
 import time
 from datetime import datetime
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.itsm.default import TokenVerifyResource
 from bkmonitor.action.serializers import (

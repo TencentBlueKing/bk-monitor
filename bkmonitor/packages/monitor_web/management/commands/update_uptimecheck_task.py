@@ -17,7 +17,7 @@ import time
 
 from django.conf import settings
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor.models import UptimeCheckNode, UptimeCheckTask
 
 from bkmonitor.utils.common_utils import host_key, logger

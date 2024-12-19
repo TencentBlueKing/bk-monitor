@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import re
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from metadata.models import ResultTable
 from query_api.exceptions import ResultTableNotExist, SQLSyntaxError, StorageNotSupported, StorageResultTableNotExist

@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 
 import arrow
 from django.http import Http404
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
@@ -565,7 +565,7 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
                 query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
 
                 if not params.get("start_time") or not params.get("end_time"):
-                    end_time = int(arrow.now().timestamp)
+                    end_time = int(arrow.now().int_timestamp)
                     start_time = end_time - 36000
                 else:
                     start_time = params["start_time"]

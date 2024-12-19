@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 BUILT_IN_TAGS = [_("主机"), _("消息中间件"), _("HTTP服务"), _("数据库"), _("办公应⽤"), _("其他")]
 

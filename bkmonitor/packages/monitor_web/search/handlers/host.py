@@ -4,7 +4,7 @@ import uuid
 from typing import List, Optional
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.cmdb.define import Host
 from core.drf_resource import api, resource

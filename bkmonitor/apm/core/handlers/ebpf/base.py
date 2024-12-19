@@ -18,7 +18,7 @@ to the current version of the project delivered to anyone in the future.
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm.models import ApmApplication, EbpfApplicationConfig
 from core.drf_resource import resource
@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 class EbpfHandler:
-
     DEFAULT_ES_STORAGE_CLUSTER = settings.APM_APP_DEFAULT_ES_STORAGE_CLUSTER
     DEFAULT_ES_RETENTION = settings.APM_APP_DEFAULT_ES_RETENTION
     DEFAULT_ES_NUMBER_OF_REPLICAS = settings.APM_APP_DEFAULT_ES_REPLICAS

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.models.collect_config import CollectConfigCacheManager
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator

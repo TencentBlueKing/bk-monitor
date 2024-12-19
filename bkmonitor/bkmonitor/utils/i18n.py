@@ -16,9 +16,9 @@ i18n 国际化相关。该文件不要写任何业务代码，也不允许引入
 class TranslateDict(dict):
     def __getitem__(self, item):
         value = super(TranslateDict, self).__getitem__(item)
-        from django.utils.translation import ugettext
+        from django.utils.translation import gettext
 
-        return ugettext(value)
+        return gettext(value)
 
     def get(self, k, d=None):
         return self.__getitem__(k) if k in list(self.keys()) else d

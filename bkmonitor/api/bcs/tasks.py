@@ -15,7 +15,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Type
 
-from celery.task import task
+from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -223,7 +223,7 @@ def sync_bcs_workload_to_db():
         sync_bcs_workload_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_workload_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_workload_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_workload, bcs_cluster_id)
@@ -290,7 +290,7 @@ def sync_bcs_service_to_db():
         sync_bcs_service_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_service_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_service_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_service, bcs_cluster_id)
@@ -353,7 +353,7 @@ def sync_bcs_pod_to_db():
         sync_bcs_pod_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_pod_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_pod_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_pod, bcs_cluster_id)
@@ -443,7 +443,7 @@ def sync_bcs_node_to_db():
         sync_bcs_node_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_node_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_node_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_node, bcs_cluster_id)
@@ -521,7 +521,7 @@ def sync_bcs_service_monitor_to_db():
         sync_bcs_service_monitor_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_service_monitor_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_service_monitor_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_service_monitor, bcs_cluster_id)
@@ -585,7 +585,7 @@ def sync_bcs_pod_monitor_to_db():
         sync_bcs_pod_monitor_to_db_sub_task.apply_async(args=(bcs_cluster_id,))
 
 
-@task(ignore_result=True, queue="celery_cron")
+@shared_task(ignore_result=True, queue="celery_cron")
 def sync_bcs_pod_monitor_to_db_sub_task(bcs_cluster_id):
     task_name = "sync_bcs_pod_monitor_to_db_sub_task"
     run_sub_task(task_name, sync_bcs_pod_monitor, bcs_cluster_id)

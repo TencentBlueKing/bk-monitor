@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -77,7 +77,7 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
         }
         data_source = data_source_class(int(validated_data["bk_biz_id"]), **query_config)
         query = UnifyQuery(bk_biz_id=int(validated_data["bk_biz_id"]), data_sources=[data_source], expression="")
-        end_time = arrow.utcnow().timestamp
+        end_time = arrow.utcnow().int_timestamp
         records = query.query_data(start_time=(end_time - 180) * 1000, end_time=end_time * 1000, limit=5)
 
         if len(records) > 0:

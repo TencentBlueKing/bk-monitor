@@ -15,7 +15,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Set
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostIPManager, HostManager

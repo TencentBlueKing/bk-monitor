@@ -12,10 +12,9 @@ import requests
 import version_log.config as config
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
-from django.conf.urls import url
 from django.contrib import admin
 from django.http import HttpResponse
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.views.decorators.http import require_GET
 from django.views.static import serve
 from drf_yasg import openapi
@@ -57,38 +56,40 @@ def metrics(request):
 
 
 urlpatterns = [
-    url(r"^account/", include("blueapps.account.urls")),
+    re_path(r"^account/", include("blueapps.account.urls")),
     path("admin/", admin.site.urls, name="admin"),
     path("manage/", admin.site.urls, name="manage"),
     path("rest/v1/", include("monitor_api.urls", namespace="monitor_api")),
-    url(r"^weixin/", include("weixin.urls", namespace="weixin")),
-    url(r"^", include("monitor_adapter.urls", namespace="monitor_adapter")),
-    url(r"^", include("calendars.urls", namespace="calendar")),
-    url(r"^rest/v2/", include("monitor_web.urls", namespace="monitor_web")),
+    re_path(r"^weixin/", include("weixin.urls", namespace="weixin")),
+    re_path(r"^", include("monitor_adapter.urls", namespace="monitor_adapter")),
+    re_path(r"^", include("calendars.urls", namespace="calendar")),
+    re_path(r"^rest/v2/", include("monitor_web.urls", namespace="monitor_web")),
     # 查询专用API路由
-    url(r"^query-api/rest/v2/", include("monitor_web.urls", namespace="monitor_web")),
-    url(r"^fta/", include("fta_web.urls", namespace="fta_web")),
-    url(r"^apm/", include("apm_web.urls", namespace="apm_web")),
-    url(r"^apm_log_forward/", include("apm_web.log_proxy.urls", namespace="log_proxy")),
-    url(r"^trace/", include("apm_trace.urls", namespace="apm_trace")),
-    url(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
-    url(r"^media/(?P<path>.*)$", wrapped_serve, {"document_root": settings.MEDIA_ROOT}),
-    url(r"^metrics/$", metrics),
+    re_path(r"^query-api/rest/v2/", include("monitor_web.urls", namespace="monitor_web")),
+    re_path(r"^fta/", include("fta_web.urls", namespace="fta_web")),
+    re_path(r"^apm/", include("apm_web.urls", namespace="apm_web")),
+    re_path(r"^apm_log_forward/", include("apm_web.log_proxy.urls", namespace="log_proxy")),
+    re_path(r"^trace/", include("apm_trace.urls", namespace="apm_trace")),
+    re_path(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
+    re_path(r"^media/(?P<path>.*)$", wrapped_serve, {"document_root": settings.MEDIA_ROOT}),
+    re_path(r"^metrics/$", metrics),
     # env: `BK_API_URL_TMPL` must be set
-    url(r'^notice/', include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
+    re_path(r'^notice/', include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
 ]
 
 # 添加API访问子路径
 if settings.API_SUB_PATH:
-    urlpatterns.append(url(rf"^{settings.API_SUB_PATH}rest/v2/", include("monitor_web.urls", namespace="monitor_web")))
     urlpatterns.append(
-        url(rf"^{settings.API_SUB_PATH}query-api/rest/v2/", include("monitor_web.urls", namespace="monitor_web"))
+        re_path(rf"^{settings.API_SUB_PATH}rest/v2/", include("monitor_web.urls", namespace="monitor_web"))
+    )
+    urlpatterns.append(
+        re_path(rf"^{settings.API_SUB_PATH}query-api/rest/v2/", include("monitor_web.urls", namespace="monitor_web"))
     )
 
 # 正式环境屏蔽swagger访问路径
 if settings.ENVIRONMENT != "production":
     urlpatterns += [
-        url(r"^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=0), name="schema-json"),
-        url(r"^swagger/$", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
-        url(r"^redoc/$", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+        re_path(r"^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=0), name="schema-json"),
+        re_path(r"^swagger/$", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
+        re_path(r"^redoc/$", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     ]

@@ -9,21 +9,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 from apm_web.views import apm_home
 
 app_name = "apm_web"
 
 urlpatterns = [
-    url(r"^$", apm_home),
-    url(r"meta/", include("apm_web.meta.urls")),
-    url(r"^trace_api/", include("apm_web.trace.urls")),
-    url(r"^profile_api/", include("apm_web.profile.urls")),
-    url(r"^metric/", include("apm_web.metric.urls")),
-    url(r"^topo/", include("apm_web.topo.urls")),
-    url(r"^service/", include("apm_web.service.urls")),
-    url(r"^service_log/", include("apm_web.log.urls")),
-    url(r"^service_db/", include("apm_web.db.urls")),
-    url(r"^container/", include("apm_web.container.urls")),
+    re_path(r"^$", apm_home),
+    re_path(r"meta/", include("apm_web.meta.urls")),
+    re_path(r"^trace_api/", include("apm_web.trace.urls")),
+    re_path(r"^profile_api/", include("apm_web.profile.urls")),
+    re_path(r"^metric/", include("apm_web.metric.urls")),
+    re_path(r"^topo/", include("apm_web.topo.urls")),
+    re_path(r"^service/", include("apm_web.service.urls")),
+    re_path(r"^service_log/", include("apm_web.log.urls")),
+    re_path(r"^service_db/", include("apm_web.db.urls")),
+    re_path(r"^container/", include("apm_web.container.urls")),
 ]

@@ -29,7 +29,7 @@ import six
 import sqlparse
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from sqlparse import sql as S
 from sqlparse import tokens as T

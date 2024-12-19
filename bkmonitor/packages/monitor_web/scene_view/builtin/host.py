@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 from typing import Dict, List, Optional, Set, Tuple
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.utils import sort_panels

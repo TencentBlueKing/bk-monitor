@@ -16,7 +16,7 @@ import json
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy import (
@@ -54,7 +54,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection):
         dimensions = copy.deepcopy(data_point.dimensions)
         dimensions["strategy_id"] = data_point.item.strategy.id
         predict_params = {
-            "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
+            "data": [{"value": data_point.value, "timestamp": data_point.int_timestamp * 1000}],
             "dimensions": dimensions,
             "interval": data_point.item.query_configs[0]["agg_interval"],
             "predict_args": {

@@ -12,12 +12,13 @@ import json
 import traceback
 
 import six
-from common.log import logger
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.text import compress_sequence, compress_string
 
 from bkmonitor.utils.common_utils import DatetimeEncoder, failed
+from bkmonitor.utils.request import is_ajax_request
+from common.log import logger
 from core.drf_resource.exceptions import CustomException
 from core.errors import Error
 from core.errors.common import CustomError, UnknownError
@@ -44,7 +45,7 @@ class MonitorAPIMiddleware(MiddlewareMixin):
         """
         预期的异常处理，直接将状态码设置为200即可（主要针对DRF）
         """
-        if request.is_ajax() and (200 <= response.status_code < 300 or response.status_code >= 500):
+        if is_ajax_request(request) and (200 <= response.status_code < 300 or response.status_code >= 500):
             response.status_code = 200
             response.reason_phrase = "OK"
         content_encoding = getattr(response, "content_encoding", None)
@@ -98,7 +99,7 @@ class MonitorAPIMiddleware(MiddlewareMixin):
             result["name"] = UnknownError.name
             logger.exception(exception)
 
-        if request.is_ajax():
+        if is_ajax_request(request):
             return HttpResponse(
                 json.dumps(result, cls=DatetimeEncoder), content_type="application/json", status=status_code
             )

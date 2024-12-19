@@ -14,7 +14,7 @@ import time
 from collections import defaultdict
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.utils.common_utils import count_md5

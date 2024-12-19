@@ -14,7 +14,7 @@ import logging
 import re
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup

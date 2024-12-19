@@ -11,8 +11,13 @@ specific language governing permissions and limitations under the License.
 
 
 from django.db import models
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
+from six.moves import map
+
+from bkmonitor.models import QueryConfigModel, StrategyModel
+from bkmonitor.utils.db.fields import JsonField
+from constants.strategy import DataTarget
 from monitor_web.export_import.constant import (
     ConfigType,
     ImportDetailStatus,
@@ -20,15 +25,9 @@ from monitor_web.export_import.constant import (
 )
 from monitor_web.models import CollectConfigMeta, DataTargetMapping
 from monitor_web.models.base import OperateRecordModelBase
-from six.moves import map
-
-from bkmonitor.models import QueryConfigModel, StrategyModel
-from bkmonitor.utils.db.fields import JsonField
-from constants.strategy import DataTarget
 
 
 class ImportHistory(OperateRecordModelBase):
-
     STATUS_TYPE_CHOICES = (
         (ImportHistoryStatus.IMPORTED, _lazy("导入完成")),
         (ImportHistoryStatus.IMPORTING, _lazy("导入中")),

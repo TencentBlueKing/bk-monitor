@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 from importlib import import_module
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 
 class BaseDatabaseOperations(object):
@@ -40,10 +40,10 @@ class BaseDatabaseOperations(object):
 
     def prep_for_like_query(self, x):
         """Prepares a value for use in a LIKE query."""
-        return force_text(x).replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+        return force_str(x).replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
     def prep_regex_query(self, reg_expr):
-        reg_expr = force_text(reg_expr).replace("/", "\\/")
+        reg_expr = force_str(reg_expr).replace("/", "\\/")
         return RegularExpressions(f"/{reg_expr}/")
 
 

@@ -33,6 +33,9 @@ class ResourceRouter(DefaultRouter):
         注册单个ResourceViewset
         """
         self._init_resource_viewset(viewset)
+        # 如果已经注册过了viewset,则不进行注册
+        if any(viewset == registered_viewset for _, registered_viewset, _ in self.registry):
+            return
         super(ResourceRouter, self).register(prefix, viewset, basename)
 
     def register_module(self, viewset_module):

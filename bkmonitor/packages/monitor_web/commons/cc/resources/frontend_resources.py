@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.commons.cc.utils import foreach_topo_tree
 from rest_framework import serializers
 

@@ -17,7 +17,7 @@ import tempfile
 
 import yaml
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager import PluginManagerFactory

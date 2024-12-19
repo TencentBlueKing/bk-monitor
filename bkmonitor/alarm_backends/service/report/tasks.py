@@ -47,7 +47,7 @@ def operation_data_custom_report_v2():
 
     report_tool = custom_report_tool(bk_data_id)
 
-    timestamp = arrow.now().timestamp
+    timestamp = arrow.now().int_timestamp
     # 获取运营数据，更新时间大于1天前的直接忽略
     statistics = StatisticsMetric.objects.filter(update_time__gte=timestamp - 24 * 60 * 60)
     for stat in statistics:

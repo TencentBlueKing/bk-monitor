@@ -14,7 +14,7 @@ import abc
 import logging
 
 import six
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 logger = logging.getLogger(__name__)

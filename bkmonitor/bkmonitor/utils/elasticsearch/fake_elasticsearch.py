@@ -12,15 +12,14 @@ import json
 from collections import defaultdict
 
 import jmespath
-from elasticmock.fake_elasticsearch import FakeElasticsearch, MetricType
-from elasticmock.utilities import get_random_id
 from elasticmock.fake_elasticsearch import (
     FakeElasticsearch,
     FakeQueryCondition,
     MetricType,
     QueryType,
 )
-from elasticsearch5.client import query_params
+from elasticmock.utilities import get_random_id
+from elasticsearch.client.utils import query_params
 from mock import patch
 
 from bkmonitor.documents import (
@@ -29,6 +28,78 @@ from bkmonitor.documents import (
     AlertLog,
     EventDocument,
 )
+
+es_query_params = [
+    '_source',
+    '_source_exclude',
+    '_source_include',
+    'allow_no_indices',
+    'analyze_wildcard',
+    'analyzer',
+    'default_operator',
+    'df',
+    'expand_wildcards',
+    'explain',
+    'fielddata_fields',
+    'fields',
+    'from_',
+    'ignore_unavailable',
+    'lenient',
+    'lowercase_expanded_terms',
+    'preference',
+    'q',
+    'request_cache',
+    'routing',
+    'scroll',
+    'search_type',
+    'size',
+    'sort',
+    'stats',
+    'suggest_field',
+    'suggest_mode',
+    'suggest_size',
+    'suggest_text',
+    'terminate_after',
+    'timeout',
+    'track_scores',
+    'version',
+]
+
+kwargs = {
+    'body_params': [
+        '_source',
+        'aggregations',
+        'aggs',
+        'collapse',
+        'docvalue_fields',
+        'explain',
+        'fields',
+        'from_',
+        'highlight',
+        'indices_boost',
+        'min_score',
+        'pit',
+        'post_filter',
+        'profile',
+        'query',
+        'rescore',
+        'runtime_mappings',
+        'script_fields',
+        'search_after',
+        'seq_no_primary_term',
+        'size',
+        'slice',
+        'sort',
+        'stats',
+        'stored_fields',
+        'suggest',
+        'terminate_after',
+        'timeout',
+        'track_scores',
+        'track_total_hits',
+        'version',
+    ]
+}
 
 
 class FakeElasticsearchBucket(FakeElasticsearch):
@@ -81,41 +152,7 @@ class FakeElasticsearchBucket(FakeElasticsearch):
             "bkmonitor.documents.EventDocument.build_all_indices_read_index_name", return_value=EventDocument.Index.name
         ).start()
 
-    @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'allow_no_indices',
-        'analyze_wildcard',
-        'analyzer',
-        'default_operator',
-        'df',
-        'expand_wildcards',
-        'explain',
-        'fielddata_fields',
-        'fields',
-        'from_',
-        'ignore_unavailable',
-        'lenient',
-        'lowercase_expanded_terms',
-        'preference',
-        'q',
-        'request_cache',
-        'routing',
-        'scroll',
-        'search_type',
-        'size',
-        'sort',
-        'stats',
-        'suggest_field',
-        'suggest_mode',
-        'suggest_size',
-        'suggest_text',
-        'terminate_after',
-        'timeout',
-        'track_scores',
-        'version',
-    )
+    @query_params(*es_query_params, **kwargs)
     def search(self, index=None, doc_type=None, body=None, params=None, headers=None, **kwargs):
         result = super(FakeElasticsearchBucket, self).search(
             index=index, doc_type=doc_type, body=body, params=params, headers=headers
