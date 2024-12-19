@@ -685,20 +685,41 @@ class StorageResultTable(object):
                         self.table_id,
                         record.cluster_id,
                     )
-                    # 创建新纪录
-                    new_record, _ = StorageClusterRecord.objects.update_or_create(
-                        table_id=self.table_id,
-                        cluster_id=new_storage_cluster_id,
-                        enable_time=django_timezone.now(),
-                        defaults={
-                            "is_current": True,
-                        },
+
+                    # 检查是否已经存在当前集群的历史记录(适配回迁场景）
+                    existing_record = (
+                        StorageClusterRecord.objects.filter(table_id=self.table_id, cluster_id=new_storage_cluster_id)
+                        .order_by('-enable_time')
+                        .first()
                     )
-                    logger.info(
-                        "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
-                        self.table_id,
-                        new_record.cluster_id,
-                    )
+
+                    if existing_record:
+                        # 如果存在历史记录，更新它为当前记录
+                        existing_record.is_current = True
+                        existing_record.enable_time = django_timezone.now()
+                        existing_record.disable_time = None  # 确保 disable_time 被清空
+                        existing_record.save()
+
+                        logger.info(
+                            "update_storage: table_id->[%s] reuse existing es_storage_record for new_cluster->[%s]",
+                            self.table_id,
+                            existing_record.cluster_id,
+                        )
+                    else:
+                        # 如果不存在记录，创建新的记录
+                        new_record, _ = StorageClusterRecord.objects.update_or_create(
+                            table_id=self.table_id,
+                            cluster_id=new_storage_cluster_id,
+                            enable_time=django_timezone.now(),
+                            defaults={
+                                "is_current": True,
+                            },
+                        )
+                        logger.info(
+                            "update_storage: table_id->[%s] create new es_storage_record for new_cluster->[%s]",
+                            self.table_id,
+                            new_record.cluster_id,
+                        )
 
                 # 刷新RESULT_TABLE_DETAIL路由
                 space_client.push_table_id_detail(
