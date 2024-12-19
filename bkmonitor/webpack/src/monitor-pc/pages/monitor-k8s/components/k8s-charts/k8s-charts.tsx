@@ -92,6 +92,7 @@ export default class K8SCharts extends tsc<
     if (
       !newVal ||
       !oldVal ||
+      Object.entries(newVal.filter_dict).some(([key, value]) => value !== oldVal.filter_dict[key]) ||
       Object.entries(newVal).some(
         ([key, value]) => !['start_time', 'end_time', 'filter_dict'].includes(key) && value !== oldVal[key]
       )
@@ -153,6 +154,7 @@ export default class K8SCharts extends tsc<
             subTitle: '',
             externalData: {
               groupByField: this.groupByField,
+              metrics: [{ metric_id: panel.id }],
             },
             options: {
               legend: {

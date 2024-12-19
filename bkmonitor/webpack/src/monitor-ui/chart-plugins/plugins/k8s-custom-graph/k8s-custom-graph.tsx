@@ -44,7 +44,7 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { convertToSeconds, downFile, handleRelateAlert, isShadowEqual, reviewInterval } from '../../utils';
+import { convertToSeconds, downFile, isShadowEqual } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -57,7 +57,6 @@ import type {
   ILegendItem,
   IMenuChildItem,
   IMenuItem,
-  IPanelModel,
   ITitleAlarm,
   ITimeSeriesItem,
   PanelModel,
@@ -152,7 +151,7 @@ class K8SCustomChart extends CommonSimpleChart {
   }
 
   get menuList() {
-    return ['save', 'more', 'explore', 'area', 'drill-down', 'relate-alert'];
+    return ['save', 'more', 'explore', 'area', 'drill-down', 'strategy', 'relate-alert'];
   }
 
   @Watch('showRestoreInject', { immediate: true })
@@ -798,21 +797,36 @@ class K8SCustomChart extends CommonSimpleChart {
         (this.$refs.baseChart as any)?.handleSetYAxisSetScale(!menuItem.checked);
         break;
       case 'explore': {
-        // 跳转数据检索
-        const copyPanel = this.getCopyPanel();
-        this.handleExplore(copyPanel as any, {});
+        const data = this.panel.toDataRetrieval();
+        const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+          this.$store.getters.bizId
+        }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(data))}&from=${
+          this.toolTimeRange[0]
+        }&to=${this.toolTimeRange[1]}&timezone=${(this as any).timezone || window.timezone}`;
+        window.open(url);
         break;
       }
       case 'strategy': {
         // 新增策略
-        const copyPanel = this.getCopyPanel();
-        this.handleAddStrategy(copyPanel as any, null, {}, true);
+        const result = this.panel.toStrategy();
+        const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+          this.$store.getters.bizId
+        }#/strategy-config/add/?${result?.query_configs?.length ? `data=${JSON.stringify(result)}&` : ''}from=${this.toolTimeRange[0]}&to=${
+          this.toolTimeRange[1]
+        }&timezone=${(this as any).timezone || window.timezone}`;
+        window.open(url);
         break;
       }
       case 'relate-alert': {
         // 关联告警
-        const copyPanel = this.getCopyPanel();
-        handleRelateAlert(copyPanel as any, this.timeRange);
+        const queryString = this.panel.toRelateEvent();
+        queryString &&
+          window.open(
+            location.href.replace(
+              location.hash,
+              `#/event-center?from=${this.timeRange[0]}&to=${this.timeRange[1]}&timezone=${window.timezone}&${queryString}`
+            )
+          );
         break;
       }
       default:
@@ -880,37 +894,6 @@ class K8SCustomChart extends CommonSimpleChart {
       this.handleAddStrategy(this.panel, null, {});
       return;
     }
-    const copyPanel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel as any, null, {}, true);
-  }
-
-  getCopyPanel() {
-    try {
-      let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
-      copyPanel.dashboardId = random(8);
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      const variablesService = new VariablesService({
-        ...this.viewOptions.filters,
-        ...(this.viewOptions.filters?.current_target || {}),
-        ...this.viewOptions,
-        ...this.viewOptions.variables,
-        interval: reviewInterval(
-          this.viewOptions.interval,
-          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-          this.panel.collect_interval
-        ),
-      });
-      copyPanel = variablesService.transformVariables(copyPanel);
-      for (const t of copyPanel.targets) {
-        for (const q of t?.data?.query_configs || []) {
-          q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
-        }
-      }
-      return copyPanel;
-    } catch (error) {
-      console.log(error);
-      return JSON.parse(JSON.stringify(this.panel));
-    }
   }
 
   /**
@@ -924,8 +907,6 @@ class K8SCustomChart extends CommonSimpleChart {
       this.handleAddStrategy(this.panel, metric, {});
       return;
     }
-    const copyPanel: PanelModel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel, metric, {});
   }
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */ /** 处理点击左侧响铃图标 跳转策略的逻辑 */
   handleAlarmClick(alarmStatus: ITitleAlarm) {
@@ -965,7 +946,7 @@ class K8SCustomChart extends CommonSimpleChart {
           draging={this.panel.draging}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
-          metrics={this.metrics}
+          metrics={this.metrics || this.panel.externalData?.metrics}
           needMoreMenu={!this.empty}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
