@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, Ref, ref } from 'vue';
+import { defineComponent, onMounted, Ref, ref, watch } from 'vue';
 
 export default defineComponent({
   props: {
@@ -39,27 +39,7 @@ export default defineComponent({
   emits: ['row-resize'],
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
-    // const vscrollResizeObserver = inject('vscrollResizeObserver') as ResizeObserver;
-
-    const isPending = ref(false);
-
-    // const observeSize = () => {
-    //   if (!vscrollResizeObserver || !refRowNodeRoot.value) return;
-    //   vscrollResizeObserver.observe(refRowNodeRoot.value);
-    // };
-
-    // const unobserveSize = () => {
-    //   if (!vscrollResizeObserver) return;
-    //   vscrollResizeObserver.unobserve(refRowNodeRoot.value);
-    // };
-
-    // onMounted(() => {
-    //   observeSize();
-    // });
-
-    // onBeforeUnmount(() => {
-    //   unobserveSize();
-    // });
+    const isPending = ref(true);
 
     const renderRowVNode = () => {
       return (
@@ -69,11 +49,27 @@ export default defineComponent({
             class={['bklog-row-observe', { 'is-pending': isPending.value }]}
             data-row-index={props.rowIndex}
           >
-            {slots.default?.()}
+            {isPending.value ? '' : slots.default?.()}
           </div>
         </div>
       );
     };
+
+    watch(
+      () => props.updateKey,
+      () => {
+        isPending.value = true;
+        setTimeout(() => {
+          isPending.value = false;
+        });
+      },
+    );
+
+    onMounted(() => {
+      setTimeout(() => {
+        isPending.value = false;
+      });
+    });
 
     return {
       renderRowVNode,

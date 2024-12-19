@@ -313,6 +313,10 @@
         position: sticky;
         z-index: 1;
       }
+
+      &.hidden-head {
+        display: none;
+      }
     }
 
     &.has-overflow-x {

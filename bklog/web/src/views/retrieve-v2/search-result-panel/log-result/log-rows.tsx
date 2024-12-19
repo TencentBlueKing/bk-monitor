@@ -81,7 +81,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { $t } = useLocale();
-    const columns = ref([]);
     const refRootElement: Ref<HTMLElement> = ref();
     const refBoxElement: Ref<HTMLElement> = ref();
     // const rowUpdateCounter = ref(0);
@@ -92,6 +91,7 @@ export default defineComponent({
 
     const tableRowConfig = new WeakMap();
     const isPending = ref(true);
+    const updateKey = ref(0);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -108,6 +108,7 @@ export default defineComponent({
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const fullColumns = ref([]);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -130,6 +131,85 @@ export default defineComponent({
 
     const operatorToolsWidth = computed(() => {
       return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+    });
+
+    const originalColumns = computed(() => {
+      return [
+        {
+          field: ROW_F_ORIGIN_TIME,
+          key: ROW_F_ORIGIN_TIME,
+          title: ROW_F_ORIGIN_TIME,
+          align: 'top',
+          resize: false,
+          minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
+          renderBodyCell: ({ row }) => {
+            return <span class='time-field'>{getOriginTimeShow(row[timeField.value])}</span>;
+          },
+        },
+        {
+          field: ROW_F_ORIGIN_CTX,
+          key: ROW_F_ORIGIN_CTX,
+          title: ROW_F_ORIGIN_CTX,
+          align: 'top',
+          minWidth: '100%',
+          width: 'auto',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              <JsonFormatter
+                class='bklog-column-wrapper'
+                fields={visibleFields.value}
+                formatJson={formatJson.value}
+                jsonValue={row}
+                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
+              ></JsonFormatter>
+            );
+          },
+        },
+      ];
+    });
+
+    const tableColumns = computed(() => {
+      const columns = visibleFields.value.length ? visibleFields.value : fullColumns.value;
+      return columns.map(field => {
+        return {
+          field: field.field_name,
+          key: field.field_name,
+          title: field.field_name,
+          width: field.width,
+          minWidth: field.minWidth,
+          align: 'top',
+          resize: true,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <TableColumn
+                content={getTableColumnContent(row, field)}
+                field={field}
+                is-wrap={tableLineIsWrap.value}
+                onIcon-click={(type, content, isLink, depth) =>
+                  handleIconClick(type, content, field, row, isLink, depth)
+                }
+              ></TableColumn>
+            );
+          },
+          renderHeaderCell: () => {
+            const sortable = field.es_doc_values && field.tag !== 'union-source';
+            return renderHead(field, order => {
+              if (sortable) {
+                const sortList = order ? [[field.field_name, order]] : [];
+                store.commit('updateIndexFieldInfo', { sort_list: sortList });
+                store.commit('updateIndexItemParams', { sort_list: sortList });
+                store.dispatch('requestIndexSetQuery');
+              }
+            });
+          },
+        };
+      });
+    });
+
+    const computedColumns = computed(() => {
+      return props.contentType === 'table' ? tableColumns.value : originalColumns.value;
     });
 
     const renderColumns = computed(() => {
@@ -174,7 +254,7 @@ export default defineComponent({
             return tableRowConfig.get(row).value[ROW_INDEX] + 1;
           },
         },
-        ...columns.value,
+        ...computedColumns.value,
         {
           field: ROW_F_ORIGIN_OPT,
           key: ROW_F_ORIGIN_OPT,
@@ -269,11 +349,7 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
-
-    const getRenderColumns = () => {
-      if (visibleFields.value.length) {
-        return visibleFields.value;
-      }
+    const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
       const dataFields = [];
       const indexSetFields = [];
@@ -298,83 +374,7 @@ export default defineComponent({
       }
 
       setDefaultTableWidth(sortFieldsList, tableList);
-      return sortFieldsList;
-    };
-
-    const loadTableColumns = () => {
-      if (props.contentType === 'table') {
-        return [
-          ...getRenderColumns().map(field => {
-            return {
-              field: field.field_name,
-              key: field.field_name,
-              title: field.field_name,
-              width: field.width,
-              minWidth: field.minWidth,
-              align: 'top',
-              resize: true,
-              renderBodyCell: ({ row }) => {
-                return (
-                  // @ts-ignore
-                  <TableColumn
-                    content={getTableColumnContent(row, field)}
-                    field={field}
-                    is-wrap={tableLineIsWrap.value}
-                    onIcon-click={(type, content, isLink, depth) =>
-                      handleIconClick(type, content, field, row, isLink, depth)
-                    }
-                  ></TableColumn>
-                );
-              },
-              renderHeaderCell: () => {
-                const sortable = field.es_doc_values && field.tag !== 'union-source';
-                return renderHead(field, order => {
-                  if (sortable) {
-                    const sortList = order ? [[field.field_name, order]] : [];
-                    store.commit('updateIndexFieldInfo', { sort_list: sortList });
-                    store.commit('updateIndexItemParams', { sort_list: sortList });
-                    store.dispatch('requestIndexSetQuery');
-                  }
-                });
-              },
-            };
-          }),
-        ];
-      }
-
-      return [
-        {
-          field: ROW_F_ORIGIN_TIME,
-          key: ROW_F_ORIGIN_TIME,
-          title: ROW_F_ORIGIN_TIME,
-          align: 'top',
-          resize: false,
-          minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
-          renderBodyCell: ({ row }) => {
-            return <span class='time-field'>{getOriginTimeShow(row[timeField.value])}</span>;
-          },
-        },
-        {
-          field: ROW_F_ORIGIN_CTX,
-          key: ROW_F_ORIGIN_CTX,
-          title: ROW_F_ORIGIN_CTX,
-          align: 'top',
-          minWidth: '100%',
-          width: 'auto',
-          resize: false,
-          renderBodyCell: ({ row }) => {
-            return (
-              <JsonFormatter
-                class='bklog-column-wrapper'
-                fields={visibleFields.value}
-                formatJson={formatJson.value}
-                jsonValue={row}
-                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
-              ></JsonFormatter>
-            );
-          },
-        },
-      ];
+      fullColumns.value = sortFieldsList;
     };
 
     const getRowConfigWithCache = () => {
@@ -424,11 +424,20 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
+        updateKey.value++;
 
-        columns.value = loadTableColumns();
         setTimeout(() => {
           computeRect();
         });
+      },
+    );
+
+    watch(
+      () => [visibleFields.value.length],
+      () => {
+        if (!visibleFields.value.length) {
+          setFullColumns();
+        }
       },
     );
 
@@ -616,30 +625,30 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
-      if (showHeader.value) {
-        return (
-          <div
-            style={headStyle.value}
-            class={['bklog-row-container row-header', { 'has-overflow-x': hasScrollX.value }]}
-          >
-            <div class='bklog-list-row'>
-              {renderColumns.value.map(column => (
-                <LogCell
-                  key={column.key}
-                  width={column.width}
-                  class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
-                  minWidth={column.minWidth ?? 'auto'}
-                  resize={column.resize}
-                  onResize-width={w => handleColumnWidthChange(w, column)}
-                >
-                  {column.renderHeaderCell?.({ column }, h) ?? column.title}
-                </LogCell>
-              ))}
-            </div>
+      return (
+        <div
+          style={headStyle.value}
+          class={[
+            'bklog-row-container row-header',
+            { 'has-overflow-x': hasScrollX.value, 'hidden-head': !showHeader.value },
+          ]}
+        >
+          <div class='bklog-list-row'>
+            {renderColumns.value.map(column => (
+              <LogCell
+                key={column.key}
+                width={column.width}
+                class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
+                minWidth={column.minWidth ?? 'auto'}
+                resize={column.resize}
+                onResize-width={w => handleColumnWidthChange(w, column)}
+              >
+                {column.renderHeaderCell?.({ column }, h) ?? column.title}
+              </LogCell>
+            ))}
           </div>
-        );
-      }
-      return null;
+        </div>
+      );
     };
 
     const scrollTop = () => {
@@ -691,6 +700,7 @@ export default defineComponent({
         const row = tableList[rowIndex];
         return (
           <RowRender
+            key={rowIndex}
             class={[
               'bklog-row-container',
               {
@@ -698,6 +708,7 @@ export default defineComponent({
               },
             ]}
             row-index={rowIndex}
+            updateKey={updateKey.value}
           >
             {renderRowCells(row, rowIndex)}
           </RowRender>
@@ -744,14 +755,14 @@ export default defineComponent({
     };
 
     const renderResultContainer = () => {
-      if (tableList.length && columns.value.length) {
+      if (tableList.length && renderColumns.value.length) {
         return [
           renderHeadVNode(),
           <div
             id={resultContainerId.value}
             ref={refBoxElement}
             style={tableStyle.value}
-            class={['bklog-row-box', { 'show-head': showHeader.value }]}
+            class={['bklog-row-box']}
           >
             {renderRowVNode()}
           </div>,
