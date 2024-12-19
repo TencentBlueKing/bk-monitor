@@ -19,6 +19,7 @@ def transform_advanced_addition(addition: dict):
 
     op = ADVANCED_OP_MAP.get(origin_operator, {}).get("operator", "eq")
     condition = ADVANCED_OP_MAP.get(origin_operator, {}).get("condition", "or")
+    is_wildcard = ADVANCED_OP_MAP.get(origin_operator, {}).get("is_wildcard", False)
 
     if origin_operator in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
         value = ["true" if origin_operator == OperatorEnum.IS_TRUE["operator"] else "false"]
@@ -28,10 +29,10 @@ def transform_advanced_addition(addition: dict):
         value = value if isinstance(value, list) else value.split(",")
 
     if condition == "or":
-        field_list = [{"field_name": field, "op": op, "value": value}]
+        field_list = [{"field_name": field, "op": op, "value": value, "is_wildcard": is_wildcard}]
         condition_list = []
     else:
-        field_list = [{"field_name": field, "op": op, "value": [v]} for v in value]
+        field_list = [{"field_name": field, "op": op, "value": [v], "is_wildcard": is_wildcard} for v in value]
         condition_list = [condition] * (len(value) - 1)
 
     return field_list, condition_list

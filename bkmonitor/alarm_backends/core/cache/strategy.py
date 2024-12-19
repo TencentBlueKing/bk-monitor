@@ -1054,6 +1054,7 @@ class StrategyCacheManager(CacheManager):
             return
 
         # 获取策略历史数据
+        process_time = time.time()
         histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(start_time))
         if not histories.exists():
             logger.info(
@@ -1099,6 +1100,13 @@ class StrategyCacheManager(CacheManager):
             except Exception as e:
                 logger.exception(f"refresh strategy error when {processor.__name__}")
                 exc = e
+
+        # 策略处理期间删除的策略，直接清理
+        histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(process_time))
+        if histories.exists():
+            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+            for strategy_id, _ in to_be_deleted_strategy_ids:
+                cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
         duration = time.time() - start_time
         metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(exc)).observe(duration)
