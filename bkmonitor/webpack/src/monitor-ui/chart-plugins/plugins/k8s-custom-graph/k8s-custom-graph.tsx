@@ -155,7 +155,7 @@ class K8SCustomChart extends CommonSimpleChart {
     return ['save', 'more', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
 
-  @Watch('showRestoreInject')
+  @Watch('showRestoreInject', { immediate: true })
   handleShowRestoreInject(v: boolean) {
     this.showRestore = v;
   }
@@ -348,6 +348,7 @@ class K8SCustomChart extends CommonSimpleChart {
               const legendItem = this.legendData.find(legend => legend.name === item.name);
               legendItem.color = color;
               legendItem.lineStyleType = isSpecialSeries ? 'dashed' : 'solid';
+              legendItem.silent = isSpecialSeries;
             }
             return {
               ...item,

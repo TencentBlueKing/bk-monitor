@@ -42,6 +42,7 @@ export interface ILegendItem {
   metricField?: string;
   dimensions?: Record<string, string>;
   lineStyleType?: 'dashed' | 'solid';
+  silent?: boolean;
 }
 export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';

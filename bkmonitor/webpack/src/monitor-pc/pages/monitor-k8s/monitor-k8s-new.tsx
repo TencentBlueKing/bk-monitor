@@ -88,6 +88,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 是否立即刷新
   @ProvideReactive('refleshImmediate') refreshImmediate = '';
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
   // 场景
   scene: SceneEnum = SceneEnum.Performance;
   // 集群
@@ -120,6 +122,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   /** 各维度数据总和 */
   dimensionTotal: Record<string, number> = {};
 
+  cacheTimeRange = [];
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
@@ -244,7 +247,19 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       return pre;
     }, {});
   }
-
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   async getClusterList() {
     this.clusterLoading = true;
     this.clusterList = await listBcsCluster().catch(() => []);

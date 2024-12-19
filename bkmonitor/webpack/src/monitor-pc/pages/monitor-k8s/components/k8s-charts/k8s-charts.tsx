@@ -88,8 +88,16 @@ export default class K8SCharts extends tsc<
     this.createPanelList();
   }
   @Watch('filterCommonParams')
-  onFilterCommonParamsChange() {
-    this.createPanelList();
+  onFilterCommonParamsChange(newVal: Record<string, string>, oldVal: Record<string, string>) {
+    if (
+      !newVal ||
+      !oldVal ||
+      Object.entries(newVal).some(
+        ([key, value]) => !['start_time', 'end_time', 'filter_dict'].includes(key) && value !== oldVal[key]
+      )
+    ) {
+      this.createPanelList();
+    }
   }
   @Provide('onDrillDown')
   handleDrillDown(group: string, name: string) {

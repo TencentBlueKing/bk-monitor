@@ -84,7 +84,7 @@ export default class ResizeMixin extends Vue {
     chartInstance.instance.setOption(targetOption);
   }
   handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
-    if (this.legendData.length < 2) {
+    if (this.legendData.filter(item => !item.silent).length < 2) {
       return;
     }
     const chartInstance = this.$refs.baseChart as any;
