@@ -219,6 +219,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** 图表异步请求数据缓存 */
   asyncDataCache = new Map();
   resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
+  /** 浏览器空闲时期填充图表异步请求数据执行函数ID，重新请求时及时终止结束回调 */
+  requestIdleCallbackId = null;
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -287,20 +289,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   onActiveTabChange(v) {
     if (v !== K8sNewTabEnum.CHART) {
       // 重新渲染，从而刷新 table sort 状态
-      this.tableLoading.loading = true;
       this.getK8sList({ needRefresh: true });
     }
   }
 
   @Watch('groupInstance.groupFilters')
   onGroupFiltersChange() {
-    if (!this.isListTab) return;
+    if (!this.isListTab || !this.filterCommonParams.bcs_cluster_id) return;
     this.tableLoading.loading = true;
-    this.getK8sList({ needRefresh: true });
+    this.debounceGetK8sList();
   }
-  @Watch('filterCommonParams', { immediate: true })
+  @Watch('filterCommonParams')
   onFilterCommonParamsChange() {
-    this.getK8sList({ needRefresh: true });
+    this.debounceGetK8sList();
   }
 
   @Watch('refreshInterval')
@@ -320,6 +321,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   created() {
     this.getK8sList();
+  }
+  beforeUnmount() {
+    cancelIdleCallback(this.requestIdleCallbackId);
+    this.requestIdleCallbackId = null;
   }
 
   getKeyToTableColumnsMap(): Record<K8sTableColumnKeysEnum, K8sTableColumn<K8sTableColumnKeysEnum>> {
@@ -410,15 +415,22 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.refreshKey = random(10);
   }
 
+  @Debounce(200)
+  debounceGetK8sList() {
+    this.getK8sList({ needRefresh: true });
+  }
   /**
    * @description 获取k8s列表
    * @param {boolean} config.needRefresh 是否需要刷新表格状态
    * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
-  @Debounce(200)
   async getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
-    if (!this.filterCommonParams.bcs_cluster_id) {
+    if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading) {
       return;
+    }
+    if (this.requestIdleCallbackId) {
+      cancelIdleCallback(this.requestIdleCallbackId);
+      this.requestIdleCallbackId = null;
     }
     let loadingKey = 'scrollLoading';
     const initPagination = () => {
@@ -452,6 +464,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     const resourceType = this.isListTab
       ? this.groupInstance?.getResourceType()
       : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
+
+    /** 获取资源列表请求接口参数 */
     const requestParam = {
       ...this.filterCommonParams,
       ...pageRequestParam,
@@ -575,7 +589,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         return { shouldBreak, endIndex: -1 };
       }
       if (enableIdle) {
-        requestIdleCallback(deadline => {
+        this.requestIdleCallbackId = requestIdleCallback(deadline => {
           while (deadline.timeRemaining() > 0 && !shouldBreak) {
             const res = setData(endIndex, false);
             endIndex = res.endIndex;
