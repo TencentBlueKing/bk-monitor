@@ -311,6 +311,10 @@ class GetClustersBySpaceUidViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetClustersBySpaceUidResource)]
 
 
+class GetBizRelatedBkciSpacesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetBizRelatedBkciSpacesResource)]
+
+
 class CreateSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateSpaceResource)]
 

@@ -37,9 +37,10 @@ from .space import Space, SpaceDataSource, SpaceResource, SpaceType
 logger = logging.getLogger("metadata")
 
 
-def get_related_spaces(space_type_id, space_id, target_space_type_id):
+def get_related_spaces(space_type_id, space_id, target_space_type_id=SpaceTypes.BKCI.value):
     """
     获取{space_type_id}__{space_id} 关联的{target_space_type_id}类型的空间ID
+    现阶段而言，只存在通过业务去查询关联的CI空间场景,即查询bkcc类型关联的bkci类型空间列表
     """
     filtered_resources = SpaceResource.objects.filter(
         resource_type=space_type_id, resource_id=space_id, space_type_id=target_space_type_id
