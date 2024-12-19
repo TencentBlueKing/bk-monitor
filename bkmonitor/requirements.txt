@@ -3,7 +3,7 @@ gunicorn==20.1.0
 gevent==22.10.2
 
 # django
-Django==3.2.15
+Django==3.2.25
 django-mysql==4.3.0
 
 django-db-connection-pool==1.2.5
@@ -27,10 +27,10 @@ django-versionlog==1.6.0
 django-bulk-update==2.2.0
 
 # celery
-celery==4.4.7
-django-celery-beat==2.2.0
-django-celery-results==2.0.1
-celery-redbeat==0.13.0
+celery==5.1.2
+django-celery-beat==2.2.1
+django-celery-results==2.2.0
+celery-redbeat==2.2.0
 
 # elasticsearch
 elasticsearch_dsl==7.3.0
