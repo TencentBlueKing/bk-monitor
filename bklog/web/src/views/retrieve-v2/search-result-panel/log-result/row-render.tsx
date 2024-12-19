@@ -52,7 +52,7 @@ export default defineComponent({
             data-row-index={props.rowIndex}
             data-row-visible={props.visible}
           >
-            {slots.default?.()}
+            {isPending.value ? '' : slots.default?.()}
           </div>
         </div>
       );
@@ -61,6 +61,9 @@ export default defineComponent({
     onMounted(() => {
       intersectionObserver?.observe(refRowNodeRoot.value);
       resizeObserver?.observe(refRowNodeRoot.value);
+      setTimeout(() => {
+        isPending.value = false;
+      });
     });
 
     onBeforeUnmount(() => {

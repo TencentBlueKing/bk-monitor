@@ -87,7 +87,7 @@ export default defineComponent({
     // 本地分页
     const pageIndex = ref(0);
     // 前端本地分页
-    const pageSize = 100;
+    const pageSize = ref(50);
 
     const tableRowConfig = new WeakMap();
     const isPending = ref(true);
@@ -109,6 +109,7 @@ export default defineComponent({
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
     const fullColumns = ref([]);
+    const showCtxType = ref(props.contentType);
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -243,7 +244,7 @@ export default defineComponent({
     });
 
     const computedColumns = computed(() => {
-      return props.contentType === 'table' ? tableColumns.value : originalColumns.value;
+      return showCtxType.value === 'table' ? tableColumns.value : originalColumns.value;
     });
 
     const renderColumns = computed(() => {
@@ -454,7 +455,34 @@ export default defineComponent({
     };
 
     watch(
-      () => [fieldRequestCounter.value, props.contentType],
+      () => [tableShowRowIndex.value],
+      () => {
+        setTimeout(() => {
+          computeRect();
+        });
+      },
+    );
+
+    watch(
+      () => [props.contentType],
+      () => {
+        pageIndex.value = 1;
+        pageSize.value = 0;
+        isRequesting.value = true;
+        scrollXOffsetLeft.value = 0;
+        refScrollXBar.value?.scrollLeft(0);
+
+        setTimeout(() => {
+          showCtxType.value = props.contentType;
+          pageSize.value = 50;
+          isRequesting.value = false;
+          computeRect();
+        });
+      },
+    );
+
+    watch(
+      () => [fieldRequestCounter.value],
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
@@ -553,8 +581,9 @@ export default defineComponent({
         isRequesting.value = true;
         delay = 0;
 
-        if (pageIndex.value * pageSize < tableDataSize.value) {
+        if (pageIndex.value * pageSize.value < tableDataSize.value) {
           pageIndex.value++;
+          pageSize.value = 100;
           debounceSetLoading();
           return;
         }
@@ -562,7 +591,7 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(() => {
-            if (tableDataSize.value > pageIndex.value * pageSize) {
+            if (tableDataSize.value > pageIndex.value * pageSize.value) {
               pageIndex.value++;
             }
           })
@@ -655,7 +684,7 @@ export default defineComponent({
     });
 
     const showHeader = computed(() => {
-      return props.contentType === 'table' && tableList.value.length > 0;
+      return showCtxType.value === 'table' && tableList.value.length > 0;
     });
 
     const renderHeadVNode = () => {
@@ -686,7 +715,7 @@ export default defineComponent({
     };
 
     const scrollTop = () => {
-      scrollToTop(0, pageSize <= 2);
+      scrollToTop(0, pageIndex.value <= 2);
     };
 
     const renderScrollTop = () => {
@@ -729,25 +758,10 @@ export default defineComponent({
       ];
     };
 
-    // const visibleIndexList = computed(() => {
-    //   const list = Object.keys(intersectionArgs.value)
-    //     .filter(key => intersectionArgs.value[key].visible)
-    //     .map(key => parseInt(key));
-
-    //   const min = list.length ? Math.min(...list) : 0;
-    //   const max = list.length ? Math.max(...list) : pageSize;
-
-    //   return [
-    //     min > pageSize ? min - pageSize : 0,
-    //     max + pageSize > tableDataSize.value ? tableDataSize.value : max + pageSize,
-    //   ];
-    // });
-
-    const viewList = computed(() => tableList.value.slice(0, pageIndex.value * pageSize));
+    const viewList = computed(() => tableList.value.slice(0, pageIndex.value * pageSize.value));
 
     const renderRowVNode = () => {
       return viewList.value.map((row, rowIndex) => {
-        // const isIntersecting = rowIndex <= visibleIndexList.value[1] && rowIndex >= visibleIndexList.value[0];
         const style = {
           minHeight: `${intersectionArgs.value?.[`${rowIndex}`]?.height ?? 40}px`,
         };
@@ -759,7 +773,6 @@ export default defineComponent({
               'bklog-row-container',
               {
                 'has-overflow-x': hasScrollX.value,
-                // 'is-intersecting': isIntersecting,
               },
             ]}
             row-index={rowIndex}
@@ -792,15 +805,22 @@ export default defineComponent({
       };
     });
 
+    const loadingText = computed(() => {
+      if (hasMoreList.value) {
+        if (tableDataSize.value > pageIndex.value * pageSize.value) {
+          return 'Rendering ...';
+        }
+
+        return 'Loading ...';
+      }
+
+      return '已加载所有数据';
+    });
+
     const renderLoader = () => {
       return (
         <div class={['bklog-requsting-loading']}>
-          <div
-            style={{ width: `${offsetWidth.value}px` }}
-            // v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
-          >
-            {hasMoreList.value || tableList.value.length === 0 ? 'Loading...' : `已加载所有数据`}
-          </div>
+          <div style={{ width: `${offsetWidth.value}px` }}>{loadingText.value}</div>
         </div>
       );
     };
