@@ -92,7 +92,7 @@ export default ({ fields, onSegmentClick }) => {
       }
 
       if (!value.isJson) {
-        value.editor?.initStringAsValue();
+        value.editor?.initStringAsValue(value.value as string);
       }
     });
   };
