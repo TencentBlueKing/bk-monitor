@@ -326,7 +326,6 @@ class MonitorBaseEchart extends BaseEchart {
         if (curSeries?.stack?.includes('boundary-')) {
           curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
         }
-        console.info('params', curSeries.lineStyle, '======');
         const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision =

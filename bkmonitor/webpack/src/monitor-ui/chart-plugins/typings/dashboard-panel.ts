@@ -516,6 +516,7 @@ export class PanelModel implements IPanelModel {
   dimensions: string[];
   // 是否正在drag中
   draging = false;
+  externalData: Record<string, any>; // 一些额外自定义数据 用于图表
   extra_panels?: PanelModel[];
   // 图表位置
   gridPos!: IGridPos;
@@ -529,8 +530,8 @@ export class PanelModel implements IPanelModel {
   matchDisplay?: Record<string, any>;
   // 图表配置
   options?: PanelOption;
-  panels?: PanelModel[];
 
+  panels?: PanelModel[];
   // 是否显示百分比
   percent?: boolean;
   rawTargetQueryMap = new WeakMap<Record<string, any>>();

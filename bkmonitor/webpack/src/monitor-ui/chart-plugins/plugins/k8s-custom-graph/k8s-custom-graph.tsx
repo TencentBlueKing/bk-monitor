@@ -951,6 +951,8 @@ class CallerLineChart extends CommonSimpleChart {
 
   render() {
     const showLegend = this.panel.options?.legend?.displayMode !== 'hidden';
+    const groupByField = this.panel.externalData?.groupByField;
+    const canShowDetail = groupByField !== 'namespace';
     return (
       <div class='k8s-custom-graph'>
         <ChartHeader
@@ -1003,18 +1005,22 @@ class CallerLineChart extends CommonSimpleChart {
                       >
                         <span
                           style={{
-                            color: item.show ? (this.isSpecialSeries(item.name) ? '#63656e' : '#3a84ff') : '#ccc',
+                            color: item.show
+                              ? this.isSpecialSeries(item.name) || !canShowDetail
+                                ? '#63656e'
+                                : '#3a84ff'
+                              : '#ccc',
                           }}
                           class='metric-name'
                           v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                          onClick={() => this.onShowDetail(item.name)}
+                          onClick={() => canShowDetail && this.onShowDetail(item.name)}
                         >
                           {item.name}
                         </span>
                         {!this.isSpecialSeries(item.name) && (
                           <K8sDimensionDrillDown
-                            dimension={'namespace'}
-                            value={'namespace'}
+                            dimension={this.panel.externalData?.groupByField}
+                            value={this.panel.externalData?.groupByField}
                             onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
                           />
                         )}

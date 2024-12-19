@@ -93,6 +93,11 @@ export default class K8SCharts extends tsc<
   }
   @Provide('onDrillDown')
   handleDrillDown(group: string, name: string) {
+    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+      const [container] = name.split(':');
+      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, false);
+      return;
+    }
     this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, false);
   }
 
@@ -138,6 +143,9 @@ export default class K8SCharts extends tsc<
             type: 'k8s_custom_graph',
             title: panel.name,
             subTitle: '',
+            externalData: {
+              groupByField: this.groupByField,
+            },
             options: {
               legend: {
                 displayMode,
