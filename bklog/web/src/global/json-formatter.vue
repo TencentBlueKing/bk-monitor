@@ -241,6 +241,10 @@
 
       .bklog-root-field {
         display: flex;
+
+        .field-value {
+          word-break: break-all;
+        }
       }
     }
 
