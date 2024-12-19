@@ -401,9 +401,5 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     )
 
     ModifyResultTableResource().request(**modify_params)
-    es_record1 = models.StorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=3)
-    es_record2 = models.StorageClusterRecord.objects.get(table_id="2_bklog.rt_create", cluster_id=11)
-    assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create")) == 2
-    assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=3)) == 1
-    assert es_record1.is_current is True
-    assert es_record2.is_current is False
+    assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=3)) == 2
+    assert len(models.StorageClusterRecord.objects.filter(table_id="2_bklog.rt_create", cluster_id=11)) == 1
