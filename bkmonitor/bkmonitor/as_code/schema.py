@@ -183,7 +183,7 @@ StrategySchema = Schema(
                 },
             },
         },
-        Optional("actions", default=[]): [
+        Optional("actions", default=lambda: []): [
             {
                 "signal": [str],
                 "action": str,
@@ -274,7 +274,7 @@ UserGroupSchema = Schema(
                 "effective_time": Regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"),
             }
         ],
-        Optional("duty_rules", default=[]): [str],
+        Optional("duty_rules", default=lambda: []): [str],
     },
     ignore_extra_keys=True,
 )
@@ -321,7 +321,7 @@ AssignGroupRuleSchema = Schema(
                     "user_groups": [str],
                     "interval": int,
                 },
-                Optional("actions", default=[]): [
+                Optional("actions", default=lambda: []): [
                     {
                         Optional("enabled", default=False): bool,
                         "type": str,
@@ -329,7 +329,7 @@ AssignGroupRuleSchema = Schema(
                     }
                 ],
                 Optional("alert_severity", default=0): int,
-                Optional("additional_tags", default=[]): [{"key": str, "value": str}],
+                Optional("additional_tags", default=lambda: []): [{"key": str, "value": str}],
             }
         ],
     },
