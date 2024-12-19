@@ -87,8 +87,8 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     debounceCallback(event);
   };
 
-  const scrollToTop = (smooth = true) => {
-    getScrollElement().scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
+  const scrollToTop = (top = 0, smooth = true) => {
+    getScrollElement().scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);

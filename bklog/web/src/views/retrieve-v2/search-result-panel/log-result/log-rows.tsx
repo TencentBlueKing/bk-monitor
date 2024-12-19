@@ -445,8 +445,9 @@ export default defineComponent({
       () => [tableDataSize.value],
       (val, oldVal) => {
         if (!val[0] || !oldVal[0]) {
-          tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
           pageIndex.value = 1;
+          tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
+          scrollTop();
         }
 
         updateTableRowConfig(oldVal?.[0] ?? 0);
@@ -509,7 +510,7 @@ export default defineComponent({
     };
 
     const viewList = computed(() => {
-      const endIdx = pageIndex.value * pageSize - 1;
+      const endIdx = pageIndex.value * pageSize;
       const endIndex = endIdx > tableDataSize.value ? tableDataSize.value : endIdx;
       return new Array(endIndex).fill('').map((_, index) => index);
     });
@@ -542,12 +543,13 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
+    let visibleTop = 0;
     const updateVisibleItems = debounce((event, scrollTop, offsetTop) => {
       if (!event?.target) {
         return;
       }
 
-      const visibleTop = offsetTop - searchContainerHeight.value;
+      visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
       if (useScrollHeight === 0) {
         pageIndex.value = 1;
@@ -653,7 +655,7 @@ export default defineComponent({
     };
 
     const scrollTop = () => {
-      scrollToTop(visibleIndexs.value.endIndex < 100);
+      scrollToTop(visibleTop - 80, visibleIndexs.value.endIndex < 100);
     };
 
     const renderScrollTop = () => {
