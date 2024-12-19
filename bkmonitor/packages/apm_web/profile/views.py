@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
@@ -38,6 +39,7 @@ from apm_web.profile.constants import (
     CallGraphResponseDataMode,
 )
 from apm_web.profile.diagrams import get_diagrammer
+from apm_web.profile.diagrams.deepflow_converter import DeepFlowConverter
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.doris.querier import APIParams, APIType, ConverterType, Query
@@ -165,6 +167,33 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
     @staticmethod
+    def ebpf_query(
+        bk_biz_id: int,
+        cluster_id: str,
+        service_name: str,
+        start: int,
+        end: int,
+        sample_type: str,
+        converter: Optional[ConverterType] = None,
+    ) -> TreeConverter:
+        """
+        获取 ebpf profile 数据
+        """
+        if converter == ConverterType.DeepFlow:
+            # 检查不同类型的 ConverterType 预留横向拓展空间
+            profile_data = DeepFlowQuery.get_profile(
+                bk_biz_id=bk_biz_id,
+                cluster_id=cluster_id,
+                service_name=service_name,
+                start=start,
+                data_type=sample_type,
+                end=end,
+            )
+            deep_flow_converter = DeepFlowConverter()
+            deep_flow_converter.convert(raw=profile_data, data_type=sample_type)
+            return deep_flow_converter
+
+    @staticmethod
     def query(
         bk_biz_id: int,
         app_name: str,
@@ -282,8 +311,19 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             builtin_datasource = api.apm_api.query_builtin_profile_datasource()
             app_name = BUILTIN_APP_NAME
             service_name = app_name
+            # TODO: fetch from apm api in the future
+            # we keep the same rule for now
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
+        elif validated_data["is_ebpf"]:
+            cluster_id = validated_data["cluster_id"]
+            service_name = validated_data["service_name"]
+            bk_biz_id = validated_data["bk_biz_id"]
+            return {
+                "bk_biz_id": bk_biz_id,
+                "cluster_id": cluster_id,
+                "service_name": service_name,
+            }
         else:
             bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
@@ -306,13 +346,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         essentials = cls.get_essentials(data)
         # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if cls.is_large_service(
+        if not data["is_ebpf"] and cls.is_large_service(
             essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
         ):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
-
+        
         return data, essentials, extra_params
 
     @classmethod
@@ -325,6 +365,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     def converter_query(cls, essentials, validate_data, extra_params):
         offset = validate_data.get("offset", 0)
 
+        EBPF_DICT = {"deepflow": ConverterType.DeepFlow}
+        # 横向可拓展其他 ebpf 数据源
+
         start_time, end_time = validate_data["start"], validate_data["end"]
         filter_start_time = validate_data["filter_labels"].get("start")
         filter_end_time = validate_data["filter_labels"].get("end")
@@ -335,20 +378,32 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             del validate_data["filter_labels"]["end"]
         else:
             start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
-
-        return cls.query(
-            bk_biz_id=essentials["bk_biz_id"],
-            app_name=essentials["app_name"],
-            service_name=essentials["service_name"],
-            start=start_time,
-            end=end_time,
-            profile_id=validate_data.get("profile_id"),
-            filter_labels=validate_data.get("filter_labels"),
-            result_table_id=essentials["result_table_id"],
-            sample_type=validate_data["data_type"],
-            converter=ConverterType.Tree,
-            extra_params=extra_params,
-        )
+        
+        ebpf_type = validate_data.get("ebpf_type", "")
+        if validate_data["is_ebpf"]:
+            return cls.ebpf_query(
+                bk_biz_id=essentials["bk_biz_id"],
+                cluster_id=essentials["cluster_id"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                sample_type=validate_data["data_type"],
+                converter=EBPF_DICT.get(ebpf_type, ConverterType.DeepFlow),
+            )
+        else:
+            return cls.query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                profile_id=validate_data.get("profile_id"),
+                filter_labels=validate_data.get("filter_labels"),
+                result_table_id=essentials["result_table_id"],
+                sample_type=validate_data["data_type"],
+                converter=ConverterType.Tree,
+                extra_params=extra_params,
+            )
 
     @classmethod
     def get_converter_options(cls, validate_data):
@@ -396,7 +451,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 if validate_data.get("is_compared"):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
-
         tree_converter = self.converter_query(essentials, validate_data, extra_params)
 
         if validate_data["global_query"] and not tree_converter:
@@ -445,7 +499,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
             data.update(tree_converter.get_sample_type())
             return Response(data=data)
-
+          
         return Response(data=self.converter_to_data(validate_data, tree_converter))
 
     @classmethod
