@@ -1511,6 +1511,17 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
+          // 在json格式下，alias_settings的query_alias和fields的alias_name交换
+          if( this.params.etl_config === 'bk_log_json'){
+            data.alias_settings =  fieldTableData.filter(item => item.alias_name).map(item => {
+              return {
+                field_name: item.field_name,
+                query_alias: item.alias_name,
+                path_type: item.field_type
+              }
+            })
+            data.etl_fields.forEach(item => item.alias_name = item.query_alias)
+          }
         } else {
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
@@ -1601,8 +1612,8 @@
       },
       /** 入库请求 */
       async fieldCollectionRequest(atLastFormData, callback) {
-        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
-        // 检索设置 直接入库
+        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
+        // 检索设置 直接入库 
         const {
           table_id,
           storage_cluster_id,
@@ -1625,6 +1636,7 @@
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
+          alias_settings,
         };
         const updateData = {
           params: {
@@ -1632,7 +1644,6 @@
           },
           data,
         };
-
         this.$http
           .request('collect/fieldCollection', updateData)
           .then(res => {

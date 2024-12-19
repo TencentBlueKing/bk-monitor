@@ -617,6 +617,9 @@ const store = new Vuex.Store({
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
+    updateIndexFieldInfoField(state, payload) {
+      state.indexFieldInfo.fields.push(...payload)
+    },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
