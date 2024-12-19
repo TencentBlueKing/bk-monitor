@@ -96,6 +96,7 @@ class CleanTemplateHandler(object):
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],
             "bk_biz_id": params["bk_biz_id"],
+            "alias_settings": params["alias_settings"]
         }
         if params.get("visible_type"):
             model_fields["visible_type"] = params["visible_type"]
