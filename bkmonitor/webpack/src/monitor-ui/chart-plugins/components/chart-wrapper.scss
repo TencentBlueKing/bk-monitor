@@ -224,3 +224,26 @@
     }
   }
 }
+.pop-drill-down-list {
+  height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  .contextmenu-list-item-title {
+    padding: 8px 10px;
+    color: #979ba5;
+  }
+  .contextmenu-list-item-disabled {
+    position: relative;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    color: #ccc;
+    cursor: not-allowed;
+  }
+  .active {
+    color: #3a84ff;
+    background: #f5f7fa;
+  }
+}

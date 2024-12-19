@@ -30,22 +30,22 @@ import dayjs from 'dayjs';
 import { EKind, type ITabItem } from './type';
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
-    label: '主调',
+    label: window.i18n.tc('主调'),
     id: EKind.caller,
   },
   {
-    label: '被调',
+    label: window.i18n.tc('被调'),
     id: EKind.callee,
   },
 ];
 export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];
 export const PERSPECTIVE_TYPE = [
   {
-    label: '单视角',
+    label: window.i18n.tc('单视角'),
     id: 'single',
   },
   {
-    label: '多视角',
+    label: window.i18n.tc('多视角'),
     id: 'multiple',
   },
 ];
@@ -74,17 +74,17 @@ export const TAB_TABLE_REQUEST_COLUMN = [
 
 export const TAB_TABLE_TYPE = [
   {
-    label: '请求量',
+    label: window.i18n.tc('请求量'),
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
   },
   {
-    label: '成功/异常/超时率',
+    label: window.i18n.tc('成功/异常/超时率'),
     id: 'timeout',
     columns: [],
   },
   {
-    label: '耗时（ms）',
+    label: window.i18n.tc('耗时（ms）'),
     id: 'consuming',
     columns: [],
   },
@@ -93,31 +93,31 @@ export const TAB_TABLE_TYPE = [
 export const SYMBOL_LIST = [
   {
     value: 'eq',
-    label: '等于',
+    label: window.i18n.tc('等于'),
   },
   {
     value: 'neq',
-    label: '不等于',
+    label: window.i18n.tc('不等于'),
   },
   {
     value: 'before_req',
-    label: '前匹配',
+    label: window.i18n.tc('前匹配'),
   },
   {
     value: 'after_req',
-    label: '后匹配',
+    label: window.i18n.tc('后匹配'),
   },
   {
     value: 'include',
-    label: '包含',
+    label: window.i18n.tc('包含'),
   },
   {
     value: 'exclude',
-    label: '不包含',
+    label: window.i18n.tc('不包含'),
   },
   {
     value: 'reg',
-    label: '正则',
+    label: window.i18n.tc('正则'),
   },
 ];
 const CALL_INTERVAL_LIST = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, 120, 180, 240, 300, 600];
@@ -271,3 +271,83 @@ export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
     '1w': formatDateRange(start.lastWeek, end.lastWeek),
   };
 }
+
+export const createDrillDownList = (
+  menuList: { id: string; name: string; disabled: boolean; selected: boolean }[],
+  position: { x: number; y: number },
+  clickHandler: (id: string) => void,
+  instance: any
+) => {
+  const id = 'contextmenu-list-pop-wrapper';
+
+  const removeEl = () => {
+    const remove = document.getElementById(id);
+    if (remove) {
+      remove.remove();
+      setTimeout(() => {
+        instance?.dispatchAction({
+          type: 'restore',
+        });
+        instance?.dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }, 500);
+    }
+  };
+
+  removeEl();
+  const el = document.createElement('div');
+  el.className = id + ' pop-drill-down-list';
+  el.id = id;
+  el.style.left = `${(() => {
+    const { clientWidth } = document.body;
+    if (position.x + 110 > clientWidth) {
+      return position.x - 110;
+    }
+    return position.x;
+  })()}px`;
+  el.style.top = `${(() => {
+    const MAX_HEIGHT = 260;
+    const { clientHeight } = document.body;
+    if (position.y + MAX_HEIGHT > clientHeight) {
+      return position.y - MAX_HEIGHT;
+    }
+    return position.y;
+  })()}px`;
+  el.addEventListener('click', (e: any | Event) => {
+    const { dataset } = e.target;
+    if (e.target.classList.contains('contextmenu-list-item')) {
+      clickHandler?.(dataset.id);
+      document.removeEventListener('click', removeWrap);
+      removeEl();
+    }
+  });
+  const listEl = menuList
+    .map(
+      item =>
+        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
+    )
+    .join('');
+  el.innerHTML = `<div class="contextmenu-list-item-title">${window.i18n.tc('下钻至')}</div>` + listEl;
+  document.body.appendChild(el);
+  const eventHasId = (event: any | Event, id: string) => {
+    let target = event.target;
+    let has = false;
+    while (target) {
+      if (target.id === id) {
+        has = true;
+        break;
+      }
+      target = target?.parentNode;
+    }
+    return has;
+  };
+  function removeWrap(event: MouseEvent) {
+    if (!eventHasId(event, id)) {
+      removeEl();
+    }
+  }
+  document.addEventListener('click', removeWrap);
+};
