@@ -92,7 +92,7 @@ class QuickStartRunParameters(metaclass=base.FieldMeta):
 | -------------------- | :--------------------------------------- | ------------------------------------------------------------ |
 | `TOKEN`              | `"{{access_config.token}}"`              | 【必须】APM 应用 `Token`                                     |
 | `SERVICE_NAME`       | `"{{service_name}}"`                     | 【必须】服务唯一标识，一个应用可以有多个服务，通过该属性区分 |
-| `OTLP_ENDPOINT`      | `"{{access_config.otlp.endpoint}}"`      | 【必须】OT 数据上报地址，支持以下协议：<br />  `gRPC`：`{{access_config.otlp.endpoint}}`（demo 使用该协议演示上报）<br /> `HTTP` ：`{{access_config.otlp.http_endpoint}}` *[1]* |
+| `OTLP_ENDPOINT`      | `"{{access_config.otlp.http_endpoint}}"` | 【必须】OT 数据上报地址，支持以下协议：<br />  `gRPC`：`{{access_config.otlp.endpoint}}`<br /> `HTTP`：`{{access_config.otlp.http_endpoint}}`（demo 使用该协议演示上报） |
 | `PROFILING_ENDPOINT` | `"{{access_config.profiling.endpoint}}"` | 【可选】Profiling 数据上报地址                               |
 | `ENABLE_TRACES`      | `{{access_config.otlp.enable_traces}}`   | 是否启用调用链上报                                           |
 | `ENABLE_METRICS`     | `{{access_config.otlp.enable_metrics}}`  | 是否启用指标上报                                             |

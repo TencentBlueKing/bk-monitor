@@ -27,7 +27,7 @@ docker build -t helloworld-cpp:latest .
 DEMO_PORT=8080
 docker run -e TOKEN="{{access_config.token}}" \
 -e SERVICE_NAME="{{service_name}}" \
--e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
+-e OTLP_ENDPOINT="{{access_config.otlp.http_endpoint}}" \
 -e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 -e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
 -e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
