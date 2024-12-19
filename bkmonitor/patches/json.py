@@ -16,6 +16,8 @@ from json import load as json_load
 from json import loads as json_loads
 from logging import getLogger
 
+from django.utils.functional import Promise
+
 try:
     from django.core.files import File
 except ImportError:
@@ -56,10 +58,14 @@ class CustomJSONEncoder(JSONEncoder):
         type_ = type(obj)
         if issubclass(type_, set):
             return list(obj)
+        if issubclass(type_, bytes):
+            return obj.decode()
         if AttrList and issubclass(type_, AttrList):
             return list(obj)
         if AttrDict and issubclass(type_, AttrDict):
             return obj.to_dict()
+        if issubclass(type_, Promise):
+            return str(obj)
         return JSONEncoder.default(self, obj)
 
 
@@ -84,9 +90,9 @@ def dump(*args, **kwargs):
             return ujson.dump(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
-        except TypeError:
+        except TypeError as e:
             kwargs.pop("escape_forward_slashes")
-            logger.exception("ujson dump error")
+            logger.error("ujson dump error: %s" % e)
             return json_dump(*args, cls=CustomJSONEncoder, **kwargs)
 
     return json_dump(*args, **kwargs)
@@ -107,6 +113,9 @@ def loads(*args, **kwargs):
 
 
 def dumps(*args, **kwargs):
+    if args and isinstance(args[0], set):
+        args = (list(args[0]),) + args[1:]
+
     # 当前文件为django的File对象时，不进行转换，避免segmentation fault错误
     if args and File and isinstance(args[0], File):
         return json_dumps(*args, **kwargs)
@@ -117,8 +126,8 @@ def dumps(*args, **kwargs):
             return ujson.dumps(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
-        except TypeError:
-            logger.exception("ujson dumps error")
+        except TypeError as e:
             kwargs.pop("escape_forward_slashes")
+            logger.error("ujson dumps error: %s" % e)
             return json_dumps(*args, cls=CustomJSONEncoder, **kwargs)
     return json_dumps(*args, **kwargs)

@@ -144,6 +144,7 @@ class MetricHelper:
         count: int = 3000,
         start_time=None,
         end_time=None,
+        count_win: str = "5m",
         **kwargs,
     ) -> dict:
         """
@@ -156,11 +157,12 @@ class MetricHelper:
         :param count: 查询数量
         :param start_time: 开始时间
         :param end_time: 结束时间
+        :param count_win: 统计时间窗口
         """
 
         if not start_time or not end_time:
             end_time = int(arrow.now().timestamp)
-            start_time = int(end_time - 3600)
+            start_time = int(end_time - 300)
 
         request_params = {
             "bk_biz_id": bk_biz_id,
@@ -186,20 +188,25 @@ class MetricHelper:
             # 指定service_name
             if service_name is not None:
                 promql = (
-                    f"count by ({monitor_name_key}, __name__) "
-                    f"({{__name__=~\"custom:{metric_table_id}:.*\",{service_name_key}=\"{service_name}\"}})"
+                    f"count by (metric_name, {monitor_name_key}) (count_over_time(label_replace("
+                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
+                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\", "
+                    f"{service_name_key}=\"{service_name}\"}}, "
+                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
                 )
 
             else:
                 promql = (
-                    f"count by ({monitor_name_key}, {service_name_key}, __name__) "
-                    f"({{__name__=~\"custom:{metric_table_id}:.*\"}})"
+                    f"count by (metric_name, {monitor_name_key}, {service_name_key}) (count_over_time(label_replace("
+                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
+                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\"}}, "
+                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
                 )
 
             request_params["query_configs"][0]["promql"] = promql
             series = resource.grafana.graph_unify_query(request_params)["series"]
             for metric in series:
-                metric_field = metric.get("dimensions", {}).get("__name__")
+                metric_field = metric.get("dimensions", {}).get("metric_name")
                 metric_service_name = service_name or metric.get("dimensions", {}).get(service_name_key)
                 if metric_service_name and metric_field:
                     if metric_service_name not in monitor_info_mapping:

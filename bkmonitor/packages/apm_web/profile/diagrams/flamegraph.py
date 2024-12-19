@@ -18,16 +18,6 @@ from apm_web.profile.diagrams.tree_converter import TreeConverter
 logger = logging.getLogger("apm")
 
 
-def function_node_to_element(function_node: FunctionNode) -> dict:
-    return {
-        "id": function_node.id,
-        "name": function_node.name,
-        "value": function_node.value,
-        "self": function_node.self_time,
-        "children": [function_node_to_element(child) for child in function_node.children],
-    }
-
-
 def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
     return {
         **diff_node.default.to_dict(),
@@ -39,8 +29,17 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 @dataclass
 class FlamegraphDiagrammer:
     def draw(self, c: TreeConverter, **_) -> dict:
+        def function_node_to_element(function_node: FunctionNode) -> dict:
+            return {
+                "id": function_node.id,
+                "name": function_node.name,
+                "value": function_node.value,
+                "self": function_node.self_time,
+                "children": [function_node_to_element(child) for child in function_node.children.values()],
+            }
+
         root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
-        for r in c.tree.root.children:
+        for r in c.tree.root.children.values():
             root["children"].append(function_node_to_element(r))
 
         return {"flame_data": root}
