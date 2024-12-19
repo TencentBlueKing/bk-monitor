@@ -651,7 +651,7 @@ export default defineComponent({
     };
 
     const scrollTop = () => {
-      scrollToTop(rowsScrollTop.value, pageSize <= 2);
+      scrollToTop(0, pageSize <= 2);
     };
 
     const renderScrollTop = () => {
