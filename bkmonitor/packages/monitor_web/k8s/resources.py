@@ -335,7 +335,7 @@ class ResourceTrendResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
-        column = serializers.ChoiceField(required=True, choices=["cpu, mem"])
+        column = serializers.ChoiceField(required=True, choices=["cpu", "mem"])
         resource_type = serializers.ChoiceField(
             required=True,
             choices=["pod", "workload", "namespace", "container"],
@@ -367,7 +367,7 @@ class ResourceTrendResource(Resource):
         series_map = {}
         for line in series:
             resource_name = line["dimensions"][resource_meta.resource_field]
-            series_map[resource_name] = {"data_points": line["datapoints"], "unit": unit}
+            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit}
 
         return [{"resource_name": name, column: info} for name, info in series_map.items()]
 
@@ -391,30 +391,4 @@ class ResourceTrendResource(Resource):
             "slimit": 10001,
             "down_sample_range": "",
         }
-        '''
-                [
-                    {
-                        "dimensions": {
-                            "container_name": "bk-monitor-web",
-                            "namespace": "blueking",
-                            "pod_name": "bk-monitor-web-544d4dc768-4564s",
-                            "workload_kind": "Deployment",
-                            "workload_name": "bk-monitor-web",
-                        },
-                        "target": """{
-                            container_name=bk-monitor-web,
-                            namespace=blueking,
-                            pod_name=bk-monitor-web-544d4dc768-4564s,
-                            workload_kind=Deployment,
-                            workload_name=bk-monitor-web
-                        }""",
-                        "metric_field": "_result_",
-                        "datapoints": [[661.64, 1733104260000]],
-                        "alias": "_result_",
-                        "type": "line",
-                        "dimensions_translation": {},
-                        "unit": "",
-                    }
-                ]
-                '''
         return resource.grafana.graph_unify_query(query_params)["series"]

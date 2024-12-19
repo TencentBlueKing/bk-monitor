@@ -145,7 +145,7 @@ class K8sResourceMeta(object):
             "alias": "result",
             "start_time": start_time,
             "end_time": end_time,
-            "type": "instant",
+            "type": "range",
             "slimit": 10001,
             "down_sample_range": "",
         }
