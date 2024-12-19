@@ -61,16 +61,16 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     }
   };
 
-  const debounceLoadCallback = () => {
+  const debounceLoadCallback = debounce(() => {
     loadMoreFn?.();
-  };
+  });
 
   let lastPosition = 0;
   const throttleUpdate = event => {
     calculateOffsetTop();
     const target = event.target as HTMLDivElement;
     const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-    if (target.scrollTop > lastPosition && scrollDiff < 20) {
+    if (target.scrollTop > lastPosition && scrollDiff < 1200) {
       debounceLoadCallback();
     }
 

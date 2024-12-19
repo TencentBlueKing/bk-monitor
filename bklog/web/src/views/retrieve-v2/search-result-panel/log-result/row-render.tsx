@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, Ref, ref, watch } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
 
 export default defineComponent({
   props: {
@@ -31,15 +31,17 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    updateKey: {
-      type: Number,
-      default: 0,
+    visible: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['row-resize'],
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const isPending = ref(true);
+    const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
+    const resizeObserver: ResizeObserver = inject('resizeObserver');
 
     const renderRowVNode = () => {
       return (
@@ -48,27 +50,22 @@ export default defineComponent({
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': isPending.value }]}
             data-row-index={props.rowIndex}
+            data-row-visible={props.visible}
           >
-            {isPending.value ? '' : slots.default?.()}
+            {slots.default?.()}
           </div>
         </div>
       );
     };
 
-    watch(
-      () => props.updateKey,
-      () => {
-        isPending.value = true;
-        setTimeout(() => {
-          isPending.value = false;
-        });
-      },
-    );
-
     onMounted(() => {
-      setTimeout(() => {
-        isPending.value = false;
-      });
+      intersectionObserver?.observe(refRowNodeRoot.value);
+      resizeObserver?.observe(refRowNodeRoot.value);
+    });
+
+    onBeforeUnmount(() => {
+      intersectionObserver?.unobserve(refRowNodeRoot.value);
+      resizeObserver?.unobserve(refRowNodeRoot.value);
     });
 
     return {

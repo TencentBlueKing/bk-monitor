@@ -176,6 +176,7 @@ export default () => {
                   displayFields: displayFieldNames,
                 });
                 store.commit('resetVisibleFields', displayFieldNames);
+                store.commit('updateIsSetDefaultTableColumn');
               },
             },
           }),

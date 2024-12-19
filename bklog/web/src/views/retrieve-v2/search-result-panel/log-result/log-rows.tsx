@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
 
 import {
   parseTableRowData,
@@ -86,11 +86,11 @@ export default defineComponent({
     // const rowUpdateCounter = ref(0);
     // 本地分页
     const pageIndex = ref(0);
-    const pageSize = 50;
+    // 前端本地分页
+    const pageSize = 100;
 
     const tableRowConfig = new WeakMap();
     const isPending = ref(true);
-    const updateKey = ref(0);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -121,7 +121,41 @@ export default defineComponent({
 
     const hasMoreList = computed(() => totalCount.value > tableList.value.length);
 
-    // const visibleIndexs = ref({ startIndex: 0, endIndex: 0 });
+    const intersectionArgs: Ref<Record<string, { visible?: boolean; height?: number }>> = ref({});
+
+    const updateIntersectionArgs = (index, visible?, height?) => {
+      if (!intersectionArgs.value[index]) {
+        set(intersectionArgs.value, index, {
+          visible,
+          height,
+        });
+      }
+
+      Object.assign(intersectionArgs.value[index], {
+        visible: visible ?? intersectionArgs.value[index].visible,
+        height: height ?? intersectionArgs.value[index].height,
+      });
+    };
+
+    const intersectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const index = entry.target.getAttribute('data-row-index');
+        updateIntersectionArgs(index, entry.isIntersecting);
+      });
+    });
+
+    const resizeObserver = new ResizeObserver(entries => {
+      entries.forEach(entry => {
+        const index = entry.target.getAttribute('data-row-index');
+        const visible = entry.target.getAttribute('data-row-visible');
+        if (visible === 'true') {
+          updateIntersectionArgs(index, undefined, entry.contentRect.height);
+        }
+      });
+    });
+
+    provide('intersectionObserver', intersectionObserver);
+    provide('resizeObserver', resizeObserver);
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
@@ -424,7 +458,7 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
-        updateKey.value++;
+        pageIndex.value = 1;
 
         setTimeout(() => {
           computeRect();
@@ -502,7 +536,7 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
-    let delay = 0;
+    let delay = 60;
     let delayLoadingTimer;
     const debounceSetLoading = () => {
       delayLoadingTimer && clearTimeout(delayLoadingTimer);
@@ -517,9 +551,9 @@ export default defineComponent({
       }
       if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
+        delay = 0;
 
-        if (pageIndex.value * pageSize < tableList.value.length) {
-          delay = 0;
+        if (pageIndex.value * pageSize < tableDataSize.value) {
           pageIndex.value++;
           debounceSetLoading();
           return;
@@ -528,7 +562,9 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(() => {
-            pageIndex.value++;
+            if (tableDataSize.value > pageIndex.value * pageSize) {
+              pageIndex.value++;
+            }
           })
           .finally(() => {
             debounceSetLoading();
@@ -550,7 +586,6 @@ export default defineComponent({
       if (useScrollHeight === 0) {
         pageIndex.value = 1;
       }
-
       rowsOffsetTop.value = useScrollHeight;
     }, 120);
 
@@ -694,21 +729,40 @@ export default defineComponent({
       ];
     };
 
-    // const lastRowIndex = computed(() => pageIndex.value * pageSize);
+    // const visibleIndexList = computed(() => {
+    //   const list = Object.keys(intersectionArgs.value)
+    //     .filter(key => intersectionArgs.value[key].visible)
+    //     .map(key => parseInt(key));
+
+    //   const min = list.length ? Math.min(...list) : 0;
+    //   const max = list.length ? Math.max(...list) : pageSize;
+
+    //   return [
+    //     min > pageSize ? min - pageSize : 0,
+    //     max + pageSize > tableDataSize.value ? tableDataSize.value : max + pageSize,
+    //   ];
+    // });
+
+    const viewList = computed(() => tableList.value.slice(0, pageIndex.value * pageSize));
 
     const renderRowVNode = () => {
-      return tableList.value.map((row, rowIndex) => {
+      return viewList.value.map((row, rowIndex) => {
+        // const isIntersecting = rowIndex <= visibleIndexList.value[1] && rowIndex >= visibleIndexList.value[0];
+        const style = {
+          minHeight: `${intersectionArgs.value?.[`${rowIndex}`]?.height ?? 40}px`,
+        };
         return (
           <RowRender
             key={rowIndex}
+            style={style}
             class={[
               'bklog-row-container',
               {
                 'has-overflow-x': hasScrollX.value,
+                // 'is-intersecting': isIntersecting,
               },
             ]}
             row-index={rowIndex}
-            updateKey={updateKey.value}
           >
             {renderRowCells(row, rowIndex)}
           </RowRender>
@@ -734,17 +788,18 @@ export default defineComponent({
     const tableStyle = computed(() => {
       return {
         transform: `translateX(-${scrollXOffsetLeft.value}px)`,
+        // minHeight: `${sizes.value[tableDataSize.value.length - 1]?.position ?? 100}px`,
       };
     });
 
     const renderLoader = () => {
       return (
-        <div class={['bklog-requsting-loading', { 'is-loading': isRequesting.value }]}>
+        <div class={['bklog-requsting-loading']}>
           <div
             style={{ width: `${offsetWidth.value}px` }}
-            v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
+            // v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
           >
-            {hasMoreList.value || tableList.value.length === 0 ? '' : `已加载所有数据`}
+            {hasMoreList.value || tableList.value.length === 0 ? 'Loading...' : `已加载所有数据`}
           </div>
         </div>
       );
