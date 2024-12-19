@@ -34,7 +34,7 @@ from luqum.visitor import TreeTransformer
 
 from apps.log_esquery.constants import WILDCARD_PATTERN, WILDCARD_QUERY
 from apps.log_esquery.exceptions import BaseSearchDslException
-from apps.log_search.constants import FieldDataTypeEnum
+from apps.log_search.constants import ES_RESERVED_CHARACTERS, FieldDataTypeEnum
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
 type_wildcard = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
@@ -288,6 +288,18 @@ class BoolQueryOperation(ABC):
         transform_result = transform_result if len(value_list) == 1 else f"({transform_result})"
         return f"{field_name}: {transform_result}"
 
+    @staticmethod
+    def escape_special_characters(string: str, is_wildcard=False):
+        wildcard_list = ["*", "?"]
+        # 转义es的的保留字
+        for char in ES_RESERVED_CHARACTERS:
+            if is_wildcard and char in wildcard_list:
+                # 对于使用通配符的es查询, 不转义通配符
+                continue
+            # 使用字符串的 replace 方法进行替换
+            string = string.replace(char, f"\\{char}")
+        return string
+
 
 class Is(BoolQueryOperation):
     TARGET = "must"
@@ -297,9 +309,13 @@ class Is(BoolQueryOperation):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field["field"], field["value"]))
 
     def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
         return self.generate_querystring(
             self._bool_dict["field"],
-            self._bool_dict["value"],
+            value_list,
         )
 
 
@@ -334,9 +350,13 @@ class IsNot(BoolQueryOperation):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field["field"], field["value"]))
 
     def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
         return "NOT " + self.generate_querystring(
             self._bool_dict["field"],
-            self._bool_dict["value"],
+            value_list,
         )
 
 
@@ -351,9 +371,13 @@ class IsOneOf(BoolQueryOperation):
         self._set_target_value(a_bool)
 
     def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
         return self.generate_querystring(
             self._bool_dict["field"],
-            self._bool_dict["value"],
+            value_list,
         )
 
 
@@ -485,9 +509,13 @@ class EqWildCard(BoolQueryOperation):
         self._set_target_value(a_bool)
 
     def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value, is_wildcard=True)
+            value_list.append(value)
         return self.generate_querystring(
             self._bool_dict["field"],
-            self._bool_dict["value"],
+            value_list,
         )
 
 
@@ -514,6 +542,7 @@ class Contains(BoolQueryOperation):
     def to_querystring(self):
         value_list = []
         for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value)
             value_list.append(f"*{value}*")
         return self.generate_querystring(
             self._bool_dict["field"],
@@ -526,9 +555,6 @@ class NotContains(Contains):
     OPERATOR = "not contains"
 
     def to_querystring(self):
-        value_list = []
-        for value in self._bool_dict["value"]:
-            value_list.append(f"*{value}*")
         return "NOT " + super().to_querystring()
 
 
@@ -605,9 +631,13 @@ class AllEqWildcard(BoolQueryOperation):
         self._set_target_value(a_bool)
 
     def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value, is_wildcard=True)
+            value_list.append(value)
         return self.generate_querystring(
             self._bool_dict["field"],
-            self._bool_dict["value"],
+            value_list,
             condition_type="AND",
         )
 

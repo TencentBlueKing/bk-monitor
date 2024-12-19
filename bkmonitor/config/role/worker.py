@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 
+from django.conf import settings
 from jinja2 import DebugUndefined
 
 from config.tools.consul import get_consul_settings
@@ -46,6 +47,8 @@ SUPERVISOR_USERNAME = ""
 SUPERVISOR_PASSWORD = ""
 
 INSTALLED_APPS += (  # noqa: F405
+    "django_celery_beat",
+    "django_celery_results",
     "django_elasticsearch_dsl",
     "django_jinja",
     "bkmonitor",
@@ -247,7 +250,7 @@ DEFAULT_CRONTAB += [
     # bcs信息刷新
     ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
-    ("metadata.task.bcs.discover_bcs_clusters", "*/10 * * * *", "global"),
+    ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # 同步空间信息
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),

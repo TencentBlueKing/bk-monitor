@@ -29,20 +29,18 @@ RUN npm install -g pnpm@9
 
 WORKDIR /app
 
-# install python packages
-COPY ./requirements.txt /app
-# betterproto has dependency conflicts in dataclasses with opentelemetry-sdk when installing from requirements.txt
-RUN python -m venv venv \
-&& /app/venv/bin/pip install --upgrade pip \
-&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
-&& rm -rf /app/requirements.txt \
-&& /app/venv/bin/pip install --no-cache-dir betterproto==2.0.0b5 -i https://mirrors.tencent.com/pypi/simple/
-
 # build frontend
 COPY ./webpack /app/webpack
 RUN if [ "${build_frontend}" = true ] ; then \
   cd /app/webpack/ && pnpm i && npm run prod; \
 fi
+
+# install python packages
+COPY ./requirements.txt /app
+RUN python -m venv venv \
+&& /app/venv/bin/pip install --upgrade pip \
+&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
+&& rm -rf /app/requirements.txt
 
 # copy code
 COPY ./ /app/code
