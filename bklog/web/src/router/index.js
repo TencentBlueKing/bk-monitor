@@ -285,6 +285,11 @@ const MonitorRetrieve = () =>
     '@/views/retrieve-v2/monitor/monitor.vue'
   );
 // #endif
+const MonitorTraceLog = () =>
+  import(
+    /* webpackChunkName: 'monitor-trace-log' */
+    '@/views/retrieve-v2/monitor-trace-log/monitor.vue'
+  );
 
 const routes = [
   {
@@ -1055,6 +1060,15 @@ const routes = [
     },
   },
   // #endif
+  {
+    path: '/monitor-trace-log/:indexId?',
+    name: 'monitor-trace-log',
+    component: MonitorTraceLog,
+    meta: {
+      title: 'trace检索-日志',
+      navId: 'monitor-trace-log',
+    },
+  },
   {
     path: '*',
     name: 'exception',

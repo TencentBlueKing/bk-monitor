@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "nodemon --exec \"bkmonitor-cli dev\"",
     "dev:monitor": "nodemon --exec \"bkmonitor-cli dev --apm\"",
+    "dev:trace-log": "nodemon --exec \"bkmonitor-cli dev --trace\"",
     "build": "bkmonitor-cli build",
     "build:monitor": "bkmonitor-cli build --apm",
     "analyze:monitor": "bkmonitor-cli build --apm -a",
