@@ -356,16 +356,22 @@ class ResourceTrendResource(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
+        column = validated_request_data["column"]
+
         if resource_type == "workload":
             # workload 单独处理
-            return []
-
-        ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
-
-        column = validated_request_data["column"]
-        resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
-        # 不用topk 因为有resource_list
-        promql = getattr(resource_meta, f"meta_prom_with_{column}")
+            promql_list = []
+            for wl in resource_list:
+                filter_obj = load_resource_filter(resource_type, [wl])
+                resource_meta.filter.add(filter_obj)
+                promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
+                resource_meta.filter.remove(filter_obj)
+            promql = " or ".join(promql_list)
+        else:
+            resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
+            # 不用topk 因为有resource_list
+            promql = getattr(resource_meta, f"meta_prom_with_{column}")
         series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
         unit = self.unit_choice.get(column, "short")
         series_map = {}
