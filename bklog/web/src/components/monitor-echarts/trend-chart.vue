@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onUnmounted,inject } from 'vue';
+  import { ref, computed, watch, onUnmounted, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -21,13 +21,11 @@
 
   const refDataTrendCanvas = ref(null);
 
-  
   const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
-    handleChartDataZoom
+    handleChartDataZoom,
   });
-
 
   const finishPolling = ref(false);
   const isStart = ref(false);
@@ -99,6 +97,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
+        addition: [...retrieveParams.value.addition, ...retrieveParams.value.commonFilters],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间

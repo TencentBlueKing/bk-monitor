@@ -141,6 +141,7 @@
             data: Object.assign({}, this.retrieveParams, {
               start_time: `${this.retrieveParams.start_time} 00:00:00`,
               end_time: `${this.retrieveParams.end_time} 23:59:59`,
+              addition: [...this.retrieveParams.addition, ...this.retrieveParams.commonFilters],
             }),
           });
           const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
