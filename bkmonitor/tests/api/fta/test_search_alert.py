@@ -4,14 +4,10 @@ import time
 from unittest.mock import patch
 
 from django.test import TestCase
-from monitor_web.alert_events.resources import GraphPointResource
 
 from bkmonitor.documents import AlertDocument, EventDocument
-from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
-
-patch("elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()).start()
-
 from fta_web.home.resources import BizWithAlertStatisticsResource
+from monitor_web.alert_events.resources import GraphPointResource
 
 
 class SearchAlertCase(TestCase):
