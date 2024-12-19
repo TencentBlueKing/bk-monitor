@@ -499,7 +499,7 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
-    let delay = 100;
+    let delay = 0;
     let delayLoadingTimer;
     const debounceSetLoading = () => {
       delayLoadingTimer && clearTimeout(delayLoadingTimer);
@@ -522,6 +522,7 @@ export default defineComponent({
         isRequesting.value = true;
 
         if (pageIndex.value * pageSize < tableList.length) {
+          delay = 0;
           pageIndex.value++;
           debounceSetLoading();
           return;
