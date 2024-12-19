@@ -344,6 +344,7 @@ class ResourceTrendResource(Resource):
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
+        filter_dict = serializers.DictField(required=False, allow_null=True)
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -359,9 +360,12 @@ class ResourceTrendResource(Resource):
             # workload 单独处理
             return []
 
+        ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
+
         column = validated_request_data["column"]
         resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
-        promql = resource_meta.meta_prom_by_sort(column, len(resource_list))
+        # 不用topk 因为有resource_list
+        promql = getattr(resource_meta, f"meta_prom_with_{column}")
         series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
         unit = self.unit_choice.get(column, "short")
         series_map = {}
