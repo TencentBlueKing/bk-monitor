@@ -48,6 +48,7 @@ import otherRoutes from './others';
 import scensesRoutes from './scenes';
 import platformSetting from './platform-setting';
 import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
+import newHomeRoutes from './new-home';
 // #endif
 
 // import spaceData from './space';
@@ -69,6 +70,7 @@ const routes = [
   ...platformSetting,
   ...dashboardRoutes,
   ...emailSubscriptionsRoutes,
+  ...newHomeRoutes,
   {
     path: '*',
     redirect: '/exception',
