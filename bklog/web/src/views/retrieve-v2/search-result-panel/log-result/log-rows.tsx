@@ -87,7 +87,6 @@ export default defineComponent({
     // 本地分页
     const pageIndex = ref(0);
     const pageSize = 50;
-    let tableList = [];
 
     const tableRowConfig = new WeakMap();
     const isPending = ref(true);
@@ -108,6 +107,7 @@ export default defineComponent({
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
     const fullColumns = ref([]);
 
     const totalCount = computed(() => {
@@ -119,9 +119,9 @@ export default defineComponent({
       return count;
     });
 
-    const hasMoreList = computed(() => totalCount.value > tableList.length);
+    const hasMoreList = computed(() => totalCount.value > tableList.value.length);
 
-    const visibleIndexs = ref({ startIndex: 0, endIndex: 0 });
+    // const visibleIndexs = ref({ startIndex: 0, endIndex: 0 });
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
@@ -373,7 +373,7 @@ export default defineComponent({
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
 
-      setDefaultTableWidth(sortFieldsList, tableList);
+      setDefaultTableWidth(sortFieldsList, tableList.value);
       fullColumns.value = sortFieldsList;
     };
 
@@ -389,7 +389,7 @@ export default defineComponent({
 
     const updateTableRowConfig = (nextIdx = 0) => {
       for (let index = nextIdx; index < tableDataSize.value; index++) {
-        const nextRow = tableList[index];
+        const nextRow = tableList.value[index];
         if (!tableRowConfig.has(nextRow)) {
           const rowKey = `${ROW_KEY}_${index}`;
           tableRowConfig.set(
@@ -446,8 +446,6 @@ export default defineComponent({
       (val, oldVal) => {
         if (!val[0] || !oldVal[0]) {
           pageIndex.value = 1;
-          tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
-          scrollTop();
         }
 
         updateTableRowConfig(oldVal?.[0] ?? 0);
@@ -459,6 +457,10 @@ export default defineComponent({
       () => {
         if (isLoading.value) {
           isPending.value = false;
+          if (!isRequesting.value) {
+            pageIndex.value = 1;
+            scrollToTop(0);
+          }
         }
       },
     );
@@ -509,20 +511,14 @@ export default defineComponent({
       }, delay);
     };
 
-    const viewList = computed(() => {
-      const endIdx = pageIndex.value * pageSize;
-      const endIndex = endIdx > tableDataSize.value ? tableDataSize.value : endIdx;
-      return new Array(endIndex).fill('').map((_, index) => index);
-    });
-
     const loadMoreTableData = () => {
       if (isRequesting.value) {
         return;
       }
-      if (totalCount.value > tableList.length) {
+      if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
 
-        if (pageIndex.value * pageSize < tableList.length) {
+        if (pageIndex.value * pageSize < tableList.value.length) {
           delay = 0;
           pageIndex.value++;
           debounceSetLoading();
@@ -532,7 +528,6 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(() => {
-            tableList = Object.freeze(indexSetQueryResult.value?.list ?? []);
             pageIndex.value++;
           })
           .finally(() => {
@@ -543,13 +538,14 @@ export default defineComponent({
       return Promise.resolve(false);
     };
 
-    let visibleTop = 0;
+    const rowsScrollTop = ref(0);
     const updateVisibleItems = debounce((event, scrollTop, offsetTop) => {
       if (!event?.target) {
         return;
       }
 
-      visibleTop = offsetTop - searchContainerHeight.value;
+      rowsScrollTop.value = offsetTop - searchContainerHeight.value;
+      const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
       if (useScrollHeight === 0) {
         pageIndex.value = 1;
@@ -624,7 +620,7 @@ export default defineComponent({
     });
 
     const showHeader = computed(() => {
-      return props.contentType === 'table' && tableList.length > 0;
+      return props.contentType === 'table' && tableList.value.length > 0;
     });
 
     const renderHeadVNode = () => {
@@ -655,7 +651,7 @@ export default defineComponent({
     };
 
     const scrollTop = () => {
-      scrollToTop(visibleTop - 80, visibleIndexs.value.endIndex < 100);
+      scrollToTop(rowsScrollTop.value, pageSize <= 2);
     };
 
     const renderScrollTop = () => {
@@ -698,9 +694,10 @@ export default defineComponent({
       ];
     };
 
+    // const lastRowIndex = computed(() => pageIndex.value * pageSize);
+
     const renderRowVNode = () => {
-      return viewList.value.map(rowIndex => {
-        const row = tableList[rowIndex];
+      return tableList.value.map((row, rowIndex) => {
         return (
           <RowRender
             key={rowIndex}
@@ -747,7 +744,7 @@ export default defineComponent({
             style={{ width: `${offsetWidth.value}px` }}
             v-bkloading={{ isLoading: isRequesting.value, opacity: 0.1 }}
           >
-            {hasMoreList.value || tableList.length === 0 ? '' : `已加载所有数据`}
+            {hasMoreList.value || tableList.value.length === 0 ? '' : `已加载所有数据`}
           </div>
         </div>
       );
@@ -758,7 +755,7 @@ export default defineComponent({
     };
 
     const renderResultContainer = () => {
-      if (tableList.length && renderColumns.value.length) {
+      if (tableList.value.length && renderColumns.value.length) {
         return [
           renderHeadVNode(),
           <div
@@ -789,10 +786,13 @@ export default defineComponent({
       );
     };
 
+    const isTableLoading = computed(() => {
+      return isRequesting.value && !isRequesting.value && tableDataSize.value === 0;
+    });
+
     return {
       refRootElement,
-      isLoading,
-      isRequesting,
+      isTableLoading,
       renderResultContainer,
       scrollXTransformStyle,
     };
@@ -803,7 +803,7 @@ export default defineComponent({
         ref='refRootElement'
         style={this.scrollXTransformStyle}
         class='bklog-result-container'
-        v-bkloading={{ isLoading: this.isLoading && !this.isRequesting, opacity: 0.1 }}
+        v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
       >
         {this.renderResultContainer()}
       </div>
