@@ -3298,7 +3298,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 初始化对应存储集群的 ES 客户端
             try:
                 es_client = es_tools.get_client(cluster_id)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "clean_index_v2:table_id->[%s] failed to get ES client for cluster_id->[%s]: %s",
                     self.table_id,
@@ -3310,7 +3310,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 获取该集群的所有写入别名
             try:
                 alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
-            except elasticsearch.ElasticsearchException as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "clean_index_v2:table_id->[%s] failed to get aliases for cluster_id->[%s]: %s",
                     self.table_id,
