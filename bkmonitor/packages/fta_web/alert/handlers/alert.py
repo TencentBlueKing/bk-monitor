@@ -347,10 +347,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         CategoryTranslator().translate_from_dict(alerts, "category", "category_display")
         PluginTranslator().translate_from_dict(alerts, "plugin_id", "plugin_display_name")
 
-        result = {
-            "alerts": alerts,
-            "total": min(search_result.hits.total.value, 10000),
-        }
+        result = {"alerts": alerts, "total": search_result.hits.total.value}
 
         if show_overview:
             result["overview"] = self.handle_overview(search_result)
