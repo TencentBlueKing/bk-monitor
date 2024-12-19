@@ -55,6 +55,7 @@ import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
 import { useChartInfoInject } from '../../hooks/chart';
 import { colorList } from './constant';
+import TagDisplay from './TagDisplay';
 
 import './failure-chart.scss';
 
@@ -132,6 +133,10 @@ export default defineComponent({
     hasResize: {
       type: Boolean,
       default: false,
+    },
+    detail: {
+      type: Object,
+      default: () => ({}),
     },
   },
   emits: [
@@ -249,7 +254,9 @@ export default defineComponent({
         loading.value = false;
       }
     };
-
+    const dimensionsList = computed(() => {
+      return props.detail?.dimensions || [];
+    });
     // 默认的tooltip配置
     const defaultOptions = computed(() => {
       if (props.chartType === 'bar' || props.chartType === 'line') {
@@ -1052,6 +1059,7 @@ export default defineComponent({
       handleSuccessLoad,
       isRootCause,
       isRoot,
+      dimensionsList,
     };
   },
   render() {
@@ -1073,9 +1081,45 @@ export default defineComponent({
                     <span class='txt'>{this.$props.title}</span>
                     {(this.isRoot || this.isRootCause) && (
                       <label class={['root', { 'is-root-cause': this.isRootCause }, { 'is-root': this.isRoot }]}>
-                        根因
+                        {this.t('根因')}
                       </label>
                     )}
+                  </div>
+                ),
+                subtitle: () => (
+                  <div
+                    class='sub-head'
+                    v-bk-tooltips={{
+                      content: (
+                        <div style={{ width: '360px' }}>
+                          {this.t('指标：')}
+                          <br />
+                          {this.$props.subtitle}
+                        </div>
+                      ),
+                    }}
+                  >
+                    <span class='txt'>{this.$props.subtitle}</span>
+                  </div>
+                ),
+                tagTitle: () => (
+                  <div
+                    class='tag-head'
+                    v-bk-tooltips={{
+                      content: (
+                        <div>
+                          {this.t('维度：')}
+                          <br />
+                          {this.dimensionsList.map(item => (
+                            <div style={{ marginTop: '5px' }}>
+                              {item.display_key} = {item.display_value}
+                            </div>
+                          ))}
+                        </div>
+                      ),
+                    }}
+                  >
+                    <TagDisplay tagsList={this.dimensionsList} />
                   </div>
                 ),
               }}
