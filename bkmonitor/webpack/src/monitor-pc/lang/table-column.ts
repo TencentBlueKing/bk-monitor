@@ -151,4 +151,13 @@ export default {
   差异: 'Difference',
   差异值: 'Difference Value',
   缩略图: 'Thumbnail',
+
+  // 新容器场景(k8s)
+  Pod: 'Pod',
+  workload: 'workload',
+  namespace: 'namespace',
+  cluster: 'cluster',
+  workload_type: 'workload_type',
+  container: 'container',
+  内存使用率: 'Memory Usage',
 };

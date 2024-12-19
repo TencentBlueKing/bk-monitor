@@ -1,5 +1,11 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
+  "include": [
+    "./**/*.ts",
+    "./**/*.vue",
+    "./**/*.tsx",
+    "./**/*.js",
+    "../monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown.tsx"
+  ],
   "exclude": ["node_modules"],
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {

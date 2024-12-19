@@ -641,12 +641,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
         // promql
-        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
+        if (metric.mode === 'code' || metric.data?.[0]?.promql || metric.query_configs?.[0].promql) {
           await this.$nextTick();
+          const promql = metric.data?.[0]?.promql || metric.query_configs?.[0].promql || '';
+          const step = metric.data?.[0]?.step || metric.query_configs?.[0].interval || 60;
           this.monitorDataEditMode = 'Source';
-          this.sourceData.sourceCode = metric.data[0]?.promql || '';
-          this.sourceData.sourceCodeCache = metric.data[0]?.promql || '';
-          this.sourceData.step = metric.data[0]?.step === 'auto' ? 60 : metric.data[0]?.step || 60;
+          this.sourceData.sourceCode = promql;
+          this.sourceData.sourceCodeCache = promql;
+          this.sourceData.step = step;
           return;
         }
       } catch (e) {

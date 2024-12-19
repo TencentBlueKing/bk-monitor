@@ -61,6 +61,12 @@ class BCSWorkload(BCSBase, BCSBaseResources):
         self.unique_hash = self.get_unique_hash()
         super().save(*args, **kwargs)
 
+    def to_meta_dict(self):
+        return {
+            "namespace": self.namespace,
+            "workload": f"{self.type}:{self.name}",
+        }
+
     @classmethod
     def get_columns(cls, columns_type="list"):
         typed_columns = []

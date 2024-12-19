@@ -99,6 +99,13 @@ class BCSPod(BCSBase, BCSBaseResources):
         self.unique_hash = self.get_unique_hash()
         super().save(*args, **kwargs)
 
+    def to_meta_dict(self):
+        return {
+            "pod": self.name,
+            "namespace": self.namespace,
+            "workload": f"{self.workload_type}:{self.workload_name}",
+        }
+
     @classmethod
     def get_columns(cls, columns_type="list"):
         columns = [

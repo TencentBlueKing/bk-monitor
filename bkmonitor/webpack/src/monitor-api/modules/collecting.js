@@ -6,6 +6,7 @@ export const toggleCollectConfigStatus = request('POST', 'rest/v2/collecting_con
 export const deleteCollectConfig = request('POST', 'rest/v2/collecting_config/delete/');
 export const cloneCollectConfig = request('POST', 'rest/v2/collecting_config/clone/');
 export const retryTargetNodes = request('POST', 'rest/v2/collecting_config/retry/');
+export const runCollectConfig = request('POST', 'rest/v2/collecting_config/run/');
 export const revokeTargetNodes = request('POST', 'rest/v2/collecting_config/revoke/');
 export const batchRevokeTargetNodes = request('POST', 'rest/v2/collecting_config/batch_revoke/');
 export const batchRetryConfig = request('POST', 'rest/v2/collecting_config/batch_retry/');
@@ -40,6 +41,7 @@ export default {
   deleteCollectConfig,
   cloneCollectConfig,
   retryTargetNodes,
+  runCollectConfig,
   revokeTargetNodes,
   batchRevokeTargetNodes,
   batchRetryConfig,

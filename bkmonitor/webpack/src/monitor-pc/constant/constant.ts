@@ -166,7 +166,28 @@ export const CP_METHOD_LIST = [
     name: 'AVG(PromQL)',
   },
 ];
-
+export const K8S_METHOD_LIST = [
+  {
+    id: 'sum',
+    name: 'SUM(PromQL)',
+  },
+  {
+    id: 'max',
+    name: 'MAX(PromQL)',
+  },
+  {
+    id: 'min',
+    name: 'MIN(PromQL)',
+  },
+  {
+    id: 'count',
+    name: 'COUNT(PromQL)',
+  },
+  {
+    id: 'avg',
+    name: 'AVG(PromQL)',
+  },
+];
 export const INTERVAL_LIST = [
   {
     id: 60,

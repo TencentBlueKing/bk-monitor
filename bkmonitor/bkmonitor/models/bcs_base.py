@@ -573,11 +573,11 @@ class BCSBase(models.Model):
             )
         return label_list
 
-    def render_age(self, bk_biz_id, render_type="list"):
+    def render_age(self, bk_biz_id, render_type="list") -> Optional[str]:
         if isinstance(self.created_at, timezone.datetime):
             return naturaldelta(datetime.utcnow().replace(tzinfo=timezone.utc) - self.created_at)
 
-    def render_labels(self, bk_biz_id, render_type="list"):
+    def render_labels(self, bk_biz_id, render_type="list") -> Dict:
         if self.api_labels:
             return self.api_labels
         elif self.id:
@@ -588,7 +588,7 @@ class BCSBase(models.Model):
     def render_label_list(self, bk_biz_id, render_type="list"):
         return self.get_label_list()
 
-    def render_monitor_status(self, bk_biz_id, render_type="list"):
+    def render_monitor_status(self, bk_biz_id, render_type="list") -> Dict:
         if self.monitor_status == self.METRICS_STATE_STATE_SUCCESS:
             result = {
                 "type": self.METRICS_STATE_STATE_SUCCESS,
