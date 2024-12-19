@@ -42,6 +42,7 @@ export default defineComponent({
     const isPending = ref(true);
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
     const resizeObserver: ResizeObserver = inject('resizeObserver');
+    let delayTimer;
 
     const renderRowVNode = () => {
       return (
@@ -61,7 +62,7 @@ export default defineComponent({
     onMounted(() => {
       intersectionObserver?.observe(refRowNodeRoot.value);
       resizeObserver?.observe(refRowNodeRoot.value);
-      setTimeout(() => {
+      delayTimer = setTimeout(() => {
         isPending.value = false;
       });
     });
@@ -69,6 +70,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       intersectionObserver?.unobserve(refRowNodeRoot.value);
       resizeObserver?.unobserve(refRowNodeRoot.value);
+      delayTimer && clearTimeout(delayTimer);
     });
 
     return {
