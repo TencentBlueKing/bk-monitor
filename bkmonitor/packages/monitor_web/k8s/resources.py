@@ -16,6 +16,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework import serializers
 
+from apm_web.utils import get_interval_number
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -326,14 +327,94 @@ class ListK8SResources(Resource):
 class ResourceTrendResource(Resource):
     """资源趋势缩略图"""
 
+    unit_choice = {
+        "cpu": "short",
+        "mem": "bytes",
+    }
+
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
+        column = serializers.ChoiceField(required=True, choices=["cpu, mem"])
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "node", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container"],
             label="资源类型",
         )
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
+        resource_type: str = validated_request_data["resource_type"]
+        resource_list: List[str] = validated_request_data["resource_list"]
+        start_time: int = validated_request_data["start_time"]
+        end_time: int = validated_request_data["end_time"]
+
+        # 1. 基于resource_type 加载对应资源元信息
+        resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        if resource_type == "workload":
+            # workload 单独处理
+            return []
+
+        column = validated_request_data["column"]
+        resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
+        promql = resource_meta.meta_prom_by_sort(column, len(resource_list))
+        series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
+        unit = self.unit_choice.get(column, "short")
+        series_map = {}
+        for line in series:
+            resource_name = line["dimensions"][resource_meta.resource_field]
+            series_map[resource_name] = {"data_points": line["datapoints"], "unit": unit}
+
+        return [{"resource_name": name, column: info} for name, info in series_map.items()]
+
+    def query_data_by_promql(self, promql, bk_biz_id, start_time, end_time):
+        query_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": "prometheus",
+                    "data_type_label": "time_series",
+                    "promql": promql,
+                    "interval": get_interval_number(start_time, end_time, interval=60),
+                    "alias": "result",
+                }
+            ],
+            "expression": "",
+            "alias": "result",
+            "start_time": start_time,
+            "end_time": end_time,
+            "type": "range",
+            "slimit": 10001,
+            "down_sample_range": "",
+        }
+        '''
+                [
+                    {
+                        "dimensions": {
+                            "container_name": "bk-monitor-web",
+                            "namespace": "blueking",
+                            "pod_name": "bk-monitor-web-544d4dc768-4564s",
+                            "workload_kind": "Deployment",
+                            "workload_name": "bk-monitor-web",
+                        },
+                        "target": """{
+                            container_name=bk-monitor-web,
+                            namespace=blueking,
+                            pod_name=bk-monitor-web-544d4dc768-4564s,
+                            workload_kind=Deployment,
+                            workload_name=bk-monitor-web
+                        }""",
+                        "metric_field": "_result_",
+                        "datapoints": [[661.64, 1733104260000]],
+                        "alias": "_result_",
+                        "type": "line",
+                        "dimensions_translation": {},
+                        "unit": "",
+                    }
+                ]
+                '''
+        return resource.grafana.graph_unify_query(query_params)["series"]

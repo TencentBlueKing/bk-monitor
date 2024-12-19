@@ -29,4 +29,6 @@ class ResourcesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.k8s.get_resource_detail, endpoint="get_resource_detail"),
         # 获取 Workload 总览
         ResourceRoute("GET", resource.k8s.workload_overview, endpoint="workload_overview"),
+        # 获取资源性能趋势
+        ResourceRoute("POST", resource.k8s.resource_trend, endpoint="resource_trend"),
     ]
