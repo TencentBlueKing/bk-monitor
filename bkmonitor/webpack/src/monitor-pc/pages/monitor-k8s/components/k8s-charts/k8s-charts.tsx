@@ -58,7 +58,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
-  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
@@ -73,11 +73,11 @@ export default class K8SCharts extends tsc<
   panels: IPanelModel[] = [];
   loading = false;
   resourceMap: Map<K8sTableColumnKeysEnum, string> = new Map();
-  resourceList: Set<Record<K8sTableColumnKeysEnum, string>> = new Set();
+  resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
   sideDetailShow = false;
   sideDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
   get groupByField() {
-    return this.groupBy.at(-1) || K8sTableColumnKeysEnum.NAMESPACE;
+    return this.groupBy.at(-1) || K8sTableColumnKeysEnum.CLUSTER;
   }
   @Watch('metricList')
   onMetricListChange() {
@@ -103,7 +103,7 @@ export default class K8SCharts extends tsc<
 
   @Provide('onShowDetail')
   handleShowDetail(dimension: string) {
-    let item: Record<K8sTableColumnKeysEnum, string>;
+    let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container, pod] = dimension.split(':');
       item = Array.from(this.resourceList).find(
@@ -194,6 +194,7 @@ export default class K8SCharts extends tsc<
     this.loading = false;
   }
   createCommonPromqlMethod() {
+    if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) return '$method by(bcs_cluster_id)';
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) return '$method by(pod_name,container_name)';
     return `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`;
     // return this.resourceLength > 1
@@ -255,8 +256,8 @@ export default class K8SCharts extends tsc<
   }
   createPerformanceDetailPanel(metric: string) {
     if (
-      this.groupByField !== K8sTableColumnKeysEnum.POD ||
       this.resourceList.size !== 1 ||
+      this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ||
       !['container_cpu_usage_seconds_total', 'container_memory_rss'].includes(metric)
     )
       return [];
@@ -265,7 +266,7 @@ export default class K8SCharts extends tsc<
         {
           data_source_label: 'prometheus',
           data_type_label: 'time_series',
-          promql: `kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}}`,
+          promql: `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}})`,
           interval: '$interval_second',
           alias: 'limit',
           filter_dict: {},
@@ -273,7 +274,7 @@ export default class K8SCharts extends tsc<
         {
           data_source_label: 'prometheus',
           data_type_label: 'time_series',
-          promql: `kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}}`,
+          promql: `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}})`,
           interval: '$interval_second',
           alias: 'request',
           filter_dict: {},
@@ -284,7 +285,7 @@ export default class K8SCharts extends tsc<
         {
           data_source_label: 'prometheus',
           data_type_label: 'time_series',
-          promql: `kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}}`,
+          promql: `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}})`,
           interval: '$interval_second',
           alias: 'limit',
           filter_dict: {},
@@ -292,7 +293,7 @@ export default class K8SCharts extends tsc<
         {
           data_source_label: 'prometheus',
           data_type_label: 'time_series',
-          promql: `kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}}`,
+          promql: `${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}})`,
           interval: '$interval_second',
           alias: 'request',
           filter_dict: {},
@@ -301,19 +302,6 @@ export default class K8SCharts extends tsc<
     }
   }
   async getResourceList() {
-    const data: Array<Record<K8sTableColumnKeysEnum, string>> = await listK8sResources({
-      ...this.filterCommonParams,
-      with_history: true,
-      page_size: Math.abs(this.limit),
-      page: 1,
-      page_type: 'scrolling',
-      order_by: this.limit > 0 ? '-cpu' : 'cpu',
-    })
-      .then(data => {
-        if (!data?.items?.length) return [];
-        return data.items;
-      })
-      .catch(() => []);
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([
       [K8sTableColumnKeysEnum.CONTAINER, ''],
       [K8sTableColumnKeysEnum.NAMESPACE, ''],
@@ -321,28 +309,50 @@ export default class K8SCharts extends tsc<
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
       [K8sTableColumnKeysEnum.WORKLOAD_TYPE, ''],
     ]);
-    if (data.length) {
-      const container = new Set<string>();
-      const pod = new Set<string>();
-      const workload = new Set<string>();
-      const workloadKind = new Set<string>();
-      const namespace = new Set<string>();
-      const list = data.slice(0, 10);
-      for (const item of list) {
-        item.container && container.add(item.container);
-        item.pod && pod.add(item.pod);
-        if (item.workload) {
-          const [workloadType, workloadName] = item.workload.split(':');
-          workload.add(workloadName);
-          workloadKind.add(workloadType);
+    let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
+    if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) {
+      data = [
+        {
+          [K8sTableColumnKeysEnum.CLUSTER]: this.filterCommonParams.bk_cluster_id,
+        },
+      ];
+    } else {
+      data = await listK8sResources({
+        ...this.filterCommonParams,
+        with_history: true,
+        page_size: Math.abs(this.limit),
+        page: 1,
+        page_type: 'scrolling',
+        order_by: this.limit > 0 ? '-cpu' : 'cpu',
+      })
+        .then(data => {
+          if (!data?.items?.length) return [];
+          return data.items;
+        })
+        .catch(() => []);
+      if (data.length) {
+        const container = new Set<string>();
+        const pod = new Set<string>();
+        const workload = new Set<string>();
+        const workloadKind = new Set<string>();
+        const namespace = new Set<string>();
+        const list = data.slice(0, 10);
+        for (const item of list) {
+          item.container && container.add(item.container);
+          item.pod && pod.add(item.pod);
+          if (item.workload) {
+            const [workloadType, workloadName] = item.workload.split(':');
+            workload.add(workloadName);
+            workloadKind.add(workloadType);
+          }
+          item.namespace && namespace.add(item.namespace);
         }
-        item.namespace && namespace.add(item.namespace);
+        resourceMap.set(K8sTableColumnKeysEnum.CONTAINER, Array.from(container).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
+        resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
       }
-      resourceMap.set(K8sTableColumnKeysEnum.CONTAINER, Array.from(container).filter(Boolean).join('|'));
-      resourceMap.set(K8sTableColumnKeysEnum.POD, Array.from(pod).filter(Boolean).join('|'));
-      resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
-      resourceMap.set(K8sTableColumnKeysEnum.NAMESPACE, Array.from(namespace).filter(Boolean).join('|'));
-      resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
     }
     this.resourceList = new Set(data);
     this.resourceMap = resourceMap;

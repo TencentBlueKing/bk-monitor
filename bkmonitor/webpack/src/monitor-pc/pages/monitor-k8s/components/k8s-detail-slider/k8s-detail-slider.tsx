@@ -97,7 +97,9 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   }
 
   get showOperate() {
-    return this.isShow && this.groupByField !== K8sTableColumnKeysEnum.CONTAINER;
+    return (
+      this.isShow && ![K8sTableColumnKeysEnum.CONTAINER, K8sTableColumnKeysEnum.CLUSTER].includes(this.groupByField)
+    );
   }
   get filterCommonParams() {
     return {
