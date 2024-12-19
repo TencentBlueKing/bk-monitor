@@ -1553,3 +1553,48 @@ class TestK8sListResources(TestCase):
                 expect_container_list,
             )
             self.assertEqual(container_list["count"], len(expect_container_list))
+
+    def test_with_page(self):
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "start_time": 1734574879,
+            "end_time": 1734578479,
+            "filter_dict": {},
+            "query_string": "",
+            "page_size": 1,
+            "page": 2,
+            "resource_type": "container",
+            "with_history": True,
+            "page_type": "scrolling",
+            "order_by": "-cpu",
+            "bk_biz_id": 2,
+        }
+        query_result = [
+            {
+                "dimensions": {
+                    "container_name": "bk-monitor-web",
+                    "namespace": "blueking",
+                    "pod_name": "bk-monitor-web-544d4dc768-4564s",
+                    "workload_kind": "Deployment",
+                    "workload_name": "bk-monitor-web",
+                },
+                "target": """{
+                    container_name=bk-monitor-web,
+                    namespace=blueking,
+                    pod_name=bk-monitor-web-544d4dc768-4564s,
+                    workload_kind=Deployment,
+                    workload_name=bk-monitor-web
+                }""",
+                "metric_field": "_result_",
+                "datapoints": [[661.64, 1733104260000]],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            }
+        ]
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": query_result}
+            container_list = ListK8SResources()(validated_request_data)
+            print(container_list)
