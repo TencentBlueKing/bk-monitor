@@ -62,11 +62,12 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   /** 抽屉页是否显示 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
 
+  // 其中 externalParam 属性接口请求传参时忽略属性，组件个性化逻辑传参处理
   @Prop({
     type: Object,
     required: true,
   })
-  resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>>;
+  resourceDetail: Partial<{ externalParam: { isCluster: boolean } } & Record<K8sTableColumnKeysEnum, string>>;
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
     variables: {},
@@ -89,6 +90,9 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     if (this.resourceDetail.container) return K8sTableColumnKeysEnum.CONTAINER;
     if (this.resourceDetail.pod) return K8sTableColumnKeysEnum.POD;
     if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
+    if (this.resourceDetail?.externalParam?.isCluster) {
+      return K8sTableColumnKeysEnum.CLUSTER;
+    }
     return K8sTableColumnKeysEnum.NAMESPACE;
   }
 
@@ -101,7 +105,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
       resource_type: this.groupByField,
       filter_dict: Object.fromEntries(
         Object.entries(this.resourceDetail)
-          .filter(([k, v]) => v?.length && k !== K8sTableColumnKeysEnum.CLUSTER)
+          .filter(([k, v]) => k !== 'externalParam' && v?.length && k !== K8sTableColumnKeysEnum.CLUSTER)
           .map(([k, v]) => [k, [v]])
       ),
       with_history: true,

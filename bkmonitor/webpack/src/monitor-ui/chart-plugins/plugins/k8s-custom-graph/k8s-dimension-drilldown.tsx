@@ -59,7 +59,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   popoverInstance = null;
 
   get drillDownList() {
-    return drillListMap[this.dimension];
+    return drillListMap[this.dimension] || [];
   }
 
   async handleDrillDown(id: number | string, e: Event) {
