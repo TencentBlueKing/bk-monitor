@@ -15,10 +15,10 @@ import arrow
 from blueapps.account.decorators import login_exempt
 from django.http import HttpResponseForbidden, JsonResponse
 from django.utils import timezone
-from utils import business
-from utils.business import human_readable_biz
 
 from bkmonitor.utils.common_utils import DatetimeEncoder
+from utils import business
+from utils.business import human_readable_biz
 
 
 @login_exempt
@@ -28,8 +28,7 @@ def status_business(request):
     """
     business_info = business.get_all_business()
     all_business_last_visited = [
-        (b[0], arrow.get(b[1]).to(timezone.get_current_timezone().zone).format("YYYY-MM-DD HH:mm:ss"))
-        for b in business_info
+        (b[0], arrow.get(b[1]).to(timezone.get_current_timezone()).format("YYYY-MM-DD HH:mm:ss")) for b in business_info
     ]
     active_business_list = business.get_all_activate_business()
     data = {

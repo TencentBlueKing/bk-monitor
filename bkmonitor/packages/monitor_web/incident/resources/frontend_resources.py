@@ -1028,8 +1028,7 @@ class EditIncidentResource(IncidentBaseResource):
         updated_incident = api.bkdata.update_incident_detail(**incident_info)
 
         self.update_incident_document(
-            incident_info,
-            arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone().zone),
+            incident_info, arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone())
         )
         return incident_info
 
@@ -1061,7 +1060,7 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         else:
             incident_info["feedback"] = {}
         updated_incident = api.bkdata.update_incident_detail(**incident_info)
-        update_time = arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone().zone)
+        update_time = arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone())
         self.update_incident_document(incident_info, update_time)
         if is_cancel:
             IncidentOperationManager.record_feedback_incident(

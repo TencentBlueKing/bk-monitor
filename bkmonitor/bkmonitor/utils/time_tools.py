@@ -86,7 +86,7 @@ def biz_time_zone_offset():
     """
     获取业务的时区偏移
     """
-    offset = arrow.now().replace(tzinfo=timezone.get_current_timezone().zone).format("Z")
+    offset = arrow.now().replace(tzinfo=timezone.get_current_timezone()).format("Z")
     return str(offset[0]) + str(int(offset[1:3]))  # 转成小时的精度, 而不是分钟
 
 
@@ -103,7 +103,7 @@ def biz2utc_str(local_time, _format="%Y-%m-%d %H:%M:%S"):
     功能: 业务时间字符串 转换成 零时区字符串
     场景: 界面传过来的时间需要转换成零时区去查询db或调用API
     """
-    return arrow.get(local_time).replace(tzinfo=timezone.get_current_timezone().zone).to("utc").strftime(_format)
+    return arrow.get(local_time).replace(tzinfo=timezone.get_current_timezone()).to("utc").strftime(_format)
 
 
 def utc2biz_str(utc_time, _format="%Y-%m-%d %H:%M:%S"):
@@ -111,7 +111,7 @@ def utc2biz_str(utc_time, _format="%Y-%m-%d %H:%M:%S"):
     功能: 零时区字符串 转换成 业务时间字符串
     场景: 从DB或调用API传回来的时间(utc时间)需要转换成业务时间再给到前端显示
     """
-    return arrow.get(utc_time).to(timezone.get_current_timezone().zone).strftime(_format)
+    return arrow.get(utc_time).to(timezone.get_current_timezone()).strftime(_format)
 
 
 def utc2_str(utc_time, _format="%Y-%m-%d %H:%M:%S"):
@@ -129,7 +129,7 @@ def get_timestamp_range_by_biz_date(date):
     功能: 解析从浏览器传过来的日期格式字符串, 转成时间戳timestamp格式
     @return tuple(timestamp(unit: s), timestamp(unit: s))
     """
-    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone().zone).int_timestamp
+    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone()).int_timestamp
     end_timestamp = start_timestamp + 86400  # 24 * 3600
     return start_timestamp, end_timestamp
 
@@ -158,7 +158,7 @@ def parse_time_range(time_range=None, days=1, offset=0, _time_format="%Y-%m-%d %
         start, end = [i.strip() for i in time_range.split("--")]
         # start = date_convert(start, 'datetime', _time_format)
         # end = date_convert(end, 'datetime', _time_format)
-    tzinfo = timezone.get_current_timezone().zone
+    tzinfo = timezone.get_current_timezone()
     start = arrow.get(start)
     end = arrow.get(end)
 
