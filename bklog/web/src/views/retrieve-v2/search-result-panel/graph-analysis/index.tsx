@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { isElement, debounce, throttle } from 'lodash';
+import { isElement, debounce, throttle, isEqual } from 'lodash';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -54,6 +54,7 @@ enum GraphCategory {
   CHART = 'chart',
   LINE = 'line',
   LINE_BAR = 'line_bar',
+  NUMBER = 'number',
   PIE = 'pie',
   TABLE = 'table',
 }
@@ -88,7 +89,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   advanceHeight = 164;
   activeSettings = ['basic_info', 'field_setting'];
   isSqlMode = true;
-  graphCategoryList = [GraphCategory.TABLE, GraphCategory.LINE, GraphCategory.BAR, GraphCategory.PIE];
+
+  graphCategoryList = [
+    GraphCategory.TABLE,
+    GraphCategory.LINE,
+    GraphCategory.BAR,
+    GraphCategory.PIE,
+    GraphCategory.NUMBER,
+  ];
 
   basicInfoTitle = {
     title: '',
@@ -170,6 +178,16 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
           active: StyleImages.chartPieActive,
         },
       },
+
+      [GraphCategory.NUMBER]: {
+        icon: '',
+        text: this.$t('数值'),
+        click: () => this.handleGraphCategoryClick(GraphCategory.NUMBER),
+        images: {
+          def: StyleImages.chartLineBarDef,
+          active: StyleImages.chartLineBarActive,
+        },
+      },
     };
   }
 
@@ -215,6 +233,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       dimensions: this.dimensions,
       data: this.chartData.data,
       category: this.activeGraphCategory,
+      activeGraphCategory: this.activeGraphCategory,
       hiddenFields: this.hiddenFields,
     };
   }
@@ -237,11 +256,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       setTimeout(() => {
         ['xFields', 'yFields', 'activeGraphCategory', 'chartActiveType', 'dimensions', 'hiddenFields'].forEach(key => {
           const target = this.storedChartParams[key];
-          if (target) {
-            if (Array.isArray(target)) {
-              this[key].splice(0, this[key].length, ...target);
-            } else {
-              this[key] = target;
+          if (!isEqual(target, this.chartOptions[key])) {
+            if (target) {
+              if (Array.isArray(target)) {
+                this[key].splice(0, this[key].length, ...target);
+              } else {
+                this[key] = target;
+              }
             }
           }
         });
@@ -273,6 +294,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (category !== GraphCategory.TABLE) {
       this.chartActiveType = GraphCategory.CHART;
     }
+
     this.activeGraphCategory = category;
     this.chartCounter++;
     this.$store.commit('updateChartParams', {
@@ -430,6 +452,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         : this.$t('至少需要一个指标，一个维度/时间维度');
     let tips;
     const isGraphCategoryPie = this.activeGraphCategory === GraphCategory.PIE;
+    const isNumber = this.activeGraphCategory === GraphCategory.NUMBER;
+
+    if (isNumber) {
+      tips = this.$t('当前缺少维度');
+      return { showException: !this.yFields.length, message, showQuery: false, tips };
+    }
+
     if (!this.xFields.length && !this.yFields.length && !this.dimensions.length) {
       tips = isGraphCategoryPie ? this.$t('当前缺少指标和维度') : this.$t('当前缺少指标和维度/时间维度');
     } else if (this.yFields.length && !(this.xFields.length || this.dimensions.length)) {
@@ -437,6 +466,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     } else if (!this.yFields.length && (this.xFields.length || this.dimensions.length)) {
       tips = this.$t('当前缺少指标');
     }
+
     const showQuery = false;
     if (this.activeGraphCategory === GraphCategory.PIE) {
       showException = !(this.xFields.length && this.yFields.length);
@@ -651,6 +681,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                 ></GraphDragTool>
               </div>
             </div>
+            <div class='graph-canvas-line'></div>
             <div
               ref='refCanvasBody'
               style={this.canvasStyle}
