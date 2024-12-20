@@ -27,7 +27,7 @@ import { Prop, Component, Emit, Watch, InjectReactive, Inject } from 'vue-proper
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
-import { listK8sResources } from 'monitor-api/modules/k8s';
+import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -37,7 +37,6 @@ import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { type IK8SMetricItem, K8sNewTabEnum, K8sTableColumnKeysEnum } from '../../typings/k8s-new';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
-import { getK8sTableAsyncDataMock } from './utils';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
 import type { ITableItemMap } from '../../typings/table';
@@ -221,6 +220,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
   /** 浏览器空闲时期填充图表异步请求数据执行函数ID，重新请求时及时终止结束回调 */
   requestIdleCallbackId = null;
+  /** 图表异步请求中止控制器 */
+  abortControllerQueue: Set<AbortController> = new Set();
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -428,6 +429,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading) {
       return;
     }
+    if (this.abortControllerQueue.size) {
+      for (const controller of this.abortControllerQueue) {
+        controller.abort();
+      }
+      this.abortControllerQueue.clear();
+    }
     if (this.requestIdleCallbackId) {
       cancelIdleCallback(this.requestIdleCallbackId);
       this.requestIdleCallbackId = null;
@@ -487,7 +494,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       this.asyncDataCache.clear();
     }
     this.tableLoading[loadingKey] = false;
-    this.loadAsyncData(requestParam, resourceType, resourceParam);
+    this.loadAsyncData(resourceType, resourceParam);
   }
 
   /**
@@ -496,12 +503,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   formatTableData(
     tableData: K8sTableRow[],
     resourceType: K8sTableColumnResourceKey
-  ): { ids: string[]; tableDataMap: Record<string, number> } {
+  ): { ids: Set<string>; tableDataMap: Record<string, number[]> } {
     return tableData.reduce(
       (prev, curr, index) => {
         const id = curr[resourceType] as string;
-        if (this.asyncDataCache.has(id)) {
-          const item = this.asyncDataCache.get(id);
+        const item = this.asyncDataCache.get(id);
+        if (
+          this.asyncDataCache.has(id) &&
+          item[K8sTableColumnKeysEnum.CPU] &&
+          item[K8sTableColumnKeysEnum.INTERNAL_MEMORY]
+        ) {
           curr[K8sTableColumnKeysEnum.CPU] = item[K8sTableColumnKeysEnum.CPU];
           curr[K8sTableColumnKeysEnum.INTERNAL_MEMORY] = item[K8sTableColumnKeysEnum.INTERNAL_MEMORY];
           return prev;
@@ -514,57 +525,63 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           datapoints: null,
           unit: '',
         };
-        prev.tableDataMap[id] = index;
-        prev.ids.push(id);
+        if (prev.tableDataMap[id]) {
+          prev.tableDataMap[id].push(index);
+        } else {
+          prev.tableDataMap[id] = [index];
+        }
+        if (!prev.ids.has(id)) {
+          prev.ids.add(id);
+        }
         return prev;
       },
-      { ids: [], tableDataMap: {} }
+      { ids: new Set() as Set<string>, tableDataMap: {} }
     );
   }
 
   /**
    * @description 异步加载获取k8s列表（cpu、内存使用率）的数据
    */
-  loadAsyncData(requestParam: Record<string, any>, resourceType: K8sTableColumnResourceKey, resourceParam) {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { start_time, end_time } = requestParam;
+  loadAsyncData(resourceType: K8sTableColumnResourceKey, resourceParam) {
     const asyncColumns = (this.tableColumns || []).filter(col =>
       // @ts-ignore
       Object.hasOwn(col, 'asyncable')
     );
     for (const field of asyncColumns) {
-      getK8sTableAsyncDataMock({
-        start_time,
-        end_time,
-        column: field.id,
-        resourceType,
-        [resourceType]: resourceParam.ids,
-      }).then(tableAsyncData => {
-        this.renderTableBatchByBatch(
-          field.id as K8sTableColumnResourceKey,
-          resourceType,
-          tableAsyncData,
-          resourceParam.tableDataMap
-        );
-      });
+      const controller = new AbortController();
+      this.abortControllerQueue.add(controller);
+      resourceTrend(
+        {
+          ...this.filterCommonParams,
+          column: field.id,
+          resource_type: resourceType,
+          resource_list: Array.from(resourceParam.ids),
+        },
+        { signal: controller.signal }
+      )
+        .then(tableAsyncData => {
+          this.renderTableBatchByBatch(
+            field.id as K8sTableColumnResourceKey,
+            tableAsyncData,
+            resourceParam.tableDataMap
+          );
+        })
+        .finally(() => {
+          this.abortControllerQueue.delete(controller);
+        });
     }
   }
 
   /**
    * @description 批量按需渲染表格数据（cpu、内存使用率）
    * @param field column 列id
-   * @param resourceType resourceType 维度
    * @param tableAsyncData 异步数据
-   * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射
+   * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射数组
    */
-  renderTableBatchByBatch(
-    field: K8sTableColumnResourceKey,
-    resourceType: K8sTableColumnResourceKey,
-    tableAsyncData,
-    tableDataMap
-  ) {
+  renderTableBatchByBatch(field: K8sTableColumnResourceKey, tableAsyncData, tableDataMap) {
     const setData = (currentIndex = 0, enableIdle = true, step = 5) => {
       const len = tableAsyncData.length;
+      if (!tableAsyncData?.length) return;
       let endIndex = currentIndex + step;
       let shouldBreak = false;
       if (endIndex > len) {
@@ -573,7 +590,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       }
       for (let i = currentIndex; i < endIndex; i++) {
         const item = tableAsyncData[i];
-        const resourceId = item[resourceType];
+        const resourceId = item.resource_name;
         const mapItem = this.asyncDataCache.get(resourceId);
         const chartData = item[field];
         if (!mapItem) {
@@ -581,31 +598,46 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         } else {
           mapItem[field] = chartData;
         }
-        const rowIndex = tableDataMap[resourceId];
-        const rowData = this.tableData[rowIndex];
-        rowData[field] = chartData;
+        const rowIndexArr = tableDataMap[resourceId];
+        if (rowIndexArr?.length) {
+          for (const rowIndex of rowIndexArr) {
+            const rowData = this.tableData[rowIndex];
+            rowData[field] = chartData || [];
+          }
+        }
       }
       if (shouldBreak) {
         return { shouldBreak, endIndex: -1 };
       }
       if (enableIdle) {
-        this.requestIdleCallbackId = requestIdleCallback(deadline => {
-          while (deadline.timeRemaining() > 0 && !shouldBreak) {
-            const res = setData(endIndex, false);
-            endIndex = res.endIndex;
-            shouldBreak = res.shouldBreak;
-          }
-          if (!shouldBreak) {
-            requestAnimationFrame(() => {
-              setData(endIndex, true);
-            });
-          }
-        });
+        this.requestIdleCallbackId = requestIdleCallback(
+          deadline => {
+            /** 控制浏览器一帧内空闲时间足够的情况下最多应可渲染多少条数据
+             * （step > canRenderMaxCount 时以step为准，但是一帧内只会执行 1 次）
+             **/
+            let canRenderMaxCount = 6;
+            canRenderMaxCount -= step;
+            while (deadline.timeRemaining() > 0 && !shouldBreak && canRenderMaxCount > 0 && !deadline.didTimeout) {
+              const res = setData(endIndex, false, step);
+              endIndex = res.endIndex;
+              shouldBreak = res.shouldBreak;
+              canRenderMaxCount -= step;
+            }
+            if (!shouldBreak) {
+              requestAnimationFrame(() => {
+                setData(endIndex, true, step);
+              });
+            }
+          },
+          { timeout: 300 }
+        );
       } else {
-        return { shouldBreak: false, endIndex };
+        return { shouldBreak, endIndex };
       }
     };
-    setData(0, true);
+    requestAnimationFrame(() => {
+      setData(0, true, 2);
+    });
   }
 
   /**
