@@ -487,7 +487,7 @@ class SearchExportSerializer(serializers.Serializer):
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
     file_type = serializers.ChoiceField(
-        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.TXT.value
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
 
 
