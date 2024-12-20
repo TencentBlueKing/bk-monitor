@@ -13,7 +13,6 @@ from typing import Any, Generator, Iterator
 
 from django.http import StreamingHttpResponse
 from rest_framework import serializers, viewsets
-from rest_framework.decorators import action
 from rest_framework.request import Request
 
 from bkmonitor.iam import ActionEnum
@@ -71,8 +70,7 @@ class SearchViewSet(viewsets.GenericViewSet):
     搜索, 使用多线程搜索，使用 event-stream 返回搜索结果
     """
 
-    @action(methods=['get'], detail=False, url_path='search')
-    def search(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
         serializer = SearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
