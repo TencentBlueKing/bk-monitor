@@ -12,15 +12,14 @@ import json
 from collections import defaultdict
 
 import jmespath
-from elasticmock.fake_elasticsearch import FakeElasticsearch, MetricType
-from elasticmock.utilities import get_random_id
 from elasticmock.fake_elasticsearch import (
     FakeElasticsearch,
     FakeQueryCondition,
     MetricType,
     QueryType,
 )
-from elasticsearch5.client import query_params
+from elasticmock.utilities import get_random_id
+from elasticsearch.client.utils import query_params
 from mock import patch
 
 from bkmonitor.documents import (
@@ -81,46 +80,92 @@ class FakeElasticsearchBucket(FakeElasticsearch):
             "bkmonitor.documents.EventDocument.build_all_indices_read_index_name", return_value=EventDocument.Index.name
         ).start()
 
+    # @query_params(*es_query_params, **kwargs)
     @query_params(
-        '_source',
-        '_source_exclude',
-        '_source_include',
-        'allow_no_indices',
-        'analyze_wildcard',
-        'analyzer',
-        'default_operator',
-        'df',
-        'expand_wildcards',
-        'explain',
-        'fielddata_fields',
-        'fields',
-        'from_',
-        'ignore_unavailable',
-        'lenient',
-        'lowercase_expanded_terms',
-        'preference',
-        'q',
-        'request_cache',
-        'routing',
-        'scroll',
-        'search_type',
-        'size',
-        'sort',
-        'stats',
-        'suggest_field',
-        'suggest_mode',
-        'suggest_size',
-        'suggest_text',
-        'terminate_after',
-        'timeout',
-        'track_scores',
-        'version',
+        "_source",
+        "_source_excludes",
+        "_source_includes",
+        "allow_no_indices",
+        "allow_partial_search_results",
+        "analyze_wildcard",
+        "analyzer",
+        "batched_reduce_size",
+        "ccs_minimize_roundtrips",
+        "default_operator",
+        "df",
+        "docvalue_fields",
+        "expand_wildcards",
+        "explain",
+        "from_",
+        "ignore_throttled",
+        "ignore_unavailable",
+        "lenient",
+        "max_concurrent_shard_requests",
+        "min_compatible_shard_node",
+        "pre_filter_shard_size",
+        "preference",
+        "q",
+        "request_cache",
+        "rest_total_hits_as_int",
+        "routing",
+        "scroll",
+        "search_type",
+        "seq_no_primary_term",
+        "size",
+        "sort",
+        "stats",
+        "stored_fields",
+        "suggest_field",
+        "suggest_mode",
+        "suggest_size",
+        "suggest_text",
+        "terminate_after",
+        "timeout",
+        "track_scores",
+        "track_total_hits",
+        "typed_keys",
+        "version",
+        request_mimetypes=["application/json"],
+        response_mimetypes=["application/json"],
+        body_params=[
+            "_source",
+            "aggregations",
+            "aggs",
+            "collapse",
+            "docvalue_fields",
+            "explain",
+            "fields",
+            "from_",
+            "highlight",
+            "indices_boost",
+            "min_score",
+            "pit",
+            "post_filter",
+            "profile",
+            "query",
+            "rescore",
+            "runtime_mappings",
+            "script_fields",
+            "search_after",
+            "seq_no_primary_term",
+            "size",
+            "slice",
+            "sort",
+            "stats",
+            "stored_fields",
+            "suggest",
+            "terminate_after",
+            "timeout",
+            "track_scores",
+            "track_total_hits",
+            "version",
+        ],
     )
     def search(self, index=None, doc_type=None, body=None, params=None, headers=None, **kwargs):
         result = super(FakeElasticsearchBucket, self).search(
             index=index, doc_type=doc_type, body=body, params=params, headers=headers
         )
-        if 'scroll' in params and len(result['hits']['hits']) > int(params["size"]):
+        if 'scroll' in params and len(result['hits']['hits']) > int(body["size"]):
             self.scrolls[result.pop('_scroll_id')] = {
                 'index': index,
                 'doc_type': doc_type,
@@ -129,6 +174,14 @@ class FakeElasticsearchBucket(FakeElasticsearch):
             }
         return result
 
+    @query_params(
+        "rest_total_hits_as_int",
+        "scroll",
+        "scroll_id",
+        request_mimetypes=["application/json"],
+        response_mimetypes=["application/json"],
+        body_params=["scroll", "scroll_id"],
+    )
     def scroll(self, body=None, scroll_id=None, params=None, headers=None):
         scroll_id = scroll_id or body.get("scroll_id")
         scroll = self.scrolls.pop(scroll_id, None)
@@ -214,17 +267,17 @@ class FakeElasticsearchBucket(FakeElasticsearch):
         return buckets
 
     @query_params(
-        'consistency',
-        'op_type',
-        'parent',
-        'refresh',
-        'replication',
-        'routing',
-        'timeout',
-        'timestamp',
-        'ttl',
-        'version',
-        'version_type',
+        "_source",
+        "_source_excludes",
+        "_source_includes",
+        "pipeline",
+        "refresh",
+        "require_alias",
+        "routing",
+        "timeout",
+        "wait_for_active_shards",
+        request_mimetypes=["application/x-ndjson"],
+        response_mimetypes=["application/json"],
     )
     def bulk(self, body, index=None, doc_type=None, params=None, headers=None):
         new_body = ""

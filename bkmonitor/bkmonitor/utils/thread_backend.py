@@ -37,7 +37,7 @@ class InheritParentThread(Thread):
             self.inherit_data.append(item)
 
         # sync timezone/lang
-        self.timezone = timezone.get_current_timezone().zone
+        self.timezone = str(timezone.get_current_timezone())
         self.language = translation.get_language()
         self.trace_context = get_current()
 
@@ -115,7 +115,7 @@ class ThreadPool(_ThreadPool):
 
     @staticmethod
     def get_func_with_local(func):
-        tz = timezone.get_current_timezone().zone
+        tz = timezone.get_current_timezone()
         lang = translation.get_language()
         trace_context = get_current()
         items = [item for item in local]

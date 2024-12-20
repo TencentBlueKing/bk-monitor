@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from constants.strategy import GSE_PROCESS_EVENT_NAME
 
@@ -106,7 +106,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                     "%Y-%m-%d %H:%M:%S"
                 )
                 if not alarm_time:
-                    alarm_time = datetime.utcfromtimestamp(arrow.utcnow().timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                    alarm_time = datetime.utcfromtimestamp(arrow.utcnow().int_timestamp).strftime("%Y-%m-%d %H:%M:%S")
                 dimension = data.get("dimension", {})
                 dimension["event_name"] = data.get("event_name")
                 new_alarm = {

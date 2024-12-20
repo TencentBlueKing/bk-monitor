@@ -24,7 +24,7 @@ import pytz
 from django.conf import settings
 from django.db import IntegrityError
 from django.test import TestCase, TransactionTestCase
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
 from alarm_backends.core.alert import Alert, Event

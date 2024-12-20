@@ -11,12 +11,13 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from audit.instance import push_event
 from blueapps.utils import get_request as _get_request
 from django.utils.deprecation import MiddlewareMixin
 
+from audit.instance import push_event
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
 from bkmonitor.utils.local import local
+from bkmonitor.utils.request import is_ajax_request
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class RequestProvider(MiddlewareMixin):
 
         if request.resolver_match.namespace == "monitor_adapter":
             if request.method == "GET":
-                if not request.is_ajax() and "CSRF_COOKIE" in request.META:
+                if not is_ajax_request(request) and "CSRF_COOKIE" in request.META:
                     # 用户请求GET方法时生成csrf cookie
                     request.META["CSRF_COOKIE_USED"] = True
             if not biz_id:

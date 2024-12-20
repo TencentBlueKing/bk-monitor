@@ -19,7 +19,7 @@ from typing import Tuple
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField

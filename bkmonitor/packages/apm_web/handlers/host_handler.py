@@ -12,7 +12,7 @@ import logging
 from collections import defaultdict
 from ipaddress import IPv6Address, ip_address
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
 
 from api.cmdb.client import list_biz_hosts

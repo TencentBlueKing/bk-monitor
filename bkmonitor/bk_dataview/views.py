@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.request import is_ajax_request
 
 from .api import (
     get_or_create_org,
@@ -163,7 +164,7 @@ class ProxyBaseView(View):
             }
         )
 
-        if request.is_ajax():
+        if is_ajax_request(request):
             headers["X-Requested-With"] = "XMLHttpRequest"
 
         if self.org and self.org["id"]:

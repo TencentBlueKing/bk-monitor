@@ -32,7 +32,7 @@ from django.db import models
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pytz import timezone
 from tenacity import (
     RetryError,
@@ -271,9 +271,9 @@ class ClusterInfo(models.Model):
                 "custom_option": self.custom_option,
                 "registered_system": self.registered_system,
                 "creator": self.creator,
-                "create_time": arrow.get(self.create_time).timestamp,
+                "create_time": arrow.get(self.create_time).int_timestamp,
                 "last_modify_user": self.last_modify_user,
-                "last_modify_time": arrow.get(self.last_modify_time).timestamp,
+                "last_modify_time": arrow.get(self.last_modify_time).int_timestamp,
                 "is_default_cluster": self.is_default_cluster,
             },
             "cluster_type": self.cluster_type,
@@ -2155,7 +2155,7 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def now(self):
-        return arrow.utcnow().replace(hours=self.time_zone).datetime + datetime.timedelta(
+        return arrow.utcnow().shift(hours=self.time_zone).datetime + datetime.timedelta(
             hours=settings.ES_STORAGE_OFFSET_HOURS
         )
 

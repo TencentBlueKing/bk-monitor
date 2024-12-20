@@ -13,21 +13,17 @@ from unittest import skip
 
 import mock
 from django.test import Client, TestCase
-from fta_web.assign.resources import BatchUpdateResource, MatchDebugResource
 
 from api.cmdb.define import Host, Module, Set
 from bkmonitor.action.serializers.assign import *  # noqa
 from bkmonitor.documents import AlertDocument, EventDocument
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
-from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
 from constants.alert import EventStatus
+from fta_web.assign.resources import BatchUpdateResource, MatchDebugResource
 
 mock.patch(
     "core.drf_resource.api.bk_login.get_all_user",
     return_value={"results": [{"username": "admin", "display_name": "admin"}]},
-).start()
-mock.patch(
-    "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
 ).start()
 mock.patch(
     "fta_web.assign.resources.MatchDebugResource.get_cmdb_attributes",

@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import Dict, List
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.cmdb.define import Host
 from bkmonitor.strategy.new_strategy import Item

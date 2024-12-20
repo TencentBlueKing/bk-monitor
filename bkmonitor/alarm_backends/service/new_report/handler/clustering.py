@@ -17,7 +17,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2 import Template
 
 from alarm_backends.core.context import logger

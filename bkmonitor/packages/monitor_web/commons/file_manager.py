@@ -17,7 +17,7 @@ import tarfile
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from monitor_web.models.file import UploadedFileInfo
 from monitor_web.models.plugin import CollectorPluginMeta

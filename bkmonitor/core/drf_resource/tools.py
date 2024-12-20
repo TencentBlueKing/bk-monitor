@@ -14,7 +14,7 @@ import json
 import logging
 from collections import OrderedDict
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from rest_framework import serializers
 from rest_framework.fields import empty
 
@@ -63,7 +63,7 @@ def field_to_schema(field):
     """
     根据serializer field生成关于该field数据结构的schema
     """
-    description = force_text(field.label) if field.label else ""
+    description = force_str(field.label) if field.label else ""
 
     type_params = {
         "type": FieldType.STRING,

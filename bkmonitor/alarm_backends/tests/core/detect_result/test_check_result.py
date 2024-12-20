@@ -27,11 +27,7 @@ class TestDetectResult(TestCase):
 
     def setUp(self):
         CacheNode.refresh_from_settings()
-        self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
-        self.redis_patcher.start()
 
-    def tearDown(self):
-        self.redis_patcher.stop()
 
     def test_md5_to_dimension_key(self):
         check_result = CheckResult(

@@ -15,7 +15,7 @@ uptime表示主机运行时长。
 """
 
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect.strategy import (
     BasicAlgorithmsCollection,

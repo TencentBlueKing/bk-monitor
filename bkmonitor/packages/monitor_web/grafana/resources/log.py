@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -120,7 +120,7 @@ class LogQueryResource(ApiAuthResource):
             logger.exception(e)
             _time = arrow.now()
 
-        return int(_time.timestamp)
+        return int(_time.int_timestamp)
 
     def perform_request(self, params):
         if "start_time" not in params or "end_time" not in params:

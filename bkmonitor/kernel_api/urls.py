@@ -15,10 +15,9 @@ import os
 import six
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
-from django.conf.urls import include, url
 from django.contrib import admin
 from django.http import HttpResponse
-from django.urls import path
+from django.urls import include, path, re_path
 from rest_framework.documentation import include_docs_urls
 from six.moves import map
 
@@ -56,7 +55,7 @@ def register_url(prex, views_module_list, namespace):
 
     router = ResourceRouter()
     list(map(router.register_module, views_module_list))
-    return url(prex, include((router.urls, "kernel_api"), namespace=namespace))
+    return re_path(prex, include((router.urls, "kernel_api"), namespace=namespace))
 
 
 def register_v2():
@@ -96,22 +95,22 @@ def ping(request):
 
 
 urlpatterns = [
-    url(r"^ping$", ping),
-    url(r"^account/", include("blueapps.account.urls")),
+    re_path(r"^ping$", ping),
+    re_path(r"^account/", include("blueapps.account.urls")),
     path(r"admin/", admin.site.urls),
-    url(r"^docs/", include_docs_urls(title="My API title", public=True)),
-    url(r"^grafana/$", SwitchOrgView.as_view()),
-    url(r"^grafana/public/", StaticView.as_view()),
-    url(r"^grafana/", ProxyView.as_view()),
-    url(r"^o/bk_monitorv3/grafana/$", SwitchOrgView.as_view()),
-    url(r"^o/bk_monitorv3/grafana/public/", StaticView.as_view()),
-    url(r"^o/bk_monitorv3/grafana/", ProxyView.as_view()),
-    url(r"^rest/v2/", include(router.urls)),
-    url(r"^o/bk_monitorv3/rest/v2/", include(router.urls)),
-    url(r"^query-api/rest/v2/", include(router.urls)),
-    url(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
-    url(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
-    url(r"^apm_api/v1/", include("apm.urls")),
+    re_path(r"^docs/", include_docs_urls(title="My API title", public=True)),
+    re_path(r"^grafana/$", SwitchOrgView.as_view()),
+    re_path(r"^grafana/public/", StaticView.as_view()),
+    re_path(r"^grafana/", ProxyView.as_view()),
+    re_path(r"^o/bk_monitorv3/grafana/$", SwitchOrgView.as_view()),
+    re_path(r"^o/bk_monitorv3/grafana/public/", StaticView.as_view()),
+    re_path(r"^o/bk_monitorv3/grafana/", ProxyView.as_view()),
+    re_path(r"^rest/v2/", include(router.urls)),
+    re_path(r"^o/bk_monitorv3/rest/v2/", include(router.urls)),
+    re_path(r"^query-api/rest/v2/", include(router.urls)),
+    re_path(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
+    re_path(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
+    re_path(r"^apm_api/v1/", include("apm.urls")),
 ]
 
 

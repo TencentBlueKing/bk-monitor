@@ -12,7 +12,7 @@ import logging
 
 from django.conf import settings
 from django.db.models import Prefetch
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response

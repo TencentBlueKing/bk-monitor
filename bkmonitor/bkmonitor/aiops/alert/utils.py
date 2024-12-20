@@ -23,7 +23,7 @@ from urllib.parse import parse_qs
 
 from django.conf import settings
 from django.db.models import Q as DQ
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType

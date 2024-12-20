@@ -14,7 +14,7 @@ import base64
 import os
 
 import yaml
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.errors.plugin import PluginParseError
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME, ParamMode

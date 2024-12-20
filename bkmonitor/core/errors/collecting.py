@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 采集配置模块错误
 """
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from core.errors import Error
 

@@ -427,7 +427,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         cls, bk_biz_id, result_table_id, service_name, dimension_keys, count: int = 1000, start_time=None, end_time=None
     ) -> dict:
         if not start_time or not end_time:
-            end_time = int(arrow.now().timestamp)
+            end_time = int(arrow.now().int_timestamp)
             start_time = int(end_time - 3600)
 
         request_params = {

@@ -15,7 +15,7 @@ import logging
 
 import six
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 

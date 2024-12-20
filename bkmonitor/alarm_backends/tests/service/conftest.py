@@ -10,9 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import fakeredis
 import mock
-import pytest
 
 
 def mocked_delay(self, cmd, queue, *values, **option):
@@ -20,10 +18,6 @@ def mocked_delay(self, cmd, queue, *values, **option):
 
 
 def pytest_configure():
-    mock.patch(
-        "alarm_backends.core.storage.redis.redis.Redis", return_value=fakeredis.FakeRedis(decode_responses=True)
-    ).start()
-
     # mock 掉延时队列，否则无法通过测试
     mock.patch(
         "alarm_backends.core.storage.redis.BaseRedisCache.delay", autospec=True, side_effect=mocked_delay

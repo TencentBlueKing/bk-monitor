@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.errors.plugin import PluginParseError
 from monitor_web.plugin.manager.base import PluginManager

@@ -15,7 +15,7 @@ from typing import Dict
 
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2.exceptions import TemplateSyntaxError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError

@@ -25,7 +25,7 @@ from django.db import models
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from humanize import naturaldelta
 
 from bkmonitor.models.bcs_label import BCSLabel

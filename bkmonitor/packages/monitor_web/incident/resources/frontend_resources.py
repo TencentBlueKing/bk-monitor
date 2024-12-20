@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 import arrow
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
@@ -173,7 +173,7 @@ class IncidentBaseResource(Resource):
                 if incident_key == "status":
                     if incident_value == IncidentStatus.CLOSED.value:
                         IncidentOperationManager.record_close_incident(
-                            incident_info["incident_id"], update_time.timestamp
+                            incident_info["incident_id"], update_time.int_timestamp
                         )
                     elif incident_value == IncidentStatus.RECOVERING.value:
                         incident_document.end_time = int(time.time())
@@ -182,7 +182,7 @@ class IncidentBaseResource(Resource):
                 elif incident_key == "feedback":
                     IncidentOperationManager.record_feedback_incident(
                         incident_info["incident_id"],
-                        update_time.timestamp,
+                        update_time.int_timestamp,
                         incident_info["feedback"]["incident_root"],
                         incident_info["feedback"]["content"],
                     )
@@ -191,14 +191,14 @@ class IncidentBaseResource(Resource):
                     if incident_key not in ["updated_at"]:
                         IncidentOperationManager.record_user_update_incident(
                             incident_info["incident_id"],
-                            update_time.timestamp,
+                            update_time.int_timestamp,
                             incident_key,
                             getattr(incident_document, incident_key),
                             incident_value,
                         )
                 setattr(incident_document, incident_key, incident_value)
 
-        incident_document.update_time = update_time.timestamp
+        incident_document.update_time = update_time.int_timestamp
         IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
 
 
@@ -1028,8 +1028,7 @@ class EditIncidentResource(IncidentBaseResource):
         updated_incident = api.bkdata.update_incident_detail(**incident_info)
 
         self.update_incident_document(
-            incident_info,
-            arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone().zone),
+            incident_info, arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone())
         )
         return incident_info
 
@@ -1061,12 +1060,12 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         else:
             incident_info["feedback"] = {}
         updated_incident = api.bkdata.update_incident_detail(**incident_info)
-        update_time = arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone().zone)
+        update_time = arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone())
         self.update_incident_document(incident_info, update_time)
         if is_cancel:
             IncidentOperationManager.record_feedback_incident(
                 incident_info["incident_id"],
-                update_time.timestamp,
+                update_time.int_timestamp,
                 None,
                 None,
                 is_cancel,

@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import arrow
 from django.test import TestCase
 
@@ -73,13 +72,10 @@ STRATEGIES = [
 
 
 class TestCleanResult(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
         CacheNode.refresh_from_settings()
-        self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
-        self.redis_patcher.start()
         redis_pipeline = CheckResult.pipeline()
 
         self.strategy_cache_patcher = patch(
@@ -89,9 +85,9 @@ class TestCleanResult(TestCase):
         self.strategy_cache_patcher.start()
 
         self.strategies = STRATEGIES
-        self.now_timestamp = arrow.utcnow().timestamp
-        self.three_hours_ago = arrow.utcnow().replace(hours=-3).timestamp
-        self.two_hours_ago = arrow.utcnow().replace(hours=-2).timestamp
+        self.now_timestamp = arrow.utcnow().int_timestamp
+        self.three_hours_ago = arrow.utcnow().shift(hours=-3).int_timestamp
+        self.two_hours_ago = arrow.utcnow().shift(hours=-2).int_timestamp
         check_result_data = {
             "{}|{}".format(self.three_hours_ago, "ANOMALY"): self.three_hours_ago,
             "{}|{}".format(self.now_timestamp, "ANOMALY"): self.now_timestamp,
@@ -127,7 +123,6 @@ class TestCleanResult(TestCase):
         redis_pipeline.execute()
 
     def tearDown(self):
-        self.redis_patcher.stop()
         self.strategy_cache_patcher.stop()
 
     @patch(ALARM_BACKENDS_CLEAN_STRATEGY_CACHE_MANAGER_REFRESH, MagicMock(return_value=True))
@@ -143,8 +138,8 @@ class TestCleanResult(TestCase):
         )
         all_members = key.CHECK_RESULT_CACHE_KEY.client.zrangebyscore(check_result_cache_key, 0, float("inf"))
         self.assertEqual(
-            all_members,
             ["{}|{}".format(self.three_hours_ago, "ANOMALY"), "{}|{}".format(self.now_timestamp, "ANOMALY")],
+            all_members
         )
 
         # FakeRedis的zremrangebyrank存在问题，0, -1参数会清空所有数据

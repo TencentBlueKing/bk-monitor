@@ -768,7 +768,7 @@ class ILM:
         current_datetime_str = re_result.group("datetime")
 
         current_datetime_object = datetime.datetime.strptime(current_datetime_str, self.date_format)
-        start_ts = int(arrow.get(current_datetime_object).timestamp)
+        start_ts = int(arrow.get(current_datetime_object).int_timestamp)
 
         search = Search().from_dict(self.reindex_query or {}).filter("range", create_time={"gte": start_ts})
         search_dsl = search.to_dict()

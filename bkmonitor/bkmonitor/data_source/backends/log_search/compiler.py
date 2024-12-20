@@ -281,7 +281,7 @@ class SQLCompiler(compiler.SQLCompiler):
                 "date_histogram": {
                     "field": time_field,
                     "interval": "%ss" % agg_interval,
-                    "time_zone": timezone.get_current_timezone().zone,
+                    "time_zone": str(timezone.get_current_timezone()),
                 },
                 "aggregations": metric_aggragations,
             },

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import Q, Search
 from luqum.auto_head_tail import auto_head_tail
 from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
@@ -52,7 +52,6 @@ logger = logging.getLogger(__name__)
 
 
 class QueryStringBuilder:
-
     WILDCARD_PATTERN: str = "*"
 
     # Refer: https://opentelemetry.io/docs/specs/otel/trace/api/#retrieving-the-traceid-and-spanid
@@ -349,7 +348,6 @@ class OptionValues:
     def _get_option_values_from_api(
         self, value_source: str, fields: List[str], start_time: int, end_time: int
     ) -> Dict[str, List[Dict[str, Any]]]:
-
         field_transformer: Callable[[str], str] = {
             ValueSource.TRACE: self._transform_field_to_log_field,
             ValueSource.METRIC: self._transform_field_to_metric_field,

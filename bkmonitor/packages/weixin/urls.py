@@ -9,15 +9,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 from weixin import views
 
 app_name = "weixin"
 
 urlpatterns = [
-    url(r"^rest/v1/", include("weixin.event.urls")),
-    url(r"^login/", include("weixin.core.urls")),
-    url(r"^$", views.home),
-    url(r"^service-worker.js$", views.service_worker),
-    url(r"^manifest.json$", views.manifest),
+    re_path(r"^rest/v1/", include("weixin.event.urls")),
+    re_path(r"^login/", include("weixin.core.urls")),
+    re_path(r"^$", views.home),
+    re_path(r"^service-worker.js$", views.service_worker),
+    re_path(r"^manifest.json$", views.manifest),
 ]

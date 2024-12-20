@@ -16,7 +16,7 @@ from typing import Dict, List
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 

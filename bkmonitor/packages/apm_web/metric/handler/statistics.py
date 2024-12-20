@@ -13,7 +13,7 @@ import functools
 from dataclasses import dataclass, field
 from typing import Callable, List, Type
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.constants import TopoNodeKind
 from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
@@ -317,7 +317,6 @@ class ServiceMetricStatistics(BaseQuery):
 
     @classmethod
     def get_template(cls, metric_name, kind, dimension, service_name=None, dimension_category=None):
-
         dimension_metric = cls.template_mapping.get(metric_name, {}).get(dimension)
         if not dimension_metric:
             dimension_metric = cls.template_mapping.get(metric_name, {}).get("default")

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound

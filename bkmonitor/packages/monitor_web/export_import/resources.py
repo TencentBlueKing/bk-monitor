@@ -25,7 +25,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from api.grafana.exporter import DashboardExporter

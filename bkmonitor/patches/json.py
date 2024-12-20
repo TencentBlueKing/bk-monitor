@@ -9,15 +9,24 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from json import JSONEncoder
 from json import dump as json_dump
 from json import dumps as json_dumps
 from json import load as json_load
 from json import loads as json_loads
+from logging import getLogger
+
+from django.utils.functional import Promise
 
 try:
     from django.core.files import File
 except ImportError:
     File = None
+
+try:
+    from elasticsearch_dsl import AttrDict, AttrList
+except ImportError:
+    AttrList = AttrDict = None
 
 try:
     import ujson
@@ -27,18 +36,46 @@ else:
     __implements__ = ["load", "dump", "loads", "dumps"]
 
 
+logger = getLogger("bkmonitor")
+
+
 SAFE_OPTIONS = {
     "encode_html_chars",
     "ensure_ascii",
-    "double_precision",
     "escape_forward_slashes",
     "indent",
-    "precise_float",
 }
 
 
+class CustomJSONEncoder(JSONEncoder):
+
+    """
+    extended json encoder
+    enable to encode datetime, date, time, decimal, uuid
+    """
+
+    def default(self, obj):
+        type_ = type(obj)
+        if issubclass(type_, set):
+            return list(obj)
+        if issubclass(type_, bytes):
+            return obj.decode()
+        if AttrList and issubclass(type_, AttrList):
+            return list(obj)
+        if AttrDict and issubclass(type_, AttrDict):
+            return obj.to_dict()
+        if issubclass(type_, Promise):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
+
+
 def load(*args, **kwargs):
-    if SAFE_OPTIONS.issuperset(kwargs.keys()):
+    # 只允许通过位置参数传递文件对象，不支持关键字参数
+    if not args:
+        raise TypeError("load() missing 1 required positional argument")
+
+    # ujson的load方法不支持任何关键字参数
+    if not kwargs:
         try:
             return ujson.load(*args, **kwargs)
         except ValueError:
@@ -53,21 +90,32 @@ def dump(*args, **kwargs):
             return ujson.dump(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
+        except TypeError as e:
+            kwargs.pop("escape_forward_slashes")
+            logger.error("ujson dump error: %s" % e)
+            return json_dump(*args, cls=CustomJSONEncoder, **kwargs)
+
     return json_dump(*args, **kwargs)
 
 
 def loads(*args, **kwargs):
-    if SAFE_OPTIONS.issuperset(kwargs.keys()):
+    # 只允许通过位置参数传递字符串，不支持关键字参数
+    if not args:
+        raise TypeError("loads() missing 1 required positional argument")
+
+    # ujson的loads方法不支持任何关键字参数
+    if not kwargs:
         try:
-            kwargs.update({"precise_float": True})
             return ujson.loads(*args, **kwargs)
         except ValueError:
-            kwargs.pop("precise_float")
             pass
     return json_loads(*args, **kwargs)
 
 
 def dumps(*args, **kwargs):
+    if args and isinstance(args[0], set):
+        args = (list(args[0]),) + args[1:]
+
     # 当前文件为django的File对象时，不进行转换，避免segmentation fault错误
     if args and File and isinstance(args[0], File):
         return json_dumps(*args, **kwargs)
@@ -78,4 +126,8 @@ def dumps(*args, **kwargs):
             return ujson.dumps(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
+        except TypeError as e:
+            kwargs.pop("escape_forward_slashes")
+            logger.error("ujson dumps error: %s" % e)
+            return json_dumps(*args, cls=CustomJSONEncoder, **kwargs)
     return json_dumps(*args, **kwargs)

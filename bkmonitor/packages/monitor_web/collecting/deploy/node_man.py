@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from django.conf import settings
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.cmdb.define import TopoNode, TopoTree
 from constants.cmdb import TargetNodeType, TargetObjectType

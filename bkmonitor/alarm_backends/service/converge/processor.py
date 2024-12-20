@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_HALF_MINUTE, CONST_MINUTES, CONST_SECOND
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager

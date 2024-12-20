@@ -9,7 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
+
+from core.drf_resource.routers import ResourceRouter
 from fta_web.assign.views import (
     AssignGroupViewSet,
     AssignRuleViewSet,
@@ -17,12 +19,10 @@ from fta_web.assign.views import (
     RuleOperateViewSet,
 )
 
-from core.drf_resource.routers import ResourceRouter
-
 router = ResourceRouter()
 router.register(r"rule_groups", AssignGroupViewSet, basename="assign_group")
 router.register(r"rules", AssignRuleViewSet, basename="assign_rule")
 router.register(r"rule_operate", RuleOperateViewSet, basename="rule_operate")
 router.register(r"cmdb", CmdbObjectAttributeViewSet, basename="cmdb_object_attribute")
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [re_path(r"^", include(router.urls))]

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 from core.drf_resource.routers import ResourceRouter
 from healthz import views
@@ -19,6 +19,6 @@ router = ResourceRouter()
 router.register_module(views)
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
-    url(r"^(?P<cc_biz_id>\d+)/healthz/dashboard/$", views.index),
+    re_path(r"^", include(router.urls)),
+    re_path(r"^(?P<cc_biz_id>\d+)/healthz/dashboard/$", views.index),
 ]
