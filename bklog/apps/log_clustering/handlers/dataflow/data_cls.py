@@ -23,7 +23,7 @@ the project delivered to anyone in the future.
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 @dataclass
@@ -84,7 +84,7 @@ class StreamSourceNodeCls(object):
     id: int
     from_nodes: List[str] = field(default_factory=list)
     node_type: str = "stream_source"
-    frontend_info: FrontendInfoCls = FrontendInfoCls()
+    frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
@@ -223,7 +223,7 @@ class ModelTsCustomNodeCls(object):
     model_extra_config: Dict = field(default_factory=lambda: {"predict_args": []})
     scene_name: str = "custom"
     node_type: str = "model_ts_custom"
-    frontend_info: FrontendInfoCls = FrontendInfoCls()
+    frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
@@ -250,7 +250,7 @@ class RealTimeNodeCls(object):
     expired_time: Any = None
     correct_config_id: Any = None
     is_open_correct: bool = False
-    frontend_info: FrontendInfoCls = FrontendInfoCls()
+    frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
@@ -270,7 +270,7 @@ class TspiderStorageNodeCls(object):
     id: int
     from_nodes: List[FromNodesCls]
     node_type: str = "tspider_storage"
-    frontend_info: FrontendInfoCls = FrontendInfoCls()
+    frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
@@ -287,7 +287,7 @@ class QueueStorageNodeCls(object):
     id: int
     from_nodes: List[FromNodesCls]
     node_type: str = "queue_storage"
-    frontend_info: FrontendInfoCls = FrontendInfoCls()
+    frontend_info: FrontendInfoCls = field(default_factory=FrontendInfoCls)
 
 
 @dataclass
@@ -394,7 +394,7 @@ class AfterTreatDataFlowCls(object):
     queue_cluster: str
     bk_biz_id: int
     target_bk_biz_id: int
-    es: ElasticsearchCls = ElasticsearchCls()
+    es: ElasticsearchCls = field(default_factory=ElasticsearchCls)
     es_cluster: str = ""
     is_flink_env: bool = False
 
@@ -408,7 +408,7 @@ class PredictDataFlowCls(object):
     format_signature: RealTimeCls
     bk_biz_id: int
     is_flink_env: bool = False
-    es: ElasticsearchCls = ElasticsearchCls()
+    es: ElasticsearchCls = field(default_factory=ElasticsearchCls)
     es_cluster: str = ""
 
 

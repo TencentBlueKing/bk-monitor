@@ -21,17 +21,18 @@ the project delivered to anyone in the future.
 """
 import os
 
+from blueapps.contrib.celery_tools.periodic import periodic_task
+from celery.schedules import crontab
+from django.conf import settings
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from pipeline.exceptions import InvalidOperationException
+from pipeline.service import task_service
+
 from apps.log_extract import exceptions
 from apps.log_extract.constants import DownloadStatus, ExtractLinkType
 from apps.log_extract.models import Tasks
 from apps.utils.log import logger
-from celery.schedules import crontab
-from celery.task import periodic_task
-from django.conf import settings
-from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
-from pipeline.exceptions import InvalidOperationException
-from pipeline.service import task_service
 
 
 @periodic_task(run_every=crontab(minute="0", hour="2"))  # pylint: disable=function-name-too-long

@@ -20,11 +20,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
+
 from apps.feature_toggle.plugins.base import FeatureToggleBase, get_feature_toggle
 from apps.utils.function import ignored
 from apps.utils.log import logger
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 def feature_switch(featue):

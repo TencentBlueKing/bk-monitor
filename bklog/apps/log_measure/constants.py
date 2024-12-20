@@ -20,7 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.utils import ChoicesEnum
 from bk_monitor.constants import EVENT_TYPE, TIME_SERIES_TYPE

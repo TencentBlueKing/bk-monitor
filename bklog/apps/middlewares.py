@@ -42,7 +42,7 @@ from django.conf import settings
 from django.dispatch import Signal
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.exceptions import BaseException
 from apps.utils.log import logger

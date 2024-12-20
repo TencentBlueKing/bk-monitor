@@ -21,8 +21,9 @@ the project delivered to anyone in the future.
 """
 from datetime import datetime, timedelta
 
+from blueapps.contrib.celery_tools.periodic import periodic_task
+from blueapps.core.celery.celery import app
 from celery.schedules import crontab
-from celery.task import periodic_task, task
 
 from apps.exceptions import ApiResultError
 from apps.log_search.constants import BkDataErrorCode
@@ -73,7 +74,7 @@ def sync_mapping_snapshot_subtask(index_set_id=None):
         logger.info(f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id}) sync success")
 
 
-@task(ignore_result=True)
+@app.task(ignore_result=True)
 def sync_single_index_set_mapping_snapshot_periodic(index_set_id=None):  # pylint: disable=function-name-too-long
     sync_mapping_snapshot_subtask(index_set_id)
 

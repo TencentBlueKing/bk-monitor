@@ -23,7 +23,7 @@ import json
 import re
 
 import arrow
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
@@ -234,7 +234,7 @@ class ClusteringConfigHandler(object):
 
         now_time = arrow.now()
         self.data.task_records.append(
-            {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": now_time.timestamp}
+            {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": int(now_time.timestamp())}
         )
         self.data.save(update_fields=["task_records"])
         return pipeline.id

@@ -21,18 +21,19 @@ the project delivered to anyone in the future.
 """
 import socket
 
-from apps.log_esquery.exceptions import (
-    EsClientAuthenticatorException,
-    EsClientHostPortException,
-    EsClientSocketException,
-)
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch import Elasticsearch as Elasticsearch
 from elasticsearch import exceptions as ElasticsearchExceptions
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch5 import exceptions as Elasticsearch5Exceptions
 from elasticsearch6 import Elasticsearch as Elasticsearch6
 from elasticsearch6 import exceptions as Elasticsearch6Exceptions
+
+from apps.log_esquery.exceptions import (
+    EsClientAuthenticatorException,
+    EsClientHostPortException,
+    EsClientSocketException,
+)
 
 
 def get_es_client(

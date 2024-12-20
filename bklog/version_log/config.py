@@ -11,12 +11,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import re
 import os
+import re
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-
+from django.utils.translation import gettext_lazy as _
 
 __all__ = ("MD_FILES_DIR", "PARSED_HTML_FILES_DIR", "NAME_PATTERN", "LATEST_VERSION_INFORM", "ENTRANCE_URL")
 

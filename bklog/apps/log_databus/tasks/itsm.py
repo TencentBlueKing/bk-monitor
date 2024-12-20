@@ -19,8 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
-from celery.task import periodic_task
 
 from apps.log_databus.handlers.itsm import ItsmHandler
 

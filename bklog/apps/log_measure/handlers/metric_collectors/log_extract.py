@@ -20,18 +20,18 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
-
 from collections import defaultdict
-import arrow
 
-from django.utils.translation import ugettext as _
+import arrow
 from django.conf import settings
 from django.db.models import Count
-from apps.log_extract.models import Tasks, Strategies
+from django.utils.translation import gettext as _
+
+from apps.log_extract.models import Strategies, Tasks
 from apps.log_measure.constants import TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 
 
 class LogExtractMetricCollector(object):

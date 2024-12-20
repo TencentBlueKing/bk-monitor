@@ -21,6 +21,10 @@ the project delivered to anyone in the future.
 """
 import html
 
+from django.utils.translation import gettext as _
+from pipeline.component_framework.component import Component
+from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+
 from apps.log_extract import constants
 from apps.log_extract.constants import (
     BATCH_GET_JOB_INSTANCE_IP_LOG_IP_LIST_SIZE,
@@ -36,9 +40,6 @@ from apps.log_extract.utils.packing import (
 from apps.utils.db import array_chunk
 from apps.utils.log import logger
 from apps.utils.pipline import BaseService
-from django.utils.translation import ugettext as _
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
 
 class FilePackingService(BaseService):

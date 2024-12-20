@@ -19,8 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 
 class ErrorCode(object):
@@ -68,7 +68,7 @@ class BaseException(Exception):
             self.code = kwargs["code"]
 
         # 位置参数0是异常MESSAGE
-        self.message = force_text(self.MESSAGE) if len(args) == 0 else force_text(args[0])
+        self.message = force_str(self.MESSAGE) if len(args) == 0 else force_str(args[0])
 
         # 当异常有进一步处理时，需返回data
         self.data = data

@@ -186,8 +186,8 @@ class AggsHandlers(AggsBase):
         time_field, time_field_type, time_field_unit = SearchHandlerEsquery.init_time_field(index_set_id)
         # https://github.com/elastic/elasticsearch/issues/42270 非date类型不支持timezone, time format也无效
         if time_field_type == TimeFieldTypeEnum.DATE.value:
-            min_value = start_time.timestamp * 1000
-            max_value = end_time.timestamp * 1000
+            min_value = int(start_time.timestamp()) * 1000
+            max_value = int(end_time.timestamp()) * 1000
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
@@ -203,8 +203,8 @@ class AggsHandlers(AggsBase):
                 num = 1
             elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
                 num = 10**6
-            min_value = start_time.timestamp * num
-            max_value = end_time.timestamp * num
+            min_value = int(start_time.timestamp()) * num
+            max_value = int(end_time.timestamp()) * num
             date_histogram = A(
                 "date_histogram",
                 field=time_field,

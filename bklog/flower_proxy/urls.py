@@ -19,12 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url
-
+from django.urls import re_path
 
 try:
     from flower_proxy.views import FlowerProxy
 except ImportError:
     urlpatterns = ()
 else:
-    urlpatterns = (url(r"^(?P<path>.*)$", FlowerProxy.as_view()),)
+    urlpatterns = (re_path(r"^(?P<path>.*)$", FlowerProxy.as_view()),)

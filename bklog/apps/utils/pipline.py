@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import datetime
 import traceback
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow import StaticIntervalGenerator

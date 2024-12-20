@@ -31,7 +31,7 @@ import arrow
 import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 

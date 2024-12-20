@@ -22,8 +22,8 @@ the project delivered to anyone in the future.
 import base64
 
 from django.conf import settings
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as SlzValidationError
 
@@ -454,9 +454,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
     """
 
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
-    )
+    collector_config_name_en = serializers.RegexField(label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX)
     collector_scenario_id = serializers.ChoiceField(
         label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
     )
@@ -476,9 +474,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
 class UpdateContainerCollectorSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
-    )
+    collector_config_name_en = serializers.RegexField(label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -1454,9 +1450,9 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         keys = attrs.keys()
         if "storage_cluster_id" in keys:
             if "retention" not in keys:
-                raise serializers.ValidationError(ugettext("有效时间不能为空"))
+                raise serializers.ValidationError(gettext("有效时间不能为空"))
             if "allocation_min_days" not in keys:
-                raise serializers.ValidationError(ugettext("冷热数据生效时间不能为空"))
+                raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
         return attrs
 
 

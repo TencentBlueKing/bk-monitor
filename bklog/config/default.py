@@ -26,7 +26,7 @@ from bkcrypto import constants as bkcrypto_constants
 from blueapps.conf.default_settings import *  # noqa
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from config.log import get_logging_config_dict
 
@@ -843,11 +843,11 @@ PIPELINE_TASKS_EXPIRED_TIME = os.getenv("BKAPP_PIPELINE_TASKS_EXPIRED_TIME", 24)
 WINDOWS_ACCOUNT = os.getenv("BKAPP_WINDOWS_ACCOUNT", "system")
 
 # pipeline 配置
-from pipeline.celery.settings import CELERY_QUEUES as PIPELINE_CELERY_QUEUES
-from pipeline.celery.settings import CELERY_ROUTES as PIPELINE_CELERY_ROUTES
-
-CELERY_ROUTES = PIPELINE_CELERY_ROUTES
-CELERY_QUEUES = PIPELINE_CELERY_QUEUES
+# from pipeline.celery.settings import CELERY_QUEUES as PIPELINE_CELERY_QUEUES
+# from pipeline.celery.settings import CELERY_ROUTES as PIPELINE_CELERY_ROUTES
+#
+# CELERY_ROUTES = PIPELINE_CELERY_ROUTES
+# CELERY_QUEUES = PIPELINE_CELERY_QUEUES
 
 # ===============================================================================
 # databus
@@ -1276,3 +1276,27 @@ if locals().get("DISABLED_APPS"):
         if locals().get(_key) is None:
             continue
         locals()[_key] = tuple([_item for _item in locals()[_key] if not _item.startswith(_app + ".")])
+
+
+import pymysql
+from django.db.backends.mysql.features import DatabaseFeatures
+from django.utils.functional import cached_property
+
+
+# Django 4.2+ 不再官方支持 Mysql 5.7，但目前 Django 仅是对 5.7 做了软性的不兼容改动，
+# 在没有使用 8.0 特异的功能时，对 5.7 版本的使用无影响，为兼容存量的 Mysql 5.7 DB 做此 Patch
+class PatchFeatures:
+    """Patched Django Features"""
+
+    @cached_property
+    def minimum_database_version(self):
+        if self.connection.mysql_is_mariadb:  # type: ignore[attr-defined] # noqa
+            return 10, 4
+        return 5, 7
+
+
+DatabaseFeatures.minimum_database_version = PatchFeatures.minimum_database_version  # noqa
+
+
+# 让 Django 使用 pymysql 作为 MySQLdb 的替代品
+pymysql.install_as_MySQLdb()
