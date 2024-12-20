@@ -113,9 +113,11 @@ export default class FilterRule extends tsc<IProps> {
     this.localFilterRule = val;
   }
 
-  @Watch('localFilterRule', { deep: true })
+  @Watch('localFilterRule', { deep: true, immediate: true })
   handleFilterRuleChange(val) {
-    this.formData.filter_rules = val;
+    if (val.length) {
+      this.formData.filter_rules = val;
+    }
   }
 
   @Emit('field-change')

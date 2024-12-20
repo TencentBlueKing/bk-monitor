@@ -499,10 +499,12 @@ export default class HostTree extends tsc<IProps, IEvents> {
     };
     const res = fn(this.hostTreeData, this.curNode?.id);
     const data = res ? [res.id] : [];
-    if (this.bigTreeRef) {
-      this.bigTreeRef.setSelected(data[0]);
-      this.bigTreeRef.setExpanded(data);
-    }
+    this.$nextTick(() => {
+      if (this.bigTreeRef) {
+        this.bigTreeRef.setSelected(data[0]);
+        this.bigTreeRef.setExpanded(data);
+      }
+    });
     return data;
   }
 

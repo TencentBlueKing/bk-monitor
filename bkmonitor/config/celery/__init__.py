@@ -8,18 +8,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
-
-import dns.resolver
-
-logger = logging.getLogger(__name__)
-
-
-def resolve_domain(domain):
-    """解析域名得到IP列表"""
-    try:
-        resolve_items = dns.resolver.resolve(domain)
-    except Exception as e:
-        logger.warning("domain({}) dns resolve error: {}".format(domain, e))
-        resolve_items = []
-    return [item.address for item in resolve_items]

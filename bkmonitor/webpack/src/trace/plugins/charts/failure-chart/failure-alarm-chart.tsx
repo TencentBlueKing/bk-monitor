@@ -401,6 +401,7 @@ export default defineComponent({
         height={220}
         chart-type={this.chart.chartType}
         curBizId={this.$props.detail?.bk_biz_id}
+        detail={this.$props.detail}
         empty-text={this.errorMsg?.length ? this.t('查询数据错误') : this.t('无数据')}
         errorMsg={this.errorMsg}
         getSeriesData={this.handleGetSeriesData}

@@ -12,12 +12,17 @@ __implements__ = ["RedBeatSchedulerEntry"]
 
 from celery.app import app_or_default
 from celery.utils.log import get_logger
-from redbeat.schedulers import RedBeatJSONEncoder, RedBeatScheduler, RetryingConnection
-from redbeat.schedulers import RedBeatSchedulerEntry as _RedBeatSchedulerEntry
-from redbeat.schedulers import ScheduleEntry, ensure_conf, get_redis, json, zadd
-from redis.client import StrictRedis
-
 from redbeat import schedulers
+from redbeat.schedulers import RedBeatJSONEncoder, RedBeatScheduler
+from redbeat.schedulers import RedBeatSchedulerEntry as _RedBeatSchedulerEntry
+from redbeat.schedulers import (
+    RetryingConnection,
+    ScheduleEntry,
+    ensure_conf,
+    get_redis,
+    json,
+)
+from redis.client import StrictRedis
 
 
 class RedBeatSchedulerEntry(_RedBeatSchedulerEntry):
@@ -61,7 +66,7 @@ class RedBeatSchedulerEntry(_RedBeatSchedulerEntry):
 
         with get_redis(self.app).pipeline() as pipe:
             pipe.hset(self.key, "meta", json.dumps(meta, cls=RedBeatJSONEncoder))
-            zadd(pipe, self.app.redbeat_conf.schedule_key, {entry.key: entry.score})
+            pipe.zadd(self.app.redbeat_conf.schedule_key, {entry.key: entry.score})
             pipe.execute()
 
         return entry
