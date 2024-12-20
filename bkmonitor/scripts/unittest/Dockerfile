@@ -35,7 +35,7 @@ RUN set -ex && mkdir ~/.pip && printf '[global]\nindex-url = https://mirrors.ten
 RUN set -ex &&  \
     apt-get update && \
     apt-get -f install && \
-    apt-get install -y --no-install-recommends zlib1g-dev libgnutls28-dev libtinfo6 libmariadb-dev libmariadb-dev-compat libncurses6 && \
+    # apt-get install -y --no-install-recommends zlib1g-dev libgnutls28-dev libtinfo6 libmariadb-dev libmariadb-dev-compat libncurses6 && \
     apt-get install -y --no-install-recommends \
         gcc gettext mariadb-client libmariadbclient-dev default-libmysqlclient-dev && \
     rm -rf /var/lib/apt/lists/*
