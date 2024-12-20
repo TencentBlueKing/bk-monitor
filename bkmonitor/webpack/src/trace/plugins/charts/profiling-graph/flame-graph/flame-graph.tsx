@@ -116,6 +116,10 @@ export default defineComponent({
       type: Number,
       default: -1,
     },
+    highlightName: {
+      type: String,
+      default: '',
+    },
     isCompared: {
       type: Boolean,
       default: false,
@@ -125,7 +129,7 @@ export default defineComponent({
       default: 'nanoseconds',
     },
   },
-  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
+  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId', 'updateHighlightName'],
   setup(props, { emit, expose }) {
     const { t } = useI18n();
     const chartRef = ref<HTMLElement>(null);
@@ -354,6 +358,12 @@ export default defineComponent({
         graphInstance?.highlightNodeId(props.highlightId);
       }
     );
+    watch(
+      () => props.highlightName,
+      () => {
+        graphInstance?.highlightNode(props.highlightName);
+      }
+    );
 
     onBeforeUnmount(() => {
       wrapperRef.value && removeListener(wrapperRef.value!, handleResize);
@@ -420,7 +430,7 @@ export default defineComponent({
       }
       if (item.id === 'highlight') {
         graphInstance.highlightNode(contextMenuRect.value.spanName);
-        emit('updateHighlightId', contextMenuRect.value.spanId);
+        emit('updateHighlightName', contextMenuRect.value.spanName);
       }
     }
     /**

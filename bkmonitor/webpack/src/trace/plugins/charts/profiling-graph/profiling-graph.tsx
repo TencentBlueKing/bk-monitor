@@ -83,6 +83,7 @@ export default defineComponent({
     });
     const unit = ref<ProfileDataUnit>('nanoseconds');
     const highlightId = ref(-1);
+    const highlightName = ref('');
     const filterKeyword = ref('');
     const topoSrc = ref('');
 
@@ -317,6 +318,7 @@ export default defineComponent({
       handleModeChange,
       handleTextDirectionChange,
       highlightId,
+      highlightName,
       filterKeyword,
       flameFilterKeywords,
       handleSortChange,
@@ -360,13 +362,13 @@ export default defineComponent({
                 data={this.tableData}
                 dataType={this.queryParams.data_type}
                 filterKeyword={this.filterKeyword}
-                highlightId={this.highlightId}
+                highlightName={this.highlightName}
                 isCompared={this.isCompared}
                 textDirection={this.textDirection}
                 unit={this.unit}
                 onSortChange={this.handleSortChange}
-                onUpdateHighlightId={id => {
-                  this.highlightId = id;
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
                 }}
               />
             )}
@@ -380,12 +382,16 @@ export default defineComponent({
                 data={this.flameData}
                 filterKeywords={this.flameFilterKeywords}
                 highlightId={this.highlightId}
+                highlightName={this.highlightName}
                 isCompared={this.isCompared}
                 showGraphTools={false}
                 textDirection={this.textDirection}
                 unit={this.unit}
                 onUpdateHighlightId={id => {
                   this.highlightId = id;
+                }}
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
                 }}
               />
             )}

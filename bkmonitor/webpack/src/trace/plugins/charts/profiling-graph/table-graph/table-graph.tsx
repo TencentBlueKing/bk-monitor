@@ -75,6 +75,10 @@ export default defineComponent({
       type: Number,
       default: -1,
     },
+    highlightName: {
+      type: String,
+      default: '',
+    },
     filterKeyword: {
       type: String,
       default: '',
@@ -90,7 +94,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['updateHighlightId', 'sortChange'],
+  emits: ['sortChange', 'updateHighlightName'],
   setup(props, { emit }) {
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
@@ -242,12 +246,12 @@ export default defineComponent({
     function handleRowMouseout() {
       tipDetail.value = {};
     }
-    function handleHighlightClick(id) {
-      let hightlightId = -1;
-      if (props.highlightId !== id) {
-        hightlightId = id;
+    function handleHighlightClick(name) {
+      let hightlightName = '';
+      if (props.highlightName !== name) {
+        hightlightName = name;
       }
-      return emit('updateHighlightId', hightlightId);
+      return emit('updateHighlightName', hightlightName);
     }
     function isInViewport(element: Element) {
       const rect = element.getBoundingClientRect();
@@ -346,8 +350,8 @@ export default defineComponent({
                 {this.renderTableData.map(row => (
                   <tr
                     key={row.id}
-                    class={row.id === this.highlightId ? 'hightlight' : ''}
-                    onClick={() => this.handleHighlightClick(row.id)}
+                    class={row.name === this.highlightName ? 'hightlight' : ''}
+                    onClick={() => this.handleHighlightClick(row.name)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
                     onMouseout={() => this.handleRowMouseout()}
                   >
