@@ -19,11 +19,12 @@ from django.db.models import Count
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models.strategy import StrategyModel, ItemModel, AlgorithmModel, QueryConfigModel, DetectModel
+from bkmonitor.models.strategy import StrategyModel, ItemModel, DetectModel, AlgorithmModel, UserGroup, QueryConfigModel
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.models import CollectorPluginMeta
 from constants.strategy import TargetFieldType
+from bkmonitor.models.fta.action import StrategyActionConfigRelation
 
 target_biz_list = list(
     map(
@@ -39,6 +40,9 @@ target_biz_list = list(
         ],
     )
 )
+
+# 是否开启预览
+enable_preview = True
 
 
 class Command(BaseCommand):
@@ -379,3 +383,73 @@ def parse_target_dimension_strategy():
     print("业务id， 策略id， 策略名称，目标类型， 配置的维度列表")
     for strategy in strategies:
         print(strategy.bk_biz_id, strategy.id, strategy.name, stra_target_type_map[strategy.id], [])
+
+
+def parse_usergroup_not_under_business(preview: bool = None):
+    """
+    排查关联的但是不在当前业务下的策略及告警组信息
+    打印的信息：
+    策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典(key为告警组名称，value是同名的告警组id列表)
+
+    example:
+    >> parse_usergroup_not_under_business(preview=True)
+    >> 1263,test_stragety_11,2,[518 519],[6],{'test_user_group_1': [513, 508], 'test_user_group_2': [514, 509]}
+
+    :param preview: 是否开启预览模式，开启预览模式，不替换数据，只打印信息
+    :return:
+    """
+    # 未指定参数，则使用全局配置的enable_preview值
+    preview = enable_preview if preview is None else preview
+    if preview:
+        print("策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
+    else:
+        # 不开启预览，将原关联的告警组ID和对应的业务ID，替换为当前业务下具有相同名称的告警组id，和当前业务id
+        print("策略id，策略名称，业务id，相同名称的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
+
+    for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id'):
+        try:
+            # 获取关联的告警组ID
+            user_group_ids = StrategyActionConfigRelation.objects.filter(
+                strategy_id=strategy_id).values_list('user_groups', flat=True)[0]
+        except IndexError:
+            continue
+
+        bk_biz_ids = set()  # 关联的告警组对应的业务id集合
+        other_business_group_names = set()  # 非当前业务下的告警组名称集合
+
+        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("bk_biz_id", "name")
+        for item in user_groups:
+            bk_biz_ids.add(item["bk_biz_id"])
+
+            # 不是当前业务下的告警组，则进行保存记录
+            if bk_biz_id != item["bk_biz_id"]:
+                other_business_group_names.add(item["name"])
+
+        # 不存在非当前业务下的告警组，则跳过
+        if not other_business_group_names:
+            continue
+
+        # 具有相同名称的告警组字典，key为告警组名称，value为告警组id集合
+        same_name_groups_map = {}
+
+        # 一个策略可以关联多个告警组，所以对每个名称进行查询
+        for group_name in other_business_group_names:
+            # 告警组名称已存在，则跳过
+            if group_name in same_name_groups_map:
+                continue
+            # 获取到当前业务下，相同名称的告警组
+            same_name_groups_ids = UserGroup.objects.filter(name=group_name, bk_biz_id=bk_biz_id).values_list("id",
+                                                                                                              flat=True)
+            same_name_groups_map[group_name] = list(same_name_groups_ids)
+
+        if preview:
+            user_group_ids = " ".join(map(str, user_group_ids))
+            print(
+                f"{strategy_id},{strategy_name},{bk_biz_id},[{user_group_ids}],"
+                f"[{' '.join(map(str, bk_biz_ids))}],{same_name_groups_map}")
+        else:
+            # 不开启预览，将原关联的告警组ID和对应的业务ID，替换为当前业务下具有相同名称的告警组id，和当前业务id
+            ids_to_same_name = [str(_id) for ids in same_name_groups_map.values() for _id in ids]
+            ids_to_same_name = " ".join(ids_to_same_name)
+            print(
+                f"{strategy_id},{strategy_name},{bk_biz_id},[{ids_to_same_name}] [{bk_biz_id}],{same_name_groups_map}")
