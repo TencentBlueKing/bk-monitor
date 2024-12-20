@@ -318,20 +318,6 @@ class DaemonTaskHandler:
             logger.info(f"[RELOAD] dataId: {data_id} app: ({app.bk_biz_id}){app.app_name} reload success")
 
     @classmethod
-    def upsert_tasks(cls, application_id, data_id, queue, body):
-        daemon_tasks = api.bmw.list_task(task_type="daemon")
-
-        exist_task = next(
-            (i for i in daemon_tasks if str(i.get("payload", {}).get("data_id", "")) == str(data_id)), None
-        )
-        if exist_task:
-            logger.info(f"[UpsertTasks] dataId: {data_id} 存在 执行更新操作")
-            cls.reload(exist_task["uni_id"], body)
-        else:
-            logger.info(f"[UpsertTasks] dataId: {data_id} 不存在 执行创建操作")
-            cls.execute(application_id, queue=queue, body=body)
-
-    @classmethod
     def list_rebalance_info(cls, queues):
         have_data_apps = []
         exclude_apps = []
