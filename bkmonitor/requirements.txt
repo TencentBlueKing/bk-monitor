@@ -22,7 +22,7 @@ django-rest-framework-condition==0.1.1
 django-filter==2.4.0
 drf-yasg==1.21.5
 django-cors-headers==3.2.1
-django-jinja==2.7.1
+django-jinja==2.11.0
 django-versionlog==1.6.0
 django-bulk-update==2.2.0
 
