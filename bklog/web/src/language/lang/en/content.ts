@@ -1002,4 +1002,10 @@ export default {
   常用过滤字段: 'Common Filter Fields',
   自动清空条件: 'Automatic Clearing Conditions',
   不清空: 'Not Clear',
+  常用查询设置: 'Common query settings',
+  '=': '=',
+  '!=': '!=',
+  复制当前查询: 'Copy the current query',
+  清理当前查询: 'Clean up the current query',
+  收藏当前查询: 'Add current query to favorites',
 };

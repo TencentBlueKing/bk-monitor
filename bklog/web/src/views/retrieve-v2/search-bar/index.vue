@@ -18,7 +18,7 @@
   import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import SettingPop from './setting-pop.vue';
+  import CommonFilterSettingPop from './common-filter-setting-pop.vue';
   import { bkMessage } from 'bk-magic-vue';
   import CommonFilterSelect from './common-filter-select.vue';
 
@@ -344,18 +344,18 @@
         ></SqlQuery>
         <div class="search-tool items">
           <div
-            v-bk-tooltips="'复制当前查询'"
+            v-bk-tooltips="$t('复制当前查询')"
             :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
-            v-bk-tooltips="'清理当前查询'"
+            v-bk-tooltips="$t('清理当前查询')"
             :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
             @click.stop="handleClearBtnClick"
           ></div>
           <BookmarkPop
             v-if="!props.activeFavorite"
-            v-bk-tooltips="'收藏当前查询'"
+            v-bk-tooltips="$t('收藏当前查询')"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :search-mode="queryParams[activeIndex]"
@@ -366,23 +366,23 @@
             <div
               v-if="matchSQLStr"
               class="bklog-icon bklog-star-line disabled"
-              v-bk-tooltips="'已收藏'"
+              v-bk-tooltips="$t('已收藏')"
               :data-boolean="matchSQLStr"
             ></div>
             <div
               v-else
               style="color: #63656e"
-              v-bk-tooltips="'收藏'"
+              v-bk-tooltips="$t('收藏')"
               class="icon bk-icon icon-save"
               @click="saveCurrentActiveFavorite"
             ></div>
           </template>
-          <SettingPop
-            v-bk-tooltips="'查询设置'"
+          <CommonFilterSettingPop
+            v-bk-tooltips="$t('常用查询设置')"
             :class="{ disabled: isInputLoading }"
             :filterList="uiQueryValue"
           >
-          </SettingPop>
+          </CommonFilterSettingPop>
         </div>
         <div
           class="search-tool search-btn"
