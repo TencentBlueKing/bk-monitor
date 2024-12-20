@@ -39,6 +39,8 @@
   import GraphAnalysis from './search-result-panel/graph-analysis';
 
   import SubBar from './sub-bar/index.vue';
+  import { bus } from '@/common/bus';
+
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -90,6 +92,7 @@
         setDefaultIndexsetId();
         store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
+          bus.$emit('requestIndexSetFieldInfoDone');
         });
       });
     });
