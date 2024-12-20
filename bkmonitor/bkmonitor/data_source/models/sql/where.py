@@ -13,7 +13,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.sql import AND
 from django.utils import tree
 
-from bkmonitor.data_source.backends.time_series.compiler import escape_sql_field_name
+from bkmonitor.data_source.backends.time_series import escape_sql_field_name
 from bkmonitor.data_source.models.lookups import get_lookup_class
 
 
