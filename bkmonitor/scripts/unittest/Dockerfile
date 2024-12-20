@@ -34,7 +34,7 @@ RUN set -ex && mkdir ~/.pip && printf '[global]\nindex-url = https://mirrors.ten
 # Do all of this in one RUN to limit final image size.
 RUN set -ex &&  \
     apt-get update && \
-    apt-get install -y --no-install-recommends libmariadb-dev-compat libncurses6 && \
+    apt-get install -y --no-install-recommends libtinfo6 libmariadb-dev libmariadb-dev-compat libncurses6 && \
     apt-get install -y --no-install-recommends \
         gcc gettext mariadb-client libmariadbclient-dev default-libmysqlclient-dev && \
     rm -rf /var/lib/apt/lists/*
