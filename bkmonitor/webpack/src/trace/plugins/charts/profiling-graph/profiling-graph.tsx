@@ -35,6 +35,7 @@ import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monito
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
+import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
@@ -163,6 +164,8 @@ export default defineComponent({
         }),
       })
         .then(data => {
+          // 为数据节点及其子节点分配唯一 ID
+          data.flame_data?.children && assignUniqueIds(data.flame_data.children);
           if (isObject(data) && Object.keys(data)?.length) {
             unit.value = data.unit || '';
             if (activeMode.value === ViewModeType.Combine) {
