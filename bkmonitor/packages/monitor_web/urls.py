@@ -44,4 +44,5 @@ urlpatterns = [
     url(r"^", include("monitor_web.datalink.urls")),
     url(r"^", include("monitor_web.new_report.urls")),
     url(r"^", include("monitor_web.incident.urls")),
+    url(r"^k8s/", include("monitor_web.k8s.urls")),
 ]

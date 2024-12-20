@@ -33,7 +33,7 @@ import type { IOption } from '../../pages/monitor-k8s/typings';
 import './custom-select.scss';
 
 export interface ICustomSelectProps {
-  value?: string | string[];
+  value?: (number | string)[] | number | string;
   multiple?: boolean;
   options?: IOption[];
   searchable?: boolean;
@@ -46,7 +46,7 @@ export interface ICustomSelectEvents {
  */
 @Component
 export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectEvents> {
-  @Model('emitValue') value: string | string[];
+  @Model('emitValue') value: (number | string)[] | number | string;
   @Prop({ default: () => [], type: Array }) options: IOption[];
   @Ref() bkSelectRef: any;
   // 是否只读模式
@@ -91,6 +91,14 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
     this.bkSelectRef.show();
     this.isShow = true;
     this.handleShowChange(true);
+  }
+  /**
+   * @description: 隐藏下拉弹层
+   */
+  handleHideDropDown() {
+    this.bkSelectRef.handleClose();
+    this.isShow = false;
+    this.handleShowChange(false);
   }
 
   render() {

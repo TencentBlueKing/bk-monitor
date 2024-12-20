@@ -841,3 +841,28 @@ export const deduplicateByField = (arr, field = 'id') => {
   // 从 map 的 values 中生成去重后的数组
   return Array.from(map.values());
 };
+
+// 将时间字符串转换为秒
+export const convertToSeconds = (timeString: string): number => {
+  // 定义不同时间单位对应的秒数
+  const timeUnits: { [key: string]: number } = {
+    s: 1, // 秒
+    m: 60, // 分钟
+    h: 3600, // 小时
+    d: 86400, // 天
+  };
+
+  // 使用正则表达式解析输入字符串
+  const regex = /^(\d+)([smhd])$/;
+  const match = timeString.match(regex);
+
+  if (!match) {
+    return 60;
+  }
+
+  const value = Number.parseInt(match[1], 10);
+  const unit = match[2];
+
+  // 计算并返回总秒数
+  return value * timeUnits[unit];
+};

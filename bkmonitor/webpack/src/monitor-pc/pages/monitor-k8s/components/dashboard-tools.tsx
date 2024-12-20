@@ -44,13 +44,13 @@ import './dashboard-tools.scss';
 // Vue.use(DropdownMenu);
 interface ITimeRangeItem {
   // 数据间隔别名 如 1h 1d
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   // 间隔值 如 60 * 60 * 1000 = 1h
   value: number | string;
 }
 export interface IRefleshItem {
   // 刷新间隔名称
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   // 自动刷新间隔值
   id: number | string;
 }
@@ -77,6 +77,7 @@ interface IHeadToolProps {
   // 是否显示粒度
   showDownSampleRange?: boolean;
   showInterval?: boolean;
+  showFullscreen?: boolean;
 }
 
 interface IHeadToolEvent {
@@ -123,6 +124,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   // 是否显粒度
   @Prop({ default: false }) showDownSampleRange: boolean;
   @Prop({ default: false }) showInterval: boolean;
+  @Prop({ default: true }) showFullscreen: boolean;
 
   timeRangeList: ITimeRangeItem[] = [];
   refleshList: IRefleshItem[] = [];
@@ -448,11 +450,14 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
               onClick={this.handleSplitPanel}
             />
           )}
-          <i
-            class={`icon-monitor ${this.isFullscreen ? 'icon-mc-unfull-screen icon-active' : 'icon-mc-full-screen'}`}
-            v-bk-tooltips={{ content: this.$t('全屏 ctrl + m'), delay: 200, boundary: 'window', placement: 'bottom' }}
-            onClick={this.handleFullScreen}
-          />
+          {this.showFullscreen && (
+            <i
+              class={`icon-monitor ${this.isFullscreen ? 'icon-mc-unfull-screen icon-active' : 'icon-mc-full-screen'}`}
+              v-bk-tooltips={{ content: this.$t('全屏 ctrl + m'), delay: 200, boundary: 'window', placement: 'bottom' }}
+              onClick={this.handleFullScreen}
+            />
+          )}
+
           {this.$slots.default}
           {this.showListMenu && !!this.menuList?.length && (
             <ListMenu

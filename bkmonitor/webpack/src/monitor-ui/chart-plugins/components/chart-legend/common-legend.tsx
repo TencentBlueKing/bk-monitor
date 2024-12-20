@@ -34,6 +34,7 @@ interface ILegendProps {
   // 图例数据
   legendData: ILegendItem[];
   alignCenter?: boolean;
+  preventEvent?: boolean;
 }
 interface ILegendEvent {
   // 点击图例事件
@@ -46,6 +47,8 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
   @Prop({ required: true }) readonly legendData: ILegendItem[];
   /* 图例数据居中显示 */
   @Prop({ type: Boolean, default: false }) alignCenter: boolean;
+  // 阻止事件冒泡
+  @Prop({ type: Boolean, default: false }) preventEvent: boolean;
 
   mouseEvent = {
     isMouseDown: false,
@@ -83,9 +86,9 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
             <div
               key={index}
               class='common-legend-item'
-              onClick={e => this.handleLegendEvent(e, 'click', legend)}
-              onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
-              onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
+              onClick={e => !this.preventEvent && this.handleLegendEvent(e, 'click', legend)}
+              onMouseenter={e => !this.preventEvent && this.handleLegendEvent(e, 'highlight', legend)}
+              onMouseleave={e => !this.preventEvent && this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
