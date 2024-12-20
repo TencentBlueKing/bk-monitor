@@ -26,7 +26,7 @@
   const pageLoading = computed(
     () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
   );
-  const isTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE_LOG__);
+  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE_LOG__);
 
   const totalCount = ref(0);
   const queueStatus = ref(false);
@@ -64,7 +64,7 @@
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
       <FieldFilter
-        v-if="!isTraceLog"
+        v-if="!isMonitorTraceLog"
         v-model="isShowFieldStatistics"
         v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
         v-log-drag="{
@@ -94,7 +94,7 @@
         ]"
       >
         <SearchResultChart
-          v-if="!isTraceLog"
+          v-if="!isMonitorTraceLog"
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"

@@ -171,7 +171,7 @@
     const resolver = new RetrieveUrlResolver({
       ...routeQueryParams.value,
       indexId: params.indexId,
-      bizId: String(window.bk_biz_id),
+      // bizId: String(window.bk_biz_id),
       datePickerValue: store.state.indexItem.datePickerValue,
     });
     Object.assign(query, resolver.resolveParamsToUrl());

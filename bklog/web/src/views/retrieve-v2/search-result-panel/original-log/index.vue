@@ -95,7 +95,7 @@
       <div class="tools-more">
         <div class="operation-icons">
           <export-log
-            v-if="!isMonitorApm"
+            v-if="!isMonitorApm && !isMonitorTraceLog"
             :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -105,6 +105,7 @@
           >
           </export-log>
           <bk-popover
+            v-if="!isMonitorTraceLog"
             ref="fieldsSettingPopper"
             :distance="15"
             :offset="0"
@@ -236,6 +237,9 @@
       },
       isMonitorApm() {
         return window.__IS_MONITOR_APM__;
+      },
+      isMonitorTraceLog() {
+        return window?.__IS_MONITOR_TRACE_LOG__;
       }
     },
     watch: {

@@ -3,8 +3,8 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -13,12 +13,12 @@
   // #endif
 
   import { ConditionOperator } from '@/store/condition-operator';
+  import { bkMessage } from 'bk-magic-vue';
 
   import $http from '../../../api';
   import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import { bkMessage } from 'bk-magic-vue';
 
   const props = defineProps({
     activeFavorite: {
@@ -69,6 +69,8 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
+  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE_LOG__);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -339,7 +341,7 @@
         @height-change="handleHeightChange"
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
-      <div class="search-tool items">
+      <div :class="['search-tool items', { 'is-monitor-trace-log': isMonitorTraceLog }]">
         <div
           v-bk-tooltips="'复制当前查询'"
           :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
@@ -350,31 +352,32 @@
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
           @click.stop="handleClearBtnClick"
         ></div>
-        <BookmarkPop
-          v-if="!props.activeFavorite"
-          v-bk-tooltips="'收藏当前查询'"
-          :addition="uiQueryValue"
-          :class="{ disabled: isInputLoading }"
-          :search-mode="queryParams[activeIndex]"
-          :sql="sqlQueryValue"
-          @refresh="handleRefresh"
-        ></BookmarkPop>
-        <template v-else>
-          <div
-            v-if="matchSQLStr"
-            class="bklog-icon bklog-star-line disabled"
-            v-bk-tooltips="'已收藏'"
-            :data-boolean="matchSQLStr"
-          ></div>
-          <div
-            v-else
-            style="color: #63656e"
-            v-bk-tooltips="'收藏'"
-            class="icon bk-icon icon-save"
-            @click="saveCurrentActiveFavorite"
-          ></div>
+        <template v-if="!isMonitorTraceLog">
+          <BookmarkPop
+            v-if="!props.activeFavorite"
+            v-bk-tooltips="'收藏当前查询'"
+            :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }"
+            :search-mode="queryParams[activeIndex]"
+            :sql="sqlQueryValue"
+            @refresh="handleRefresh"
+          ></BookmarkPop>
+          <template v-else>
+            <div
+              v-if="matchSQLStr"
+              class="bklog-icon bklog-star-line disabled"
+              v-bk-tooltips="'已收藏'"
+              :data-boolean="matchSQLStr"
+            ></div>
+            <div
+              v-else
+              style="color: #63656e"
+              class="icon bk-icon icon-save"
+              v-bk-tooltips="'收藏'"
+              @click="saveCurrentActiveFavorite"
+            ></div>
+          </template>
         </template>
-
         <!-- <span class="disabled bklog-icon bklog-set-icon"></span> -->
       </div>
       <div

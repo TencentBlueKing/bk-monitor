@@ -102,6 +102,10 @@
         }
       }
 
+      &.is-monitor-trace-log {
+        justify-content: end;
+      }
+
       &.search-btn {
         right: 0;
         bottom: 0;

@@ -33,6 +33,7 @@ declare global {
     BK_SHARED_RES_URL: string;
     VERSION: string;
     __IS_MONITOR_APM__?: boolean;
+    __IS_MONITOR_TRACE_LOG__?: boolean;
   }
 }
 

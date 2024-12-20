@@ -381,11 +381,11 @@ export default class SelectIndexSet extends tsc<object> {
       sort_list: [],
     };
     if (payload.items.length === 1 && !payload.addition.length && !payload.keyword) {
-      if (payload.items[0].query_string) {
+      if (payload.items[0]?.query_string) {
         payload.keyword = payload.items[0].query_string;
         payload.search_mode = 'sql';
         payload.addition = [];
-      } else if (payload.items[0].addition) {
+      } else if (payload.items[0]?.addition) {
         payload.addition = payload.items[0].addition;
         payload.search_mode = 'ui';
         payload.keyword = '';
@@ -846,16 +846,18 @@ export default class SelectIndexSet extends tsc<object> {
           class={['label-filter', { 'not-label': !this.labelSelectList.length }]}
           v-en-class='en-label-btn'
         >
-          <div class='select-type-btn'>
-            {this.typeBtnSelectList.map(item => (
-              <div
-                class={{ active: this.indexSearchType === item.id }}
-                onClick={() => this.handleClickSetType(item.id as IndexSetType)}
-              >
-                {item.label}
-              </div>
-            ))}
-          </div>
+          {!window?.__IS_MONITOR_TRACE_LOG__ && (
+            <div class='select-type-btn'>
+              {this.typeBtnSelectList.map(item => (
+                <div
+                  class={{ active: this.indexSearchType === item.id }}
+                  onClick={() => this.handleClickSetType(item.id as IndexSetType)}
+                >
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          )}
           {!!this.labelSelectList.length && (
             <div class='label-tag-container'>
               <div
@@ -1011,7 +1013,7 @@ export default class SelectIndexSet extends tsc<object> {
       );
     };
     const favoriteAndHistory = () => {
-      if (window.__IS_MONITOR_APM__) return null;
+      if (window?.__IS_MONITOR_APM__ || window?.__IS_MONITOR_TRACE_LOG__) return null;
       return (
         <div class='favorite-and-history'>
           <bk-tab
