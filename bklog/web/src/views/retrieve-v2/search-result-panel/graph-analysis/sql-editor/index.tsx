@@ -251,7 +251,6 @@ export default defineComponent({
         </div>
       );
     };
-
     const handleUpdateIsContentShow = val => {
       isPreviewSqlShow.value = val;
     };

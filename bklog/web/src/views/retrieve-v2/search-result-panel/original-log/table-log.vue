@@ -114,11 +114,11 @@
     <retrieve-loader
       v-if="isPageOver || isContentLoading"
       class="bklog-skeleton-loading"
+      :is-loading="false"
       :is-page-over="isPageOver || isContentLoading"
-      :visible-fields="[]"
-      :maxLength="36"
+      :max-length="36"
       :static="true"
-      :isLoading="false"
+      :visible-fields="[]"
     >
     </retrieve-loader>
   </div>
@@ -126,13 +126,14 @@
 
 <script>
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-  import { mapState } from 'vuex';
   import RetrieveLoader from '@/skeleton/retrieve-loader';
+  import { mapState } from 'vuex';
+
+  import { bigNumberToString } from '../../../../common/util';
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import OriginalList from './original-list';
   import TableList from './table-list';
-  import { bigNumberToString } from '../../../../common/util';
 
   export default {
     components: {

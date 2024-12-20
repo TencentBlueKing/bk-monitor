@@ -26,14 +26,7 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import {
-  formatDate,
-  random,
-  copyMessage,
-  setDefaultTableWidth,
-  TABLE_LOG_FIELDS_SORT_REGULAR,
-  formatDateNanos,
-} from '@/common/util';
+import { formatDate, random, copyMessage, TABLE_LOG_FIELDS_SORT_REGULAR, formatDateNanos } from '@/common/util';
 import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
@@ -194,6 +187,8 @@ export default {
       if (this.isUnionSearch && this.isShowSourceField) {
         sortFieldsList.unshift(this.logSourceField);
       }
+
+      this.$store.commit('updateVisibleFieldMinWidth', this.tableList, sortFieldsList);
       setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
     },

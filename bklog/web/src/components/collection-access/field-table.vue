@@ -1011,6 +1011,9 @@
         if(!row.query_alias){
           this.$set(row, 'btnShow', btnShow);
         }
+        if(!row.query_alias){
+          this.$set(row, 'btnShow', btnShow);
+        }
         row.fieldErr = result;
         this.$set(row, 'fieldAliasErr', aliasResult);
         this.$emit('handle-table-data', this.changeTableList);

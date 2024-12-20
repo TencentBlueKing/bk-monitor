@@ -277,6 +277,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.fieldType = 'any';
     this.isShowAllBuiltIn = false;
     this.isShowAllIndexSet = false;
+    this.initFieldData()
   }
 
   @Watch('visibleFields', { immediate: true, deep: true })
@@ -287,6 +288,7 @@ export default class FieldFilterComp extends tsc<object> {
   mounted() {
     window.addEventListener('resize', this.updateContainerHeight);
     this.updateContainerHeight();
+    this.initFieldData()
   }
 
   beforeDestroy() {
