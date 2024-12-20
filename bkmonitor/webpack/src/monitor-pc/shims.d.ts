@@ -147,7 +147,7 @@ declare global {
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
   }
   interface HTMLElement {
-    ___zrEVENTSAVED?: Record<string, any>; // Echarts zrender instance
+    ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

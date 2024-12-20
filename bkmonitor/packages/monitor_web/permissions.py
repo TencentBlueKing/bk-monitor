@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import permissions
 
-from bkmonitor.iam import Permission, ActionEnum
+from bkmonitor.iam import ActionEnum, Permission
 
 
 class SuperuserWritePermission(permissions.BasePermission):

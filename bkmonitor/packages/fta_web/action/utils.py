@@ -11,12 +11,12 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
-from jinja2 import Template, DebugUndefined
+from django.utils.translation import gettext as _
+from jinja2 import DebugUndefined, Template
 
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.template import AlarmNoticeTemplate
-from constants.action import ConvergeType, DEFAULT_TEMPLATE, NoticeWay
+from constants.action import DEFAULT_TEMPLATE, ConvergeType, NoticeWay
 from fta_web.action.constant import BK_PLUGIN_INITIAL_TEMPLATE
 
 

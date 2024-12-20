@@ -13,7 +13,8 @@ import abc
 from typing import List
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
+from iam import Resource
 
 from bk_dataview.api import get_org_by_id
 from bk_dataview.models import Dashboard
@@ -21,7 +22,6 @@ from bkm_space.utils import api as space_api
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from core.drf_resource import api
 from core.errors.iam import ResourceNotExistError
-from iam import Resource
 
 
 class ResourceMeta(metaclass=abc.ABCMeta):

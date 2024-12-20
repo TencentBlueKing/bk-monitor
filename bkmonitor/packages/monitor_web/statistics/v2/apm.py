@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
+from typing import Dict, List
 
 from django.utils.functional import cached_property
 
@@ -22,11 +23,10 @@ class APMCollector(BaseCollector):
     """APM 指标采集器"""
 
     @cached_property
-    def applications_biz_map(self) -> dict:
+    def applications_biz_map(self) -> Dict[int, List[Application]]:
         biz_map = defaultdict(list)
         for app in Application.objects.filter(bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True):
             biz_map[app.bk_biz_id].append(app)
-
         return biz_map
 
     @cached_property
@@ -59,7 +59,7 @@ class APMCollector(BaseCollector):
         for biz_id, apps in self.applications_biz_map.items():
             bk_biz_name = self.get_biz_name(biz_id)
             for app in apps:
-                metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, data_status=app.data_status).inc()
+                metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, data_status=app.trace_data_status).inc()
 
     @register(labelnames=("bk_biz_id", "bk_biz_name"))
     def ebpf_k8s_count(self, metric: Metric):

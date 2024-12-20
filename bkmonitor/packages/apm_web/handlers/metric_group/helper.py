@@ -12,6 +12,7 @@ import datetime
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import arrow
 from django.db.models import Q
 
 from apm_web.models import Application
@@ -20,12 +21,12 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import resource
 
 logger = logging.getLogger(__name__)
 
 
 class MetricHelper:
-
     TIME_FIELD_ACCURACY = 1000
 
     # 默认查询近 1h 的数据
@@ -131,3 +132,93 @@ class MetricHelper:
     def get_interval(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
         start_time, end_time = cls._get_time_range(start_time, end_time)
         return (end_time - start_time) // cls.TIME_FIELD_ACCURACY
+
+    @classmethod
+    def get_monitor_info(
+        cls,
+        bk_biz_id,
+        result_table_id,
+        service_name=None,
+        monitor_name_key="scope_name",
+        service_name_key="service_name",
+        count: int = 3000,
+        start_time=None,
+        end_time=None,
+        count_win: str = "5m",
+        **kwargs,
+    ) -> dict:
+        """
+        获取自定义指标的监控信息
+        :param bk_biz_id: 业务ID
+        :param result_table_id: 结果表ID
+        :param service_name: 服务名
+        :param monitor_name_key: 监控项维度名
+        :param service_name_key: 服务维度名
+        :param count: 查询数量
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :param count_win: 统计时间窗口
+        """
+
+        if not start_time or not end_time:
+            end_time = int(arrow.now().timestamp)
+            start_time = int(end_time - 300)
+
+        request_params = {
+            "bk_biz_id": bk_biz_id,
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": "",
+                    "interval": "auto",
+                    "alias": "a",
+                    "filter_dict": {},
+                }
+            ],
+            "slimit": count,
+            "expression": "",
+            "alias": "a",
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        metric_table_id = result_table_id.replace('.', ':')
+        monitor_info_mapping = {}
+        try:
+            # 指定service_name
+            if service_name is not None:
+                promql = (
+                    f"count by (metric_name, {monitor_name_key}) (count_over_time(label_replace("
+                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
+                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\", "
+                    f"{service_name_key}=\"{service_name}\"}}, "
+                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
+                )
+
+            else:
+                promql = (
+                    f"count by (metric_name, {monitor_name_key}, {service_name_key}) (count_over_time(label_replace("
+                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
+                    f"__name__!~\"^(rpc_server_|rpc_client_|bk_apm_|apm_).*\"}}, "
+                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
+                )
+
+            request_params["query_configs"][0]["promql"] = promql
+            series = resource.grafana.graph_unify_query(request_params)["series"]
+            for metric in series:
+                metric_field = metric.get("dimensions", {}).get("metric_name")
+                metric_service_name = service_name or metric.get("dimensions", {}).get(service_name_key)
+                if metric_service_name and metric_field:
+                    if metric_service_name not in monitor_info_mapping:
+                        monitor_info_mapping[metric_service_name] = {}
+                    if metric_field not in monitor_info_mapping[metric_service_name]:
+                        monitor_info_mapping[metric_service_name][metric_field] = {"monitor_name_list": []}
+                    monitor_name = metric["dimensions"].get(monitor_name_key) or "default"
+                    if monitor_name not in monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"]:
+                        monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"].append(
+                            monitor_name
+                        )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
+
+        return monitor_info_mapping

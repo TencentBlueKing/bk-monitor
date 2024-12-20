@@ -1650,6 +1650,8 @@ COMPRESS_INDICES_CACHE_KEY_LENGTH = 256
 # 检索选项历史记录API返回数据数量大小
 SEARCH_OPTION_HISTORY_NUM = 20
 
+# 字段分析支持列表下载的最大数
+MAX_FIELD_VALUE_LIST_NUM = 10000
 # SQL模板
 SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
 SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
@@ -1675,3 +1677,30 @@ SQL_CONDITION_MAPPINGS = {
     "is true": "IS TRUE",
     "is false": "IS FALSE",
 }
+
+# es保留字符
+ES_RESERVED_CHARACTERS = [
+    "\\",
+    "+",
+    "-",
+    "=",
+    "&&",
+    "||",
+    ">",
+    "<",
+    "!",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]",
+    "^",
+    "\"",
+    "~",
+    "*",
+    "?",
+    ":",
+    "/",
+    " ",
+]

@@ -16,7 +16,7 @@ from datetime import datetime
 import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from constants.apm import TelemetryDataType
 from constants.data_source import (

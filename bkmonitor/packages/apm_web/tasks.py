@@ -8,22 +8,27 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
 from enum import Enum
 
-from celery.task import task
+from celery import shared_task
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
+from apm_web.constants import ApmCacheKey
+from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
-from bkmonitor.utils.common_utils import get_local_ip
+from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
+from constants.apm import TelemetryDataType
 from core.drf_resource import api
 
 
@@ -104,12 +109,12 @@ def build_event_body(
     return [event_body_map]
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_application_config(application_id):
     Application.objects.get(application_id=application_id).refresh_config()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
@@ -128,7 +133,7 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task finished")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def report_apm_application_event(
     bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types: list = None
 ):
@@ -149,7 +154,7 @@ def report_apm_application_event(
     )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task start")
 
@@ -163,7 +168,7 @@ def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task finished")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, service_name: str):
     """
     :param key : 文件完整路径
@@ -183,7 +188,7 @@ def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, ser
     logger.info(f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), profile_id({profile_id})")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def application_create_check():
     """
     每分钟检查异步创建的应用是否已经创建完成
@@ -197,3 +202,32 @@ def application_create_check():
     logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
     for app in apps:
         app.sync_datasource()
+
+
+@shared_task(ignore_result=True)
+def cache_application_scope_name():
+    logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
+    if "redis" not in caches:
+        logger.info("[CACHE_APPLICATION_SCOPE_NAME] no redis cache, task stopped")
+        return
+
+    cache_agent = caches["redis"]
+    for application in Application.objects.filter(is_enabled=True):
+        try:
+            bk_biz_id = application.bk_biz_id
+            application_id = application.application_id
+            result_table_id = application.fetch_datasource_info(
+                TelemetryDataType.METRIC.value, attr_name="result_table_id"
+            )
+            collection = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
+            if collection and isinstance(collection, dict):
+                cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
+                cache_agent.set(cache_key, compress_and_serialize(collection))
+                cache_agent.expire(cache_key, 60 * 60 * 24)
+        except Exception as e:  # noqa
+            logger.warning(
+                f"[REFRESH_APPLICATION] "
+                f"refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+            )
+
+    logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")

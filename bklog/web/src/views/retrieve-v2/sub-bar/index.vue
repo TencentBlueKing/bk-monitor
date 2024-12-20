@@ -6,7 +6,8 @@
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import { isEqual } from 'lodash';
-  import { useRoute } from 'vue-router/composables';
+  import { useRoute, useRouter } from 'vue-router/composables';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
@@ -22,6 +23,7 @@
     },
   });
   const route = useRoute();
+  const router = useRouter();
   const store = useStore();
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
@@ -32,14 +34,70 @@
     const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
     return currentIndexSet?.collector_config_id;
   });
-  const FieldSettingShow = ref(true);
+
+  const isExternal = computed(() => store.state.isExternal);
+
+  const isFieldSettingShow = computed(() => {
+    return !store.getters.isUnionSearch && !isExternal.value;
+  });
+
+  const setRouteParams = (ids, isUnionIndex) => {
+    if (isUnionIndex) {
+      router.replace({
+        params: {
+          ...route.params,
+          indexId: undefined,
+        },
+        query: {
+          ...route.query,
+          unionList: JSON.stringify(ids),
+          clusterParams: undefined,
+        },
+      });
+
+      return;
+    }
+
+    router.replace({
+      params: {
+        ...route.params,
+        indexId: ids[0],
+      },
+      query: { ...route.query, unionList: undefined, clusterParams: undefined },
+    });
+  };
+
+  const setRouteQuery = () => {
+    const query = { ...route.query };
+    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    const resolver = new RetrieveUrlResolver({
+      keyword,
+      addition,
+      ip_chooser,
+      search_mode,
+      begin,
+      size,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
+
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-      store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
-        store.commit('retrieve/updateChartKey');
-        store.dispatch('requestIndexSetQuery');
-      });
+      setRouteParams(payload.ids, payload.isUnionIndex);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('retrieve/updateChartKey');
+
+      store.commit('updateIndexItem', payload);
+      if (!payload.isUnionIndex) {
+        store.commit('updateIndexId', payload.ids[0]);
+      }
+      store.dispatch('requestIndexSetFieldInfo');
+      store.dispatch('requestIndexSetQuery');
     }
   };
 
@@ -62,17 +120,10 @@
       search_mode,
     });
 
+    setRouteQuery();
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
     });
-  };
-  // 监听单选还是多选,多选不展示字段配置
-  const updateBtnSelect = payload => {
-    if (payload === 'single') {
-      FieldSettingShow.value = true;
-    } else {
-      FieldSettingShow.value = false;
-    }
   };
 </script>
 <template>
@@ -84,17 +135,19 @@
       <SelectIndexSet
         style="min-width: 500px"
         :popover-options="{ offset: '-6,10' }"
-        @change="updateBtnSelect"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="box-right-option">
       <VersionSwitch version="v2" />
-      <FieldSetting v-show="FieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
+      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
-      <div class="more-setting">
+      <div
+        class="more-setting"
+        v-if="!isExternal"
+      >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>
     </div>

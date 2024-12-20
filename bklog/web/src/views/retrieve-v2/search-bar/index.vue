@@ -4,6 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   // #if APP !== 'apm'
   import BookmarkPop from './bookmark-pop';
@@ -14,9 +15,10 @@
   import { ConditionOperator } from '@/store/condition-operator';
 
   import $http from '../../../api';
-  import { deepClone } from '../../../common/util';
+  import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
+  import { bkMessage } from 'bk-magic-vue';
 
   const props = defineProps({
     activeFavorite: {
@@ -31,9 +33,22 @@
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
-  const activeIndex = ref(Number(localStorage.getItem('bkLogQueryType') ?? 0));
   const route = useRoute();
   const router = useRouter();
+
+  const getDefaultActiveIndex = () => {
+    if (route.query.search_mode) {
+      return queryParams.findIndex(m => m === route.query.search_mode);
+    }
+
+    if (route.query.keyword?.length) {
+      return 1;
+    }
+
+    return Number(localStorage.getItem('bkLogQueryType') ?? 0);
+  };
+
+  const activeIndex = ref(getDefaultActiveIndex());
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
@@ -45,6 +60,7 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
+
   const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -121,6 +137,21 @@
     { immediate: true },
   );
 
+  const setRouteParams = () => {
+    const query = { ...route.query };
+
+    const resolver = new RetrieveUrlResolver({
+      keyword: keyword.value,
+      addition: store.getters.retrieveParams.addition,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
+
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
       store.commit('updateIndexItemParams', {
@@ -130,6 +161,7 @@
       });
 
       store.dispatch('requestIndexSetQuery');
+      setRouteParams();
     }
   };
 
@@ -139,6 +171,7 @@
     });
 
     store.dispatch('requestIndexSetQuery');
+    setRouteParams();
   };
 
   const handleClearBtnClick = () => {
@@ -254,11 +287,32 @@
     } catch (error) {}
   };
 
-  // const handleCopyQueryValue = () => {
-  //   const { search_mode, keyword, addition } = store.getters.retrieveParams;
-  //   const copyValue = search_mode === 'sql' ? keyword : addition;
-  //   copyMessage(JSON.stringify(copyValue), '复制成功');
-  // };
+  const handleCopyQueryValue = async () => {
+    const { search_mode, keyword, addition } = store.getters.retrieveParams;
+    if (search_mode === 'ui') {
+      $http
+        .request('retrieve/generateQueryString', {
+          data: {
+            addition,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            copyMessage(res.data?.querystring || '', $t('复制成功'));
+          } else {
+            bkMessage({
+              theme: 'error',
+              message: $t('复制失败'),
+            });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    } else {
+      copyMessage(JSON.stringify(keyword), $t('复制成功'));
+    }
+  };
 </script>
 <template>
   <div :class="['search-bar-container', { readonly: isChartMode }]">
@@ -286,11 +340,11 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <!-- <div
+        <div
           v-bk-tooltips="'复制当前查询'"
           :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
           @click.stop="handleCopyQueryValue"
-        ></div> -->
+        ></div>
         <div
           v-bk-tooltips="'清理当前查询'"
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"

@@ -13,7 +13,7 @@ from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Type
 
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import LATEST_POINT_WITH_ALL_KEY
 from alarm_backends.core.cache.key import LAST_CHECKPOINTS_CACHE_KEY
@@ -73,6 +73,10 @@ class DetectMixin(object):
                     # 如果是事件类数据，历史数据需要补充0值
                     if {DataTypeLabel.LOG, DataTypeLabel.EVENT} & self.data_type_labels:
                         detector.set_default(0)
+
+                # 判断是否需要对使用SDK异常检测的策略进行分组预检测
+                if hasattr(detector, "pre_detect"):
+                    detector.pre_detect(data_points)
 
                 detector_list.append(detector)
 

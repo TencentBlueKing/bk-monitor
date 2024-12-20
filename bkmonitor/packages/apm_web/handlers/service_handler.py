@@ -15,7 +15,7 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -591,7 +591,7 @@ class ServiceHandler:
     def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
         """获取应用下各个服务的数据状态"""
         if len(all_services) == 0:
-            return []
+            return {}
 
         status = {
             TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,

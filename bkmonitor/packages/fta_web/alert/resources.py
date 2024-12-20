@@ -27,7 +27,7 @@ from django.core.cache import cache
 from django.db.models import Count
 from django.db.models import Q as DQ
 from django.http import HttpResponse, HttpResponseRedirect
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -231,7 +231,7 @@ class GetTmpData(Resource):
         biz_ids = validated_request_data.get("biz_ids", "")
         thedate = validated_request_data.get("thedate", None)
 
-         # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
+        # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
         if not thedate:
             start_time, end_time = get_previous_month_range_unix()
         else:
@@ -255,7 +255,7 @@ class GetTmpData(Resource):
             }
             biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
-            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数 
+            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数
             # 考虑到还要根据过滤条件 符合的其实更少
 
         ret = {}
@@ -1806,7 +1806,9 @@ class ValidateQueryString(Resource):
             SearchType.EVENT: EventQueryHandler.query_transformer,
         }
         search_type = validated_request_data["search_type"]
-        return transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        query_cache.clear()
+        return ret
 
 
 class BaseTopNResource(Resource):
@@ -2356,11 +2358,9 @@ class MetricRecommendationResource(AIOpsBaseResource):
                 ]
             except KeyError:
                 recommend_panel["feedback"] = {
-                    {
-                        "good": 0,
-                        "bad": 0,
-                        "self": None,
-                    }
+                    "good": 0,
+                    "bad": 0,
+                    "self": None,
                 }
 
         return result
@@ -2795,6 +2795,7 @@ class GetAlertDataRetrievalResource(Resource):
             "result_table_id": query_config.get("result_table_id", ""),
             "data_label": query_config.get("data_label"),
             "query_string": query_config.get("query_string", ""),
+            "metric_field": query_config.get("metric_field", ""),
             "method": query_config.get("agg_method", "COUNT"),
             "interval": query_config.get("agg_interval", 60),
             "group_by": query_config.get("agg_dimension", []),

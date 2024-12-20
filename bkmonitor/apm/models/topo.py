@@ -12,6 +12,8 @@ import datetime
 
 from django.db import models
 
+from apm.constants import DiscoverRuleType
+from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.db import JsonField
 from constants.apm import SpanKind
 
@@ -54,6 +56,36 @@ class TopoNode(TopoBase):
     system = models.JSONField("系统类型", null=True)
     platform = models.JSONField("部署平台", null=True)
     sdk = models.JSONField("上报sdk", null=True)
+    # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
+    source = models.JSONField("服务发现来源", default=list)
+
+    @classmethod
+    @using_cache(CacheType.APM(60 * 10))
+    def get_empty_extra_data(cls):
+        """
+        获取空的 extra_data 字段
+        因为此字段为非空 为了兼容之前 trace 发现的数据一致性所以不将 extra_data 设置为 null=True
+        如果其他数据源没有 extra_data 相关数据 则使用此默认值存储
+        """
+        # 默认服务匹配了 类型为 category 的 other 规则
+        from apm.models import ApmTopoDiscoverRule
+
+        other_rule = ApmTopoDiscoverRule.objects.filter(
+            type=DiscoverRuleType.CATEGORY.value, category_id=ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER
+        ).first()
+        if not other_rule:
+            return {
+                "category": "",
+                "kind": "",
+                "predicate_value": "",
+                "service_language": "",
+            }
+        return {
+            "category": other_rule.category_id,
+            "kind": other_rule.topo_kind,
+            "predicate_value": "",
+            "service_language": "",
+        }
 
 
 class TopoRelation(TopoBase):

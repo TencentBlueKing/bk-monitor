@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from dataclasses import dataclass
-from typing import List, Type
+from typing import Any, Dict, List, Set, Type
 
 from apm_web.topo.handle.relation.define import Node, Relation, Source, SourceProvider
 from core.drf_resource import api
@@ -31,7 +31,16 @@ class RelationQ:
     def query(cls, qs, expect_paths=None):
         """Relation 接口普通查询"""
 
-        response = api.unify_query.query_multi_resource_range(**{"query_list": qs})
+        # 从查询参数提取业务 ID，用于数据查询鉴权
+        bk_biz_ids: Set[int] = set()
+        for query_config in qs:
+            bk_biz_ids |= set(query_config.get("bk_biz_ids") or [])
+
+        query_params: Dict[str, Any] = {"query_list": qs}
+        if bk_biz_ids:
+            query_params["bk_biz_ids"] = list(bk_biz_ids)
+
+        response = api.unify_query.query_multi_resource_range(**query_params)
         res = []
         for item in response.get("data", []):
             if item.get("code") != 200:
@@ -79,7 +88,7 @@ class RelationQ:
                 "source_info": source_info.to_source_info(),
                 "source_type": source_info.name,
                 "step": step or f"{end_time - start_time}s",
-                "path_resource": path_resource or [],
+                "path_resource": [i.name for i in path_resource] if path_resource else [],
             }
         ]
 
