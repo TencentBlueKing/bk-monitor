@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.6.15
+ARG PYTHON_VERSION=3.7.12
 
 
 FROM python:${PYTHON_VERSION}-slim-buster AS base
@@ -34,6 +34,8 @@ RUN set -ex && mkdir ~/.pip && printf '[global]\nindex-url = https://mirrors.ten
 # Do all of this in one RUN to limit final image size.
 RUN set -ex &&  \
     apt-get update && \
+    apt-get -f install && \
+    apt-get install -y --no-install-recommends zlib1g-dev libgnutls28-dev libtinfo6 libmariadb-dev libmariadb-dev-compat libncurses6 && \
     apt-get install -y --no-install-recommends \
         gcc gettext mariadb-client libmariadbclient-dev default-libmysqlclient-dev && \
     rm -rf /var/lib/apt/lists/*
