@@ -65,12 +65,14 @@ export default defineComponent({
       );
     };
 
-    const handleScrollEvent = throttle((event: MouseEvent) => {
+    const handleScrollEvent = (event: MouseEvent) => {
       event.stopPropagation();
       event.preventDefault();
       event.stopImmediatePropagation();
-      emit('scroll-change', event);
-    });
+      requestAnimationFrame(() => {
+        emit('scroll-change', event);
+      });
+    };
 
     onMounted(() => {
       refSrollRoot.value?.addEventListener('scroll', handleScrollEvent);

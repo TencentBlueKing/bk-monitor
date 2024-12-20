@@ -35,7 +35,9 @@ export default (target, callback: (e: MouseEvent) => void) => {
   };
 
   const handleScrollEvent = throttle((event: MouseEvent) => {
-    callback?.(event);
+    requestAnimationFrame(() => {
+      callback?.(event);
+    });
   });
 
   const scrollToTop = (smooth = true) => {

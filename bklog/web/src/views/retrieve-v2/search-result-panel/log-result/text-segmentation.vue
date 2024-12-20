@@ -24,12 +24,11 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, watch, computed, onMounted, onBeforeUnmount, inject } from 'vue';
+  import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { debounce } from 'lodash';
   import useResizeObserve from '@/hooks/use-resize-observe';
 
   const emit = defineEmits(['menu-click']);
@@ -233,7 +232,7 @@
       ref="refFieldValue"
       class="field-value"
       :data-field-name="field.field_name"
-      >{{ renderText }}</span
+      >{{ props.content }}</span
     >
   </div>
 </template>

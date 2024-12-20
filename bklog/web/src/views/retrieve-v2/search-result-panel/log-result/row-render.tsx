@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { RowProxyData } from './log-row-attributes';
 
 export default defineComponent({
   props: {
@@ -31,28 +32,38 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    visible: {
-      type: Boolean,
-      default: false,
-    },
   },
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
-    const isPending = ref(false);
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
     const resizeObserver: ResizeObserver = inject('resizeObserver');
+    const rowProxy: Ref<RowProxyData> = inject('rowProxy');
+
+    const rowStyle = computed(() => {
+      return {
+        minHeight: `${rowProxy.value[props.rowIndex]?.height ?? 40}px`,
+      };
+    });
+
+    const visible = computed(() => {
+      return (rowProxy.value[props.rowIndex]?.visible ?? true) || !(rowProxy.value[props.rowIndex]?.mounted ?? false);
+    });
 
     const renderRowVNode = () => {
       return (
-        <div data-row-index={props.rowIndex}>
+        <div
+          data-row-index={props.rowIndex}
+          style={rowStyle.value}
+        >
           <div
             ref={refRowNodeRoot}
-            class={['bklog-row-observe', { 'is-pending': isPending.value }]}
+            class={['bklog-row-observe', { 'is-pending': !visible.value }]}
             data-row-index={props.rowIndex}
-            data-row-visible={props.visible}
+            data-is-pending={!visible.value}
           >
-            {props.visible ? slots.default?.() : null}
+            {slots.default?.()}
           </div>
+          <div class={['row-pending', { 'is-pending': !visible.value }]}></div>
         </div>
       );
     };

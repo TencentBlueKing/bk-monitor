@@ -61,30 +61,19 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     }
   };
 
-  const debounceLoadCallback = debounce(() => {
-    loadMoreFn?.();
-  });
-
   let lastPosition = 0;
-  const throttleUpdate = event => {
-    calculateOffsetTop();
-    const target = event.target as HTMLDivElement;
-    const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-    if (target.scrollTop > lastPosition && scrollDiff < 200) {
-      debounceLoadCallback();
-    }
 
-    scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
-    lastPosition = target.scrollTop;
-  };
-
-  const debounceCallback = debounce(event => {
-    const target = event.target as HTMLDivElement;
-    scrollCallbackFn?.(event, target.scrollTop, scrollElementOffset, scrollDirection.value);
-  });
   const handleScrollEvent = (event: MouseEvent) => {
-    throttleUpdate(event);
-    debounceCallback(event);
+    requestAnimationFrame(() => {
+      const target = event.target as HTMLDivElement;
+      const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
+      if (target.scrollTop > lastPosition && scrollDiff < 200) {
+        loadMoreFn?.();
+      }
+
+      scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
+      lastPosition = target.scrollTop;
+    });
   };
 
   const scrollToTop = (top = 0, smooth = true) => {
@@ -113,6 +102,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   useResizeObserve(getParentContainer, () => {
     debounceComputeRect();
   });
+
   onMounted(() => {
     getScrollElement()?.addEventListener('scroll', handleScrollEvent);
     calculateOffsetTop();

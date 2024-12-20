@@ -39,6 +39,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { uniqueId, debounce } from 'lodash';
+import ScrollTop from './scroll-top';
 
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
@@ -52,6 +53,7 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
+  RowProxyData,
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
@@ -83,6 +85,7 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refBoxElement: Ref<HTMLElement> = ref();
+    const refTableHead: Ref<HTMLElement> = ref();
     // const rowUpdateCounter = ref(0);
     // 本地分页
     const pageIndex = ref(0);
@@ -122,51 +125,58 @@ export default defineComponent({
 
     const hasMoreList = computed(() => totalCount.value > tableList.value.length);
 
-    const intersectionArgs: Ref<Record<string, { visible?: boolean; height?: number; rowIndex?: number }>> = ref({});
+    const intersectionArgs: Ref<RowProxyData> = ref({});
     const rowProxy = {};
 
-    const delayUpdate = debounce(() => {
-      console.log('update');
-    });
+    const delayUpdate = () => {
+      Object.keys(rowProxy).forEach(key => {
+        set(intersectionArgs.value, key, rowProxy[key]);
+      });
+    };
 
     const updateIntersectionArgs = (index, visible?, height?) => {
+      if (height && rowProxy[index]?.mounted === false) {
+        rowProxy[index].mounted = true;
+      }
+
       if (!rowProxy[index]) {
         Object.assign(rowProxy, {
           [index]: {
             visible,
             height,
             rowIndex: Number(index),
+            mounted: false,
           },
         });
       }
-
       Object.assign(rowProxy[index], {
         visible: visible ?? rowProxy[index].visible,
         height: height ?? rowProxy[index].height,
       });
-
-      delayUpdate();
     };
 
     const intersectionObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         const index = entry.target.getAttribute('data-row-index');
-        // updateIntersectionArgs(index, entry.isIntersecting);
+        updateIntersectionArgs(index, entry.isIntersecting);
       });
+      delayUpdate();
     });
 
     const resizeObserver = new ResizeObserver(entries => {
       entries.forEach(entry => {
         const index = entry.target.getAttribute('data-row-index');
-        const visible = entry.target.getAttribute('data-row-visible');
-        if (visible === 'true') {
-          // updateIntersectionArgs(index, undefined, entry.contentRect.height);
+        const isPending = entry.target.getAttribute('data-is-pending');
+        if (isPending !== 'true') {
+          updateIntersectionArgs(index, undefined, entry.contentRect.height);
         }
       });
+      delayUpdate();
     });
 
     provide('intersectionObserver', intersectionObserver);
     provide('resizeObserver', resizeObserver);
+    provide('rowProxy', intersectionArgs);
 
     const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
@@ -579,6 +589,7 @@ export default defineComponent({
       if (isRequesting.value) {
         return;
       }
+
       if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
         delay = 0;
@@ -589,27 +600,6 @@ export default defineComponent({
       }
 
       return Promise.resolve(false);
-    };
-
-    const rowsScrollTop = ref(0);
-    const updateVisibleItems = debounce((event, scrollTop, offsetTop) => {
-      if (!event?.target) {
-        return;
-      }
-
-      rowsScrollTop.value = offsetTop - searchContainerHeight.value;
-      const visibleTop = offsetTop - searchContainerHeight.value;
-      const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
-
-      rowsOffsetTop.value = useScrollHeight;
-    }, 120);
-
-    const handleScrollEvent = (event: MouseEvent, scrollTop, offsetTop) => {
-      if (isRequesting.value) {
-        return;
-      }
-
-      updateVisibleItems(event, scrollTop, offsetTop);
     };
 
     useResizeObserve(SECTION_SEARCH_INPUT, entry => {
@@ -623,7 +613,7 @@ export default defineComponent({
     // 判定是否需要拉取更多数据
     const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
-      scrollCallbackFn: handleScrollEvent,
+      scrollCallbackFn: undefined,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
     });
@@ -638,11 +628,13 @@ export default defineComponent({
           event.stopImmediatePropagation();
           event.preventDefault();
 
-          const nextOffset = scrollXOffsetLeft.value + event.deltaX;
-          if (nextOffset <= maxOffset && nextOffset >= 0) {
-            scrollXOffsetLeft.value += event.deltaX;
-            refScrollXBar.value?.scrollLeft(nextOffset);
-          }
+          requestAnimationFrame(() => {
+            const nextOffset = scrollXOffsetLeft.value + event.deltaX;
+            if (nextOffset <= maxOffset && nextOffset >= 0) {
+              scrollXOffsetLeft.value += event.deltaX;
+              refScrollXBar.value?.scrollLeft(nextOffset);
+            }
+          });
         }
       },
     });
@@ -653,21 +645,38 @@ export default defineComponent({
       return diff > operatorWidth ? 0 : operatorWidth - diff;
     });
 
-    const scrollXTransformStyle = computed(() => {
-      return {
-        '--scroll-left': `-${scrollXOffsetLeft.value}px`,
-        '--padding-right': `${operatorToolsWidth.value}px`,
-        '--fix-right-width': `${operatorFixRightWidth.value}px`,
-        '--last-column-left': `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
-      };
-    });
+    const setHeaderStyle = () => {
+      if (refTableHead.value) {
+        refTableHead.value.style.setProperty('transform', `translateX(-${scrollXOffsetLeft.value}px)`);
+        refTableHead.value.style.setProperty('top', `${searchContainerHeight.value}px`);
+      }
+    };
 
-    const headStyle = computed(() => {
-      return {
-        top: `${searchContainerHeight.value}px`,
-        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
-      };
-    });
+    const setBodyStyle = () => {
+      if (refRootElement.value) {
+        refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
+        refRootElement.value.style.setProperty('--padding-right', `${operatorToolsWidth.value}px`);
+        refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
+        refRootElement.value.style.setProperty(
+          '--last-column-left',
+          `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
+        );
+      }
+    };
+
+    watch(
+      () => [
+        scrollXOffsetLeft.value,
+        operatorToolsWidth.value,
+        operatorFixRightWidth.value,
+        offsetWidth.value,
+        searchContainerHeight.value,
+      ],
+      () => {
+        setBodyStyle();
+        setHeaderStyle();
+      },
+    );
 
     const showHeader = computed(() => {
       return showCtxType.value === 'table' && tableList.value.length > 0;
@@ -676,7 +685,7 @@ export default defineComponent({
     const renderHeadVNode = () => {
       return (
         <div
-          style={headStyle.value}
+          ref={refTableHead}
           class={[
             'bklog-row-container row-header',
             { 'has-overflow-x': hasScrollX.value, 'hidden-head': !showHeader.value },
@@ -700,73 +709,59 @@ export default defineComponent({
       );
     };
 
-    const scrollTop = () => {
-      scrollToTop(0, false);
-    };
-
     const renderScrollTop = () => {
-      if (rowsOffsetTop.value > 300) {
-        return (
-          <span
-            class='btn-scroll-top'
-            v-bk-tooltips={$t('返回顶部')}
-            onClick={() => scrollTop()}
-          >
-            <i class='bklog-icon bklog-zhankai'></i>
-          </span>
-        );
-      }
-
-      return null;
+      return <ScrollTop></ScrollTop>;
     };
 
     const renderRowCells = (row, rowIndex) => {
+      console.log('renderRowCells');
       const { expand } = tableRowConfig.get(row).value;
+      const opStyle = {
+        width: `${operatorToolsWidth.value}px`,
+      };
       return [
         <div class='bklog-list-row'>
-          {renderColumns.value.map(column => (
-            <LogCell
-              key={`${rowIndex}-${column.key}`}
-              width={column.width}
-              class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
-              minWidth={column.minWidth ?? 'auto'}
-            >
-              {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
-            </LogCell>
-          ))}
-          <LogCell
-            width={operatorToolsWidth.value}
+          {renderColumns.value.map(column => {
+            const cellStyle = {
+              width: `${column.width}px`,
+              minWidth: column.minWidth ? `${column.minWidth}px` : 'auto',
+            };
+            return (
+              <div
+                key={`${rowIndex}-${column.key}`}
+                class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
+                style={cellStyle}
+              >
+                {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
+              </div>
+            );
+          })}
+          <div
+            style={opStyle}
             class={['hidden-field bklog-row-cell', { 'has-scroll-x': hasScrollX.value }]}
-            minWidth={operatorToolsWidth.value ?? 'auto'}
-          ></LogCell>
+          ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
       ];
     };
 
-    const visibleRowIndex = computed(() => {
-      const idxs = Object.entries(intersectionArgs.value ?? {})
-        .filter(([_, v]) => v.visible)
-        .map(([_, { rowIndex }]) => rowIndex);
-      const max = Math.max(...idxs, 0) + pageSize.value;
-      const min = idxs.length ? Math.min(...idxs) : 0;
-      return { max: Math.min(max, tableDataSize.value), min: Math.max(min, 0) };
-    });
+    // const visibleRowIndex = computed(() => {
+    //   const idxs = Object.entries(intersectionArgs.value ?? {})
+    //     .filter(([_, v]) => v.visible)
+    //     .map(([_, { rowIndex }]) => rowIndex);
+    //   const max = Math.max(...idxs, 0) + pageSize.value;
+    //   const min = idxs.length ? Math.min(...idxs) : 0;
+    //   return { max: Math.min(max, tableDataSize.value), min: Math.max(min, 0) };
+    // });
 
     const renderList = computed(() => new Array(tableDataSize.value).fill('').map((_, i) => i));
 
     const renderRowVNode = () => {
-      return renderList.value.map((row, rowIndex) => {
-        const { height = 40, visible = true } = intersectionArgs.value?.[`${rowIndex}`] ?? {};
-        const style = {
-          minHeight: `${height}px`,
-        };
-
-        // const isPending = rowIndex >= visibleRowIndex.value.min && rowIndex <= visibleRowIndex.value.max;
+      return renderList.value.map(rowIndex => {
+        const row = tableList.value[rowIndex];
         return (
           <RowRender
             key={rowIndex}
-            style={style}
             class={[
               'bklog-row-container',
               {
@@ -775,9 +770,8 @@ export default defineComponent({
               },
             ]}
             row-index={rowIndex}
-            visible={true}
           >
-            {/* {renderRowCells(row, rowIndex)} */}
+            {renderRowCells(row, rowIndex)}
           </RowRender>
         );
       });
@@ -797,13 +791,6 @@ export default defineComponent({
         ></ScrollXBar>
       );
     };
-
-    const tableStyle = computed(() => {
-      return {
-        transform: `translateX(-${scrollXOffsetLeft.value}px)`,
-        // minHeight: `${sizes.value[tableDataSize.value.length - 1]?.position ?? 100}px`,
-      };
-    });
 
     const loadingText = computed(() => {
       if (hasMoreList.value) {
@@ -832,7 +819,6 @@ export default defineComponent({
           <div
             id={resultContainerId.value}
             ref={refBoxElement}
-            style={tableStyle.value}
             class={['bklog-row-box']}
           >
             {renderRowVNode()}
@@ -865,14 +851,12 @@ export default defineComponent({
       refRootElement,
       isTableLoading,
       renderResultContainer,
-      scrollXTransformStyle,
     };
   },
   render() {
     return (
       <div
         ref='refRootElement'
-        style={this.scrollXTransformStyle}
         class='bklog-result-container'
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
       >
