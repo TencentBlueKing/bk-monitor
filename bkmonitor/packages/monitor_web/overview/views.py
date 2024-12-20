@@ -71,7 +71,7 @@ class SearchViewSet(viewsets.GenericViewSet):
     搜索, 使用多线程搜索，使用 event-stream 返回搜索结果
     """
 
-    @action(methods=['post'], detail=False, url_path='search')
+    @action(methods=['get'], detail=False, url_path='search')
     def search(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
         serializer = SearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
