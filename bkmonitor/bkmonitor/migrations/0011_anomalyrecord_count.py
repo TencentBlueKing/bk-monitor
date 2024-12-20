@@ -42,7 +42,7 @@ def pre_check(apps, *args, **kwargs):
         )
     if count > NEED_STOP_RECORD_COUNT:
         try:
-            resolve_items = resolver.query(BACKEND_DOMAIN)
+            resolve_items = resolver.resolve(BACKEND_DOMAIN)
             for item in resolve_items:
                 if item.address:
                     raise MigrateError("\n[ERROR]后台进程未停止，部署前请先停止后台进程")
@@ -51,7 +51,6 @@ def pre_check(apps, *args, **kwargs):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bkmonitor", "0010_alertcollect_extend_info"),
     ]

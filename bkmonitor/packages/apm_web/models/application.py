@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
@@ -664,7 +664,7 @@ class Application(AbstractRecordModel):
         ) & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
 
     @staticmethod
-    @task()
+    @shared_task()
     def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")

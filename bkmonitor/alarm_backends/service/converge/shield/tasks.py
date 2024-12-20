@@ -12,10 +12,9 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from celery.task import task
-
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
+from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.scheduler.tasks import perform_sharding_task
 from bkmonitor.models import Shield
 from bkmonitor.utils import time_tools
@@ -44,7 +43,7 @@ def check_and_send_shield_notice():
 
 
 # sharded task
-@task(ignore_result=True, queue="celery_cron")
+@app.task(ignore_result=True, queue="celery_cron")
 def do_check_and_send_shield_notice(ids):
     shield_configs = list(
         Shield.objects.filter(

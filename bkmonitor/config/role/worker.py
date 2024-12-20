@@ -47,6 +47,8 @@ SUPERVISOR_USERNAME = ""
 SUPERVISOR_PASSWORD = ""
 
 INSTALLED_APPS += (  # noqa: F405
+    "django_celery_beat",
+    "django_celery_results",
     "django_elasticsearch_dsl",
     "django_jinja",
     "bkmonitor",

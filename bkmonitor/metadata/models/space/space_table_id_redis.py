@@ -281,7 +281,7 @@ class SpaceTableIDRedis:
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
-                    'storage_cluster_record': storage_record,
+                    'storage_cluster_records': storage_record,
                 }
             )
         return data

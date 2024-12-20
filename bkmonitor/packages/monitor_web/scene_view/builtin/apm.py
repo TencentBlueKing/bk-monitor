@@ -388,7 +388,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     except Exception as e:  # pylint: disable=broad-except
                         logger.warning(f"当前条件下 {cache_key} 暂无scope_name缓存: {e}")
                         monitor_info_mapping = {}
-                if not monitor_info_mapping:
+                if not monitor_info_mapping or not monitor_info_mapping.get(service_name):
                     monitor_info_mapping = metric_group.MetricHelper.get_monitor_info(
                         bk_biz_id,
                         result_table_id,
@@ -404,7 +404,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                         continue
                     # 根据dimension获取monitor_name监控项, 获取不到的则跳过
-                    metric_info = monitor_info_mapping.get(service_name, {}).get(f"{i.metric_field}_value")
+                    metric_info = monitor_info_mapping.get(service_name, {}).get(i.metric_field)
                     if not metric_info:
                         continue
                     # 进行panels的变量渲染

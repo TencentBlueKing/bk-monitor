@@ -699,6 +699,7 @@
       this.stopPolling(); // 停止状态轮询
     },
     beforeDestroy() {
+      this.$store.commit('updateClusterParams', null);
       this.stopPolling(); // 停止状态轮询
     },
   };

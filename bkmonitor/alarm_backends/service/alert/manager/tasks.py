@@ -12,7 +12,6 @@ import logging
 import time
 from typing import Dict, List
 
-from celery.task import task
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch_dsl import Q
 
@@ -21,6 +20,7 @@ from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.service.alert.manager.processor import AlertManager
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
 from constants.alert import EventStatus
@@ -190,7 +190,7 @@ def send_check_task(alerts: List[Dict], run_immediately=True):
     )
 
 
-@task(ignore_result=True, queue="celery_alert_manager")
+@app.task(ignore_result=True, queue="celery_alert_manager")
 def handle_alerts(alert_keys: List[AlertKey]):
     """
     处理告警（异步任务）

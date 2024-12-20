@@ -476,7 +476,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
         gzip_content = gzip.compress(platform_config.encode())
-        b64_content = base64.b64encode(gzip_content)
+        b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
         namespace = ClusterConfig.bk_collector_namespace(cluster_id)

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def resolve_domain(domain):
     """解析域名得到IP列表"""
     try:
-        resolve_items = dns.resolver.query(domain)
+        resolve_items = dns.resolver.resolve(domain)
     except Exception as e:
         logger.warning("domain({}) dns resolve error: {}".format(domain, e))
         resolve_items = []

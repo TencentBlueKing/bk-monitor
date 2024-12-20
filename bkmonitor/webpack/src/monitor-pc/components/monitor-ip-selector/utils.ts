@@ -34,7 +34,7 @@ export const PanelTargetMap = {
   dynamicGroup: 'DYNAMIC_GROUP',
 };
 
-export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6Value | any {
+export function transformMonitorToValue(data: any[], nodeType: INodeType): any | IIpV6Value {
   if (!nodeType) return {};
   switch (nodeType) {
     case 'INSTANCE':
@@ -117,7 +117,7 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
 }
 export function getPanelListByObjectType(objectType: TargetObjectType) {
   if (objectType === 'SERVICE') {
-    return ['dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate'];
+    return ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
   }
   return ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'];
 }

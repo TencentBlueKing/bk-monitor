@@ -2795,6 +2795,7 @@ class GetAlertDataRetrievalResource(Resource):
             "result_table_id": query_config.get("result_table_id", ""),
             "data_label": query_config.get("data_label"),
             "query_string": query_config.get("query_string", ""),
+            "metric_field": query_config.get("metric_field", ""),
             "method": query_config.get("agg_method", "COUNT"),
             "interval": query_config.get("agg_interval", 60),
             "group_by": query_config.get("agg_dimension", []),

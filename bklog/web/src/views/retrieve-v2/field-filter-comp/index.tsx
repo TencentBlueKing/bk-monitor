@@ -33,8 +33,6 @@ import VueDraggable from 'vuedraggable';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-import $http from '@/api/index.js';
-import { cloneDeep } from 'lodash';
 import './index.scss';
 
 @Component
@@ -78,7 +76,6 @@ export default class FieldFilterComp extends tsc<object> {
   fieldContainerHeight = 400;
 
   isShowErrInfo = false;
-  objectField = []
   get errInfo() {
     const key = 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
@@ -148,60 +145,45 @@ export default class FieldFilterComp extends tsc<object> {
     );
     let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])]
     let result = this.objectHierarchy(arr)
-    console.log(result);
-    
     return result
     // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
   /** object格式字段的层级展示 */
-   objectHierarchy(arrData) {
-    if(!this.objectField.length){
+  objectHierarchy(arrData) {
+    const [objArr, otherArr] = arrData.reduce(([objArr, otherArr], item) => {
+      item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
+      return [objArr, otherArr];
+    }, [[], []]);
+    console.log(objArr, otherArr);
+    if(!objArr.length){
       return arrData
     }
-    const arr = cloneDeep(arrData);
-    let filterArr = arr.filter(field => {
-      let isNotMatched = true; // 如果没有匹配到，默认为 true
-      this.objectField.forEach(objectField => {
-        objectField.filterVisible = true
-        const regex = new RegExp(`${objectField.field_name}\\.`);
-        if (regex.test(field.field_name)) {
-          field.field_name = field.field_name.split('.')[1]
-          const exists = objectField.children && objectField.children.some(child => child.field_name === field.field_name);
-          if (!exists) {
-            objectField.children = [...(objectField.children || []), field];
-          }
-          isNotMatched = false;
-        }
-      });
-      return isNotMatched; // 返回是否没有匹配到
-    });
-    console.log(this.objectField);
-    
-    return [...filterArr,...this.objectField]
+    let objectField = []
+    objArr.forEach(item => {
+      this.addToNestedStructure(objectField, item);
+    })
+    console.log(objectField);
+    return [...otherArr,...objectField ]
   }
-
-  async initFieldData () {
-    const indexSetList = this.$store.state.retrieve.indexSetList;
-    const indexSetId = this.$route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
-    if (!currentIndexSet?.collector_config_id) {
-      const retryInterval = 200;
-      setTimeout(() => {
-        this.initFieldData();
-      }, retryInterval);
-      return;
-    }
-    try {
-      const res = await $http.request('collect/details', {
-        params: {
-          collector_config_id: currentIndexSet.collector_config_id,
-        },
-      });
-      this.objectField = res.data.fields.filter(item => item.field_type === 'object');
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
+  /** 递归将数组变成tree */
+  addToNestedStructure(targetArray, originalObject) {
+    const parts = originalObject.field_name.split('.');
+    let currentLevel = targetArray; 
+    parts.forEach((part, index) => {
+      let existingPart = currentLevel.find(item => item.field_name === part);
+      if (!existingPart) {
+        existingPart = { field_name: part, filterVisible: true, field_type: 'object' };
+        if (index < parts.length - 1) {
+          existingPart.children = [];
+        }
+        currentLevel.push(existingPart);
+      }
+      if (index === parts.length - 1) {
+        Object.assign(existingPart, originalObject);
+      }
+      currentLevel = existingPart.children;
+    });
+  }
 
   /** 内置字段展示对象 */
   builtInFieldsShowObj() {
@@ -382,12 +364,12 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowErrInfo = false;
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
-  bigTreeRender(item){
-    console.log(item);
-    
+  bigTreeRender(field){
+    // console.log(field);
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
+          key={data.field_name}
           v-show={data.filterVisible}
           date-picker-value={this.datePickerValue}
           field-alias-map={this.fieldAliasMap}
@@ -404,19 +386,16 @@ export default class FieldFilterComp extends tsc<object> {
     };
     return(
       <bk-big-tree
+        key={field.field_name}
         ref='bigTreeRef'
-        data={[item]}
+        data={[field]}
         scopedSlots={scopedSlots}
         class='bk-big-tree'
         expand-on-click={true}
-        expand-change={this.treeChange}
+        options={{ nameKey: 'field_name', idKey: 'field_name', childrenKey: 'children' }}
       >
       </bk-big-tree>
     )
-  }
-  treeChange(val){
-    console.log(val,'233');
-    
   }
   render() {
     return (
@@ -481,6 +460,7 @@ export default class FieldFilterComp extends tsc<object> {
                 >
                   <transition-group>
                     {this.visibleFields.map(item => (
+                      // item.children?.length ? this.bigTreeRender(item) :
                       <FieldItem
                         key={item.field_name}
                         v-show={item.filterVisible}

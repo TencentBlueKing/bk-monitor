@@ -12,9 +12,10 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from celery import platforms, task
+from celery import platforms
 from celery.signals import worker_process_init, worker_process_shutdown
 
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.utils.graph_exporter.exporter import GraphExporter
 
 logger = logging.getLogger("image_exporter")
@@ -62,7 +63,7 @@ def install_pool_process_sighandlers(signal=None, sender=None, **kwargs):
     platforms.signals["INT"] = close_driver
 
 
-@task.task(queue="celery_image_exporter")
+@app.task(queue="celery_image_exporter")
 def render_html_string_to_graph(html_string, template_path=None):
     # 记录运行时间
     start_time = time.time()

@@ -2,36 +2,40 @@
   &:before,
   &:after {
     position: absolute;
+    z-index: 9;
     width: 100%;
     height: 1px;
-    background-color: $boderColor;
     content: '';
-    z-index: 9;
+    background-color: $boderColor;
   }
+
   &:before {
     top: 0;
   }
+
   &:after {
     bottom: 0;
   }
+
   .span-name-column::before {
     position: absolute;
     left: 0;
+    z-index: 9;
     width: 1px;
     height: 100%;
-    background-color: $boderColor;
     content: '';
-    z-index: 9;
+    background-color: $boderColor;
   }
+
   .span-view::after {
     position: absolute;
-    right: 0;
     top: 0;
+    right: 0;
+    z-index: 9;
     width: 1px;
     height: 100%;
-    background-color: $boderColor;
     content: '';
-    z-index: 9;
+    background-color: $boderColor;
   }
 }
 
@@ -46,7 +50,7 @@
 
   &.is-odd-row {
     background-color: #f8f9fc;
-    
+
     &:hover {
       background-color: #EDEEF3;
     }
@@ -71,8 +75,8 @@
 
   .span-name-column {
     position: relative;
-    white-space: nowrap;
     z-index: 1;
+    white-space: nowrap;
 
     &:hover {
       z-index: 1;
@@ -81,21 +85,21 @@
 
   &.clipping-left {
     .span-name-column::before {
-      content: " ";
-      height: 28px;
       position: absolute;
-      width: 6px;
-      background-image: linear-gradient(to right, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
       left: 100%;
       z-index: -1;
+      width: 6px;
+      height: 28px;
+      content: " ";
+      background-image: linear-gradient(to right, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
     }
   }
 
   .span-name-wrapper {
-    line-height: 28px;
+    display: flex;
     height: 28px;
     overflow: hidden;
-    display: flex;
+    line-height: 28px;
     border-right: 1px solid #DCDEE5;
   }
 
@@ -123,34 +127,34 @@
   }
 
   .span-name {
-    color: #979ba5;
-    cursor: pointer;
-    flex: 1 1 auto;
-    outline: none;
-    padding-left: 9px;
-    padding-right: .25em;
     position: relative;
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
+    padding-right: .25em;
+    padding-left: 9px;
+    color: #979ba5;
+    cursor: pointer;
+    outline: none;
 
     &::before {
-      content: " ";
       position: absolute;
       top: 6px;
       bottom: 6px;
       left: 0;
+      content: " ";
       border-left: 3px solid;
       border-left-color: inherit;
     }
 
     &::after {
-      background: transparent;
-      bottom: 0;
-      content: " ";
-      left: 0;
       position: absolute;
       top: 0;
+      bottom: 0;
+      left: 0;
       width: 1000px;
+      content: " ";
+      background: transparent;
     }
 
     &:focus {
@@ -168,8 +172,8 @@
 
   .endpoint-name {
     margin-left: 4px;
-    color: #979ba5;
     font-size: 12px;
+    color: #979ba5;
 
     &.label {
       margin: 0;
@@ -178,16 +182,21 @@
 
   .span-svc-name {
     display: flex;
-    padding: 0 6px 0 4px;
-    font-size: 14px;
-    color: #313238;
     display: inline-block;
     flex: 1;
     width: 0;
+    padding: 0 6px 0 4px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 14px;
+    color: #313238;
     text-align: left;
-   
+    text-overflow: ellipsis;
+
+    .read-service {
+      color: #7200FF;
+      text-decoration: underline;
+    }
+
     &.is-rtl {
       direction: rtl;
     }
@@ -195,9 +204,9 @@
 
   .error-icon,
   .service-icon {
+    position: relative;
     width: 14px;
     height: 14px;
-    position: relative;
     margin-right: 4px;
   }
 
@@ -207,53 +216,53 @@
 
   &.clipping-right {
     .span-view::before {
-      content: " ";
-      height: 100%;
       position: absolute;
-      width: 6px;
-      background-image: linear-gradient(to left, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
       right: 0%;
+      width: 6px;
+      height: 100%;
+      content: " ";
+      background-image: linear-gradient(to left, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
     }
   }
 
   .span-bar-row-error-icon {
+    padding: 1px;
+    margin-right: 6px;
+    font-size: 12px;
+    color: #fff;
     background: #db2828;
     border-radius: 6.5px;
-    color: #fff;
-    font-size: 12px;
-    margin-right: 6px;
-    padding: 1px;
   }
 
   .span-bar-row-arrow-icon {
-    width: 14px;
-    height: 14px;
     position: relative;
     top: 3px;
+    width: 14px;
+    height: 14px;
     margin-right: 6px;
   }
 
   .span-bar-row-rpc-color-marker {
-    border-radius: 6.5px;
     display: inline-block;
-    font-size: 12px;
-    height: 1em;
-    margin-right: 6px;
-    padding: 1px;
     width: 1em;
+    height: 1em;
+    padding: 1px;
+    margin-right: 6px;
+    font-size: 12px;
     vertical-align: middle;
+    border-radius: 6.5px;
   }
 
   .collapsed-mark {
     position: relative;
     z-index: 1;
-    margin-right: 4px;
     padding: 0 4px;
+    margin-right: 4px;
+    font-size: 12px;
     line-height: 15px;
     color: #fff;
     background-color: #a2afd2;
     border-radius: 12px;
-    font-size: 12px;
   }
 
   .icon-collapsed {
@@ -266,28 +275,30 @@
   /** 筛选边框高亮 */
   &.is-focus-matching {
     @include span-row-border(#FFB848);
+
     .cross-app-span::before {
       position: absolute;
       left: 0;
+      z-index: 9;
       width: 1px;
       height: 100%;
-      background-color: #FFB848;
       content: '';
-      z-index: 9;
+      background-color: #FFB848;
     }
   }
 
   /** 当前选中状态 */
   &.is-active-matching {
     @include span-row-border(#3A84FF);
+
     .cross-app-span::before {
       position: absolute;
       left: 0;
+      z-index: 9;
       width: 1px;
       height: 100%;
-      background-color: #3A84FF;
       content: '';
-      z-index: 9;
+      background-color: #3A84FF;
     }
   }
 
@@ -307,11 +318,11 @@
     &:before,
     &:after {
       position: absolute;
+      z-index: 9;
       width: 100%;
       height: 1px;
-      background-color: #3A84FF;
       content: '';
-      z-index: 9;
+      background-color: #3A84FF;
     }
 
     &:before {
@@ -325,22 +336,22 @@
     .span-name-column::before {
       position: absolute;
       left: 0;
+      z-index: 9;
       width: 1px;
       height: 100%;
-      background-color: #3A84FF;
       content: '';
-      z-index: 9;
+      background-color: #3A84FF;
     }
 
     .span-view::after {
       position: absolute;
       top: 0;
       right: 0;
+      z-index: 9;
       width: 1px;
       height: 100%;
-      background-color: #3A84FF;
       content: '';
-      z-index: 9;
+      background-color: #3A84FF;
     }
   }
 
@@ -385,8 +396,8 @@
         }
 
         .cross-description {
-          color: #979BA5;
           font-size: 12px;
+          color: #979BA5;
         }
       }
     }

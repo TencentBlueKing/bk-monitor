@@ -105,7 +105,6 @@
   });
 
   const handleActive = panel => {
-    console.log('handleActive', panel);
     isUserAction.value = true;
     emit('input', panel);
   };

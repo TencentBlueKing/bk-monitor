@@ -91,9 +91,9 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "source_type": "log",
         "options": {},
         "storage_type": "elasticsearch",
-        "storage_cluster_record": [
-            {"storage_id": 11, "enable_time": enable_timestamp},
+        "storage_cluster_records": [
             {"storage_id": 12, "enable_time": enable_timestamp_12},
+            {"storage_id": 11, "enable_time": enable_timestamp},
         ],
     }
     expected = {'1001_bklog.stdout': json.dumps(expected_json)}

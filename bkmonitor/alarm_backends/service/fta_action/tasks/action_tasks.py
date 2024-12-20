@@ -15,7 +15,6 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from celery.task import task
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
@@ -33,6 +32,7 @@ from alarm_backends.service.fta_action import (
     BaseActionProcessor,
 )
 from alarm_backends.service.fta_action.utils import PushActionProcessor, to_document
+from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.scheduler.tasks import perform_sharding_task
 from bkmonitor.action.duty_manage import GroupDutyRuleManager
 from bkmonitor.action.serializers import DutyRuleDetailSlz
@@ -47,7 +47,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("fta_action.run")
 
 
-@task(ignore_result=True, queue="celery_running_action")
+@app.task(ignore_result=True, queue="celery_running_action")
 def run_action(action_type, action_info):
     """
     自愈动作的执行入口函数
@@ -166,7 +166,7 @@ def run_action(action_type, action_info):
     metrics.report_all()
 
 
-@task(ignore_result=True, queue="celery_webhook_action")
+@app.task(ignore_result=True, queue="celery_webhook_action")
 def run_webhook_action(action_type, action_info):
     """
     支持webhook回调和队列回调的任务
@@ -186,7 +186,7 @@ def sync_action_instances():
         sync_action_instances_every_10_secs.apply_async(countdown=interval * 10, expires=120)
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def sync_action_instances_every_10_secs(last_sync_time=None):
     """
     每隔十秒同步任务
@@ -238,7 +238,7 @@ def sync_action_instances_every_10_secs(last_sync_time=None):
         return
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def sync_actions_sharding_task(action_ids):
     """
     分片任务同步信息，避免一次任务量太大
@@ -373,7 +373,7 @@ def check_timeout_actions():
         return
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def execute_demo_actions():
     """
     从DB获取调试任务推送到执行任务队列
@@ -460,7 +460,7 @@ def generate_duty_plan_task():
     return managers
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def manage_group_duty_snap(duty_manager: GroupDutyRuleManager):
     """
     单个任务组的排班计划管理
@@ -472,7 +472,7 @@ def manage_group_duty_snap(duty_manager: GroupDutyRuleManager):
     logger.info("finished to manage group(%s)'s duty plan", duty_manager.user_group.id)
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def manage_group_duty_notice(duty_manager: GroupDutyRuleManager):
     """
     单个任务组的排班计划管理

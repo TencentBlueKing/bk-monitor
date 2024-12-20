@@ -61,9 +61,6 @@ INSTALLED_APPS += (
     "apigw_manager",
 )
 
-# api not use celery worker
-CELERY_ALWAYS_EAGER = True
-
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 LOGGER_DEFAULT = {
     "level": LOGGER_LEVEL,

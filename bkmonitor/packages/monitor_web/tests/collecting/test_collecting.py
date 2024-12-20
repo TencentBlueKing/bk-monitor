@@ -14,8 +14,11 @@ import json
 import os
 
 import mock
-from django.conf import settings
 from django.test import TestCase
+
+from bkmonitor.utils.local import local
+from config import celery_app
+from core.drf_resource import APIResource, resource
 from monitor_web.models import (
     CollectorPluginConfig,
     CollectorPluginInfo,
@@ -24,9 +27,6 @@ from monitor_web.models import (
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.custom_report import CustomEventGroup, CustomEventItem
 from monitor_web.models.plugin import CollectorPluginMeta
-
-from bkmonitor.utils.local import local
-from core.drf_resource import APIResource, resource
 
 
 class Base(object):
@@ -43,7 +43,7 @@ request.GET = ""
 class TestCollectingViewSet(TestCase):
     def setUp(self):
         self.delete_model()
-        settings.CELERY_ALWAYS_EAGER = True
+        celery_app.conf.task_always_eager = True
 
     def tearDown(self):
         self.delete_model()
@@ -56,7 +56,7 @@ class TestCollectingViewSet(TestCase):
         CustomEventItem.objects.all().delete()
         CustomEventGroup.objects.all().delete()
         CollectConfigMeta.objects.all().delete()
-        settings.CELERY_ALWAYS_EAGER = False
+        celery_app.conf.task_always_eager = False
 
     @mock.patch.object(APIResource, "perform_request")
     def test_create_collect(self, mock_api):

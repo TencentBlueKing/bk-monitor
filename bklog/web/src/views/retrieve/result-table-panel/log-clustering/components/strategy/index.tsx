@@ -146,6 +146,10 @@ export default class Strategy extends tsc<object> {
     return this.alarmIsSubmit && this.increaseIsSubmit;
   }
 
+  get isExternal() {
+    return this.$store.state.isExternal;
+  }
+
   @Watch('alarmIsSubmit')
   watchStrategyStatus(v: boolean) {
     this.strategySubmitStatus(v);
@@ -325,6 +329,10 @@ export default class Strategy extends tsc<object> {
     window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
   }
   render() {
+    if (this.isExternal) {
+      return <div></div>;
+    }
+
     const strategyDialog = () => (
       <bk-dialog
         width='480'

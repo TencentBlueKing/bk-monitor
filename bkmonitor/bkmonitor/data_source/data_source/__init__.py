@@ -611,6 +611,9 @@ class InfluxdbDimensionFetcher(object):
             "table_id": conditions_param["table_id"],
             "info_type": "tag_values",
         }
+        # 修复 management 场景下获取维度候选值无权限的问题，同时仅对显示传入的 case 进行处理。
+        if "space_uid" in kwargs:
+            query_data["space_uid"] = kwargs["space_uid"]
 
         if conditions_param["field_name"]:
             query_data["metric_name"] = conditions_param["field_name"]
@@ -879,8 +882,11 @@ class TimeSeriesDataSource(DataSource):
             if operator in ["include", "exclude"]:
                 value = [re.escape(v) for v in value]
             conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator})
+        for con in conditions["field_list"]:
+            if None in con["value"]:
+                con["value"].remove(None)
+                con["value"].append("")
 
-        # 聚合方法参数
         query_list = []
         for metric in self.metrics:
             if self.data_source_label == DataSourceLabel.BK_DATA:

@@ -43,11 +43,6 @@ DATABASES = {
     },
 }
 
-# 如果只安装了 Redis，没有安装 RabbitMQ，可设置这个变量
-# BROKER_URL = CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
-
-BROKER_URL = os.getenv("BROKER_URL")
-
 SKIP_IAM_PERMISSION_CHECK = True
 
 DEBUG = True

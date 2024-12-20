@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from functools import wraps
 
-from celery import task
+from celery import shared_task
 from celery.result import AsyncResult
 
 from bkmonitor.utils.user import set_local_username
@@ -22,7 +22,7 @@ from core.drf_resource.exceptions import CustomException
 logger = logging.getLogger(__name__)
 
 
-@task(bind=True, queue="celery_resource")
+@shared_task(bind=True, queue="celery_resource")
 def run_perform_request(self, resource_obj, username, request_data):
     """
     将resource作为异步任务执行
