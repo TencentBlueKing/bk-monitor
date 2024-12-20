@@ -72,7 +72,7 @@ import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-fore
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
-import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
+import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -94,17 +94,20 @@ interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
   onCollectChart?: () => void;
-  onZrClick?: (event: ZrClickEvent) => void;
-  onDimensionsOfSeries?: string[];
-}
-interface IChartWrapperEvent {
-  onChartCheck: boolean;
-  onCollapse: boolean;
-  onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
   onDblClick?: () => void;
   onZrClick?: (event: ZrClickEvent) => void;
+  onDimensionsOfSeries?: string[];
+  onMenuClick?: (data: IDataItem) => void;
 }
+// interface IChartWrapperEvent {
+//   onChartCheck: boolean;
+//   onCollapse: boolean;
+//   onCollectChart?: () => void;
+//   onChangeHeight?: (height: number) => void;
+//   onDblClick?: () => void;
+//   onZrClick?: (event: ZrClickEvent) => void;
+// }
 @Component({
   components: {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
@@ -250,6 +253,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Emit('zrClick')
   handleZrClick(event: ZrClickEvent) {
     return event;
+  }
+  @Emit('menuClick')
+  handleMenuClick(data) {
+    return data;
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -570,9 +577,19 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           />
         );
       case 'caller-pie-chart':
-        return <ApmCallerPieChart panel={this.panel} />;
+        return (
+          <ApmCallerPieChart
+            panel={this.panel}
+            onMenuClick={this.handleMenuClick}
+          />
+        );
       case 'caller-bar-chart':
-        return <ApmCallerBarChart panel={this.panel} />;
+        return (
+          <ApmCallerBarChart
+            panel={this.panel}
+            onMenuClick={this.handleMenuClick}
+          />
+        );
 
       case 'apm_custom_graph':
         return (
