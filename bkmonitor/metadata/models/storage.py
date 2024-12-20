@@ -702,9 +702,7 @@ class StorageResultTable(object):
                     )
 
                 # 刷新RESULT_TABLE_DETAIL路由
-                space_client.push_table_id_detail(
-                    table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True
-                )
+                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
