@@ -12,15 +12,15 @@ import json
 import time
 from typing import List
 
-from celery.task import task
 from kafka.consumer.fetcher import ConsumerRecord
 
 from alarm_backends.core.alert import Event
 from alarm_backends.service.alert.builder.processor import AlertBuilder
+from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
 
 
-@task(ignore_result=True, queue="celery_alert_builder")
+@app.task(ignore_result=True, queue="celery_alert_builder")
 def run_alert_builder(topic_data_id, bootstrap_server, events: List[ConsumerRecord]):
     builder = AlertBuilder()
     exc = None
@@ -52,7 +52,7 @@ def run_alert_builder(topic_data_id, bootstrap_server, events: List[ConsumerReco
     metrics.report_all()
 
 
-@task(ignore_result=True, queue="celery_alert_builder")
+@app.task(ignore_result=True, queue="celery_alert_builder")
 def dedupe_events_to_alerts(events: List[Event]):
     builder = AlertBuilder()
     try:

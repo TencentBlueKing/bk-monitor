@@ -8,13 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
 from functools import reduce
 
 from django.db.models import Q
 from django.db.models.sql import AND, OR
 
 from bkmonitor.data_source.backends.base import compiler
+from bkmonitor.data_source.backends.time_series import escape_sql_field_name
 from constants.data_source import DataSourceLabel
 
 
@@ -33,7 +33,7 @@ class SQLCompiler(compiler.SQLCompiler):
                 ]
         out_cols = sorted(set(select_fields), key=select_fields.index)
         if out_cols:
-            result.append(", ".join(out_cols))
+            result.append(", ".join([escape_sql_field_name(col) for col in out_cols]))
         else:
             result.append("*")
 
@@ -55,12 +55,12 @@ class SQLCompiler(compiler.SQLCompiler):
         group_by_fields = self.query.group_by
         group_by = sorted(set(group_by_fields), key=group_by_fields.index)
         if group_by:
-            result.append("GROUP BY %s" % ", ".join(group_by))
+            result.append("GROUP BY %s" % ", ".join(escape_sql_field_name(col) for col in group_by))
 
         order_by_fields = self.query.order_by
         order_by = sorted(set(order_by_fields), key=order_by_fields.index)
         if order_by:
-            result.append("ORDER BY %s" % ", ".join(order_by))
+            result.append("ORDER BY %s" % ", ".join(escape_sql_field_name(col) for col in order_by))
 
         if self.query.high_mark is not None:
             result.append("LIMIT %d" % (self.query.high_mark - self.query.low_mark))

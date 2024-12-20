@@ -1143,12 +1143,14 @@ export default defineComponent({
           topoRawDataCache.value.diff = diff;
           topoRawDataCache.value.latest = latest;
           topoRawDataCache.value.complete = { ...complete, combos: resolvedCombos };
-
           const diffLen = topoRawDataCache.value.diff.length;
           timelinePosition.value = diffLen - 1;
           return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
         })
         .finally(() => {
+          if (!graph) {
+            initGraph();
+          }
           loading.value = false;
           if (refreshTime.value !== -1) {
             refreshTimeout = setTimeout(() => {
@@ -1257,7 +1259,6 @@ export default defineComponent({
       edgeInterval.forEach(interval => {
         clearInterval(interval);
       });
-
       resolveLayout(data).then(resp => {
         graph.data(resp.data);
         graph.render();
@@ -1275,14 +1276,26 @@ export default defineComponent({
           zoomValue.value = Number(zoom);
         }
         moveRootNodeCenter();
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        data.nodes.forEach(node => {
+          if (node.is_deleted) {
+            const deleteNode = graph.findById(node.id) as INode;
+            if (!deleteNode) return;
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            deleteNode.getEdges().forEach(edge => edge.hide());
+            deleteNode.hide();
+          }
+        });
         /** 布局渲染完将红线置顶 */
         setTimeout(toFrontAnomalyEdge, 500);
       });
     };
+    onMounted(() => {
+      getGraphData().then(initGraph);
+    });
     /** 初始化图表相关 */
-    onMounted(async () => {
-      await getGraphData();
-
+    const initGraph = async () => {
+      if (!topoRawData) return;
       const { width, height } = graphRef.value.getBoundingClientRect();
       const maxHeight = Math.max(160 * ElkjsUtils.getRootCombos(topoRawData).length, height);
       registerCustomNode();
@@ -1393,6 +1406,7 @@ export default defineComponent({
           ...cfg,
           ...(cfg.parentId
             ? {
+                label: accumulatedWidth(cfg.label, cfg.width),
                 style: {
                   stroke: '#626366',
                   lineWidth: 1,
@@ -1487,12 +1501,14 @@ export default defineComponent({
       graph.on('node:click', ({ item }) => {
         // const nodeItem = e.item;
         graph.setAutoPaint(false);
+        // biome-ignore lint/complexity/noForEach: <explanation>
         graph.getNodes().forEach(function (node) {
           graph.clearItemStates(node, ['dark', 'highlight']);
           graph.setItemState(node, 'dark', true);
           node.toFront();
         });
         /** 根据边的关系设置节点状态 */
+        // biome-ignore lint/complexity/noForEach: <explanation>
         graph.getEdges().forEach(function (edge) {
           if (edge.getSource() === item) {
             graph.setItemState(edge.getTarget(), 'dark', false);
@@ -1545,7 +1561,7 @@ export default defineComponent({
       nextTick(() => {
         addListener(graphRef.value as HTMLElement, onResize);
       });
-    });
+    };
     onUnmounted(() => {
       edgeInterval.forEach(interval => {
         clearInterval(interval);
@@ -1631,6 +1647,7 @@ export default defineComponent({
       showResourceGraph.value = false;
       /** 播放时清楚自动刷新 */
       clearTimeout(refreshTimeout);
+      // biome-ignore lint/complexity/noForEach: <explanation>
       hideNodeArr.forEach(({ id }) => {
         const node = graph.findById(id);
         node && graph.hideItem(node);
@@ -1642,6 +1659,7 @@ export default defineComponent({
       const randomStr = random(8);
       let next = false;
       const edges = graph.getEdges();
+      // biome-ignore lint/complexity/noForEach: <explanation>
       edges.forEach(edge => {
         const edgeModel = edge.getModel();
         const targetEdge = currEdges.find(item => item.source === edgeModel.source && edgeModel.target === item.target);
@@ -1650,11 +1668,12 @@ export default defineComponent({
           graph.updateItem(edge, { ...edge, ...targetEdge });
         }
       });
+      // biome-ignore lint/complexity/noForEach: <explanation>
       currNodes.forEach(item => {
         const node = graph.findById(item.id);
         const model = node?.getModel?.();
-        const isShow = showNodes.find(node => node.id === item.id);
-        if (!isShow) {
+        const targetNode = showNodes.find(node => node.id === item.id);
+        if (!targetNode) {
           if (node) {
             next = true;
             /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
@@ -1666,29 +1685,25 @@ export default defineComponent({
             });
             graph.setItemState(node, 'show-animate', randomStr);
             const edges = (node as any).getEdges();
+            // biome-ignore lint/complexity/noForEach: <explanation>
             edges.forEach(edge => {
               const edgeModel = edge.getModel();
               const edgeNode = [...showNodes, ...currNodes].find(node => {
                 return edgeModel.source === item.id ? node.id === edgeModel.target : node.id === edgeModel.source;
               });
               edgeNode && graph.setItemState(edge, 'show-animate', randomStr);
-              // graph.setItemState(edge, 'show-animate', randomStr);
             });
           }
         } else {
+          /** 某个节点状态从展示到隐藏 */
+          if (targetNode.is_deleted) {
+            node?.hide?.();
+            (node as any)?.getEdges()?.forEach(edge => edge?.hide());
+            return;
+          }
           /** diff中的节点  comboId没有经过布局处理，延用node之前已设置过的id即可 */
           graph.updateItem(node, { ...item, comboId: model.comboId, subComboId: model.subComboId });
         }
-      });
-      const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
-      combos.forEach(combo => {
-        const { id } = combo.getModel();
-        const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
-        const showNodes = nodes.filter(({ id }) => {
-          const node = graph.findById(id);
-          return node?._cfg.visible;
-        });
-        graph[showNodes.length > 1 ? 'showItem' : 'hideItem'](combo);
       });
 
       return currNodes.length === 0 || !next;
@@ -1747,10 +1762,12 @@ export default defineComponent({
         showResourceGraph.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
         const { showNodes, content } = topoRawDataCache.value.diff[value];
+        // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
           const showNode = [...showNodes, ...content.nodes].find(item => item.id === id);
+          const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
           const diffNode = content.nodes.find(item => item.id === id);
-          if (!showNode && !diffNode) {
+          if ((!showNode && !diffNode) || deleteNodeIds.includes(id)) {
             const node = graph.findById(id);
             node && graph.hideItem(node);
           } else if (diffNode) {
@@ -1761,6 +1778,7 @@ export default defineComponent({
           }
         });
         const edges = graph.getEdges();
+        // biome-ignore lint/complexity/noForEach: <explanation>
         edges.forEach(edge => {
           const edgeModel = edge.getModel();
           const targetEdge = content.edges.find(
@@ -1769,17 +1787,6 @@ export default defineComponent({
           if (targetEdge) {
             graph.updateItem(edge, { ...edge, ...targetEdge });
           }
-        });
-        /** 子combo需要根据节点时候有展示来决定 */
-        const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
-        combos.forEach(combo => {
-          const { id } = combo.getModel();
-          const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
-          const showNodes = nodes.filter(({ id }) => {
-            const node = graph.findById(id);
-            return node?._cfg.visible;
-          });
-          graph[showNodes.length > 1 ? 'showItem' : 'hideItem'](combo);
         });
       }
     };
