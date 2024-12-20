@@ -66,6 +66,7 @@
       <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
+        @fix-current-row="handleFixCurrentRow"
       />
       <!-- 暂停、复制、全屏 -->
       <div class="controls">
@@ -238,6 +239,13 @@
       document.removeEventListener('keyup', this.handleKeyup);
     },
     methods: {
+      handleFixCurrentRow() {
+        const target = this.$refs.contextLog;
+        const listElement = target.querySelector('#log-content');
+        const activeRow = listElement.querySelector('.line.log-init');
+        const scrollTop = activeRow.offsetTop;
+        target.scrollTo({ left: 0, top: scrollTop, behavior: 'smooth' });
+      },
       handleKeyup(event) {
         if (event.keyCode === 27) {
           this.$emit('close-dialog');
