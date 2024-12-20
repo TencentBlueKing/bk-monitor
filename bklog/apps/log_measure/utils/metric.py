@@ -44,7 +44,7 @@ class MetricUtils(object):
         self.space_info = {space.space_uid: space for space in spaces}
         # 上报时间
         self.collect_interval = collect_interval
-        timestamp = arrow.now().timestamp
+        timestamp = int(arrow.now().timestamp())
         self.report_ts = timestamp
         if collect_interval:
             self.report_ts = timestamp // self.collect_interval * self.collect_interval

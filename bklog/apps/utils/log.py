@@ -24,7 +24,7 @@ from logging.handlers import DatagramHandler
 
 from opentelemetry import trace
 from opentelemetry.sdk._logs import LoggingHandler as OTLPHandler
-from opentelemetry.sdk._logs.export import BatchLogProcessor
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.trace import format_trace_id
 
 """
@@ -57,7 +57,7 @@ class UdpHandler(DatagramHandler):
             self.handleError(record)
 
 
-class LazyBatchLogProcessor(BatchLogProcessor):
+class LazyBatchLogProcessor(BatchLogRecordProcessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # shutdown
@@ -95,25 +95,24 @@ class OTLPLogHandler(OTLPHandler):
 
     def __init__(self, level=logging.NOTSET) -> None:
         from django.conf import settings
+        from opentelemetry._logs._internal import set_logger_provider
         from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-        from opentelemetry.sdk._logs import LogEmitterProvider, set_log_emitter_provider
+        from opentelemetry.sdk._logs import LoggerProvider
         from opentelemetry.sdk.resources import Resource
 
         service_name = settings.SERVICE_NAME or settings.APP_CODE
         otlp_grpc_host = settings.OTLP_GRPC_HOST
         otlp_bk_log_token = settings.OTLP_BK_LOG_TOKEN
 
-        log_emitter_provider = LogEmitterProvider(
+        log_emitter_provider = LoggerProvider(
             resource=Resource.create({"service.name": service_name, "bk.data.token": otlp_bk_log_token})
         )
-        set_log_emitter_provider(log_emitter_provider)
+        set_logger_provider(log_emitter_provider)
 
         # init exporter
         exporter = OTLPLogExporter(endpoint=otlp_grpc_host)
-        log_emitter_provider.add_log_processor(LazyBatchLogProcessor(exporter))
-        super(OTLPLogHandler, self).__init__(
-            level=level, log_emitter=log_emitter_provider.get_log_emitter(service_name)
-        )
+        log_emitter_provider.add_log_record_processor(LazyBatchLogProcessor(exporter))
+        super(OTLPLogHandler, self).__init__(level=level, logger_provider=log_emitter_provider.get_logger(service_name))
 
 
 # ===============================================================================

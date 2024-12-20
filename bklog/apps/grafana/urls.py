@@ -21,11 +21,13 @@ the project delivered to anyone in the future.
 """
 from __future__ import absolute_import, unicode_literals
 
+from django.conf.urls import include
+from django.urls import re_path
+from rest_framework import routers
+
 from apps.grafana import views
 from apps.grafana.views import CustomESDatasourceViewSet, GrafanaProxyView
 from bk_dataview.grafana.views import StaticView, SwitchOrgView
-from django.conf.urls import include, url
-from rest_framework import routers
 
 router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"grafana", views.GrafanaViewSet, basename="grafana_api")
@@ -35,22 +37,22 @@ proxy_router = routers.DefaultRouter(trailing_slash=False)
 proxy_router.register(r"trace", views.GrafanaTraceViewSet, basename="trace_api")
 
 urlpatterns = [
-    url(r"^api/v1/", include(router.urls)),
+    re_path(r"^api/v1/", include(router.urls)),
     # iframe访问地址 org_name 可以是项目id/业务id 需要保证唯一
-    url(r"^bk-dataview/orgs/(?P<org_name>[a-zA-Z0-9\-_]+)/grafana/", SwitchOrgView.as_view()),
+    re_path(r"^bk-dataview/orgs/(?P<org_name>[a-zA-Z0-9\-_]+)/grafana/", SwitchOrgView.as_view()),
     # grafana访问地址, 需要和grafana前缀保持一致
-    url(r"^grafana/$", SwitchOrgView.as_view()),
+    re_path(r"^grafana/$", SwitchOrgView.as_view()),
     # 自定义ES数据源 mapping
-    url(
+    re_path(
         r"^grafana/custom_es_datasource/(?P<index_set_id>.+)/_mapping$",
         CustomESDatasourceViewSet.as_view({"get": "mapping"}),
     ),
     # 自定义ES数据源 msearch
-    url(
+    re_path(
         r"^grafana/custom_es_datasource/_msearch$",
         CustomESDatasourceViewSet.as_view({"post": "msearch"}),
     ),
-    url(r"^grafana/proxy/", include(proxy_router.urls)),
-    url(r"^grafana/public/", StaticView.as_view()),
-    url(r"^grafana/", GrafanaProxyView.as_view()),
+    re_path(r"^grafana/proxy/", include(proxy_router.urls)),
+    re_path(r"^grafana/public/", StaticView.as_view()),
+    re_path(r"^grafana/", GrafanaProxyView.as_view()),
 ]

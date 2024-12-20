@@ -16,7 +16,7 @@ import logging
 from blueapps.account.decorators import login_exempt
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from version_log import config
 from version_log.utils import get_parsed_html, get_version_list
 

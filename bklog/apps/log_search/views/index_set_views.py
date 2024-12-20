@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import json
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -343,11 +343,12 @@ class IndexSetViewSet(ModelViewSet):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
-                        }, {
+                        },
+                        {
                             "name": "need_add_time",
                             "value_type": "bool",
                             "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                        }
+                        },
                     ],
                 }
             )

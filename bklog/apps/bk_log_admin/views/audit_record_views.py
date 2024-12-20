@@ -19,14 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
 from rest_framework.response import Response
-from django.utils.translation import ugettext_lazy as _
 
-from apps.generic import ModelViewSet
-from apps.utils.drf import list_route
-from apps.bk_log_admin.serializers import AuditRecordSerializer
-from apps.log_audit.models import UserOperationRecord
 from apps.bk_log_admin.handlers.audit_record import AuditRecordHandler
+from apps.bk_log_admin.serializers import AuditRecordSerializer
+from apps.generic import ModelViewSet
+from apps.log_audit.models import UserOperationRecord
+from apps.utils.drf import list_route
 
 
 class AuditRecordViewSet(ModelViewSet):

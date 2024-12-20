@@ -25,7 +25,7 @@ from django.core import exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.local import get_request_username

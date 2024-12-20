@@ -19,7 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
 
 from apps.log_desensitize.views import desensitize_rule_views
@@ -30,5 +31,5 @@ router.register(r"desensitize/rule", desensitize_rule_views.DesensitizeRuleViesS
 
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]
