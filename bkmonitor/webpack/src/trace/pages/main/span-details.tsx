@@ -139,6 +139,9 @@ export default defineComponent({
     const originSpanEndTime = ref(0);
     provide('originSpanEndTime', originSpanEndTime);
 
+    const spanId = computed(() => props.spanDetails.span_id);
+    provide('spanId', spanId);
+
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
