@@ -1068,12 +1068,12 @@
         }
       }
 
-      .bk-form-input {
+      :deep(.bk-form-input) {
         height: 50px;
         border: 1px solid transparent;
       }
 
-      .participle-disabled-input {
+      :deep(.participle-disabled-input) {
         .bk-form-input[disabled] {
           /* stylelint-disable-next-line declaration-no-important */
           border-color: transparent !important;

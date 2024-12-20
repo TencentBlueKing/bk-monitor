@@ -33,8 +33,6 @@ import VueDraggable from 'vuedraggable';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-import $http from '@/api/index.js';
-import { cloneDeep } from 'lodash';
 import './index.scss';
 
 @Component
@@ -78,7 +76,6 @@ export default class FieldFilterComp extends tsc<object> {
   fieldContainerHeight = 400;
 
   isShowErrInfo = false;
-  objectField = []
   get errInfo() {
     const key = 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
@@ -153,53 +150,40 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData) {
-    if(!this.objectField.length){
+    const [objArr, otherArr] = arrData.reduce(([objArr, otherArr], item) => {
+      item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
+      return [objArr, otherArr];
+    }, [[], []]);
+    console.log(objArr, otherArr);
+    if(!objArr.length){
       return arrData
     }
-    this.objectField.forEach(item => item.children=[])
-    const arr = cloneDeep(arrData);
-    let filterArr = arr.filter(field => {
-      let isNotMatched = true; // 如果没有匹配到，默认为 true
-      this.objectField.forEach(objectField => {
-        objectField.filterVisible = true
-        const regex = new RegExp(`${objectField.field_name}\\.`);
-        if (regex.test(field.field_name)) {
-          const exists = objectField.children && objectField.children.some(child => child.field_name === field.field_name);
-          if (!exists) {
-            // objectField.children = [...(objectField.children || []), field];
-            objectField.children.push(field)
-          }
-          isNotMatched = false;
-        }
-      });
-      return isNotMatched; // 返回是否没有匹配到
-    });
-    return [...filterArr,...this.objectField]
+    let objectField = []
+    objArr.forEach(item => {
+      this.addToNestedStructure(objectField, item);
+    })
+    console.log(objectField);
+    return [...otherArr,...objectField ]
   }
-  // 获取object类型的field
-  async initFieldData () {
-    const indexSetList = this.$store.state.retrieve.indexSetList;
-    const indexSetId = this.$route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
-    if (!currentIndexSet?.collector_config_id) {
-      const retryInterval = 200;
-      setTimeout(() => {
-        this.initFieldData();
-      }, retryInterval);
-      return;
-    }
-    try {
-      const res = await $http.request('collect/details', {
-        params: {
-          collector_config_id: currentIndexSet.collector_config_id,
-        },
-      });
-      this.objectField = res.data.fields.filter(item => item.field_type === 'object');
-      this.$store.commit('updateIndexFieldInfoField', this.objectField);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
+  /** 递归将数组变成tree */
+  addToNestedStructure(targetArray, originalObject) {
+    const parts = originalObject.field_name.split('.');
+    let currentLevel = targetArray; 
+    parts.forEach((part, index) => {
+      let existingPart = currentLevel.find(item => item.field_name === part);
+      if (!existingPart) {
+        existingPart = { field_name: part, filterVisible: true, field_type: 'object' };
+        if (index < parts.length - 1) {
+          existingPart.children = [];
+        }
+        currentLevel.push(existingPart);
+      }
+      if (index === parts.length - 1) {
+        Object.assign(existingPart, originalObject);
+      }
+      currentLevel = existingPart.children;
+    });
+  }
 
   /** 内置字段展示对象 */
   builtInFieldsShowObj() {
@@ -293,7 +277,6 @@ export default class FieldFilterComp extends tsc<object> {
     this.fieldType = 'any';
     this.isShowAllBuiltIn = false;
     this.isShowAllIndexSet = false;
-    this.initFieldData()
   }
 
   @Watch('visibleFields', { immediate: true, deep: true })
@@ -304,7 +287,6 @@ export default class FieldFilterComp extends tsc<object> {
   mounted() {
     window.addEventListener('resize', this.updateContainerHeight);
     this.updateContainerHeight();
-    this.initFieldData()
   }
 
   beforeDestroy() {
