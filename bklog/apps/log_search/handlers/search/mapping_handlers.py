@@ -37,6 +37,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -808,6 +809,12 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
+        alias_dict = dict()
+        remove_field_list = list()
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_dict = data.get("query_alias_settings", dict())
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -840,6 +847,20 @@ class MappingHandlers(object):
                             "field_time_format": field_time_format_dict.get("field_time_format"),
                         }
                     )
+
+                # 添加别名信息
+                for alias_name, info in alias_dict.items():
+                    if a_field_name == info.get("path"):
+                        _field["query_alias"] = alias_name
+
+                # 别名字段
+                if _field.get("field_type") == "alias":
+                    remove_field_list.append(_field)
+
+        # 移除不展示的别名字段
+        for field in remove_field_list:
+            if field in fields_list:
+                fields_list.remove(field)
 
         return fields_list
 
