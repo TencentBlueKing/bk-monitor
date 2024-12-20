@@ -132,11 +132,7 @@ class Query:
                     "prefer_storage": "doris",
                     "_user_request": True,
                 }
-                span.set_attributes(
-                    {
-                        "request.body": json.dumps(params),
-                    }
-                )
+                span.set_attribute("request.body", json.dumps(params))
                 return api.bkdata.query_profile_data(**params)
             except BKAPIError as e:
                 span.record_exception(exception=e)
