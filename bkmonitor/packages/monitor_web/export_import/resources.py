@@ -1100,8 +1100,8 @@ class AddMonitorTargetResource(Resource):
             installer.install(deployment_config_params)
 
         # 添加策略配置目标
-        resource.strategies.bulk_edit_strategy(
-            bk_biz_id=bk_biz_id, id_list=strategy_config_ids, edit_data={"target": target}
+        resource.strategies.update_partial_strategy_v2(
+            bk_biz_id=bk_biz_id, ids=strategy_config_ids, edit_data={"target": target}
         )
         StrategyModel.objects.filter(id__in=strategy_config_ids).update(is_enabled=True)
 
