@@ -343,7 +343,7 @@
           return [...list, { id: 'monitor-retrieve', name: '监控检索' }];
         }
         // #endif
-        return list;
+        return [...list, { id: 'monitor-trace-log', name: 'trace检索-日志' }];
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;

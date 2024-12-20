@@ -93,6 +93,7 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   devConfig = Object.assign({}, devConfig, localConfig);
 }
 module.exports = (baseConfig, { app, mobile, production, fta, email = false }) => {
+  console.log(app);
   const isMonitorRetrieveBuild = app === 'apm' && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
