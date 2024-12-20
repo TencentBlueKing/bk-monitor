@@ -23,8 +23,9 @@ import logging
 import time
 
 import redis
+from django.utils.translation import gettext_lazy as _
+
 import settings
-from django.utils.translation import ugettext_lazy as _
 from home_application.constants import ALARM_QUEUE_LEN
 
 logger = logging.getLogger()

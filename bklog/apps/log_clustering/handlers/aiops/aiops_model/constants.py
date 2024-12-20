@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.

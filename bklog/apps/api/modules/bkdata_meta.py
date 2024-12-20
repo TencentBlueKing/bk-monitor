@@ -19,14 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
+
 from apps.api.base import DataDRFAPISet, DRFActionAPI
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user
 from config.domains import META_APIGATEWAY_ROOT
-from django.utils.translation import ugettext_lazy as _
 
 
 class _BkDataMetaApi:
-
     MODULE = _("计算平台元数据模块")
 
     def __init__(self):

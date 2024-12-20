@@ -32,7 +32,7 @@ from django.db import connection, models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
 
 from apps.api import TransferApi
@@ -1048,9 +1048,7 @@ class IndexSetUserFavorite(models.Model):
 
     @classmethod
     def fetch_user_favorite_index_set(cls, username: str):
-        return cls.objects.filter(username=username).values_list(
-            "index_set_id", flat=True
-        )
+        return cls.objects.filter(username=username).values_list("index_set_id", flat=True)
 
 
 class IndexSetTag(models.Model):
