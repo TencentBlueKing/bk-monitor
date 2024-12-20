@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, set, KeepAlive } from 'vue';
 
 import {
   parseTableRowData,
@@ -122,26 +122,36 @@ export default defineComponent({
 
     const hasMoreList = computed(() => totalCount.value > tableList.value.length);
 
-    const intersectionArgs: Ref<Record<string, { visible?: boolean; height?: number }>> = ref({});
+    const intersectionArgs: Ref<Record<string, { visible?: boolean; height?: number; rowIndex?: number }>> = ref({});
+    const rowProxy = {};
+
+    const delayUpdate = debounce(() => {
+      console.log('update');
+    });
 
     const updateIntersectionArgs = (index, visible?, height?) => {
-      if (!intersectionArgs.value[index]) {
-        set(intersectionArgs.value, index, {
-          visible,
-          height,
+      if (!rowProxy[index]) {
+        Object.assign(rowProxy, {
+          [index]: {
+            visible,
+            height,
+            rowIndex: Number(index),
+          },
         });
       }
 
-      Object.assign(intersectionArgs.value[index], {
-        visible: visible ?? intersectionArgs.value[index].visible,
-        height: height ?? intersectionArgs.value[index].height,
+      Object.assign(rowProxy[index], {
+        visible: visible ?? rowProxy[index].visible,
+        height: height ?? rowProxy[index].height,
       });
+
+      delayUpdate();
     };
 
     const intersectionObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         const index = entry.target.getAttribute('data-row-index');
-        updateIntersectionArgs(index, entry.isIntersecting);
+        // updateIntersectionArgs(index, entry.isIntersecting);
       });
     });
 
@@ -150,7 +160,7 @@ export default defineComponent({
         const index = entry.target.getAttribute('data-row-index');
         const visible = entry.target.getAttribute('data-row-visible');
         if (visible === 'true') {
-          updateIntersectionArgs(index, undefined, entry.contentRect.height);
+          // updateIntersectionArgs(index, undefined, entry.contentRect.height);
         }
       });
     });
@@ -466,8 +476,6 @@ export default defineComponent({
     watch(
       () => [props.contentType],
       () => {
-        pageIndex.value = 1;
-        pageSize.value = 0;
         isRequesting.value = true;
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
@@ -486,7 +494,6 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
-        pageIndex.value = 1;
 
         setTimeout(() => {
           computeRect();
@@ -506,10 +513,6 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        if (!val[0] || !oldVal[0]) {
-          pageIndex.value = 1;
-        }
-
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
     );
@@ -520,7 +523,6 @@ export default defineComponent({
         if (isLoading.value) {
           isPending.value = false;
           if (!isRequesting.value) {
-            pageIndex.value = 1;
             scrollToTop(0);
           }
         }
@@ -581,23 +583,9 @@ export default defineComponent({
         isRequesting.value = true;
         delay = 0;
 
-        if (pageIndex.value * pageSize.value < tableDataSize.value) {
-          pageIndex.value++;
-          pageSize.value = 100;
+        return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           debounceSetLoading();
-          return;
-        }
-
-        return store
-          .dispatch('requestIndexSetQuery', { isPagination: true })
-          .then(() => {
-            if (tableDataSize.value > pageIndex.value * pageSize.value) {
-              pageIndex.value++;
-            }
-          })
-          .finally(() => {
-            debounceSetLoading();
-          });
+        });
       }
 
       return Promise.resolve(false);
@@ -612,9 +600,7 @@ export default defineComponent({
       rowsScrollTop.value = offsetTop - searchContainerHeight.value;
       const visibleTop = offsetTop - searchContainerHeight.value;
       const useScrollHeight = scrollTop > visibleTop ? scrollTop - visibleTop : 0;
-      if (useScrollHeight === 0) {
-        pageIndex.value = 1;
-      }
+
       rowsOffsetTop.value = useScrollHeight;
     }, 120);
 
@@ -715,7 +701,7 @@ export default defineComponent({
     };
 
     const scrollTop = () => {
-      scrollToTop(0, pageIndex.value <= 2);
+      scrollToTop(0, false);
     };
 
     const renderScrollTop = () => {
@@ -758,13 +744,25 @@ export default defineComponent({
       ];
     };
 
-    const viewList = computed(() => tableList.value.slice(0, pageIndex.value * pageSize.value));
+    const visibleRowIndex = computed(() => {
+      const idxs = Object.entries(intersectionArgs.value ?? {})
+        .filter(([_, v]) => v.visible)
+        .map(([_, { rowIndex }]) => rowIndex);
+      const max = Math.max(...idxs, 0) + pageSize.value;
+      const min = idxs.length ? Math.min(...idxs) : 0;
+      return { max: Math.min(max, tableDataSize.value), min: Math.max(min, 0) };
+    });
+
+    const renderList = computed(() => new Array(tableDataSize.value).fill('').map((_, i) => i));
 
     const renderRowVNode = () => {
-      return viewList.value.map((row, rowIndex) => {
+      return renderList.value.map((row, rowIndex) => {
+        const { height = 40, visible = true } = intersectionArgs.value?.[`${rowIndex}`] ?? {};
         const style = {
-          minHeight: `${intersectionArgs.value?.[`${rowIndex}`]?.height ?? 40}px`,
+          minHeight: `${height}px`,
         };
+
+        // const isPending = rowIndex >= visibleRowIndex.value.min && rowIndex <= visibleRowIndex.value.max;
         return (
           <RowRender
             key={rowIndex}
@@ -773,11 +771,13 @@ export default defineComponent({
               'bklog-row-container',
               {
                 'has-overflow-x': hasScrollX.value,
+                // 'is-intersecting': visible || isPending,
               },
             ]}
             row-index={rowIndex}
+            visible={true}
           >
-            {renderRowCells(row, rowIndex)}
+            {/* {renderRowCells(row, rowIndex)} */}
           </RowRender>
         );
       });
@@ -807,10 +807,6 @@ export default defineComponent({
 
     const loadingText = computed(() => {
       if (hasMoreList.value) {
-        if (tableDataSize.value > pageIndex.value * pageSize.value) {
-          return 'Rendering ...';
-        }
-
         return 'Loading ...';
       }
 

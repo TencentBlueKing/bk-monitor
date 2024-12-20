@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
 
 export default defineComponent({
   props: {
@@ -36,13 +36,11 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['row-resize'],
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
-    const isPending = ref(true);
+    const isPending = ref(false);
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
     const resizeObserver: ResizeObserver = inject('resizeObserver');
-    let delayTimer;
 
     const renderRowVNode = () => {
       return (
@@ -53,7 +51,7 @@ export default defineComponent({
             data-row-index={props.rowIndex}
             data-row-visible={props.visible}
           >
-            {isPending.value ? '' : slots.default?.()}
+            {props.visible ? slots.default?.() : null}
           </div>
         </div>
       );
@@ -62,15 +60,11 @@ export default defineComponent({
     onMounted(() => {
       intersectionObserver?.observe(refRowNodeRoot.value);
       resizeObserver?.observe(refRowNodeRoot.value);
-      delayTimer = setTimeout(() => {
-        isPending.value = false;
-      });
     });
 
     onBeforeUnmount(() => {
       intersectionObserver?.unobserve(refRowNodeRoot.value);
       resizeObserver?.unobserve(refRowNodeRoot.value);
-      delayTimer && clearTimeout(delayTimer);
     });
 
     return {

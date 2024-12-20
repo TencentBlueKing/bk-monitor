@@ -70,7 +70,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     calculateOffsetTop();
     const target = event.target as HTMLDivElement;
     const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-    if (target.scrollTop > lastPosition && scrollDiff < 1200) {
+    if (target.scrollTop > lastPosition && scrollDiff < 200) {
       debounceLoadCallback();
     }
 
