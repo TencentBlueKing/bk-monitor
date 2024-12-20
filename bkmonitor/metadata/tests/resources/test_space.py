@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.local import local
 from core.drf_resource.exceptions import CustomException
+from metadata import models
 from metadata.models.space import (
     Space,
     SpaceDataSource,
@@ -15,9 +16,11 @@ from metadata.models.space import (
     SpaceType,
     constants,
 )
+from metadata.models.space.constants import SpaceTypes
 from metadata.resources import (
     CreateSpaceResource,
     DisableSpaceResource,
+    GetBizRelatedBkciSpacesResource,
     GetSpaceDetailResource,
     ListSpacesResource,
     ListSpaceTypesResource,
@@ -53,6 +56,33 @@ def create_and_delete_space_record():
     SpaceDataSource.objects.all().delete()
     Space.objects.all().delete()
     SpaceType.objects.all().delete()
+
+
+@pytest.fixture
+def create_or_delete_records(mocker):
+    models.SpaceResource.objects.create(
+        space_type_id=SpaceTypes.BKCI.value, space_id='space1', resource_type=SpaceTypes.BKCC.value, resource_id=1001
+    )
+    models.SpaceResource.objects.create(
+        space_type_id=SpaceTypes.BKCI.value, space_id='space2', resource_type=SpaceTypes.BKCC.value, resource_id=1001
+    )
+    models.SpaceResource.objects.create(
+        space_type_id=SpaceTypes.BKCI.value, space_id='space3', resource_type=SpaceTypes.BKCC.value, resource_id=1002
+    )
+    yield
+    models.SpaceResource.objects.all().delete()
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_get_biz_related_bkci_spaces_resource(create_or_delete_records):
+    """
+    测试获取业务关联的bkci空间
+    """
+    params = dict(space_id=1001)
+    expected = ['space1', 'space2']
+    result = GetBizRelatedBkciSpacesResource().request(params)
+    assert len(result) == 2
+    assert set(result) == set(expected)
 
 
 def test_list_space_types(create_and_delete_space_record):
