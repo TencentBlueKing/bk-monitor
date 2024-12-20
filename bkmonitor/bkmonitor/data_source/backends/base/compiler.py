@@ -22,8 +22,6 @@ class SQLCompiler(object):
 
     def compile(self, node):
         vendor_impl = getattr(node, "as_" + self.connection.vendor, None)
-        # import pydevd_pycharm
-        # pydevd_pycharm.settrace('localhost', port=8999, stdoutToServer=True, stderrToServer=True)
         if vendor_impl:
             sql, params = vendor_impl(self, self.connection)
         else:
