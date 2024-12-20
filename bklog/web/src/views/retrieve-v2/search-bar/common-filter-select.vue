@@ -3,16 +3,18 @@
   import useStore from '@/hooks/use-store';
   import { bus } from '@/common/bus';
   import { ConditionOperator } from '@/store/condition-operator';
+  import useLocale from '@/hooks/use-locale';
 
+  const { $t } = useLocale();
   const store = useStore();
   const userSettingConfig = computed(() => {
     return store.state.retrieve.catchFieldCustomConfig;
   });
 
   const SettingData = ref({
-    switchingMode: false,
     filterFields: [],
   });
+
   const filterFieldList = computed(() => {
     return SettingData.value.filterFields;
   });
@@ -52,12 +54,7 @@
           .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
           .then(res => {
             const arr = res.data?.aggs_items?.[field.field_name] || [];
-            condition.value[index].list = arr.map(item => {
-              return {
-                id: item,
-                name: item,
-              };
-            });
+            condition.value[index].list = arr.filter(item => item);
           })
           .finally(() => {
             isRequesting.value = false;
@@ -67,9 +64,15 @@
   })();
 
   const activeIndex = ref(-1);
-  const handleFocus = (item, index) => {
-    activeIndex.value = index;
-    rquestFieldEgges(item, index, null, null, () => {});
+  const handleToggle = (visable, item, index) => {
+    if (visable) {
+      activeIndex.value = index;
+      rquestFieldEgges(item, index, null, null, () => {});
+    }
+  };
+
+  const handleInputVlaueChange = (value, item, index) => {
+    rquestFieldEgges(item, index, condition.value[index].operator, value);
   };
 
   const handleChange = () => {
@@ -77,19 +80,16 @@
     store.dispatch('requestIndexSetQuery');
   };
 
+  const isShowCommonFilter = ref(true);
+  const handleCollapseChange = val => {
+    isShowCommonFilter.value = !val;
+  };
+
   const initData = data => {
-    // const displayFields = userSettingConfig?.value.displayFields || [];
-    const { switchingMode, filterFields } = data ? data?.filterSetting : userSettingConfig?.value?.filterSetting;
-    SettingData.value.switchingMode = switchingMode || false;
+    const { filterFields } = data ? data?.filterSetting : userSettingConfig?.value?.filterSetting;
     SettingData.value.filterFields = filterFields || [];
-    const result =
-      filterFields?.filter(item => {
-        // console.log(item, displayFields.includes(item.field));
-        // return displayFields.includes(item.field);
-        return item;
-      }) || [];
     condition.value =
-      result?.map(item => {
+      filterFields?.map(item => {
         return {
           field: item?.field_name || '',
           operator: '=',
@@ -109,94 +109,146 @@
 </script>
 
 <template>
-  <div class="filter-container">
-    <div
-      class="filter-select-wrap"
-      v-for="(item, index) in filterFieldList"
-    >
-      <div class="title">{{ item?.field_alias || item?.field_name || '' }}</div>
-      <bk-select
-        class="operator-select"
-        v-model="condition[index].operator"
-        :input-search="false"
-        filterable
-        :popoverMinWidth="100"
-        @change="handleChange"
+  <bk-resize-layout
+    class="resize-layout-wrap"
+    v-if="filterFieldList.length"
+    placement="top"
+    :collapsible="true"
+    :border="false"
+    @collapse-change="handleCollapseChange"
+  >
+    <div slot="aside">
+      <div
+        class="filter-container"
+        v-if="isShowCommonFilter"
       >
-        <template #trigger="{ selected }">
-          <span class="operator-label">{{ condition[index].operator }}</span>
-        </template>
-        <bk-option
-          v-for="(item, index) in item.field_operator"
-          :id="item.label"
-          :key="index"
-          :name="item.label"
-        />
-      </bk-select>
-      <!-- 后续再确定是否加loading v-bkloading="{ isLoading: activeIndex === index ? isRequesting : false }" -->
-      <bk-tag-input
-        class="value-select"
-        v-model="condition[index].value"
-        :list="condition[index].list"
-        placeholder="请选择"
-        allow-auto-match
-        trigger="focus"
-        allow-create
-        has-delete-icon
-        :clearable="false"
-        :collapse-tags="true"
-        @focus="handleFocus(item, index)"
-        @change="handleChange"
-      >
-      </bk-tag-input>
-      <i class="bk-select-angle bk-icon icon-angle-down"></i>
+        <div
+          class="filter-select-wrap"
+          v-for="(item, index) in filterFieldList"
+        >
+          <div
+            class="title"
+            v-bk-tooltips.top="{
+              content: item?.field_alias || item?.field_name,
+            }"
+          >
+            {{ item?.field_alias || item?.field_name || '' }}
+          </div>
+          <bk-select
+            class="operator-select"
+            v-model="condition[index].operator"
+            :input-search="false"
+            filterable
+            :popoverMinWidth="100"
+            @change="handleChange"
+          >
+            <template #trigger>
+              <span class="operator-label">{{ $t(condition[index].operator) }}</span>
+            </template>
+            <bk-option
+              v-for="(item, index) in item.field_operator"
+              :id="item.label"
+              :key="index"
+              :name="item.label"
+            />
+          </bk-select>
+          <bk-select
+            class="value-select"
+            v-model="condition[index].value"
+            multiple
+            searchable
+            allow-create
+            @change="handleChange"
+            @toggle="visible => handleToggle(visible, item, index)"
+          >
+            <template #search>
+              <bk-input
+                behavior="simplicity"
+                :clearable="true"
+                :left-icon="'bk-icon icon-search'"
+                @input="e => handleInputVlaueChange(e, item, index)"
+              ></bk-input>
+            </template>
+            <bk-option
+              v-for="option in condition[index].list"
+              :key="option"
+              :id="option"
+              :name="option"
+            />
+          </bk-select>
+        </div>
+      </div>
     </div>
-  </div>
+  </bk-resize-layout>
 </template>
 <style lang="scss">
-  .filter-container {
-    display: flex;
-    padding: 10px;
-    background: #ffffff;
+  .resize-layout-wrap {
     box-shadow: 0 2px 4px 0 #1919290d;
-  }
-  .filter-select-wrap {
-    border: 1px solid #dbdde1;
-    display: flex;
-    align-items: center;
-    margin-right: 8px;
 
-    .title {
-      margin-left: 8px;
-      font-size: 12px;
-      color: #313238;
+    .bk-resize-trigger {
+      display: none;
     }
-    .operator-select {
-      border: none;
-      .operator-label {
-        padding: 10px;
-        color: #ff9c01;
-      }
-      &.bk-select.is-focus {
-        -webkit-box-shadow: none;
-        box-shadow: none;
-      }
+
+    .bk-resize-layout-aside {
+      border-bottom: none;
     }
-    .value-select {
-      min-width: 160px;
-      &.bk-tag-selector .bk-tag-input {
+
+    .filter-container {
+      display: flex;
+      flex-wrap: wrap;
+      max-height: 95px;
+      padding: 0 10px 4px 10px;
+      overflow: scroll;
+      background: #ffffff;
+    }
+
+    .filter-select-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 280px;
+      max-width: 600px;
+      margin-top: 8px;
+      margin-right: 8px;
+      border: 1px solid #dbdde1;
+
+      .title {
+        max-width: 120px;
+        margin-left: 8px;
+        overflow: hidden;
+        font-size: 12px;
+        color: #313238;
+        text-overflow: ellipsis;
+      }
+
+      .operator-select {
         border: none;
+
+        .operator-label {
+          padding: 10px;
+          color: #ff9c01;
+        }
+
+        &.bk-select.is-focus {
+          box-shadow: none;
+        }
       }
-      &.bk-tag-selector .bk-tag-input .placeholder {
-        left: 0;
+
+      .value-select {
+        min-width: 200px;
+
+        &.bk-select {
+          border: none;
+
+          &.is-focus {
+            box-shadow: none;
+          }
+        }
       }
-      &.bk-tag-selector .bk-tag-input {
-        padding: 0;
+
+      .bk-select-angle {
+        font-size: 22px;
+        color: #979ba5;
       }
-    }
-    .bk-select-angle {
-      color: #979ba5;
-      font-size: 22px;
     }
   }
 </style>
