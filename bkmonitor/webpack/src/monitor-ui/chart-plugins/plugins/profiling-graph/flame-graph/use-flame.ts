@@ -42,7 +42,6 @@ import {
   type IFlameData,
   type ILineData,
   type IOtherData,
-  RootId,
   type ThreadPos,
 } from '../../../typings';
 import { findChildById, findRegionById, getHashVal } from './utils';
