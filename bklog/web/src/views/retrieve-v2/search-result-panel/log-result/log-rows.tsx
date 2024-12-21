@@ -133,31 +133,14 @@ export default defineComponent({
       renderList.value = new Array(tableDataSize.value).fill('').map((_, i) => i);
     };
 
-    const resetRowState = (next?) => {
-      const max = Math.ceil(tableDataSize.value / 10);
-      let page = 1;
-      const updateRow = () => {
-        if (page <= max) {
-          let startIndex = (page - 1) * 10;
-          const endIndex = startIndex + 10;
-          for (; startIndex < endIndex; startIndex++) {
-            const target = intersectionArgs.value[`${startIndex}`];
-            if (target && !target.visible) {
-              rowProxy[`${startIndex}`].mounted = false;
-              set(target, 'mounted', false);
-            }
-          }
-
-          setTimeout(() => {
-            page++;
-            updateRow();
-          });
-        } else {
-          next?.();
+    const resetRowState = () => {
+      for (let i = 0; i < tableDataSize.value; i++) {
+        const target = intersectionArgs.value[`${i}`];
+        if (target && !target.visible) {
+          rowProxy[`${i}`].mounted = false;
+          set(target, 'mounted', false);
         }
-      };
-
-      updateRow();
+      }
     };
 
     /**
@@ -533,7 +516,7 @@ export default defineComponent({
     );
 
     watch(
-      () => [props.contentType],
+      () => [props.contentType, formatJson.value, tableLineIsWrap.value],
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
@@ -542,11 +525,9 @@ export default defineComponent({
 
         setTimeout(() => {
           showCtxType.value = props.contentType;
+          resetRowState();
           setRenderList();
-
-          resetRowState(() => {
-            isRending.value = false;
-          });
+          isRending.value = false;
           computeRect();
         });
       },
@@ -772,7 +753,7 @@ export default defineComponent({
           {renderColumns.value.map(column => {
             const cellStyle = {
               width: `${column.width}px`,
-              minWidth: column.minWidth ? `${column.minWidth}px` : 'auto',
+              minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
             };
             return (
               <div
@@ -824,6 +805,10 @@ export default defineComponent({
     };
 
     const loadingText = computed(() => {
+      if (isRending.value) {
+        return;
+      }
+
       if (hasMoreList.value) {
         return 'Loading ...';
       }
