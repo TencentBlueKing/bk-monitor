@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, onMounted, Ref, ref } from 'vue';
+
 import { RowProxyData } from './log-row-attributes';
 
 export default defineComponent({
@@ -46,20 +47,23 @@ export default defineComponent({
     });
 
     const visible = computed(() => {
-      return (rowProxy.value[props.rowIndex]?.visible ?? true) || !(rowProxy.value[props.rowIndex]?.mounted ?? false);
+      const { visible = true, mounted = false } = rowProxy.value[props.rowIndex] ?? {};
+      const { start = 0, end = 50 }: { start: number; end: number } = (rowProxy.value ?? {}) as any;
+
+      return visible || !mounted || (props.rowIndex >= start && props.rowIndex <= end);
     });
 
     const renderRowVNode = () => {
       return (
         <div
-          data-row-index={props.rowIndex}
           style={rowStyle.value}
+          data-row-index={props.rowIndex}
         >
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': !visible.value }]}
-            data-row-index={props.rowIndex}
             data-is-pending={!visible.value}
+            data-row-index={props.rowIndex}
           >
             {slots.default?.()}
           </div>

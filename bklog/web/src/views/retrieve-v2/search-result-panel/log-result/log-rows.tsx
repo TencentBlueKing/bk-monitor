@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, set, KeepAlive } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
 
 import {
   parseTableRowData,
@@ -38,8 +38,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import { uniqueId, debounce } from 'lodash';
-import ScrollTop from './scroll-top';
+import { uniqueId } from 'lodash';
 
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
@@ -57,6 +56,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
+import ScrollTop from './scroll-top';
 import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
@@ -86,14 +86,15 @@ export default defineComponent({
     const refRootElement: Ref<HTMLElement> = ref();
     const refBoxElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
-    // const rowUpdateCounter = ref(0);
-    // 本地分页
-    const pageIndex = ref(0);
+
     // 前端本地分页
     const pageSize = ref(50);
+    const isRending = ref(false);
+    const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
-    const isPending = ref(true);
+
+    const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
@@ -126,9 +127,58 @@ export default defineComponent({
     const hasMoreList = computed(() => totalCount.value > tableList.value.length);
 
     const intersectionArgs: Ref<RowProxyData> = ref({});
-    const rowProxy = {};
+    const rowProxy: RowProxyData = {};
+
+    const setRenderList = () => {
+      renderList.value = new Array(tableDataSize.value).fill('').map((_, i) => i);
+    };
+
+    const resetRowState = (next?) => {
+      const max = Math.ceil(tableDataSize.value / 10);
+      let page = 1;
+      const updateRow = () => {
+        if (page <= max) {
+          let startIndex = (page - 1) * 10;
+          const endIndex = startIndex + 10;
+          for (; startIndex < endIndex; startIndex++) {
+            const target = intersectionArgs.value[`${startIndex}`];
+            if (target && !target.visible) {
+              rowProxy[`${startIndex}`].mounted = false;
+              set(target, 'mounted', false);
+            }
+          }
+
+          setTimeout(() => {
+            page++;
+            updateRow();
+          });
+        } else {
+          next?.();
+        }
+      };
+
+      updateRow();
+    };
+
+    /**
+     * 设置预加载区域
+     */
+    const setVisibleIndexSection = () => {
+      const idxs = Object.entries(rowProxy ?? {})
+        .filter(([, v]) => v.visible)
+        .map(([, { rowIndex }]) => rowIndex);
+
+      const length = idxs.length > 0 ? idxs.length : pageSize.value;
+      const max = Math.max(...idxs, 0) + length;
+      const min = idxs.length ? Math.min(...idxs) - length : 0;
+      const end = Math.min(max, tableDataSize.value);
+      const start = Math.max(min, 0);
+      visibleRowLength.value = length;
+      Object.assign(rowProxy, { start, end });
+    };
 
     const delayUpdate = () => {
+      setVisibleIndexSection();
       Object.keys(rowProxy).forEach(key => {
         set(intersectionArgs.value, key, rowProxy[key]);
       });
@@ -178,7 +228,6 @@ export default defineComponent({
     provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
 
-    const rowsOffsetTop = ref(0);
     const searchContainerHeight = ref(52);
 
     const resultContainerId = ref(uniqueId('result_container_key_'));
@@ -486,14 +535,18 @@ export default defineComponent({
     watch(
       () => [props.contentType],
       () => {
-        isRequesting.value = true;
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
+        isRending.value = true;
+        renderList.value = [];
 
         setTimeout(() => {
           showCtxType.value = props.contentType;
-          pageSize.value = 50;
-          isRequesting.value = false;
+          setRenderList();
+
+          resetRowState(() => {
+            isRending.value = false;
+          });
           computeRect();
         });
       },
@@ -523,6 +576,7 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
+        setRenderList();
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
     );
@@ -531,7 +585,6 @@ export default defineComponent({
       () => isLoading.value,
       () => {
         if (isLoading.value) {
-          isPending.value = false;
           if (!isRequesting.value) {
             scrollToTop(0);
           }
@@ -613,7 +666,6 @@ export default defineComponent({
     // 判定是否需要拉取更多数据
     const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
-      scrollCallbackFn: undefined,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
     });
@@ -686,10 +738,7 @@ export default defineComponent({
       return (
         <div
           ref={refTableHead}
-          class={[
-            'bklog-row-container row-header',
-            { 'has-overflow-x': hasScrollX.value, 'hidden-head': !showHeader.value },
-          ]}
+          class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
             {renderColumns.value.map(column => (
@@ -714,7 +763,6 @@ export default defineComponent({
     };
 
     const renderRowCells = (row, rowIndex) => {
-      console.log('renderRowCells');
       const { expand } = tableRowConfig.get(row).value;
       const opStyle = {
         width: `${operatorToolsWidth.value}px`,
@@ -729,8 +777,8 @@ export default defineComponent({
             return (
               <div
                 key={`${rowIndex}-${column.key}`}
-                class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
                 style={cellStyle}
+                class={[column.class ?? '', 'bklog-row-cell', column.fixed]}
               >
                 {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
               </div>
@@ -738,23 +786,12 @@ export default defineComponent({
           })}
           <div
             style={opStyle}
-            class={['hidden-field bklog-row-cell', { 'has-scroll-x': hasScrollX.value }]}
+            class={['hidden-field bklog-row-cell']}
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
       ];
     };
-
-    // const visibleRowIndex = computed(() => {
-    //   const idxs = Object.entries(intersectionArgs.value ?? {})
-    //     .filter(([_, v]) => v.visible)
-    //     .map(([_, { rowIndex }]) => rowIndex);
-    //   const max = Math.max(...idxs, 0) + pageSize.value;
-    //   const min = idxs.length ? Math.min(...idxs) : 0;
-    //   return { max: Math.min(max, tableDataSize.value), min: Math.max(min, 0) };
-    // });
-
-    const renderList = computed(() => new Array(tableDataSize.value).fill('').map((_, i) => i));
 
     const renderRowVNode = () => {
       return renderList.value.map(rowIndex => {
@@ -762,13 +799,7 @@ export default defineComponent({
         return (
           <RowRender
             key={rowIndex}
-            class={[
-              'bklog-row-container',
-              {
-                'has-overflow-x': hasScrollX.value,
-                // 'is-intersecting': visible || isPending,
-              },
-            ]}
+            class={['bklog-row-container']}
             row-index={rowIndex}
           >
             {renderRowCells(row, rowIndex)}
@@ -838,26 +869,28 @@ export default defineComponent({
           scene='part'
           type='search-empty'
         >
-          {isRequesting.value || isLoading.value || isPending.value ? 'loading...' : $t('检索结果为空')}
+          {isRequesting.value || isLoading.value ? 'loading...' : $t('检索结果为空')}
         </bk-exception>
       );
     };
 
     const isTableLoading = computed(() => {
-      return isRequesting.value && !isRequesting.value && tableDataSize.value === 0;
+      return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
 
     return {
       refRootElement,
       isTableLoading,
       renderResultContainer,
+      hasScrollX,
+      showHeader,
     };
   },
   render() {
     return (
       <div
         ref='refRootElement'
-        class='bklog-result-container'
+        class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
       >
         {this.renderResultContainer()}

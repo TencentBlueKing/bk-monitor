@@ -30,13 +30,13 @@ import { debounce } from 'lodash';
 
 import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 
-export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
+export default ({ loadMoreFn, container, rootElement }) => {
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
   const scrollDirection = ref('down');
 
-  let scrollElementOffset = 0;
+  // let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
 
   const getScrollElement = () => {
@@ -54,9 +54,9 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
   const calculateOffsetTop = () => {
     if (!isComputingCalcOffset) {
       isComputingCalcOffset = true;
-      const currentElement = getCurrentElement();
-      const relativeTo = getScrollElement();
-      scrollElementOffset = relativeTo.scrollHeight - (currentElement?.scrollHeight ?? 0);
+      // const currentElement = getCurrentElement();
+      // const relativeTo = getScrollElement();
+      // scrollElementOffset = relativeTo.scrollHeight - (currentElement?.scrollHeight ?? 0);
       debounceStopComputing();
     }
   };
@@ -67,7 +67,7 @@ export default ({ loadMoreFn, scrollCallbackFn, container, rootElement }) => {
     requestAnimationFrame(() => {
       const target = event.target as HTMLDivElement;
       const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-      if (target.scrollTop > lastPosition && scrollDiff < 200) {
+      if (target.scrollTop > lastPosition && scrollDiff < 80) {
         loadMoreFn?.();
       }
 
