@@ -1,4 +1,3 @@
-/* eslint-disable vue/one-component-per-file */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, nextTick, type Ref, createApp, h } from 'vue';
+import { defineComponent, inject, ref, computed, nextTick, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-// import {
-//   MonitorRetrieve as Log,
-//   initMonitorState,
-//   initGlobalComponents,
-//   logStore,
-//   i18n,
-// } from '@blueking/monitor-retrieve/main';
+import {
+  MonitorRetrieve as Log,
+  initMonitorState,
+  initGlobalComponents,
+  Vue2,
+  logStore,
+  i18n,
+} from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -42,7 +42,8 @@ import { useAppStore } from '../../../store/modules/app';
 import { TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-retrieve.scss';
-// import '@blueking/monitor-retrieve/css/main0214526.css';
+import '@blueking/monitor-trace-log/css/main.css';
+
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorRetrieve',
@@ -68,26 +69,24 @@ export default defineComponent({
         const spaceUid =
           window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
         window.space_uid = `${spaceUid}`;
-        // initMonitorState({
-        //   bkBizId: window.bk_biz_id,
-        //   spaceUid,
-        // });
-        // initGlobalComponents();
-        const app = createApp({
-          render: () =>
-            h(
-              'h1',
-              {
-                props: {
-                  indexSetApi: indexSetApi,
-                },
-              },
-              '123'
-            ),
+        initMonitorState({
+          bkBizId: window.bk_biz_id,
+          spaceUid,
         });
-        app.use(router);
+        initGlobalComponents();
+        const app: any = new Vue2({
+          store: logStore,
+          router: router,
+          i18n,
+          render: h => {
+            return h(Log, {
+              ref: 'componentRef',
+              props: {},
+            });
+          },
+        });
         await nextTick();
-        app.mount(mainRef.value);
+        app.$mount(mainRef.value);
         window.mainComponent = app;
       } else {
         empty.value = true;

@@ -1,11 +1,16 @@
 <script setup>
-  import { computed, ref } from 'vue';
+  import { computed, ref, defineComponent, h } from 'vue';
 
   import useStore from '@/hooks/use-store';
 
   import NoIndexSet from '../result-comp/no-index-set';
+  // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
+  // #else
+  // #code const SearchResultChart = defineComponent(() => h('div'));
+  // #code const FieldFilter = defineComponent(() => h('div'));
+  // #endif
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
 
@@ -26,7 +31,6 @@
   const pageLoading = computed(
     () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
   );
-  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE_LOG__);
 
   const totalCount = ref(0);
   const queueStatus = ref(false);
@@ -64,7 +68,6 @@
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
       <FieldFilter
-        v-if="!isMonitorTraceLog"
         v-model="isShowFieldStatistics"
         v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
         v-log-drag="{
@@ -94,7 +97,6 @@
         ]"
       >
         <SearchResultChart
-          v-if="!isMonitorTraceLog"
           v-show="isOriginShow"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"

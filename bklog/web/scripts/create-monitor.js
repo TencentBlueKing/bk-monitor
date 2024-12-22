@@ -29,14 +29,15 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { resolve } = require('node:path');
-const outputUrl = resolve(__dirname, '../monitor-retrieve');
+const outputUrl = resolve(__dirname, `../monitor-${process.env.MONITOR_APP}-retrieve`);
 const createMonitorConfig = config => {
   const production = process.env.NODE_ENV === 'production';
+  const isTrace = process.env.MONITOR_APP === 'trace';
   config.plugins.push(
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: resolve(__dirname, './link-package.json'),
+          from: resolve(__dirname, `./${process.env.MONITOR_APP}-package.json`),
           to: resolve(outputUrl, './package.json'),
         },
       ],
@@ -50,7 +51,7 @@ const createMonitorConfig = config => {
   return {
     ...config,
     entry: {
-      main: './src/views/retrieve-v2/monitor/index.ts',
+      main: isTrace ? './src/views/retrieve-v2/monitor/trace.ts' : './src/views/retrieve-v2/monitor/index.ts',
     },
     output: {
       filename: '[name].js',
@@ -81,36 +82,67 @@ const createMonitorConfig = config => {
       mangleExports: false,
     },
     externalsType: 'module',
-    externals: [
-      /@blueking\/date-picker/,
-      /@blueking\/ip-selector/,
-      /@blueking\/user-selector/,
-      /@blueking\/bkui-library/,
-      /bk-magic-vue/,
-      /vue-i18n/,
-      'vue',
-      'axios',
-      'vuex',
-      'vue-property-decorator',
-      'vuedraggable',
-      'sortablejs',
-      'clipboard',
-      'vue-tsx-support',
-      'qs',
-      /dayjs\//,
-      'dayjs',
-      /lodash/,
-      /vue-json-pretty/,
-      ({ request }, cb) => {
-        if (request === 'echarts') {
-          return cb(undefined, request.replace(request, request));
-        }
-        if (request === 'resize-detector') {
-          return cb(undefined, '@blueking/fork-resize-detector');
-        }
-        cb();
-      },
-    ],
+    externals: isTrace
+      ? [
+          /@blueking\/date-picker/,
+          // /@blueking\/ip-selector/,
+          // /@blueking\/user-selector/,
+          /@blueking\/bkui-library/,
+          // /bk-magic-vue/,
+          // /vue-i18n/,
+          // 'vue',
+          'axios',
+          // 'vuex',
+          // 'vue-property-decorator',
+          'vuedraggable',
+          'sortablejs',
+          // 'clipboard',
+          // 'vue-tsx-support',
+          'qs',
+          /dayjs\//,
+          'dayjs',
+          /lodash/,
+          // /vue-json-pretty/,
+          ({ request }, cb) => {
+            // if (request === 'echarts') {
+            //   return cb(undefined, request.replace(request, request));
+            // }
+            if (request === 'resize-detector') {
+              return cb(undefined, '@blueking/fork-resize-detector');
+            }
+            cb();
+          },
+        ]
+      : [
+          /@blueking\/date-picker/,
+          /@blueking\/ip-selector/,
+          /@blueking\/user-selector/,
+          /@blueking\/bkui-library/,
+          /bk-magic-vue/,
+          /vue-i18n/,
+          'vue',
+          'axios',
+          'vuex',
+          'vue-property-decorator',
+          'vuedraggable',
+          'sortablejs',
+          'clipboard',
+          'vue-tsx-support',
+          'qs',
+          /dayjs\//,
+          'dayjs',
+          /lodash/,
+          /vue-json-pretty/,
+          ({ request }, cb) => {
+            if (request === 'echarts') {
+              return cb(undefined, request.replace(request, request));
+            }
+            if (request === 'resize-detector') {
+              return cb(undefined, '@blueking/fork-resize-detector');
+            }
+            cb();
+          },
+        ],
     plugins: config.plugins
       .filter(plugin => !(plugin instanceof HtmlWebpackPlugin))
       .map(plugin => {

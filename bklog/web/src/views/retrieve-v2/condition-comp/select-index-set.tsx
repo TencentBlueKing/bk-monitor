@@ -444,7 +444,7 @@ export default class SelectIndexSet extends tsc<object> {
         this.indexSearchType = 'single';
         this.selectTagCatchIDList = this.indexId ? [this.indexId] : [];
       }
-      // #if APP !== 'apm'
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       // 获取多选收藏
       this.getMultipleFavoriteList();
       // 获取单选或多选历史记录列表

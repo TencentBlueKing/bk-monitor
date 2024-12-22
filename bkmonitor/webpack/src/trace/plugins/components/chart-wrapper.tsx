@@ -161,7 +161,7 @@ export default defineComponent({
               onLoading={handleChangeLoading}
             />
           );
-        case 'log-retrieve':
+        case 'monitor-trace-log':
           return <MonitorRetrieve />;
         default:
           return (

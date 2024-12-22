@@ -95,7 +95,6 @@
       <div class="tools-more">
         <div class="operation-icons">
           <export-log
-            v-if="!isMonitorApm && !isMonitorTraceLog"
             :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -148,9 +147,11 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
-// #if APP === 'apm'
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
-// #endif
+  // #else
+  // #code const ExportLog = () => null;
+  // #endif
   import FieldsSetting from '../../result-comp/fields-setting';
   import TableLog from './table-log.vue';
 
@@ -158,9 +159,7 @@
     components: {
       TableLog,
       FieldsSetting,
-      // #if APP === 'apm'
       ExportLog,
-      // #endif
     },
     inheritAttrs: false,
     props: {
@@ -240,7 +239,7 @@
       },
       isMonitorTraceLog() {
         return window?.__IS_MONITOR_TRACE_LOG__;
-      }
+      },
     },
     watch: {
       showFieldsConfigPopoverNum() {

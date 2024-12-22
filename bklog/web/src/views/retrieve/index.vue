@@ -30,6 +30,7 @@
     <div class="retrieve-detail-container">
       <result-header
         ref="resultHeader"
+        :clustering-data="clusteringData"
         :date-picker-value="datePickerValue"
         :index-set-item="indexSetItem"
         :is-as-iframe="isAsIframe"
@@ -37,7 +38,6 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
-        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -157,17 +157,17 @@
                 </div>
                 <field-filter
                   ref="fieldFilterRef"
-                  :index-set-item="indexSetItem"
-                  :retrieve-params="retrieveParams"
-                  :sort-list="sortList"
+                  :date-picker-value="datePickerValue"
                   :field-alias-map="fieldAliasMap"
+                  :index-set-item="indexSetItem"
                   :parent-loading="tableLoading"
+                  :retrieve-params="retrieveParams"
+                  :retrieve-search-number="retrieveSearchNumber"
                   :show-field-alias="showFieldAlias"
+                  :sort-list="sortList"
                   :statistical-fields-data="statisticalFieldsData"
                   :total-fields="totalFields"
                   :visible-fields="visibleFields"
-                  :date-picker-value="datePickerValue"
-                  :retrieve-search-number="retrieveSearchNumber"
                   @fields-updated="handleFieldsUpdated"
                   @select-fields-config="handleSelectFieldsConfig"
                 />
@@ -296,7 +296,11 @@
     getStorageIndexItem,
   } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
+  // #else
+  // #code const LogIpSelector = () => null;
+  // #endif
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import axios from 'axios';
@@ -310,12 +314,12 @@
   import AddCollectDialog from './collect/add-collect-dialog';
   import CollectIndex from './collect/collect-index';
   import SelectIndexSet from './condition-comp/select-index-set.tsx';
+  import FieldFilter from './field-filter-comp';
   import NoIndexSet from './result-comp/no-index-set';
   import ResultHeader from './result-comp/result-header';
   import ResultMain from './result-comp/result-main';
   import SearchComp from './search-comp';
   import SettingModal from './setting-modal/index.vue';
-  import FieldFilter from './field-filter-comp';
 
   const CancelToken = axios.CancelToken;
   const currentTime = Math.floor(new Date().getTime() / 1000);
@@ -605,7 +609,7 @@
     //   window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
 
     // },
-    beforeDestroy() {
+    beforeUnmount() {
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
@@ -1738,7 +1742,7 @@
           // 更新联合查询的begin
           const unionConfigs = this.unionIndexList.map(item => ({
             begin: this.isTablePagination
-              ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+              ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
               : 0,
             index_set_id: item,
           }));

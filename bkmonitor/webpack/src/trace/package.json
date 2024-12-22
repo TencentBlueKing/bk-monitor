@@ -10,6 +10,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
+    "@blueking/monitor-trace-log": "1.0.0",
     "@antv/g6": "^4.8.24",
     "@blueking/date-picker": "2.0.0-beta.33",
     "@blueking/fork-resize-detector": "^0.0.2",
@@ -51,7 +52,10 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.4.0"
   },
-  "keywords": ["monitor", "trace"],
+  "keywords": [
+    "monitor",
+    "trace"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

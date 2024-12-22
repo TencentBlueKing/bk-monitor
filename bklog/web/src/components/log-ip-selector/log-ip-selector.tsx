@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { VNode } from 'vue';
+import type type { VNode } from 'vue';
 
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
