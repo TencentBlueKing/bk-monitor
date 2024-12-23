@@ -81,6 +81,7 @@ export const listApplicationInfo = request('POST', 'rest/v2/grafana/apm/list_app
 export const getFieldOptionValues = request('POST', 'rest/v2/grafana/apm/get_field_option_values/');
 export const listTrace = request('POST', 'rest/v2/grafana/apm/list_trace/');
 export const traceDetail = request('POST', 'rest/v2/grafana/apm/trace_detail/');
+export const getRelatedStrategy = request('POST', 'rest/v2/grafana/get_related_strategy/');
 
 export default {
   test,
@@ -136,4 +137,5 @@ export default {
   getFieldOptionValues,
   listTrace,
   traceDetail,
+  getRelatedStrategy,
 };
