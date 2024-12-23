@@ -44,7 +44,7 @@ export default defineComponent({
   },
   setup(props, { slots, emit }) {
     const cellStyle = computed(() => {
-      if (props.width === 'default') {
+      if (['default', '100%'].includes(props.width as string)) {
         return {
           width: '100%',
         };

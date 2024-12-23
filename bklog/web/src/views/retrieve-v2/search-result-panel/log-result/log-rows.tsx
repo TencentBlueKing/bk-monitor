@@ -240,7 +240,7 @@ export default defineComponent({
           title: ROW_F_ORIGIN_CTX,
           align: 'top',
           minWidth: '100%',
-          width: 'auto',
+          width: '100%',
           resize: false,
           renderBodyCell: ({ row }) => {
             return (
@@ -577,7 +577,7 @@ export default defineComponent({
     );
 
     const handleColumnWidthChange = (w, col) => {
-      const width = w > 4 ? w : 40;
+      const width = w > 40 ? w : 40;
       const longFiels = visibleFields.value.filter(
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
       );
@@ -606,7 +606,10 @@ export default defineComponent({
         [col.field]: Math.ceil(width),
       });
 
-      col.width = width;
+      const field = visibleFields.value.find(item => item.field_name === col.field);
+      field.width = width;
+
+      store.commit('updateVisibleFields', visibleFields.value);
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
@@ -759,12 +762,14 @@ export default defineComponent({
       const { expand } = tableRowConfig.get(row).value;
       const opStyle = {
         width: `${operatorToolsWidth.value}px`,
+        minWidth: `${operatorToolsWidth.value}px`,
       };
       return [
         <div class='bklog-list-row'>
           {renderColumns.value.map(column => {
+            const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
             const cellStyle = {
-              width: `${column.width}px`,
+              width,
               minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
             };
             return (
