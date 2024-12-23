@@ -1759,7 +1759,7 @@ class Strategy(AbstractConfig):
         """
         获取Grafana图表查询配置
         """
-        __, panel_query = get_grafana_panel_query(
+        panel_query = get_grafana_panel_query(
             self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
         )
         if not panel_query:
