@@ -89,6 +89,7 @@ export interface ITopoNode extends ModelConfig {
   originComboId?: string;
   is_feedback_root?: boolean;
   id?: string;
+  is_deleted?: boolean;
   subComboId?: string;
   bk_biz_id?: string;
   bk_biz_name?: string;

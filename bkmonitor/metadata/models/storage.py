@@ -685,6 +685,7 @@ class StorageResultTable(object):
                         self.table_id,
                         record.cluster_id,
                     )
+
                     # 创建新纪录
                     new_record, _ = StorageClusterRecord.objects.update_or_create(
                         table_id=self.table_id,
@@ -701,9 +702,7 @@ class StorageResultTable(object):
                     )
 
                 # 刷新RESULT_TABLE_DETAIL路由
-                space_client.push_table_id_detail(
-                    table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True
-                )
+                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
@@ -3276,81 +3275,150 @@ class ESStorage(models.Model, StorageResultTable):
 
     def clean_index_v2(self):
         """
-        清理过期的写入别名及index的操作，如果发现某个index已经没有写入别名，那么将会清理该index
-        :return: int(清理的index个数) | raise Exception
+        清理过期的写入别名及 index 的操作，支持对所有关联的集群进行清理。
+        如果某个集群内不再存在该采集项的数据，则将对应的 StorageClusterRecord 中的 is_deleted 设置为 True。
+        :return: bool | raise Exception
         """
         # 没有快照任务可以直接删除
-        # 有快照任务需要判断是否可以删除
         if not self.can_delete():
             logger.info("clean_index_v2:table_id->[%s] clean index is not allowed, skip", self.table_id)
-            return
+            return False
 
-        logger.info("clean_index_v2:table_id->[%s] start clean index", self.table_id)
-        # 获取所有的写入别名
-        alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        logger.info("clean_index_v2:table_id->[%s] start cleaning indices", self.table_id)
 
-        # 获取当前日期的字符串
-        now_datetime_str = self.now.strftime(self.date_format)
+        # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
+        storage_records = StorageClusterRecord.objects.filter(table_id=self.table_id, is_deleted=False)
 
-        filter_result = self.group_expired_alias(alias_list, self.retention)
+        # 遍历所有集群记录
+        for record in storage_records:
+            cluster_id = record.cluster_id  # 提取当前轮次处理的ES集群ID
 
-        for index_name, alias_info in filter_result.items():
-            # 回溯的索引不经过正常删除的逻辑删除
-            if index_name.startswith(self.restore_index_prefix):
-                logger.info(
-                    "clean_index_v2:table_id->[%s] index->[%s] is restore index, skip", self.table_id, index_name
-                )
-                continue
-            # 如果index_name中包含now_datetime_str，说明是新索引，跳过
-            if now_datetime_str in index_name:
-                logger.info(
-                    "clean_index_v2:table_id->[%s] index->[%s] contains now_datetime_str->[%s] ,skip",
-                    self.table_id,
-                    index_name,
-                    now_datetime_str,
-                )
-                continue
-
-            if alias_info["not_expired_alias"]:
-                if alias_info["expired_alias"]:
-                    # 如果存在已过期的别名，则将别名删除
-                    logger.info(
-                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
-                        self.table_id,
-                        alias_info["expired_alias"],
-                    )
-                    self.es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
-                    logger.warning(
-                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is deleted.",
-                        self.table_id,
-                        alias_info["expired_alias"],
-                    )
-                continue
-            # 如果已经不存在未过期的别名，则将索引删除
-            # 等待所有别名过期删除索引，防止删除别名快照时，丢失数据
-            logger.info(
-                "clean_index_v2:table_id->[%s] has not alias need to keep, will delete the index->[%s].",
-                self.table_id,
-                index_name,
-            )
+            logger.info("clean_index_v2:table_id->[%s] cluster_id->[%s] start cleaning", self.table_id, cluster_id)
+            # 初始化对应存储集群的 ES 客户端
             try:
-                self.es_client.indices.delete(index=index_name)
-                logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)
-            except (
-                elasticsearch5.ElasticsearchException,
-                elasticsearch.ElasticsearchException,
-                elasticsearch6.ElasticsearchException,
-            ):
-                logger.warning(
-                    "clean_index_v2::table_id->[%s] index->[%s] delete failed, index maybe doing snapshot",
+                es_client = es_tools.get_client(cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to get ES client for cluster_id->[%s]: %s",
                     self.table_id,
-                    index_name,
+                    cluster_id,
+                    str(e),
                 )
                 continue
-            logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
 
-        logger.info("table_id->[%s] is process done.", self.table_id)
+            # 获取该集群的所有写入别名
+            try:
+                alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_index_v2:table_id->[%s] failed to get aliases for cluster_id->[%s]: %s",
+                    self.table_id,
+                    cluster_id,
+                    str(e),
+                )
+                continue
 
+            # 当前日期字符串，用于判断是否是当前的索引
+            now_datetime_str = self.now.strftime(self.date_format)
+
+            # 分组索引中的过期和未过期别名
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+
+            # 跟踪是否集群中还存在该采集项相关的数据
+            has_active_indices = False
+
+            # 遍历所有索引进行处理
+            for index_name, alias_info in filter_result.items():
+                # 跳过回溯索引
+                if index_name.startswith(self.restore_index_prefix):
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] index->[%s] in cluster_id->[%s],is restore index, skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                    continue
+
+                # 跳过当前日期相关的索引
+                if now_datetime_str in index_name:
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] index->[%s] in cluster_id->[%s] "
+                        "contains now_datetime_str->[%s], skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        now_datetime_str,
+                    )
+                    has_active_indices = True
+                    continue
+
+                # 如果索引有未过期别名，保留索引，只清理过期别名
+                if alias_info["not_expired_alias"]:
+                    has_active_indices = True
+                    if alias_info["expired_alias"]:
+                        try:
+                            es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
+                            logger.info(
+                                "clean_index_v2:table_id->[%s] expired aliases for index->[%s] "
+                                "in cluster_id->[%s] ,deleted: [%s]",
+                                self.table_id,
+                                index_name,
+                                cluster_id,
+                                alias_info["expired_alias"],
+                            )
+                        except Exception as e:  # pylint: disable=broad-except
+                            logger.warning(
+                                "clean_index_v2:table_id->[%s] ,cluster_id->[%s],failed to delete expired aliases "
+                                "for index->[%s]: %s",
+                                self.table_id,
+                                cluster_id,
+                                index_name,
+                                str(e),
+                            )
+                    continue
+
+                logger.info(
+                    "clean_index_v2: table_id->[%s] index->[%s] in cluster_id->[%s]has no alias to keep,deleting",
+                    self.table_id,
+                    index_name,
+                    record.cluster_id,
+                )
+                # 如果索引没有未过期的别名，直接删除索引
+                try:
+                    es_client.indices.delete(index=index_name)
+                    logger.info(
+                        "clean_index_v2:table_id->[%s] index->[%s] in cluster_id->[%s],is deleted.",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "clean_index_v2:table_id->[%s] failed to delete index->[%s]in cluster_id->[%s],error->%s",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        str(e),
+                    )
+                    continue
+
+            # 如果当前集群中没有任何属于该采集项的未过期索引，则更新 StorageClusterRecord 为 is_deleted=True
+            if not has_active_indices:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] no active indices found in cluster_id->[%s], marking as deleted",
+                    self.table_id,
+                    cluster_id,
+                )
+                record.is_deleted = True
+                record.save(update_fields=["is_deleted"])
+
+            logger.info(
+                "clean_index_v2:table_id->[%s] cluster_id->[%s] cleaning process is complete.",
+                self.table_id,
+                cluster_id,
+            )
+
+        logger.info("clean_index_v2:table_id->[%s] cleaning process is complete.", self.table_id)
         return True
 
     def is_mapping_same(self, index_name):

@@ -542,6 +542,6 @@ export interface IDetail {
   };
 }
 export interface IAlertObj {
-  ids: string;
-  label: string;
+  ids?: string;
+  label?: string;
 }
