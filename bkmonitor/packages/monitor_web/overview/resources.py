@@ -373,10 +373,6 @@ class GetFunctionShortcutsResource(CacheResource):
                     # limit 限制
                     if len(items) == limit:
                         break
-        # 补充业务名称
-        for record in result:
-            for item in record["items"]:
-                item["bk_biz_name"] = SpaceApi.get_space_detail(bk_biz_id=item["bk_biz_id"]).space_name
 
         return result
 
@@ -392,7 +388,7 @@ class GetFunctionShortcutsResource(CacheResource):
             if function == "dashboard":
                 # 获取用户信息
                 user = User.objects.filter(username=username).first()
-                if user:
+                if not user:
                     continue
 
                 # 获取收藏的仪表盘
@@ -495,11 +491,6 @@ class GetFunctionShortcutsResource(CacheResource):
 
             result.append({"function": function, "items": items})
 
-        # 补充业务名称
-        for record in result:
-            for item in record["items"]:
-                item["bk_biz_name"] = SpaceApi.get_space_detail(bk_biz_id=item["bk_biz_id"]).space_name
-
         return result
 
     def perform_request(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -523,6 +514,18 @@ class GetFunctionShortcutsResource(CacheResource):
             result = self.get_recent_shortcuts(username, params["functions"])
         else:
             result = self.get_favorite_shortcuts(username, params["functions"])
+
+        # 批量获取业务名称
+        bk_biz_ids: Set[int] = {item["bk_biz_id"] for record in result for item in record["items"]}
+        biz_id_name_map = {}
+        for biz_id in bk_biz_ids:
+            space = SpaceApi.get_space_detail(bk_biz_id=biz_id)
+            if space:
+                biz_id_name_map[biz_id] = space.space_name
+
+        for record in result:
+            for item in record["items"]:
+                item["bk_biz_name"] = biz_id_name_map[item["bk_biz_id"]]
 
         return result
 
@@ -618,16 +621,17 @@ class GetAlarmGraphConfigResource(Resource):
             for item in config.config:
                 strategy_ids = item["strategy_ids"]
                 status = {}
-                for s in strategy_ids:
-                    s = strategy_id_to_strategy.get(item["strategy_id"])
-                    if not s:
-                        status[s] = "deleted"
-                    elif not s.is_enabled:
-                        status[s] = "disabled"
-                    elif s.id in shielded_strategy_ids:
-                        status[s] = "shielded"
+                for strategy_id in strategy_ids:
+                    strategy = strategy_id_to_strategy.get(strategy_id)
+                    if not strategy:
+                        status[strategy_id] = "deleted"
+                    elif not strategy.is_enabled:
+                        status[strategy_id] = "disabled"
+                    elif strategy.id in shielded_strategy_ids:
+                        status[strategy_id] = "shielded"
                     else:
-                        status[s] = "normal"
+                        status[strategy_id] = "normal"
+                item["status"] = status
 
         return {
             "config": config.config if config else None,
