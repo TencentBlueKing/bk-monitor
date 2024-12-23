@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, nextTick, type Ref, onUnmounted, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 
 import {
   MonitorRetrieve as Log,
@@ -33,7 +33,7 @@ import {
   Vue2,
   logStore,
   i18n,
-  VueRouter as Vue2Router,
+  // VueRouter as Vue2Router,
 } from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
@@ -51,7 +51,7 @@ export default defineComponent({
   setup() {
     const empty = ref(true);
     const loading = ref(true);
-    const router = useRouter();
+    const route = useRoute();
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
@@ -60,9 +60,6 @@ export default defineComponent({
     const refleshInterval = inject<Ref<TimeRangeType>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
-
-    const router2 = new Vue2Router({ routes: router.options.routes });
-
     async function init() {
       loading.value = true;
       const data = await getServiceLogInfo();
@@ -72,20 +69,12 @@ export default defineComponent({
         const spaceUid =
           window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
         window.space_uid = `${spaceUid}`;
-        console.log(router, router2);
         initMonitorState({
           bkBizId: window.bk_biz_id,
           spaceUid,
         });
         initGlobalComponents();
         const mainDom = document.createElement('div');
-        mainDom.$router = {
-          get currentRoute() {
-            return null;
-          },
-          replace: () => {},
-          push: () => {},
-        };
         const app: any = new Vue2({
           store: logStore,
           i18n,
@@ -101,7 +90,19 @@ export default defineComponent({
             });
           },
         });
-        await nextTick();
+        const currentRoute = route;
+        app.$router = {
+          get currentRoute() {
+            return currentRoute;
+          },
+          replace: c => {
+            console.info(c, 'replace route ===========');
+          },
+          push: c => {
+            console.info(c, 'push route ===========');
+          },
+        };
+        app._$route = currentRoute;
         document.querySelector('#trace-log').appendChild(mainDom);
         app.$mount(mainDom);
         window.mainComponent = app;
