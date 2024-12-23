@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick } from 'vue';
+import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import {
@@ -34,7 +34,7 @@ import {
   logStore,
   i18n,
   // VueRouter as Vue2Router,
-} from '@blueking/monitor-trace-retrieve/main';
+} from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -43,7 +43,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-trace-log.scss';
-import '@blueking/monitor-trace-retrieve/css/main.css';
+import '@blueking/monitor-trace-log/css/main.css';
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
@@ -56,15 +56,18 @@ export default defineComponent({
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
     const timeRange = inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
-    const refleshImmediate = inject<Ref<TimeRangeType>>(REFLESH_IMMEDIATE_KEY);
-    const refleshInterval = inject<Ref<TimeRangeType>>(REFLESH_INTERVAL_KEY);
+    const refleshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
+    const refleshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
+
+    let unPropsWatch = null;
+
     async function init() {
       loading.value = true;
       const data = await getServiceLogInfo();
       loading.value = false;
-      if (data) {
+      if (data && empty.value) {
         empty.value = false;
         const spaceUid =
           window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
@@ -74,7 +77,6 @@ export default defineComponent({
           spaceUid,
         });
         initGlobalComponents();
-        const mainDom = document.createElement('div');
         const app: any = new Vue2({
           store: logStore,
           i18n,
@@ -103,9 +105,11 @@ export default defineComponent({
           },
         };
         app._$route = currentRoute;
+        unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
+          app.$forceUpdate();
+        });
         await nextTick();
-        document.querySelector('#trace-log').appendChild(mainDom);
-        app.$mount(mainDom);
+        app.$mount(mainRef.value);
         window.mainComponent = app;
       } else {
         empty.value = true;
@@ -161,6 +165,7 @@ export default defineComponent({
         logStore.commit('resetState');
         window.mainComponent.$destroy();
         window.mainComponent = null;
+        unPropsWatch?.();
       }
     });
 
