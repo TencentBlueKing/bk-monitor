@@ -33,7 +33,6 @@ import {
   Vue2,
   logStore,
   i18n,
-  // VueRouter as Vue2Router,
 } from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
@@ -178,7 +177,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='monitor-retrieve'>
+      <div class='monitor-trace-retrieve'>
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
