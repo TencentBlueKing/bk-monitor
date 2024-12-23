@@ -89,3 +89,16 @@ class SearchViewSet(viewsets.GenericViewSet):
         sr.headers["Cache-Control"] = "no-cache"
         sr.headers["X-Accel-Buffering"] = "no"
         return sr
+
+
+class AlarmGraphConfigViewSet(PermissionMixin, ResourceViewSet):
+    """
+    首页告警图配置
+    """
+
+    resource_routes = [
+        ResourceRoute("GET", resource.overview.get_alarm_graph_config),
+        ResourceRoute("POST", resource.overview.save_alarm_graph_config),
+        ResourceRoute("DELETE", resource.overview.delete_alarm_graph_config),
+        ResourceRoute("POST", resource.overview.save_alarm_graph_biz_index, endpoint="save_biz_index"),
+    ]
