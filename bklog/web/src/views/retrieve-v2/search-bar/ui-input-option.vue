@@ -543,24 +543,22 @@
 
   const handleInputVlaueChange = e => {
     const input = e.target;
-    if (input !== undefined && input.value.length) {
-      const value = input.value;
-      const charLen = getCharLength(value);
-      input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-      conditionValueInputVal.value = input.value;
-      rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
-        if (!operatorInstance.isShown()) {
-          conditionValueInstance.repositionTippyInstance();
+    const value = input.value;
+    const charLen = getCharLength(value);
+    input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+    conditionValueInputVal.value = input.value;
+    rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
+      if (!operatorInstance.isShown()) {
+        conditionValueInstance.repositionTippyInstance();
 
-          if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
-            const target = refConditionInput.value?.parentNode;
-            if (target) {
-              conditionValueInstance.show(target);
-            }
+        if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
+          const target = refConditionInput.value?.parentNode;
+          if (target) {
+            conditionValueInstance.show(target);
           }
         }
-      });
-    }
+      }
+    });
   };
 
   const handleConditionValueInputFocus = () => {
