@@ -123,7 +123,9 @@ export default class AggChart extends tsc<object> {
     const router = this.$router;
     const route = this.$route;
     const store = this.$store;
-
+    console.log(store);
+    console.log(this);
+    
     this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] }).then(() => {
       const query = { ...route.query };
 
