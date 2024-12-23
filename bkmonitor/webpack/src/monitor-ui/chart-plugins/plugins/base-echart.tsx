@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { type MonitorEchartOptions, type ZrClickEvent, echarts } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
+import type { IDataItem } from './apm-service-caller-callee/type';
+
 import './base-echart.scss';
 
 export interface IChartProps {
@@ -63,6 +65,8 @@ export interface IChartEvent {
   onBrush?: (v: any) => void;
   onBrushEnd?: (v: any) => void;
   onLoaded?: () => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
 }
 const MOUSE_EVENTS = [
   'click',
