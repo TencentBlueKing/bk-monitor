@@ -1,25 +1,32 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
-  import { bus } from '@/common/bus';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
 
   const { $t } = useLocale();
   const store = useStore();
-  const userSettingConfig = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig;
-  });
 
-  const SettingData = ref({
-    filterFields: [],
-  });
-
-  const filterFieldList = computed(() => {
-    return SettingData.value.filterFields;
+  const filterFieldsList = computed(() => {
+    return store.state.retrieve.catchFieldCustomConfig?.filterSetting?.filterFields || [];
   });
 
   const condition = ref([]);
+  const activeIndex = ref(-1);
+
+  watch(filterFieldsList, val => {
+    if (val && val.length) {
+      condition.value =
+        filterFieldsList.value.map(item => {
+          return {
+            field: item?.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
+          };
+        }) || [];
+    }
+  });
 
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -63,7 +70,6 @@
     };
   })();
 
-  const activeIndex = ref(-1);
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
@@ -84,34 +90,12 @@
   const handleCollapseChange = val => {
     isShowCommonFilter.value = !val;
   };
-
-  const initData = data => {
-    const { filterFields } = data ? data?.filterSetting : userSettingConfig?.value?.filterSetting;
-    SettingData.value.filterFields = filterFields || [];
-    condition.value =
-      filterFields?.map(item => {
-        return {
-          field: item?.field_name || '',
-          operator: '=',
-          value: [],
-          list: [],
-        };
-      }) || [];
-  };
-
-  onMounted(() => {
-    bus.$on('requestIndexSetFieldInfoDone', initData);
-  });
-
-  onBeforeUnmount(() => {
-    bus.$off('requestIndexSetFieldInfoDone', initData);
-  });
 </script>
 
 <template>
   <bk-resize-layout
     class="resize-layout-wrap"
-    v-if="filterFieldList.length"
+    v-if="filterFieldsList.length"
     placement="top"
     :collapsible="true"
     :border="false"
@@ -120,11 +104,11 @@
     <div slot="aside">
       <div
         class="filter-container"
-        v-if="isShowCommonFilter"
+        v-if="isShowCommonFilter && condition.length"
       >
         <div
           class="filter-select-wrap"
-          v-for="(item, index) in filterFieldList"
+          v-for="(item, index) in filterFieldsList"
         >
           <div
             class="title"

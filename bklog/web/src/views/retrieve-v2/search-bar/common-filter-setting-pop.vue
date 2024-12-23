@@ -5,22 +5,17 @@
   import useStore from '@/hooks/use-store';
 
   import { excludesFields } from './const.common';
-  import { bus } from '@/common/bus';
 
   const props = defineProps({});
   const emit = defineEmits(['refresh']);
   const { $t } = useLocale();
   const store = useStore();
 
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
-
-  const fieldList = computed(() => {
-    return indexFieldInfo.value.fields;
-  });
+  const fieldList = computed(() => store.state.indexFieldInfo.fields);
 
   // 表单ref
   const popoverFormRef = ref();
-  const SettingData = ref({
+  const settingData = ref({
     filterFields: [],
   });
 
@@ -35,13 +30,13 @@
     return fieldList.value.filter(filterFn && filterHasOptionListFn);
   });
 
-  const userSettingConfig = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig;
+  const filterFieldsList = computed(() => {
+    return store.state.retrieve.catchFieldCustomConfig?.filterSetting?.filterFields;
   });
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const selectFilterField = SettingData.value.filterFields;
+    const selectFilterField = settingData.value.filterFields;
     const filterFieldLists = selectFilterField.map(item => {
       return filterFieldList.value.find(el => item === el.field_name);
     });
@@ -50,18 +45,12 @@
         filterFields: filterFieldLists,
       },
     };
-    store
-      .dispatch('userFieldConfigChange', param)
-      .then(res => {
-        if (res.code === 0) {
-          window.mainComponent.messageSuccess($t('提交成功'));
-          hidePopover();
-          bus.$emit('requestIndexSetFieldInfoDone', param);
-        }
-      })
-      .catch(e => {
-        console.warn(e);
-      });
+    store.dispatch('userFieldConfigChange', param).then(res => {
+      if (res.code === 0) {
+        window.mainComponent.messageSuccess($t('提交成功'));
+        hidePopover();
+      }
+    });
   };
   // 提交表单校验
   const handleSubmitFormData = () => {
@@ -85,16 +74,10 @@
     popoverShow.value ? hidePopover() : showPopover();
   };
 
-  const isLoading = ref(false);
   const showPopover = async () => {
     popoverShow.value = true;
     popoverContentRef.value.showHandler();
-    isLoading.value = true;
-    await store.dispatch('requestIndexSetCustomConfigInfo').then(res => {
-      const { filterFields } = userSettingConfig?.value?.filterSetting;
-      SettingData.value.filterFields = filterFields?.map(item => item?.field_name ?? '') || [];
-      isLoading.value = false;
-    });
+    settingData.value.filterFields = filterFieldsList?.value?.map(item => item?.field_name ?? '') || [];
   };
 
   const hidePopover = () => {
@@ -143,14 +126,14 @@
       ><slot></slot
     ></span>
     <template #content>
-      <div v-bkloading="{ isLoading }">
+      <div>
         <div class="popover-title-content">
           <p class="dialog-title">{{ $t('常用查询设置') }}</p>
         </div>
         <bk-form
           ref="popoverFormRef"
           :label-width="100"
-          :model="SettingData"
+          :model="settingData"
         >
           <bk-form-item
             :property="'filterFields'"
@@ -158,7 +141,7 @@
           >
             <bk-select
               ext-cls="add-popover-new-page-container"
-              v-model="SettingData.filterFields"
+              v-model="settingData.filterFields"
               :popover-options="{ appendTo: 'parent' }"
               :placeholder="$t('请选择常用过滤字段')"
               searchable

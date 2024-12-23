@@ -98,7 +98,6 @@
         store.commit('updateIndexId', payload.ids[0]);
       }
       await store.dispatch('requestIndexSetFieldInfo');
-      bus.$emit('requestIndexSetFieldInfoDone');
       store.dispatch('requestIndexSetQuery');
     }
   };

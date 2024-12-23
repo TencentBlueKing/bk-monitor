@@ -1628,6 +1628,7 @@ const store = new Vuex.Store({
             const userConfig = {
               fieldsWidth: res.data.index_set_config.fieldsWidth,
               displayFields: res.data.index_set_config.displayFields,
+              filterSetting: res.data.index_set_config.filterSetting,
             };
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }

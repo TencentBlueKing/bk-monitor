@@ -92,7 +92,6 @@
         setDefaultIndexsetId();
         store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
-          bus.$emit('requestIndexSetFieldInfoDone');
         });
       });
     });
