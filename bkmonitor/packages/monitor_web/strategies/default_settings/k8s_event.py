@@ -103,4 +103,17 @@ DEFAULT_K8S_EVENT_NAME = [
     "FailedCreate",
     # Kubernetes 在尝试删除一个现有的 Pod（通常是因为 ReplicaSet 的副本数要求发生了变化）时失败了。可能由于：权限问题、系统错误等。
     "FailedDelete",
+    # 其他事件
+    "BackoffLimitExceeded",  # Job 控制器创建的 Pod 失败了多次，且次数超过了 backoffLimit 的值，Kubernetes 将停止重试启动新的 Pod。
+    # Kubernetes 无法为 Service 创建 Endpoint，可能是由于关联的 Pod 没有正确运行，或者 Service 的选择器标签不匹配任何 Pod。
+    "FailedToCreateEndpoint",
+    # Kubernetes 无法更新 Service 的 Endpoint 信息，可能是因为网络或 API 服务器的问题，或者是资源版本冲突导致的。
+    "FailedToUpdateEndpoint",
+    "InvalidEntry",  # 常常与配置错误相关，可能是在 ConfigMap 或 Secret 中有无效的条目，或者在资源定义中有错误的字段。
+    # 通常表明控制器（例如，ReplicaSet、Deployment）无法与集群状态同步。可能是由于网络问题、API 服务器故障或者权限问题导致的。
+    "FailedSync",
+    # 通常是指在确保某种资源状态（如卷、网络配置等）时失败。可能的原因是权限不足、资源不足或配置错误。
+    "ensure fail",
+    # 处理 Ingress 资源失败。可能的原因是 Ingress 配置错误、关联的 Service 或 Backend 不存在、网络插件问题等。
+    "process ingress failed",
 ]
