@@ -161,9 +161,11 @@ export default defineComponent({
     };
 
     const delayUpdate = () => {
-      setVisibleIndexSection();
-      Object.keys(rowProxy).forEach(key => {
-        set(intersectionArgs.value, key, rowProxy[key]);
+      requestAnimationFrame(() => {
+        setVisibleIndexSection();
+        Object.keys(rowProxy).forEach(key => {
+          set(intersectionArgs.value, key, rowProxy[key]);
+        });
       });
     };
 

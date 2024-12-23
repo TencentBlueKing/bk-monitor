@@ -107,11 +107,11 @@
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
-      content-visibility: visible;
+      visibility: visible;
 
       &.is-pending {
         position: relative;
-        content-visibility: hidden;
+        visibility: hidden;
         will-change: auto;
 
         &::before {
