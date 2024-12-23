@@ -71,7 +71,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
 
     if (/\d+(m|h)$/.test(interval)) {
-      return dayjs.tz(data).format('HH:mm:ss').replace(/:00$/, '');
+      return dayjs.tz(data).format('MM-DD HH:mm:ss').replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
@@ -201,6 +201,31 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     updateChart();
   };
 
+  /** 缩写数字 */
+  const abbreviateNumber = (value: number) => {
+    let newValue = value;
+    let suffix = '';
+
+    if (value >= 1000 && value < 1000000) {
+      newValue = value / 1000;
+      suffix = 'K';
+    } else if (value >= 1000000 && value < 1000000000) {
+      newValue = value / 1000000;
+      suffix = ' Mil';
+    } else if (value >= 1000000000) {
+      newValue = value / 1000000000;
+      suffix = 'Bil';
+    }
+
+    // 使用 Intl.NumberFormat 来格式化数字，避免不必要的小数部分
+    const formatter = new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 3, // 最多保留一位小数
+      minimumFractionDigits: 0, // 最少保留零位小数
+    });
+
+    return `${formatter.format(newValue)}${suffix}`;
+  };
+
   const updateChart = () => {
     if (!chartInstance) {
       return;
@@ -209,7 +234,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     options.series[0].data = chartData;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
-
+    options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     chartInstance.setOption(options);
     nextTick(() => {
       dispatchAction({
