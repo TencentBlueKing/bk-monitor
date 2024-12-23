@@ -358,7 +358,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 1),
+        getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 0),
       },
       [WORKLOAD]: {
         id: WORKLOAD,
@@ -369,7 +369,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
-        getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 0) : null,
+        getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
       },
       [NAMESPACE]: {
         id: NAMESPACE,
