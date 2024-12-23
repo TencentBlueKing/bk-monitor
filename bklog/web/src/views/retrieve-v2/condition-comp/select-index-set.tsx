@@ -165,7 +165,7 @@ export default class SelectIndexSet extends tsc<object> {
 
   get indexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$route.query.indexId);
+      return String(this.$route?.query?.indexId || this.$store.state.indexId);
     } else {
       return String(this.$route.params.indexId);
     }
@@ -173,7 +173,7 @@ export default class SelectIndexSet extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$route.query.indexId);
+      return String(this.$route?.query?.indexId || this.$store.state.indexId);
     } else {
       return String(this.$route.params.indexId);
     }
@@ -846,7 +846,7 @@ export default class SelectIndexSet extends tsc<object> {
           class={['label-filter', { 'not-label': !this.labelSelectList.length }]}
           v-en-class='en-label-btn'
         >
-          {!window?.__IS_MONITOR_TRACE_LOG__ && (
+          {!window?.__IS_MONITOR_TRACE__ && (
             <div class='select-type-btn'>
               {this.typeBtnSelectList.map(item => (
                 <div
@@ -1013,7 +1013,7 @@ export default class SelectIndexSet extends tsc<object> {
       );
     };
     const favoriteAndHistory = () => {
-      if (window?.__IS_MONITOR_COMPONENT__ || window?.__IS_MONITOR_TRACE_LOG__) return null;
+      if (window?.__IS_MONITOR_COMPONENT__ || window?.__IS_MONITOR_TRACE__) return null;
       return (
         <div class='favorite-and-history'>
           <bk-tab

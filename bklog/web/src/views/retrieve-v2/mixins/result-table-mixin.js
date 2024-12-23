@@ -217,7 +217,9 @@ export default {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
     indexSetId() {
-      return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route?.query?.indexId || this.$store.state.indexId
+        : this.$route.params.indexId;
     },
   },
   watch: {

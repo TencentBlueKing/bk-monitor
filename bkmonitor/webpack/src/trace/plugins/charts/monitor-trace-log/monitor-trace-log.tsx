@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted } from 'vue';
+import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 
 import {
@@ -34,7 +34,7 @@ import {
   logStore,
   i18n,
   // VueRouter as Vue2Router,
-} from '@blueking/monitor-trace-log/main';
+} from '@blueking/monitor-trace-retrieve/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -43,8 +43,8 @@ import { useAppStore } from '../../../store/modules/app';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-trace-log.scss';
-import '@blueking/monitor-trace-log/css/main.css';
-
+import '@blueking/monitor-trace-retrieve/css/main.css';
+window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
   name: 'MonitorTraceLog',
@@ -103,6 +103,7 @@ export default defineComponent({
           },
         };
         app._$route = currentRoute;
+        await nextTick();
         document.querySelector('#trace-log').appendChild(mainDom);
         app.$mount(mainDom);
         window.mainComponent = app;

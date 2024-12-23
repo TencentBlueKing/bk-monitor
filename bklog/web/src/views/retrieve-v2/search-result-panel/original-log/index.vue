@@ -238,7 +238,7 @@
         return window.__IS_MONITOR_COMPONENT__;
       },
       isMonitorTraceLog() {
-        return window?.__IS_MONITOR_TRACE_LOG__;
+        return window?.__IS_MONITOR_TRACE__;
       },
     },
     watch: {

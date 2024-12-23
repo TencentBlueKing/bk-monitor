@@ -289,7 +289,7 @@ const MonitorApmLog = () =>
 const MonitorTraceLog = () =>
   import(
     /* webpackChunkName: 'monitor-trace-log' */
-    '@/views/retrieve-v2/monitor-trace-log/monitor.vue'
+    '@/views/retrieve-v2/monitor/monitor.vue'
   );
 // #endif
 const routes = [

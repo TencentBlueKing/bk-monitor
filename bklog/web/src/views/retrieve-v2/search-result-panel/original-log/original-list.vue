@@ -148,7 +148,7 @@
         return document.querySelector('.result-scroll-container');
       },
       isMonitorTraceLog() {
-        return window?.__IS_MONITOR_TRACE_LOG__;
+        return window?.__IS_MONITOR_TRACE__;
       }
     },
     activated() {

@@ -25,9 +25,6 @@
 -->
 
 <script setup>
-window.__IS_MONITOR_COMPONENT__ = true;
-window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
-window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
 import { computed, ref, watch, defineProps, onMounted, provide } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
@@ -92,7 +89,11 @@ const routeQueryParams = computed(() => {
 const getApmIndexSetList = async () => {
   store.commit('retrieve/updateIndexSetLoading', true);
   store.commit('retrieve/updateIndexSetList', []);
-  return props.indexSetApi().then(res => {
+  return (
+      props.indexSetApi
+        ? props.indexSetApi()
+        : store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
+    ).then(res => {
     let indexSetList = [];
     if (res.length) {
       // 有索引集
@@ -214,6 +215,7 @@ watch(
 watch(
   () => props.timeRange,
   async val => {
+    console.log('props.timeRange', props.timeRange);
     if (!val) return;
     store.commit('updateIsSetDefaultTableColumn', false);
     const result = handleTransformToTimestamp(val);
