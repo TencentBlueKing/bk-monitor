@@ -1317,13 +1317,25 @@
       handleTableData(data) {
         this.fieldNameList = data;
       },
+      // 切换显示内置字段
       handleBuiltField(value){
         this.builtFieldShow = value
         if(value){
           this.formData.fields = [... this.formData.fields,...this.copyBuiltField]
+          this.savaFormData();
         }else{
-          const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
-          this.formData.fields = this.formData.fields.filter(field => !copyBuiltFieldIds.has(field.field_name));
+        const allFields = this.$refs.fieldTable.getData();
+        const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
+        const { copyFields, remainingFields } = allFields.reduce((acc, field) => {
+          if (copyBuiltFieldIds.has(field.field_name)) {
+            acc.copyFields.push(field);
+          } else {
+            acc.remainingFields.push(field);
+          }
+          return acc;
+        }, { copyFields: [], remainingFields: [] });
+        this.formData.fields = remainingFields;
+        this.copyBuiltField = copyFields;
         }
       },
       // 初始化清洗项
@@ -1525,24 +1537,23 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
-          // 在json格式下，alias_settings的query_alias和fields的alias_name交换
           if( this.params.etl_config === 'bk_log_json'){
-            data.alias_settings =  fieldTableData.filter(item => item.alias_name).map(item => {
+            if(!this.builtFieldShow){
+              data.etl_fields.push(...this.copyBuiltField)
+            }
+            data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
               return {
-                field_name: item.query_alias || item.field_name,
+                field_name: item.alias_name || item.field_name,
                 query_alias: item.query_alias,
                 path_type: item.field_type
               }
             })
-            data.etl_fields.forEach(item => {
-              item.alias_name = item.query_alias
-            })
+            data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
           }
         } else {
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
-
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1654,6 +1665,7 @@
           etl_params: etlParams,
           alias_settings,
         };
+
         const updateData = {
           params: {
             collector_config_id: this.curCollect.collector_config_id,
@@ -1922,7 +1934,6 @@
         });
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
-          
         }
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
@@ -2495,6 +2506,7 @@
       },
       getNotParticipleFieldTableData() {
         const fieldsData = this.$refs.fieldTable.getData() || [];
+
         const { field_name, time_zone, time_format } = this.formData;
         const isReportingTime = this.formData.log_reporting_time;
         const result = fieldsData.map(item => {
@@ -2555,21 +2567,18 @@
             params: {
               index_set_id: indexSetId
             },
-            // query: {
-            //   scope: 'search_context',
-            //   start_time: this.retrieveParams.start_time,
-            //   end_time: this.retrieveParams.end_time,
-            //   is_realtime: 'True',
-            // },
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
-          console.log(this.fieldsObjectData );
-          console.log(this.formData);
-          console.log(this.copyBuiltField);
           this.fieldsObjectData.forEach(item => {
             let name = item.field_name.split('.')[0]
             this.copyBuiltField.forEach( builtField => {
-              
+              if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+                if (!Array.isArray(builtField.children)) {
+                  builtField.children = [];
+                  this.$set(builtField, 'expand', false);
+                }
+                builtField.children.push(item);
+              }
             } )
           })
         } catch (err) {

@@ -139,6 +139,8 @@
                   :class="{ 'is-required is-error': props.row.fieldErr || props.row.fieldAliasErr,'disable-background': props.row.is_built_in}"
                   class="participle-form-item"
                 >
+                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand" @click="expandObject(props.row,true)" class="ext-btn bk-icon icon-angle-right"></span>
+                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && props.row.expand " @click="expandObject(props.row,false)" class="ext-btn bk-icon icon-angle-down"></span>
                   <bk-input
                     :class="props.row.alias_name?'participle-field-name-input':''"
                     v-model.trim="props.row.field_name"
@@ -171,6 +173,7 @@
                       class="participle-popconfirm-btn"
                       trigger="click"
                       @confirm="handleConfirmRename(props.row, props.$index)"
+                      @cancel="handleCancelRename(props.row, props.$index)"
                     >
                       <div slot="content">
                         <div class="participle-popconfirm-btn-title">
@@ -198,6 +201,7 @@
                       class="participle-popconfirm-btn"
                       trigger="click"
                       @confirm="handleConfirmRename(props.row, props.$index)"
+                      @cancel="handleCancelRename(props.row, props.$index)"
                     >
                       <div slot="content">
                         <div class="participle-popconfirm-btn-title">
@@ -569,7 +573,7 @@
 
 <script>
   import { mapGetters } from 'vuex';
-
+  import { deepClone } from '../../common/util';
   export default {
     name: 'FieldTable',
     props: {
@@ -885,7 +889,7 @@
         this.$set(row, 'participleState', this.currentParticipleState);
       },
       handlePopoverRename(row) {
-        this.currentAliasName = row.query_alias;
+        this.currentAliasName = row.alias_name;
       },
       // 字段名设置重命名 如果重命名有值不校验字段名，反之校验
       handleConfirmRename(row) {
@@ -894,6 +898,9 @@
           this.checkFieldNameItem(row)
         }
         this.$set(row, 'alias_name', this.currentAliasName);
+        this.currentAliasName = ''
+      },
+      handleCancelRename(){
         this.currentAliasName = ''
       },
       handelChangeAnalyzed() {
@@ -923,7 +930,25 @@
       },
       getData() {
         // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
-        const data = JSON.parse(JSON.stringify(this.formData.tableList));
+        const data= deepClone(this.formData.tableList)
+        data.forEach(item => {
+          if (item.hasOwnProperty('fieldErr')) {
+            delete item.fieldErr;
+          }
+
+          if (item.hasOwnProperty('aliasErr')) {
+            delete item.aliasErr;
+          }
+
+          if (item.hasOwnProperty('typeErr')) {
+            delete item.typeErr;
+          }
+        });
+        return data;
+      },
+      getBuiltData() {
+        const data= deepClone(this.formData.tableList)
+
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -972,6 +997,8 @@
         });
       },
       checkFieldNameItem(row) {
+        console.log(row);
+        
         const { field_name, is_delete, field_index } = row;
         let result = '';
         let aliasResult = ''
@@ -1001,6 +1028,8 @@
             btnShow = true
             aliasResult = this.$t('重命名与系统内置字段重复')
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
+            
+            console.log(this.filedNameIsConflict(field_index, field_name));
             result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
           } else {
             result = '';
@@ -1017,6 +1046,9 @@
         return result || aliasResult;
       },
       checkAliasNameItem(row) {
+        console.log(row);
+        console.log(this.selectEtlConfig);
+        
         let  { alias_name, is_delete, field_index } = row;
         if(!this.currentAliasName){
           return
@@ -1032,6 +1064,7 @@
             queryResult = this.$t('重命名与系统内置字段重复')
           } else if (this.selectEtlConfig === 'bk_log_json') {
             // 此处对比还是字段名，要改成重名间对比
+            
             queryResult = this.filedNameIsConflict(field_index, alias_name) ? this.$t('重命名字段名称冲突, 请调整') : '';
           } else {
             queryResult = '';
@@ -1049,11 +1082,11 @@
             let result = true;
             this.formData.tableList.forEach(row => {
               // 如果有别名，不判断字段名，判断别名
-              if (!row.query_alias && !!this.checkFieldNameItem(row)) {
+              if (!row.query_alias && row.is_built_in === false && !!this.checkFieldNameItem(row)) {
                 // 返回 true 的时候未通过
                 result = false;
-              }else if(this.checkQueryNameItem(row)){
-                result = false;
+              }else if(this.checkQueryAliasItem(row)){
+                result = true;
               }
             });
             if (result) {
@@ -1068,6 +1101,7 @@
           }
         });
       },
+
       checkQueryAliasItem(row) {
         const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
         if (isDelete) {
@@ -1194,11 +1228,12 @@
       },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
+        console.log(otherFieldNameList);
+        
         return otherFieldNameList.some(item => item.field_name === fieldName);
       },
       /** 当前字段是否禁用 */
       getFieldEditDisabled(row) {
-        console.log(row);
         if (row?.is_delete) return true;
         if(row?.is_built_in) return true
         if (this.selectEtlConfig === 'bk_log_json') return false;
@@ -1216,6 +1251,20 @@
         if (type === 'analyzed') atLastAnalyzed = true;
         return this.isPreviewMode || isDelete || fieldType !== 'string' || !atLastAnalyzed || this.isSetDisabled;
       },
+      expandObject(row, show) {
+        row.expand = show;
+        const index = this.formData.tableList.findIndex(item => item.field_name === row.field_name);
+        if (show) {
+            if (index !== -1) {
+                this.formData.tableList.splice(index + 1, 0, ...row.children);
+            }
+        } else {
+            if (index !== -1) {
+                const childrenCount = row.children.length;
+                this.formData.tableList.splice(index + 1, childrenCount);
+            }
+        }
+      }
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
@@ -1247,6 +1296,13 @@
           /* stylelint-disable-next-line declaration-no-important */
           padding: 0 !important;
           .participle-form-item{
+            .ext-btn{
+              cursor: pointer;
+              font-size: 18px;
+              position: absolute;
+              z-index: 999;
+              bottom: 14px;
+            }
             .bk-form-input[disabled] {
               border-color: transparent !important;
             }
@@ -1394,8 +1450,16 @@
           margin-left: 10px;
         }
       }
-    }
+      :deep(thead tr th:first-child .cell) {
+        padding-left: 15px;
+      }
 
+      :deep(tbody tr td:first-child .bk-form-input) {
+        padding-left: 15px;
+      }
+
+    }
+    
     .preview-panel-left {
       flex: 1;
     }
