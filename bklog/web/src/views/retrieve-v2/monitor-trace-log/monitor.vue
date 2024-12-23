@@ -1,5 +1,4 @@
 <script setup>
-  window.__IS_MONITOR_TRACE_LOG__ = true;
   import { computed, ref, watch, defineProps, onMounted, provide } from 'vue';
 
   import * as authorityMap from '@/common/authority-map';

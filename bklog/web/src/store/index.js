@@ -922,7 +922,7 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         if (indexId) {
           ids.push(indexId);
         }

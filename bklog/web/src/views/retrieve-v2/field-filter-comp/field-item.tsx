@@ -136,7 +136,7 @@ export default class FieldItem extends tsc<object> {
     this.fieldAnalysisInstance = new FieldAnalysis();
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
-      : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
@@ -194,7 +194,7 @@ export default class FieldItem extends tsc<object> {
     console.log(this.retrieveParams);
     const indexSetIDs = this.isUnionSearch
     ? this.unionIndexList
-    : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+    : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
     const downRequestUrl = `/field/index_set/fetch_value_list/`;
     const data = {
       ...this.retrieveParams,
@@ -213,13 +213,13 @@ export default class FieldItem extends tsc<object> {
           });
           return;
         }
-        let routerIndexSet = window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        let routerIndexSet = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
         const lightName = this.indexSetList.find(item => item.index_set_id ===  routerIndexSet)?.lightenName;
         const downloadName =  `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`
         blobDownload(res, downloadName);
       })
       .finally(() => {
-      
+
       });
   }
   getdistinctCount(val){

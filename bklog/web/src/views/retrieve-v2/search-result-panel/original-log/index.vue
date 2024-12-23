@@ -218,7 +218,7 @@
       }),
 
       routeIndexSet() {
-        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
 
       tableList() {
@@ -235,7 +235,7 @@
         return this.$store.state.showFieldsConfigPopoverNum;
       },
       isMonitorApm() {
-        return window.__IS_MONITOR_APM__;
+        return window.__IS_MONITOR_COMPONENT__;
       },
       isMonitorTraceLog() {
         return window?.__IS_MONITOR_TRACE_LOG__;

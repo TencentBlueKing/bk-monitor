@@ -23,7 +23,9 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 */
-window.__IS_MONITOR_APM__ = true
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
+window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
 import Vue from 'vue';
 
 import LogButton from '@/components/log-button';

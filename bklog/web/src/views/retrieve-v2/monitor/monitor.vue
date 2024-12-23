@@ -25,7 +25,9 @@
 -->
 
 <script setup>
-window.__IS_MONITOR_APM__ = true;
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
+window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
 import { computed, ref, watch, defineProps, onMounted, provide } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
@@ -182,7 +184,7 @@ const setRouteParams = () => {
     datePickerValue: store.state.indexItem.datePickerValue,
   });
   Object.assign(query, resolver.resolveParamsToUrl());
-  
+
   if (!isEqual(query, route.query)) {
     router.replace({
       query,

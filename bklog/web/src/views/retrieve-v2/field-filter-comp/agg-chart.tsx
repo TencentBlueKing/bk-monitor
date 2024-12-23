@@ -164,7 +164,7 @@ export default class AggChart extends tsc<object> {
     try {
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
-        : [window.__IS_MONITOR_APM__ ? this.route.query.indexId : this.route.params.indexId];
+        : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
       this.listLoading = true;
       const data = {
         ...this.retrieveParams,

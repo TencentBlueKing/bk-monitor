@@ -164,7 +164,7 @@ export default class SelectIndexSet extends tsc<object> {
   }
 
   get indexId() {
-    if (window.__IS_MONITOR_APM__) {
+    if (window.__IS_MONITOR_COMPONENT__) {
       return String(this.$route.query.indexId);
     } else {
       return String(this.$route.params.indexId);
@@ -172,7 +172,7 @@ export default class SelectIndexSet extends tsc<object> {
   }
 
   get routeParamIndexId() {
-    if (window.__IS_MONITOR_APM__) {
+    if (window.__IS_MONITOR_COMPONENT__) {
       return String(this.$route.query.indexId);
     } else {
       return String(this.$route.params.indexId);
@@ -556,7 +556,7 @@ export default class SelectIndexSet extends tsc<object> {
           },
         })
         .then(() => {
-          if (window.__IS_MONITOR_APM__) {
+          if (window.__IS_MONITOR_COMPONENT__) {
             this.$emit('collection');
           } else {
             this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
@@ -1013,7 +1013,7 @@ export default class SelectIndexSet extends tsc<object> {
       );
     };
     const favoriteAndHistory = () => {
-      if (window?.__IS_MONITOR_APM__ || window?.__IS_MONITOR_TRACE_LOG__) return null;
+      if (window?.__IS_MONITOR_COMPONENT__ || window?.__IS_MONITOR_TRACE_LOG__) return null;
       return (
         <div class='favorite-and-history'>
           <bk-tab
@@ -1139,7 +1139,7 @@ export default class SelectIndexSet extends tsc<object> {
     );
     const indexHandDom = item => {
       if (this.isAloneType) {
-        return !window.__IS_MONITOR_APM__ ? (
+        return !window.__IS_MONITOR_COMPONENT__ ? (
           <span
             class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
             onClick={e => this.handleCollection(item, e)}

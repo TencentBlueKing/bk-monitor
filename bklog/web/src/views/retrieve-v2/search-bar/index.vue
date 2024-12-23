@@ -70,7 +70,7 @@
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
 
-  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE_LOG__);
+  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE__);
 
   watch(
     () => isIndexFieldLoading.value,
