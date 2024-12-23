@@ -144,7 +144,7 @@
         return;
       }
 
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
+      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
       isRequesting.value = true;
 
       requestTimer && clearTimeout(requestTimer);
