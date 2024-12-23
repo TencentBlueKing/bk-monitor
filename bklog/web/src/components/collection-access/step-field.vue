@@ -322,13 +322,13 @@
             ext-cls="en-bk-form"
             :label="$t('字段列表')"
           >
-            <div
+            <!-- <div
               v-if="!isTempField"
               :class="{ 'view-log-btn': true, disabled: !hasFields }"
               @click.stop="viewStandard"
             >
               {{ $t('查看内置字段') }}
-            </div>
+            </div> -->
             <div
               :style="isClearTemplate ? { 'margin-top': '10px' } : ''"
               class="field-method-result"
