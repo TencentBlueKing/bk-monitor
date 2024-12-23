@@ -1114,7 +1114,8 @@
         timeCheckContent: '',
         metaDataList: [],
         isDebugLoading: false,
-        builtFieldShow:false
+        builtFieldShow:false,
+        fieldsObjectData: []
       };
     },
     computed: {
@@ -1317,13 +1318,11 @@
         this.fieldNameList = data;
       },
       handleBuiltField(value){
-        console.log(23,value);
-        
         this.builtFieldShow = value
         if(value){
           this.formData.fields = [... this.formData.fields,...this.copyBuiltField]
         }else{
-          const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name)); // 假设字段有唯一的 'id'
+          const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
           this.formData.fields = this.formData.fields.filter(field => !copyBuiltFieldIds.has(field.field_name));
         }
       },
@@ -2563,7 +2562,16 @@
             //   is_realtime: 'True',
             // },
           });
-          
+          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
+          console.log(this.fieldsObjectData );
+          console.log(this.formData);
+          console.log(this.copyBuiltField);
+          this.fieldsObjectData.forEach(item => {
+            let name = item.field_name.split('.')[0]
+            this.copyBuiltField.forEach( builtField => {
+              
+            } )
+          })
         } catch (err) {
           console.warn(err);
         }
