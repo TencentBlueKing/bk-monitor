@@ -37,20 +37,19 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
-    const resizeObserver: ResizeObserver = inject('resizeObserver');
+    // const resizeObserver: ResizeObserver = inject('resizeObserver');
     const rowProxy: Ref<RowProxyData> = inject('rowProxy');
 
     const rowStyle = computed(() => {
       return {
-        minHeight: `${rowProxy.value[props.rowIndex]?.height ?? 40}px`,
+        // minHeight: `${rowProxy.value[props.rowIndex]?.height ?? 40}px`,
       };
     });
 
     const visible = computed(() => {
-      const { visible = true, mounted = false } = rowProxy.value[props.rowIndex] ?? {};
+      const { visible = true } = rowProxy.value[props.rowIndex] ?? {};
       const { start = 0, end = 50 }: { start: number; end: number } = (rowProxy.value ?? {}) as any;
-
-      return visible || !mounted || (props.rowIndex >= start && props.rowIndex <= end);
+      return visible || (props.rowIndex >= start && props.rowIndex <= end);
     });
 
     const renderRowVNode = () => {
@@ -62,24 +61,24 @@ export default defineComponent({
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': !visible.value }]}
-            data-is-pending={!visible.value}
+            // data-is-pending={!visible.value}
             data-row-index={props.rowIndex}
           >
             {slots.default?.()}
           </div>
-          <div class={['row-pending', { 'is-pending': !visible.value }]}></div>
+          {/* <div class={['row-pending', { 'is-pending': !visible.value }]}></div> */}
         </div>
       );
     };
 
     onMounted(() => {
       intersectionObserver?.observe(refRowNodeRoot.value);
-      resizeObserver?.observe(refRowNodeRoot.value);
+      // resizeObserver?.observe(refRowNodeRoot.value);
     });
 
     onBeforeUnmount(() => {
       intersectionObserver?.unobserve(refRowNodeRoot.value);
-      resizeObserver?.unobserve(refRowNodeRoot.value);
+      // resizeObserver?.unobserve(refRowNodeRoot.value);
     });
 
     return {
