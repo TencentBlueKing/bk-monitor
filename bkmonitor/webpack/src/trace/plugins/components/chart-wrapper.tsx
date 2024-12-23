@@ -31,7 +31,7 @@ import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
-import MonitorRetrieve from '../charts/monitor-retrieve/monitor-retrieve';
+import MonitorTraceLog from '../charts/monitor-trace-log/monitor-trace-log';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
 import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
@@ -162,7 +162,7 @@ export default defineComponent({
             />
           );
         case 'monitor-trace-log':
-          return <MonitorRetrieve />;
+          return <MonitorTraceLog />;
         default:
           return (
             <TimeSeries
