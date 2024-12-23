@@ -205,14 +205,14 @@
     .filter-select-wrap {
       display: flex;
       align-items: center;
-      min-width: 280px;
+      min-width: 250px;
       max-width: 600px;
       margin-top: 8px;
       margin-right: 8px;
       border: 1px solid #dbdde1;
 
       .title {
-        max-width: 120px;
+        max-width: 125px;
         margin-left: 8px;
         overflow: hidden;
         font-size: 12px;
