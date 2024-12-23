@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import six
 from django.utils.translation import gettext as _
@@ -18,8 +18,10 @@ from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bk_dataview.api import get_grafana_panel_query
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import QueryConfigModel, StrategyLabel, StrategyModel
+from bkmonitor.strategy.new_strategy import grafana_panel_to_config
 from bkmonitor.views.serializers import BusinessOnlySerializer
 from constants.aiops import SCENE_METRIC_MAP, SCENE_NAME_MAPPING
 from constants.alert import EventStatus
@@ -446,3 +448,30 @@ class MultivariateAnomalyScenesResource(Resource):
             )
 
         return scenes
+
+
+class DashboardPanelToQueryConfig(Resource):
+    """
+    将仪表盘图表转换为查询配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        dashboard_uid = serializers.CharField(label="仪表盘UID")
+        panel_id = serializers.IntegerField(label="图表ID")
+        ref_id = serializers.CharField(label="图表RefID")
+        variables = serializers.DictField(label="变量", child=serializers.ListField(label="变量值"), allow_empty=True)
+
+    def perform_request(self, params: Dict[str, Any]):
+        panel_query = get_grafana_panel_query(
+            params["bk_biz_id"], params["dashboard_uid"], params["panel_id"], params["ref_id"]
+        )
+        if not panel_query:
+            raise ValidationError(_("无法获取到Grafana图表查询配置"))
+
+        try:
+            converted_config = grafana_panel_to_config(panel_query, params["variables"])
+        except (ValidationError, ValueError):
+            raise ValidationError(_("Grafana图表查询配置转换失败"))
+
+        return converted_config
