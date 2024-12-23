@@ -25,6 +25,7 @@
 */
 window.__IS_MONITOR_COMPONENT__ = true;
 import Vue  from 'vue';
+import VueRouter from 'vue-router';
 
 import LogButton from '@/components/log-button';
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
@@ -49,5 +50,6 @@ export {
   i18n,
   initMonitorState,
   initGlobalComponents,
-  Vue2
+  Vue2,
+  VueRouter
 }

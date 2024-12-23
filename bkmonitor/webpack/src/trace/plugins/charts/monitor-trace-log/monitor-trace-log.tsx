@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, nextTick, type Ref } from 'vue';
+import { defineComponent, inject, ref, computed, nextTick, type Ref, onUnmounted, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 import {
@@ -33,20 +33,21 @@ import {
   Vue2,
   logStore,
   i18n,
+  VueRouter as Vue2Router,
 } from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
 import { handleTransformToTimestamp, type TimeRangeType } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
-import { TIME_RANGE_KEY } from '../../hooks';
+import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
-import './monitor-retrieve.scss';
+import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
-  name: 'MonitorRetrieve',
+  name: 'MonitorTraceLog',
   setup() {
     const empty = ref(true);
     const loading = ref(true);
@@ -55,10 +56,12 @@ export default defineComponent({
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
     const timeRange = inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
+    const refleshImmediate = inject<Ref<TimeRangeType>>(REFLESH_IMMEDIATE_KEY);
+    const refleshInterval = inject<Ref<TimeRangeType>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
-    const mainRef = ref();
+    const mainRef = ref<HTMLDivElement>();
 
-    init();
+    const router2 = new Vue2Router({ routes: router.options.routes });
 
     async function init() {
       loading.value = true;
@@ -69,24 +72,38 @@ export default defineComponent({
         const spaceUid =
           window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
         window.space_uid = `${spaceUid}`;
+        console.log(router, router2);
         initMonitorState({
           bkBizId: window.bk_biz_id,
           spaceUid,
         });
         initGlobalComponents();
+        const mainDom = document.createElement('div');
+        mainDom.$router = {
+          get currentRoute() {
+            return null;
+          },
+          replace: () => {},
+          push: () => {},
+        };
         const app: any = new Vue2({
           store: logStore,
-          router: router,
           i18n,
           render: h => {
             return h(Log, {
               ref: 'componentRef',
-              props: {},
+              props: {
+                indexSetApi,
+                timeRange: timeRange.value,
+                refleshImmediate: refleshImmediate.value,
+                refleshInterval: refleshInterval.value,
+              },
             });
           },
         });
         await nextTick();
-        app.$mount(mainRef.value);
+        document.querySelector('#trace-log').appendChild(mainDom);
+        app.$mount(mainDom);
         window.mainComponent = app;
       } else {
         empty.value = true;
@@ -133,6 +150,18 @@ export default defineComponent({
       window.open(url);
     }
 
+    onMounted(() => {
+      init();
+    });
+
+    onUnmounted(() => {
+      if (!empty.value) {
+        logStore.commit('resetState');
+        window.mainComponent.$destroy();
+        window.mainComponent = null;
+      }
+    });
+
     return {
       mainRef,
       empty,
@@ -168,7 +197,7 @@ export default defineComponent({
           </div>
         ) : (
           <div
-            id='main'
+            id='trace-log'
             ref='mainRef'
           />
         )}
