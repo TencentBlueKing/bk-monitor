@@ -127,7 +127,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     {
       icon: 'icon-shezhi',
       tips: window.i18n.tc('route-仪表盘设置'),
-      router: 'grafana-admin',
+      router: 'grafana-datasource',
     },
   ].filter(Boolean);
 
