@@ -596,12 +596,14 @@ class GetAlarmGraphConfigResource(Resource):
 
         # 获取指定业务配置
         config = None
+        bk_biz_id = params.get("bk_biz_id")
         if params.get("bk_biz_id"):
             config = query.filter(bk_biz_id=params["bk_biz_id"]).first()
 
         # 获取第一个配置
         if not config:
             config = query.order_by("index").first()
+            bk_biz_id = config.bk_biz_id
 
         config = config.config if config else None
 
@@ -616,7 +618,7 @@ class GetAlarmGraphConfigResource(Resource):
 
             # 补充策略状态, status: deleted, disabled, shielded, normal
             strategies = StrategyModel.objects.filter(
-                id__in=set(itertools.chain.from_iterable([item["strategy_ids"] for item in config.config]))
+                id__in=set(itertools.chain.from_iterable([item["strategy_ids"] for item in config]))
             )
             strategy_id_to_strategy = {strategy.id: strategy for strategy in strategies}
             for item in config.config:
@@ -635,7 +637,8 @@ class GetAlarmGraphConfigResource(Resource):
                 item["status"] = status
 
         return {
-            "config": config.config if config else None,
+            "bk_biz_id": bk_biz_id,
+            "config": config,
             "tags": [
                 {
                     "bk_biz_id": tag.bk_biz_id,
