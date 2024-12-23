@@ -98,16 +98,10 @@ interface IChartWrapperEvent {
   onDblClick?: () => void;
   onZrClick?: (event: ZrClickEvent) => void;
   onDimensionsOfSeries?: string[];
+  /** 图表鼠标右击事件的回调方法 */
   onMenuClick?: (data: IDataItem) => void;
 }
-// interface IChartWrapperEvent {
-//   onChartCheck: boolean;
-//   onCollapse: boolean;
-//   onCollectChart?: () => void;
-//   onChangeHeight?: (height: number) => void;
-//   onDblClick?: () => void;
-//   onZrClick?: (event: ZrClickEvent) => void;
-// }
+
 @Component({
   components: {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),

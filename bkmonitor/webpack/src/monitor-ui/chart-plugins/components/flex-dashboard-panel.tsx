@@ -35,6 +35,7 @@ import {
   type DashboardColumnType,
   type IPanelModel,
   type ObservablePanelField,
+  type IDataItem,
   PanelModel,
   type ZrClickEvent,
 } from '../typings';
@@ -67,7 +68,8 @@ interface IDashboardPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
   onZrClick?: (event: ZrClickEvent) => void;
-  onMenuClick?: (data) => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
 }
 @Component
 export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
