@@ -1,9 +1,19 @@
 .monitor-new-home {
   width: 100%;
   height: 100%;
+  position: relative;
   .new-home-bg {
     width: 100%;
     height: 240px;
-    background: #182132;
+    background: url('../../../static/images/png/new-page/home-bg.png');
+    background-size: 100% 100%;
+  }
+  .new-home-content {
+    width: 100%;
+    min-height: 400px;
+    // border: 1px solid red;
+    position: absolute;
+    top: 32px;
+    left: 0;
   }
 }

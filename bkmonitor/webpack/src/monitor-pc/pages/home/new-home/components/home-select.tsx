@@ -26,21 +26,21 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import HomeSelect from './components/home-select';
-
-import './new-home.scss';
+import './home-select.scss';
 
 @Component({
-  name: 'NewHome',
+  name: 'HomeSelect',
 })
-export default class NewHome extends tsc<object> {
+export default class HomeSelect extends tsc<object> {
   render() {
     return (
-      <div class='monitor-new-home'>
-        <div class='new-home-bg'></div>
-        <div class='new-home-content'>
-          <HomeSelect />
-        </div>
+      <div class='new-home-select'>
+        <span class='new-home-select-icon'></span>
+        <bk-input
+          class='home-select-input'
+          placeholder={this.$t('请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索')}
+          clearable
+        ></bk-input>
       </div>
     );
   }

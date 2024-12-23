@@ -1,0 +1,42 @@
+.new-home-select {
+  width: 78%;
+  height: 65px;
+  background: url('../../../../static/images/png/new-page/home-search.png');
+  background-size: 100% 100%;
+  margin: 0 auto;
+  display: flex;
+  padding: 0 10px 0 16px;
+  vertical-align: middle;
+  align-items: center;
+  .new-home-select-icon {
+    display: inline-block;
+    width: 46px;
+    height: 46px;
+    margin-right: 2px;
+    background: url('../../../../static/images/png/new-page/search-icon.png');
+    background-size: 100% 100%;
+  }
+  .home-select-input {
+    width: 100%;
+    margin-top: -3px;
+    .clear-icon {
+      font-size: 18px;
+    }
+    .bk-form-input {
+      height: 46px;
+      line-height: 46px;
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      color: #f5f7fa;
+      caret-color: #fff;
+      &:focus {
+        background: transparent !important;
+      }
+      &::placeholder {
+        color: #c4c6cc;
+        font-size: 16px;
+      }
+    }
+  }
+}
