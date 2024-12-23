@@ -87,6 +87,7 @@ export default defineComponent({
     const refBoxElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
 
+    const pageIndex = ref(1);
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
@@ -129,8 +130,8 @@ export default defineComponent({
     const intersectionArgs: Ref<RowProxyData> = ref({});
     const rowProxy: RowProxyData = {};
 
-    const setRenderList = () => {
-      renderList.value = new Array(tableDataSize.value).fill('').map((_, i) => i);
+    const setRenderList = (length?) => {
+      renderList.value = new Array(length ?? tableDataSize.value).fill('').map((_, i) => i);
     };
 
     const resetRowState = () => {
@@ -522,11 +523,13 @@ export default defineComponent({
         refScrollXBar.value?.scrollLeft(0);
         isRending.value = true;
         renderList.value = [];
+        pageIndex.value = 1;
 
         setTimeout(() => {
           showCtxType.value = props.contentType;
           resetRowState();
-          setRenderList();
+          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+          setRenderList(maxLength);
           isRending.value = false;
           computeRect();
         });
@@ -628,7 +631,16 @@ export default defineComponent({
         isRequesting.value = true;
         delay = 0;
 
+        if (pageIndex.value * pageSize.value < tableDataSize.value) {
+          pageIndex.value++;
+          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+          setRenderList(maxLength);
+          debounceSetLoading();
+          return;
+        }
+
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
+          pageIndex.value++;
           debounceSetLoading();
         });
       }
