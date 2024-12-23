@@ -91,6 +91,17 @@ class SearchViewSet(viewsets.GenericViewSet):
         return sr
 
 
+class FunctionShortcutViewSet(PermissionMixin, ResourceViewSet):
+    """
+    功能快捷入口
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", resource.overview.get_function_shortcut),
+        ResourceRoute("POST", resource.overview.add_access_record, endpoint="add_access_record"),
+    ]
+
+
 class AlarmGraphConfigViewSet(PermissionMixin, ResourceViewSet):
     """
     首页告警图配置

@@ -283,7 +283,7 @@ class GetFunctionShortcutsResource(CacheResource):
 
     class RequestSerializer(serializers.Serializer):
         type = serializers.ChoiceField(choices=["recent", "favorite"], label="类型")
-        # dashboard, apm_service, metric_explore
+        # dashboard, apm_service, log_retrieve, metric_retrieve
         functions = serializers.ListField(child=serializers.CharField(), label="功能列表", allow_empty=False)
         limit = serializers.IntegerField(label="限制", default=10)
 
@@ -474,6 +474,7 @@ class GetFunctionShortcutsResource(CacheResource):
                                 "app_name": app.app_name,
                                 "service_name": service_name,
                                 "application_id": app.application_id,
+                                "app_alias": app.app_alias,
                             }
                         )
 
@@ -537,7 +538,7 @@ class AddAccessRecordResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        # dashboard, apm_service, apm_app
+        # dashboard, apm_service, metric_retrieve
         function = serializers.CharField(label="功能")
         config = serializers.JSONField(label="实例信息")
 

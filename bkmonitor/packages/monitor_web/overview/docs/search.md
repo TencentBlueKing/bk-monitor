@@ -23,7 +23,7 @@
 | 字段 | 类型   | 描述     |
 |------|--------|----------|
 | type | string | 结果类型 |
-| items | list  | 搜索结果列表 |
+| items | array[object]  | 搜索结果列表 |
 
 #### type 可能的值
 
@@ -91,7 +91,21 @@
 | bk_host_name | string | 主机名 |
 | bk_host_id | int | 主机ID |
 
+##### 其他类型，方便后续扩展
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| bk_biz_id | int | 业务ID |
+| bk_biz_name | string | 业务名称 |
+| name | string | 名称 |
+| url | string | 链接 |
+
 #### 返回结果示例
+
+event-stream data分片
+
+```
+data: {"type": "host", "items": [{"bk_biz_id": 2, "bk_biz_name": "蓝鲸", "name": "127.0.0.1", "bk_host_innerip": "127.0.0.1", "bk_cloud_id": 0, "bk_cloud_name": "默认云区域", "bk_host_name": "host-1", "bk_host_id": 12345}]}
+```
 
 ```json
 {
