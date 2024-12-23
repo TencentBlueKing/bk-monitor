@@ -26,11 +26,12 @@
 const webpack = require('webpack');
 const WebpackBar = require('webpackbar');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { resolve } = require('node:path');
 const outputUrl = resolve(__dirname, '../monitor-retrieve');
 const createMonitorConfig = config => {
   const production = process.env.NODE_ENV === 'production';
-  delete config.plugins[0];
   config.plugins.push(
     new CopyWebpackPlugin({
       patterns: [
@@ -41,6 +42,11 @@ const createMonitorConfig = config => {
       ],
     }),
   );
+  const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
+  const imgLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.png'));
+  const urlLoaderOptions = fileLoaders.use.find(item => item.loader === 'url-loader').options;
+  imgLoaders.options.publicPath = '../img';
+  urlLoaderOptions.publicPath = '../fonts';
   return {
     ...config,
     entry: {
@@ -58,6 +64,7 @@ const createMonitorConfig = config => {
       chunkFormat: 'module',
       module: true,
       clean: true,
+      publicPath: '',
     },
     resolve: {
       ...config.resolve,
@@ -94,7 +101,7 @@ const createMonitorConfig = config => {
       'dayjs',
       /lodash/,
       /vue-json-pretty/,
-      ({ request, context }, cb) => {
+      ({ request }, cb) => {
         if (request === 'echarts') {
           return cb(undefined, request.replace(request, request));
         }
@@ -104,14 +111,22 @@ const createMonitorConfig = config => {
         cb();
       },
     ],
-    plugins: config.plugins.filter(Boolean).map(plugin => {
-      return plugin instanceof webpack.ProgressPlugin
-        ? new WebpackBar({
-            profile: true,
-            name: `监控日志 ${production ? 'Production模式' : 'Development模式'} 构建`,
-          })
-        : plugin;
-    }),
+    plugins: config.plugins
+      .filter(plugin => !(plugin instanceof HtmlWebpackPlugin))
+      .map(plugin => {
+        if (plugin instanceof MiniCssExtractPlugin) {
+          return new MiniCssExtractPlugin({
+            filename: 'css/main.css',
+            ignoreOrder: true,
+          });
+        }
+        return plugin instanceof webpack.ProgressPlugin
+          ? new WebpackBar({
+              profile: true,
+              name: `监控日志检索组件 ${production ? 'Production模式' : 'Development模式'} 构建`,
+            })
+          : plugin;
+      }),
     cache: production ? false : config.cache,
   };
 };
