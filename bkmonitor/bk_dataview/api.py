@@ -431,7 +431,7 @@ def get_grafana_panel_query(bk_biz_id: int, dasboard_uid: str, panel_id: int, re
         for target in panel.get("targets", []):
             # 查找ref_id
             if target.get("refId") == ref_id:
-                return panel.get("title", ""), target
+                return target
 
         return None
 
