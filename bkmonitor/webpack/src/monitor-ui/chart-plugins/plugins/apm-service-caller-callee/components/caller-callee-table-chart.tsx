@@ -131,6 +131,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.dimensionParam = {
       ...this.dimensionParam,
       group_by: val.filter(item => item.active).map(item => item.value),
+      dimensionList: structuredClone(val),
     };
   }
 
@@ -463,6 +464,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         active,
       };
     });
+
     this.tableColumn = tableColumn;
     this.handleClearData();
     !isDrill && this.getPageList();
@@ -518,8 +520,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   handleResizeTab(status: boolean) {
     this.resizeStatus = status;
   }
-  dimensionKeyChange(id) {
-    this.dimensionParam = { ...this.dimensionParam, dimension: id };
+  dimensionKeyChange(data) {
+    this.dimensionParam = { ...this.dimensionParam, ...data };
   }
 
   render() {
