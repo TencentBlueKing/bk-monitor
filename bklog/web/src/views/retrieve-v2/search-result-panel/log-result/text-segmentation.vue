@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, onMounted, onBeforeUnmount, inject, watch } from 'vue';
   import { TABLE_FOUNT_FAMILY } from '@/common/util';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import useLocale from '@/hooks/use-locale';
@@ -48,6 +48,8 @@
   const showAll = ref(false);
   const maxWidth = ref(0);
   const renderText = ref(props.content);
+
+  const isVisible = inject('isRowVisible', false);
 
   const handleMenuClick = event => {
     emit('menu-click', event);
@@ -190,19 +192,36 @@
     }
   };
 
+  let timer = null;
+  let isMounted = false;
   const debounceUpdateSegmentTag = () => {
-    setMaxWidth();
-    renderText.value = truncateTextWithCanvas();
-    debounceSetSegmentTag();
+    timer && clearTimeout(timer);
+    timer = setTimeout(() => {
+      setMaxWidth();
+      renderText.value = truncateTextWithCanvas();
+      debounceSetSegmentTag();
+      isMounted = true;
+    }, 100);
   };
 
-  useResizeObserve(getCellElement, debounceUpdateSegmentTag);
+  watch(
+    () => [isVisible.value],
+    () => {
+      if (isMounted) {
+        return;
+      }
 
-  onMounted(() => {
-    setMaxWidth();
-    renderText.value = truncateTextWithCanvas();
-    debounceUpdateSegmentTag();
-  });
+      if (isVisible.value) {
+        debounceUpdateSegmentTag();
+        return;
+      }
+
+      timer && clearTimeout(timer);
+    },
+    { immediate: true },
+  );
+
+  useResizeObserve(getCellElement, debounceUpdateSegmentTag);
 
   onBeforeUnmount(() => {
     instance.destroy?.();

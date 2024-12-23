@@ -726,7 +726,7 @@ const store = new Vuex.Store({
         const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
         setDefaultTableWidth(
           state.visibleFields,
-          state.indexSetQueryResult.list,
+          payload.list ?? state.indexSetQueryResult.list,
           catchFieldsWidthObj,
           staticWidth + 60,
         );
@@ -1173,15 +1173,15 @@ const store = new Vuex.Store({
               state.tookTime = payload.isPagination
                 ? state.tookTime + Number(data?.took || 0)
                 : Number(data?.took || 0);
+
+              if (!payload?.isPagination) {
+                commit('updateIsSetDefaultTableColumn', { list: logList });
+                dispatch('requestSearchTotal');
+              }
               // 更新页数
               commit('updateSqlQueryFieldList', logList);
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
-
-              if (!payload?.isPagination) {
-                commit('updateIsSetDefaultTableColumn');
-                dispatch('requestSearchTotal');
-              }
 
               return {
                 data,

@@ -84,7 +84,6 @@ export default defineComponent({
     const store = useStore();
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
-    const refBoxElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
 
     const pageIndex = ref(1);
@@ -130,8 +129,32 @@ export default defineComponent({
     const intersectionArgs: Ref<RowProxyData> = ref({});
     const rowProxy: RowProxyData = {};
 
-    const setRenderList = (length?) => {
-      renderList.value = new Array(length ?? tableDataSize.value).fill('').map((_, i) => i);
+    const setRenderList = (length?, next?) => {
+      const targetLength = length ?? tableDataSize.value;
+      const inteval = 50;
+
+      const appendChildNodes = () => {
+        const appendLength = targetLength - renderList.value.length;
+        const stepLength = appendLength > inteval ? inteval : appendLength;
+        const startIndex = renderList.value.length - 1;
+
+        if (appendLength > 0) {
+          renderList.value.push(
+            ...new Array(stepLength).fill('').map((_, i) => {
+              const index = i + startIndex + 1;
+              const row = tableList.value[index];
+              return { item: row, [ROW_KEY]: `${row.dtEventTimeStamp}_${index}` };
+            }),
+          );
+          appendChildNodes();
+
+          return;
+        }
+
+        next?.();
+      };
+
+      appendChildNodes();
     };
 
     const resetRowState = () => {
@@ -257,113 +280,116 @@ export default defineComponent({
       ];
     });
 
-    const tableColumns = computed(() => {
-      const columns = visibleFields.value.length ? visibleFields.value : fullColumns.value;
-      return columns.map(field => {
-        return {
-          field: field.field_name,
-          key: field.field_name,
-          title: field.field_name,
-          width: field.width,
-          minWidth: field.minWidth,
-          align: 'top',
-          resize: true,
-          renderBodyCell: ({ row }) => {
-            return (
-              // @ts-ignore
-              <TableColumn
-                content={getTableColumnContent(row, field)}
-                field={field}
-                is-wrap={tableLineIsWrap.value}
-                onIcon-click={(type, content, isLink, depth) =>
-                  handleIconClick(type, content, field, row, isLink, depth)
-                }
-              ></TableColumn>
-            );
-          },
-          renderHeaderCell: () => {
-            const sortable = field.es_doc_values && field.tag !== 'union-source';
-            return renderHead(field, order => {
-              if (sortable) {
-                const sortList = order ? [[field.field_name, order]] : [];
-                store.commit('updateIndexFieldInfo', { sort_list: sortList });
-                store.commit('updateIndexItemParams', { sort_list: sortList });
-                store.dispatch('requestIndexSetQuery');
-              }
-            });
-          },
-        };
-      });
-    });
-
-    const computedColumns = computed(() => {
-      return showCtxType.value === 'table' ? tableColumns.value : originalColumns.value;
-    });
-
-    const renderColumns = computed(() => {
-      return [
-        {
-          field: '',
-          key: ROW_EXPAND,
-          // 设置需要显示展开图标的列
-          type: 'expand',
-          title: '',
-          width: 50,
-          align: 'center',
-          resize: false,
-          fixed: 'left',
-          renderBodyCell: ({ row }) => {
-            const config: RowConfig = tableRowConfig.get(row).value;
-
-            const hanldeExpandClick = () => {
-              config.expand = !config.expand;
-            };
-
-            return (
-              <span
-                class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-                onClick={hanldeExpandClick}
-              >
-                <i class='bk-icon icon-play-shape'></i>
-              </span>
-            );
-          },
+    const formatColumn = field => {
+      return {
+        field: field.field_name,
+        key: field.field_name,
+        title: field.field_name,
+        width: field.width,
+        minWidth: field.minWidth,
+        align: 'top',
+        resize: true,
+        renderBodyCell: ({ row }) => {
+          return (
+            // @ts-ignore
+            <TableColumn
+              content={getTableColumnContent(row, field)}
+              field={field}
+              is-wrap={tableLineIsWrap.value}
+              onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
+            ></TableColumn>
+          );
         },
-        {
-          field: '',
-          key: ROW_INDEX,
-          title: tableShowRowIndex.value ? '#' : '',
-          width: tableShowRowIndex.value ? 50 : 0,
-          fixed: 'left',
-          align: 'center',
-          resize: false,
-          class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
-          renderBodyCell: ({ row }) => {
-            return tableRowConfig.get(row).value[ROW_INDEX] + 1;
-          },
+        renderHeaderCell: () => {
+          const sortable = field.es_doc_values && field.tag !== 'union-source';
+          return renderHead(field, order => {
+            if (sortable) {
+              const sortList = order ? [[field.field_name, order]] : [];
+              store.commit('updateIndexFieldInfo', { sort_list: sortList });
+              store.commit('updateIndexItemParams', { sort_list: sortList });
+              store.dispatch('requestIndexSetQuery');
+            }
+          });
         },
-        ...computedColumns.value,
-        {
-          field: ROW_F_ORIGIN_OPT,
-          key: ROW_F_ORIGIN_OPT,
-          title: $t('操作'),
-          width: operatorToolsWidth.value,
-          fixed: 'right',
-          resize: false,
-          renderBodyCell: ({ row }) => {
-            return (
-              // @ts-ignore
-              <OperatorTools
-                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-                index={row[ROW_INDEX]}
-                operator-config={indexSetOperatorConfig.value}
-                row-data={row}
-              />
-            );
-          },
+      };
+    };
+
+    const getFieldColumns = () => {
+      if (showCtxType.value === 'table') {
+        if (visibleFields.value.length) {
+          return visibleFields.value.map(formatColumn);
+        }
+
+        return fullColumns.value.map(formatColumn);
+      }
+
+      return originalColumns.value;
+    };
+
+    const leftColumns = computed(() => [
+      {
+        field: '',
+        key: ROW_EXPAND,
+        // 设置需要显示展开图标的列
+        type: 'expand',
+        title: '',
+        width: 50,
+        align: 'center',
+        resize: false,
+        fixed: 'left',
+        renderBodyCell: ({ row }) => {
+          const config: RowConfig = tableRowConfig.get(row).value;
+
+          const hanldeExpandClick = () => {
+            config.expand = !config.expand;
+          };
+
+          return (
+            <span
+              class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
+              onClick={hanldeExpandClick}
+            >
+              <i class='bk-icon icon-play-shape'></i>
+            </span>
+          );
         },
-      ];
-    });
+      },
+      {
+        field: '',
+        key: ROW_INDEX,
+        title: tableShowRowIndex.value ? '#' : '',
+        width: tableShowRowIndex.value ? 50 : 0,
+        fixed: 'left',
+        align: 'center',
+        resize: false,
+        class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
+        renderBodyCell: ({ row }) => {
+          return tableRowConfig.get(row).value[ROW_INDEX] + 1;
+        },
+      },
+    ]);
+
+    const rightColumns = computed(() => [
+      {
+        field: ROW_F_ORIGIN_OPT,
+        key: ROW_F_ORIGIN_OPT,
+        title: $t('操作'),
+        width: operatorToolsWidth.value,
+        fixed: 'right',
+        resize: false,
+        renderBodyCell: ({ row }) => {
+          return (
+            // @ts-ignore
+            <OperatorTools
+              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+              index={row[ROW_INDEX]}
+              operator-config={indexSetOperatorConfig.value}
+              row-data={row}
+            />
+          );
+        },
+      },
+    ]);
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -529,8 +555,10 @@ export default defineComponent({
           showCtxType.value = props.contentType;
           resetRowState();
           const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength);
-          isRending.value = false;
+          setRenderList(maxLength, () => {
+            isRending.value = false;
+          });
+
           computeRect();
         });
       },
@@ -558,21 +586,22 @@ export default defineComponent({
     );
 
     watch(
-      () => [tableDataSize.value],
-      (val, oldVal) => {
-        setRenderList();
-        updateTableRowConfig(oldVal?.[0] ?? 0);
-      },
-    );
-
-    watch(
       () => isLoading.value,
       () => {
         if (isLoading.value) {
           if (!isRequesting.value) {
-            scrollToTop(0);
+            renderList.value.length = 0;
+            renderList.value = [];
           }
         }
+      },
+    );
+
+    watch(
+      () => [tableDataSize.value],
+      (val, oldVal) => {
+        setRenderList();
+        updateTableRowConfig(oldVal?.[0] ?? 0);
       },
     );
 
@@ -616,13 +645,11 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
-    let delay = 60;
-    let delayLoadingTimer;
+
     const debounceSetLoading = () => {
-      delayLoadingTimer && clearTimeout(delayLoadingTimer);
-      delayLoadingTimer = setTimeout(() => {
+      setTimeout(() => {
         isRequesting.value = false;
-      }, delay);
+      }, 100);
     };
 
     const loadMoreTableData = () => {
@@ -632,13 +659,11 @@ export default defineComponent({
 
       if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
-        delay = 0;
 
         if (pageIndex.value * pageSize.value < tableDataSize.value) {
           pageIndex.value++;
           const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength);
-          debounceSetLoading();
+          setRenderList(maxLength, debounceSetLoading);
           return;
         }
 
@@ -660,7 +685,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { scrollToTop, hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
+    const { hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -737,7 +762,7 @@ export default defineComponent({
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {renderColumns.value.map(column => (
+            {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => (
               <LogCell
                 key={column.key}
                 width={column.width}
@@ -764,9 +789,10 @@ export default defineComponent({
         width: `${operatorToolsWidth.value}px`,
         minWidth: `${operatorToolsWidth.value}px`,
       };
+
       return [
         <div class='bklog-list-row'>
-          {renderColumns.value.map(column => {
+          {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => {
             const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
             const cellStyle = {
               width,
@@ -792,15 +818,14 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
-      return renderList.value.map(rowIndex => {
-        const row = tableList.value[rowIndex];
+      return renderList.value.map((row, rowIndex) => {
         return (
           <RowRender
-            key={rowIndex}
+            key={row[ROW_KEY]}
             class={['bklog-row-container']}
             row-index={rowIndex}
           >
-            {renderRowCells(row, rowIndex)}
+            {renderRowCells(row.item, rowIndex)}
           </RowRender>
         );
       });
@@ -822,7 +847,7 @@ export default defineComponent({
     };
 
     const loadingText = computed(() => {
-      if (isRending.value) {
+      if ((isRending.value && tableDataSize.value > 0) || isLoading.value) {
         return;
       }
 
@@ -845,37 +870,6 @@ export default defineComponent({
       return <div class='fixed-right-shadown'></div>;
     };
 
-    const renderResultContainer = () => {
-      if (tableList.value.length && renderColumns.value.length) {
-        return [
-          renderHeadVNode(),
-          <div
-            id={resultContainerId.value}
-            ref={refBoxElement}
-            class={['bklog-row-box']}
-          >
-            {renderRowVNode()}
-          </div>,
-          renderFixRightShadow(),
-          renderScrollTop(),
-          renderScrollXBar(),
-          renderLoader(),
-          <div class='resize-guide-line'></div>,
-        ];
-      }
-
-      return (
-        <bk-exception
-          style='margin-top: 100px;'
-          class='exception-wrap-item exception-part'
-          scene='part'
-          type='search-empty'
-        >
-          {isRequesting.value || isLoading.value ? 'loading...' : $t('检索结果为空')}
-        </bk-exception>
-      );
-    };
-
     const isTableLoading = computed(() => {
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
@@ -883,9 +877,18 @@ export default defineComponent({
     return {
       refRootElement,
       isTableLoading,
-      renderResultContainer,
+      renderRowVNode,
+      renderFixRightShadow,
+      renderScrollTop,
+      renderScrollXBar,
+      renderLoader,
+      renderHeadVNode,
+      tableDataSize,
+      resultContainerId,
       hasScrollX,
       showHeader,
+      isRequesting,
+      isLoading,
     };
   },
   render() {
@@ -895,7 +898,28 @@ export default defineComponent({
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
       >
-        {this.renderResultContainer()}
+        {this.renderHeadVNode()}
+        <div
+          id={this.resultContainerId}
+          class={['bklog-row-box']}
+        >
+          {this.renderRowVNode()}
+        </div>
+        {this.tableDataSize === 0 ? (
+          <bk-exception
+            style='margin-top: 100px;'
+            class='exception-wrap-item exception-part'
+            scene='part'
+            type='search-empty'
+          >
+            {this.isRequesting || this.isLoading ? 'loading...' : this.$t('检索结果为空')}
+          </bk-exception>
+        ) : null}
+        {this.renderFixRightShadow()}
+        {this.renderScrollXBar()}
+        {this.renderLoader()}
+        {this.renderScrollTop()}
+        <div class='resize-guide-line'></div>
       </div>
     );
   },

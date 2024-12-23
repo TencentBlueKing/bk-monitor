@@ -972,7 +972,7 @@ export const calculateTableColsWidth = (field, list) => {
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
     if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
-    if (field.field_name === 'time') return [175, minWidth];
+    if (field.field_name === 'time') return [200, minWidth];
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -980,6 +980,10 @@ export const calculateTableColsWidth = (field, list) => {
     // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
     const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
+
+    if (field.field_type === 'string') {
+      return [Math.min(480, fieldValueLen), minWidth];
+    }
 
     // 800为默认自适应最大宽度
     if (fieldValueLen > 800) return [800, minWidth];
