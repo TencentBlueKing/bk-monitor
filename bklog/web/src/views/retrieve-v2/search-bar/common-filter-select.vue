@@ -130,7 +130,7 @@
               <span class="operator-label">{{ $t(condition[index].operator) }}</span>
             </template>
             <bk-option
-              v-for="(item, index) in item.field_operator"
+              v-for="(item, index) in item?.field_operator"
               :id="item.label"
               :key="index"
               :name="item.label"
@@ -219,6 +219,7 @@
 
       .value-select {
         min-width: 200px;
+        max-width: 460px;
 
         &.bk-select {
           border: none;
