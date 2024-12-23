@@ -10,12 +10,35 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+import yaml
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
 logger = logging.getLogger("metadata")
+
+
+def generate_rule_config(
+    expr: str, metric_name: str, record_name: str, interval: Optional[str] = "1m"  # 默认间隔为1分钟
+) -> str:
+    """
+    生成规则配置的YAML格式字符串
+
+    :param expr: 计算表达式
+    :param metric_name: 计算后的指标名
+    :param record_name: 预计算记录名
+    :param interval: 计算间隔，默认为1分钟
+    :return: 规则配置的YAML格式字符串
+    """
+    rule_config = {
+        "name": "record/{}".format(record_name),
+        "rules": [{"expr": expr, "record": metric_name}],
+        "interval": interval,
+    }
+
+    return yaml.dump(rule_config, sort_keys=False)
 
 
 def generate_table_id(space_type: str, space_id: str, record_name: str) -> str:
