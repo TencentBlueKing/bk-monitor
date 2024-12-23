@@ -128,8 +128,13 @@
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { mapState } from 'vuex';
   import RetrieveLoader from '@/skeleton/retrieve-loader';
+  // #if MONITOR_APP !== 'trace'
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
+  // #else
+  // #code const ContextLog = () => null;
+  // #code const RealTimeLog = () => null;
+  // #endif
   import OriginalList from './original-list';
   import TableList from './table-list';
   import { bigNumberToString } from '../../../../common/util';

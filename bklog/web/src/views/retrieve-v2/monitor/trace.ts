@@ -24,6 +24,8 @@
 * IN THE SOFTWARE.
 */
 window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = true;
+window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
 import Vue  from 'vue';
 import VueRouter from 'vue-router';
 
