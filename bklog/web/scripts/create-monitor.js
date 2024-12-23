@@ -43,6 +43,13 @@ const createMonitorConfig = config => {
       ],
     }),
   );
+  config.plugins.push(
+    new webpack.DefinePlugin({
+      NODE_ENV: JSON.stringify('production'),
+      APP: JSON.stringify(process.env.MONITOR_APP),
+      MONITOR_APP: JSON.stringify(process.env.MONITOR_APP),
+    }),
+  );
   const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
   const imgLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.png'));
   const urlLoaderOptions = fileLoaders.use.find(item => item.loader === 'url-loader').options;
