@@ -114,8 +114,8 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn bklog-icon bklog-zhankai"></span>
-                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bklog-icon bklog-zhedie"></span>
+                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn bk-icon icon-angle-right"></span>
+                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bk-icon icon-angle-down"></span>
                   <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
                 </div>
                 <bk-form-item
@@ -1063,6 +1063,10 @@
             padding: 10px 15px;
             .ext-btn{
               cursor: pointer;
+              font-size: 18px;
+              position: absolute;
+              left: 0;
+              bottom: 10px;
             }
           }
         }
