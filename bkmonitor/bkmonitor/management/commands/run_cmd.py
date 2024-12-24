@@ -49,7 +49,6 @@ target_biz_list = list(
 )
 
 
-
 class Command(BaseCommand):
     def add_arguments(self, parser):
         super(Command, self).add_arguments(parser)
@@ -397,6 +396,7 @@ def parse_target_dimension_strategy():
 def parse_usergroup_not_under_business(preview: bool = True):
     """
     排查关联的但是不在当前业务下的策略及告警组信息
+    巡检用户组对应业务和策略业务不一致并同步修改，同时兜底使用运维用户组
     :param preview: 是否开启预览模式，开启预览模式，不替换数据，只打印信息
     :return:
     """
@@ -407,24 +407,25 @@ def parse_usergroup_not_under_business(preview: bool = True):
         print("策略id，策略名称，业务id，替换后关联的告警组信息")
 
     # 获取到所有的策略
-    strategies_map = {strategy_id: (strategy_name, bk_biz_id) for strategy_id, strategy_name, bk_biz_id in
-                      StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id')}
+    strategies_map = {
+        strategy_id: (strategy_name, bk_biz_id)
+        for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id')
+    }
 
     strategy_relations_map = {}
-    all_user_group_ids = []
 
     # 获取到关联的告警组id
     for item in StrategyActionConfigRelation.objects.filter(strategy_id__in=strategies_map.keys()).only(
-            "strategy_id", "user_groups"):
+        "strategy_id", "user_groups"
+    ):
         strategy_relations_map[item.strategy_id] = item
-        all_user_group_ids.extend(item.user_groups)
 
     # 所有的告警组key为id
     user_groups_base_id = {}
     # 所有的告警组key为name+bk_biz_id,value为告警组ID列表
     user_groups_base_name = defaultdict(list)
 
-    for group in UserGroup.objects.filter(id__in=all_user_group_ids).only("id", "name", "bk_biz_id"):
+    for group in UserGroup.objects.filter().only("id", "name", "bk_biz_id"):
         user_groups_base_id[group.id] = (group.name, group.bk_biz_id)
         user_groups_base_name[(group.name, group.bk_biz_id)].append(group.id)
 
@@ -451,14 +452,16 @@ def parse_usergroup_not_under_business(preview: bool = True):
                 continue
 
             same_name_groups = user_groups_base_name.get((gp_name, bk_biz_id), [])
+            if not same_name_groups:
+                print("get default group: 【运维】")
+                same_name_groups = user_groups_base_name.get(("运维", bk_biz_id), [])
             if preview:
                 related_group_info = {
                     "id": gp_id,
                     "name": gp_name,
                     "bk_biz_id": gp_bk_biz_id,
                 }
-                print(
-                    f"{strategy_id},{strategy_name},{bk_biz_id},{related_group_info},{same_name_groups}")
+                print(f"{strategy_id},{strategy_name},{bk_biz_id},{related_group_info},{same_name_groups}")
             else:
                 same_group_ids.extend(same_name_groups)
 
