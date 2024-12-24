@@ -474,8 +474,8 @@ export default class SelectIndexSet extends tsc<object> {
         localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
       }
 
-      this.aloneHistory.length = 0;
-      this.multipleHistory.length = 0;
+      this.aloneHistory = [];
+      this.multipleHistory = [];
       this.changeTypeCatchIDlist = [];
       this.filterTagID = null;
       setTimeout(() => {
@@ -786,6 +786,9 @@ export default class SelectIndexSet extends tsc<object> {
    * @param {Boolean} isForceRequest 是否强制请求
    */
   getIndexSetHistoryList(queryType: IndexSetType = 'single', isForceRequest = false) {
+    if (window?.__IS_MONITOR_TRACE__) {
+      return;
+    }
     // 判断当前历史记录数组是否需要请求
     const isShouldQuery = queryType === 'single' ? !!this.aloneHistory.length : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
