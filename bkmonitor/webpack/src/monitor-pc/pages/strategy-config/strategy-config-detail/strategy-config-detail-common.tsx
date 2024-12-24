@@ -345,6 +345,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     refleshKey: '',
   };
 
+  targetDetailLoading = false;
+
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
     const needMdDesc = this.detectionConfig.data.some(item =>
@@ -443,10 +445,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       promiseList.push(SetMealAddStore.getNoticeWay());
     }
     promiseList.push(this.getStrategyConfigDetail(this.id));
+    this.getTargetsTableData();
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
-        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -672,7 +674,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
 
   async getTargetsTableData() {
     // 获取策略目标详情
-    const targetDetail = (await getTargetDetail({ strategy_ids: [this.strategyId] })) || {};
+    this.targetDetailLoading = true;
+    const targetDetail =
+      (await getTargetDetail({ strategy_ids: [this.strategyId] }).finally(() => {
+        this.targetDetailLoading = false;
+      })) || {};
     const strategyTarget = targetDetail[this.strategyId] || {};
 
     // 提取目标列表和字段名称，提供默认值
@@ -1179,7 +1185,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       })()}
                     </div>
                     {this.targetsDesc.message || this.targetsDesc.subMessage ? (
-                      <div class='targets-desc'>
+                      <div
+                        class='targets-desc'
+                        v-bkloading={{ isLoading: this.targetDetailLoading, size: 'mini', zIndex: 10 }}
+                      >
                         <span onClick={this.handleShowTargetTable}>
                           <i class='icon-monitor icon-mc-tv' />
                           <span class='targets-desc-text'>
