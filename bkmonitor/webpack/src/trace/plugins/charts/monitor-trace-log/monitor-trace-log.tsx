@@ -33,7 +33,7 @@ import {
   Vue2,
   logStore,
   i18n,
-} from '@blueking/monitor-trace-retrieve/main';
+} from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -42,7 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-trace-log.scss';
-import '@blueking/monitor-trace-retrieve/css/main.css';
+import '@blueking/monitor-trace-log/css/main.css';
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
@@ -98,18 +98,61 @@ export default defineComponent({
             return currentRoute;
           },
           replace: c => {
-            router.replace(c);
+            const { query = {}, params = {} } = c;
+            router.replace({
+              query: {
+                ...route.query,
+                ...query,
+              },
+              params: {
+                ...route.params,
+                ...params,
+              },
+            });
           },
           push: c => {
-            router.push(c);
+            const { query = {}, params = {}, ...other } = c;
+            const { href } = router.resolve({
+              ...other,
+              query: {
+                ...route.query,
+                ...query,
+              },
+              params: {
+                ...route.params,
+                ...params,
+              },
+            });
+            window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}/${href}`, '_blank');
+          },
+          resolve: c => {
+            console.log(window.mainComponent);
+            const { path, query = {}, params = {} } = c;
+            return router.resolve(
+              {
+                path,
+                query: {
+                  ...route.query,
+                  ...query,
+                },
+                params: {
+                  ...route.params,
+                  ...params,
+                },
+              },
+              route
+            );
           },
         };
+        app.$route = currentRoute;
         app._$route = currentRoute;
         unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
           app.$forceUpdate();
         });
         await nextTick();
         app.$mount(mainRef.value);
+
+        console.log(app);
         window.mainComponent = app;
       } else {
         empty.value = true;
