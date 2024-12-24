@@ -2044,7 +2044,7 @@ class ApplyStrategiesToServicesResource(Resource):
             label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
         )
         notice_group_ids = serializers.ListSerializer(label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"))
-        config = serializers.CharField(label="配置内容", default="{}")
+        config = serializers.CharField(label="配置文本", default="{}")
         options = serializers.DictField(label="配置", required=False)
 
         def validate(self, attrs):

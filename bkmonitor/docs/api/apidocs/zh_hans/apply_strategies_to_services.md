@@ -16,7 +16,7 @@
 | apply_types      | list   | 是  | 策略类型列表，不同 `group_type`具有不同类型，详见下方 `apply_type` |
 | apply_services   | list   | 否  | 服务列表，不填默认导入到所有同类服务                             |
 | notice_group_ids | list   | 否  | 告警组 ID 列表                                      |
-| config           | string | 否  | 额外配置，JSON 序列化字符串，详见下发 `config`                 |
+| config           | string | 否  | 额外配置，JSON 序列化字符串，详见下方 `config`                 |
 
 ##### apply_type
 
