@@ -60,8 +60,14 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
+from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
+from apm_web.handlers.strategy_group import (
+    BaseStrategyGroup,
+    GroupType,
+    StrategyGroupRegistry,
+)
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
@@ -2024,6 +2030,44 @@ class NoDataStrategyEnableResource(NoDataStrategyStatusResource):
 
 class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
     is_enabled = False
+
+
+class ApplyStrategiesToServicesResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
+        apply_types = serializers.ListSerializer(
+            label="策略类型列表", child=serializers.CharField(label="策略类型"), required=False, default=[]
+        )
+        apply_services = serializers.ListSerializer(
+            label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
+        )
+        notice_group_ids = serializers.ListSerializer(label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"))
+        config = serializers.CharField(label="配置", default="{}")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+
+        try:
+            options_config: Dict[str, Any] = json.loads(validated_request_data.get("config") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            raise ValueError(_("配置解析错误，必须是合法 JSON 字符串"))
+
+        group: BaseStrategyGroup = StrategyGroupRegistry.get(
+            GroupType.RPC.value,
+            bk_biz_id,
+            app_name,
+            metric_helper=MetricHelper(bk_biz_id, app_name),
+            notice_group_ids=validated_request_data["notice_group_ids"],
+            apply_types=validated_request_data["apply_types"],
+            apply_services=validated_request_data["apply_services"],
+            options=options_config,
+        )
+        group.apply()
+
+        return {}
 
 
 class DimensionDataResource(Resource):
