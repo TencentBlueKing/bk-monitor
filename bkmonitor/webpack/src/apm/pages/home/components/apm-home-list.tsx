@@ -309,23 +309,33 @@ export default class ApmServiceList extends tsc<
   }
 
   loadAsyncData(startTime: number, endTime: number) {
-    const fields = (this.tableColumns || []).filter(col => col.asyncable).map(val => val.id);
+    // const fields = (this.tableColumns || []).filter(col => col.asyncable).map(val => val.id);
+    const fields = (this.tableColumns || []).filter(col => col.asyncable).reduce((fieldArr, val) => {
+      // 指标、日志、调用链、性能分析列的入参，统一使用data_status
+      if (['log_data_status','metric_data_status','trace_data_status', 'profiling_data_status'].includes(val.id)) {
+        !fieldArr.includes('data_status') && fieldArr.push('data_status');
+      } else {
+        fieldArr.push(val.id)
+      }
+      return fieldArr;
+    }, []);
     const services = (this.tableData || []).map(d => d.service_name.value);
     const valueTitleList = this.tableColumns.map(item => ({
       id: item.id,
       name: item.name,
-    }));
+    }));    
     for (const field of fields) {
       serviceListAsync(
         {
           app_name: this.appName,
           start_time: startTime,
           end_time: endTime,
-          column: field,
+          column: field, // 指标、日志、调用链、性能分析列的入参，统一使用data_status
           service_names: services,
         },
         { cancelToken: this.cancelTokenSource.token }
       ).then(serviceData => {
+        console.log(serviceData, 'serviceData');
         this.mapAsyncData(serviceData, field, valueTitleList);
       });
     }
@@ -355,6 +365,7 @@ export default class ApmServiceList extends tsc<
   mapAsyncData(serviceData, field, valueTitleList) {
     const dataMap = {};
     if (serviceData) {
+      field === 'data_status' && this.mapArrayAsyncData(serviceData);
       for (const serviceItem of serviceData) {
         if (serviceItem.service_name) {
           if (['request_count', 'error_rate', 'avg_duration'].includes(field)) {
@@ -364,11 +375,28 @@ export default class ApmServiceList extends tsc<
               serviceItem[field].unitDecimal = 0;
             }
           }
-          dataMap[String(serviceItem.service_name)] = serviceItem[field];
+          dataMap[String(serviceItem.service_name)] = serviceItem[field];          
         }
       }
     }
     this.renderTableBatchByBatch(field, dataMap);
+  }
+
+  // data_status(指标、日志、调用链、性能分析)特殊处理
+  mapArrayAsyncData(serviceData) {
+    const fields = Object.keys(serviceData[0]).filter(key => key !== 'service_name');
+    const newData = fields.map(field => {
+      const data = serviceData.reduce((res, service) => {
+          if (service[field]) {
+            res[service.service_name] = { icon: service[field].icon };
+          }
+          return res;
+      }, {});
+        return { field, data };
+      });
+    newData.forEach(item => {
+      this.renderTableBatchByBatch(item.field, item.data);
+    })
   }
   /**
    *
@@ -391,13 +419,13 @@ export default class ApmServiceList extends tsc<
             window.requestAnimationFrame(() => setData(endIndex));
           });
         } else {
-          const item = this.tableColumns.find(col => col.id === field);
-          item.asyncable = false;
+          this.tableColumns.find(col => col.id === field).asyncable = false;
         }
       }
     };
-    const item = this.tableColumns.find(col => col.id === field);
-    item.asyncable = false;
+    // const item = this.tableColumns.find(col => col.id === field);
+    // item.asyncable = false;
+    this.tableColumns.find(col => col.id === field).asyncable = false;
     setData(0);
   }
 
