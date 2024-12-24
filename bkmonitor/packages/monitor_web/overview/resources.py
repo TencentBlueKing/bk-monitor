@@ -274,7 +274,7 @@ class MonitorInfoResource(CacheResource):
         return result_data
 
 
-class GetFunctionShortcutsResource(CacheResource):
+class GetFunctionShortcutResource(CacheResource):
     """
     获取首页功能入口
     """
