@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import draggable from 'vuedraggable';
 
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../router/router-config';
-import HeaderSettingModal from './header-setting-modal';
+import HeaderSettingModal from './components/header-setting-modal';
 
 import './my-favorites.scss';
 interface RecentItems {
@@ -130,9 +130,9 @@ const favoriteItems: RecentItems[] = [
       { id: 1, name: '[BlueKing]BCS Cluster Autoscaler', description: 'Description 1', icon: '♥' },
       { id: 2, name: '业务使用细节 update', description: 'Description 2', icon: '📄' },
       { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
-      { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
-      { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
-      { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
+      { id: 4, name: 'Item 3', description: 'Description 3', icon: '📄' },
+      { id: 5, name: 'Item 3', description: 'Description 3', icon: '📄' },
+      { id: 6, name: 'Item 3', description: 'Description 3', icon: '📄' },
     ],
   },
   {
@@ -157,7 +157,7 @@ const favoriteItems: RecentItems[] = [
       { id: 1, name: '[BlueKing]BCS Cluster Autoscaler', description: 'Description 1', icon: '📄' },
       { id: 2, name: '业务使用细节 update', description: 'Description 2', icon: '📄' },
       { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
-      { id: 3, name: 'Item 3', description: 'Description 3', icon: '📄' },
+      { id: 4, name: 'Item 3', description: 'Description 3', icon: '📄' },
     ],
   },
   {
@@ -166,7 +166,7 @@ const favoriteItems: RecentItems[] = [
       { id: 1, name: '[BlueKing]BCS Cluster Autoscaler', description: 'Description 1', icon: '♥' },
       { id: 2, name: '业务使用细节 update', description: 'Description 2', icon: '♥' },
       { id: 3, name: 'Item 3', description: 'Description 3', icon: '♥' },
-      { id: 3, name: 'Item 3', description: 'Description 3', icon: '♥' },
+      { id: 4, name: 'Item 3', description: 'Description 3', icon: '♥' },
     ],
   },
 ];
@@ -180,7 +180,7 @@ const favoriteItems: RecentItems[] = [
 export default class MyFavorites extends tsc<object> {
   isRecentView = true; // 状态，用于切换视图
   userStoreRoutes = []; // 用户存储的路由
-  selectedCategories = ['仪表盘', '服务']; // 用户选择的类别
+  selectedCategories = []; // 用户选择的类别
   inputValue = ''; // 输入框的值
   isActive = false; // 输入框状态
   showModal = false; // 控制模态框显示
@@ -345,12 +345,12 @@ export default class MyFavorites extends tsc<object> {
               >
                 {this.$t('最近使用')}
               </span>
-              <span
+              {/* <span
                 class={[!this.isRecentView ? 'active ' : '', 'recent-title']}
                 onClick={() => this.toggleView('favorite')}
               >
                 {this.$t('我的收藏')}
-              </span>
+              </span> */}
             </div>
             {this.getCustomize()}
           </div>
@@ -362,9 +362,9 @@ export default class MyFavorites extends tsc<object> {
               [4, 5, 6].includes(this.selectedCategories.length) ? 'has-line' : '',
             ]}
           >
-            {this.itemsToDisplay.map(section => (
+            {this.itemsToDisplay.map((section, index) => (
               <div
-                key={section.category}
+                key={section.category + index}
                 class='category'
               >
                 <div class='sub-head'>
@@ -375,9 +375,9 @@ export default class MyFavorites extends tsc<object> {
                   {/* <span class='more'>更多</span> */}
                 </div>
                 <ul class='recent-list'>
-                  {section.items.map(item => (
+                  {section.items.map((item, indey) => (
                     <li
-                      key={item.id}
+                      key={item.id + indey}
                       class='recent-item'
                     >
                       <div class='detail'>
@@ -433,13 +433,13 @@ export default class MyFavorites extends tsc<object> {
                 ))}
               {/* AI 小鲸 */}
               <div class='ai-whale'>
-                <div class='input'>
+                <div class='ai-whale-input'>
                   <bk-input
-                    ext-cls={`${this.selectedCategories.length > 3 ? 'ext-ccls' : 'ext-cls'} ${this.isActive ? 'ai-active' : ''}`}
+                    ext-cls={`${this.selectedCategories.length > 3 ? 'ai-whale-ext' : 'ai-whale-ext-cls'} ${this.isActive ? 'ai-active' : ''}`}
                     v-model={this.inputValue}
                     maxlength='255'
-                    placeholder='有问题就问小鲸'
-                    right-icon="'icon-monitor icon-search'"
+                    placeholder={this.$t('有问题就问小鲸')}
+                    right-icon='icon-monitor icon-search'
                     rows={this.isActive ? 3 : 1}
                     type='textarea'
                     onBlur={() => (this.isActive = false)}

@@ -305,7 +305,7 @@
         bottom: 0;
         width: 100%;
 
-        .input {
+        .ai-whale-input {
           position: relative;
           width: 216px;
           margin: 0 auto;
@@ -324,11 +324,9 @@
             background: linear-gradient(to right, #74B9FF, #64DCD7);
             border-radius: 2px;
           }
-          // .ai-active {
 
-          // }
-          .ext-cls,
-          .ext-ccls {
+          .ai-whale-ext,
+          .ai-whale-ext-cls {
             .bk-form-textarea {
               min-height: 32px;
               max-height: 96px;

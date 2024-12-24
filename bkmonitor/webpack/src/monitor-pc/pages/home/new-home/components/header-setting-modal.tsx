@@ -28,14 +28,14 @@ import * as tsx from 'vue-tsx-support';
 
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import UserConfigMixin from '../../../mixins/userStoreConfig';
+import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import {
   COMMON_ROUTE_LIST,
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
   type IRouteConfigItem,
   getLocalStoreRoute,
-} from '../../../router/router-config';
+} from '../../../../router/router-config';
 
 import './header-setting-modal.scss';
 

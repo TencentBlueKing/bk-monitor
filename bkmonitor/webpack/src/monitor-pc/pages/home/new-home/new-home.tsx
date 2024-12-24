@@ -27,6 +27,7 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MyFavorites from './my-favorites';
+import RecentAlarmEvents from './recent-alarm-events';
 
 import './new-home.scss';
 
@@ -39,6 +40,7 @@ export default class NewHome extends tsc<object> {
       <div class='monitor-new-home'>
         <div class='new-home-bg' />
         <MyFavorites />
+        <RecentAlarmEvents />
       </div>
     );
   }
