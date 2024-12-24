@@ -190,9 +190,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if not span_id:
                     raise ValueError(_("缺少SpanId参数"))
 
-                span_host = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
+                span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
 
-                if span_host:
+                if span_hosts:
+                    # TODO 关联主机页面后续需要改为多主机 现在先直接取第一个
+                    span_host = span_hosts[0]
                     cls._add_config_from_host(view, view_config)
                     # 替换模版中变量
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
