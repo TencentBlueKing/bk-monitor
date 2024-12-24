@@ -35,7 +35,7 @@ export const ROW_F_ORIGIN_OPT = '__component_table_operator';
 export const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
 // 搜索框查询条件
-export const SECTION_SEARCH_INPUT = '.search-bar-container';
+export const SECTION_SEARCH_INPUT = '.search-bar-wrapper';
 
 // 搜索结果内容容器选择器
 export const SEARCH_RESULT_CONTENT = '.bklog-result-container';

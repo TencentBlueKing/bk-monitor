@@ -127,10 +127,6 @@
       background-color: #f4f7fa;
     }
 
-    .search-bar-container {
-      margin-left: 8px;
-    }
-
     .retrieve-tab,
     .search-result-panel {
       padding-left: 8px;
@@ -163,8 +159,26 @@
   }
 
   &.is-sticky-top {
-    .search-bar-container {
+    .search-bar-wrapper {
       margin-left: 0;
+    }
+
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            height: calc(100vh - var(--offset-search-bar) - 60px);
+
+            .search-field-filter-new {
+              .field-filter-box {
+                .field-filter-container-new {
+                  height: calc(100vh - var(--offset-search-bar) - 128px);
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

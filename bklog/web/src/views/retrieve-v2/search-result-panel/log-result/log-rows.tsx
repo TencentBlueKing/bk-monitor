@@ -600,7 +600,9 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        setRenderList();
+        setRenderList(null, () => {
+          debounceSetLoading();
+        });
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
     );
@@ -847,15 +849,19 @@ export default defineComponent({
     };
 
     const loadingText = computed(() => {
-      if ((isRending.value && tableDataSize.value > 0) || isLoading.value) {
+      if (isLoading.value && !isRequesting.value) {
         return;
       }
 
-      if (hasMoreList.value) {
+      if (hasMoreList.value && (isLoading.value || isRending.value)) {
         return 'Loading ...';
       }
 
-      return '已加载所有数据';
+      if (!isRequesting.value && !hasMoreList.value && tableDataSize.value > 0) {
+        return '已加载所有数据';
+      }
+
+      return '';
     });
 
     const renderLoader = () => {
