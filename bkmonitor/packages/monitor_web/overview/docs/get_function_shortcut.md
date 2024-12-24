@@ -70,6 +70,7 @@ TODO
 [
     {
         "function": "dashboard",
+        "name": "仪表盘",
         "items": [
             {
                 "bk_biz_id": 2,

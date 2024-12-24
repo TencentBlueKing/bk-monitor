@@ -7,6 +7,7 @@ from multiprocessing.pool import IMapIterator
 from typing import Any, Dict, Generator, List, Optional, Union
 
 from django.db.models import Q
+from django.utils.translation import gettext as _
 
 from apm.models import DataLink
 from apm_web.models import Application
@@ -36,7 +37,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         Get the space info by bk_biz_id.
         """
         if bk_biz_id not in cls._bk_biz_names_cache:
-            space_info: Space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+            space_info: Optional[Space] = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
             if not space_info:
                 cls._bk_biz_names_cache[bk_biz_id] = str(bk_biz_id)
             else:
@@ -71,6 +72,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         数据格式:
         {
             "type": "trace",
+            "name": "Trace",
             "items": [
                 {
                     "bk_biz_id": 2,
@@ -121,6 +123,7 @@ class AlertSearchItem(SearchItem):
 
         yield {
             "type": "alert",
+            "name": _("告警事件"),
             "items": [
                 {
                     "bk_biz_id": bk_biz_id,
@@ -184,7 +187,7 @@ class StrategySearchItem(SearchItem):
                     "strategy_id": strategy.id,
                 }
             )
-        yield {"type": "strategy", "items": items}
+        yield {"type": "strategy", "name": _("告警策略"), "items": items}
 
 
 class TraceSearchItem(SearchItem):
@@ -262,7 +265,7 @@ class TraceSearchItem(SearchItem):
                 }
             )
 
-        yield {"type": "trace", "items": items}
+        yield {"type": "trace", "name": "Trace", "items": items}
 
 
 class ApmApplicationSearchItem(SearchItem):
@@ -313,7 +316,7 @@ class ApmApplicationSearchItem(SearchItem):
                     "application_id": application.application_id,
                 }
             )
-        yield {"type": "apm_application", "items": items}
+        yield {"type": "apm_application", "name": _("APM应用"), "items": items}
 
 
 class HostSearchItem(SearchItem):
@@ -364,7 +367,7 @@ class HostSearchItem(SearchItem):
                     "bk_host_id": host["bk_host_id"],
                 }
             )
-        yield {"type": "host", "items": items}
+        yield {"type": "host", "name": _("主机监控"), "items": items}
 
 
 class Searcher:

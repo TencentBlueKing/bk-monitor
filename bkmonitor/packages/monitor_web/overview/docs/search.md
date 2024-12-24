@@ -23,15 +23,16 @@
 | 字段 | 类型   | 描述     |
 |------|--------|----------|
 | type | string | 结果类型 |
+| name | string | 结果名称 |
 | items | array[object]  | 搜索结果列表 |
 
 #### type 可能的值
 
-- alert: 告警
-- strategy: 策略
+- alert: 告警事件
+- strategy: 告警策略
 - trace: Trace
 - apm_application: APM应用
-- host: 主机
+- host: 主机监控
 
 #### items 字段说明
 

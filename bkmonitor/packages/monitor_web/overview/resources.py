@@ -16,6 +16,7 @@ from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
 
 from apm_web.constants import COLLECT_SERVICE_CONFIG_KEY
@@ -281,6 +282,13 @@ class GetFunctionShortcutResource(CacheResource):
 
     cache_type = CacheType.BIZ
 
+    function_name_map = {
+        "dashboard": _lazy("仪表盘"),
+        "apm_service": _lazy("APM服务"),
+        "log_retrieve": _lazy("日志检索"),
+        "metric_retrieve": _lazy("指标检索"),
+    }
+
     class RequestSerializer(serializers.Serializer):
         type = serializers.ChoiceField(choices=["recent", "favorite"], label="类型")
         # dashboard, apm_service, log_retrieve, metric_retrieve
@@ -306,7 +314,8 @@ class GetFunctionShortcutResource(CacheResource):
         for function in functions:
             access_records = function_access_records.get(function, [])
             items = []
-            result.append({"function": function, "items": items})
+            name = str(cls.function_name_map.get(function, function))
+            result.append({"function": function, "name": name, "items": items})
 
             if function == "dashboard":
                 # 查询仪表盘信息
@@ -376,15 +385,23 @@ class GetFunctionShortcutResource(CacheResource):
 
         return result
 
-    def get_favorite_shortcuts(self, username: str, functions: List[str], limit: int = 10):
+    @classmethod
+    def get_favorite_shortcuts(cls, username: str, functions: List[str], limit: int = 10):
         """
         获取收藏的快捷方式
         """
+        request = get_request(peaceful=True)
+        if not request:
+            return []
+
         result = []
 
         # 收藏原则上不展示无权限
         for function in functions:
             items = []
+            name = str(cls.function_name_map.get(function, function))
+            result.append({"function": function, "name": name, "items": items})
+
             if function == "dashboard":
                 # 获取用户信息
                 user = User.objects.filter(username=username).first()
@@ -406,7 +423,7 @@ class GetFunctionShortcutResource(CacheResource):
                 allowed_bk_biz_ids: Set[int] = set()
                 allowed_dashboard_ids: Set[Tuple[int, str]] = set()
                 for bk_biz_id in org_id_to_biz_id.values():
-                    ok, role, dashboard_permissions = DashboardPermission.has_permission(self.request, None, bk_biz_id)
+                    ok, role, dashboard_permissions = DashboardPermission.has_permission(request, None, bk_biz_id)
                     if not ok:
                         continue
                     if role >= GrafanaRole.Viewer:
@@ -490,8 +507,6 @@ class GetFunctionShortcutResource(CacheResource):
             elif function == "metric_explore":
                 pass
 
-            result.append({"function": function, "items": items})
-
         return result
 
     def perform_request(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -499,6 +514,7 @@ class GetFunctionShortcutResource(CacheResource):
         返回结果示例
         [{
             "function": "dashboard",
+            "name": "仪表盘",
             "items": [
                 {
                     "bk_biz_id": 2,
@@ -541,6 +557,25 @@ class AddAccessRecordResource(Resource):
         # dashboard, apm_service, metric_retrieve
         function = serializers.CharField(label="功能")
         config = serializers.JSONField(label="实例信息")
+
+        class DashboardConfigSerializer(serializers.Serializer):
+            dashboard_uid = serializers.CharField(label="仪表盘ID")
+
+        class ApmServiceConfigSerializer(serializers.Serializer):
+            application_id = serializers.IntegerField(label="应用ID")
+            service_name = serializers.CharField(label="服务名称")
+
+        class MetricRetrieveConfigSerializer(serializers.Serializer):
+            favorite_record_id = serializers.IntegerField(label="收藏记录ID")
+
+        def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            if attrs["function"] == "dashboard":
+                attrs["config"] = self.DashboardConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+            elif attrs["function"] == "apm_service":
+                attrs["config"] = self.ApmServiceConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+            elif attrs["function"] == "metric_retrieve":
+                attrs["config"] = self.MetricRetrieveConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+            return attrs
 
     def perform_request(self, params: Dict[str, Any]) -> None:
         request = get_request(peaceful=True)
@@ -603,11 +638,11 @@ class GetAlarmGraphConfigResource(Resource):
         # 获取第一个配置
         if not config:
             config = query.order_by("index").first()
-            bk_biz_id = config.bk_biz_id
-
-        config = config.config if config else None
 
         if config:
+            bk_biz_id = config.bk_biz_id
+            config = config.config
+
             # 查询已屏蔽策略
             shield_configs = Shield.objects.filter(category="strategy", failure_time__gte=timezone.now())
             shielded_strategy_ids = set(
@@ -621,7 +656,7 @@ class GetAlarmGraphConfigResource(Resource):
                 id__in=set(itertools.chain.from_iterable([item["strategy_ids"] for item in config]))
             )
             strategy_id_to_strategy = {strategy.id: strategy for strategy in strategies}
-            for item in config.config:
+            for item in config:
                 strategy_ids = item["strategy_ids"]
                 status = {}
                 for strategy_id in strategy_ids:
