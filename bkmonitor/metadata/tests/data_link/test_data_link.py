@@ -297,11 +297,7 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
                 "spec": {
                     "conditions": [
                         {
-                            "match_labels": [
-                                {"name": "namespace", "value": "ns1"},
-                                {"name": "namespace", "value": "ns2"},
-                                {"name": "namespace", "value": "ns3"},
-                            ],
+                            "match_labels": [{"name": "namespace", "value": "ns1"}],
                             "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                             "sinks": [
                                 {
@@ -312,11 +308,51 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
                             ],
                         },
                         {
-                            "match_labels": [
-                                {"name": "namespace", "value": "ns4"},
-                                {"name": "namespace", "value": "ns5"},
-                                {"name": "namespace", "value": "ns6"},
+                            "match_labels": [{"name": "namespace", "value": "ns2"}],
+                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+                            "sinks": [
+                                {
+                                    "kind": "VmStorageBinding",
+                                    "name": "bkm_1001_bkmonitor_time_series_60010",
+                                    "namespace": "bkmonitor",
+                                }
                             ],
+                        },
+                        {
+                            "match_labels": [{"name": "namespace", "value": "ns3"}],
+                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+                            "sinks": [
+                                {
+                                    "kind": "VmStorageBinding",
+                                    "name": "bkm_1001_bkmonitor_time_series_60010",
+                                    "namespace": "bkmonitor",
+                                }
+                            ],
+                        },
+                        {
+                            "match_labels": [{"name": "namespace", "value": "ns4"}],
+                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
+                            "sinks": [
+                                {
+                                    "kind": "VmStorageBinding",
+                                    "name": "bkm_1001_bkmonitor_time_series_70010",
+                                    "namespace": "bkmonitor",
+                                }
+                            ],
+                        },
+                        {
+                            "match_labels": [{"name": "namespace", "value": "ns5"}],
+                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
+                            "sinks": [
+                                {
+                                    "kind": "VmStorageBinding",
+                                    "name": "bkm_1001_bkmonitor_time_series_70010",
+                                    "namespace": "bkmonitor",
+                                }
+                            ],
+                        },
+                        {
+                            "match_labels": [{"name": "namespace", "value": "ns6"}],
                             "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
                             "sinks": [
                                 {

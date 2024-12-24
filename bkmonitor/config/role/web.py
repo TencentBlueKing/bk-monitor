@@ -14,7 +14,6 @@ import os
 import six
 from blueapps.conf.log import get_logging_config_dict
 from blueapps.patch.log import get_paas_v2_logging_config_dict
-from celery.schedules import crontab
 
 from config.tools.rabbitmq import get_rabbitmq_settings
 
@@ -50,6 +49,8 @@ ROOT_URLCONF = "urls"
 
 INSTALLED_APPS = locals().get("INSTALLED_APPS", tuple())
 INSTALLED_APPS += (
+    "django_celery_beat",
+    "django_celery_results",
     "django_elasticsearch_dsl",
     "rest_framework",
     "django_filters",
@@ -294,113 +295,6 @@ if IS_CONTAINER_MODE:
     for logger in LOGGING["loggers"]:
         if "null" not in LOGGING["loggers"][logger]["handlers"]:
             LOGGING["loggers"][logger]["handlers"] = ["console"]
-
-#
-# CELERY 配置
-#
-IS_USE_CELERY = True
-INSTALLED_APPS += ("django_celery_beat", "django_celery_results")
-CELERYBEAT_SCHEDULER = "monitor.schedulers.MonitorDatabaseScheduler"
-CELERY_ENABLE_UTC = False
-
-CELERYBEAT_SCHEDULE = {
-    "monitor_web.tasks.update_config_instance_count": {
-        "task": "monitor_web.tasks.update_config_instance_count",
-        "schedule": crontab(minute=0),  # todo 该任务的周期需建议和节点管理的自动执行的周期保持一致
-        "enabled": False,
-    },
-    "monitor_web.tasks.update_external_approval_status": {
-        "task": "monitor_web.tasks.update_external_approval_status",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_metric_list": {
-        "task": "monitor_web.tasks.update_metric_list",
-        "schedule": crontab(),
-        "enabled": True,
-        "options": {"queue": "celery_resource"},
-    },
-    "monitor_web.tasks.access_pending_aiops_strategy": {
-        "task": "monitor_web.tasks.access_pending_aiops_strategy",
-        "schedule": crontab(minute="*/5"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_uptime_check_task_status": {
-        "task": "monitor_web.tasks.update_uptime_check_task_status",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.maintain_aiops_strategies": {
-        "task": "monitor_web.tasks.maintain_aiops_strategies",
-        "schedule": crontab(minute="*/10"),
-        "enabled": False,
-    },
-    "fta_web.tasks.update_home_statistics": {
-        "task": "fta_web.tasks.update_home_statistics",
-        "schedule": crontab(minute="*/5"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_report_receivers": {
-        "task": "monitor_web.tasks.update_report_receivers",
-        "schedule": crontab(minute=27, hour=2),
-        "enabled": True,
-    },
-    "apm_web.tasks.refresh_application": {
-        "task": "apm_web.tasks.refresh_application",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "apm_web.tasks.refresh_apm_application_metric": {
-        "task": "apm_web.tasks.refresh_apm_application_metric",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "apm_web.tasks.application_create_check": {
-        "task": "apm_web.tasks.application_create_check",
-        "schedule": crontab(minute="*/1"),
-        "enabled": True,
-    },
-    "apm_web.tasks.cache_application_scope_name": {
-        "task": "apm_web.tasks.cache_application_scope_name",
-        "schedule": crontab(minute="*/60"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
-        "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
-        "schedule": crontab(minute="*/60"),
-        "enabled": True,
-        "options": {"queue": "celery_resource"},
-    },
-    "monitor_web.tasks.update_statistics_data": {
-        "task": "monitor_web.tasks.update_statistics_data",
-        "schedule": crontab(),
-        "enabled": True,
-    },
-    "monitor_web.tasks.clean_bkrepo_temp_file": {
-        "task": "monitor_web.tasks.clean_bkrepo_temp_file",
-        "schedule": crontab(hour="*/1"),
-        "enabled": True,
-        "options": {"queue": "celery_resource"},
-    },
-    "monitor_web.tasks.update_metric_json_from_ts_group": {
-        "task": "monitor_web.tasks.update_metric_json_from_ts_group",
-        "schedule": crontab(minute="*/50"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_target_detail": {
-        "task": "monitor_web.tasks.update_target_detail",
-        "schedule": crontab(minute="*/15"),
-        "enabled": True,
-    },
-}
-
-*_, BROKER_URL = get_rabbitmq_settings(APP_CODE)
-
-CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend"
-
-CELERY_TASK_SERIALIZER = "pickle"
-CELERY_ACCEPT_CONTENT = ["pickle"]
-CELERY_RESULT_SERIALIZER = "pickle"
 
 #
 # Django Rest Framework Settings

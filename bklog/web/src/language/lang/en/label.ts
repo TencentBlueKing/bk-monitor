@@ -726,4 +726,5 @@ export default {
   时间维度: 'Time dimension',
   关联Trace检索: 'Associated Trace Search',
   检索结果为空: 'Search Results Are Empty',
+  查询设置: 'Query settings',
 };

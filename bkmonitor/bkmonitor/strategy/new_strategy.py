@@ -1759,7 +1759,7 @@ class Strategy(AbstractConfig):
         """
         获取Grafana图表查询配置
         """
-        __, panel_query = get_grafana_panel_query(
+        panel_query = get_grafana_panel_query(
             self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
         )
         if not panel_query:
@@ -2505,7 +2505,8 @@ class Strategy(AbstractConfig):
 
         # 4.4 接入智能检测算法
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
-        if need_access:
+        # 如果已经配置了使用SDK，则不再走bkbase接入的方式
+        if need_access and not intelligent_detect.get("use_sdk", False):
             # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
             intelligent_detect["status"] = AccessStatus.PENDING
             intelligent_detect["retries"] = 0

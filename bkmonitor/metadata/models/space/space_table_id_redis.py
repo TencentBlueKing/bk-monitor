@@ -112,6 +112,46 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
+    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = True):
+        """
+        推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
+        @param table_id_list: 结果表列表
+        @param is_publish: 是否执行推送
+        """
+        logger.info(
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %s" "is_publish->[%s]",
+            json.dumps(table_id_list),
+            is_publish,
+        )
+        _table_id_detail = {}
+        try:
+            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+
+            if _table_id_detail:
+                logger.info(
+                    "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to set to key->[%s]",
+                    table_id_list,
+                    json.dumps(_table_id_detail),
+                    RESULT_TABLE_DETAIL_KEY,
+                )
+                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                if is_publish:
+                    logger.info(
+                        "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->[%s]",
+                        table_id_list,
+                        json.dumps(_table_id_detail),
+                        RESULT_TABLE_DETAIL_CHANNEL,
+                    )
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "push_es_table_id_detail: failed to push es_table_detail for table_id_list->[%s],error->[%s]",
+                table_id_list,
+                e,
+            )
+            return
+        logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
+
     def push_table_id_detail(
         self,
         table_id_list: Optional[List] = None,
@@ -177,8 +217,18 @@ class SpaceTableIDRedis:
 
         # 推送数据
         if _table_id_detail:
+            logger.info(
+                "push_table_id_detail: try to set to key->[%s] with value->[%s]",
+                RESULT_TABLE_DETAIL_KEY,
+                json.dumps(_table_id_detail),
+            )
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
+                logger.info(
+                    "push_table_id_detail: try to push into channel->[%s] for ->[%s]",
+                    RESULT_TABLE_DETAIL_CHANNEL,
+                    list(_table_id_detail.keys()),
+                )
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push_table_id_detail： push redis result_table_detail")
 
@@ -213,16 +263,6 @@ class SpaceTableIDRedis:
                 }
             )
         return _table_id_detail
-
-    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: bool = False):
-        """推送 es 结果表的详细信息"""
-        logger.info("start to push es table_id detail data, table_id_list: %s")
-        table_id_detail = self._compose_es_table_id_detail(table_id_list)
-        if table_id_detail:
-            RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id_detail)
-            if is_publish:
-                RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(table_id_detail.keys()))
-        logger.info("push es table_id detail successfully")
 
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
@@ -281,7 +321,7 @@ class SpaceTableIDRedis:
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
-                    'storage_cluster_record': storage_record,
+                    'storage_cluster_records': storage_record,
                 }
             )
         return data

@@ -37,6 +37,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    commonFilters: [],
   };
 };
 

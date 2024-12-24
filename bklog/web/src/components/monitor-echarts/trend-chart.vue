@@ -97,6 +97,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
+        addition: [...retrieveParams.value.addition, ...retrieveParams.value.commonFilters],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
