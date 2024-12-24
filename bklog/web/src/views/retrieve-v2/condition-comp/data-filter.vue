@@ -95,6 +95,9 @@
         </bk-input>
         <span>{{ $t('行') }}</span>
       </div>
+      <div style="margin-left: 6px">
+        <bk-button @click="handleScrollToCurrentRow">{{ $t('定位到当前行') }}</bk-button>
+      </div>
     </div>
   </div>
 </template>
@@ -149,6 +152,9 @@
       },
     },
     methods: {
+      handleScrollToCurrentRow() {
+        this.$emit('fix-current-row');
+      },
       filterLog() {
         this.catchFilterKey = this.filterKey;
         this.$emit('handle-filter', 'filterKey', this.filterKey);
