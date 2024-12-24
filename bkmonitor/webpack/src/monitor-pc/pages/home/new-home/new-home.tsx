@@ -26,6 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import MyFavorites from './my-favorites';
+
 import './new-home.scss';
 
 @Component({
@@ -35,7 +37,8 @@ export default class NewHome extends tsc<object> {
   render() {
     return (
       <div class='monitor-new-home'>
-        <div class='new-home-bg'></div>
+        <div class='new-home-bg' />
+        <MyFavorites />
       </div>
     );
   }
