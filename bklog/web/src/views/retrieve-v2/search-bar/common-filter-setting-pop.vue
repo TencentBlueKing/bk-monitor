@@ -37,12 +37,10 @@
   // 新建提交逻辑
   const handleCreateRequest = async () => {
     const selectFilterField = settingData.value.filterFields;
-    const filterFieldLists = selectFilterField.map(item => {
-      return filterFieldList.value.find(el => item === el.field_name);
-    });
+    const filterFieldLists = filterFieldList.value.filter(el => selectFilterField.includes(el.field_name));
     const param = {
       filterSetting: {
-        filterFields: filterFieldLists.map(item => item),
+        filterFields: filterFieldLists,
       },
     };
     store.dispatch('userFieldConfigChange', param).then(res => {
