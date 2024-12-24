@@ -80,7 +80,7 @@
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
-  import TextSegmentation from '../search-result-panel/log-result//text-segmentation.vue';
+  import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
 
   export default {
     components: {

@@ -649,7 +649,7 @@ export default defineComponent({
     const debounceSetLoading = () => {
       setTimeout(() => {
         isRequesting.value = false;
-      }, 100);
+      }, 300);
     };
 
     const loadMoreTableData = () => {
