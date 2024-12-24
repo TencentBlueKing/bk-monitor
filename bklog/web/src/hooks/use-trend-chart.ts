@@ -71,7 +71,11 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
 
     if (/\d+(m|h)$/.test(interval)) {
-      return dayjs.tz(data).format('MM-DD HH:mm:ss').replace(/:00$/, '');
+      const { start_time, end_time } = retrieveParams.value;
+      const durationHour = (end_time - start_time) / 3600;
+      // 当筛选时间间隔6小时以上 显示日期
+      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
+      return dayjs.tz(data).format(format).replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
