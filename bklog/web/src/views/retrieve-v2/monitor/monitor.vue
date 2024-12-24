@@ -89,11 +89,7 @@ const routeQueryParams = computed(() => {
 const getApmIndexSetList = async () => {
   store.commit('retrieve/updateIndexSetLoading', true);
   store.commit('retrieve/updateIndexSetList', []);
-  return (
-      props.indexSetApi
-        ? props.indexSetApi()
-        : store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value })
-    ).then(res => {
+  return props.indexSetApi().then(res => {
     let indexSetList = [];
     if (res.length) {
       // 有索引集
