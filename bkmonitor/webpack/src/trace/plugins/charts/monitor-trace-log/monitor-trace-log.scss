@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .monitor-trace-log {
   // display: flex;
   width: 100%;
@@ -171,4 +172,8 @@
     }
     
   }
+}
+
+.tippy-popper {
+  position: fixed !important;
 }

@@ -351,7 +351,7 @@
     height: calc(100% - 42px);
 
     .bklog-skeleton-loading {
-      position: absolute;
+      position: absolute !important;
       top: 0;
       z-index: 10;
     }
