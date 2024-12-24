@@ -371,7 +371,8 @@ class ResourceTrendResource(Resource):
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
-
+        series_map = {}
+        unit = self.unit_choice.get(column, "short")
         if resource_type == "workload":
             # workload 单独处理
             promql_list = []
@@ -380,14 +381,19 @@ class ResourceTrendResource(Resource):
                 resource_meta.filter.add(filter_obj)
                 promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
                 resource_meta.filter.remove(filter_obj)
+                workload_name = wl.split(":")[-1]
+                # 初始化series_map
+                series_map[workload_name] = {"datapoints": [], "unit": unit}
             promql = " or ".join(promql_list)
         else:
             resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
+            # 初始化series_map
+            for resource_id in resource_list:
+                series_map[resource_id] = {"datapoints": [], "unit": unit}
         series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
-        unit = self.unit_choice.get(column, "short")
-        series_map = {}
+
         for line in series:
             resource_name = line["dimensions"][resource_meta.resource_field]
             series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit}
