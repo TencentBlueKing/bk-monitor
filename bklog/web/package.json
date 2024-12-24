@@ -11,7 +11,7 @@
     "dev:trace": "nodemon --exec \"MONITOR_APP=trace  bkmonitor-cli dev --log\"",
     "build": "bkmonitor-cli build",
     "build:apm": "MONITOR_APP=apm bkmonitor-cli build --apm",
-    "build:trace": "MONITOR_APP=trace bkmonitor-cli build --apm",
+    "build:trace": "MONITOR_APP=trace bkmonitor-cli build --apm && node ./scripts/prefix-css.js",
     "analyze:apm": "bkmonitor-cli build --apm -a",
     "clean": "rimraf ../static/dist/*",
     "analyze": "npm run clean && bkmonitor-cli build -a",

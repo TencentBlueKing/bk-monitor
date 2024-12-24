@@ -33,7 +33,7 @@ import {
   Vue2,
   logStore,
   i18n,
-} from '@blueking/monitor-trace-retrieve/main';
+} from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -42,7 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-trace-log.scss';
-import '@blueking/monitor-trace-retrieve/css/main.css';
+import '@blueking/monitor-trace-log/css/main.css';
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
@@ -179,7 +179,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='monitor-trace-retrieve'>
+      <div class='monitor-trace-log'>
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
