@@ -815,6 +815,26 @@
       height: calc(100% - 155px);
       padding: 0 16px 14px;
     }
+
+    .retrieve-v2-index {
+      padding: 0 16px;
+
+      .retrieve-body {
+        .retrieve-context {
+          .search-bar-container {
+            .search-input {
+              .search-items {
+                .search-item {
+                  .tag-row.match-value {
+                    max-width: 450px;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   .graph-tools {

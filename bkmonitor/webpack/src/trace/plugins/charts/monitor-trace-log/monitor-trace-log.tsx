@@ -146,6 +146,7 @@ export default defineComponent({
         };
         app.$route = currentRoute;
         app._$route = currentRoute;
+        app.$t = (...args) => i18n.t(...args);
         unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
           app.$forceUpdate();
         });
@@ -221,7 +222,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='monitor-trace-retrieve'>
+      <div class='monitor-trace-log'>
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (

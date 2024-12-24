@@ -1,4 +1,4 @@
-.monitor-trace-retrieve {
+.monitor-trace-log {
   // display: flex;
   width: 100%;
   height: 100%;
@@ -115,8 +115,18 @@
 
       .retrieve-context {
         .search-bar-container {
-          border: 1px solid #DCDEE5;
+          border: 1px solid #dcdee5;
           box-shadow: none;
+
+          .search-input {
+            .search-items {
+              .search-item {
+                .tag-row.match-value {
+                  max-width: 450px;
+                }
+              }
+            }
+          }
         }
 
         .result-row {
