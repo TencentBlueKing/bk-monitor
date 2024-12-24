@@ -108,8 +108,8 @@ class AlarmGraphConfigViewSet(PermissionMixin, ResourceViewSet):
     """
 
     resource_routes = [
-        ResourceRoute("GET", resource.overview.get_alarm_graph_config, endpoint="get_alarm_graph_config"),
-        ResourceRoute("POST", resource.overview.save_alarm_graph_config, endpoint="save_alarm_graph_config"),
-        ResourceRoute("POST", resource.overview.delete_alarm_graph_config, endpoint="delete_alarm_graph_config"),
-        ResourceRoute("POST", resource.overview.save_alarm_graph_biz_index, endpoint="save_alarm_graph_biz_index"),
+        ResourceRoute("GET", resource.overview.get_alarm_graph_config),
+        ResourceRoute("POST", resource.overview.save_alarm_graph_config),
+        ResourceRoute("POST", resource.overview.delete_alarm_graph_config, endpoint="delete"),
+        ResourceRoute("POST", resource.overview.save_alarm_graph_biz_index, endpoint="save_biz_index"),
     ]
