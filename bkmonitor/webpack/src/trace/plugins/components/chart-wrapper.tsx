@@ -76,7 +76,7 @@ export default defineComponent({
     const waterMaskImg = ref('');
 
     const needWaterMask = computed(() => {
-      return !['log-retrieve'].includes(props.panel.type);
+      return !['monitor-trace-log'].includes(props.panel.type);
     });
 
     /** hover样式 */

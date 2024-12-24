@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   MonitorRetrieve as Log,
@@ -33,7 +33,7 @@ import {
   Vue2,
   logStore,
   i18n,
-} from '@blueking/monitor-trace-log/main';
+} from '@blueking/monitor-trace-retrieve/main';
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
@@ -42,7 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
 
 import './monitor-trace-log.scss';
-import '@blueking/monitor-trace-log/css/main.css';
+import '@blueking/monitor-trace-retrieve/css/main.css';
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 export default defineComponent({
@@ -51,6 +51,7 @@ export default defineComponent({
     const empty = ref(true);
     const loading = ref(true);
     const route = useRoute();
+    const router = useRouter();
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
@@ -97,10 +98,10 @@ export default defineComponent({
             return currentRoute;
           },
           replace: c => {
-            console.info(c, 'replace route ===========');
+            router.replace(c);
           },
           push: c => {
-            console.info(c, 'push route ===========');
+            router.push(c);
           },
         };
         app._$route = currentRoute;

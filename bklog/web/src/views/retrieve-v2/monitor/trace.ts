@@ -36,6 +36,7 @@ import i18n from '@/language/i18n';
 
 import MonitorRetrieve from './monitor.vue';
 
+import 'bk-magic-vue/dist/bk-magic-vue.min.css';
 import '../../../static/style.css';
 const logStore = useStore();
 const initMonitorState = (payload) => {
