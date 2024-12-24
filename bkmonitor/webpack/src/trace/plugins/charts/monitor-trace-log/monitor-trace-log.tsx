@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
 import {
   MonitorRetrieve as Log,
@@ -50,8 +49,6 @@ export default defineComponent({
   setup() {
     const empty = ref(true);
     const loading = ref(true);
-    const route = useRoute();
-    const router = useRouter();
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
@@ -64,6 +61,7 @@ export default defineComponent({
     let unPropsWatch = null;
 
     async function init() {
+      empty.value = true;
       loading.value = true;
       const data = await getServiceLogInfo();
       loading.value = false;
@@ -77,6 +75,28 @@ export default defineComponent({
           spaceUid,
         });
         initGlobalComponents();
+        const fakeRoute = {
+          query: {},
+          params: {},
+        };
+        const fakeRouter = {
+          get currentRoute() {
+            return fakeRoute;
+          },
+          replace: c => {
+            const { query = {}, params = {} } = c;
+            fakeRoute.query = query;
+            fakeRoute.params = params;
+          },
+          push: () => {
+            return {};
+          },
+          resolve: () => {
+            return {};
+          },
+        };
+        Vue2.prototype.$router = fakeRouter;
+        Vue2.prototype.$route = fakeRoute;
         const app: any = new Vue2({
           store: logStore,
           i18n,
@@ -92,68 +112,15 @@ export default defineComponent({
             });
           },
         });
-        const currentRoute = route;
-        app.$router = {
-          get currentRoute() {
-            return currentRoute;
-          },
-          replace: c => {
-            const { query = {}, params = {} } = c;
-            router.replace({
-              query: {
-                ...route.query,
-                ...query,
-              },
-              params: {
-                ...route.params,
-                ...params,
-              },
-            });
-          },
-          push: c => {
-            const { query = {}, params = {}, ...other } = c;
-            const { href } = router.resolve({
-              ...other,
-              query: {
-                ...route.query,
-                ...query,
-              },
-              params: {
-                ...route.params,
-                ...params,
-              },
-            });
-            window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}/${href}`, '_blank');
-          },
-          resolve: c => {
-            console.log(window.mainComponent);
-            const { path, query = {}, params = {} } = c;
-            return router.resolve(
-              {
-                path,
-                query: {
-                  ...route.query,
-                  ...query,
-                },
-                params: {
-                  ...route.params,
-                  ...params,
-                },
-              },
-              route
-            );
-          },
-        };
-        app.$route = currentRoute;
-        app._$route = currentRoute;
+        app.$router = fakeRouter;
+        app.$route = fakeRoute;
+        app._$route = fakeRoute;
         app.$t = (...args) => i18n.t(...args);
         unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
           app.$forceUpdate();
         });
         await nextTick();
         app.$mount(mainRef.value);
-
-        console.log(app);
         window.mainComponent = app;
       } else {
         empty.value = true;
@@ -199,6 +166,13 @@ export default defineComponent({
       }`;
       window.open(url);
     }
+
+    watch(
+      () => spanId.value,
+      () => {
+        init();
+      }
+    );
 
     onMounted(() => {
       init();
