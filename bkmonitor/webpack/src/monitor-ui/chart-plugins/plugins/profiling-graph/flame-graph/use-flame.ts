@@ -42,7 +42,6 @@ import {
   type IFlameData,
   type ILineData,
   type IOtherData,
-  RootId,
   type ThreadPos,
 } from '../../../typings';
 import { findChildById, findRegionById, getHashVal } from './utils';
@@ -451,7 +450,7 @@ export class FlameChart<D extends BaseDataType> {
             ...this.zoomData,
             value: d.data.value,
             clickDepth: d.depth,
-            highlightName: d.data.id === RootId ? '' : this.zoomData.highlightName || '',
+            highlightName: d.data.name ? '' : this.zoomData.highlightName || '',
             highlightId: -1,
           };
           this.getInViewNode(d);
