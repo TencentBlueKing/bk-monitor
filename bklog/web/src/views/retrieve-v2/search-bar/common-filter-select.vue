@@ -168,7 +168,9 @@
 </template>
 <style lang="scss">
   .resize-layout-wrap {
-    box-shadow: 0 2px 4px 0 #1919290d;
+    box-shadow:
+      0 2px 8px 0 #00000026,
+      0 1px 0 0 #eaebf0;
 
     .bk-resize-trigger {
       display: none;
