@@ -898,7 +898,7 @@
             directives: [
               {
                 name: 'bk-tooltips',
-                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+                value: this.$t('填写后原字段名和别名均可查询'),
               },
             ],
             class: 'render-header decoration-header-cell',

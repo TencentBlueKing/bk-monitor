@@ -69,7 +69,6 @@ export default class FieldFilterComp extends tsc<object> {
     '__dist_07',
     '__dist_09',
     '__ipv6__',
-    '__ext',
   ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
@@ -163,7 +162,7 @@ export default class FieldFilterComp extends tsc<object> {
       this.addToNestedStructure(objectField, item);
     })
     console.log(objectField);
-    return [...otherArr,...objectField ]
+    return [...objectField, ...otherArr]
   }
   /** 递归将数组变成tree */
   addToNestedStructure(targetArray, originalObject) {

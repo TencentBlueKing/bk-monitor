@@ -1324,18 +1324,20 @@
           this.formData.fields = [... this.formData.fields,...this.copyBuiltField]
           this.savaFormData();
         }else{
-        const allFields = this.$refs.fieldTable.getData();
-        const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
-        const { copyFields, remainingFields } = allFields.reduce((acc, field) => {
-          if (copyBuiltFieldIds.has(field.field_name)) {
-            acc.copyFields.push(field);
-          } else {
-            acc.remainingFields.push(field);
+          const allFields = this.$refs.fieldTable.getData();
+          const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
+          const { copyFields, remainingFields } = allFields.reduce((acc, field) => {
+            if (copyBuiltFieldIds.has(field.field_name)) {
+              acc.copyFields.push(field);
+            } else {
+              acc.remainingFields.push(field);
+            }
+            return acc;
+          }, { copyFields: [], remainingFields: [] });
+          this.formData.fields = remainingFields;
+          if(copyFields.length){
+            this.copyBuiltField = copyFields;
           }
-          return acc;
-        }, { copyFields: [], remainingFields: [] });
-        this.formData.fields = remainingFields;
-        this.copyBuiltField = copyFields;
         }
       },
       // 初始化清洗项
@@ -1932,9 +1934,14 @@
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
+        console.log(copyFields,'233');
+        
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
+        
+        console.log(this.copyBuiltField,'233');
+        
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
         }
@@ -2569,8 +2576,12 @@
             },
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
+          // let fieldTypeMap = this.$store.state.globals.fieldTypeMap
           this.fieldsObjectData.forEach(item => {
             let name = item.field_name.split('.')[0]
+            // this.$set(item, 'type_conversion', fieldTypeMap[item.field_type].name );
+            this.$set(item, 'type_conversion','string' );
+            this.$store.state.globals.fieldTypeMap;
             this.copyBuiltField.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
                 if (!Array.isArray(builtField.children)) {

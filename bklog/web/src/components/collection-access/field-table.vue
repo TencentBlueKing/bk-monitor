@@ -324,7 +324,8 @@
                   :class="{ 'is-required is-error': props.row.typeErr }"
                 >
                   <bk-select
-                    v-model="props.row.field_type"
+
+                    v-model="props.row.type_conversion || props.row.field_type"
                     :clearable="false"
                     :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
                     @selected="

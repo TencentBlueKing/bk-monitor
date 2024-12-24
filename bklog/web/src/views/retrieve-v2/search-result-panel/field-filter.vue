@@ -1,6 +1,6 @@
 <script setup>
-  import { computed, nextTick, ref } from 'vue';
-
+  import { computed, nextTick, ref, onMounted } from 'vue';
+  import { Storage } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -11,6 +11,7 @@
     value: { type: Boolean, default: true },
   });
   const fieldShowName = ref('field_name');
+  const storage =  ref('null');
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -76,7 +77,13 @@
     emit('input', !props.value);
   };
   const handlerChange = (value) => {
+    
+    storage.value.set('fieldShowName', value);
   }
+  onMounted(()=>{
+    storage.value = new Storage();
+    fieldShowName.value = storage.value.get('fieldShowName') || 'field_name'
+  })
 </script>
 
 <template>
