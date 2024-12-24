@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -610,6 +610,23 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        log_list = result.get("list")
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_dict = data.get("query_alias_settings")
+            if alias_dict:
+                for log in log_list:
+                    for query_alias, info in alias_dict.items():
+                        path = info.get("path")
+                        if "." in path:
+                            key, field = info.get("path").split(".", 1)
+                            if key in log and field in log[key]:
+                                log[query_alias] = log[key][field]
+                        else:
+                            if path in log:
+                                log[query_alias] = log[path]
         return result
 
     def get_sort_group(self):
@@ -1129,11 +1146,14 @@ class SearchHandler(object):
 
     def multi_get_slice_data(self, pre_file_name, export_file_type):
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        slice_max = (
-            collector_config.storage_shards_nums
-            if collector_config and collector_config.storage_shards_nums < MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
-            else MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
-        )
+        if collector_config:
+            storage_shards_nums = collector_config.storage_shards_nums
+            if storage_shards_nums == 1 or storage_shards_nums >= MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT:
+                slice_max = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+            else:
+                slice_max = storage_shards_nums
+        else:
+            slice_max = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
         multi_execute_func = MultiExecuteFunc(max_workers=slice_max)
         for idx in range(slice_max):
             body = {
@@ -1144,7 +1164,7 @@ class SearchHandler(object):
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
-        return list(result.values())
+        return result
 
     def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
         """
@@ -1159,7 +1179,7 @@ class SearchHandler(object):
         generate_result = self.sliced_scroll_result(result)
 
         # 文件路径
-        file_path = f"{ASYNC_DIR}/{file_name}.{export_file_type}"
+        file_path = f"{ASYNC_DIR}/{file_name}_cluster_{self.storage_cluster_id}.{export_file_type}"
 
         def content_generator():
             for item in result.get("hits", {}).get("hits", []):

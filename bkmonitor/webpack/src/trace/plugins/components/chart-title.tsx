@@ -350,9 +350,10 @@ export default defineComponent({
               class='sub-title'
               title={this.subtitle}
             >
-              {this.subtitle}
+              {this.$slots.subtitle ? this.$slots.subtitle() : this.subtitle}
             </div>
           )}
+          {this.$slots.tagTitle && <div class='tag-title'>{this.$slots.tagTitle()}</div>}
         </div>
         <TitleMenu
           style={{

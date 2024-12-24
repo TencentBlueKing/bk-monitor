@@ -31,7 +31,6 @@ class SdkPredictResource(APIResource):
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
         extra_data = serializers.DictField(default=dict())
-        backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
 
     action = "/api/aiops/default/"
     method = "POST"
@@ -46,7 +45,6 @@ class SdkGroupPredictResource(APIResource):
         group_data = serializers.ListField(required=True, child=serializers.DictField())
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
-        backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
 
     action = "/api/aiops/group_predict/"
     method = "POST"
