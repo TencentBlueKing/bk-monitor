@@ -232,6 +232,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        commonFilters,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -270,6 +271,7 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         ...searchParams,
+        commonFilters,
       };
     },
     isNewRetrieveRoute: () => {
@@ -283,6 +285,9 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updateCommonFilter(state, param) {
+      state.indexItem.commonFilters = param;
+    },
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -1051,6 +1056,47 @@ const store = new Vuex.Store({
         });
     },
 
+    /** 请求获取用户个人配置信息 */
+    requestIndexSetCustomConfigInfo({ commit, dispatch, state }) {
+      // @ts-ignore
+      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
+      if (!ids.length) {
+        return;
+      }
+      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      !isUnionIndex && commit('deleteApiError', urlStr);
+      const queryData = {
+        start_time,
+        end_time,
+        is_realtime: 'True',
+      };
+      if (isUnionIndex) {
+        Object.assign(queryData, {
+          index_set_ids: ids,
+        });
+      }
+      return http
+        .request(
+          urlStr,
+          {
+            params: { index_set_id: ids[0] },
+            query: !isUnionIndex ? queryData : undefined,
+            data: isUnionIndex ? queryData : undefined,
+          },
+          isUnionIndex ? {} : { catchIsShowMessage: false },
+        )
+        .then(res => {
+          commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
+          return res;
+        })
+        .catch(err => {
+          commit('retrieve/updateCatchFieldCustomConfig', {
+            ...state.retrieve.catchFieldCustomConfig,
+            filterSetting: {},
+          });
+        })
+        .finally();
+    },
     /**
      * 执行查询
      */
@@ -1117,13 +1163,13 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        // addition,
+        addition: [...otherPrams.addition, ...otherPrams.commonFilters],
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload.isPagination
-          ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
           : 0,
         index_set_id: item,
       }));
@@ -1523,6 +1569,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
+              addition: [...getters.retrieveParams.addition, ...getters.retrieveParams.commonFilters],
             },
           },
           {
@@ -1581,6 +1628,7 @@ const store = new Vuex.Store({
             const userConfig = {
               fieldsWidth: res.data.index_set_config.fieldsWidth,
               displayFields: res.data.index_set_config.displayFields,
+              filterSetting: res.data.index_set_config.filterSetting,
             };
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }
