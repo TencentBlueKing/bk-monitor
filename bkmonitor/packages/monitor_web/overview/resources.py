@@ -286,12 +286,11 @@ class GetFunctionShortcutResource(CacheResource):
         "dashboard": _lazy("仪表盘"),
         "apm_service": _lazy("APM服务"),
         "log_retrieve": _lazy("日志检索"),
-        "metric_retrieve": _lazy("指标检索"),
     }
 
     class RequestSerializer(serializers.Serializer):
         type = serializers.ChoiceField(choices=["recent", "favorite"], label="类型")
-        # dashboard, apm_service, log_retrieve, metric_retrieve
+        # dashboard, apm_service, log_retrieve
         functions = serializers.ListField(child=serializers.CharField(), label="功能列表", allow_empty=False)
         limit = serializers.IntegerField(label="限制", default=10)
 
@@ -507,8 +506,6 @@ class GetFunctionShortcutResource(CacheResource):
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     mode="any",
                 )[:limit]
-            elif function == "metric_explore":
-                pass
             else:
                 continue
 
@@ -527,6 +524,8 @@ class GetFunctionShortcutResource(CacheResource):
                     "bk_biz_id": 2,
                     "bk_biz_name": "蓝鲸",
                     "dashboard_uid": "1234567890",
+                    "dashboard_title": "主机查看",
+                    "dashboard_slug": "host-view",
                 }
             ]
         }]
@@ -565,7 +564,7 @@ class AddAccessRecordResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        # dashboard, apm_service, metric_retrieve
+        # dashboard, apm_service
         function = serializers.CharField(label="功能")
         config = serializers.JSONField(label="实例信息")
 
@@ -586,9 +585,6 @@ class AddAccessRecordResource(Resource):
             elif attrs["function"] == "apm_service":
                 attrs["config"] = self.ApmServiceConfigSerializer(data=attrs["config"]).validate(attrs["config"])
                 attrs["id"] = f"{attrs['config']['application_id']}-{attrs['config']['service_name']}"
-            elif attrs["function"] == "metric_retrieve":
-                attrs["config"] = self.MetricRetrieveConfigSerializer(data=attrs["config"]).validate(attrs["config"])
-                attrs["id"] = str(attrs["config"]["favorite_record_id"])
             else:
                 raise serializers.ValidationError(f"unsupported function: {attrs['function']}")
             return attrs
