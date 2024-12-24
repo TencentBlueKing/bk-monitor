@@ -113,6 +113,7 @@ from apm_web.service.serializers import (
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval, span_time_strft
+from bkm_space.api import SpaceApi
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
@@ -2034,7 +2035,8 @@ class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
 
 class ApplyStrategiesToServicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
+        bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+        space_uid = serializers.CharField(label="空间唯一标识", required=False)
         app_name = serializers.CharField(label="应用名称", max_length=50)
         group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
         apply_types = serializers.ListSerializer(
@@ -2048,6 +2050,15 @@ class ApplyStrategiesToServicesResource(Resource):
         options = serializers.DictField(label="配置", required=False)
 
         def validate(self, attrs):
+            bk_biz_id: Optional[int] = attrs.get("bk_biz_id")
+            space_uid: Optional[str] = attrs.get("space_uid")
+            if not (bk_biz_id or space_uid):
+                raise ValueError(_("bk_biz_id、space_uid 至少需要传其中一个"))
+
+            # space_uid to bk_biz_id
+            if space_uid:
+                attrs["bk_biz_id"] = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
+
             try:
                 attrs["options"] = json.loads(attrs.get("config") or "{}")
             except (TypeError, json.JSONDecodeError):

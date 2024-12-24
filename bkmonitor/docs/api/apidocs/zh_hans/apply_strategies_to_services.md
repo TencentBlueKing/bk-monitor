@@ -10,7 +10,8 @@
 
 | 字段               | 类型     | 必选 | 描述                                             |
 |------------------|--------|----|------------------------------------------------|
-| bk_biz_id        | int    | 是  | 业务id                                           |
+| bk_biz_id        | int    | 否  | 业务id                                           |
+| space_uid        | int    | 否  | 项目空间id，bk_biz_id、space_uid 至少传一个               |
 | app_name         | string | 是  | 应用名称                                           |
 | group_type       | string | 是  | 策略组类型，可选：<br />`rpc` - RPC 服务                  |
 | apply_types      | list   | 是  | 策略类型列表，不同 `group_type`具有不同类型，详见下方 `apply_type` |
