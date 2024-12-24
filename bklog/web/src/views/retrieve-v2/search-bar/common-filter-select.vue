@@ -138,6 +138,7 @@
           </bk-select>
           <bk-select
             class="value-select"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false }"
             v-model="condition[index].value"
             multiple
             searchable
@@ -227,6 +228,10 @@
           &.is-focus {
             box-shadow: none;
           }
+        }
+
+        .bk-loading .bk-loading1 {
+          margin-left: -20px;
         }
       }
 
