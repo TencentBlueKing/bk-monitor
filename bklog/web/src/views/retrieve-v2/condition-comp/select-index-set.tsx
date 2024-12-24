@@ -497,12 +497,16 @@ export default class SelectIndexSet extends tsc<object> {
       }
     });
     const element = document.querySelector('#union-tag-box');
-    this.resizeObserver.observe(element);
+    if (element) {
+      this.resizeObserver.observe(element);
+    }
   }
 
   unobserveResizeGroupStyle() {
     const element = document.querySelector('#union-tag-box');
-    this.resizeObserver.unobserve(element);
+    if (element) {
+      this.resizeObserver.unobserve(element);
+    }
     this.resizeObserver = null;
     this.isTagHave2Rows = false;
   }

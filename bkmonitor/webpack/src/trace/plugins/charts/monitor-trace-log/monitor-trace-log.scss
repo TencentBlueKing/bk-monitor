@@ -117,6 +117,16 @@
         .search-bar-container {
           border: 1px solid #DCDEE5;
           box-shadow: none;
+
+          .search-input {
+            .search-items {
+              .search-item {
+                .tag-row.match-value {
+                  max-width: 450px;
+                }
+              }
+            }
+          }
         }
 
         .result-row {
