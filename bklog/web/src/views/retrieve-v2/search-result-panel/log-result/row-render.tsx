@@ -23,9 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, onBeforeUnmount, onMounted, provide, Ref, ref } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, onMounted, provide, Ref, ref, watch } from 'vue';
 
+import useResizeObserve from '../../../../hooks/use-resize-observe';
 import { RowProxyData } from './log-row-attributes';
+
+import './row-render.scss';
 
 export default defineComponent({
   props: {
@@ -37,19 +40,13 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
-    const resizeObserver: ResizeObserver = inject('resizeObserver');
+    // const resizeObserver: ResizeObserver = inject('resizeObserver');
     const rowProxy: Ref<RowProxyData> = inject('rowProxy');
 
-    const rowStyle = computed(() => {
-      return {
-        // minHeight: `${rowProxy.value[props.rowIndex]?.height ?? 40}px`,
-      };
-    });
-
     const visible = computed(() => {
-      const { visible = true } = rowProxy.value[props.rowIndex] ?? {};
+      const { visible = true, mounted = true } = rowProxy.value[props.rowIndex] ?? {};
       const { start = 0, end = 50 }: { start: number; end: number } = (rowProxy.value ?? {}) as any;
-      return visible || (props.rowIndex >= start && props.rowIndex <= end);
+      return visible || mounted || (props.rowIndex >= start && props.rowIndex <= end);
     });
 
     const isIntersecting = computed(() => rowProxy.value[props.rowIndex]?.visible ?? true);
@@ -57,29 +54,51 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return (
-        <div
-          style={rowStyle.value}
-          data-row-index={props.rowIndex}
-        >
+        <div data-row-index={props.rowIndex}>
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': !visible.value }]}
             data-row-index={props.rowIndex}
           >
-            {slots.default?.()}
+            {visible.value ? slots.default?.() : ''}
           </div>
         </div>
       );
     };
 
+    const setParentElementHeight = () => {
+      if (refRowNodeRoot.value && refRowNodeRoot.value.offsetHeight > 0) {
+        refRowNodeRoot.value.parentElement.style.setProperty(
+          'min-height',
+          `${visible.value ? refRowNodeRoot.value.offsetHeight : 40}px`,
+        );
+      }
+    };
+
+    const { observeElement, stopObserve, destoyResizeObserve } = useResizeObserve(refRowNodeRoot, () => {
+      setParentElementHeight();
+    });
+
+    watch(
+      () => [visible.value],
+      () => {
+        if (visible.value) {
+          observeElement();
+          return;
+        }
+
+        stopObserve();
+      },
+    );
+
     onMounted(() => {
       intersectionObserver?.observe(refRowNodeRoot.value);
-      resizeObserver?.observe(refRowNodeRoot.value);
+      setParentElementHeight();
     });
 
     onBeforeUnmount(() => {
       intersectionObserver?.unobserve(refRowNodeRoot.value);
-      resizeObserver?.unobserve(refRowNodeRoot.value);
+      destoyResizeObserve();
     });
 
     return {

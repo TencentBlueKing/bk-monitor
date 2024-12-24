@@ -109,29 +109,13 @@
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
+      height: fit-content;
       visibility: visible;
 
       &.is-pending {
         position: relative;
         visibility: hidden;
         will-change: auto;
-
-        &::before {
-          position: absolute;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          content: '';
-          background: repeating-linear-gradient(#f8f8f8, #f8f8f8 40px, #fff 40px, #fff 48px),
-            linear-gradient(90deg, rgba(240, 240, 240, 0), rgba(224, 224, 224, 0.5), rgba(240, 240, 240, 0));
-          background-repeat: no-repeat;
-          background-size:
-            100% 100%,
-            50% 100%;
-          animation: loading-animation 1.5s infinite;
-        }
       }
     }
 
