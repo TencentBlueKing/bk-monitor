@@ -1040,103 +1040,106 @@ export default class SelectIndexSet extends tsc<object> {
         </div>
       );
     };
-    const selectIndexContainer = () => (
-      <div
-        ref='selectIndexBox'
-        class='select-index-container'
-        v-show={!!this.selectedItemList.length && !this.isAloneType}
-      >
-        <div class='title'>
-          <div class='index-select'>
-            <i18n
-              style='color: #979BA5;'
-              path='已选择{0}个索引集'
-            >
-              {this.selectedItemList.length}
-            </i18n>
-            {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择20项')}</span>}
-          </div>
-          <bk-popover
-            ref='favoritePopover'
-            ext-cls='new-favorite-popover'
-            tippy-options={{
-              ...this.tippyOptions,
-              appendTo: () => this.selectIndexBoxRef,
-            }}
-            disabled={!!this.multipleFavoriteSelectID}
-            placement='bottom-start'
-          >
-            <span class='favorite-btn'>
-              <i
-                class={[
-                  !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
-                ]}
-              />
-              <span>{this.$t('收藏该组合')}</span>
-            </span>
-            <div slot='content'>
-              <bk-form
-                ref='checkInputForm'
-                style={{ width: '100%' }}
-                labelWidth={0}
-                {...{
-                  props: {
-                    model: this.verifyData,
-                    rules: this.rules,
-                  },
-                }}
-              >
-                <bk-form-item property='favoriteName'>
-                  <span style='color: #63656E;'>{this.$t('收藏名称')}</span>
-                  <bk-input
-                    vModel={this.verifyData.favoriteName}
-                    clearable
-                    onEnter={() => this.handleClickFavoritePopoverBtn('add')}
-                  />
-                </bk-form-item>
-              </bk-form>
-              <div class='operate-button'>
-                <bk-button
-                  text
-                  onClick={() => this.handleClickFavoritePopoverBtn('add')}
-                >
-                  {this.$t('确认收藏')}
-                </bk-button>
-                <bk-button
-                  text
-                  onClick={() => this.handleClickFavoritePopoverBtn('cancel')}
-                >
-                  {this.$t('取消')}
-                </bk-button>
-              </div>
-            </div>
-          </bk-popover>
-        </div>
+    const selectIndexContainer = () => {
+      if (window?.__IS_MONITOR_TRACE__) return null;
+      return (
         <div
-          id='union-tag-box'
-          class='index-tag-box'
+          ref='selectIndexBox'
+          class='select-index-container'
+          v-show={!!this.selectedItemList.length && !this.isAloneType}
         >
-          {this.selectedItemList.map(item => (
-            <bk-tag
-              style='background: #FAFBFD;'
-              type='stroke'
-              closable
-              onClose={() => this.handleCloseSelectTag(item)}
+          <div class='title'>
+            <div class='index-select'>
+              <i18n
+                style='color: #979BA5;'
+                path='已选择{0}个索引集'
+              >
+                {this.selectedItemList.length}
+              </i18n>
+              {this.isOverSelect && <span class='over-select'>{this.$t('每次最多可选择20项')}</span>}
+            </div>
+            <bk-popover
+              ref='favoritePopover'
+              ext-cls='new-favorite-popover'
+              tippy-options={{
+                ...this.tippyOptions,
+                appendTo: () => this.selectIndexBoxRef,
+              }}
+              disabled={!!this.multipleFavoriteSelectID}
+              placement='bottom-start'
             >
-              <span class='tag-name'>
-                {item.isNotVal && <i class='not-val' />}
-                <span
-                  class='title-overflow'
-                  v-bk-overflow-tips
-                >
-                  {item.indexName}
-                </span>
+              <span class='favorite-btn'>
+                <i
+                  class={[
+                    !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
+                  ]}
+                />
+                <span>{this.$t('收藏该组合')}</span>
               </span>
-            </bk-tag>
-          ))}
+              <div slot='content'>
+                <bk-form
+                  ref='checkInputForm'
+                  style={{ width: '100%' }}
+                  labelWidth={0}
+                  {...{
+                    props: {
+                      model: this.verifyData,
+                      rules: this.rules,
+                    },
+                  }}
+                >
+                  <bk-form-item property='favoriteName'>
+                    <span style='color: #63656E;'>{this.$t('收藏名称')}</span>
+                    <bk-input
+                      vModel={this.verifyData.favoriteName}
+                      clearable
+                      onEnter={() => this.handleClickFavoritePopoverBtn('add')}
+                    />
+                  </bk-form-item>
+                </bk-form>
+                <div class='operate-button'>
+                  <bk-button
+                    text
+                    onClick={() => this.handleClickFavoritePopoverBtn('add')}
+                  >
+                    {this.$t('确认收藏')}
+                  </bk-button>
+                  <bk-button
+                    text
+                    onClick={() => this.handleClickFavoritePopoverBtn('cancel')}
+                  >
+                    {this.$t('取消')}
+                  </bk-button>
+                </div>
+              </div>
+            </bk-popover>
+          </div>
+          <div
+            id='union-tag-box'
+            class='index-tag-box'
+          >
+            {this.selectedItemList.map(item => (
+              <bk-tag
+                style='background: #FAFBFD;'
+                type='stroke'
+                closable
+                onClose={() => this.handleCloseSelectTag(item)}
+              >
+                <span class='tag-name'>
+                  {item.isNotVal && <i class='not-val' />}
+                  <span
+                    class='title-overflow'
+                    v-bk-overflow-tips
+                  >
+                    {item.indexName}
+                  </span>
+                </span>
+              </bk-tag>
+            ))}
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
     const indexHandDom = item => {
       if (this.isAloneType) {
         return !window.__IS_MONITOR_COMPONENT__ ? (
