@@ -138,6 +138,7 @@
           </bk-select>
           <bk-select
             class="value-select"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false }"
             v-model="condition[index].value"
             multiple
             searchable
@@ -167,7 +168,9 @@
 </template>
 <style lang="scss">
   .resize-layout-wrap {
-    box-shadow: 0 2px 4px 0 #1919290d;
+    box-shadow:
+      0 2px 8px 0 #00000026,
+      0 1px 0 0 #eaebf0;
 
     .bk-resize-trigger {
       display: none;
@@ -227,6 +230,10 @@
           &.is-focus {
             box-shadow: none;
           }
+        }
+
+        .bk-loading .bk-loading1 {
+          margin-left: -20px;
         }
       }
 

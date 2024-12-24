@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onUnmounted } from 'vue';
+import { onMounted, Ref, onBeforeUnmount } from 'vue';
 
 import { debounce, isElement } from 'lodash';
 
@@ -82,7 +82,7 @@ export default (
     createResizeObserve();
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     destoyResizeObserve();
   });
 

@@ -57,7 +57,7 @@ export default (options: ComputedRef<TextOption>) => {
     const groups = text.split(/<\/?mark>/g);
 
     // 计算最大宽度字符串
-    let truncatedText = '';
+    let truncatedText = text;
     let currentWidth = 0;
     let temp = true;
     const length = groups.length;

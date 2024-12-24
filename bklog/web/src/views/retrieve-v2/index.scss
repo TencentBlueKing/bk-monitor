@@ -1,5 +1,11 @@
 .retrieve-v2-index {
-  height: calc(100vh - 52px);
+  background-color: #f4f7fa;
+
+  &.scroll-y {
+    height: calc(100vh - 52px);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 
   &.show-favorites {
     .sub-head {
@@ -62,8 +68,11 @@
   }
 
   .sub-head {
+    position: relative;
+    z-index: 5;
     display: flex;
     height: 48px;
+    margin-bottom: 8px;
 
     .box-favorites {
       display: flex;
@@ -86,42 +95,85 @@
     }
   }
 
-  .retrieve-body {
-    width: 100%;
-    height: calc(100vh - 104px);
-    padding: 8px;
-    background: #f5f7fa;
+  .retrieve-v2-body {
+    display: flex;
+    background-color: #fafbfd;
 
-    .retrieve-context {
-      height: 100%;
+    .retrieve-collect-index {
+      position: relative;
+      position: sticky;
+      top: 8px;
+      z-index: 3;
 
-      .result-row {
-        width: 100%;
+      align-self: start;
+      overflow: visible;
+    }
+  }
+
+  .retrieve-v2-content {
+    position: relative;
+    width: calc(100% - var(--left-width));
+    // padding-left: 8px;
+    background-color: #f4f7fa;
+
+    &::after {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
+      width: 8px;
+      content: '';
+      background-color: #f4f7fa;
+    }
+
+    .retrieve-tab,
+    .search-result-panel {
+      padding-left: 8px;
+    }
+  }
+
+  .search-result-panel {
+    .search-result-content {
+      min-height: 100%;
+
+      .result-table-container {
         height: 100%;
-        min-height: 120px;
-        margin-top: 8px;
-        background: #ffffff;
-        border-radius: 2px;
-        box-shadow: 0 2px 4px 0 #1919290d;
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-        .search-result-panel {
-          .search-result-content {
-            .result-table-container {
-              height: 100%;
-              margin-top: 12px;
-              overflow: auto;
-            }
+      .finger-container {
+        height: calc(100vh - 310px);
+        margin-top: 12px;
+        overflow: auto;
+      }
 
-            .finger-container {
-              height: calc(100vh - 310px);
-              margin-top: 12px;
-              overflow: auto;
-            }
+      &.is-trend-chart-show {
+        .result-table-container {
+          height: 100%;
+          overflow: auto;
+        }
+      }
+    }
+  }
 
-            &.is-trend-chart-show {
-              .result-table-container {
-                height: 100%;
-                overflow: auto;
+  &.is-sticky-top {
+    .search-bar-wrapper {
+      margin-left: 0;
+    }
+
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            height: calc(100vh - var(--offset-search-bar) - 60px);
+
+            .search-field-filter-new {
+              .field-filter-box {
+                .field-filter-container-new {
+                  height: calc(100vh - var(--offset-search-bar) - 128px);
+                }
               }
             }
           }

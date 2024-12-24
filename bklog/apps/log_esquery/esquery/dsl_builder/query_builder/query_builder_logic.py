@@ -311,7 +311,7 @@ class Is(BoolQueryOperation):
     def to_querystring(self):
         value_list = []
         for value in self._bool_dict["value"]:
-            value = value.replace('"', '\\"')
+            value = str(value).replace('"', '\\"')
             value_list.append(f"\"{value}\"")
         return self.generate_querystring(
             self._bool_dict["field"],
@@ -352,7 +352,7 @@ class IsNot(BoolQueryOperation):
     def to_querystring(self):
         value_list = []
         for value in self._bool_dict["value"]:
-            value = value.replace('"', '\\"')
+            value = str(value).replace('"', '\\"')
             value_list.append(f"\"{value}\"")
         return "NOT " + self.generate_querystring(
             self._bool_dict["field"],
@@ -373,7 +373,7 @@ class IsOneOf(BoolQueryOperation):
     def to_querystring(self):
         value_list = []
         for value in self._bool_dict["value"]:
-            value = value.replace('"', '\\"')
+            value = str(value).replace('"', '\\"')
             value_list.append(f"\"{value}\"")
         return self.generate_querystring(
             self._bool_dict["field"],
@@ -402,7 +402,7 @@ class Gt(CompareBoolQueryOperation):
     OPERATOR = "gt"
 
     def to_querystring(self):
-        value = min(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: >{value}"
 
 
@@ -410,7 +410,7 @@ class Gte(CompareBoolQueryOperation):
     OPERATOR = "gte"
 
     def to_querystring(self):
-        value = min(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: >={value}"
 
 
@@ -418,7 +418,7 @@ class Lt(CompareBoolQueryOperation):
     OPERATOR = "lt"
 
     def to_querystring(self):
-        value = max(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: <{value}"
 
 
@@ -426,7 +426,7 @@ class Lte(CompareBoolQueryOperation):
     OPERATOR = "lte"
 
     def to_querystring(self):
-        value = max(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: <={value}"
 
 
@@ -443,7 +443,7 @@ class LtChar(CompareBoolQueryOperation):
     REAL_OPERATOR = "lt"
 
     def to_querystring(self):
-        value = max(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: <{value}"
 
 
@@ -452,7 +452,7 @@ class GtChar(CompareBoolQueryOperation):
     REAL_OPERATOR = "gt"
 
     def to_querystring(self):
-        value = min(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: >{value}"
 
 
@@ -461,7 +461,7 @@ class LteChar(CompareBoolQueryOperation):
     REAL_OPERATOR = "lte"
 
     def to_querystring(self):
-        value = max(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: <={value}"
 
 
@@ -470,7 +470,7 @@ class GteChar(CompareBoolQueryOperation):
     REAL_OPERATOR = "gte"
 
     def to_querystring(self):
-        value = min(self._bool_dict["value"])
+        value = self._bool_dict["value"][0]
         return f"{self._bool_dict['field']}: >={value}"
 
 

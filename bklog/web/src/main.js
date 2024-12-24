@@ -27,7 +27,6 @@
 import './public-path';
 
 import Vue from 'vue';
-// import VueJsonPretty from 'vue-json-pretty';
 
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
