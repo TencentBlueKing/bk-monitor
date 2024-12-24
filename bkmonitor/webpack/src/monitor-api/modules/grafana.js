@@ -32,7 +32,10 @@ export const bkLogSearchDimension = request('GET', 'query-api/rest/v2/grafana/bk
 export const bkLogSearchTargetTree = request('GET', 'rest/v2/grafana/bk_log_search/grafana/target_tree/');
 export const bkLogSearchQueryLog = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/query_log/');
 export const bkLogSearchGetVariableField = request('GET', 'rest/v2/grafana/bk_log_search/grafana/get_variable_field/');
-export const bkLogSearchGetVariableValue = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/');
+export const bkLogSearchGetVariableValue = request(
+  'POST',
+  'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/'
+);
 export const getLabel = request('GET', 'rest/v2/grafana/get_label/');
 export const getTopoTree = request('GET', 'rest/v2/grafana/topo_tree/');
 export const getDimensionValues = request('GET', 'rest/v2/grafana/get_dimension_values/');
@@ -84,6 +87,7 @@ export const listApplicationServices = request('GET', 'rest/v2/grafana/get_profi
 export const queryServicesDetail = request('GET', 'rest/v2/grafana/get_profile_type/');
 export const grafanaQueryProfileLabel = request('GET', 'rest/v2/grafana/get_profile_label/');
 export const grafanaQueryProfileLabelValues = request('GET', 'rest/v2/grafana/get_profile_label_values/');
+export const getRelatedStrategy = request('POST', 'rest/v2/grafana/get_related_strategy/');
 
 export default {
   test,
@@ -145,4 +149,5 @@ export default {
   queryServicesDetail,
   grafanaQueryProfileLabel,
   grafanaQueryProfileLabelValues,
+  getRelatedStrategy,
 };

@@ -100,20 +100,11 @@ DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
 
-# CELERY 开关，使用时请改为 True，修改项目目录下的 Procfile 文件，添加以下两行命令：
-# worker: python manage.py celery worker -l info
-# beat: python manage.py celery beat -l info
-# 不使用时，请修改为 False，并删除项目目录下的 Procfile 文件中 celery 配置
-IS_USE_CELERY = False
-
 # 前后端分离开发配置开关，设置为True时允许跨域访问
 FRONTEND_BACKEND_SEPARATION = True
 
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)  # noqa
-
-# CELERY 配置，申明任务的文件路径，即包含有 @task 装饰器的函数文件
-CELERY_IMPORTS = ()
 
 # load logging settings
 LOGGING = get_logging_config_dict(locals())
@@ -433,11 +424,6 @@ REPORT_DASHBOARD_UID = "CzhKanwtf"
 # celery worker进程数量
 CELERY_WORKERS = 0
 
-# celery 默认禁用事件队列
-CELERY_SEND_EVENTS = False
-CELERY_SEND_TASK_SENT_EVENT = False
-CELERY_TRACK_STARTED = False
-
 # 当 ES 存在不合法别名时，是否保留该索引
 ES_RETAIN_INVALID_ALIAS = True
 
@@ -477,9 +463,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
-
-# 后台celery存储配置类型rabbitmq_conf/redis_conf
-CELERY_CONF_TYPE = "rabbitmq_conf"
 
 # 日期格式
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"

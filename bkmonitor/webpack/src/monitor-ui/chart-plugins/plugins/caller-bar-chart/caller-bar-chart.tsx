@@ -342,4 +342,10 @@ class CallerBarChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<IPieEchartProps>().convert(CallerBarChart);
+export default ofType<
+  IPieEchartProps,
+  {
+    /** 图表鼠标右击事件的回调方法 */
+    onMenuClick?: (data: IDataItem) => void;
+  }
+>().convert(CallerBarChart);

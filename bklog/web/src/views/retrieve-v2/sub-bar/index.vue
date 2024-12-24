@@ -15,6 +15,7 @@
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import { bus } from '@/common/bus';
 
   const props = defineProps({
     showFavorites: {
@@ -34,7 +35,12 @@
     const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
     return currentIndexSet?.collector_config_id;
   });
-  const FieldSettingShow = ref(true);
+
+  const isExternal = computed(() => store.state.isExternal);
+
+  const isFieldSettingShow = computed(() => {
+    return !store.getters.isUnionSearch && !isExternal.value;
+  });
 
   const setRouteParams = (ids, isUnionIndex) => {
     if (isUnionIndex) {
@@ -46,6 +52,7 @@
         query: {
           ...route.query,
           unionList: JSON.stringify(ids),
+          clusterParams: undefined,
         },
       });
 
@@ -57,7 +64,7 @@
         ...route.params,
         indexId: ids[0],
       },
-      query: route.query,
+      query: { ...route.query, unionList: undefined, clusterParams: undefined },
     });
   };
 
@@ -80,17 +87,17 @@
     });
   };
 
-  const handleIndexSetSelected = payload => {
+  const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
       setRouteParams(payload.ids, payload.isUnionIndex);
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.commit('retrieve/updateChartKey');
 
       store.commit('updateIndexItem', payload);
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
       }
-      store.dispatch('requestIndexSetFieldInfo');
+      await store.dispatch('requestIndexSetFieldInfo');
       store.dispatch('requestIndexSetQuery');
     }
   };
@@ -119,14 +126,6 @@
       store.dispatch('requestIndexSetQuery');
     });
   };
-  // 监听单选还是多选,多选不展示字段配置
-  const updateBtnSelect = payload => {
-    if (payload === 'single') {
-      FieldSettingShow.value = true;
-    } else {
-      FieldSettingShow.value = false;
-    }
-  };
 </script>
 <template>
   <div class="subbar-container">
@@ -137,17 +136,19 @@
       <SelectIndexSet
         style="min-width: 500px"
         :popover-options="{ offset: '-6,10' }"
-        @change="updateBtnSelect"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="box-right-option">
       <VersionSwitch version="v2" />
-      <FieldSetting v-show="FieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
+      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
-      <div class="more-setting">
+      <div
+        class="more-setting"
+        v-if="!isExternal"
+      >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>
     </div>

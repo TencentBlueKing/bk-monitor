@@ -31,16 +31,17 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
-import {
-  type DashboardColumnType,
-  type IPanelModel,
-  type ObservablePanelField,
-  PanelModel,
-  type ZrClickEvent,
-} from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
+import type {
+  DashboardColumnType,
+  IPanelModel,
+  ObservablePanelField,
+  IDataItem,
+  PanelModel,
+  ZrClickEvent,
+} from '../typings';
 import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
@@ -68,7 +69,8 @@ interface IDashboardPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
   onZrClick?: (event: ZrClickEvent) => void;
-  onMenuClick?: (data) => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
 }
 @Component
 export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {

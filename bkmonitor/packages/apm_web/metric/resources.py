@@ -567,6 +567,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="log_data_status",
@@ -577,6 +578,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="trace_data_status",
@@ -587,6 +589,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="profiling_data_status",
@@ -597,6 +600,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             NumberTableFormat(
                 id="strategy_count",
@@ -913,28 +917,7 @@ class ServiceListResource(PageListResource):
         # 2. 获取服务收藏列表
         collects = CollectServiceResource.get_collect_config(application).config_value
 
-        # 3. 获取服务的数据状态
         res = []
-        # 先获取缓存数据
-        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
-        data_status_mapping = cache.get(cache_key)
-        if data_status_mapping:
-            try:
-                data_status_mapping = json.loads(data_status_mapping)
-            except JSONDecodeError:
-                pass
-        if not data_status_mapping:
-            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
-            start_time, end_time = get_datetime_range("minute", application.no_data_period)
-            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
-                application,
-                start_time,
-                end_time,
-                services,
-            )
-            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
-
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
             operator.attrgetter("level_key"),
@@ -956,18 +939,6 @@ class ServiceListResource(PageListResource):
                     "service_name": name,
                     "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.METRIC.value, DataStatus.DISABLED
-                    ),
-                    "log_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.LOG.value, DataStatus.DISABLED
-                    ),
-                    "trace_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.TRACE.value, DataStatus.DISABLED
-                    ),
-                    "profiling_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.PROFILING.value, DataStatus.DISABLED
-                    ),
                     "operation": {
                         "config": _lazy("配置"),
                     },
@@ -1023,6 +994,8 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         "strategy_count": {},
         # alert_status 特殊处理
         "alert_status": {},
+        # data_status 特殊处理
+        "data_status": {},
     }
 
     SyncResource = ServiceListResource
@@ -1076,7 +1049,32 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         return service_names
 
     @classmethod
-    def _get_service_strategy_mapping(cls, application, start_time, end_time):
+    def _get_data_status_mapping(cls, service_names, application, **kwargs):
+        """获取服务的数据状态"""
+        # 先获取缓存数据
+        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
+        data_status_mapping = cache.get(cache_key)
+        if data_status_mapping:
+            try:
+                data_status_mapping = json.loads(data_status_mapping)
+            except JSONDecodeError:
+                pass
+        if not data_status_mapping:
+            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
+            start_time, end_time = get_datetime_range("minute", application.no_data_period)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+                application,
+                start_time,
+                end_time,
+                [{"topo_key": service_name} for service_name in service_names],
+            )
+            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
+
+        return data_status_mapping
+
+    @classmethod
+    def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
         """获取服务的策略和告警信息"""
         query_params = {
             "bk_biz_id": application.bk_biz_id,
@@ -1146,7 +1144,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             else:
                 service_alert_status_mapping[svr] = ServiceStatus.NORMAL
 
-        return service_strategy_count_mapping, service_alert_status_mapping
+        return {"strategy_count": service_strategy_count_mapping, "alert_status": service_alert_status_mapping}.get(
+            column, {}
+        )
 
     def perform_request(self, validated_data):
         column = validated_data["column"]
@@ -1162,8 +1162,14 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "end_time": validated_data["end_time"],
         }
 
-        if column in ["strategy_count", "alert_status"]:
-            info_mapping = self._get_service_strategy_mapping(**metric_params)
+        multi_sub_columns = None
+        default_value = None
+        if column in ["data_status"]:
+            info_mapping = self._get_data_status_mapping(validated_data["service_names"], **metric_params)
+            multi_sub_columns = [f"{data_type}_data_status" for data_type in TelemetryDataType.values()]
+            default_value = DataStatus.DISABLED
+        elif column in ["strategy_count", "alert_status"]:
+            info_mapping = self._get_service_strategy_mapping(column, **metric_params)
         else:
             info_mapping = self._get_column_metric_mapping(m, metric_params)
 
@@ -1171,11 +1177,16 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             res.append(
                 {
                     "service_name": service_name,
-                    **self.get_async_column_item({column: info_mapping.get(service_name)}, column),
+                    **self.get_async_column_item(
+                        {column: info_mapping.get(service_name)},
+                        column,
+                        multi_sub_columns=multi_sub_columns,
+                        default_value=default_value,
+                    ),
                 }
             )
 
-        return self.get_async_data(res, validated_data["column"])
+        return self.get_async_data(res, validated_data["column"], multi_sub_columns=multi_sub_columns)
 
 
 class CollectServiceResource(Resource):

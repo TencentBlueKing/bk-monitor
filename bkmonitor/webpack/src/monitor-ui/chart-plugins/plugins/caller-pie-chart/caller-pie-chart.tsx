@@ -312,4 +312,10 @@ class CallerPieChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<IPieEchartProps>().convert(CallerPieChart);
+export default ofType<
+  IPieEchartProps,
+  {
+    /** 图表鼠标右击事件的回调方法 */
+    onMenuClick?: (data: IDataItem) => void;
+  }
+>().convert(CallerPieChart);

@@ -40,7 +40,7 @@ const setSubCombosMap = (val: any) => {
  * @param id
  * @returns
  */
-const filterSubCombo = id => (subCombosMap[id] ?? 0) > 1;
+const filterSubCombo = id => (subCombosMap[id] ?? 0) > 0;
 
 const getRootCombos = data => {
   return (data.combos?.filter(combo => !combo.parentId) ?? []).map(combo =>
@@ -150,7 +150,6 @@ const updatePositionFromLayouted = (layouted, data, parent?, index?) => {
     const startX = parent?.x;
     const startY = parent?.y;
     const isVirtualBox = (parent?.isVirtual && parent?.isCombo && !parent?.isRoot) ?? false;
-
     Object.assign(target, {
       fixSize: [fixWidth, fixHeight],
       width: fixWidth,

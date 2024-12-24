@@ -487,6 +487,7 @@ export default {
     'No call records for the current "{preText}" in {perAfterString} analysis',
   '跳转到「{intersection}」拓扑页面': 'Jump to the "{intersection}" topology page',
   '跳转到「{intersection}」调用分析页面': 'Jump to the "{intersection}" call analysis page',
+  请求量: 'Request volume',
   '成功/异常/超时率': 'Success/Exception/Timeout Rate',
   '耗时（ms）': 'Time consuming (ms)',
   下钻至: 'Drill down to',
@@ -494,5 +495,8 @@ export default {
   不等于: 'not equal',
   前匹配: 'match before',
   后匹配: 'match after',
+  包含: 'Include',
+  不包含: 'Not included',
+  正则: 'regular',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
 };

@@ -111,7 +111,7 @@
         </bk-option>
       </bk-select>
     </div>
-    <div v-show="options.category !== 'table'">
+    <div v-show="options.category !== 'table' && options.category !== 'number'">
       <div class="title">{{ this.$t('维度') }}</div>
       <bk-select
         :value="options.xFields"
@@ -161,13 +161,9 @@
           :key="option"
           :id="option"
           :name="option"
-          :disabled="
-            list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)
-          "
+          :disabled="list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)"
         >
-          <div
-            v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option)"
-          >
+          <div v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option)">
             {{ option }}
           </div>
           <div

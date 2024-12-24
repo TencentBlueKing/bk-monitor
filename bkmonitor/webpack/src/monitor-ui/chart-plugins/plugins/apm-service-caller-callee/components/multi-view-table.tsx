@@ -990,7 +990,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       this.dimensionChartOpt.dimensionTime = {};
     }
     this.drillFilterData = data;
-    this.dimensionChartOpt.drillFilterData = data;
+    this.dimensionChartOpt.drillFilterData = data.filter(item => item.key !== 'time');
     this.dimensionChartOpt.drillGroupBy = this.drillGroupBy;
     this.$emit('dimensionKeyChange', { drillFilterData: this.drillFilterData });
   }

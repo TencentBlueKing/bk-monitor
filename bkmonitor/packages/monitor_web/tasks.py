@@ -22,8 +22,8 @@ from typing import Any, Dict
 import arrow
 from arrow.parser import ParserError
 from bkstorages.exceptions import RequestError
+from celery import shared_task
 from celery.signals import task_postrun
-from celery.task import task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
@@ -86,7 +86,7 @@ from utils import business, count_md5
 logger = logging.getLogger("monitor_web")
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
     logger.info(
         "[record_login_user] task start: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
@@ -112,7 +112,7 @@ def record_login_user(username: str, source: str, last_login: float, space_info:
         )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def active_business(username: str, space_info: Dict[str, Any]):
     logger.info("[active_business] task start: username -> %s, space_info -> %s", username, space_info)
     try:
@@ -123,7 +123,7 @@ def active_business(username: str, space_info: Dict[str, Any]):
         )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def run_init_builtin(bk_biz_id):
     if bk_biz_id and settings.ENVIRONMENT != "development":
         logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
@@ -157,7 +157,7 @@ def run_init_builtin(bk_biz_id):
         logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_config_instance_count():
     """
     周期性查询节点管理任务状态，更新启用中的采集配置的主机数和异常数
@@ -165,7 +165,7 @@ def update_config_instance_count():
     resource.collecting.update_config_instance_count()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_external_approval_status():
     """
     周期性查询外部版权限审批单据状态，更新审批结果
@@ -178,7 +178,7 @@ def update_external_approval_status():
             resource.iam.callback(approve_result)
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def update_metric_list():
     """
     定时刷新指标列表结果表
@@ -283,7 +283,7 @@ def update_metric_list():
     logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
 
 
-@task(queue="celery_resource")
+@shared_task(queue="celery_resource")
 def update_metric_list_by_biz(bk_biz_id):
     from monitor.models import ApplicationConfig
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
@@ -320,7 +320,7 @@ def update_metric_list_by_biz(bk_biz_id):
     ApplicationConfig.objects.filter(cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_update_metric_cache").delete()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def run_metric_manager_async(manager):
     """
     异步执行更新任务
@@ -328,7 +328,7 @@ def run_metric_manager_async(manager):
     manager._run()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_cmdb_util_info():
     """
     更新cc util的缓存数据
@@ -337,7 +337,7 @@ def update_cmdb_util_info():
     CmdbUtil.refresh()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def append_metric_list_cache(result_table_id_list):
     """
     追加或更新新增的采集插件标列表
@@ -392,7 +392,7 @@ def append_metric_list_cache(result_table_id_list):
             update_or_create_metric_list_cache(create_msg)
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_failure_shield_content():
     """
     更新失效的屏蔽策略的内容信息
@@ -400,7 +400,7 @@ def update_failure_shield_content():
     resource.shield.update_failure_shield_content()
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def import_config(
     username,
     bk_biz_id,
@@ -440,7 +440,7 @@ def import_config(
         history_instance.save()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def remove_file(file_path):
     """
     定时删除指定文件夹
@@ -452,7 +452,7 @@ def remove_file(file_path):
         default_storage.delete(file_path.replace(settings.MEDIA_ROOT, ""))
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def append_event_metric_list_cache(bk_event_group_id):
     """
     追加或更新新增的自定义事件入缓存表
@@ -484,7 +484,7 @@ def append_event_metric_list_cache(bk_event_group_id):
         BkMonitorLogCacheManager().run()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_uptime_check_task_status():
     """
     定时刷新 starting 状态的拨测任务
@@ -496,7 +496,7 @@ def update_uptime_check_task_status():
         update_task_running_status(task_id)
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def update_task_running_status(task_id):
     """
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
@@ -505,7 +505,7 @@ def update_task_running_status(task_id):
     resource.uptime_check.update_task_running_status(task_id)
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def append_custom_ts_metric_list_cache(time_series_group_id):
     from bkmonitor.models.metric_list_cache import MetricListCache
     from monitor_web.strategies.metric_list_cache import CustomMetricCacheManager
@@ -539,7 +539,7 @@ def get_aiops_access_func(algorithm: AlgorithmModel.AlgorithmChoices) -> callabl
     }.get(algorithm, access_aiops_by_strategy_id)
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict, query_config: QueryConfig):
     deploy_data = api.bkdata.get_dataflow_deploy_data(flow_id=flow_id)
     deploy_task_data = {item["id"]: item for item in deploy_data}
@@ -596,7 +596,7 @@ def report_aiops_access_metrics(base_labels: Dict, result: str, exception: str =
     metrics.report_all()
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def access_aiops_by_strategy_id(strategy_id):
     """
     根据策略ID接入智能检测算法
@@ -815,7 +815,7 @@ def access_aiops_by_strategy_id(strategy_id):
     rt_query_config.save()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def access_pending_aiops_strategy():
     """
     找到状态为 PENDING 的 AIOps 策略，并尝试接入
@@ -851,7 +851,7 @@ def access_pending_aiops_strategy():
         )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def maintain_aiops_strategies():
     """
     aiops的状态维护
@@ -874,7 +874,7 @@ def maintain_aiops_strategies():
     maintainer.check_strategies_valid()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_report_receivers():
     """
     更新订阅报表接收组人员
@@ -893,7 +893,7 @@ def update_report_receivers():
         report_item.save()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def refresh_dashboard_strategy_snapshot():
     """
     刷新仪表盘策略快照
@@ -909,7 +909,7 @@ def refresh_dashboard_strategy_snapshot():
         query_config.save()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def collect_metric(collect):
     """
     异步执行采集任务
@@ -943,7 +943,7 @@ def collect_metric(collect):
             )
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_statistics_data():
     """
     定时更新运营指标数据
@@ -997,7 +997,7 @@ def parse_scene_metrics(plan_args):
     ]
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_access_scenes):
     """
     根据业务ID创建多指标异常检测flow
@@ -1116,7 +1116,7 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
             return
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def stop_aiops_multivariate_anomaly_detection_flow(access_bk_biz_id, need_stop_scenes):
     """
     停止对应业务ai设置下的场景
@@ -1139,7 +1139,7 @@ def stop_aiops_multivariate_anomaly_detection_flow(access_bk_biz_id, need_stop_s
             continue
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def access_biz_metric_recommend_flow(access_bk_biz_id):
     """接入业务指标推荐flow
 
@@ -1170,7 +1170,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         logger.exception(err_msg)
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def access_host_anomaly_detect_by_strategy_id(strategy_id):
     from bkmonitor.data_source.handler import DataQueryHandler
     from bkmonitor.models import (
@@ -1328,7 +1328,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     rt_query_config.save()
 
 
-@task(ignore_result=True, queue="celery_resource")
+@shared_task(ignore_result=True, queue="celery_resource")
 def clean_bkrepo_temp_file():
     """
     清理bkrepo临时文件
@@ -1375,7 +1375,7 @@ def clean_bkrepo_temp_file():
                 pass
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_metric_json_from_ts_group():
     """
     对开启了自动发现的插件指标进行保存
@@ -1418,7 +1418,7 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
     local.clear()
 
 
-@task(ignore_result=True)
+@shared_task(ignore_result=True)
 def update_target_detail(bk_biz_id=None):
     """
     对启用了缓存的业务ID，更新监控目标详情缓存

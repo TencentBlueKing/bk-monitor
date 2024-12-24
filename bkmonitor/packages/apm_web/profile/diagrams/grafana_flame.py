@@ -51,7 +51,7 @@ class GrafanaFlameDiagrammer:
         values.append(node.value)
         selfs.append(node.self_time)
 
-        for c in node.children:
+        for c in node.children.values():
             self.convert(c, level + 1, levels, labels, selfs, values)
 
         return levels, labels, selfs, values

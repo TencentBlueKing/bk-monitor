@@ -485,7 +485,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       };
     });
 
-    console.log(this.dimensionList, 'this.dimensionList', this.tagFilterList);
     this.tableColumn = tableColumn;
     this.handleClearData();
     !isDrill && this.getPageList();

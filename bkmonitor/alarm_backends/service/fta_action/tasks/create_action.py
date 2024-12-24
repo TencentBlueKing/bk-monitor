@@ -4,7 +4,6 @@ import math
 import time
 from typing import List
 
-from celery.task import task
 from django.conf import settings
 from django.utils.translation import gettext as _
 from elasticsearch import ConflictError
@@ -25,6 +24,7 @@ from alarm_backends.service.fta_action.tasks.noise_reduce import (
     NoiseReduceRecordProcessor,
 )
 from alarm_backends.service.fta_action.utils import PushActionProcessor, need_poll
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.action.serializers import ActionPluginSlz
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
@@ -46,7 +46,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("fta_action.run")
 
 
-@task(ignore_result=True, queue="celery_action")
+@app.task(ignore_result=True, queue="celery_action")
 def create_actions(
     strategy_id,
     signal,
@@ -114,7 +114,7 @@ def create_actions(
     return actions
 
 
-@task(ignore_result=True, queue="celery_interval_action")
+@app.task(ignore_result=True, queue="celery_interval_action")
 def create_interval_actions(
     strategy_id,
     signal,
@@ -172,7 +172,7 @@ def check_create_poll_action():
         check_create_poll_action_10_secs.apply_async(countdown=interval, expires=120)
 
 
-@task(ignore_result=True, queue="celery_action_cron")
+@app.task(ignore_result=True, queue="celery_action_cron")
 def check_create_poll_action_10_secs():
     """
     每10s进行一次数据查询
