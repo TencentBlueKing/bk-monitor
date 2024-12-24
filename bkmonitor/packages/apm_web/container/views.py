@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from apm_web.container.resources import ListServicePodsResource, PodDetailResource
+from apm_web.decorators import user_visit_record
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import BusinessActionPermission, InstanceActionForDataPermission
@@ -34,6 +35,11 @@ class K8sViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", ListServicePodsResource, "list_service_pods"),
+        ResourceRoute(
+            "POST",
+            ListServicePodsResource,
+            endpoint="list_service_pods",
+            decorators=[user_visit_record],
+        ),
         ResourceRoute("POST", PodDetailResource, "pod_detail"),
     ]

@@ -162,4 +162,6 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.apm_web.grafana_query_profile_label, endpoint="get_profile_label"),
         # profile label_values
         ResourceRoute("GET", resource.apm_web.grafana_query_profile_label_values, endpoint="get_profile_label_values"),
+        # 获取仪表盘图表关联的策略
+        ResourceRoute("POST", resource.grafana.get_related_strategy, endpoint="get_related_strategy"),
     ]

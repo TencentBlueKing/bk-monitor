@@ -814,6 +814,7 @@ export default {
   请输入列数: 'Please enter the number of columns',
   请输入日志样例: 'Please enter a log sample',
   '第{n}行': '{n} line',
+  '第{n}列': '{n} column',
   '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
   分隔符匹配: 'Delimiter match',
   默认定位: 'Default target',
