@@ -105,6 +105,7 @@ export default defineComponent({
           },
         };
         app._$route = currentRoute;
+        app.$t = (...args) => i18n.t(...args);
         unPropsWatch = watch([timeRange, refleshImmediate, refleshInterval], () => {
           app.$forceUpdate();
         });
