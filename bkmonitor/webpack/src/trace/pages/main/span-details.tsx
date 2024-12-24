@@ -118,7 +118,7 @@ export default defineComponent({
 
     const spans = computed(() => store.spanGroupTree);
 
-    const countOfInfo = ref<object | Record<TabName, number>>({});
+    // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
 
     // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
@@ -159,7 +159,7 @@ export default defineComponent({
         } else {
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
-          countOfInfo.value = {};
+          // countOfInfo.value = {};
         }
       }
     );
@@ -368,29 +368,32 @@ export default defineComponent({
         }
         if (events?.length) {
           eventList.push(
-            ...events.map(
-              (item: {
-                timestamp: number;
-                duration: number;
-                name: any;
-                attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-              }) => ({
-                isExpan: false,
-                header: {
-                  date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                  duration: formatDuration(item.duration),
-                  name: item.name,
-                },
-                content: item.attributes.map(attribute => ({
-                  label: attribute.key,
-                  content: attribute.value || '--',
-                  type: attribute.type,
-                  isFormat: false,
-                  query_key: attribute?.query_key || '',
-                  query_value: attribute?.query_value || '',
-                })),
-              })
-            )
+            ...events
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map(
+                (item: {
+                  timestamp: number;
+                  duration: number;
+                  name: any;
+                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
+                }) => ({
+                  isExpan: false,
+                  header: {
+                    timestamp: item.timestamp,
+                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                    duration: formatDuration(item.duration),
+                    name: item.name,
+                  },
+                  content: item.attributes.map(attribute => ({
+                    label: attribute.key,
+                    content: attribute.value || '--',
+                    type: attribute.type,
+                    isFormat: false,
+                    query_key: attribute?.query_key || '',
+                    query_value: attribute?.query_value || '',
+                  })),
+                })
+              )
           );
         }
         info.list.push({
@@ -496,12 +499,12 @@ export default defineComponent({
         });
       }
 
-      // TODO：先统计事件的数量
-      info.list.forEach(item => {
-        if (item.type === EListItemType.events) {
-          countOfInfo.value = Object.assign({}, { Event: item?.Events?.list?.length || 0 });
-        }
-      });
+      // // TODO：先统计事件的数量
+      // info.list.forEach(item => {
+      //   if (item.type === EListItemType.events) {
+      //     countOfInfo.value = Object.assign({}, { Event: item?.Events?.list?.length || 0 });
+      //   }
+      // });
     }
 
     /** 递归检测符合json格式的字符串并转化 */
@@ -747,7 +750,12 @@ export default defineComponent({
               class={['tags-row', { grey: !(index % 2) }]}
             >
               <span class='left'>
-                {item.label}
+                <span
+                  class='left-title'
+                  v-bk-overflow-tips
+                >
+                  {item.label}
+                </span>
                 <div class='operator'>
                   <EnlargeLine
                     class='icon-add-query'
@@ -879,7 +887,7 @@ export default defineComponent({
         name: 'BasicInfo',
       },
       {
-        label: t('异常事件'),
+        label: t('事件'),
         name: 'Event',
       },
       {
@@ -1024,10 +1032,9 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
-      if (!originalData.value) return;
       const halfHour = 18 * 10 ** 8;
-      const profilingRerieveStartTime = originalData.value.start_time - halfHour;
-      const profilingRerieveEndTime = originalData.value.start_time + halfHour;
+      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
+      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
       return (
         <Loading
           style='height: 100%;'
@@ -1119,8 +1126,8 @@ export default defineComponent({
                         v-slots={{
                           label: () => (
                             <div style='display: flex;'>
-                              <span>{item.label}</span>
-                              {countOfInfo.value?.[item.name] ? (
+                              <span>{item.label || '-'}</span>
+                              {/* {countOfInfo.value?.[item.name] ? (
                                 <span
                                   class={{
                                     'num-badge': true,
@@ -1131,7 +1138,7 @@ export default defineComponent({
                                 </span>
                               ) : (
                                 ''
-                              )}
+                              )} */}
                             </div>
                           ),
                         }}
@@ -1195,6 +1202,14 @@ export default defineComponent({
                                     child.header.name,
                                     tagsTemplate(child.content),
                                     [
+                                      <span
+                                        key='subtitle'
+                                        class='expan-item-small-subtitle'
+                                      >
+                                        {child.isExpan
+                                          ? ''
+                                          : child.content.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
+                                      </span>,
                                       <span
                                         key='time'
                                         class='time'
@@ -1399,7 +1414,7 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
-      countOfInfo,
+      // countOfInfo,
     };
   },
   render() {
