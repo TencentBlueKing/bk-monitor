@@ -28,9 +28,8 @@ import { ref, computed, inject, watch, defineComponent, Ref, h } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
+import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { debounce } from 'lodash';
-
-import UseTextSegmentation from '../../../../hooks/use-text-segmentation';
 
 import './text-segmentation.scss';
 export default defineComponent({
@@ -65,9 +64,10 @@ export default defineComponent({
       },
     });
 
+    const textContent = computed(() => `${props.content}`.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
     const renderText: Ref<{ child?: boolean | number | string; className?: string; tag?: string }[]> = ref([
       {
-        child: props.content,
+        child: textContent.value,
         tag: 'span',
         className: 'others-text',
       },
@@ -161,7 +161,7 @@ export default defineComponent({
         );
       }
 
-      return <span>{props.content}</span>;
+      return <span>{textContent.value}</span>;
     };
 
     const renderBody = () => {
