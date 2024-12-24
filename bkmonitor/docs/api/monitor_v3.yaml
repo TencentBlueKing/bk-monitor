@@ -2338,7 +2338,7 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
-  dest_path: /apm_api/v1/application/query_app_by_trace/
+  dest_path: /apm_api/v1/application_web/query_app_by_trace/
   is_hidden: true
   label: 根据traceId列表获取App关联
   label_en: query app by trace
