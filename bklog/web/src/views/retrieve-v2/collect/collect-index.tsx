@@ -344,7 +344,6 @@ export default class CollectIndex extends tsc<IProps> {
       });
     }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
-
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,

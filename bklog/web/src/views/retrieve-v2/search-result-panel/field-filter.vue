@@ -25,12 +25,11 @@
   const sortList = computed(() => {
     return store.state.indexFieldInfo.sort_list;
   });
+
   const totalFields = computed(() => {
     return store.state.indexFieldInfo.fields;
   });
-  const indexId = computed(() => {
-    return store.state.indexId;
-  });
+
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     store.state.indexFieldInfo.fields.forEach(item => {
@@ -38,9 +37,10 @@
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
       // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
-        ? item.field_alias || item.field_name
-        : item.alias_name || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] =
+        fieldShowName.value === 'field_name'
+          ? item.field_alias || item.field_name
+          : item.alias_name || item.field_alias || item.field_name;
     });
     return fieldAliasMap;
   });
@@ -62,20 +62,18 @@
    * @param {Array} displayFieldNames 展示字段
    */
   const handleFieldsUpdated = async displayFieldNames => {
-    store.commit('updateIsSetDefaultTableColumn', false);
     store.dispatch('userFieldConfigChange', {
       displayFields: displayFieldNames,
     });
     await nextTick();
     store.commit('resetVisibleFields', displayFieldNames);
+    store.commit('updateIsSetDefaultTableColumn', false);
   };
   const handleCloseFilterTitle = isTextClick => {
     if (isTextClick && props.value) return;
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
-  const handlerChange = (value) => {
-  }
 </script>
 
 <template>

@@ -73,7 +73,6 @@ export default class FieldFilterComp extends tsc<object> {
   ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
-  fieldContainerHeight = 400;
 
   isShowErrInfo = false;
 
@@ -244,23 +243,6 @@ export default class FieldFilterComp extends tsc<object> {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
   }
 
-  mounted() {
-    window.addEventListener('resize', this.updateContainerHeight);
-    this.updateContainerHeight();
-  }
-
-  beforeDestroy() {
-    window.removeEventListener('resize', this.updateContainerHeight);
-  }
-
-  @Debounce(200)
-  updateContainerHeight() {
-    this.$nextTick(() => {
-      const height = Math.floor(window.innerHeight - this.fieldFilterRef?.getBoundingClientRect().top);
-      this.fieldContainerHeight = height >= 150 ? height : 150;
-    });
-  }
-
   // 字段类型过滤：可聚合、字段类型
   handleFilter({ polymerizable, fieldType }) {
     this.polymerizable = polymerizable;
@@ -340,7 +322,6 @@ export default class FieldFilterComp extends tsc<object> {
         </div>
         <div
           ref='fieldFilter'
-          style={{ height: `${this.fieldContainerHeight}px` }}
           class='field-filter-container-new'
         >
           {!this.totalFields.length && (
