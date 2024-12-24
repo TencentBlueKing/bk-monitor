@@ -27,8 +27,10 @@ import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
 
 import { debounce } from 'lodash';
 
+import { getTargetElement } from './hooks-helper';
+
 export default (
-  target: Ref<HTMLElement>,
+  target: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string,
   callback: (entry: IntersectionObserverEntry) => void,
   options?: IntersectionObserverInit,
 ) => {
@@ -57,8 +59,9 @@ export default (
       },
     );
 
-    if (target.value) {
-      observer?.observe(target.value);
+    const targetElement = getTargetElement(target);
+    if (targetElement) {
+      observer?.observe(targetElement);
     }
   };
 

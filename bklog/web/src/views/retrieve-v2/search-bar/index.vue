@@ -21,6 +21,8 @@
   import CommonFilterSettingPop from './common-filter-setting-pop.vue';
   import { bkMessage } from 'bk-magic-vue';
   import CommonFilterSelect from './common-filter-select.vue';
+  import useResizeObserve from '../../../hooks/use-resize-observe';
+  import { debounce } from 'lodash';
 
   const props = defineProps({
     activeFavorite: {
@@ -33,6 +35,7 @@
   const store = useStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
+  const refRootElement = ref(null);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
   const route = useRoute();
@@ -94,6 +97,7 @@
   watch(clearSearchValueNum, () => {
     handleClearBtnClick();
   });
+
   const formatAddition = addition => {
     return addition.map(v => {
       const value = {
@@ -315,9 +319,19 @@
       copyMessage(JSON.stringify(keyword), $t('复制成功'));
     }
   };
+
+  useResizeObserve(
+    refRootElement,
+    debounce(() => {
+      handleHeightChange(refRootElement.value.offsetHeight);
+    }),
+  );
 </script>
 <template>
-  <div>
+  <div
+    ref="refRootElement"
+    :class="['search-bar-wrapper', { readonly: isChartMode }]"
+  >
     <div :class="['search-bar-container', { readonly: isChartMode }]">
       <div
         class="search-options"
@@ -334,12 +348,10 @@
           v-if="activeIndex === 0"
           v-model="uiQueryValue"
           @change="handleQueryChange"
-          @height-change="handleHeightChange"
         ></UiInput>
         <SqlQuery
           v-if="activeIndex === 1"
           v-model="sqlQueryValue"
-          @height-change="handleHeightChange"
           @retrieve="handleSqlRetrieve"
         ></SqlQuery>
         <div class="search-tool items">

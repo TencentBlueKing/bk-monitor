@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, type Ref } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -304,7 +304,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
     }

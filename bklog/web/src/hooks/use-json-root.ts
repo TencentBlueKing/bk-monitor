@@ -100,7 +100,7 @@ export default ({ fields, onSegmentClick }) => {
   const destroy = () => {
     rootFieldOperator.values().forEach(value => {
       if (value.isJson && value.ref.value) {
-        value.editor?.initEditor(0);
+        value.editor?.destroy();
       }
 
       if (!value.isJson) {
