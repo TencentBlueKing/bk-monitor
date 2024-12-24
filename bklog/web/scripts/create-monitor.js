@@ -40,7 +40,19 @@ const createMonitorConfig = config => {
           from: resolve(__dirname, `./${process.env.MONITOR_APP}-package.json`),
           to: resolve(outputUrl, './package.json'),
         },
-      ],
+        isTrace
+          ? {
+              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/fonts/iconcool.*'),
+              to: resolve(outputUrl, './fonts/[name][ext]'),
+            }
+          : undefined,
+        isTrace
+          ? {
+              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/images/*.(png|svg)'),
+              to: resolve(outputUrl, './images/[name][ext]'),
+            }
+          : undefined,
+      ].filter(Boolean),
     }),
   );
   config.plugins.push(
