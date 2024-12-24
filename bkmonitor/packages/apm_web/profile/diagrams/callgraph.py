@@ -285,7 +285,7 @@ class CallGraphDiagrammer:
                 ],
                 "call_graph_relation": edges,
             },
-            "call_graph_all": c.tree.root.value,
+            "call_graph_all": c.tree.map_root.value,
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             # 补充 sample_type 信息

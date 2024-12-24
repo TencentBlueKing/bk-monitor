@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = logging.getLogger("apm")
 
@@ -116,12 +116,6 @@ class FunctionTree:
     map_root: FunctionNode
     function_node_map: Dict[str, FunctionNode] = field(default_factory=dict)
 
-    def find_similar_child(self, other_child: "FunctionNode") -> Optional["FunctionNode"]:
-        for node in self.function_node_map.values():
-            if node.id == other_child.id:
-                return node
-        return None
-
 
 class ValueCalculator:
     @classmethod
@@ -150,15 +144,6 @@ class ValueCalculator:
             node.value = c.calculate(node.values)
 
         tree.map_root.value = sum([child.value for child in tree.map_root.children.values()])
-
-    @classmethod
-    def adjust_node_values(cls, node: FunctionNode):
-        if not node.children:
-            return node.value
-
-        total_child_value = sum(cls.adjust_node_values(child) for child in node.children)
-        node.value = max(node.value, total_child_value)
-        return node.value
 
     class GoroutineCount:
         type = "goroutine"
