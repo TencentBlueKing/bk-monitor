@@ -702,6 +702,7 @@ class StorageResultTable(object):
                     )
 
                 # 刷新RESULT_TABLE_DETAIL路由
+                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
                 space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
@@ -2040,6 +2041,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
+            logger.info("create_table: table_id->[%s] push detail start", table_id)
             SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
