@@ -631,6 +631,10 @@
       @extend %json-head;
     }
   }
+
+  .retrieve-v2-index {
+    padding: 0;
+  }
 }
 
 .span-details-sideslider-content {
