@@ -50,6 +50,7 @@ export default class PopInstanceUtil {
 
   private delayShowInstance;
   private watchElement = ref(null);
+  private isShowing = false;
 
   constructor({
     refContent,
@@ -68,6 +69,7 @@ export default class PopInstanceUtil {
     this.newInstance = newInstance;
     this.tippyOptions = tippyOptions;
     this.watchElement = watchElement;
+    this.isShowing = false;
 
     /**
      * 处理多次点击触发多次请求的事件
@@ -94,7 +96,7 @@ export default class PopInstanceUtil {
     }
   }
 
-  onUnmounted() {
+  onBeforeUnmount() {
     this.resizeObserver?.disconnect();
   }
 
@@ -104,6 +106,10 @@ export default class PopInstanceUtil {
 
   getTippyInstance() {
     return this.tippyInstance;
+  }
+
+  isInstanceShowing() {
+    return this.isShowing;
   }
 
   isShown() {
@@ -136,14 +142,17 @@ export default class PopInstanceUtil {
         zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
         onShow: () => {
           this.onMounted();
+          setTimeout(() => {
+            this.isShowing = false;
+          });
           return this.onShowFn?.(this.tippyInstance) ?? true;
         },
         onHide: () => {
-          if (!this.onHiddenFn?.(this.tippyInstance) ?? true) {
+          if (!(this.onHiddenFn?.(this.tippyInstance) ?? true)) {
             return false;
           }
 
-          this.onUnmounted();
+          this.onBeforeUnmount();
         },
         ...(this.tippyOptions ?? {}),
       });
@@ -151,13 +160,16 @@ export default class PopInstanceUtil {
   }
 
   show(target) {
+    this.isShowing = true;
     this.delayShowInstance(target);
   }
 
-  repositionTippyInstance() {
-    if (this.getTippyInstance()?.state.isShown) {
+  repositionTippyInstance(force?) {
+    if (this.getTippyInstance()?.state.isShown || force) {
       this.getTippyInstance()?.popperInstance?.update();
     }
+
+    return this.getTippyInstance()?.state.isShown;
   }
 
   hide() {

@@ -35,6 +35,7 @@ import {
 
 import type { IMenuItem } from '.';
 import type { SceneType } from '../components/common-page-new';
+import type { IGroupByVariables } from '../components/group-compare-select/utils';
 import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
@@ -103,6 +104,7 @@ export interface IBookMarkOptions {
   };
   // 是否开启图表索引列表功能
   enable_index_list?: boolean;
+  only_index_list?: boolean; // 仅展示索引列表
   alert_filterable?: boolean; // 图表的告警状态接口是否需要加入$current_target作为请求参数
   enable_auto_grouping?: boolean; // 视图设置是否开启自动分组
 }
@@ -240,7 +242,7 @@ export class BookMarkModel implements IBookMark {
   // }
   // 左侧选择栏默认宽度
   get defaultSelectorPanelWidth() {
-    return (this.selectorPanel.options?.selector_list?.status_filter ?? false) ? 400 : 240;
+    return (this.selectorPanel?.options?.selector_list?.status_filter ?? false) ? 400 : 240;
   }
   // 是否可配置group
   get enableGroup() {
@@ -259,9 +261,21 @@ export class BookMarkModel implements IBookMark {
   get hasRequiredVariable() {
     return !!this.variables?.some(item => !!item.options?.variables?.required);
   }
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return this.options?.group_panel?.type === 'compare_or_group';
+  }
   // 是否显示状态统计组件
   get isStatusFilter() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.show_status_bar || false;
+  }
+  /* group by limit_sort_methods */
+  get limitSortMethods() {
+    return this.options?.group_panel?.options?.limit_sort_methods || [];
+  }
+  /* group by metric_cal_types */
+  get metricCalTypes() {
+    return this.options?.group_panel?.options?.metric_cal_types || [];
   }
   // 是否可配置视图
   get orderEditable() {
@@ -269,6 +283,7 @@ export class BookMarkModel implements IBookMark {
   }
   // 搜索列表
   get searchData() {
+    // const panels = sceneType === 'overview' ? this.overview_panels : this.panels;
     if (!this.panels?.length) return [];
     // 自定义模式下特殊处理
     if (!this.hasGroup) {
@@ -352,14 +367,17 @@ export class BookMarkModel implements IBookMark {
   get statusMapping() {
     return this.selectorPanel?.options?.[this.selectorPanel.type]?.status_mapping || [];
   }
+
   // 是否可配置变量
   get variableEditable() {
     return !!this.options?.variable_editable;
   }
+
   // 是否可配置页签
   get viewEditable() {
     return !!this.options?.view_editable;
   }
+
   getAllVariables() {
     let str = JSON.stringify(this.bookmark);
     const variableList = new Set<string>();
@@ -403,15 +421,19 @@ export class BookMarkModel implements IBookMark {
           return false;
         });
         if (rowPanelList.length) {
-          rowPanelList.forEach(item => (item.collapsed = true));
+          for (const item of rowPanelList) {
+            item.collapsed = true;
+          }
         }
       } else {
         // 自定义模式下重新设置唯一id
-        panels.forEach(item => {
+        for (const item of panels) {
           item.id = random(10);
           if (item.type === 'row' && item.panels?.length) {
             panelCount += item.panels.length;
-            item.panels.forEach(set => (set.id = random(10)));
+            for (const set of item.panels) {
+              set.id = random(10);
+            }
             if (!this.isShowPreciseFilter) {
               this.isShowPreciseFilter = item.panels.some(set => typeof set.dimensions !== 'undefined');
             }
@@ -421,7 +443,7 @@ export class BookMarkModel implements IBookMark {
               this.isShowPreciseFilter = typeof item.dimensions !== 'undefined';
             }
           }
-        });
+        }
       }
     }
     if (sceneType === 'overview') {
@@ -460,6 +482,7 @@ export interface IViewOptions {
   strategy_id?: number | string;
   app_name?: string;
   service_name?: string;
+  groupByVariables?: IGroupByVariables;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

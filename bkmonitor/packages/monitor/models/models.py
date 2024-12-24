@@ -19,7 +19,7 @@ from typing import Tuple
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
@@ -526,6 +526,7 @@ class UptimeCheckTask(OperateRecordModel):
                         "data_id": data_id,
                         "max_timeout": "{}ms".format(timeout),
                         "custom_report": "true" if use_custom_report else "false",
+                        "send_interval": self.config.get("send_interval"),
                         "tasks": tasks,
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
@@ -601,7 +602,6 @@ class UptimeCheckTask(OperateRecordModel):
         # 数据接入
         UptimecheckDataAccessor(self).access()
 
-        create_strategy = True if (self.status == self.Status.NEW_DRAFT) else False
         self.status = self.Status.STARTING
         self.save()
         UptimeCheckTaskCollectorLog.objects.filter(task_id=self.id).update(is_deleted=True)
@@ -644,10 +644,8 @@ class UptimeCheckTask(OperateRecordModel):
             raise CustomException(_("重启采集器时部分IP失败: %s") % e)
         self.save()
         update_task_running_status.delay(self.pk)
-        # if create_strategy:
-        #     resource.uptime_check.generate_default_strategy({'task_id': self.pk})
 
-        if enable_strategy or create_strategy:
+        if enable_strategy:
             resource.uptime_check.switch_strategy_by_task_id(
                 {"bk_biz_id": self.bk_biz_id, "task_id": self.pk, "is_enabled": True}
             )

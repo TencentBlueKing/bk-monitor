@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
 from rest_framework import serializers
-from six.moves.urllib.parse import urljoin
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.request import get_request
@@ -166,11 +166,13 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
+        is_verify_dimensions = serializers.BooleanField(required=False, default=True)
         start = serializers.CharField()
         end = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
+        down_sample_range = serializers.CharField(allow_blank=True, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
@@ -214,6 +216,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     path = "/query/ts/info/{info_type}"
 
     class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
@@ -236,10 +239,27 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
         match = serializers.ListField(child=serializers.CharField())
         label = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField(required=False)
 
         def validate(self, attrs):
             attrs["match[]"] = attrs.pop("match")
             return attrs
+
+
+class GetTagKeysResource(UnifyQueryAPIResource):
+    """
+    获取tag keys
+    """
+
+    method = "POST"
+    path = "/query/ts/info/tag_keys"
+
+    class RequestSerializer(serializers.Serializer):
+        data_source = serializers.CharField(default="bkmonitor")
+        table_id = serializers.CharField(allow_blank=True)
+        metric_name = serializers.CharField()
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
 
 
 class QueryDataByExemplarResource(QueryDataResource):
@@ -308,5 +328,7 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             target_type = serializers.CharField()
             source_type = serializers.CharField(required=False)
             source_info = serializers.DictField()
+            path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

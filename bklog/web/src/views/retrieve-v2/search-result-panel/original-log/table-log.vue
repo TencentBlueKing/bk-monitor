@@ -32,36 +32,38 @@
       data-test-id="retrieve_from_fieldForm"
       @scroll.passive="handleOriginScroll"
     >
-      <template v-if="showOriginal">
-        <OriginalList
-          :handle-click-tools="handleClickTools"
-          :is-page-over="isPageOver"
-          :operator-config="indexSetOperatorConfig"
-          :origin-table-list="originLogList"
-          :retrieve-params="retrieveParams"
-          :show-field-alias="showFieldAlias"
-          :table-list="tableList"
-          :table-loading="isContentLoading"
-          :time-field="timeField"
-          :total-fields="totalFields"
-          :visible-fields="visibleFields"
-        ></OriginalList>
-      </template>
-      <template v-else>
-        <TableList
-          :handle-click-tools="handleClickTools"
-          :is-page-over="isPageOver"
-          :operator-config="indexSetOperatorConfig"
-          :origin-table-list="originLogList"
-          :retrieve-params="retrieveParams"
-          :show-field-alias="showFieldAlias"
-          :table-list="tableList"
-          :table-loading="isContentLoading"
-          :time-field="timeField"
-          :total-fields="totalFields"
-          :visible-fields="visibleFields"
-        ></TableList>
-      </template>
+      <KeepAlive>
+        <template v-if="showOriginal">
+          <OriginalList
+            :handle-click-tools="handleClickTools"
+            :is-page-over="isPageOver"
+            :operator-config="indexSetOperatorConfig"
+            :origin-table-list="originLogList"
+            :retrieve-params="retrieveParams"
+            :show-field-alias="showFieldAlias"
+            :table-list="tableList"
+            :table-loading="isContentLoading"
+            :time-field="timeField"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+          ></OriginalList>
+        </template>
+        <template v-else>
+          <TableList
+            :handle-click-tools="handleClickTools"
+            :is-page-over="isPageOver"
+            :operator-config="indexSetOperatorConfig"
+            :origin-table-list="originLogList"
+            :retrieve-params="retrieveParams"
+            :show-field-alias="showFieldAlias"
+            :table-list="tableList"
+            :table-loading="isContentLoading"
+            :time-field="timeField"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+          ></TableList>
+        </template>
+      </KeepAlive>
 
       <!-- 表格底部内容 -->
       <p
@@ -108,18 +110,30 @@
         @toggle-screen-full="toggleScreenFull"
       />
     </bk-dialog>
+
+    <retrieve-loader
+      v-if="isPageOver || isContentLoading"
+      class="bklog-skeleton-loading"
+      :is-loading="false"
+      :is-page-over="isPageOver || isContentLoading"
+      :max-length="36"
+      :static="true"
+      :visible-fields="[]"
+    >
+    </retrieve-loader>
   </div>
 </template>
 
 <script>
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import RetrieveLoader from '@/skeleton/retrieve-loader';
   import { mapState } from 'vuex';
 
+  import { bigNumberToString } from '../../../../common/util';
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import OriginalList from './original-list';
   import TableList from './table-list';
-  import { bigNumberToString } from '../../../../common/util';
 
   export default {
     components: {
@@ -127,6 +141,7 @@
       ContextLog,
       OriginalList,
       TableList,
+      RetrieveLoader,
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
@@ -215,9 +230,9 @@
             this.isPageOver = true;
             this.newScrollHeight = el.scrollTop;
             this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
-              this.isPageOver = false;
               this.finishPolling = res.data.total < this.indexItem.begin;
-              this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                this.isPageOver = false;
                 this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
               });
             });
@@ -262,7 +277,7 @@
         this.$http
           .request('retrieve/getWebConsoleUrl', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: queryData,
           })
@@ -328,7 +343,14 @@
   }
 
   .bklog-result-list {
+    position: relative;
     height: calc(100% - 42px);
+
+    .bklog-skeleton-loading {
+      position: absolute;
+      top: 0;
+      z-index: 10;
+    }
 
     .result-table-container {
       position: relative;
@@ -360,6 +382,8 @@
 
           &.bklog-result-list-col-index {
             .cell {
+              padding: 0;
+
               div {
                 padding: 8px 0;
                 line-height: 20px;
@@ -455,6 +479,23 @@
 
         &.original-table .bk-table-column-expand .bk-icon {
           top: 21px;
+        }
+
+        &.is-hidden-index-column {
+          .bklog-result-list-col-index {
+            .cell {
+              opacity: 0;
+            }
+          }
+        }
+
+        &.is-show-index-column {
+          .bklog-result-list-col-index {
+            .cell {
+              opacity: 1;
+              transition: opacity 1s;
+            }
+          }
         }
       }
 

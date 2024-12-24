@@ -69,7 +69,7 @@ def init_configs():
     StrategyCacheManager.cache.set(
         StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=STRATEGY["id"]), json.dumps(STRATEGY)
     )
-
+    ActionPlugin.objects.all().delete()
     ActionPlugin.objects.create(
         **{
             "id": 1,

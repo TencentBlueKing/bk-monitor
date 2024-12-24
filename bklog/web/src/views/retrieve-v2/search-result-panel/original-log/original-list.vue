@@ -29,7 +29,10 @@
   <div>
     <bk-table
       ref="resultTable"
-      class="bklog-origin-list"
+      :class="[
+        'bklog-origin-list',
+        { 'is-hidden-index-column': !tableShowRowIndex, 'is-show-index-column': tableShowRowIndex },
+      ]"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -43,10 +46,10 @@
         type="expand"
       >
         <template #default="{ $index, row }">
-          <LazyRender>
+          <LazyRender :delay="1">
             <expand-view
-              :kv-show-fields-list="kvShowFieldsList"
               :data="originTableList[$index]"
+              :kv-show-fields-list="kvShowFieldsList"
               :list-data="tableList[$index]"
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
@@ -60,19 +63,17 @@
         </template>
       </bk-table-column>
 
-      <template v-if="tableShowRowIndex">
-        <bk-table-column
-          type="index"
-          label=""
-          class-name="bklog-result-list-col-index"
-        ></bk-table-column>
-      </template>
+      <bk-table-column
+        :width="tableShowRowIndex ? 50 : 0"
+        class-name="bklog-result-list-col-index"
+        type="index"
+      ></bk-table-column>
 
       <!-- 显示字段 -->
       <template>
         <bk-table-column :width="originFieldWidth">
           <template #default="{ row }">
-            <LazyRender>
+            <LazyRender :visible-only="!tableJsonFormat">
               <span
                 class="time-field"
                 :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
@@ -85,12 +86,15 @@
         <bk-table-column>
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <LazyRender>
+            <LazyRender
+              :delay="1"
+              :visible-only="!tableJsonFormat"
+            >
               <JsonFormatter
-                :jsonValue="row"
-                :fields="getShowTableVisibleFields"
-                :formatJson="formatJson"
                 class="bklog-column-container"
+                :fields="getShowTableVisibleFields"
+                :format-json="formatJson"
+                :json-value="row"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               ></JsonFormatter>
             </LazyRender>
@@ -119,53 +123,23 @@
           </LazyRender>
         </template>
       </bk-table-column>
-      <!-- 初次加载骨架屏loading -->
-      <template
-        v-if="tableLoading"
-        #empty
-      >
-        <bk-table-column>
-          <retrieve-loader
-            is-new-search
-            is-original-field
-            :visible-fields="getShowTableVisibleFields"
-            is-loading
-          >
-          </retrieve-loader>
-        </bk-table-column>
-      </template>
-      <template
-        v-else
-        #empty
-      >
+      <template #empty>
         <empty-view />
-      </template>
-      <!-- 下拉刷新骨架屏loading -->
-      <template
-        v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
-        #append
-      >
-        <retrieve-loader
-          is-new-search
-          is-original-field
-          :is-page-over="isPageOver"
-          :visible-fields="getShowTableVisibleFields"
-        >
-        </retrieve-loader>
       </template>
     </bk-table>
   </div>
 </template>
 
 <script>
-  import resultTableMixin from '../../mixins/result-table-mixin';
-  import JsonFormatter from '../../../../global/json-formatter.vue';
   import { mapState } from 'vuex';
+
+  import JsonFormatter from '../../../../global/json-formatter.vue';
+  import resultTableMixin from '../../mixins/result-table-mixin';
 
   export default {
     name: 'OriginalList',
-    mixins: [resultTableMixin],
     components: { JsonFormatter },
+    mixins: [resultTableMixin],
     inheritAttrs: false,
     computed: {
       ...mapState({

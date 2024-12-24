@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.enum import ChoicesEnum
 
@@ -136,6 +136,7 @@ class SourceType(ChoicesEnum):
     NODE = "node"
     SERVICE = "service"
     SYSTEM = "system"
+    DATA_SOURCE = "datasource"
 
     _choices_labels = (
         (APM_SERVICE, _("APM 应用服务")),
@@ -144,6 +145,7 @@ class SourceType(ChoicesEnum):
         (NODE, _("node")),
         (SERVICE, _("[K8S] Service")),
         (SYSTEM, _("Host")),
+        (DATA_SOURCE, _("datasource")),
     )
 
 

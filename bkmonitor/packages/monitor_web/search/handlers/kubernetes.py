@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from furl import furl
-from monitor_web.search.handlers.base import BaseSearchHandler, SearchResultItem
 
 from bkmonitor.iam import ActionEnum
 from core.drf_resource import resource
+from monitor_web.search.handlers.base import BaseSearchHandler, SearchResultItem
 
 
 class K8sSearchHandler(BaseSearchHandler):
-
     SCENE = "kubernetes"
 
     def search_for_object(self, name: str, display_name: str, query: str, limit: int):

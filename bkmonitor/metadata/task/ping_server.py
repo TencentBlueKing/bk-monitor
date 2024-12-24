@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from collections import defaultdict
 
 from django.conf import settings
@@ -17,8 +18,10 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from bkmonitor.commons.tools import is_ipv6_biz
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata.models.custom_report.subscription_config import get_proxy_host_ids
 from metadata.models.ping_server import PingServerSubscriptionConfig
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 
 logger = logging.getLogger("metadata")
 
@@ -27,9 +30,27 @@ def refresh_ping_server_2_node_man():
     """
     刷新Ping Server配置至节点管理，下发ip列表到proxy机器
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_ping_server_2_node_man", status=TASK_STARTED, process_target=None
+    ).inc()
     # 兼容下发proxy
+    start_time = time.time()
+    logger.info("start refresh ping server to node man")
     refresh_ping_conf("bkmonitorproxy")
     refresh_ping_conf("bk-collector")
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_ping_server_2_node_man", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="refresh_ping_server_2_node_man", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+    logger.info("end refresh ping server to node man, cost time: %s" % cost_time)
 
 
 def refresh_ping_conf(plugin_name="bkmonitorproxy"):

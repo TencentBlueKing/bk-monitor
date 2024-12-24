@@ -327,6 +327,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
             return {
               ...data,
               alias: set.alias || '',
+              expression: set.expression || 'A',
             };
           }),
         }

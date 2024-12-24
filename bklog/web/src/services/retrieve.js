@@ -63,8 +63,13 @@ const getCloudAreaList = {
   url: '/search/index_set/$index_set_id/:tailf/',
   method: 'post',
 };
+
 const downloadLog = {
   url: '/search/index_set/:index_set_id/export/',
+  method: 'post',
+};
+const quickDownload = {
+  url: '/search/index_set/:index_set_id/quick_export/',
   method: 'post',
 };
 const unionDownloadLog = {
@@ -209,6 +214,13 @@ const updateUserFiledTableConfig = {
   url: '/search/index_set/user_custom_config/',
   method: 'post',
 };
+
+/** 输出UI查询转为querystring语法*/
+const generateQueryString = {
+  url: '/search/index_set/generate_querystring/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -221,6 +233,7 @@ export {
   downloadLog,
   unionDownloadLog,
   exportAsync,
+  quickDownload,
   getRealTimeLog,
   getContentLog,
   saveTitleInfo,
@@ -252,4 +265,5 @@ export {
   updateClusteringConfig,
   getClusteringConfigStatus,
   updateUserFiledTableConfig,
+  generateQueryString,
 };

@@ -58,7 +58,7 @@ import { LETTERS } from '../../../common/constant';
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
-import IntelligentModelsStore from '../../../store/modules/intelligent-models';
+import IntelligentModelsStore, { type IntelligentModelsType } from '../../../store/modules/intelligent-models';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
@@ -68,7 +68,11 @@ import AlarmHandlingList from './alarm-handling/alarm-handling-list';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
 import DetectionRules from './detection-rules/detection-rules';
-import JudgingCondition, { DEFAULT_TIME_RANGES, type IJudgingData } from './judging-condition/judging-condition';
+import JudgingCondition, {
+  DEFAULT_TIME_RANGES,
+  RecoveryConfigStatusSetter,
+  type IJudgingData,
+} from './judging-condition/judging-condition';
 import AiopsMonitorData from './monitor-data/aiops-monitor-data';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
@@ -229,6 +233,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     recoveryConfig: {
       // 恢复条件
       checkWindow: 5,
+      statusSetter: RecoveryConfigStatusSetter.RECOVERY,
     },
     noDataConfig: {
       // 无数据告警
@@ -317,6 +322,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
+  /* 指标类型，分为主机、服务实例、NONE */
+  metricTipType = '';
   monitorDataEditMode: EditModeType = 'Edit';
   // 将切换至ui模式
   switchToUI = false;
@@ -396,6 +403,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否可编辑 */
   editAllowed = true;
   stickyObserver: IntersectionObserver | null = null;
+  /** 所有列表智能模型 Map */
+  intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>> = new Map();
+
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
@@ -414,6 +424,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 是否为详情页面
   get isDetailMode() {
     return this.$route.name === 'strategy-config-detail';
+  }
+  // 是否为编辑页面
+  get isEditMode() {
+    return this.$route.name === 'strategy-config-edit';
   }
   // 已选中的维度合法列表
   get legalDimensionList() {
@@ -523,7 +537,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.strategyView.rightWidth = Math.ceil(width / 3);
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
     // 异步初始化所有ai模型列表 用于判断是否展示功能依赖 以及前置后面选择ai模型的初始化数据
-    if (window.enable_aiops) IntelligentModelsStore.initAllListIntelligentModels();
+    if (window.enable_aiops) {
+      IntelligentModelsStore.initAllListIntelligentModels().then(models => {
+        this.$set(this, 'intelligentDetect', models);
+      });
+    }
   }
   activated() {
     this.stickyObserver = new IntersectionObserver(
@@ -872,6 +890,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       recoveryConfig: {
         // 恢复条件
         checkWindow: 5,
+        statusSetter: RecoveryConfigStatusSetter.RECOVERY,
       },
       noDataConfig: {
         // 无数据告警
@@ -917,6 +936,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     // 监控数据模式 converge: 汇聚 realtime: 实时
     this.dataMode = 'converge';
+    this.metricTipType = '';
   }
   /**
    * @description: 获取指标函数列表
@@ -1284,6 +1304,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       triggerConfigData.uptime?.time_ranges?.map?.(timeRange => [`${timeRange.start}:00`, `${timeRange.end}:59`]) ||
       DEFAULT_TIME_RANGE;
     recoveryConfig.checkWindow = recoveryConfigData.check_window || 0;
+    recoveryConfig.statusSetter = recoveryConfigData.status_setter || RecoveryConfigStatusSetter.RECOVERY;
     noDataConfig.continuous = noDataConfigData.continuous || 0;
     noDataConfig.isEnabled = noDataConfigData.is_enabled || false;
     if (this.monitorDataEditMode === 'Edit') {
@@ -1426,6 +1447,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.metricSelector.id = data.metric_id;
     this.metricSelector.type = data.type;
     this.metricSelector.show = true;
+    // 添加指标时，警告有则消失
+    if (this.metricTipType) {
+      this.metricTipType = '';
+    }
   }
   // 添加空指标
   handleAddNullMetric(data: { type: MetricType }) {
@@ -1461,6 +1486,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   // 添加指标
   async handleAddMetric(metric: IMetricDetail) {
+    // 切换指标时，警告有则消失
+    if (this.metricTipType) {
+      this.metricTipType = '';
+    }
     await this.$nextTick();
     const list: IMetricDetail[] = !Array.isArray(metric) ? [metric] : metric;
     if (!this.metricData?.length) {
@@ -1509,6 +1538,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const targetMetricItem = new MetricDetail(list[0]);
     targetMetricItem.setMetricType(this.metricSelector.type);
     this.$set(this.metricData, targetMetricIndex, targetMetricItem);
+    // 切换指标且单位不同时 清空检测算法单位
+    if (this.detectionConfig.unit && this.metricData[0].unit !== this.detectionConfig.unitType) {
+      this.detectionConfig.unit = '';
+    }
     if (this.metricData.length >= 1 && !!this.metricData[0].metric_id) {
       this.baseConfig.scenario = this.metricData[0].result_table_label;
     }
@@ -1564,6 +1597,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.handleResetMetricAlias();
     }
     if (!this.metricData.length) {
+      this.analyzingConditions.recoveryConfig.statusSetter = RecoveryConfigStatusSetter.RECOVERY;
       this.target = [];
       this.defaultCheckedTarget.target_detail = [];
       this.detectionConfig.data = [];
@@ -1631,8 +1665,43 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     document.addEventListener('mouseup', handleMouseUp);
   }
 
+  showMerticMessageTip() {
+    this.metricTipType = '';
+    if (!this.target.length) return false;
+    // 如果 metricData 不存在或第一个元素的 metric_type 不是 TimeSeries，则不显示提示。
+    if (this.metricData?.[0]?.data_type_label !== MetricType.TimeSeries) return false;
+    // 如果当前的编辑模式不是 'Edit'，则不显示提示。
+    if (this.monitorDataEditMode !== 'Edit') return false;
+    let hasRelevantDimension = false;
+    hasRelevantDimension = this.metricData.every(item => {
+      const [basicMetric, nodeMetric = []] = item.sysBuiltInMetricList;
+      // 判断基本维度是否都包含
+      const basicFlag = basicMetric.every(metric => item.agg_dimension.includes(metric));
+      // 判断是否能够包含节点指标
+      let nodeFlag = false;
+      if (this.targetType === 'TOPO' && nodeMetric.length) {
+        nodeFlag = nodeMetric.every(metric => item.agg_dimension.includes(metric));
+      }
+      // 基本维度 或 节点维度 二选一
+      return basicFlag || nodeFlag;
+    });
+    // 如果没有相关的维度，则设置 metricTipType 为 metricData 第一个元素的 objectType。
+    if (!hasRelevantDimension) {
+      this.metricTipType = this.metricData[0].objectType;
+    }
+    return !hasRelevantDimension;
+  }
+
   async handleValidateStrategyConfig() {
     let validate = true;
+    if (this.showMerticMessageTip()) {
+      // 聚焦至tips上
+      this.$nextTick(() => {
+        const targetElement = document.getElementById('ip-dimension-tip');
+        targetElement?.focus();
+      });
+      return false;
+    }
     if (this.monitorDataEditMode === 'Source') {
       if (!this.sourceData.sourceCode) {
         this.$bkMessage({
@@ -1819,7 +1888,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       await saveStrategyV2(
         transformDataKey(Object.assign(params, this.id && !this.isClone ? { id: this.id } : {}), true)
       )
-        .then(() => {
+        .then(strategy => {
+          // 保存策略成功后 主动刷新target列表
+          if (strategy.id) {
+            getTargetDetail(
+              {
+                refresh: 1,
+                strategy_ids: [strategy.id],
+              },
+              { needMessage: false }
+            ).catch(() => {});
+          }
           this.$bkMessage({
             theme: 'success',
             message: this.id && !this.isClone ? this.$t('编辑策略成功') : this.$t('创建策略成功'),
@@ -1996,6 +2075,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       recovery_config: {
         // 恢复周期
         check_window: recoveryConfig.checkWindow,
+        status_setter: recoveryConfig.statusSetter,
       },
       // 算法连接符
       connector,
@@ -2006,7 +2086,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleGetTargetParams() {
     const [metricItem] = this.metricData;
     if (!metricItem) return [];
-    if (metricItem.canSetTarget && this.target?.length) {
+    if ((this.isEditMode || metricItem.canSetTarget) && this.target?.length) {
       let field = '';
       if (metricItem.objectType === 'HOST') {
         field = hostTargetFieldType[metricItem.targetType];
@@ -2096,6 +2176,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     this.monitorDataEditMode = 'Edit';
     this.isMultivariateAnomalyDetection = false;
+    this.analyzingConditions.recoveryConfig.statusSetter = RecoveryConfigStatusSetter.RECOVERY;
   }
   // 切换监控数据模式
   handleModeChange(v: dataModeType) {
@@ -2327,6 +2408,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {EditModeType} mode
    */
   async handleEditModeChange({ mode }: { mode: EditModeType; hasError: boolean }) {
+    // 切换指标的编辑模式时，警告有则消失
+    if (this.metricTipType) {
+      this.metricTipType = '';
+    }
     if (mode === 'Source') {
       if (this.metricData.every(item => item.isNullMetric)) {
         this.sourceData.sourceCode = '';
@@ -2500,6 +2585,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         hasAiOpsDetect={this.hasAiOpsDetect}
         loading={this.monitorDataLoading}
         metricData={this.metricData}
+        metricTipType={this.metricTipType}
         promqlError={this.sourceData.promqlError}
         readonly={this.isDetailMode}
         source={this.sourceData.sourceCode}
@@ -2641,6 +2727,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   backfillData={this.detectionDataBackfill}
                   connector={this.detectionConfig.connector}
                   dataMode={this.dataMode}
+                  intelligentDetect={this.intelligentDetect}
                   isEdit={this.isEdit}
                   metricData={this.selectMetricData}
                   needShowUnit={this.needShowUnit}

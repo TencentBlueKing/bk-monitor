@@ -10,13 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -353,7 +354,7 @@ class Application(AbstractRecordModel):
                         data_status = DataStatus.NORMAL
                     else:
                         data_status = DataStatus.NO_DATA
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     logger.warning(
                         f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
                     )
@@ -370,6 +371,11 @@ class Application(AbstractRecordModel):
                 application_id=self.application_id, relation_key=self.LANGUAGE_KEY
             ).values_list("relation_value", flat=True)
         )
+
+    def list_retention_time_range(self):
+        """获取应用的过期时间范围"""
+        s, e = get_datetime_range(period="day", distance=self.es_retention, rounding=False)
+        return int(s.timestamp()), int(e.timestamp())
 
     def get_all_config(self):
         return ApmMetaConfig.get_all_application_config_value(self.application_id)
@@ -643,8 +649,22 @@ class Application(AbstractRecordModel):
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
 
+    @property
+    def is_create_finished(self):
+        return bool(self.trace_result_table_id and self.metric_result_table_id)
+
+    @classmethod
+    def q_filter_create_finished(cls):
+        """
+        获取过滤应用未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
+        """
+        return Q(
+            trace_result_table_id__isnull=False,
+            metric_result_table_id__isnull=False,
+        ) & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
+
     @staticmethod
-    @task()
+    @shared_task()
     def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
@@ -889,7 +909,7 @@ class ApmMetaConfig(models.Model):
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=528)
+    level_key = models.CharField("配置目标key", max_length=512)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 

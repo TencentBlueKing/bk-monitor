@@ -35,7 +35,7 @@ import type { TranslateResult } from 'vue-i18n';
 export type unitType = 'm' | 's';
 export interface ICommonItem {
   id: number | string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   type?: string;
   is_dimension?: boolean;
 }
@@ -108,6 +108,25 @@ export enum MetricType {
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
   TimeSeries = 'time_series',
 }
+
+// 系统或插件指标前缀（result_table_id）
+const sysOrPluginMetricsPrefix = [
+  'dbm_system',
+  'system',
+  'devx_system',
+  'perforce_system',
+  'exporter_',
+  'datadog_',
+  'jmx_',
+  'pushgateway_',
+  'script_',
+];
+// 按指标类型划分的指标
+const metricByType = {
+  host: ['bk_target_ip', 'bk_target_cloud_id'],
+  service: ['bk_target_service_instance_id'],
+  node: ['bk_obj_id', 'bk_inst_id'],
+};
 export class MetricDetail {
   _agg_condition = [];
   agg_dimension: string[] = [];
@@ -269,7 +288,7 @@ export class MetricDetail {
             return {
               ...condition,
               value: condition.value.map(num => {
-                return isNaN(num) || num === '' ? num : Number(num);
+                return Number.isNaN(Number(num)) || num === '' ? num : Number(num);
               }),
             };
           }
@@ -342,7 +361,10 @@ export class MetricDetail {
   }
   // 是否可设置检索语句
   get canSetQueryString() {
-    return this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log';
+    return (
+      (this.data_source_label !== 'bk_monitor' && this.data_type_label === 'log') ||
+      (this.data_source_label === 'custom' && this.data_type_label === 'event')
+    );
   }
   // 是否可以设置实时查询
   get canSetRealTimeSearch() {
@@ -399,6 +421,18 @@ export class MetricDetail {
         this.result_table_id === 'uptimecheck.http' &&
         ['message', 'response_code'].includes(this.metric_field))
     );
+  }
+  get sysBuiltInMetricList() {
+    // 获取指标类型
+    const dataTarget = this.data_target.replace('_target', '');
+    // 根据指标类型获取相关维度
+    const res = [metricByType[dataTarget] || []];
+    // 检查是否有前缀匹配，并设置节点维度
+    const startsWithAnyPrefix = sysOrPluginMetricsPrefix.some(prefix => this.result_table_id.startsWith(prefix));
+    if (startsWithAnyPrefix && dataTarget === 'host') {
+      res.push(metricByType.node);
+    }
+    return res;
   }
   setChecked(v: boolean) {
     this.checked = v;
@@ -471,7 +505,7 @@ export enum DetectionRuleTypeEnum {
 
 export interface IDetectionType {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   show: boolean;
   disabled?: boolean;
   default?: any;

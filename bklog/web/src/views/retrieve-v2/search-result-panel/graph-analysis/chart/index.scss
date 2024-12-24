@@ -1,0 +1,103 @@
+.bklog-chart-container {
+  position: relative;
+  height: 100%;
+  min-height: 300px;
+  padding: 16px 0;
+
+  &.is-table {
+    padding-top: 0;
+  }
+
+  .bklog-chart-result-table {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 0;
+    background-color: #fff;
+
+    .top-pagination {
+      display: flex;
+      justify-content: flex-end;
+
+      > div {
+        &:not(:last-child) {
+          margin-right: 16px;
+        }
+      }
+    }
+  }
+
+  .chart-canvas {
+    height: 100%;
+  }
+
+  .exception-wrap-item {
+    height: 100%;
+    padding: 10px;
+
+    .bk-exception-img {
+      height: 100%;
+
+      .exception-image {
+        height: 80%;
+      }
+    }
+
+    .title {
+      font-family: MicrosoftYaHei;
+      font-size: 16px;
+      color: #63656e;
+    }
+
+    .text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 14px;
+      font-size: 14px;
+      color: #3a84ff;
+
+      .text {
+        margin-bottom: 10px;
+        font-family: MicrosoftYaHei;
+        font-size: 12px;
+        color: #979ba5;
+      }
+    }
+  }
+
+  .bklog-chart-number-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .bklog-chart-number-list {
+      display: flex;
+      flex-wrap: wrap;
+
+      .bklog-chart-number-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+
+        .bklog-chart-number-label {
+          font-size: 18px;
+        }
+
+        .bklog-chart-number-value {
+          padding: 20px 0;
+          font-size: 40px;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}

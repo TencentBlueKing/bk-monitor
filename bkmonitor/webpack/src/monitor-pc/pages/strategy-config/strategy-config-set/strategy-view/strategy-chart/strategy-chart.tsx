@@ -402,7 +402,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 data_source_label: 'prometheus',
                 data_type_label: 'time_series',
                 promql: this.sourceData.sourceCode.replace(/\n/g, ''),
-                agg_interval: this.sourceData.step,
+                interval: this.sourceData.step,
               },
             ]
           : this.metricData.map(
@@ -506,7 +506,13 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                   originMetricData: isDetect ? originMetricData : undefined,
                   data_source_label: !isDetect ? dataSourceLabel : 'bk_data',
                   data_type_label: dataTypeLabel,
-                  data_label,
+                  data_label: this.detectionConfig.data.some(item =>
+                    ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster', 'HostAnomalyDetection'].includes(
+                      item.type
+                    )
+                  )
+                    ? ''
+                    : data_label,
                   metrics: localMetrics,
                   table: tableValue(),
                   group_by: isDetect ? intelligent_detect?.agg_dimension || [] : agg_dimension,

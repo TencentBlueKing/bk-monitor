@@ -7,9 +7,9 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { operatorMapping, translateKeys } from './const-values';
+  import { translateKeys } from './const-values';
   import { excludesFields } from './const.common';
-
+  import { ConditionOperator } from '@/store/condition-operator';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   const INPUT_MIN_WIDTH = 12;
@@ -112,6 +112,7 @@
     field_name: '*',
     is_full_text: true,
     field_alias: t('全文检索'),
+    field_type: '',
     field_operator: [
       {
         operator: FulltextOperator,
@@ -123,6 +124,65 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
+  const hasConditionValueTip = computed(() => {
+    return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
+  });
+
+  let requestTimer = null;
+  const isRequesting = ref(false);
+  const rquestFieldEgges = (() => {
+    return (field, operator?, value?, callback?) => {
+      const getConditionValue = () => {
+        if (['keyword'].includes(field.field_type)) {
+          return [`*${value}*`];
+        }
+
+        return [];
+      };
+
+      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
+        return;
+      }
+
+      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
+      isRequesting.value = true;
+
+      requestTimer && clearTimeout(requestTimer);
+      requestTimer = setTimeout(() => {
+        const addition = value
+          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
+              const instance = new ConditionOperator(val);
+              return instance.getRequestParam();
+            })
+          : [];
+
+        store
+          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
+          .then(() => {
+            callback?.();
+          })
+          .finally(() => {
+            isRequesting.value = false;
+          });
+      }, 300);
+    };
+  })();
+
+  const getFieldWeight = field => {
+    if (field.field_name === '*') {
+      return 101;
+    }
+
+    if (field.field_name === 'log') {
+      return 100;
+    }
+
+    if (['text'].includes(field.field_type)) {
+      return 50;
+    }
+
+    return 0;
+  };
 
   const fieldList = computed(() => {
     let list = [fullTextField.value];
@@ -130,16 +190,17 @@
     if (!isNotIpSelectShow.value) {
       list.push({
         field_name: '_ip-select_',
+        field_type: '',
         is_full_text: true,
         field_alias: t('IP目标'),
         field_operator: [],
       });
     }
-    return list;
+    return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
   // 无需配置值（Value）的条件列表
-  const withoutValueConditionList = ['does not exists', 'exists'];
+  const withoutValueConditionList = ['does not exists', 'exists', 'is false', 'is true'];
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
@@ -161,7 +222,7 @@
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
-    if (typeof props.value === 'string' && props.value.length || activeFieldItem.value.field_name === "_ip-select_") {
+    if ((typeof props.value === 'string' && props.value.length) || activeFieldItem.value.field_name === '_ip-select_') {
       return true;
     }
 
@@ -214,13 +275,13 @@
   };
 
   const restoreFieldAndCondition = () => {
-    const matchedField = fieldList.value.find(field => field.field_name === props.value.field);
+    const matchedField = fieldList.value.find(field => field.field_name === (props.value as any).field);
     Object.assign(activeFieldItem.value, matchedField ?? {});
     const { operator, relation = 'OR', isInclude, value = [] } = (props.value ?? {}) as Record<string, any>;
     Object.assign(condition.value, { operator, relation, isInclude, value: [...value] });
 
     let filterIndex = filterFieldList.value.findIndex(
-      field =>
+      (field: any) =>
         field.field_type === activeFieldItem.value.field_type && field.field_name === activeFieldItem.value.field_name,
     );
 
@@ -313,6 +374,7 @@
       return;
     }
 
+    conditionValueInputVal.value = '';
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
@@ -320,8 +382,23 @@
     condition.value.relation = 'OR';
     condition.value.isInclude = ['text', 'string'].includes(activeFieldItem.value.field_type) ? false : null;
 
-    if (props.value.field === item.field_name) {
+    if ((props.value as any).field === item.field_name) {
       restoreFieldAndCondition();
+    }
+
+    if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
+      rquestFieldEgges(item, null, null, () => {
+        if (!conditionValueInstance.repositionTippyInstance()) {
+          if (!isOperatorInstanceActive()) {
+            const target = refConditionInput.value?.parentNode;
+            if (target) {
+              conditionValueInstance.show(target);
+            }
+          }
+        }
+      });
+    } else {
+      conditionValueInstance.hide();
     }
   };
 
@@ -418,8 +495,8 @@
 
     currentEditTagIndex.value = tagIndex;
     setTimeout(() => {
-      parent.querySelector('input').focus();
-    }, 300);
+      parent.querySelector('.tag-item-input').focus();
+    }, 500);
   };
 
   const handleConditionValueClick = (e = null) => {
@@ -437,7 +514,6 @@
       }
     }
   };
-
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';
   };
@@ -467,12 +543,22 @@
 
   const handleInputVlaueChange = e => {
     const input = e.target;
-    if (input !== undefined) {
-      const value = input.value;
-      const charLen = getCharLength(value);
-      input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-      conditionValueInputVal.value = input.value;
-    }
+    const value = input.value;
+    const charLen = getCharLength(value);
+    input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+    conditionValueInputVal.value = input.value;
+    rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
+      if (!operatorInstance.isShown()) {
+        conditionValueInstance.repositionTippyInstance();
+
+        if (!conditionValueInstance.isShown() && !conditionValueInstance.isInstanceShowing()) {
+          const target = refConditionInput.value?.parentNode;
+          if (target) {
+            conditionValueInstance.show(target);
+          }
+        }
+      }
+    });
   };
 
   const handleConditionValueInputFocus = () => {
@@ -485,6 +571,9 @@
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
+    setTimeout(() => {
+      conditionValueInstance.hide();
+    });
   };
 
   const appendConditionValue = value => {
@@ -549,7 +638,10 @@
    * 判断当前操作符选择下拉是否激活
    */
   const isOperatorInstanceActive = () => {
-    return operatorInstance.isShown() && activeFieldItem.value.field_operator?.length;
+    return (
+      operatorInstance.isInstanceShowing() ||
+      (operatorInstance.isShown() && activeFieldItem.value.field_operator?.length)
+    );
   };
 
   /**
@@ -755,8 +847,6 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
-      // condition.value.value.length = 0;
-      // condition.value.value = [];
     }
 
     operatorInstance.hide();
@@ -795,11 +885,12 @@
   };
 
   const handleConditionValueInputBlur = e => {
-    if (conditionValueInstance.isShown()) {
+    if (conditionValueInstance.isShown() || conditionValueInstance.isInstanceShowing()) {
       return;
     }
 
     isConditionValueInputFocus.value = false;
+    conditionValueInputVal.value = '';
 
     if (e.target.value) {
       const value = e.target.value;
@@ -997,7 +1088,7 @@
                   :key="`-${index}`"
                 >
                   <template v-if="currentEditTagIndex === index">
-                    <input
+                    <textarea
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
@@ -1005,7 +1096,7 @@
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
-                  <template v-else>
+                  <template>
                     <span
                       class="tag-item-text"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
@@ -1033,6 +1124,7 @@
                   <ul
                     ref="refValueTagInputOptionList"
                     class="condition-value-options"
+                    v-bkloading="{ isLoading: isRequesting }"
                   >
                     <li
                       v-if="!activeItemMatchList.length"
@@ -1049,6 +1141,7 @@
                       v-for="(item, index) in activeItemMatchList"
                       :class="{ active: (condition.value ?? []).includes(item) }"
                       :key="`${item}-${index}`"
+                      :title="formatDateTimeField(item, activeFieldItem.field_type)"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
                       <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
@@ -1108,168 +1201,7 @@
 </template>
 <style scoped lang="scss">
   @import './ui-input-option.scss';
-
-  .condition-value-container {
-    width: 100%;
-    min-height: 32px;
-    background: #ffffff;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-
-    &.is-focus {
-      border-color: #2c77f4;
-    }
-
-    ul.condition-value-input {
-      display: inline-flex;
-      flex-wrap: wrap;
-      width: 100%;
-      max-height: 110px;
-      padding: 0 5px;
-      margin: 0;
-      overflow: auto;
-
-      > li {
-        display: inline-flex;
-        align-items: center;
-        height: 22px;
-        margin: 4px 5px 4px 0;
-        overflow: hidden;
-        font-size: 12px;
-        border: solid 1px transparent;
-        border-radius: 2px;
-
-        &.tag-item {
-          background: #f0f1f5;
-          border-color: #f0f1f5;
-
-          .tag-item-text {
-            max-width: 100%;
-            padding: 0 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-
-            &:hover {
-              background-color: #dcdee5;
-            }
-          }
-
-          .tag-item-del {
-            font-size: 16px;
-            cursor: pointer;
-          }
-        }
-
-        &.tag-validate-error {
-          border-color: red;
-          border-style: dashed;
-        }
-
-        input.tag-option-focus-input {
-          width: 8px;
-          height: 38px;
-          font-size: 12px;
-          color: #63656e;
-          border: none;
-        }
-
-        input.tag-item-input {
-          max-width: 100%;
-          border: 1px solid #c4c6cc;
-        }
-      }
-    }
-  }
-
-  .tag-error-text {
-    margin: -20px 0 6px 0px;
-    font-size: 12px;
-    color: red;
-  }
 </style>
 <style lang="scss">
-  [data-theme='log-light'] {
-    .ui-value-select {
-      width: 338px;
-      max-height: 200px;
-      overflow: auto;
-
-      .ui-value-option {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        height: 32px;
-        padding: 0 12px;
-        cursor: pointer;
-        background: #ffffff;
-
-        &:not(.active) {
-          &:hover {
-            background: #f5f7fa;
-          }
-        }
-
-        &.active {
-          color: #3a84ff;
-          background: #e1ecff;
-        }
-      }
-    }
-
-    .condition-value-options {
-      display: inline-flex;
-      flex-direction: column;
-      width: 338px;
-      max-height: 300px;
-      overflow: auto;
-      border: 1px solid #dcdee5;
-      box-shadow: 0 2px 6px 0 #0000001a;
-
-      > li {
-        display: inline-block;
-        width: 100%;
-        max-width: 100%;
-        height: 32px;
-        padding: 6px 8px;
-        font-size: 12px;
-        color: #63656e;
-        cursor: pointer;
-        background: #ffffff;
-
-        > div {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        &.empty-section {
-          height: 100px;
-
-          img {
-            width: 120px;
-            height: 60px;
-          }
-
-          .bk-exception {
-            .bk-exception-text {
-              display: flex;
-              justify-content: center;
-            }
-          }
-        }
-
-        &:not(.empty-section) {
-          &.active {
-            background: #f5f7fa;
-          }
-
-          &.is-hover,
-          &:hover {
-            background: #e1ecff;
-          }
-        }
-      }
-    }
-  }
+  @import './theme-light.scss';
 </style>

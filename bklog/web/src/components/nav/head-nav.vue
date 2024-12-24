@@ -335,9 +335,15 @@
         return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
       },
       menuList() {
-        return this.topMenu.filter(menu => {
+        const list = this.topMenu.filter(menu => {
           return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
         });
+        // #if APP === 'apm'
+        if (process.env.NODE_ENV === 'development' && process.env.APP === 'apm' && list?.length) {
+          return [...list, { id: 'monitor-retrieve', name: '监控检索' }];
+        }
+        // #endif
+        return list;
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
@@ -747,7 +753,7 @@
 
         &::before {
           position: relative;
-          z-index: 999;
+          z-index: 2;
         }
 
         &.active,
@@ -759,7 +765,7 @@
         &:hover::after {
           position: absolute;
           left: 50%;
-          z-index: 99;
+          z-index: 1;
           width: 30px;
           height: 30px;
           content: '';

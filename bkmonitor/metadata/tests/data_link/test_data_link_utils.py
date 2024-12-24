@@ -31,15 +31,33 @@ def test_compose_bkdata_table_id():
 
     # Case3. 超长情况，截断
     table_id = "100147_bkmonitor_time_series_test_game_service_report.__default__"
-    expected = "bkm_100147_bkmonitor_time_series_te_2cd3f"
+    expected = "bkm_100147_bkmonitor_time_series_t_2cd3f"
     assert compose_bkdata_table_id(table_id) == expected
     assert len(compose_bkdata_table_id(table_id)) < 50
 
     # Case3. 超长情况，截断
     table_id = "100147_bkmonitor_time_series_test_game_service_report_custom_test.__default__"
-    expected = "bkm_100147_bkmonitor_time_series_te_295a4"
+    expected = "bkm_100147_bkmonitor_time_series_t_295a4"
     assert compose_bkdata_table_id(table_id) == expected
     assert len(compose_bkdata_table_id(table_id)) < 50
+
+    # Case4、 联邦场景
+    table_id = '1001_bkmonitor_time_series_1234567.__default__'
+    expected = 'bkm_1001_bkmonitor_time_series_85090_fed'
+    assert compose_bkdata_table_id(table_id, strategy='bcs_federal_subset_time_series') == expected
+
+    table_id = '1001_bkmonitor_time_series_1234568.__default__'
+    expected = 'bkm_1001_bkmonitor_time_series_083dd_fed'
+    assert compose_bkdata_table_id(table_id, strategy='bcs_federal_subset_time_series') == expected
+
+    # Case5、 中文场景
+    table_id = '1001_bkmonitor_time_series_1234568_中文测试.__default__'
+    expected = "bkm_1001_bkmonitor_time_series_123_e81c3"
+    assert compose_bkdata_table_id(table_id) == expected
+
+    # Case6、 联邦场景,双下划线问题
+    expected = "bkm_1001_bkmonitor_time_series_e81c3_fed"
+    assert compose_bkdata_table_id(table_id, strategy='bcs_federal_subset_time_series') == expected
 
 
 def test_compose_bkdata_data_id_name():
@@ -63,8 +81,14 @@ def test_compose_bkdata_data_id_name():
     assert compose_bkdata_data_id_name(data_name) == expected
     assert len(compose_bkdata_data_id_name(data_name)) < 50
 
-    # Case3. 非法字符串
+    # Case3. 中文字符串
     data_name = "test_monitor_测试数据_111222"
-    expected = "bkm_test_monitor_111222"
+    expected = "bkm_test_monitor_111222ceshishuju"
+    assert compose_bkdata_data_id_name(data_name) == expected
+    assert len(compose_bkdata_data_id_name(data_name)) < 50
+
+    # Case4. 超长中文字符串
+    data_name = "custom_time_series_中文测试数据测试数据测试数据"
+    expected = "bkm_zhongwenceshishujuceshishujuceshishuju_0c0f8"
     assert compose_bkdata_data_id_name(data_name) == expected
     assert len(compose_bkdata_data_id_name(data_name)) < 50

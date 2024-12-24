@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, Ref } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -36,6 +36,7 @@ import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
+  handleChartDataZoom?: (val) => void;
 };
 
 export type EchartData = {
@@ -43,7 +44,7 @@ export type EchartData = {
   target: string;
   isFinish: boolean;
 };
-export default ({ target }: TrandChartOption) => {
+export default ({ target, handleChartDataZoom }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
@@ -70,7 +71,11 @@ export default ({ target }: TrandChartOption) => {
     }
 
     if (/\d+(m|h)$/.test(interval)) {
-      return dayjs.tz(data).format('HH:mm:ss').replace(/:00$/, '');
+      const { start_time, end_time } = retrieveParams.value;
+      const durationHour = (end_time - start_time) / 3600;
+      // 当筛选时间间隔6小时以上 显示日期
+      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
+      return dayjs.tz(data).format(format).replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
@@ -200,6 +205,31 @@ export default ({ target }: TrandChartOption) => {
     updateChart();
   };
 
+  /** 缩写数字 */
+  const abbreviateNumber = (value: number) => {
+    let newValue = value;
+    let suffix = '';
+
+    if (value >= 1000 && value < 1000000) {
+      newValue = value / 1000;
+      suffix = 'K';
+    } else if (value >= 1000000 && value < 1000000000) {
+      newValue = value / 1000000;
+      suffix = ' Mil';
+    } else if (value >= 1000000000) {
+      newValue = value / 1000000000;
+      suffix = 'Bil';
+    }
+
+    // 使用 Intl.NumberFormat 来格式化数字，避免不必要的小数部分
+    const formatter = new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 3, // 最多保留一位小数
+      minimumFractionDigits: 0, // 最少保留零位小数
+    });
+
+    return `${formatter.format(newValue)}${suffix}`;
+  };
+
   const updateChart = () => {
     if (!chartInstance) {
       return;
@@ -208,7 +238,7 @@ export default ({ target }: TrandChartOption) => {
     options.series[0].data = chartData;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
-
+    options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     chartInstance.setOption(options);
     nextTick(() => {
       dispatchAction({
@@ -234,9 +264,13 @@ export default ({ target }: TrandChartOption) => {
         type: 'restore',
       });
 
-      // 更新Store中的时间范围
-      // 同时会自动更新chartKey，触发接口更新当前最新数据
-      store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+      if (window.__IS_MONITOR_APM__) {
+        handleChartDataZoom([timeFrom, timeTo]);
+      } else {
+        // 更新Store中的时间范围
+        // 同时会自动更新chartKey，触发接口更新当前最新数据
+        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+      }
     }
   });
 
@@ -270,7 +304,7 @@ export default ({ target }: TrandChartOption) => {
     }
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
     }

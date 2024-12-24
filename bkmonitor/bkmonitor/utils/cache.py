@@ -279,7 +279,7 @@ class CacheType(object):
     APM_ENDPOINTS = CacheTypeItem(key="apm_endpoints", timeout=60 * 10, user_related=False)
     CC_BACKEND = CacheTypeItem(key="cc_backend", timeout=60 * 10, user_related=False)
     LOG_SEARCH = CacheTypeItem(key="log_search", timeout=60 * 5, label="日志平台相关", user_related=False)
-    NODE_MAN = CacheTypeItem(key="node_man", timeout=60 * 10, label="节点管理相关", user_related=False)
+    NODE_MAN = CacheTypeItem(key="node_man", timeout=60 * 30, label="节点管理相关", user_related=False)
     # 重要： 此类型表示所有resource调用均大概率命中缓存，因为缓存失效时间较长。缓存刷新由后台周期任务进行
     # 详细参看： from alarm_backends.core.api_cache.library import cmdb_api_list
     # 当出现cmdb数据变更长时间未生效，考虑后台进程缓存任务失败的可能：bk-monitor-alarm-api-cron-worker

@@ -15,8 +15,7 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from opentelemetry.trace import get_current_span
+from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
 from apm.models.datasource import (
@@ -210,9 +209,8 @@ class ApmApplication(AbstractRecordModel):
             create_virtual_metric.delay(self.bk_biz_id, self.app_name)
 
     def send_datasource_apply_alert(self, data_type):
-        trace_id = format(get_current_span().get_span_context().trace_id, "032x")
         EventReportHelper.report(
-            f"[!!!] 应用: [{self.bk_biz_id}]{self.app_name} 创建/更新 {data_type} 数据源失败，traceId: {trace_id}", application=self
+            f"[!!!] 应用: [{self.bk_biz_id}]{self.app_name} 创建/更新 {data_type} 数据源失败", application=self
         )
 
     @classmethod
@@ -321,3 +319,17 @@ class EbpfApplicationConfig(models.Model):
 
     class Meta:
         verbose_name = "ebpf应用配置"
+
+
+class BcsClusterDefaultApplicationRelation(models.Model):
+    bk_biz_id = models.IntegerField("业务 ID")
+    app_name = models.CharField("应用名称", max_length=50)
+
+    cluster_id = models.CharField("集群 ID", max_length=128)
+
+    class Meta:
+        verbose_name = "BCS 集群中默认上报 APM 应用关联配置"
+
+    @property
+    def application(self):
+        return ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()

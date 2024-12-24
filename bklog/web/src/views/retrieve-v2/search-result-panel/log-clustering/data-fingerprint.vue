@@ -400,6 +400,8 @@
   import ClusterFilter from './components/finger-tools/cluster-filter';
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
+
   export default {
     components: {
       ClusterEventPopover,
@@ -614,6 +616,11 @@
           value: row.signature.toString(),
           isLink,
         });
+
+        const router = this.$router;
+        const route = this.$route;
+        const store = this.$store;
+
         // 聚类下钻只能使用ui模式
         this.$store.commit('updateIndexItem', { search_mode: 'ui' });
         // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
@@ -627,6 +634,18 @@
           } else {
             this.$emit('show-change', 'origin');
           }
+
+          const query = { ...route.query };
+
+          const resolver = new RetrieveUrlResolver({
+            clusterParams: store.state.clusterParams,
+          });
+
+          Object.assign(query, resolver.resolveParamsToUrl());
+
+          router.replace({
+            query,
+          });
         });
       },
       showArrowsClass(row) {
@@ -745,7 +764,7 @@
         this.$http
           .request('/logClustering/updateStrategies', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               bk_biz_id: this.bkBizId,
@@ -852,7 +871,7 @@
         this.$http
           .request('/logClustering/setOwner', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               signature: this.getHoverRowValue.signature,
@@ -906,7 +925,7 @@
         this.$http
           .request(`/logClustering/${queryStr}`, {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: {
               signature: this.getHoverRowValue.signature,
@@ -1025,7 +1044,7 @@
         this.$http
           .request('/logClustering/getOwnerList', {
             params: {
-              index_set_id: this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           })
           .then(res => {

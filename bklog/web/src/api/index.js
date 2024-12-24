@@ -41,6 +41,7 @@ import { showLoginModal } from '@blueking/login-modal';
 import { context, trace } from '@opentelemetry/api';
 import axios from 'axios';
 
+import { random } from '../common/util';
 import HttpRequst from './_httpRequest';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
@@ -68,6 +69,11 @@ axiosInstance.interceptors.request.use(
     // 外部版后端需要读取header里的 spaceUid
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
+    }
+    if (window.__IS_MONITOR_APM__) {
+      // 监控上层并没有使用 OT 这里直接自己生成traceparent id
+      const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+      config.headers.Traceparent = traceparent;
     }
     return config;
   },

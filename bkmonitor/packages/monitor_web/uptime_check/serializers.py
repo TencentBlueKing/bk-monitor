@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -164,6 +164,8 @@ class ConfigSlz(serializers.Serializer):
     max_rtt = serializers.IntegerField(required=False)
     total_num = serializers.IntegerField(required=False)
     size = serializers.IntegerField(required=False)
+    send_interval = serializers.CharField(required=False)
+    target_labels = serializers.DictField(required=False)
 
     # COMMON
     url_list = serializers.ListField(required=False, default=[])

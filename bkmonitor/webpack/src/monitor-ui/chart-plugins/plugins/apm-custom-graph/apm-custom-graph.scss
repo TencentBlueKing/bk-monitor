@@ -1,0 +1,34 @@
+/* stylelint-disable declaration-no-important */
+.apm-custom-graph {
+  .title-center {
+    margin-right: auto;
+    margin-left: auto !important;
+
+    .status-tab-wrap {
+      height: 26px;
+    }
+  }
+  .empty-page {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .text-row {
+      margin: 16px 0 24px;
+      font-size: 14px;
+      color: #979ba5;
+    }
+
+    .bk-button {
+      width: 88px;
+    }
+  }
+}

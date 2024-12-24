@@ -29,7 +29,14 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['bklog-table-list', { 'is-hidden-table-header': tableLoading }]"
+    :class="[
+      'bklog-table-list',
+      {
+        'is-hidden-table-header': tableLoading,
+        'is-hidden-index-column': !tableShowRowIndex,
+        'is-show-index-column': tableShowRowIndex,
+      },
+    ]"
     :data="tableList"
     :key="tableRandomKey"
     @header-dragend="handleHeaderDragend"
@@ -43,10 +50,10 @@
       type="expand"
     >
       <template #default="{ $index, row }">
-        <LazyRender>
+        <LazyRender :delay="1">
           <expand-view
-            :kv-show-fields-list="kvShowFieldsList"
             :data="originTableList[$index]"
+            :kv-show-fields-list="kvShowFieldsList"
             :list-data="tableList[$index]"
             :retrieve-params="retrieveParams"
             :total-fields="totalFields"
@@ -60,14 +67,11 @@
       </template>
     </bk-table-column>
 
-    <template v-if="tableShowRowIndex">
-      <bk-table-column
-        type="index"
-        :label="$t('行号')"
-        :width="60"
-        class-name="bklog-result-list-col-index"
-      ></bk-table-column>
-    </template>
+    <bk-table-column
+      :width="tableShowRowIndex ? 50 : 0"
+      class-name="bklog-result-list-col-index"
+      type="index"
+    ></bk-table-column>
     <!-- 显示字段 -->
     <template>
       <bk-table-column
@@ -83,7 +87,7 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <LazyRender>
+          <LazyRender :delay="1">
             <table-column
               :content="getTableColumnContent(row, field)"
               :field="field"
@@ -105,7 +109,7 @@
     >
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
-        <LazyRender>
+        <LazyRender :root="lazyRoot">
           <operator-tools
             :handle-click="event => handleClickTools(event, row, operatorConfig)"
             :index="$index"
@@ -115,40 +119,6 @@
         </LazyRender>
       </template>
     </bk-table-column>
-    <!-- 初次加载骨架屏loading -->
-    <template
-      v-if="tableLoading"
-      #empty
-    >
-      <bk-table-column>
-        <retrieve-loader
-          is-new-search
-          :is-original-field="false"
-          :visible-fields="getShowTableVisibleFields"
-          is-loading
-        >
-        </retrieve-loader>
-      </bk-table-column>
-    </template>
-    <template
-      v-else
-      #empty
-    >
-      <empty-view />
-    </template>
-    <!-- 下拉刷新骨架屏loading -->
-    <template
-      v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
-      #append
-    >
-      <retrieve-loader
-        is-new-search
-        :is-original-field="false"
-        :is-page-over="isPageOver"
-        :visible-fields="getShowTableVisibleFields"
-      >
-      </retrieve-loader>
-    </template>
   </bk-table>
 </template>
 

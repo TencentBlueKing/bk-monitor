@@ -1,10 +1,13 @@
 <script setup>
   import { ref, computed } from 'vue';
 
+  import FieldSetting from '@/global/field-setting.vue';
+  import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import VersionSwitch from '@/global/version-switch.vue';
   import { isEqual } from 'lodash';
+  import { useRoute, useRouter } from 'vue-router/composables';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
@@ -12,6 +15,7 @@
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import { bus } from '@/common/bus';
 
   const props = defineProps({
     showFavorites: {
@@ -19,16 +23,84 @@
       default: true,
     },
   });
-
+  const route = useRoute();
+  const router = useRouter();
   const store = useStore();
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
+  // 如果不是采集下发和自定义上报则不展示
+  const hasCollectorConfigId = computed(() => {
+    const indexSetList = store.state.retrieve.indexSetList;
+    const indexSetId = route.params?.indexId;
+    const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+    return currentIndexSet?.collector_config_id;
+  });
 
-  const handleIndexSetSelected = payload => {
+  const isExternal = computed(() => store.state.isExternal);
+
+  const isFieldSettingShow = computed(() => {
+    return !store.getters.isUnionSearch && !isExternal.value;
+  });
+
+  const setRouteParams = (ids, isUnionIndex) => {
+    if (isUnionIndex) {
+      router.replace({
+        params: {
+          ...route.params,
+          indexId: undefined,
+        },
+        query: {
+          ...route.query,
+          unionList: JSON.stringify(ids),
+          clusterParams: undefined,
+        },
+      });
+
+      return;
+    }
+
+    router.replace({
+      params: {
+        ...route.params,
+        indexId: ids[0],
+      },
+      query: { ...route.query, unionList: undefined, clusterParams: undefined },
+    });
+  };
+
+  const setRouteQuery = () => {
+    const query = { ...route.query };
+    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    const resolver = new RetrieveUrlResolver({
+      keyword,
+      addition,
+      ip_chooser,
+      search_mode,
+      begin,
+      size,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
+
+    router.replace({
+      query,
+    });
+  };
+
+  const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-      store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
-        store.commit('retrieve/updateChartKey');
+      setRouteParams(payload.ids, payload.isUnionIndex);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
+      store.commit('retrieve/updateChartKey');
+
+      store.commit('updateIndexItem', payload);
+      if (!payload.isUnionIndex) {
+        store.commit('updateIndexId', payload.ids[0]);
+      }
+
+      store.commit('updateSqlQueryFieldList', []);
+      store.commit('updateIndexSetQueryResult', []);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
         store.dispatch('requestIndexSetQuery');
       });
     }
@@ -53,6 +125,7 @@
       search_mode,
     });
 
+    setRouteQuery();
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
     });
@@ -61,26 +134,30 @@
 <template>
   <div class="subbar-container">
     <div
-      class="box-biz-select"
       :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
+      class="box-biz-select"
     >
       <SelectIndexSet
         style="min-width: 500px"
+        :popover-options="{ offset: '-6,10' }"
         @selected="handleIndexSetSelected"
-        :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="box-right-option">
       <VersionSwitch version="v2" />
+      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
-      <div class="more-setting">
+      <div
+        class="more-setting"
+        v-if="!isExternal"
+      >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>
     </div>
   </div>
 </template>
-<style scoped>
+<style lang="scss">
   @import './index.scss';
 </style>

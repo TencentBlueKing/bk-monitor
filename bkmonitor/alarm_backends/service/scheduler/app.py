@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-
 import os
 import random
 
@@ -18,7 +15,8 @@ import six.moves.urllib.error
 import six.moves.urllib.parse
 import six.moves.urllib.request
 from billiard import cpu_count
-from celery import Celery
+from celery import Celery, Task
+from celery.schedules import maybe_schedule
 from celery.signals import beat_init, setup_logging
 from django.conf import settings
 from django.db import close_old_connections
@@ -95,62 +93,30 @@ def default_celery_worker_num():
     return int(cpu_count() ** 0.6 * 1.85)
 
 
-class Conf(object):
-    # worker
-    CELERYD_MAX_TASKS_PER_CHILD = 1000
-    CELERYD_CONCURRENCY = int(getattr(settings, "CELERY_WORKERS", 0)) or default_celery_worker_num()
-    CELERY_ROUTES = {}
-    CELERY_SEND_EVENTS = getattr(settings, "CELERY_SEND_EVENTS", False)
-    CELERY_SEND_TASK_SENT_EVENT = getattr(settings, "CELERY_SEND_TASK_SENT_EVENT", False)
-    CELERY_TRACK_STARTED = getattr(settings, "CELERY_TRACK_STARTED", False)
-
-
-def redis_conf():
-    """
-    REDIS_CELERY_CONF = {
-        "host": REDIS_HOST,
-        "port": REDIS_PORT,
-        "db": 9,
-        "password": REDIS_PASSWD,
-    }
-    """
-    redis_celery_conf = settings.REDIS_CELERY_CONF
-    redis_host = redis_celery_conf["host"]
-    redis_port = redis_celery_conf["port"]
-    redis_password = redis_celery_conf["password"]
-    redis_db = redis_celery_conf["db"]
-
-    class RedisConf(Conf):
-        BROKER_URL = CELERY_RESULT_BACKEND = "redis://:{}@{}:{}/{}".format(
-            six.moves.urllib.parse.quote(redis_password),
-            redis_host,
-            redis_port,
-            redis_db,
-        )
-        CELERYBEAT_MAX_LOOP_INTERVAL = 60
-        redbeat_lock_timeout = REDBEAT_LOCK_TIMEOUT = 300
-
-    return RedisConf
-
-
 def rabbitmq_conf():
-    # CELERY_RESULT_SERIALIZER = 'json'
     redis_celery_conf = settings.REDIS_CELERY_CONF
     redis_host = redis_celery_conf["host"]
     redis_port = redis_celery_conf["port"]
     redis_password = redis_celery_conf["password"]
     redis_db = redis_celery_conf["db"]
 
-    class RabbitmqConf(Conf):
-        CELERY_TASK_SERIALIZER = "pickle"
-        CELERY_ACCEPT_CONTENT = ["pickle"]
-        CELERY_RESULT_SERIALIZER = "pickle"
+    class RabbitmqConf:
+        # 子进程最大任务数
+        worker_max_tasks_per_child = 1000
 
-        CELERY_ACKS_LATE = True
-        CELERY_DEFAULT_EXCHANGE = "monitor"
-        CELERY_DEFAULT_QUEUE = "monitor"
-        CELERY_DEFAULT_ROUTING_KEY = "monitor"
-        BROKER_URL = "amqp://{}:{}@{}:{}/{}".format(
+        # worker并发数
+        worker_concurrency = int(getattr(settings, "CELERY_WORKERS", 0)) or default_celery_worker_num()
+
+        # 使用pickle序列化任务
+        task_serializer = "pickle"
+        accept_content = ["pickle"]
+        result_serializer = "pickle"
+
+        task_acks_late = True
+        task_default_exchange = "monitor"
+        task_default_queue = "monitor"
+        task_default_routing_key = "monitor"
+        broker_url = "amqp://{}:{}@{}:{}/{}".format(
             six.moves.urllib.parse.quote(settings.RABBITMQ_USER),
             six.moves.urllib.parse.quote(settings.RABBITMQ_PASS),
             settings.RABBITMQ_HOST,
@@ -158,15 +124,15 @@ def rabbitmq_conf():
             settings.RABBITMQ_VHOST,
         )
         if not get_cluster().is_default():
-            BROKER_TRANSPORT_OPTIONS = {
+            broker_transport_options = {
                 "queue_name_prefix": "{}-".format(get_cluster().name),
             }
 
-        CELERYBEAT_MAX_LOOP_INTERVAL = 60
-        redbeat_lock_timeout = REDBEAT_LOCK_TIMEOUT = 300
+        beat_max_loop_interval = 60
+        redbeat_lock_timeout = 300
 
         if settings.CACHE_BACKEND_TYPE == "SentinelRedisCache":
-            CELERY_RESULT_BACKEND = ";".join(
+            result_backend = ";".join(
                 "sentinel://:{}@{}:{}/{}".format(
                     six.moves.urllib.parse.quote(settings.REDIS_PASSWD),
                     h,
@@ -176,14 +142,14 @@ def rabbitmq_conf():
                 for h in redis_host.split(";")
                 if h
             )
-            CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
+            result_backend_transport_options = {
                 "master_name": settings.REDIS_MASTER_NAME,
                 "sentinel_kwargs": {"password": settings.REDIS_SENTINEL_PASS},
             }
 
             # celery redbeat config
             redbeat_redis_url = "redis-sentinel://redis-sentinel:26379/0"
-            REDBEAT_REDIS_OPTIONS = {
+            redbeat_redis_options = {
                 "sentinels": [(h, redis_port) for h in redis_host.split(";") if h],
                 "password": redis_password,
                 "service_name": getattr(settings, "REDIS_MASTER_NAME", "mymaster"),
@@ -191,33 +157,24 @@ def rabbitmq_conf():
                 "retry_period": 60,
             }
             # 随机打乱顺序，避免每次都是同一个节点
-            random.shuffle(REDBEAT_REDIS_OPTIONS["sentinels"])
+            random.shuffle(redbeat_redis_options["sentinels"])
 
             if getattr(settings, "REDIS_SENTINEL_PASS", ""):
-                REDBEAT_REDIS_OPTIONS["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}
+                redbeat_redis_options["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}
         else:
-            CELERY_RESULT_BACKEND = "redis://:{}@{}:{}/{}".format(
+            result_backend = "redis://:{}@{}:{}/{}".format(
                 six.moves.urllib.parse.quote(redis_password),
                 redis_host,
                 redis_port,
                 redis_db,
             )
-            redbeat_redis_url = "redis://:{}@{}:{}/0".format(
-                redis_password,
-                redis_host,
-                redis_port,
-            )
+            redbeat_redis_url = "redis://:{}@{}:{}/0".format(redis_password, redis_host, redis_port)
 
     return RabbitmqConf
 
 
 app = Celery("backend")
-
-conf_type = getattr(settings, "CELERY_CONF_TYPE", "redis_conf")
-if conf_type == "rabbitmq_conf":
-    app.config_from_object(rabbitmq_conf())
-else:
-    app.config_from_object(redis_conf())
+app.config_from_object(rabbitmq_conf())
 
 
 # 任务执行时间统计
@@ -247,7 +204,7 @@ app.autodiscover_tasks(DISCOVER_DIRS)
 
 
 @setup_logging.connect
-def config_loggers(*args, **kwags):
+def config_loggers(*args, **kwargs):
     from logging.config import dictConfig
 
     from django.conf import settings
@@ -258,3 +215,35 @@ def config_loggers(*args, **kwags):
 @beat_init.connect
 def clean_db_connections(sender, **kwargs):
     close_old_connections()
+
+
+class PeriodicTask(Task):
+    """A task that adds itself to the :setting:`beat_schedule` setting. 兼容celery5"""
+
+    abstract = True
+    ignore_result = True
+    relative = False
+    options = None
+    compat = True
+
+    def __init__(self):
+        if not hasattr(self, 'run_every'):
+            raise NotImplementedError('Periodic tasks must have a run_every attribute')
+        self.run_every = maybe_schedule(self.run_every, self.relative)
+        super(PeriodicTask, self).__init__()
+
+    @classmethod
+    def on_bound(cls, _app):
+        _app.conf.beat_schedule[cls.name] = {
+            'task': cls.name,
+            'schedule': cls.run_every,
+            'args': (),
+            'kwargs': {},
+            'options': cls.options or {},
+            'relative': cls.relative,
+        }
+
+
+def periodic_task(*args, **options):
+    """Deprecated decorator, please use :setting:`beat_schedule`."""
+    return app.task(**dict({"base": PeriodicTask}, **options))

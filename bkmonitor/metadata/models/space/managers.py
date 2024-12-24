@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from django.db import models
 from django.db.models.functions import Concat
 from django.db.models.query import QuerySet
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from . import constants
 

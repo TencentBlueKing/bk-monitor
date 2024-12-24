@@ -9,13 +9,13 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 
 import arrow
 import pytz
 from django.conf import settings
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -99,6 +99,7 @@ class GetStrategyListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
         with_user_group = serializers.BooleanField(default=False, label="是否补充告警组信息")
         with_user_group_detail = serializers.BooleanField(required=False, default=False, label="补充告警组详细信息")
+        convert_dashboard = serializers.BooleanField(required=False, default=True, label="是否转换仪表盘格式")
 
     @classmethod
     def filter_by_ip(cls, ips: List[Dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
@@ -1032,7 +1033,7 @@ class GetStrategyListV2Resource(Resource):
                             query_config["bkmonitor_strategy_id"],
                         )
                     )
-                elif query_config["data_source_label"] == DataSourceLabel.PROMETHEUS:
+                elif query_config["data_source_label"] in [DataSourceLabel.PROMETHEUS, DataSourceLabel.DASHBOARD]:
                     continue
                 else:
                     query_tuples.add(
@@ -1162,7 +1163,7 @@ class GetStrategyListV2Resource(Resource):
         strategy_objs = Strategy.from_models(strategies)
         for strategy_obj in strategy_objs:
             strategy_obj.restore()
-        strategy_configs = [s.to_dict() for s in strategy_objs]
+        strategy_configs = [s.to_dict(convert_dashboard=params["convert_dashboard"]) for s in strategy_objs]
 
         # 补充告警组信息
         if params["with_user_group"]:
@@ -1423,28 +1424,42 @@ class GetMetricListV2Resource(Resource):
             # 尝试解析指标ID格式的query字符串
             exact_query = []
             for query in filter_dict["query"]:
-                query_params_list = []
+                query = query.strip()
+
+                # promql格式的查询
+                if ":" in query:
+                    fields = query.split(":")
+                    if fields[0] in ["custom", "bkmonitor"]:
+                        fields = fields[1:]
+                    fields = [field.strip() for field in fields if field.strip()]
+
+                    if len(fields) == 3:
+                        exact_query.append(
+                            Q(result_table_id=f"{fields[0]}.{fields[1]}", metric_field__icontains=fields[2])
+                        )
+                    elif len(fields) == 2:
+                        exact_query.append(Q(data_label=fields[0], metric_field__icontains=fields[1]))
+
+                    continue
+
+                # metric_id格式的查询
                 fields = query.split(".")
                 if len(fields) == 2:
-                    query_params_list.extend(
+                    exact_query.extend(
                         [
-                            {"result_table_id": fields[0], "metric_field": fields[1]},
-                            {"data_label": fields[0], "metric_field": fields[1]},
+                            Q(data_label=fields[0], metric_field__icontains=fields[1]),
+                            Q(result_table_id=fields[0], metric_field__icontains=fields[1]),
                         ]
                     )
                 elif len(fields) >= 3:
-                    query_params_list.append(
-                        {"result_table_id": ".".join(fields[:2]), "metric_field": ".".join(fields[2:])}
+                    exact_query.append(
+                        Q(result_table_id=".".join(fields[:2]), metric_field__icontains=".".join(fields[2:]))
                     )
 
-                for query_params in query_params_list:
-                    filter_params = {
-                        f"{query_key}__icontains": query_value for query_key, query_value in query_params.items()
-                    }
-                    exact_query.append(Q(**filter_params))
-
             queries = []
-            for query, field in product(filter_dict["query"], ["result_table_id", "metric_field", "metric_field_name"]):
+            for query, field in product(
+                filter_dict["query"], ["data_label", "result_table_id", "metric_field", "metric_field_name"]
+            ):
                 queries.append(Q(**{f"{field}__icontains": query}))
 
             queries.extend(exact_query)
@@ -2216,7 +2231,12 @@ class UpdatePartialStrategyV2Resource(Resource):
         return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 
     @staticmethod
-    def update_notice(strategy: Strategy, notice: Dict):
+    def update_notice(
+        strategy: Strategy,
+        notice: Dict,
+        relations: Dict[int, List[StrategyActionConfigRelation]],
+        action_configs: Dict[int, ActionConfig],
+    ):
         """
         更新告警通知
 
@@ -2266,11 +2286,12 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
-        strategy.save_notice()
+        extra_create_or_update_datas = strategy.bulk_save_notice(relations, action_configs)
         return (
             StrategyActionConfigRelation,
             ["user_groups", "options"],
             [action.instance for action in strategy.actions],
+            extra_create_or_update_datas,
         )
 
     @staticmethod
@@ -2295,12 +2316,64 @@ class UpdatePartialStrategyV2Resource(Resource):
         strategy.save_actions()
         return None, [], []
 
+    @staticmethod
+    def get_relations(strategy_ids: List[int]):
+        action_config_ids = set()
+        relations: Dict[int, List[StrategyActionConfigRelation]] = defaultdict(list)
+        related_query = StrategyActionConfigRelation.objects.filter(
+            strategy_id__in=strategy_ids, relate_type=StrategyActionConfigRelation.RelateType.NOTICE
+        )
+        for relation in related_query:
+            relations[relation.strategy_id].append(relation)
+            action_config_ids.add(relation.config_id)
+        return list(action_config_ids), relations
+
+    @staticmethod
+    def get_action_configs(action_config_ids: List[int]):
+        action_query = ActionConfig.objects.filter(id__in=action_config_ids)
+        action_configs: Dict[int, ActionConfig] = {}
+        for action_config in action_query:
+            action_configs[action_config.id] = action_config
+        return action_configs
+
+    @staticmethod
+    def process_extra_data(
+        extra_create_or_update_datas: Dict[str, List[Dict[str, any]]],
+        key: str,
+        updates_data: DefaultDict[str, Dict[str, any]],
+        create_datas: DefaultDict[str, Dict[str, any]],
+    ):
+        extra_update_datas = extra_create_or_update_datas.get("update_data", [])
+        extra_create_datas = extra_create_or_update_datas.get("create_data", [])
+        for update_data in extra_update_datas:
+            if update_data["cls"] is ActionConfig:
+                updates_data[f"extra_{key}_config"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_config"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_config"]["objs"].extend(update_data["objs"])
+            elif update_data["cls"] is StrategyActionConfigRelation:
+                updates_data[f"extra_{key}_relation"]["cls"] = update_data["cls"]
+                updates_data[f"extra_{key}_relation"]["keys"] = update_data["keys"]
+                updates_data[f"extra_{key}_relation"]["objs"].extend(update_data["objs"])
+
+        for data in extra_create_datas:
+            if data["cls"] is ActionConfig:
+                create_datas[f"extra_{key}_config"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_config"]["objs"].extend(data["objs"])
+            elif data["cls"] is StrategyActionConfigRelation:
+                create_datas[f"extra_{key}_relation"]["cls"] = data["cls"]
+                create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
         username = get_global_user()
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
+        strategy_ids = params["ids"]
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids)
 
+        action_config_ids, relations = self.get_relations(strategy_ids)
+        action_configs = self.get_action_configs(action_config_ids)
+
+        create_datas = defaultdict(lambda: {"cls": None, "objs": []})
         updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
         updates_data["update_time"]["cls"] = StrategyModel
         updates_data["update_time"]["keys"] = ["update_time", "update_user"]
@@ -2311,7 +2384,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if key == "notice":
+                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = self.update_notice(
+                        strategy, value, relations, action_configs
+                    )
+                    self.process_extra_data(extra_create_or_update_datas, key, updates_data, create_datas)
+                else:
+                    update_cls, update_keys, update_objs = update_method(strategy, value)
                 if update_cls:
                     updates_data[key]["cls"] = update_cls
                     updates_data[key]["keys"] = update_keys
@@ -2331,6 +2410,9 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         for update_data in updates_data.values():
             update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
+        for create_data in create_datas.values():
+            create_data["cls"].objects.bulk_create(create_data["objs"])
 
         StrategyHistoryModel.objects.bulk_create(history)
 
@@ -2441,8 +2523,7 @@ class GetTargetDetailWithCache(CacheResource):
             target = ItemModel.objects.get(strategy_id=strategy_id).target
             logger.warning("Please call set_mapping() before calling perform_request().")
         else:
-            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
-            target = self.strategy_target_mapping[strategy_id][1]
+            bk_biz_id, target = self.strategy_target_mapping[strategy_id]
 
         return self.get_target_detail(bk_biz_id, target)
 
@@ -2583,6 +2664,7 @@ class GetTargetDetail(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        refresh = serializers.BooleanField(required=False, default=False, label="是否刷新缓存")
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -2601,7 +2683,10 @@ class GetTargetDetail(Resource):
         for item in items:
             # 使用instance.request()方式调用，而非instance()方式。
             # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
-            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
+            if params["refresh"]:
+                info = get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            else:
+                info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info
@@ -2954,7 +3039,7 @@ class PromqlToQueryConfig(Resource):
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
+            if len(table_id.split(".")) == 1 and query["data_source"] != "bkdata":
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2962,7 +3047,7 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
-            elif query["data_source"] == DataSourceLabel.BKDATA:
+            elif query["data_source"] == "bkdata":
                 data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
@@ -3218,13 +3303,16 @@ class GetIntelligentDetectAccessStatusResource(Resource):
         intelligent_detect_config = None
 
         for query_config in chain(*[item.query_configs for item in strategy_obj.items]):
-            if (
-                query_config.data_source_label not in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA]
-                or query_config.data_type_label != DataTypeLabel.TIME_SERIES
-            ):
+            if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
                 continue
 
             intelligent_detect_config = getattr(query_config, "intelligent_detect", None)
+
+        # 使用SDK检测的策略状态默认是运行中
+        if intelligent_detect_config.get("use_sdk", False):
+            result["status"] = AccessStatus.RUNNING
+            result["status_detail"] = None
+            return result
 
         algorithm_name = None
         for algorithm in chain(*[item.algorithms for item in strategy_obj.items]):

@@ -34,7 +34,7 @@ from luqum.visitor import TreeTransformer
 
 from apps.log_esquery.constants import WILDCARD_PATTERN, WILDCARD_QUERY
 from apps.log_esquery.exceptions import BaseSearchDslException
-from apps.log_search.constants import FieldDataTypeEnum
+from apps.log_search.constants import ES_RESERVED_CHARACTERS, FieldDataTypeEnum
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
 type_wildcard = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
@@ -272,6 +272,34 @@ class BoolQueryOperation(ABC):
     def op(self, field):
         pass
 
+    def to_querystring(self):
+        return ""
+
+    @staticmethod
+    def generate_querystring(field_name, value_list, condition_type="OR"):
+        """
+        生成querystring语法
+        :param field_name: 字段名
+        :param value_list: 值
+        :param condition_type: 多个条件间的与或关系
+        """
+        transform_result = f" {condition_type} ".join([str(v) for v in value_list])
+        # 有两个以上的值时加括号
+        transform_result = transform_result if len(value_list) == 1 else f"({transform_result})"
+        return f"{field_name}: {transform_result}"
+
+    @staticmethod
+    def escape_special_characters(string: str, is_wildcard=False):
+        wildcard_list = ["*", "?"]
+        # 转义es的的保留字
+        for char in ES_RESERVED_CHARACTERS:
+            if is_wildcard and char in wildcard_list:
+                # 对于使用通配符的es查询, 不转义通配符
+                continue
+            # 使用字符串的 replace 方法进行替换
+            string = string.replace(char, f"\\{char}")
+        return string
+
 
 class Is(BoolQueryOperation):
     TARGET = "must"
@@ -279,6 +307,16 @@ class Is(BoolQueryOperation):
 
     def op(self, field):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field["field"], field["value"]))
+
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
 
 
 class Eq(Is):
@@ -292,10 +330,16 @@ class Exists(BoolQueryOperation):
     def op(self, field):
         self._set_target_value(EsQueryBuilder.build_exists(field["field"]))
 
+    def to_querystring(self):
+        return f"{self._bool_dict['field']}: *"
+
 
 class DoesNotExist(Exists):
     OPERATOR = "does not exists"
     TARGET = "must_not"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class IsNot(BoolQueryOperation):
@@ -304,6 +348,16 @@ class IsNot(BoolQueryOperation):
 
     def op(self, field):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field["field"], field["value"]))
+
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return "NOT " + self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
 
 
 class IsOneOf(BoolQueryOperation):
@@ -316,10 +370,23 @@ class IsOneOf(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
+
 
 class IsNotOneOf(IsOneOf):
     OPERATOR = "is not one of"
     TARGET = "must_not"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class CompareBoolQueryOperation(BoolQueryOperation):
@@ -334,17 +401,33 @@ class CompareBoolQueryOperation(BoolQueryOperation):
 class Gt(CompareBoolQueryOperation):
     OPERATOR = "gt"
 
+    def to_querystring(self):
+        value = min(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: >{value}"
+
 
 class Gte(CompareBoolQueryOperation):
     OPERATOR = "gte"
+
+    def to_querystring(self):
+        value = min(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: >={value}"
 
 
 class Lt(CompareBoolQueryOperation):
     OPERATOR = "lt"
 
+    def to_querystring(self):
+        value = max(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: <{value}"
+
 
 class Lte(CompareBoolQueryOperation):
     OPERATOR = "lte"
+
+    def to_querystring(self):
+        value = max(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: <={value}"
 
 
 class EqChar(IsOneOf):
@@ -359,20 +442,36 @@ class LtChar(CompareBoolQueryOperation):
     OPERATOR = "<"
     REAL_OPERATOR = "lt"
 
+    def to_querystring(self):
+        value = max(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: <{value}"
+
 
 class GtChar(CompareBoolQueryOperation):
     OPERATOR = ">"
     REAL_OPERATOR = "gt"
+
+    def to_querystring(self):
+        value = min(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: >{value}"
 
 
 class LteChar(CompareBoolQueryOperation):
     OPERATOR = "<="
     REAL_OPERATOR = "lte"
 
+    def to_querystring(self):
+        value = max(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: <={value}"
+
 
 class GteChar(CompareBoolQueryOperation):
     OPERATOR = ">="
     REAL_OPERATOR = "gte"
+
+    def to_querystring(self):
+        value = min(self._bool_dict["value"])
+        return f"{self._bool_dict['field']}: >={value}"
 
 
 class IsTrue(BoolQueryOperation):
@@ -382,6 +481,9 @@ class IsTrue(BoolQueryOperation):
     def op(self, field):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field=field["field"], value="true"))
 
+    def to_querystring(self):
+        return f"{self._bool_dict['field']}: true"
+
 
 class IsFalse(BoolQueryOperation):
     TARGET = "must"
@@ -389,6 +491,9 @@ class IsFalse(BoolQueryOperation):
 
     def op(self, field):
         self._set_target_value(EsQueryBuilder.build_match_phrase_query(field=field["field"], value="false"))
+
+    def to_querystring(self):
+        return f"{self._bool_dict['field']}: false"
 
 
 class EqWildCard(BoolQueryOperation):
@@ -403,10 +508,23 @@ class EqWildCard(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value, is_wildcard=True)
+            value_list.append(value)
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
+
 
 class NeWildCard(EqWildCard):
     TARGET = "must_not"
     OPERATOR = "!=~"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class Contains(BoolQueryOperation):
@@ -421,20 +539,53 @@ class Contains(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(should)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value)
+            value_list.append(f"*{value}*")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
+
 
 class NotContains(Contains):
     TARGET = "must_not"
     OPERATOR = "not contains"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class ContainsMatchPhrase(IsOneOf):
     TARGET = "must"
     OPERATOR = "contains match phrase"
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
+
 
 class NotContainsMatchPhrase(IsNotOneOf):
     TARGET = "must_not"
     OPERATOR = "not contains match phrase"
+
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return "NOT " + self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+        )
 
 
 class AllContainsMatchPhrase(BoolQueryOperation):
@@ -447,10 +598,24 @@ class AllContainsMatchPhrase(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = value.replace('"', '\\"')
+            value_list.append(f"\"{value}\"")
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+            condition_type="AND",
+        )
+
 
 class AllNotContainsMatchPhrase(AllContainsMatchPhrase):
     TARGET = "must_not"
     OPERATOR = "all not contains match phrase"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class AllEqWildcard(BoolQueryOperation):
@@ -465,10 +630,24 @@ class AllEqWildcard(BoolQueryOperation):
         a_bool: type_bool = EsQueryBuilder.build_bool(filters)
         self._set_target_value(a_bool)
 
+    def to_querystring(self):
+        value_list = []
+        for value in self._bool_dict["value"]:
+            value = self.escape_special_characters(value, is_wildcard=True)
+            value_list.append(value)
+        return self.generate_querystring(
+            self._bool_dict["field"],
+            value_list,
+            condition_type="AND",
+        )
+
 
 class AllNeWildcard(AllEqWildcard):
     TARGET = "must_not"
     OPERATOR = "&!=~"
+
+    def to_querystring(self):
+        return "NOT " + super().to_querystring()
 
 
 class BoolMustIns(object):

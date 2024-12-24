@@ -100,20 +100,11 @@ DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
 
-# CELERY 开关，使用时请改为 True，修改项目目录下的 Procfile 文件，添加以下两行命令：
-# worker: python manage.py celery worker -l info
-# beat: python manage.py celery beat -l info
-# 不使用时，请修改为 False，并删除项目目录下的 Procfile 文件中 celery 配置
-IS_USE_CELERY = False
-
 # 前后端分离开发配置开关，设置为True时允许跨域访问
 FRONTEND_BACKEND_SEPARATION = True
 
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)  # noqa
-
-# CELERY 配置，申明任务的文件路径，即包含有 @task 装饰器的函数文件
-CELERY_IMPORTS = ()
 
 # load logging settings
 LOGGING = get_logging_config_dict(locals())
@@ -212,14 +203,6 @@ else:
 
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "username"
-
-# sentry support
-SENTRY_DSN = os.environ.get("SENTRY_DSN")
-if SENTRY_DSN:
-    INSTALLED_APPS += ("raven.contrib.django.raven_compat",)
-    RAVEN_CONFIG = {
-        "dsn": SENTRY_DSN,
-    }
 
 # Target: Observation data collection
 SERVICE_NAME = APP_CODE + "_web"
@@ -357,6 +340,7 @@ ACTIVE_VIEWS = {
         "apm_log": "apm_web.log.views",
         "apm_db": "apm_web.db.views",
         "apm_profile": "apm_web.profile.views",
+        "apm_container": "apm_web.container.views",
     },
 }
 
@@ -439,11 +423,6 @@ REPORT_DASHBOARD_UID = "CzhKanwtf"
 # celery worker进程数量
 CELERY_WORKERS = 0
 
-# celery 默认禁用事件队列
-CELERY_SEND_EVENTS = False
-CELERY_SEND_TASK_SENT_EVENT = False
-CELERY_TRACK_STARTED = False
-
 # 当 ES 存在不合法别名时，是否保留该索引
 ES_RETAIN_INVALID_ALIAS = True
 
@@ -484,15 +463,13 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
-# 后台celery存储配置类型rabbitmq_conf/redis_conf
-CELERY_CONF_TYPE = "rabbitmq_conf"
-
 # 日期格式
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
+CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
@@ -514,6 +491,14 @@ APM_SAMPLING_PERCENTAGE = 100
 APM_APP_QPS = 500
 
 APM_CUSTOM_EVENT_REPORT_CONFIG = {}
+
+# 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
+APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+
+# 新建应用的创建时间到当前时间的时长范围，单位：分钟
+APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+# 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
+APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
@@ -541,8 +526,8 @@ APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE = "inland"
 APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID = 0
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE = 30
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE = ""
-APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
-APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
+APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 100
+APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 15
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
@@ -558,6 +543,8 @@ APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = []
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
+# APM 自定义指标 SDK 映射配置
+APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -1084,15 +1071,20 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
+# bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
+# bkdata api only for query profiling data (not required)
+BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
+# 用户信息
+BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
@@ -1106,6 +1098,9 @@ BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
 BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
+# aidev的apigw地址
+AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
@@ -1114,6 +1109,7 @@ BK_NODEMAN_INNER_HOST = os.getenv("BKAPP_NODEMAN_HOST") or os.getenv(
 )
 
 BKLOGSEARCH_HOST = os.getenv("BK_LOG_SEARCH_SITE_URL") or get_service_url("bk_log_search", bk_paas_host=BK_PAAS_HOST)
+BKLOGSEARCH_INNER_HOST = os.getenv("BK_LOG_SEARCH_INNER_HOST") or BKLOGSEARCH_HOST
 
 # 作业平台url
 JOB_URL = BK_PAAS_HOST.replace("paas", "job")
@@ -1378,6 +1374,9 @@ REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0
 # 需要base64编码的特殊字符
 BASE64_ENCODE_TRIGGER_CHARS = []
 
+# aidev的知识库ID
+AIDEV_KNOWLEDGE_BASE_IDS = []
+
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
@@ -1391,6 +1390,8 @@ ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False
 
+# BCS集群自动发现任务周期
+BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []

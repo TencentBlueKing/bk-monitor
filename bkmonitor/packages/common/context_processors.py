@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.utils.translation import get_language
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
@@ -171,7 +171,9 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             # APM 是否开启 EBPF 功能
             "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
             # 是否开启AI助手
-            "ENABLE_AI_ASSISTANT": "true" if settings.BK_MONITOR_AI_API_URL else "false",
+            "ENABLE_AI_ASSISTANT": "true" if settings.AIDEV_API_BASE_URL else "false",
+            # APM 日志转发接口 Url
+            "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
         }
     )
 

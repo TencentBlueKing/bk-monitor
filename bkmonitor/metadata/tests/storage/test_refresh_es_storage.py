@@ -80,6 +80,44 @@ PAST_AVAILABLE_INDEX = 'v2_2_bklog_test_rotation_20241015_0'
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_should_create_index_logic(es_storage):
+    """
+    测试_should_create_index方法的逻辑，包括归档时间的验证
+    """
+
+    # Mock返回current_index_info的不同情况
+    def mock_current_index_info_before_archive():
+        return {
+            'index_version': 'v2',
+            'datetime_object': datetime(2024, 10, 10, 0, 0, tzinfo=tz.tzutc()),  # 早于归档时间点
+            'index': 0,
+            'size': 1 * 1024**3,
+        }
+
+    def mock_current_index_info_after_archive():
+        return {
+            'index_version': 'v2',
+            'datetime_object': datetime(2024, 10, 18, 0, 0, tzinfo=tz.tzutc()),  # 晚于归档时间点
+            'index': 0,
+            'size': 1 * 1024**3,
+        }
+
+    # Mock方法和属性
+    es_storage.is_mapping_same = mock.Mock(return_value=True)  # 默认mapping相同
+    es_storage.archive_index_days = 7  # 设置归档时间为 7 天
+
+    # 使用 mock.patch.object 覆盖 now 属性
+    with mock.patch.object(type(es_storage), 'now', new=datetime(2024, 10, 20, 0, 0, tzinfo=tz.tzutc())):
+        # 场景：索引在归档时间之前
+        es_storage.current_index_info = mock.Mock(side_effect=mock_current_index_info_before_archive)
+        assert es_storage._should_create_index() is True, "Index is before archive time, should create index."
+
+        # 场景：索引在归档时间之后
+        es_storage.current_index_info = mock.Mock(side_effect=mock_current_index_info_after_archive)
+        assert es_storage._should_create_index() is False, "Index is after archive time, no need to create."
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_alias_creation_with_ready_index(es_storage, mock_es_client):
     # 场景1：新索引就绪，能够正常创建当前和明天的别名及其对应的索引绑定关系
     es_storage.es_client = mock_es_client
@@ -150,3 +188,43 @@ def test_update_index_v2(es_storage, mock_es_client):
     es_storage.es_client = mock_es_client
     es_storage.update_index_v2()
     es_storage.es_client.indices.delete.assert_any_call(index=EXPECTED_FUTURE_INDEX)
+
+
+def test_filter_reallocate_index_list():
+    """
+    测试冷热切换过程中的double_check是否正常工作
+    """
+    filter_result = {
+        'v2_test_bklog_report_20241027_9': {
+            'expired_alias': ['test_bklog_report_20241028_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241027_1': {
+            'expired_alias': ['test_bklog_report_20241028_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241031_84': {
+            'expired_alias': ['test_bklog_report_20241031_read', 'test_bklog_report_20241101_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241031_78': {
+            'expired_alias': ['test_bklog_report_20241031_read', 'test_bklog_report_20241101_read'],
+            'not_expired_alias': [],
+        },
+        'v2_test_bklog_report_20241028_6': {
+            'expired_alias': ['test_bklog_report_20241028_read', 'test_bklog_report_20241029_read'],
+            'not_expired_alias': [],
+        },
+    }
+
+    date_range = ['1031']
+
+    reallocate_index_list = [
+        index_name
+        for index_name, alias in filter_result.items()
+        if not alias["not_expired_alias"] and not any(date in index_name for date in date_range)
+    ]
+
+    expected = ['v2_test_bklog_report_20241027_9', 'v2_test_bklog_report_20241027_1', 'v2_test_bklog_report_20241028_6']
+
+    assert reallocate_index_list == expected

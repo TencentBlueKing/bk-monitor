@@ -48,6 +48,24 @@ class DataLinkResourceConfigBase(models.Model):
     class Meta:
         abstract = True
 
+    @property
+    def component_status(self):
+        """
+        组件实时状态
+        """
+        from metadata.models.data_link.service import get_data_link_component_status
+
+        return get_data_link_component_status(self.kind, self.name, self.namespace)
+
+    @property
+    def component_config(self):
+        """
+        组件完整配置（bkbase侧）
+        """
+        from metadata.models.data_link.service import get_data_link_component_config
+
+        return get_data_link_component_config(kind=self.kind, namespace=self.namespace, component_name=self.name)
+
     @classmethod
     def compose_config(cls, *args, **kwargs):
         raise NotImplementedError
@@ -294,7 +312,6 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         verbose_name = "条件处理配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
     def compose_conditional_sink_config(self, conditions: List) -> Dict:
         """
         组装条件处理配置

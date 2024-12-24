@@ -518,6 +518,12 @@ class K8sInstaller(BaseInstaller):
             self.collect_config.operation_result = OperationResult.FAILED
             self.collect_config.save()
 
+    def run(self, action: str = None, scope: Dict[str, Any] = None):
+        """
+        主动执行采集配置
+        """
+        self._deploy(self.collect_config.deployment_config)
+
     def retry(self, instance_ids: List[str] = None):
         """
         重试采集配置

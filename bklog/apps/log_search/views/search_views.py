@@ -36,6 +36,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -58,12 +59,14 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
@@ -72,10 +75,12 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
     OriginalSearchAttrSerializer,
+    QueryStringSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
@@ -83,6 +88,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetDeleteConfigSerializer,
     SearchUserIndexSetOptionHistoryDeleteSerializer,
     SearchUserIndexSetOptionHistorySerializer,
+    UISearchSerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -115,7 +121,17 @@ class SearchViewSet(APIViewSet):
         if self.action in ["operators", "user_search_history"]:
             return []
 
-        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "history"]:
+        if self.action in [
+            "bizs",
+            "search",
+            "context",
+            "tailf",
+            "export",
+            "fields",
+            "history",
+            "chart",
+            "generate_sql",
+        ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         if self.action in ["union_search", "config"]:
@@ -294,6 +310,16 @@ class SearchViewSet(APIViewSet):
             auth_info = Permission.get_auth_info(self.request, raise_exception=False)
             if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
                 data["is_desensitize"] = True
+        if data.get("is_desensitize"):
+            # 对脱敏白名单中的用户开放不脱敏的权限
+            bk_biz_id = data.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    # 用户在脱敏白名单中,开放不脱敏权限
+                    data["is_desensitize"] = False
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
@@ -544,7 +570,7 @@ class SearchViewSet(APIViewSet):
             output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
         response = HttpResponse(output.getvalue())
         response["Content-Type"] = "application/x-msdownload"
-        file_name = f"bk_log_search_{index}.txt"
+        file_name = f"bk_log_search_{index}.log"
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
         response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
@@ -574,6 +600,56 @@ class SearchViewSet(APIViewSet):
         user_operation_record.delay(operation_record)
 
         return response
+
+    @detail_route(methods=["POST"], url_path="quick_export")
+    def quick_export(self, request, index_set_id=None):
+        """
+        @api /search/index_set/$index_set_id/quick_export/ 15-搜索-快速导出日志
+        @apiDescription 快速下载检索日志
+        @apiName quick_export
+        @apiGroup 11_Search
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam host_scopes [Dict] 检索模块ip等信息
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam interval [String] 匹配规则
+        @apiParamExample {Json} 请求参数
+        {
+            "bk_biz_id":"215",
+            "keyword":"*",
+            "time_range":"5m",
+            "start_time":"2021-06-08 11:02:21",
+            "end_time":"2021-06-08 11:07:21",
+            "host_scopes":{
+                "modules":[
+
+                ],
+                "ips":""
+            },
+            "addition":[
+
+            ],
+            "begin":0,
+            "size":188,
+            "interval":"auto",
+            "isTrusted":true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "task_id": 1,
+                "prompt": "任务提交成功，系统处理后将通过邮件通知，请留意！"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return self._export(request, index_set_id, is_quick_export=True)
 
     @detail_route(methods=["POST"], url_path="async_export")
     def async_export(self, request, index_set_id=None):
@@ -623,6 +699,9 @@ class SearchViewSet(APIViewSet):
             "message": ""
         }
         """
+        return self._export(request, index_set_id, is_quick_export=False)
+
+    def _export(self, request, index_set_id, is_quick_export):
         data = self.params_valid(SearchExportSerializer)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
@@ -636,7 +715,8 @@ class SearchViewSet(APIViewSet):
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
             export_fields=data["export_fields"],
-        ).async_export()
+            export_file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
@@ -1617,3 +1697,105 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+          "result": true,
+          "data": {
+            "total_records": 2,
+            "time_taken": 0.092,
+            "list": [
+              {
+                "aa": "aa",
+                "number": 16.3
+                "time": 1731260184
+              },
+              {
+                "aa": "bb",
+                "number": 20.56
+                "time": 1731260184
+              }
+            ],
+            "select_fields_order": [
+              "aa",
+              "number",
+              "time"
+            ],
+            "result_schema": [
+            {
+                "field_type": "string",
+                "field_name": "aa",
+                "field_alias": "aa",
+                "field_index": 0
+            },
+            {
+                "field_type": "double",
+                "field_name": "number",
+                "field_alias": "number",
+                "field_index": 1
+            },
+            {
+                "field_type": "long",
+                "field_name": "time",
+                "field_alias": "time",
+                "field_index": 2
+            }
+            ]
+          },
+          "code": 0,
+          "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+        result = instance.get_chart_data(params)
+        return Response(result)
+
+    @detail_route(methods=["POST"], url_path="generate_sql")
+    def generate_sql(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/generate_sql/
+        @apiDescription 生成sql条件
+        @apiName generate_sql
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "sql": "dtEventTimeStamp>=1732220441000 and dtEventTimeStamp<=1732220443000"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(UISearchSerializer)
+        sql = ChartHandler.generate_sql(params)
+        return Response({"sql": sql})
+
+    @list_route(methods=["POST"], url_path="generate_querystring")
+    def generate_querystring(self, request):
+        """
+        @api {get} /search/index_set/generate_querystring/
+        @apiDescription 生成querystring语法
+        @apiName generate_querystring
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "querystring": "color: * AND name: x"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(QueryStringSerializer)
+        querystring = QueryStringBuilder.to_querystring(params)
+        return Response({"querystring": querystring})

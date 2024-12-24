@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import datetime
 import decimal
+import gzip
 import hashlib
 import inspect
 import json
@@ -34,7 +35,7 @@ from django.conf import settings
 from django.utils.encoding import force_text
 from django.utils.functional import Promise
 from django.utils.timezone import is_aware
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six.moves import map, range
 
 from bkmonitor.utils import time_tools
@@ -767,18 +768,6 @@ def to_dict(obj):
         return obj
 
 
-def replce_special_val(s, replace_dict):
-    """
-    替换特殊变量
-    :param s: 待替换字符串
-    :param replace_dict: 替换映射
-    :return: 替换结果
-    """
-    for key, value in replace_dict.items():
-        s = s.replace(key, value)
-    return s
-
-
 def chunks(data, n):
     """分隔数组 ."""
     return (data[i : i + n] for i in range(0, len(data), n))
@@ -806,3 +795,23 @@ def camel_obj_key_to_underscore(obj: Union[List, Dict, str]) -> object:
             new_obj.append(value)
             return new_obj
     return obj
+
+
+def compress_and_serialize(data):
+    # 将字典转换为 JSON 字符串
+    json_str = json.dumps(data)
+
+    # 压缩 JSON 字符串
+    compressed_data = gzip.compress(json_str.encode('utf-8'))
+
+    return compressed_data
+
+
+def deserialize_and_decompress(compressed_data):
+    # 解压缩数据
+    json_str = gzip.decompress(compressed_data).decode('utf-8')
+
+    # 将 JSON 字符串转换回字典
+    data = json.loads(json_str)
+
+    return data

@@ -51,7 +51,9 @@
         :list-data="listData"
         :total-fields="totalFields"
         :visible-fields="visibleFields"
-        @value-click="(type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)"
+        @value-click="
+          (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
+        "
       />
     </div>
     <div
@@ -126,6 +128,7 @@
 
 <style lang="scss" scoped>
   .expand-view-wrapper {
+    width: 100%;
     color: #313238;
 
     .view-tab {
@@ -167,6 +170,14 @@
 
         .vjs-tree__node {
           line-height: 22px;
+        }
+      }
+
+      :deep(.kv-content) {
+        .bklog-text-segment {
+          &.bklog-root-field {
+            max-height: fit-content;
+          }
         }
       }
     }

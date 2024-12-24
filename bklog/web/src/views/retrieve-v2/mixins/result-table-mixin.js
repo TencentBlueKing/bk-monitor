@@ -26,17 +26,11 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import {
-  formatDate,
-  random,
-  copyMessage,
-  setDefaultTableWidth,
-  TABLE_LOG_FIELDS_SORT_REGULAR,
-  formatDateNanos,
-} from '@/common/util';
+import { formatDate, random, copyMessage, TABLE_LOG_FIELDS_SORT_REGULAR, formatDateNanos } from '@/common/util';
 import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { mapState, mapGetters } from 'vuex';
 
 import OriginalLightHeight from '../result-comp/original-light-height.tsx';
@@ -129,6 +123,7 @@ export default {
         tag: 'union-source',
         width: 230,
       },
+      lazyRoot: null,
     };
   },
   computed: {
@@ -141,6 +136,7 @@ export default {
       'indexFieldInfo',
       'indexItem',
       'tableShowRowIndex',
+      'tableJsonFormat',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -160,9 +156,13 @@ export default {
     getOperatorToolsWidth() {
       return this.operatorConfig?.bcsWebConsole?.is_active ? '84' : '58';
     },
+    apmRelation() {
+      return this.$store.state.indexSetFieldConfig.apm_relation;
+    },
     getShowTableVisibleFields() {
       this.tableRandomKey = random(6);
       return this.isNotVisibleFieldsShow ? this.fullQuantityFields : this.visibleFields;
+      // return [...(this.tableShowRowIndex ? [{ field_name: '行号', __is_row_index: true }] : []), ...list]
     },
     /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
     fullQuantityFields() {
@@ -187,6 +187,8 @@ export default {
       if (this.isUnionSearch && this.isShowSourceField) {
         sortFieldsList.unshift(this.logSourceField);
       }
+
+      this.$store.commit('updateVisibleFieldMinWidth', this.tableList, sortFieldsList);
       setDefaultTableWidth(sortFieldsList, this.tableList);
       return sortFieldsList;
     },
@@ -209,6 +211,9 @@ export default {
     userSettingConfig() {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
+    indexSetId() {
+      return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    },
   },
   watch: {
     retrieveParams: {
@@ -218,10 +223,15 @@ export default {
         this.cacheOverFlowCol = [];
       },
     },
-    '$route.params.indexId'() {
+    indexSetId() {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
+    },
+    tableShowRowIndex: {
+      handler() {
+        console.log('');
+      },
     },
   },
   methods: {
@@ -282,8 +292,9 @@ export default {
       return subsetObj;
     },
 
-    renderHeaderAliasName(h, { _column, $index }) {
-      const field = this.getShowTableVisibleFields[$index - 1];
+    renderHeaderAliasName(h, args) {
+      const fieldIndex = args.column.index;
+      const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
@@ -380,23 +391,43 @@ export default {
       return ['exists', 'does not exists'].includes(operator);
     },
     handleAddCondition(field, operator, value, isLink = false, depth = undefined) {
+      const router = this.$router;
+      const route = this.$route;
+      const store = this.$store;
+
       this.$store
         .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            console.log(openUrl);
             window.open(openUrl, '_blank');
           }
+
+          const query = { ...route.query };
+
+          const resolver = new RetrieveUrlResolver({
+            keyword: store.getters.retrieveParams.keyword,
+            addition: store.getters.retrieveParams.addition,
+          });
+
+          Object.assign(query, resolver.resolveParamsToUrl());
+
+          router.replace({
+            query,
+          });
         });
     },
     handleIconClick(type, content, field, row, isLink, depth) {
-      let value = ['date', 'date_nanos'].includes(field.field_type)
-        ? this.tableRowDeepView(row, field.field_name, field.field_type)
-        : content;
-
+      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
+
+      if (type === 'trace-view') {
+        this.handleTraceIdClick(content);
+        return;
+      }
       if (type === 'search') {
         // 将表格单元添加到过滤条件
         this.handleAddCondition(field.field_name, 'eq', [value], isLink);
@@ -413,8 +444,20 @@ export default {
     getFieldIconColor(fieldType) {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
+    handleTraceIdClick(traceId) {
+      if (this.apmRelation.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    },
     handleMenuClick(option, isLink) {
-      debugger;
       switch (option.operation) {
         case 'is':
         case 'is not':
@@ -429,6 +472,9 @@ export default {
           break;
         case 'display':
           this.$emit('fields-updated', option.displayFieldNames, undefined, false);
+          break;
+        case 'trace-view':
+          this.handleTraceIdClick(option.value);
           break;
         default:
           break;
@@ -449,6 +495,12 @@ export default {
         sort_list: sortList,
       });
       this.$store.dispatch('requestIndexSetQuery');
+      this.$router.replace({
+        query: {
+          ...this.$route.query,
+          sort_list: JSON.stringify(sortList),
+        },
+      });
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称
@@ -489,5 +541,8 @@ export default {
         }
       }, 200);
     },
+  },
+  mounted() {
+    this.lazyRoot = this.$el.parentNode;
   },
 };

@@ -81,7 +81,7 @@ interface IPageTitleEvent {
   onSearchChange: (a: SearchType, b: ISearchItem[]) => void;
   onSelectPanelChange: boolean;
   onListPanelChange: boolean;
-  onAddTab: void;
+  onAddTab: () => void;
 }
 @Component
 export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
@@ -113,7 +113,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
   searchKeyword = '';
   isSmallScreen = false;
   insideSearchSelect = false;
-  throttledResize: Function = () => {};
+  throttledResize: () => void = () => {};
 
   // 是否是key-value模式搜索
   get isKeyValueSearch() {
@@ -303,7 +303,10 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                 (this.bookMarkMode === 'auto'
                   ? [
                       this.isKeyValueSearch ? (
-                        <div class='filter-search'>
+                        <div
+                          key='filter-search'
+                          class='filter-search'
+                        >
                           <SearchSelect
                             ref='searchSelect'
                             clearable={false}
@@ -314,6 +317,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                         </div>
                       ) : (
                         <span
+                          key='filter-search-select'
                           class='page-filters-select'
                           onMouseenter={() => (this.insideSearchSelect = true)}
                           onMouseleave={() => (this.insideSearchSelect = false)}

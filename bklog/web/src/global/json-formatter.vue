@@ -1,5 +1,8 @@
 <template>
-  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]">
+  <div
+    :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]"
+    ref="refJsonFormatterCell"
+  >
     <template v-for="item in rootList">
       <span
         :key="item.name"
@@ -12,7 +15,6 @@
             >{{ item.name }}</span
           ></span
         >
-        <span class="field-split">:</span>
         <span
           class="field-value"
           :data-field-name="item.name"
@@ -24,12 +26,11 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount } from 'vue';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
-
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -50,6 +51,8 @@
   });
 
   const formatCounter = ref(0);
+  const refJsonFormatterCell = ref();
+
   const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
@@ -62,7 +65,7 @@
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
-  const { updateRootFieldOperator, setExpand } = useJsonRoot({
+  const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
     fields: fieldList.value,
     onSegmentClick,
   });
@@ -74,7 +77,6 @@
         try {
           return JSON.parse(originValue);
         } catch (e) {
-          console.error(e);
           return val;
         }
       }
@@ -92,7 +94,7 @@
       return convertToObject(parseTableRowData(props.jsonValue, field.field_name));
     }
 
-    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue,field.field_name) : props.jsonValue;
+    return typeof props.jsonValue === 'object' ? parseTableRowData(props.jsonValue, field.field_name) : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
@@ -120,6 +122,7 @@
     () => [formatCounter.value],
     () => {
       updateRootFieldOperator(rootList.value, depth.value);
+      setEditor(depth.value);
     },
     {
       immediate: true,
@@ -132,6 +135,10 @@
       setExpand(depth.value);
     },
   );
+
+  onBeforeUnmount(() => {
+    destroy();
+  });
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
@@ -142,10 +149,16 @@
     font-size: var(--table-fount-size);
     line-height: 20px;
     color: var(--table-fount-color);
+    text-align: left;
 
     .bklog-root-field {
-      margin-right: 2px;
+      margin-right: 4px;
       line-height: 20px;
+      // display: inline-flex;
+
+      .bklog-json-view-row {
+        word-break: break-all;
+      }
 
       &:not(:first-child) {
         margin-top: 1px;
@@ -159,6 +172,10 @@
           padding: 0 2px;
           background: #e6e6e6;
           border-radius: 2px;
+        }
+
+        &::after {
+          content: ':';
         }
       }
 
@@ -216,10 +233,6 @@
     &.is-json {
       display: inline-block;
       width: 100%;
-
-      .bklog-root-field {
-        display: inline-flex;
-      }
     }
 
     &.is-wrap-line {
@@ -228,6 +241,10 @@
 
       .bklog-root-field {
         display: flex;
+
+        .field-value {
+          word-break: break-all;
+        }
       }
     }
 

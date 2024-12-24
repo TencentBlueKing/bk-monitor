@@ -52,8 +52,23 @@ class BkBaseResultTable(models.Model):
 
     # 计算平台结果表ID，只有在实际创建后才进行赋值
     bkbase_table_id = models.CharField(verbose_name="计算平台结果表ID", max_length=128, null=True, blank=True)
+    # 计算平台结果表名称，通常作为databus、vmstorage、vmstoragebinding等的name
     bkbase_rt_name = models.CharField(verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True)
 
     class Meta:
         verbose_name = "接入计算平台记录表"
         verbose_name_plural = "接入计算平台记录表"
+
+    @property
+    def component_id(self):
+        """
+        计算平台指标查询用ID
+        """
+        from metadata.models.data_link.data_link_configs import DataBusConfig
+
+        try:
+            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name)
+            return databus_config_ins.namespace + '-' + databus_config_ins.name
+        except DataBusConfig.DoesNotExist:
+            logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)
+            return None

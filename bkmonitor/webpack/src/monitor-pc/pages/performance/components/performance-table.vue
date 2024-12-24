@@ -31,10 +31,7 @@
  * @Description:
 -->
 <template>
-  <div
-    class="performance"
-    v-bkloading="{ isLoading }"
-  >
+  <div class="performance">
     <div class="performance-table">
       <bk-table
         v-if="Object.keys(columns).length"
@@ -219,8 +216,11 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <template v-else>
               <div
@@ -337,8 +337,11 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <span
               v-else
@@ -379,14 +382,18 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.cpu_usage | progressColors"
                 :percent="+(row.cpu_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -403,14 +410,18 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.disk_in_use | progressColors"
                 :percent="+(row.disk_in_use * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -427,14 +438,18 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.io_util | progressColors"
                 :percent="+(row.io_util * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -451,14 +466,18 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.mem_usage | progressColors"
                 :percent="+(row.mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -475,14 +494,18 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div v-else>
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
+                size="small"
                 :color="row.psc_mem_usage | progressColors"
                 :percent="+(row.psc_mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
@@ -508,8 +531,11 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <div v-if="instanceLoading" class='table-skeleton-item'>
-              <div class='skeleton-element' />
+            <div
+              v-if="instanceLoading"
+              class="table-skeleton-item"
+            >
+              <div class="skeleton-element" />
             </div>
             <div
               v-else
@@ -537,7 +563,7 @@
                   class="process-status-3 process-overflow"
                   @click="openProcessView(row, 'row-overflow')"
                   v-bk-tooltips="{
-                    content: () => row.component.map(({display_name}) => display_name).join('、'),
+                    content: () => row.component.map(({ display_name }) => display_name).join('、'),
                     showOnInit: false,
                     placements: ['top'],
                     interactive: false,
@@ -757,7 +783,6 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     },
     3: {},
   };
-  isLoading = false;
 
   handleIpStatusData: Function = handleIpStatusData;
   ipStatusData = {

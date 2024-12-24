@@ -106,7 +106,7 @@ export default class Performance extends Vue {
   @Ref('table') readonly tableRef: PerformanceTable;
   @Ref('tool') readonly toolRef: PerformanceTool;
   isLoading = false;
-  tableInstance: TableStore = new TableStore([], {}, this.bizList);
+  tableInstance: TableStore = new TableStore([], {}, this.bizIdMap);
   // 置顶信息
   sticky = {
     key: 'userStikyNote',
@@ -171,6 +171,9 @@ export default class Performance extends Vue {
   }
   get bizList() {
     return this.$store.getters.bizList;
+  }
+  get bizIdMap() {
+    return this.$store.getters.bizIdMap;
   }
   get checkType() {
     return this.tableInstance.checkType;
@@ -328,21 +331,17 @@ export default class Performance extends Vue {
   }
 
   // 获取全部主机信息（性能问题，异步获取）
-  getMetricHostList() {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    return new Promise(async resolve => {
-      this.tableInstance.loading = true;
-      const hostData = await PerformanceModule.getHostPerformanceMetric();
-      resolve(hostData);
-      this.tableInstance.updateData(hostData.hosts, {
-        stickyValue: this.sticky.value,
-        panelKey: this.panelKey,
-      });
-      this.handleInitColChecked();
-      this.getTableData();
-      this.tableInstance.loading = false;
-      // 更新tableInstance
+  async getMetricHostList() {
+    this.tableInstance.loading = true;
+    const hostData = await PerformanceModule.getHostPerformanceMetric();
+    this.tableInstance.updateData(hostData.hosts, {
+      stickyValue: this.sticky.value,
+      panelKey: this.panelKey,
     });
+    this.handleInitColChecked();
+    this.getTableData();
+    this.tableInstance.loading = false;
+    return hostData;
   }
 
   // 根据 localStorage 初始化字段显示配置

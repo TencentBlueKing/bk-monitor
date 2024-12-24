@@ -63,6 +63,7 @@
     right: -1px;
     z-index: 999;
     display: none;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
     border-color: #dcdee5 #dcdee5 transparent transparent;
     border-style: solid;
     border-width: 14px;
@@ -221,5 +222,28 @@
     &:hover {
       background: #f5f7fa;
     }
+  }
+}
+.pop-drill-down-list {
+  height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  .contextmenu-list-item-title {
+    padding: 8px 10px;
+    color: #979ba5;
+  }
+  .contextmenu-list-item-disabled {
+    position: relative;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    color: #ccc;
+    cursor: not-allowed;
+  }
+  .active {
+    color: #3a84ff;
+    background: #f5f7fa;
   }
 }

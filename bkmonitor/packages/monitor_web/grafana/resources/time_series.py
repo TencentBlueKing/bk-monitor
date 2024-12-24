@@ -12,14 +12,15 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from functools import partial
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_ipchooser.handlers import topo_handler
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import (
     BCSCluster,
@@ -509,6 +510,29 @@ class GetVariableValue(Resource):
 
         return new_labels, new_values
 
+    @staticmethod
+    def get_host_count(bk_biz_id: int, target_type: str) -> Dict[int, int]:
+        """
+        获取主机数量，比如集群或者模块的主机数量
+        """
+        host_count = {}
+
+        def collect(trees: List[Dict[str, Any]]):
+            for node in trees:
+                if node["object_id"] == target_type:
+                    host_count[node["instance_id"]] = node["count"]
+
+                if "child" in node and node["child"]:
+                    collect(node["child"])
+
+        trees = topo_handler.TopoHandler.trees(
+            scope_list=[{"bk_biz_id": bk_biz_id}],
+            count_instance_type="host",
+        )
+        collect(trees)
+
+        return host_count
+
     def query_cmdb(self, type, bk_biz_id, params):
         label_fields = [label_field for label_field in params["label_field"].split("|") if label_field]
         value_fields = [value_field for value_field in params["value_field"].split("|") if value_field]
@@ -517,8 +541,10 @@ class GetVariableValue(Resource):
             instances = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         elif type == "module":
             instances = api.cmdb.get_module(bk_biz_id=bk_biz_id)
+            host_count = self.get_host_count(bk_biz_id, "module")
         elif type == "set":
             instances = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+            host_count = self.get_host_count(bk_biz_id, "set")
         elif type == "service_instance":
             instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
         else:
@@ -540,7 +566,12 @@ class GetVariableValue(Resource):
                 continue
 
             new_labels, new_values = self.format_label_and_value(labels, values)
-            value_dict["|".join(new_values)] = "|".join(new_labels)
+            if type in ["module", "set"]:
+                # 模块和集群变量加上主机数量
+                instance_id = instance.bk_module_id if type == "module" else instance.bk_set_id
+                value_dict["|".join(new_values)] = "|".join(new_labels) + f"[{host_count.get(instance_id, 0)}]"
+            else:
+                value_dict["|".join(new_values)] = "|".join(new_labels)
 
         return [{"label": k, "value": v} for v, k in value_dict.items()]
 
@@ -874,7 +905,9 @@ class GetVariableValue(Resource):
             for biz_id in dimensions:
                 result.append({"label": biz_dict.get(biz_id, biz_id), "value": biz_id})
         # 拨测任务及节点翻译
-        if str(params["result_table_id"]).startswith("uptimecheck."):
+        if str(params["result_table_id"]).startswith("uptimecheck.") or str(params["result_table_id"]).startswith(
+            "uptimecheck_"
+        ):
             if dimension_field == "task_id":
                 uptime_check_tasks = UptimeCheckTask.objects.filter(id__in=dimensions).values("id", "name")
                 task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}

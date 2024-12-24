@@ -37,6 +37,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    commonFilters: [],
   };
 };
 
@@ -52,6 +53,7 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -65,6 +67,7 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
+  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],
@@ -73,7 +76,8 @@ export const IndexFieldInfo = {
   time_field_unit: '',
   config: [],
   config_id: 0,
-  aggs_items: [],
+  aggs_items: {},
+  last_eggs_request_token: null,
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -84,6 +88,17 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
+  chart_params: {
+    activeGraphCategory: 'table',
+    chartActiveType: 'table',
+    dimensions: [],
+    sql: '',
+    xFields: [],
+    yFields: [],
+    // 这里的fromCollectionActiveTab用于标识当前来自收藏的点击操作是否已经激活图表分析Tab
+    // 这里每次的收藏选择应该只会激活一次
+    fromCollectionActiveTab: undefined,
+  },
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };

@@ -24,20 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Prop, Emit, InjectReactive, Watch, ProvideReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { calculateByRange } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
 import { replaceRegexWhere } from '../../../utils/method';
 import { VariablesService } from '../../../utils/variable';
 import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type {
@@ -59,6 +60,7 @@ interface ICallerCalleeTableChartProps {
   filterData?: IFilterCondition[];
   searchList?: IServiceConfig[];
   panel: PanelModel;
+  timeStrShow?: IDataItem;
 }
 interface ICallerCalleeTableChartEvent {
   onCloseTag?: (val: IFilterCondition) => void;
@@ -72,38 +74,29 @@ const TimeDimension: DimensionItem = {
   active: false,
 };
 
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
-}
-
 @Component
 class CallerCalleeTableChart extends CommonSimpleChart {
   @Prop({ required: true, type: String, default: '' }) activeKey: string;
   @Prop({ type: Object, default: () => {} }) chartPointOption: IChartOption;
   @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
 
   @InjectReactive('callOptions') readonly callOptions!: CallOptions;
   @InjectReactive('filterTags') filterTags: IFilterData;
+  @ProvideReactive('dimensionParam') dimensionParam: Partial<CallOptions> = {};
 
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
   tableColumn = [];
   tableListData = [];
-  tableTabData = [];
+  tableTabData = {};
   tableColData: IListItem[] = [];
   tableLoading = false;
   pointWhere: IFilterCondition[] = [];
   drillWhere: IFilterCondition[] = [];
   pointTime: IPointTime = {};
   dimensionList: DimensionItem[] = [];
-  diffTableList = {};
-  tableTotal = 0;
-  totalList = {};
   totalListData = [];
   tableTabList: string[] = ['request_total'];
   resizeStatus = false;
@@ -117,11 +110,40 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
     return this.panelCommonOptions?.angle?.caller?.tags || [];
   }
+  @Watch('panel', { immediate: true })
+  handlePageChange() {
+    this.dimensionParam = structuredClone(this.callOptions);
+  }
+
+  @Watch('$route.query')
+  handleRoute(val) {
+    if (val?.callOptions) {
+      const callOptions = JSON.parse(val.callOptions);
+      if (callOptions?.perspective_group_by) {
+        this.dimensionList.map(item => (item.active = callOptions.perspective_group_by.includes(item.value)));
+      }
+      callOptions?.perspective_type && this.changeTab(callOptions.perspective_type);
+    }
+  }
+
+  @Watch('dimensionList', { immediate: true })
+  handleDimensionListChange(val) {
+    this.dimensionParam = {
+      ...this.dimensionParam,
+      group_by: val.filter(item => item.active).map(item => item.value),
+      dimensionList: structuredClone(val),
+    };
+  }
+
   created() {
     this.handlePanelChange();
   }
   @Watch('callOptions', { deep: true })
-  onCallOptionsChanges() {
+  onCallOptionsChanges(val) {
+    this.dimensionParam = {
+      ...structuredClone(val),
+      group_by: this.dimensionList.filter(item => item.active).map(item => item.value),
+    };
     this.viewOptions?.service_name && this.getPanelData();
   }
   /** 点击选择图表中点 */
@@ -147,6 +169,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       }
       this.getPageList();
     }
+    this.dimensionParam = { ...this.dimensionParam, pointTime: this.pointTime };
   }
 
   @Watch('activeKey')
@@ -190,11 +213,12 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
 
   getCallTimeShift() {
-    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    const callTimeShift = this.callOptions.time_shift;
     return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   getPageList() {
     this.tableLoading = true;
+    this.handleClearData();
     this.tableTabList.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
@@ -202,15 +226,27 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
+    this.tableListData = [];
     if (!(await this.beforeGetPanelData())) {
       return;
     }
     this.unregisterOberver();
     this.tableColData = this.callOptions.time_shift.map(item => ({
-      value: timeShiftFormat(item.alias),
-      text: item.alias,
+      value: item,
+      text: timeOffsetDateFormat(item),
     }));
     this.getPageList();
+  }
+  transformDimensionToKey(dimensions: Record<string, any>) {
+    const keys = Object.keys(dimensions || []).sort();
+    if (keys.length === 0) {
+      return '';
+    }
+    let str = '';
+    for (const key of keys) {
+      str += `${key}:${dimensions[key]}|`;
+    }
+    return str;
   }
   /** 获取表格数据 */
   getTableDataList(isTotal = false, metric_cal_type = 'request_total') {
@@ -220,18 +256,24 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...{ kind: this.activeKey },
     });
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
+    const timeShift = this.getCallTimeShift();
+    const timeParams = {
+      start_time: this.pointTime?.startTime || startTime,
+      end_time: this.pointTime?.endTime || endTime,
+    };
+    const groupBy = this.dimensionList.filter(item => item.active).map(item => item.value);
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
       }),
       ...{
-        group_by: isTotal ? [] : this.dimensionList.filter(item => item.active).map(item => item.value),
+        group_by: isTotal ? [] : groupBy,
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: this.pointTime?.startTime || startTime,
-        end_time: this.pointTime?.endTime || endTime,
+        ...timeParams,
+        // start_time: this.pointTime?.startTime || startTime,
+        // end_time: this.pointTime?.endTime || endTime,
       },
     };
     newParams.where = replaceRegexWhere([
@@ -240,16 +282,23 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.pointWhere,
       // ...this.drillWhere,
     ]);
+    this.dimensionParam = { ...this.dimensionParam, whereParams: newParams.where, timeParams };
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
-        const newData = (res?.data || []).map(item => {
-          const { dimensions, proportions, growth_rates } = item;
-          const col = {};
+        let list = (isTotal ? this.totalListData?.slice() : this.tableListData?.slice()) || [];
+        if (!list.length) {
+          list = res?.data || [];
+        }
+        const tableData = [];
+        const resetColItem = (item, rawItem, key = '', dimensions = {}) => {
+          const { proportions, growth_rates } = rawItem || {};
+          const col = {
+            key,
+          };
           [...timeShift, ...['0s']].map(key => {
             const baseKey = `${metric_cal_type}_${key}`;
-            col[baseKey] = item[key];
-
+            col[baseKey] = rawItem[key];
             const addToListIfNotEmpty = (source, prefix) => {
               if (Object.keys(source || {}).length > 0) {
                 col[`${prefix}_${baseKey}`] = source[key];
@@ -258,23 +307,44 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             addToListIfNotEmpty(proportions, 'proportions');
             addToListIfNotEmpty(growth_rates, 'growth_rates');
           });
-          return Object.assign(item, dimensions, col);
-        });
-        if (!isTotal) {
-          this.tableListData = newData;
-          if (metric_cal_type !== 'request_total') {
-            this.$set(this.diffTableList, metric_cal_type, newData);
+          return {
+            ...item,
+            ...dimensions,
+            ...col,
+          };
+        };
+        for (const item of list) {
+          if (!isTotal) {
+            const { dimensions } = item;
+            const key = item.key || this.transformDimensionToKey(dimensions);
+            const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
+            if (metric_cal_type === 'timeout_rate') {
+              console.info(item['0s'], rawItem['0s']);
+            }
+            tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
-            this.tableTabData = newData;
+            tableData.push(resetColItem(item, res?.data[0]));
           }
-          this.tableTotal = res?.total || 0;
+        }
+        if (!isTotal) {
+          this.tableListData = tableData;
+          const list = {};
+          // biome-ignore lint/complexity/noForEach: <explanation>
+          groupBy.forEach(item => {
+            const uniqueSet = new Map();
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            this.tableListData.forEach(row => {
+              const value = row[item] !== undefined ? row[item] : '--';
+              uniqueSet.set(value, { text: value, value: row[item] });
+            });
+
+            list[item] = Array.from(uniqueSet.values());
+          });
+          /** 表头需要过滤的值 */
+          this.tableTabData = list;
           return;
         }
-        if (metric_cal_type !== 'request_total') {
-          this.$set(this.totalList, metric_cal_type, newData);
-        } else {
-          this.totalListData = newData;
-        }
+        this.totalListData = tableData;
       })
       .catch(() => {
         this.tableLoading = false;
@@ -283,7 +353,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
 
   handleClearData() {
     this.tableListData = [];
-    this.tableTabData = [];
+    this.tableTabData = {};
     this.totalListData = [];
   }
 
@@ -333,23 +403,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     }
 
     return result;
-  }
-  @Watch('diffTableList', { deep: true })
-  handleDiffTableListData(val) {
-    if (this.tableTabList.length > 1) {
-      const data = {};
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      this.tableTabList.forEach(key => {
-        data[key] = val[key] || [];
-      });
-      const mergedData = this.mergeArrays(data);
-      this.tableListData = mergedData;
-    }
-  }
-  @Watch('totalList', { deep: true })
-  handleTotalListData(val) {
-    const mergedData = this.mergeArrays(val);
-    this.totalListData = mergedData;
   }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
@@ -411,6 +464,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         active,
       };
     });
+
     this.tableColumn = tableColumn;
     this.handleClearData();
     !isDrill && this.getPageList();
@@ -465,6 +519,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   handleResizeTab(status: boolean) {
     this.resizeStatus = status;
+  }
+  dimensionKeyChange(data) {
+    this.dimensionParam = { ...this.dimensionParam, ...data };
   }
 
   render() {
@@ -537,10 +594,11 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 sidePanelCommonOptions={this.sidePanelCommonOptions}
                 supportedCalculationTypes={this.supportedCalculationTypes}
                 tableColData={this.tableColData}
+                tableFilterData={this.tableTabData}
                 tableListData={this.tableListData}
-                tableTabData={this.tableTabData}
-                tableTotal={this.tableTotal}
+                timeStrShow={this.timeStrShow}
                 totalList={this.totalListData}
+                onDimensionKeyChange={this.dimensionKeyChange}
                 onDrill={this.handleDrill}
                 onShowDetail={this.handleShowDetail}
                 onTabChange={this.tabChangeHandle}

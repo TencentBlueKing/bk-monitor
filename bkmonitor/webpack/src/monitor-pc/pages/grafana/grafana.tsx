@@ -44,6 +44,7 @@ interface IMessageEvent extends MessageEvent {
     login_url?: string;
   };
 }
+const FavoriteDashboardRouteName = 'favorite-dashboard';
 @Component({
   name: 'grafana',
 })
@@ -67,7 +68,7 @@ export default class MyComponent extends tsc<object> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
-    // this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
+    this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
       this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
@@ -86,8 +87,8 @@ export default class MyComponent extends tsc<object> {
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
-          route: url.pathname.replace('/grafana', ''),
-          search: url.search,
+          route: `${url.pathname.replace('/grafana', '')}${url.search || ''}`,
+          // search: url.search,
         },
         '*'
       );
@@ -105,7 +106,7 @@ export default class MyComponent extends tsc<object> {
         const dashboardCacheId = dashboardCache?.[bizId] || '';
         if (dashboardCacheId && list.some(item => item.uid === dashboardCacheId)) {
           this.$router.replace({
-            name: 'favorite-dashboard',
+            name: FavoriteDashboardRouteName,
             params: {
               url: dashboardCacheId,
             },
@@ -125,8 +126,8 @@ export default class MyComponent extends tsc<object> {
       //   { deep: true, immediate: true }
       // );
     } else {
-      const isFavorite = this.$route.name === 'favorite-dashboard';
-      grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
+      const isFavorite = this.$route.name === FavoriteDashboardRouteName;
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
         this.$store.getters.bizId
       }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
@@ -192,13 +193,17 @@ export default class MyComponent extends tsc<object> {
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
-      const matches = pathname.match(/\/d\/([^/]+)\//);
-      const dashboardId = matches?.[1] || '';
+      const dashboardId = pathname.includes('grafana/d/')
+        ? pathname.replace(/\/?grafana\/d\//, '').replace(/\/$/, '')
+        : '';
       if (dashboardId && this.url !== dashboardId) {
         this.$router.push({
-          name: 'favorite-dashboard',
+          name: FavoriteDashboardRouteName,
           params: {
             url: dashboardId,
+          },
+          query: {
+            ...Object.fromEntries(new URLSearchParams(e.data?.search || '')),
           },
         });
         this.handleSetDashboardCache(dashboardId);
@@ -276,9 +281,9 @@ export default class MyComponent extends tsc<object> {
           ref='iframe'
           style={{
             'min-height': this.showAlert ? 'calc(100% - 32px)' : '100%',
+            height: this.showAlert ? 'calc(100% - 32px)' : '100%',
           }}
           class='grafana-wrap-frame'
-          allow='fullscreen'
           src={this.grafanaUrl}
           title='grafana'
           onLoad={this.handleLoad}

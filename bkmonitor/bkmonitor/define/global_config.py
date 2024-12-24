@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 from django.conf import settings
 from django.db.utils import DatabaseError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
@@ -155,6 +155,12 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
+        ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
+        ("APM_APPLICATION_QUICK_REFRESH_DELTA", slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30)),
+        (
+            "APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA",
+            slz.IntegerField(label=_("指标数据源数据发现时需要将周期切分为每批查询几分钟的数据"), default=200),
+        ),
         (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
             slz.IntegerField(label="APM应用操作BkdataFlow时拉取运行状态的最大操作次数", default=10),
@@ -168,13 +174,14 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
         ("APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE", slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland")),
-        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=500)),
-        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=30)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
         ("IS_FTA_MIGRATED", slz.BooleanField(label="是否已经迁移自愈", default=False)),
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
+        ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),
@@ -301,6 +308,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
+        ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
         ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
@@ -316,9 +324,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
         ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
+        ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
     ]
 )
-
 
 # ！！！注意！！！
 # 上面高级配置定义， 不提供用户配置页面， 所以 label 不要标记！不要标记！不要标记！
@@ -363,6 +371,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=True)),
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
+        ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",

@@ -8,13 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
     NO_DATA_CONFIG,
     fatal_algorithms_config,
     fatal_detects_config,
+    nodata_recover_detects_config,
     remind_algorithms_config,
     remind_detects_config,
     warning_algorithms_config,
@@ -73,7 +74,7 @@ DEFAULT_K8S_STRATEGIES = [
         "notice": DEFAULT_NOTICE,
     },
     {
-        "detects": warning_detects_config(5, 5, 4),
+        "detects": nodata_recover_detects_config(5, 5, 4, 2),
         "items": [
             {
                 "algorithms": warning_algorithms_config("gte", 5),
@@ -436,54 +437,55 @@ DEFAULT_K8S_STRATEGIES = [
         "name": _("[kube node] 服务器负载告警(load average 15min)"),
         "notice": DEFAULT_NOTICE,
     },
-    {
-        "detects": fatal_detects_config(5, 5, 4),
-        "items": [
-            {
-                "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
-                "no_data_config": NO_DATA_CONFIG,
-                "target": [[]],
-                "expression": "b>0 and a",
-                "functions": [],
-                "origin_sql": (
-                    "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
-                    "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
-                    "{job=\"apiserver\"}[5m])))"
-                ),
-                "query_configs": [
-                    {
-                        "data_source_label": "prometheus",
-                        "data_type_label": "time_series",
-                        "alias": "a",
-                        "metric_id": (
-                            "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
-                            "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket{j..."
-                        ),
-                        "functions": [],
-                        "promql": (
-                            "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
-                            "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
-                            "{job=\"apiserver\"}[5m])))"
-                        ),
-                        "agg_interval": 60,
-                    }
-                ],
-                "algorithms": fatal_algorithms_config("lt", 86400),
-                "metric_type": "time_series",
-            }
-        ],
-        "labels": [_("k8s_系统内置"), "kube-master"],
-        "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
-        "notice": {
-            "config": {"interval_notify_mode": "standard", "need_poll": True, "notify_interval": 7200},
-            "options": {
-                "converge_config": {"need_biz_converge": True},
-                "end_time": "23:59:59",
-                "start_time": "00:00:00",
-            },
-            "signal": ["abnormal", "no_data"],
-        },
-    },
+    # 这是连接apiserver客户端证书过期监控， 并不监控api server的证书， 因此禁用
+    # {
+    #     "detects": fatal_detects_config(5, 5, 4),
+    #     "items": [
+    #         {
+    #             "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
+    #             "no_data_config": NO_DATA_CONFIG,
+    #             "target": [[]],
+    #             "expression": "b>0 and a",
+    #             "functions": [],
+    #             "origin_sql": (
+    #                 "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+    #                 "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
+    #                 "{job=\"apiserver\"}[5m])))"
+    #             ),
+    #             "query_configs": [
+    #                 {
+    #                     "data_source_label": "prometheus",
+    #                     "data_type_label": "time_series",
+    #                     "alias": "a",
+    #                     "metric_id": (
+    #                         "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+    #                         "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket{j..."
+    #                     ),
+    #                     "functions": [],
+    #                     "promql": (
+    #                         "histogram_quantile(0.01, sum by (bcs_cluster_id, le) "
+    #                         "(rate(bkmonitor:apiserver_client_certificate_expiration_seconds_bucket"
+    #                         "{job=\"apiserver\"}[5m])))"
+    #                     ),
+    #                     "agg_interval": 60,
+    #                 }
+    #             ],
+    #             "algorithms": fatal_algorithms_config("lt", 86400),
+    #             "metric_type": "time_series",
+    #         }
+    #     ],
+    #     "labels": [_("k8s_系统内置"), "kube-master"],
+    #     "name": _("[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"),
+    #     "notice": {
+    #         "config": {"interval_notify_mode": "standard", "need_poll": True, "notify_interval": 7200},
+    #         "options": {
+    #             "converge_config": {"need_biz_converge": True},
+    #             "end_time": "23:59:59",
+    #             "start_time": "00:00:00",
+    #         },
+    #         "signal": ["abnormal", "no_data"],
+    #     },
+    # },
     {
         "detects": warning_detects_config(5, 5, 4),
         "items": [

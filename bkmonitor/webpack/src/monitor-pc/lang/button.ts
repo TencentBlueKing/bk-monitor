@@ -200,6 +200,7 @@ export default {
   新增消息通知渠道: 'Add Notification Channel',
   新增后会进行回填: 'Auto-Filling will be done',
   新建仪表盘: 'New Dashboard',
+  复制仪表盘: 'Copy Dashboard',
   新建目录: 'New Directory',
   新建拨测任务: 'New Probe Task',
   新建拨测节点: 'New Probe Node',

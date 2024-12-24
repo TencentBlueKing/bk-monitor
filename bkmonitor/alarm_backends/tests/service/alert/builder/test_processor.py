@@ -765,85 +765,71 @@ class TestProcessor(TestCase):
         self.assertEqual("cpu0", target_dimension.get("display_value"))
 
     def test_enrich_kubernetes_alerts(self):
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
-            return_value=[
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [
                 {"data": [{"code": 200, "source_type": "pod", "target_list": [{"bk_target_ip": "127.0.0.1"}]}]}
-            ],
-        )
-        relation_mock.start()
+            ]
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "dedupe_keys": ["alert_name", "tags.device", "target_type", "target", "tags.bcs_cluster_id"],
+                }
+            )
 
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-        self.assertTrue("ip" in dimensions)
-        self.assertEqual("127.0.0.1", dimensions["ip"])
-        self.assertEqual(0, dimensions["bk_cloud_id"])
-        relation_mock.stop()
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+            self.assertTrue("ip" in dimensions)
+            self.assertEqual("127.0.0.1", dimensions["ip"])
+            self.assertEqual(0, dimensions["bk_cloud_id"])
 
     def test_enrich_kubernetes_alerts_notin_white_biz_list(self):
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
-            return_value=[
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [
                 {"data": [{"code": 200, "source_type": "pod", "target_list": [{"bk_target_ip": "127.0.0.1"}]}]}
-            ],
-        )
-        relation_mock.start()
-        settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = [3]
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-        # 没有在灰度列表中，不进行丰富
-        self.assertFalse("ip" in dimensions)
-        settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = []
-        relation_mock.stop()
+            ]
+            settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = [3]
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
+                }
+            )
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+            # 没有在灰度列表中，不进行丰富
+            self.assertFalse("ip" in dimensions)
+            settings.KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = []
 
     def test_enrich_kubernetes_alerts_without_biz_ip(self):
         # 没有对应业务下ip， 将不会做丰富
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
-            return_value=[
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [
                 {"data": [{"code": 200, "source_type": "pod", "target_list": [{"bk_target_ip": "127.0.0.1"}]}]}
-            ],
-        )
-        relation_mock.start()
-
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "bk_biz_id": 3,
-                "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-        self.assertFalse("ip" in dimensions)
-        relation_mock.stop()
+            ]
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "bk_biz_id": 3,
+                    "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
+                }
+            )
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+            self.assertFalse("ip" in dimensions)
 
     def test_enrich_kubernetes_alerts_multi_targets(self):
         # 返回多个IP， 以第一个能够确定ip和云区域的IP进行确认
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
-            return_value=[
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [
                 {
                     "data": [
                         {
@@ -853,74 +839,63 @@ class TestProcessor(TestCase):
                         }
                     ]
                 }
-            ],
-        )
+            ]
 
-        relation_mock.start()
-
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-        self.assertTrue("ip" in dimensions)
-        self.assertEqual("127.0.0.1", dimensions["ip"])
-        self.assertEqual(0, dimensions["bk_cloud_id"])
-        relation_mock.stop()
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "extra_info": {"agg_dimensions": ["bcs_cluster_id"]},
+                    "dedupe_keys": ["alert_name", "tags.device", "target_type", "target", "tags.bcs_cluster_id"],
+                }
+            )
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+            self.assertTrue("ip" in dimensions)
+            self.assertEqual("127.0.0.1", dimensions["ip"])
+            self.assertEqual(0, dimensions["bk_cloud_id"])
 
     def test_enrich_kubernetes_alerts_with_multi_ip(self):
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception",
-            return_value=[
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [
                 {"data": [{"code": 200, "source_type": "pod", "target_list": [{"bk_target_ip": "127.0.0.2"}]}]}
-            ],
-        )
-        relation_mock.start()
+            ]
 
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "category": KubernetesResultTableLabel.kubernetes,
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-        # 存在多个ip，所以不会进行主机IP丰富
-        self.assertFalse("ip" in dimensions)
-        self.assertFalse("bk_cloud_id" in dimensions)
-        relation_mock.stop()
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "category": KubernetesResultTableLabel.kubernetes,
+                }
+            )
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+            # 存在多个ip，所以不会进行主机IP丰富
+            self.assertFalse("ip" in dimensions)
+            self.assertFalse("bk_cloud_id" in dimensions)
 
     def test_enrich_kubernetes_alerts_no_ip(self):
-        relation_mock = mock.patch(
-            "bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception", return_value=[{"data": [{"code": 404}]}]
-        )
-        relation_mock.start()
+        with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
+            relation_mock.return_value = [{"data": [{"code": 404}]}]
+            processor, alerts = self.get_alert_processor(
+                {
+                    "target_type": "",
+                    "target": "",
+                    "category": KubernetesResultTableLabel.kubernetes,
+                }
+            )
+            alerts = processor.enrich_alerts(alerts)
+            self.assertEqual(1, len(alerts))
+            alert = alerts[0]
+            dimensions = {d["key"]: d["value"] for d in alert.dimensions}
 
-        processor, alerts = self.get_alert_processor(
-            {
-                "target_type": "",
-                "target": "",
-                "category": KubernetesResultTableLabel.kubernetes,
-            }
-        )
-        alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(1, len(alerts))
-        alert = alerts[0]
-        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
-
-        # 返回404， 没有ip，所以不会进行主机IP丰富
-        self.assertFalse("ip" in dimensions)
-        self.assertFalse("bk_cloud_id" in dimensions)
-        relation_mock.stop()
+            # 返回404， 没有ip，所以不会进行主机IP丰富
+            self.assertFalse("ip" in dimensions)
+            self.assertFalse("bk_cloud_id" in dimensions)
 
     def test_save_labels(self):
         alert = Alert.from_event(

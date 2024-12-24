@@ -30,7 +30,6 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import 'monitor-pc/common/import-magicbox-ui';
 import 'monitor-static/svg-icons';
 import 'monitor-ui/directive/index';
 
@@ -44,6 +43,7 @@ import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/import-magicbox-ui';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
@@ -53,11 +53,14 @@ Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+
 setVue(Vue);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
+  window.bk_biz_id = window.rawWindow.bk_biz_id;
+  window.cc_biz_id = window.rawWindow.bk_biz_id;
   store.commit('app/SET_APP_STATE', {
     userName: window.user_name,
     bizId: window.cc_biz_id,
@@ -67,7 +70,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     bkUrl: window.bk_url,
   });
 
-  new Vue({
+  window.mainComponent = new Vue({
     el: '#app',
     router,
     store,
@@ -104,7 +107,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         bkUrl: window.bk_url,
       });
 
-      new Vue({
+      window.mainComponent = new Vue({
         el: '#app',
         router,
         store,

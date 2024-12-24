@@ -56,6 +56,27 @@ def create_and_delete_record(mocker):
         is_custom_source=False,
         is_enable=False,
     )
+    models.DataSource.objects.create(
+        bk_data_id=500001,
+        data_name='test',
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config='bk_exporter',
+        is_custom_source=False,
+        is_enable=False,
+    )
+    models.DataSource.objects.create(
+        bk_data_id=500002,
+        data_name='test2',
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config='bk_exporter',
+        is_custom_source=False,
+        is_enable=False,
+    )
+    models.DataSourceOption.objects.create(
+        bk_data_id=500002, name=models.DataSourceOption.OPTION_ALIGN_TIME_UNIT, value='ms'
+    )
     models.BCSClusterInfo.objects.create(
         **{
             "cluster_id": DEFAULT_BCS_CLUSTER_ID,
@@ -120,19 +141,38 @@ def create_and_delete_record(mocker):
     models.SpaceVMInfo.objects.all().delete()
 
 
+@pytest.fixture
+def create_or_delete_records(mocker):
+    models.DataSource.objects.create(
+        bk_data_id=500001,
+        data_name='test',
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config='bk_exporter',
+        is_custom_source=False,
+        is_enable=False,
+    )
+    yield
+    mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.DataSource.objects.filter(bk_data_id__in=[500001]).delete()
+
+
 @pytest.mark.parametrize(
     "data_id, etl_config, expected_value",
     [
         (None, None, 13),
         (12321, None, 13),
         (DEFAULT_DATA_ID, None, 13),
-        (DEFAULT_DATA_ID_ONE, None, 13),
+        (DEFAULT_DATA_ID_ONE, None, 10),
         (None, "bk_exporter", 13),
         (DEFAULT_DATA_ID, "bk_exporter", 13),
-        (DEFAULT_DATA_ID_ONE, "bk_exporter", 13),
+        (DEFAULT_DATA_ID_ONE, "bk_exporter", 10),
         (12321, "bk_exporter", 13),
         (1100006, "bk_exporter", 19),
+        (500001, None, 10),
+        (500002, "bk_exporter", 13),  # 存在Option，则以Option为主
     ],
 )
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 def test_get_timestamp_len(data_id, etl_config, expected_value, create_and_delete_record):
     assert get_timestamp_len(data_id, etl_config) == expected_value

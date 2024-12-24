@@ -142,12 +142,11 @@
     }
 
     get tookTime() {
-      return this.$store.state.tookTime;
+      return Number.parseFloat(this.$store.state.tookTime).toFixed(0);
     }
 
     @Watch('retrieveParams.interval')
     watchChangeChartInterval(newVal) {
-      console.log('watchChangeChartInterval')
       this.chartInterval = newVal;
     }
 

@@ -239,6 +239,18 @@ class BkBaseResultTableAdmin(admin.ModelAdmin):
     list_filter = ("storage_type", "status")
 
 
+class StorageClusterRecordAdmin(admin.ModelAdmin):
+    list_display = ("table_id", "cluster_id", "is_deleted", "is_current")
+    search_fields = ("table_id", "cluster_id")
+    list_filter = ("table_id", "cluster_id")
+
+
+class BkAppSpaceRecordAdmin(admin.ModelAdmin):
+    list_display = ("bk_app_code", "space_uid", "is_enable", "creator", "create_time", "updater", "update_time")
+    search_fields = ("bk_app_code", "space_uid")
+    list_filter = ("bk_app_code", "space_uid")
+
+
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -269,3 +281,5 @@ admin.site.register(models.AccessVMRecord, AccessVMRecordAdmin)
 admin.site.register(models.BCSClusterInfo, BCSClusterInfoAdmin)
 admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
+admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
+admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)

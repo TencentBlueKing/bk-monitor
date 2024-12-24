@@ -147,6 +147,10 @@ export default class Strategy extends tsc<object> {
     return this.alarmIsSubmit && this.increaseIsSubmit;
   }
 
+  get isExternal() {
+    return this.$store.state.isExternal;
+  }
+
   @Watch('alarmIsSubmit')
   watchStrategyStatus(v: boolean) {
     this.strategySubmitStatus(v);
@@ -183,7 +187,7 @@ export default class Strategy extends tsc<object> {
     try {
       const res = await $http.request('retrieve/getClusteringInfo', {
         params: {
-          index_set_id: this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
           strategy_type: strategyType,
         },
       });
@@ -203,7 +207,7 @@ export default class Strategy extends tsc<object> {
       const { label_name, ...otherData } = data;
       $http
         .request(submitPostStr, {
-          params: { index_set_id: this.$route.params.indexId },
+          params: { index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId },
           data: otherData,
         })
         .then(res => {
@@ -264,7 +268,9 @@ export default class Strategy extends tsc<object> {
       confirmFn: async () => {
         try {
           const res = await $http.request('retrieve/deleteClusteringInfo', {
-            params: { index_set_id: this.$route.params.indexId },
+            params: {
+              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+            },
             data: { strategy_type: strategyType },
           });
           if (res.code === 0) {
@@ -327,6 +333,10 @@ export default class Strategy extends tsc<object> {
     window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
   }
   render() {
+    if (this.isExternal) {
+      return <div></div>;
+    }
+
     const strategyDialog = () => (
       <bk-dialog
         width='480'

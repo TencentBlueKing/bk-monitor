@@ -15,7 +15,7 @@ import time
 from typing import List
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from MySQLdb import DatabaseError as MysqlDatabaseError
 from redis.exceptions import RedisError
 
@@ -32,6 +32,7 @@ from alarm_backends.core.cluster import get_cluster
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance
 from bkmonitor.strategy.expression import AlertExpressionValue
+from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
 from constants.alert import EventStatus
@@ -1029,7 +1030,9 @@ class AlertCache:
             else:
                 # 如果告警未结束就更新
                 update_count += 1
-            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
+            pipeline.set(
+                key, json.dumps(alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_DEDUPE_CONTENT_KEY.ttl
+            )
         pipeline.execute()
         return update_count, finished_count
 
@@ -1043,7 +1046,7 @@ class AlertCache:
         for alert in alerts:
             # 已经结束的告警保存快照备用
             key = ALERT_SNAPSHOT_KEY.get_key(strategy_id=alert.strategy_id or 0, alert_id=alert.id)
-            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_SNAPSHOT_KEY.ttl)
+            pipeline.set(key, json.dumps(alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_SNAPSHOT_KEY.ttl)
             snapshot_count += 1
 
         pipeline.execute()

@@ -21,8 +21,8 @@ from typing import Dict, Generator, List
 import requests
 from django.conf import settings
 from django.db.models import Count, Max, Q
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
@@ -624,14 +624,11 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
         if str(self.bk_biz_id) == str(settings.BK_DATA_BK_BIZ_ID):
             return
         else:
-            yield from api.bkdata.list_result_table(bk_biz_id=self.bk_biz_id)
+            yield from api.bkdata.list_result_table(
+                bk_biz_id=self.bk_biz_id, storages=["mysql", "tspider", "databus_tspider"]
+            )
 
     def get_metrics_by_table(self, table):
-        storage_list = {key for key, info in list(table["storages"].items()) if info["active"]}
-        # 计算平台中支持进行监控的存储
-        if not {"mysql", "tspider", "databus_tspider"} & set(storage_list):
-            return []
-
         bk_biz_id = table["bk_biz_id"]
         result_table_id = table["result_table_id"]
         result_table_name = table["result_table_name"]
@@ -1458,6 +1455,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
     def get_uptime_check_metric(self, table):
         protocol = table["table_id"].split(".")[1].upper()
         base_metric = self.get_base_dict(table)
+        base_metric["data_label"] = f"uptimecheck_{protocol.lower()}"
 
         if protocol == "ICMP":
             field_metric_list = self.get_field_metric_msg(table, base_metric)

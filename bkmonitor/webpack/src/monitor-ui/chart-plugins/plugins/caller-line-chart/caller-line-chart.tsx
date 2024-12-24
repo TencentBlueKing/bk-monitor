@@ -48,6 +48,7 @@ import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
@@ -58,6 +59,7 @@ import type {
   IMenuChildItem,
   IMenuItem,
   IPanelModel,
+  ITitleAlarm,
   ITimeSeriesItem,
   PanelModel,
   ZrClickEvent,
@@ -69,14 +71,6 @@ import './caller-line-chart.scss';
 
 interface IProps {
   panel: PanelModel;
-}
-
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
 }
 
 function removeTrailingZeros(num) {
@@ -137,6 +131,7 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
+  panelsSelector = 'exception_rate';
 
   // 是否展示复位按钮
   showRestore = false;
@@ -162,6 +157,22 @@ class CallerLineChart extends CommonSimpleChart {
     return !!this.panel.options?.is_support_group_by;
   }
 
+  // title是否需要展示下拉框
+  get enablePanelsSelector() {
+    return !!this.panel.options?.enable_panels_selector;
+  }
+
+  get curSelectPanel() {
+    return (this.childPanelsSelectorVariables || []).find(item => this.panelsSelector === item.id);
+  }
+
+  get curTitle() {
+    return this.enablePanelsSelector ? this.curSelectPanel?.title : this.panel.title;
+  }
+
+  get childPanelsSelectorVariables() {
+    return this.panel.options?.child_panels_selector_variables || [];
+  }
   get menuList() {
     return ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
@@ -175,7 +186,17 @@ class CallerLineChart extends CommonSimpleChart {
   onCallOptionsChange() {
     this.getPanelData();
   }
+  @Watch('panel', { immediate: true })
+  handlePanel() {
+    if (this.enablePanelsSelector) {
+      this.panelsSelector = getRecordCallOptionChart(this.viewOptions.filters);
+    }
+  }
 
+  handlePanelsSelector(val) {
+    this.getPanelData();
+    setRecordCallOptionChart(this.viewOptions.filters, val);
+  }
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -208,9 +229,7 @@ class CallerLineChart extends CommonSimpleChart {
       const promiseList = [];
       const timeShiftList = [
         '',
-        ...(this.isSupportCompare && this.callOptions.time_shift?.length
-          ? this.callOptions.time_shift.map(t => t.alias)
-          : []),
+        ...(this.isSupportCompare && this.callOptions.time_shift?.length ? this.callOptions.time_shift : []),
       ];
       const down_sample_range = this.downSampleRangeComputed(
         'auto',
@@ -226,11 +245,17 @@ class CallerLineChart extends CommonSimpleChart {
           callOptions[key] = this.callOptions[key];
         }
       }
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
+
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...callOptions,
+        ...selectPanelParams,
       });
-      for (const time_shift of timeShiftList) {
+      for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
           const paramsResult = data;
@@ -249,7 +274,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 ...(this.callOptions || {}),
-                time_shift: timeShiftFormat(time_shift),
+                time_shift: timeShift,
                 group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
                 interval,
               },
@@ -282,7 +307,6 @@ class CallerLineChart extends CommonSimpleChart {
               down_sample_range,
             },
           });
-          // console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -294,12 +318,15 @@ class CallerLineChart extends CommonSimpleChart {
               res.series &&
                 series.push(
                   ...res.series.map(set => {
-                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    if (this.enablePanelsSelector) {
+                      item.alias = this.curTitle;
+                    }
+                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(timeShift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`;
                     this.legendSorts.push({
-                      name,
-                      timeShift: time_shift,
+                      name: name,
+                      timeShift: timeShift,
                     });
                     return {
                       ...set,
@@ -330,6 +357,7 @@ class CallerLineChart extends CommonSimpleChart {
           .filter(item => ['extra_info', '_result_'].includes(item.alias))
           .map(item => ({
             ...item,
+            name: item.name,
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
@@ -392,7 +420,8 @@ class CallerLineChart extends CommonSimpleChart {
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const width = this.$el?.getBoundingClientRect?.()?.width;
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -421,6 +450,7 @@ class CallerLineChart extends CommonSimpleChart {
                 formatter: formatterFunc || '{value}',
               },
               ...xInterval,
+              splitNumber: 4,
             },
             series: seriesList,
             tooltip: {
@@ -452,7 +482,6 @@ class CallerLineChart extends CommonSimpleChart {
       console.error(e);
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
-      console.error(e);
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
@@ -575,12 +604,11 @@ class CallerLineChart extends CommonSimpleChart {
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
       // 获取y轴上可设置的最小的精确度
-      let precision = this.handleGetMinPrecision(
+      const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
-      precision = precision > 2 ? 2 : precision;
       if (item.name) {
         for (const key in legendItem) {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -602,7 +630,7 @@ class CallerLineChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision,
+        precision: this.panel.options?.precision || 2,
         lineStyle: {
           width: 2,
         },
@@ -778,7 +806,7 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
-          this.handleStoreImage(this.panel.title || '测试');
+          this.handleStoreImage(this.curTitle || '测试');
         }, 300);
         break;
       case 'fullscreen': {
@@ -827,7 +855,7 @@ class CallerLineChart extends CommonSimpleChart {
         if (data.child.id === 'screenshot') {
           /** 截图 */
           setTimeout(() => {
-            this.handleStoreImage(this.panel.title);
+            this.handleStoreImage(this.curTitle);
           }, 300);
         } else if (data.child.id === 'export-csv') {
           /** 导出csv */
@@ -881,7 +909,7 @@ class CallerLineChart extends CommonSimpleChart {
     if (this.series?.length) {
       const { tableThArr, tableTdArr } = transformSrcData(this.series);
       const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-      downCsvFile(csvString, this.panel.title);
+      downCsvFile(csvString, this.curTitle);
     }
   }
 
@@ -911,6 +939,10 @@ class CallerLineChart extends CommonSimpleChart {
       let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
       copyPanel.dashboardId = random(8);
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      let selectPanelParams = {};
+      if (this.enablePanelsSelector) {
+        selectPanelParams = this.curSelectPanel.variables;
+      }
       const variablesService = new VariablesService({
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -923,6 +955,7 @@ class CallerLineChart extends CommonSimpleChart {
           dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
           this.panel.collect_interval
         ),
+        ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
       for (const t of copyPanel.targets) {
@@ -931,6 +964,16 @@ class CallerLineChart extends CommonSimpleChart {
         }
         this.queryConfigsSetCallOptions(t?.data);
       }
+      if (this.enablePanelsSelector) {
+        copyPanel.title = this.curTitle;
+        copyPanel.targets.map(item => (item.alias = this.curTitle));
+      }
+      (copyPanel.targets || []).map(item => {
+        (item.data.query_configs || []).map(ele => {
+          const where = replaceRegexWhere(ele.where);
+          ele.where = where;
+        });
+      });
       return copyPanel;
     } catch (error) {
       console.log(error);
@@ -952,12 +995,37 @@ class CallerLineChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+  /** 处理点击左侧响铃图标 跳转策略的逻辑 */ /** 处理点击左侧响铃图标 跳转策略的逻辑 */
+  handleAlarmClick(alarmStatus: ITitleAlarm) {
+    const metricIds = this.metrics.map(item => item.metric_id);
+    switch (alarmStatus.status) {
+      case 0:
+        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        break;
+      case 1:
+        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        break;
+      case 2: {
+        const eventTargetStr = alarmStatus.targetStr;
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+              eventTargetStr ? ` AND ${eventTargetStr}` : ''
+            }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
+          )
+        );
+        break;
+      }
+    }
+  }
 
   render() {
     return (
       <div class='apm-caller-line-chart'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
+          customArea={true}
           descrition={this.panel.descrition}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
@@ -966,12 +1034,38 @@ class CallerLineChart extends CommonSimpleChart {
           needMoreMenu={true}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
-          title={this.panel.title}
+          title={this.curTitle}
+          onAlarmClick={this.handleAlarmClick}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
           onMetricClick={this.handleMetricClick}
           onSelectChild={this.handleSelectChildMenu}
-        />
+        >
+          <div slot='title'>
+            {this.enablePanelsSelector ? (
+              <div>
+                <bk-select
+                  class='enable-select'
+                  v-model={this.panelsSelector}
+                  behavior='simplicity'
+                  clearable={false}
+                  size='small'
+                  onChange={this.handlePanelsSelector}
+                >
+                  {(this.childPanelsSelectorVariables || []).map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.title}
+                    />
+                  ))}
+                </bk-select>
+              </div>
+            ) : (
+              <span>{this.panel.title}</span>
+            )}
+          </div>
+        </ChartHeader>
         {!this.empty ? (
           <div class={'time-series-content'}>
             <div

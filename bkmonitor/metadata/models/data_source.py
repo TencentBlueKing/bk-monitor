@@ -22,7 +22,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
@@ -31,7 +31,7 @@ from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.utils import consul_tools, hash_util
-from metadata.utils.basic import get_biz_id_by_space_uid
+from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
 
 from .common import Label, OptionBase
 from .constants import (
@@ -118,7 +118,9 @@ class DataSource(models.Model):
         help_text="数据源属于的空间类型，允许授权给对应空间类型",
     )
     space_uid = models.CharField("所属空间的UID", max_length=256, default="")
-    created_from = models.CharField("数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value)
+    created_from = models.CharField(
+        "数据源ID来源", max_length=16, default=DataIdCreatedFromSystem.BKGSE.value, db_index=True
+    )
 
     class Meta:
         verbose_name = "数据源管理"
@@ -230,7 +232,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-        bk_biz_id = get_biz_id_by_space_uid(self.space_uid) or 0
+        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_data_id)
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -244,7 +246,7 @@ class DataSource(models.Model):
             "data_name": self.data_name,
             "is_platform_data_id": self.is_platform_data_id,
             "space_type_id": self.space_type_id,
-            "space_uid": self.space_uid,
+            "space_uid": space_uid,
             "bk_biz_id": bk_biz_id,
         }
 
@@ -979,12 +981,13 @@ class DataSource(models.Model):
             logger.info("data_id->[{}] update config to consul skip.".format(self.bk_data_id))
             return
 
-        # 1. 获取consul的句柄
         hash_consul = consul_tools.HashConsul()
 
         # 2. 刷新当前data_id的配置
         hash_consul.put(
-            key=self.consul_config_path, value=self.to_json(is_consul_config=True), bk_data_id=self.bk_data_id
+            key=self.consul_config_path,
+            value=self.to_json(is_consul_config=True),
+            bk_data_id=self.bk_data_id,
         )
         logger.info(
             "data_id->[{}] has update config to ->[{}] success".format(self.bk_data_id, self.consul_config_path)

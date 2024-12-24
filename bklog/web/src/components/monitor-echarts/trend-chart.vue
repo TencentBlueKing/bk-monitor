@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onUnmounted } from 'vue';
+  import { ref, computed, watch, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -21,8 +21,10 @@
 
   const refDataTrendCanvas = ref(null);
 
+  const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
+    handleChartDataZoom,
   });
 
   const finishPolling = ref(false);
@@ -89,11 +91,13 @@
       return;
     }
 
-    if ((!isUnionSearch.value && !!route.params?.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+    const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+    if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
       // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
+        addition: [...retrieveParams.value.addition, ...retrieveParams.value.commonFilters],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
@@ -109,7 +113,7 @@
         .request(
           urlStr,
           {
-            params: { index_set_id: route.params.indexId },
+            params: { index_set_id: indexId },
             data: queryData,
           },
           {
@@ -122,7 +126,6 @@
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
             const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-
             const sumCount = setChartData(data);
             store.commit('retrieve/updateTrendDataCount', sumCount);
           }
@@ -187,7 +190,7 @@
     },
   );
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     logChartCancel?.();
   });
 </script>

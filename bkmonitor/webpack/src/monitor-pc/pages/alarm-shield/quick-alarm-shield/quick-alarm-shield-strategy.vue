@@ -180,7 +180,7 @@ export default {
         addShield(params)
           .then(() => {
             v.close();
-            this.$bkMessage({ theme: 'success', message: this.$t('恭喜，创建告警屏蔽成功') });
+            this.$bkMessage({ theme: 'success', message: this.$t('创建告警屏蔽成功') });
             this.$parent.handleGetListData();
           })
           .finally(() => {

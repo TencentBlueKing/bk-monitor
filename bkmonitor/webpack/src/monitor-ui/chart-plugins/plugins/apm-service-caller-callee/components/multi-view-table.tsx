@@ -24,41 +24,45 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit, ProvideReactive, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import CallerBarChart from '../chart/caller-bar-chart';
-import CallerPieChart from '../chart/caller-pie-chart';
-import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
-import TabBtnGroup from './common-comp/tab-btn-group';
+import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
+import { formatDateRange } from '../utils';
+import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
-import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions } from '../type';
+import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
   dimensionList: DimensionItem[];
   tableColData: IListItem[];
   tableListData: IDataItem[];
-  tableTabData: IDataItem[];
+  tableFilterData: IDataItem;
   panel: PanelModel;
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
   supportedCalculationTypes?: IListItem[];
-  tableTotal?: number;
   totalList?: IDataItem[];
   activeTabKey?: string;
   resizeStatus?: boolean;
+  timeStrShow?: IDataItem;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
   onDrill?: () => void;
   onTabChange?: () => void;
+  onDimensionKeyChange?: (key: string) => void;
 }
 @Component({
   name: 'MultiViewTable',
@@ -69,15 +73,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) dimensionList: DimensionItem[];
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
-  @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+  @Prop({ required: true, type: Object }) tableFilterData: IDataItem;
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
-  @Prop({ required: true, type: Number }) tableTotal: number;
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
-  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
+  @Prop({ type: Object, default: () => {} }) timeStrShow: IDataItem;
+
+  @InjectReactive('dimensionParam') readonly dimensionParam: CallOptions;
+  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
+  @ProvideReactive('dimensionChartOpt') dimensionChartOpt: IDimensionChartOpt;
+  @ProvideReactive('curDimensionKey') curDimensionKey: string;
+  @InjectReactive('viewOptions') viewOptions;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
@@ -86,20 +96,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   isShowDimension = false;
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
-  dimensionValue = 1;
   drillValue = '';
-  column = [
-    {
-      label: '被调 IP',
-      prop: 'caller_service',
-    },
-    {
-      label: '被调接口',
-      prop: 'formal',
-      props: {},
-    },
-  ];
-  curDimensionKey = '';
+  serviceList = [];
   curRowData = {};
   request = ['request_total'];
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
@@ -108,18 +106,27 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   filterDimensionValue = '';
   pagination = {
     current: 1,
-    count: 0,
     limit: 10,
     limitList: [10, 20, 50],
   };
   tableAppendWidth = 0;
+  simpleList = [];
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
   sortProp: null | string = null;
   sortOrder: 'ascending' | 'descending' | null = null;
+  simpleLoading = false;
+  filterOpt = {};
+  drillFilterData: IDataItem[] = [];
+  drillGroupBy: string[] = [];
+
+  created() {
+    this.curDimensionKey = 'request_total';
+  }
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
   }
+
   @Watch('resizeStatus')
   handleResizeStatus() {
     this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
@@ -144,17 +151,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
     };
   }
-  @Watch('tableTotal')
-  handleTableTotal(val) {
-    this.pagination.count = val;
-    this.pagination.current = 1;
-  }
   @Watch('activeTabKey')
   handleTableData() {
     this.pagination.current = 1;
   }
   @Watch('supportedCalculationTypes', { immediate: true })
-  handlePanelChange(val) {
+  handleCalculationTypesChange(val) {
     const txtVal = {
       avg_duration: '平均耗时',
       p95_duration: 'P95',
@@ -171,9 +173,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.cachePanels = JSON.parse(JSON.stringify(this.panels));
   }
 
-  get dialogSelectList() {
-    return LIMIT_TYPE_LIST;
+  get dialogTop() {
+    return (window.innerHeight - 720) / 2;
   }
+
+  get appName() {
+    return this.viewOptions?.app_name;
+  }
+
   get dimensionOptions() {
     if (!this.tableListData?.length) return [];
     const options = new Map();
@@ -185,6 +192,45 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       }
     }
     return Array.from(options.values());
+  }
+  get dimensionPanels() {
+    return this.panel?.dimension_panels || [];
+  }
+  get currentPanels() {
+    return this.dimensionPanels.filter(item => item.type === this.chartActive);
+  }
+
+  get commonOptions() {
+    return this.panel?.options?.common || {};
+  }
+
+  get panelInterval() {
+    return this.commonOptions?.time?.interval || 60;
+  }
+  get groupByCalculationTypes() {
+    return this.commonOptions?.group_by?.supported_calculation_types;
+  }
+  get groupByChartLimit() {
+    return this.commonOptions?.group_by?.data?.limit || 30;
+  }
+  get currentKind() {
+    return this.dimensionParam?.kind || 'callee';
+  }
+  /** 对应的字段操作 */
+  get supportOperations() {
+    return this.commonOptions?.angle[this.currentKind]?.support_operations;
+  }
+
+  get perAfterString() {
+    const { kind } = this.dimensionParam;
+    const after = kind === 'callee' ? this.$t('主调') : this.$t('被调');
+    return after;
+  }
+
+  @Watch('tableListData', { immediate: true })
+  handleListData(_val: IListItem[]) {
+    this.filterOpt = {};
+    // console.log(val, 'tableListData');
   }
 
   get showTableList() {
@@ -212,7 +258,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
+    setTimeout(() => this.getServiceList());
+    window.addEventListener('resize', this.handleResize);
   }
+  beforeDestroy() {
+    window.removeEventListener('resize', this.handleResize);
+  }
+  handleResize() {
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
+  }
+  async getServiceList() {
+    if (!this.appName) return;
+    const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    this.serviceList = listData.map(item => item.service_name).sort((a, b) => a.isClick - b.isClick);
+  }
+
   handleGetDistribution() {
     this.isShowDimension = true;
   }
@@ -234,7 +294,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData')
+  @Watch('tableColData', { immediate: true })
   handleChangeCol(val: IListItem[]) {
     const key = {
       '1d': '昨天',
@@ -307,9 +367,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         const colList = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'].filter(Boolean);
         const nameMap = {
           avg_duration: this.$t('平均耗时'),
-          p50_duration: this.$t('P50平均耗时'),
-          p95_duration: this.$t('P95平均耗时'),
-          p99_duration: this.$t('P99平均耗时'),
+          p50_duration: this.$t('P50'),
+          p95_duration: this.$t('P95'),
+          p99_duration: this.$t('P99'),
         };
         for (const col of colList) {
           for (const name of keyList) {
@@ -332,6 +392,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
     }
     this.panels = panelList;
+    // console.log(this.panels, '---');
   }
 
   @Emit('showDetail')
@@ -351,8 +412,29 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   handleDimension(row, key) {
     this.isShowDimension = true;
-    this.curDimensionKey = key;
+    this.drillFilterData = [];
+    this.drillGroupBy = [];
+    this.chartActive = 'caller-pie-chart';
+    const parts = key.split('_');
+    const metricCalType = parts.slice(0, 2).join('_');
+    const timeShift = parts.slice(2).join('_');
+    const metricCalTypeName = this.groupByCalculationTypes.find(item => item.value === metricCalType)?.text;
+    this.dimensionChartOpt = {
+      metric_cal_type: metricCalType,
+      time_shift: timeShift,
+      metric_cal_type_name: metricCalTypeName,
+    };
+    this.curDimensionKey = metricCalType;
   }
+
+  handleDimensionKeyChange(id) {
+    const metricCalTypeName = this.groupByCalculationTypes.find(item => item.value === id)?.text;
+    this.$set(this.dimensionChartOpt, 'metric_cal_type', id);
+    this.$set(this.dimensionChartOpt, 'metric_cal_type_name', metricCalTypeName);
+    this.curDimensionKey = id;
+    this.$emit('dimensionKeyChange', { dimension: id });
+  }
+
   pageChange(page) {
     this.pagination.current = page;
   }
@@ -383,10 +465,147 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.sortProp = prop;
     this.sortOrder = order;
   }
+
+  /** 字段操作 */
+  handleFieldOperations(opt: any, row: IDataItem, canClick = true, intersection = '', service = '') {
+    const type = opt.value;
+    if (!canClick) {
+      return;
+    }
+    const { kind, timeParams, pointTime } = this.dimensionParam;
+    /** 是否选中了图表中的某个点 */
+    const isHasPointTime = pointTime?.startTime;
+    const interval = isHasPointTime ? 60 : 0;
+    const from = isHasPointTime ? (timeParams.start_time - interval) * 1000 : this.timeRange[0];
+    const to = isHasPointTime ? timeParams.end_time * 1000 : this.timeRange[1];
+
+    const { app_name, service_name } = this.viewOptions;
+    /** 主被调 */
+    if (type === 'callee') {
+      const kindKey = kind === 'caller' ? 'callee' : 'caller';
+      const callOptions = {
+        kind: kindKey,
+        call_filter: [
+          {
+            key: intersection,
+            method: 'eq',
+            value: [row[intersection]],
+            condition: 'and',
+          },
+        ],
+      };
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${service}&dashboardId=service-default-caller_callee&callOptions=${JSON.stringify(callOptions)}&from=${from}&to=${to}`
+        )
+      );
+      return;
+    }
+    /** Trace */
+    if (type === 'trace') {
+      const groupBy = this.dimensionParam.group_by.filter(item => opt.tags.includes(item));
+      const tagTraceMapping = opt.tag_trace_mapping;
+      const filter = {
+        kind: tagTraceMapping[kind].value,
+        'resource.service.name': [service_name],
+      };
+      const query = [];
+      groupBy.map(item => {
+        if (row[item]) {
+          query.push(`${tagTraceMapping[item].field}: "${row[item]}"`);
+        }
+      });
+      const queryString = query.join(' AND ');
+
+      const conditionList = {};
+      Object.keys(filter).map(key => {
+        const item = {
+          selectedCondition: {
+            label: '=',
+            value: 'equal',
+          },
+          isInclude: true,
+          selectedConditionValue: filter[key],
+        };
+        conditionList[key] = item;
+      });
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/trace/home?app_name=${app_name}&search_type=scope&conditionList=${JSON.stringify(conditionList)}&query=${queryString}&start_time=${from}&end_time=${to}&listType=span`
+        )
+      );
+      return;
+    }
+    /** 查看 */
+    if (type === 'service') {
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${row[intersection]}&dashboardId=service-default-caller_callee&from=${from}&to=${to}`
+        )
+      );
+      return;
+    }
+    /** 拓扑 */
+    if (type === 'topo') {
+      const serviceName = this.serviceList.find(key => key === row[opt.tags[0]]);
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/apm/service?filter-app_name=${app_name}&filter-service_name=${serviceName || service_name}&dashboardId=service-default-topo&from=${from}&to=${to}`
+        )
+      );
+      return;
+    }
+  }
+  async getSimpleList(field: string, value: string) {
+    const { kind } = this.dimensionParam;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    this.simpleLoading = true;
+    const data = await getFieldOptionValues({
+      app_name: this.appName,
+      // 主调 -> 查被调服务候选值
+      field: kind === 'caller' ? 'callee_server' : 'caller_server',
+      // 使用被调指标
+      metric_field: kind === 'caller' ? 'rpc_server_handled_total' : 'rpc_client_handled_total',
+      filter_dict: {},
+      start_time: startTime,
+      end_time: endTime,
+      where: [
+        {
+          key: field,
+          method: 'eq',
+          value: [value],
+          condition: 'and',
+        },
+      ],
+    });
+    this.simpleLoading = false;
+    this.simpleList = data.map(item => ({
+      isClick: this.serviceList.includes(item.value),
+      ...item,
+    }));
+  }
+  @Watch('filterOpt', { deep: true })
+  handleFilterOpt(_val) {
+    // console.log(val, 'val');
+  }
+  fieldFilterMethod(value, row, column) {
+    const { property } = column;
+    this.filterOpt[property] = Array.from(new Set([...this.filterOpt[property], value]));
+    // console.log(this.filterOpt, 'this.filterOpt-val');
+    return row[property] === value;
+  }
+
   // 渲染左侧表格的列
   handleMultiColumn() {
+    const groupBy = this.dimensionParam.group_by;
+    const set1 = new Set(groupBy);
     const operationCol = (
       <bk-table-column
+        width={220}
         scopedSlots={{
           default: ({ row }) => {
             if (row?.isTotal) {
@@ -425,52 +644,146 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     })}
                   </ul>
                 </bk-dropdown-menu>
+                {this.supportOperations.map(opt => {
+                  const intersection = Array.from(new Set(opt.tags.filter(item => set1.has(item)))) || [];
+                  const pre = this.dimensionList.find(item => item.value === intersection[0]);
+                  const isHas = intersection.length > 0;
+                  if (isHas && opt.value === 'callee') {
+                    const tips =
+                      this.simpleList.length === 0
+                        ? this.$t('当前「{preText}」在{perAfterString}分析无调用记录', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          })
+                        : this.$t('查看当前「{preText}」在{perAfterString}分析的数据', {
+                            preText: pre?.text || '',
+                            perAfterString: this.perAfterString,
+                          });
+                    return (
+                      <bk-popover
+                        ext-cls='caller-field-popover'
+                        placement='top'
+                        theme='light'
+                        // trigger='click'
+                        onShow={() => this.getSimpleList(intersection[0], row[intersection[0]])}
+                      >
+                        <span class='operation-item'>{opt.text}</span>
+                        <div
+                          class='simple-list'
+                          slot='content'
+                        >
+                          <span>{tips}</span>
+                          <div
+                            class='simple-list-item'
+                            v-bkloading={{ isLoading: this.simpleLoading, theme: 'primary', size: 'mini' }}
+                          >
+                            {this.simpleList.map(item => (
+                              <div
+                                key={item.value}
+                                class={['field-item', { disabled: !item.isClick }]}
+                                v-bk-tooltips={{
+                                  content: this.$t('服务未接入'),
+                                  disabled: item.isClick,
+                                }}
+                                onClick={() =>
+                                  this.handleFieldOperations(opt, row, item.isClick, intersection[0], item.value)
+                                }
+                              >
+                                {item.value}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </bk-popover>
+                    );
+                  }
+                  if (isHas && ['service', 'topo', 'trace'].includes(opt.value)) {
+                    const isClick = this.serviceList.includes(row[opt.tags[0]]);
+                    const tipsData = {
+                      trace: this.$t('查看关联调用链'),
+                      topo: this.$t('跳转到「{intersection}」拓扑页面', {
+                        intersection: row[intersection[0]],
+                      }),
+                      service: this.$t('跳转到「{intersection}」调用分析页面', {
+                        intersection: row[intersection[0]],
+                      }),
+                    };
+                    return (
+                      <span
+                        key={opt.value}
+                        class={['operation-item', { disabled: ['service', 'topo'].includes(opt.value) && !isClick }]}
+                        v-bk-tooltips={
+                          ['service', 'topo'].includes(opt.value)
+                            ? {
+                                content: !isClick ? this.$t('服务未接入') : tipsData[opt.value],
+                              }
+                            : { content: tipsData[opt.value] }
+                        }
+                        onClick={() =>
+                          this.handleFieldOperations(
+                            opt,
+                            row,
+                            ['service', 'topo'].includes(opt.value) ? isClick : true,
+                            intersection[0]
+                          )
+                        }
+                      >
+                        {opt.text}
+                      </span>
+                    );
+                  }
+                })}
               </div>
             );
           },
         }}
         label={this.$t('操作')}
-        min-width='100'
       />
     );
     const baseCol = this.dimensionList
       .filter(item => item.active)
-      .map(item => (
-        <bk-table-column
-          key={item.value}
-          scopedSlots={{
-            default: a => {
-              const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
-              const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
-              return (
-                <span
-                  class={[
-                    'multi-view-table-link',
-                    { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
-                  ]}
-                >
+      .map(item => {
+        const key = (this.tableFilterData[item.value] || []).length;
+        this.filterOpt[item.value] = [];
+        return (
+          <bk-table-column
+            key={`${item.value}_${key}`}
+            scopedSlots={{
+              default: a => {
+                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
+                const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
+                return (
                   <span
-                    class='item-txt'
-                    v-bk-overflow-tips
-                    onClick={() => this.handleShowDetail(a.row, item.value)}
+                    class={[
+                      'multi-view-table-link',
+                      { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
+                    ]}
                   >
-                    {txt || '--'}
+                    <span
+                      class='item-txt'
+                      v-bk-overflow-tips
+                      onClick={() => this.handleShowDetail(a.row, item.value)}
+                    >
+                      {txt || '--'}
+                    </span>
+                    {!a.row?.isTotal && a.row[item.value] && (
+                      <i
+                        class='icon-monitor icon-mc-copy tab-row-icon'
+                        onClick={() => this.copyValue(a.row[item.value])}
+                      />
+                    )}
                   </span>
-                  {!a.row?.isTotal && a.row[item.value] && (
-                    <i
-                      class='icon-monitor icon-mc-copy tab-row-icon'
-                      onClick={() => this.copyValue(a.row[item.value])}
-                    />
-                  )}
-                </span>
-              );
-            },
-          }}
-          label={item.text}
-          min-width={120}
-          prop={item.value}
-        />
-      ));
+                );
+              },
+            }}
+            // filter-method={this.fieldFilterMethod}
+            // filters={this.tableFilterData[item.value]}
+            label={item.text}
+            min-width={120}
+            prop={item.value}
+          />
+        );
+      });
     return [baseCol, operationCol];
   }
   /** 检查是否需要保留2位小数 */
@@ -493,12 +806,52 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return value;
   }
 
+  renderHeader(h, { column }: any, item: any) {
+    const { pointTime } = this.dimensionParam;
+    let tips = this.timeStrShow[item.prop.slice(-2)];
+    if (pointTime?.startTime) {
+      tips = formatDateRange(pointTime?.startTime * 1000, pointTime?.endTime * 1000);
+    }
+    const showKeys = ['growth_rates', 'proportions', 'p50_duration', 'p95_duration', 'p99_duration'];
+    const tipsKey = ['1d', '1w'];
+    const hasPrefix = (fieldName: string) => {
+      return showKeys.some(pre => fieldName.startsWith(pre));
+    };
+    const hasTips = (fieldName: string) => {
+      return tipsKey.some(pre => fieldName.endsWith(pre));
+    };
+    return (
+      <span class='custom-header-main'>
+        <span
+          class={[{ 'item-txt': !hasPrefix(item.prop) }, { 'item-txt-no': hasPrefix(item.prop) }]}
+          v-bk-overflow-tips
+        >
+          <span
+            class={{ 'custom-header-tips': !hasPrefix(item.prop) && hasTips(item.prop) }}
+            v-bk-tooltips={!hasPrefix(item.prop) && hasTips(item.prop) ? { content: tips } : {}}
+          >
+            {item.label}
+          </span>
+        </span>
+        {!hasPrefix(item.prop) && (
+          <i
+            class='icon-monitor icon-bingtu tab-row-icon'
+            onClick={e => {
+              e.stopPropagation();
+              this.handleDimension(column, item.prop);
+            }}
+          />
+        )}
+      </span>
+    );
+  }
   // 渲染tab表格的列
   handleMultiTabColumn() {
+    const { pointTime } = this.dimensionParam;
     const curColumn = this.panels.find(item => item.id === this.active);
-    return (curColumn.columns || []).map((item, index) => (
+    return (curColumn.columns || []).map(item => (
       <bk-table-column
-        key={index}
+        key={`${item.prop}_${pointTime?.startTime}`}
         scopedSlots={{
           default: ({ row }) => {
             const txt = this.formatTableValShow(row[item.prop], item.prop);
@@ -526,10 +879,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             );
           },
         }}
-        label={item.label}
-        min-width={130}
+        min-width={160}
         prop={item.prop}
-        sortable
+        renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
+        sortable='custom'
       />
     ));
   }
@@ -559,11 +912,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   formatTableValShow(val: number, key: string) {
     const txt = this.hasPrefix(key)
       ? val
-        ? `${this.formatToTwoDecimalPlaces(val)}%`
-        : val === 0
+        ? `${val}%`
+        : // ? `${this.formatToTwoDecimalPlaces(val)}%`
+          val === 0
           ? `${val}%`
           : '--'
-      : this.formatToTwoDecimalPlaces(val) || '--';
+      : // : this.formatToTwoDecimalPlaces(val) || '--';
+        val || '--';
     return txt;
   }
   get appendTabWidth() {
@@ -595,6 +950,51 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       );
     });
   }
+  handleMenuClick(data: IDataItem) {
+    const { dimensions, dimensionKey } = data;
+    const ind = this.drillGroupBy.indexOf(dimensionKey);
+    if (ind !== -1) {
+      this.drillGroupBy.splice(ind, 1);
+    }
+    this.drillGroupBy.push(dimensionKey);
+
+    Object.keys(dimensions || {}).map(key => {
+      const ind = this.drillFilterData.findIndex(item => item.key === key);
+      /** 图表下钻带有时间特殊处理 */
+      if (key === 'time') {
+        const startTime = new Date(dimensions[key]).getTime() / 1000;
+        const endTime = startTime + this.panelInterval;
+        this.dimensionChartOpt.dimensionTime = { start_time: startTime, end_time: endTime };
+      }
+      if (ind === -1) {
+        this.drillFilterData.push({
+          condition: 'and',
+          key,
+          method: 'eq',
+          value: [dimensions[key]],
+        });
+      }
+    });
+    this.dimensionChartOpt.drillFilterData = this.drillFilterData.filter(item => item.key !== 'time');
+    this.dimensionChartOpt.drillGroupBy = this.drillGroupBy;
+  }
+  getDimensionsName(id: string) {
+    const { dimensionList } = this.dimensionParam;
+    const info = dimensionList.find(item => item.value === id);
+    return info?.text;
+  }
+  handleCloseTag(tag: { key: string; method: string; condition: string; value: string[] }) {
+    const data = this.drillFilterData.filter(item => item.key !== tag.key);
+    this.drillGroupBy.splice(this.drillGroupBy.indexOf(tag.key), 1);
+    if (tag.key === 'time') {
+      this.dimensionChartOpt.dimensionTime = {};
+    }
+    this.drillFilterData = data;
+    this.dimensionChartOpt.drillFilterData = data.filter(item => item.key !== 'time');
+    this.dimensionChartOpt.drillGroupBy = this.drillGroupBy;
+    this.$emit('dimensionKeyChange', { drillFilterData: this.drillFilterData });
+  }
+
   render() {
     return (
       <div class='multi-view-table-main'>
@@ -673,11 +1073,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             )
           )}
         </div>
-        {this.tableTotal > this.pagination.limit && (
+        {this.tableListData?.length > this.pagination.limit && (
           <bk-pagination
             class='mt-8'
             align='right'
-            count={this.pagination.count}
+            count={this.tableListData.length}
             current={this.pagination.current}
             limit={this.pagination.limit}
             limit-list={this.pagination.limitList}
@@ -736,46 +1136,73 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           )}
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
-        {false && (
-          <bk-dialog
-            width={640}
-            ext-cls='multi-detail-dialog'
-            v-model={this.isShowDimension}
-            header-position={'left'}
-            show-footer={false}
-            theme='primary'
+        <bk-dialog
+          width={960}
+          ext-cls='multi-detail-dialog'
+          v-model={this.isShowDimension}
+          position={{
+            top: this.dialogTop,
+          }}
+          header-position={'left'}
+          show-footer={false}
+          theme='primary'
+        >
+          <div
+            class='multi-dialog-header'
+            slot='header'
           >
-            <div
-              class='multi-dialog-header'
-              slot='header'
+            <span class='head-title'>{this.$t('维度值分布')}</span>
+            <TabBtnGroup
+              class='multi-dialog-tab'
+              activeKey={this.chartActive}
+              list={this.chartPanels}
+              onChange={this.changeChartTab}
+            />
+            <bk-select
+              class='multi-dialog-select ml10'
+              v-model={this.curDimensionKey}
+              clearable={false}
+              onChange={this.handleDimensionKeyChange}
             >
-              <span class='head-title'>{this.$t('维度值分布')}</span>
-              <TabBtnGroup
-                class='multi-dialog-tab'
-                activeKey={this.chartActive}
-                list={this.chartPanels}
-                onChange={this.changeChartTab}
+              {this.groupByCalculationTypes.map(option => (
+                <bk-option
+                  id={option.value}
+                  key={option.value}
+                  name={option.text}
+                />
+              ))}
+            </bk-select>
+          </div>
+          <div class='multi-dialog-content'>
+            <span class='multi-tips'>
+              {this.$t(`仅展示前 ${this.groupByChartLimit} 条数据`)}
+              <span class='multi-tips-more'>
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+              </span>
+            </span>
+            <div class='chart-drill-main'>
+              {(this.drillFilterData || []).map(item => (
+                <bk-tag
+                  key={item.id}
+                  closable
+                  onClose={() => this.handleCloseTag(item)}
+                >
+                  {this.getDimensionsName(item.key)} <span class='tag-symbol'>=</span>{' '}
+                  {(item?.value || []).map(item => (item === '' ? this.$t('- 空 -') : item)).join('、')}
+                </bk-tag>
+              ))}
+            </div>
+            {this.isShowDimension && (
+              <DashboardPanel
+                id={'apm-table-dimension_panels'}
+                column={1}
+                panels={this.currentPanels}
+                onMenuClick={this.handleMenuClick}
               />
-              <bk-select
-                class='multi-dialog-select ml10'
-                v-model={this.dimensionValue}
-              >
-                {this.dialogSelectList.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            </div>
-            <div class='multi-dialog-content'>
-              <span class='tips'>{this.$t('仅展示前 30 条数据')}</span>
-              {this.isShowDimension &&
-                (this.chartActive === 'caller-pie-chart' ? <CallerPieChart /> : <CallerBarChart />)}
-            </div>
-          </bk-dialog>
-        )}
+            )}
+          </div>
+        </bk-dialog>
       </div>
     );
   }
