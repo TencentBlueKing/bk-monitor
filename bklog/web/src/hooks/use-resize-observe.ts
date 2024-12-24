@@ -52,7 +52,7 @@ export default (
   };
 
   let resizeObserver: ResizeObserver;
-  let isStoped = false;
+  let isStoped = true;
 
   const observeElement = () => {
     if (isStoped) {
