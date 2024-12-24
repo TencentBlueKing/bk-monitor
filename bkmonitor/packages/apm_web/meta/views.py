@@ -107,6 +107,7 @@ class ApplicationViewSet(ResourceViewSet):
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
+            "apply_strategies_to_services",
         ]:
             return [
                 InstanceActionForDataPermission(

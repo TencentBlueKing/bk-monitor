@@ -8,25 +8,24 @@
 
 #### 接口参数
 
-| 字段             | 类型   | 必选 | 描述                                                         |
-| ---------------- | ------ | ---- | ------------------------------------------------------------ |
-| bk_biz_id        | int    | 是   | 业务id                                                       |
-| app_name         | string | 是   | 应用名称                                                     |
-| group_type       | string | 是   | 策略组类型，可选：<br />`rpc` - RPC 服务                     |
-| apply_types      | list   | 是   | 策略类型列表，不同 `group_type`具有不同类型，详见下方 `apply_type` |
-| apply_services   | list   | 否   | 服务列表，不填默认导入到所有同类服务                         |
-| notice_group_ids | list   | 否   | 告警组 ID 列表                                               |
-| config           | string | 否   | 额外配置，JSON 序列化字符串，详见下发 `config`               |
+| 字段               | 类型     | 必选 | 描述                                             |
+|------------------|--------|----|------------------------------------------------|
+| application_id   | int    | 是  | 应用 ID                                          |
+| group_type       | string | 是  | 策略组类型，可选：<br />`rpc` - RPC 服务                  |
+| apply_types      | list   | 是  | 策略类型列表，不同 `group_type`具有不同类型，详见下方 `apply_type` |
+| apply_services   | list   | 否  | 服务列表，不填默认导入到所有同类服务                             |
+| notice_group_ids | list   | 否  | 告警组 ID 列表                                      |
+| config           | string | 否  | 额外配置，JSON 序列化字符串，详见下发 `config`                 |
 
 ##### apply_type
 
 1）rpc
 
-| 类型     | 描述                                      |
-| -------- | ----------------------------------------- |
-| callee   | 被调策略                                  |
-| caller   | 主调策略                                  |
-| panic    | 异常退出策略，仅对 tRPC-Go 生效           |
+| 类型       | 描述                      |
+|----------|-------------------------|
+| callee   | 被调策略                    |
+| caller   | 主调策略                    |
+| panic    | 异常退出策略，仅对 tRPC-Go 生效    |
 | resource | 服务容量策略，仅对使用 BCS 集群内上报生效 |
 
 ##### config

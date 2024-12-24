@@ -2034,8 +2034,7 @@ class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
 
 class ApplyStrategiesToServicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称", max_length=50)
+        application_id = serializers.IntegerField(label="应用ID")
         group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
         apply_types = serializers.ListSerializer(
             label="策略类型列表", child=serializers.CharField(label="策略类型"), required=False, default=[]
@@ -2047,8 +2046,10 @@ class ApplyStrategiesToServicesResource(Resource):
         config = serializers.CharField(label="配置", default="{}")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id: int = validated_request_data["bk_biz_id"]
-        app_name: str = validated_request_data["app_name"]
+        try:
+            application: Application = Application.objects.get(application_id=validated_request_data["application_id"])
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
         try:
             options_config: Dict[str, Any] = json.loads(validated_request_data.get("config") or "{}")
@@ -2057,9 +2058,9 @@ class ApplyStrategiesToServicesResource(Resource):
 
         group: BaseStrategyGroup = StrategyGroupRegistry.get(
             GroupType.RPC.value,
-            bk_biz_id,
-            app_name,
-            metric_helper=MetricHelper(bk_biz_id, app_name),
+            application.bk_biz_id,
+            application.app_name,
+            metric_helper=MetricHelper(application.bk_biz_id, application.app_name),
             notice_group_ids=validated_request_data["notice_group_ids"],
             apply_types=validated_request_data["apply_types"],
             apply_services=validated_request_data["apply_services"],
