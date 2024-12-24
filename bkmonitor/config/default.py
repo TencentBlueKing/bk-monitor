@@ -1477,5 +1477,8 @@ TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
+# k8s灰度列表，关闭灰度: [0] 或删除该配置
+K8S_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
