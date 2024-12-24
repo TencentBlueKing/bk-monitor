@@ -335,7 +335,7 @@ class GetFunctionShortcutResource(CacheResource):
 
                 for access_record in access_records:
                     # 如果仪表盘不存在，则跳过
-                    if (access_record["bk_biz_id"], access_record["dashboard_uid"]) not in exists_dashboard_set:
+                    if (str(access_record["bk_biz_id"]), access_record["dashboard_uid"]) not in exists_dashboard_set:
                         continue
 
                     items.append(
@@ -524,7 +524,11 @@ class GetFunctionShortcutResource(CacheResource):
             ]
         }]
         """
-        username = self.request.user.username
+        request = get_request(peaceful=True)
+        if not request:
+            return []
+
+        username = request.user.username
         shortcut_type = params.get("type", "recent")
 
         if shortcut_type == "recent":
@@ -571,10 +575,13 @@ class AddAccessRecordResource(Resource):
         def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
             if attrs["function"] == "dashboard":
                 attrs["config"] = self.DashboardConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+                attrs["id"] = attrs["config"]["dashboard_uid"]
             elif attrs["function"] == "apm_service":
                 attrs["config"] = self.ApmServiceConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+                attrs["id"] = f"{attrs['config']['application_id']}-{attrs['config']['service_name']}"
             elif attrs["function"] == "metric_retrieve":
                 attrs["config"] = self.MetricRetrieveConfigSerializer(data=attrs["config"]).validate(attrs["config"])
+                attrs["id"] = str(attrs["config"]["favorite_record_id"])
             return attrs
 
     def perform_request(self, params: Dict[str, Any]) -> None:
@@ -599,16 +606,28 @@ class AddAccessRecordResource(Resource):
 
             # 记录访问
             value = config.value
-            value.setdefault(params["function"], []).append(
-                {
-                    "bk_biz_id": params["bk_biz_id"],
-                    "time": int(timezone.now().timestamp()),
-                    **params["config"],
-                }
-            )
+            value.setdefault(params["function"], [])
+
+            # 更新访问时间
+            for item in value[params["function"]]:
+                if item["id"] == params["id"] and item["bk_biz_id"] == params["bk_biz_id"]:
+                    item["time"] = int(timezone.now().timestamp())
+                    break
+            else:
+                # 新增访问记录
+                value[params["function"]].append(
+                    {
+                        "bk_biz_id": params["bk_biz_id"],
+                        "time": int(timezone.now().timestamp()),
+                        **params["config"],
+                    }
+                )
+
+            # 按时间排序
+            value[params["function"]].sort(key=lambda x: x["time"], reverse=True)
 
             # 保留最近10条记录
-            value[params["function"]] = value[params["function"]][-10:]
+            value[params["function"]] = value[params["function"]][:10]
 
             config.value = value
             config.save()
