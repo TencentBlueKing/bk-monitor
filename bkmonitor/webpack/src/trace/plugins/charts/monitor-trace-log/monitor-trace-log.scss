@@ -140,6 +140,13 @@
               & > .split-line {
                 display: none;
               }
+
+              .is-hidden-table-header {
+                .bk-table-body-wrapper {
+                  display: none;
+                }
+              }
+              
             }
           }
         }
