@@ -1,4 +1,4 @@
-.monitor-log-retrieve {
+.monitor-trace-retrieve {
   // display: flex;
   width: 100%;
   height: 100%;
@@ -99,6 +99,41 @@
 
     .bk-button {
       width: 88px;
+    }
+  }
+
+  .retrieve-v2-index {
+    height: auto;
+    background: #fff;
+
+    .sub-head {
+      background: #fff;
+    }
+
+    .retrieve-body {
+      background: #fff;
+
+      .retrieve-context {
+        .search-bar-container {
+          border: 1px solid #DCDEE5;
+          box-shadow: none;
+        }
+
+        .result-row {
+          margin-top: 16px;
+          box-shadow: none;
+
+          .search-result-panel {
+            .search-result-content {
+              padding: 0;
+
+              & > .split-line {
+                display: none;
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
