@@ -62,8 +62,8 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
             try:
                 if field_name == DEFAULT_TIME_FIELD:
                     # 转化为相同的数据类型
-                    _x_value = int(_x_value)
-                    _y_value = int(_y_value)
+                    _x_value = str(_x_value)
+                    _y_value = str(_y_value)
                 if _x_value != _y_value:
                     if order == "desc":
                         return (_x_value < _y_value) - (_x_value > _y_value)
