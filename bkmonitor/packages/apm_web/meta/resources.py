@@ -2034,7 +2034,8 @@ class NoDataStrategyDisableResource(NoDataStrategyStatusResource):
 
 class ApplyStrategiesToServicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        application_id = serializers.IntegerField(label="应用ID")
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
         group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
         apply_types = serializers.ListSerializer(
             label="策略类型列表", child=serializers.CharField(label="策略类型"), required=False, default=[]
@@ -2043,28 +2044,29 @@ class ApplyStrategiesToServicesResource(Resource):
             label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
         )
         notice_group_ids = serializers.ListSerializer(label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"))
-        config = serializers.CharField(label="配置", default="{}")
+        config = serializers.CharField(label="配置内容", default="{}")
+        options = serializers.DictField(label="配置", required=False)
+
+        def validate(self, attrs):
+            try:
+                attrs["options"] = json.loads(attrs.get("config") or "{}")
+            except (TypeError, json.JSONDecodeError):
+                raise ValueError(_("配置解析错误，必须是合法 JSON 字符串"))
+            return attrs
 
     def perform_request(self, validated_request_data):
-        try:
-            application: Application = Application.objects.get(application_id=validated_request_data["application_id"])
-        except Application.DoesNotExist:
-            raise ValueError(_("应用不存在"))
-
-        try:
-            options_config: Dict[str, Any] = json.loads(validated_request_data.get("config") or "{}")
-        except (TypeError, json.JSONDecodeError):
-            raise ValueError(_("配置解析错误，必须是合法 JSON 字符串"))
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
 
         group: BaseStrategyGroup = StrategyGroupRegistry.get(
             GroupType.RPC.value,
-            application.bk_biz_id,
-            application.app_name,
-            metric_helper=MetricHelper(application.bk_biz_id, application.app_name),
+            bk_biz_id,
+            app_name,
+            metric_helper=MetricHelper(bk_biz_id, app_name),
             notice_group_ids=validated_request_data["notice_group_ids"],
             apply_types=validated_request_data["apply_types"],
             apply_services=validated_request_data["apply_services"],
-            options=options_config,
+            options=validated_request_data["options"],
         )
         group.apply()
 

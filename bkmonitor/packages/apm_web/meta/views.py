@@ -107,7 +107,6 @@ class ApplicationViewSet(ResourceViewSet):
             "nodata_strategy_info",
             "nodata_strategy_enable",
             "nodata_strategy_disable",
-            "apply_strategies_to_services",
         ]:
             return [
                 InstanceActionForDataPermission(
@@ -119,6 +118,15 @@ class ApplicationViewSet(ResourceViewSet):
                 InstanceActionForDataPermission(
                     "app_name",
                     [ActionEnum.VIEW_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
+        if self.action in ["apply_strategies_to_services"]:
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
                     ResourceEnum.APM_APPLICATION,
                     get_instance_id=Application.get_application_id_by_app_name,
                 )

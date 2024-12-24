@@ -10,7 +10,8 @@
 
 | 字段               | 类型     | 必选 | 描述                                             |
 |------------------|--------|----|------------------------------------------------|
-| application_id   | int    | 是  | 应用 ID                                          |
+| bk_biz_id        | int    | 是  | 业务id                                           |
+| app_name         | string | 是  | 应用名称                                           |
 | group_type       | string | 是  | 策略组类型，可选：<br />`rpc` - RPC 服务                  |
 | apply_types      | list   | 是  | 策略类型列表，不同 `group_type`具有不同类型，详见下方 `apply_type` |
 | apply_services   | list   | 否  | 服务列表，不填默认导入到所有同类服务                             |
