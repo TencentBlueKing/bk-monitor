@@ -34,8 +34,8 @@ export function monitorLink(routeParams: IRouterParams) {
       ...window.mainComponent.$router.query,
       ...window.mainComponent.$router.params,
       ...routeParams,
-      name: 'apm-others',
-      path: '/apm/service'
+      name: window.__IS_MONITOR_TRACE__ ? 'trace-retrieval' :  'apm-others',
+      path: window.__IS_MONITOR_TRACE__ ? '/trace/home' : '/apm/service'
     };
     const url = window.mainComponent.$router.resolve(params).href;
     return url;

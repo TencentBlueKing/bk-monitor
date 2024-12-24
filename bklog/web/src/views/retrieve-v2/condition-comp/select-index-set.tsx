@@ -165,7 +165,7 @@ export default class SelectIndexSet extends tsc<object> {
 
   get indexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$route?.query?.indexId || this.$store.state.indexId);
+      return String(this.$store.state.indexId || this.$route.query.indexId);
     } else {
       return String(this.$route.params.indexId);
     }
@@ -173,7 +173,7 @@ export default class SelectIndexSet extends tsc<object> {
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$route?.query?.indexId || this.$store.state.indexId);
+      return String(this.$store.state.indexId || this.$route?.query?.indexId);
     } else {
       return String(this.$route.params.indexId);
     }

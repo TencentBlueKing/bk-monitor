@@ -233,6 +233,7 @@ export default defineComponent({
       const originalDataList = [...store.traceData.original_data, ...store.compareTraceOriginalData];
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
+      if (!curSpan) return;
       startTimeProvider.value = `${formatDate(curSpan.start_time)} ${formatTime(curSpan.start_time)}`;
       endTimeProvider.value = `${formatDate(curSpan.end_time)} ${formatTime(curSpan.end_time)}`;
       originSpanStartTime.value = Math.floor(startTime / 1000);
