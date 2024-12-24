@@ -678,24 +678,34 @@ class GetAlarmGraphConfigResource(Resource):
 
             # 补充策略状态, status: deleted, disabled, shielded, normal
             strategies = StrategyModel.objects.filter(
-                id__in=set(itertools.chain.from_iterable([item["strategy_ids"] for item in config]))
+                bk_biz_id=bk_biz_id,
+                id__in=set(itertools.chain.from_iterable([item["strategy_ids"] for item in config])),
             )
-            strategy_id_to_strategy = {strategy.id: strategy for strategy in strategies}
+            strategy_id_to_strategy = {(strategy.id, strategy.bk_biz_id): strategy for strategy in strategies}
             for item in config:
                 strategy_ids = item["strategy_ids"]
-                status = {}
-                for strategy_id in strategy_ids:
-                    strategy = strategy_id_to_strategy.get(strategy_id)
-                    if not strategy:
-                        status[strategy_id] = "deleted"
-                    elif not strategy.is_enabled:
-                        status[strategy_id] = "disabled"
-                    elif strategy.id in shielded_strategy_ids:
-                        status[strategy_id] = "shielded"
-                    else:
-                        status[strategy_id] = "normal"
-                item["status"] = status
+                strategy_names = item["strategy_names"]
+                status = []
 
+                for strategy_id, strategy_name in zip(strategy_ids, strategy_names):
+                    strategy = strategy_id_to_strategy.get((strategy_id, bk_biz_id))
+
+                    strategy_status = "normal"
+                    if not strategy:
+                        strategy_status = "deleted"
+                    elif not strategy.is_enabled:
+                        strategy_status = "disabled"
+                    elif strategy.id in shielded_strategy_ids:
+                        strategy_status = "shielded"
+
+                    status.append(
+                        {
+                            "strategy_id": strategy_id,
+                            "name": strategy.name if strategy else strategy_name,
+                            "status": strategy_status,
+                        }
+                    )
+                item["status"] = status
         return {
             "bk_biz_id": bk_biz_id,
             "config": config,
@@ -717,10 +727,29 @@ class SaveAlarmGraphConfigResource(Resource):
     class RequestSerializer(serializers.Serializer):
         class ConfigSerializer(serializers.Serializer):
             name = serializers.CharField(label="名称")
-            strategy_ids = serializers.ListField(child=serializers.IntegerField(), label="策略ID")
+            strategy_ids = serializers.ListField(child=serializers.IntegerField(), label="策略ID", allow_empty=False)
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         config = ConfigSerializer(label="配置", many=True)
+
+        def validate(self, attrs):
+            # 获取策略名称
+            strategy_id_to_name = {
+                strategy.id: strategy.name
+                for strategy in StrategyModel.objects.filter(
+                    id__in=list(itertools.chain.from_iterable([item["strategy_ids"] for item in attrs["config"]])),
+                    bk_biz_id=attrs["bk_biz_id"],
+                )
+            }
+
+            # 补充策略名称
+            for item in attrs["config"]:
+                strategy_names = []
+                for strategy_id in item["strategy_ids"]:
+                    strategy_names.append(strategy_id_to_name.get(strategy_id, "Unknown Strategy"))
+                item["strategy_names"] = strategy_names
+
+            return attrs
 
     def perform_request(self, params: Dict[str, Any]) -> None:
         request = get_request(peaceful=True)
