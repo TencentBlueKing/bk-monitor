@@ -1366,12 +1366,15 @@ class QueryRemoteServiceRelationResource(Resource):
 
 
 class QueryLogRelationByIndexSetIdResource(Resource):
+    """根据索引集 ID 获取关联的 APM 应用 (日志平台 Trace 检索跳转处使用)"""
+
     class RequestSerializer(serializers.Serializer):
         index_set_id = serializers.IntegerField()
 
     def perform_request(self, data):
         from apm_web.models import LogServiceRelation
 
+        # Step: 从服务关联中找
         log_relation = (
             LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
             .order_by("created_at")
@@ -1384,6 +1387,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 "service_name": log_relation.service_name,
             }
 
+        # Step: 从自定义上报中找
         qs = LogDataSource.objects.filter(index_set_id=data["index_set_id"])
         if qs.exists():
             relate_log_data_source = qs.first()
@@ -1391,6 +1395,17 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 "bk_biz_id": relate_log_data_source.bk_biz_id,
                 "app_name": relate_log_data_source.app_name,
             }
+
+        # Step: 检查是否是 index_set
+        ds = TraceDataSource.objects.filter(index_set_id=data["index_set_id"])
+        if ds.exists():
+            relate_ds = ds.first()
+            return {
+                "bk_biz_id": relate_ds.bk_biz_id,
+                "app_name": relate_ds.app_name,
+            }
+
+        return {}
 
 
 class QueryDiscoverRulesResource(Resource):
