@@ -106,6 +106,12 @@
     height: auto;
     background: #fff;
 
+    .bk-form-checkbox {
+      overflow: visible;
+      white-space: nowrap;
+    }
+    
+
     .sub-head {
       background: #fff;
     }
@@ -140,10 +146,29 @@
               & > .split-line {
                 display: none;
               }
+
+              .is-hidden-table-header {
+                .bk-table-body-wrapper {
+                  display: none;
+                }
+              }
+
+              .original-log-panel {
+                .original-log-panel-tools {
+                  .left-operate {
+                    .json-depth-num {
+                      width: 96px;
+                      font-size: 12px;
+                    }
+                  }
+                }
+              }
+              
             }
           }
         }
       }
     }
+    
   }
 }
