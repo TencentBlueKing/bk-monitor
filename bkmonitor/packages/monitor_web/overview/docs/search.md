@@ -18,13 +18,17 @@
 
 ### 返回结果
 
-返回的是 event-stream 格式的数据流,每条数据的格式如下:
+返回的是 event-stream 格式的数据流
+
+data: 字段格式如下
 
 | 字段 | 类型   | 描述     |
 |------|--------|----------|
 | type | string | 结果类型 |
 | name | string | 结果名称 |
 | items | array[object]  | 搜索结果列表 |
+
+event: start/end 表示搜索开始和结束
 
 #### type 可能的值
 
@@ -102,7 +106,7 @@
 
 #### 返回结果示例
 
-event-stream data分片
+event-stream data示例
 
 ```
 data: {"type": "host", "items": [{"bk_biz_id": 2, "bk_biz_name": "蓝鲸", "name": "127.0.0.1", "bk_host_innerip": "127.0.0.1", "bk_cloud_id": 0, "bk_cloud_name": "默认云区域", "bk_host_name": "host-1", "bk_host_id": 12345}]}
@@ -125,3 +129,13 @@ data: {"type": "host", "items": [{"bk_biz_id": 2, "bk_biz_name": "蓝鲸", "name
     ]
 }
 ``` 
+
+event-stream event 示例
+
+```
+event: start
+```
+
+```
+event: end
+```

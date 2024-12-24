@@ -20,6 +20,7 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from core.drf_resource import api
+from core.errors.alert import AlertNotFoundError
 
 logger = logging.getLogger("monitor_web")
 
@@ -107,7 +108,11 @@ class AlertSearchItem(SearchItem):
         bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_EVENT)
 
         alert_id = int(query)
-        alert = AlertDocument.get(alert_id)
+        try:
+            alert = AlertDocument.get(alert_id)
+        except (AlertNotFoundError, ValueError):
+            return
+
         bk_biz_id = alert.event.bk_biz_id
 
         # 如果用户没有权限查看该业务，且不是告警的处理人，则不返回
@@ -187,6 +192,10 @@ class StrategySearchItem(SearchItem):
                     "strategy_id": strategy.id,
                 }
             )
+
+        if not items:
+            return
+
         yield {"type": "strategy", "name": _("告警策略"), "items": items}
 
 
@@ -265,6 +274,9 @@ class TraceSearchItem(SearchItem):
                 }
             )
 
+        if not items:
+            return
+
         yield {"type": "trace", "name": "Trace", "items": items}
 
 
@@ -316,6 +328,10 @@ class ApmApplicationSearchItem(SearchItem):
                     "application_id": application.application_id,
                 }
             )
+
+        if not items:
+            return
+
         yield {"type": "apm_application", "name": _("APM应用"), "items": items}
 
 
@@ -367,6 +383,10 @@ class HostSearchItem(SearchItem):
                     "bk_host_id": host["bk_host_id"],
                 }
             )
+
+        if not items:
+            return
+
         yield {"type": "host", "name": _("主机监控"), "items": items}
 
 

@@ -71,7 +71,7 @@ class SearchViewSet(viewsets.GenericViewSet):
     """
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
-        serializer = SearchSerializer(data=request.data)
+        serializer = SearchSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
         query: str = serializer.validated_data['query'].strip()
@@ -82,8 +82,10 @@ class SearchViewSet(viewsets.GenericViewSet):
 
         # 使用 event-stream 返回搜索结果
         def event_stream() -> Generator[str, None, None]:
+            yield "event: start\n\n"
             for line in result:
                 yield f"data: {json.dumps(line)}\n\n"
+            yield "event: end\n\n"
 
         sr = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
         sr.headers["Cache-Control"] = "no-cache"
