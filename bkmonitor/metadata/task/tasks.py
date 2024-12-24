@@ -284,15 +284,23 @@ def _manage_es_storage(es_storage):
         # 创建快照
         logger.info("manage_es_storage:table_id->[%s] try to create snapshot", es_storage.table_id)
         es_storage.create_snapshot()
+
         # 清理过期的index
         logger.info("manage_es_storage:table_id->[%s] try to clean index", es_storage.table_id)
         es_storage.clean_index_v2()
+
+        # 清理历史ES集群中的过期Index
+        logger.info("manage_es_storage:table_id->[%s] try to clean index in old es cluster", es_storage.table_id)
+        es_storage.clean_history_es_index()
+
         # 清理过期快照
         logger.info("manage_es_storage:table_id->[%s] try to clean snapshot", es_storage.table_id)
         es_storage.clean_snapshot()
+
         # 重新分配索引数据
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
+
         logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
     except RetryError as e:
         logger.error(
