@@ -25,6 +25,7 @@
 | 字段 | 类型 | 描述 |
 |------|------|------|
 | function | string | 功能名称 |
+| name | string | 功能名称 |
 | items | list | 功能入口列表 |
 
 #### items 字段说明
@@ -36,6 +37,7 @@
 | bk_biz_name | string | 业务名称 |
 | dashboard_uid | string | 仪表盘UID |
 | dashboard_title | string | 仪表盘标题 |
+| dashboard_slug | string | 仪表盘slug |
 
 ##### APM服务(type=apm_service)
 | 字段 | 类型 | 描述 |
@@ -76,7 +78,8 @@ TODO
                 "bk_biz_id": 2,
                 "bk_biz_name": "蓝鲸",
                 "dashboard_uid": "1234567890",
-                "dashboard_title": "主机查看"
+                "dashboard_title": "主机查看",
+                "dashboard_slug": "host-view"
             }
         ]
     }

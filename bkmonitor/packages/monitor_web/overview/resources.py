@@ -315,7 +315,6 @@ class GetFunctionShortcutResource(CacheResource):
             access_records = function_access_records.get(function, [])
             items = []
             name = str(cls.function_name_map.get(function, function))
-            result.append({"function": function, "name": name, "items": items})
 
             if function == "dashboard":
                 # 查询仪表盘信息
@@ -380,8 +379,12 @@ class GetFunctionShortcutResource(CacheResource):
                     )
 
                     # limit 限制
-                    if len(items) == limit:
+                    if len(items) >= limit:
                         break
+            else:
+                continue
+
+            result.append({"function": function, "name": name, "items": items})
 
         return result
 
@@ -400,11 +403,10 @@ class GetFunctionShortcutResource(CacheResource):
         for function in functions:
             items = []
             name = str(cls.function_name_map.get(function, function))
-            result.append({"function": function, "name": name, "items": items})
 
             if function == "dashboard":
                 # 获取用户信息
-                user = User.objects.filter(username=username).first()
+                user = User.objects.filter(login=username).first()
                 if not user:
                     continue
 
@@ -446,6 +448,7 @@ class GetFunctionShortcutResource(CacheResource):
                             "bk_biz_id": bk_biz_id,
                             "dashboard_uid": dashboard.uid,
                             "dashboard_title": dashboard.title,
+                            "dashboard_slug": dashboard.slug,
                         }
                     )
 
@@ -503,9 +506,13 @@ class GetFunctionShortcutResource(CacheResource):
                     id_field=lambda d: d["application_id"],
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     mode="any",
-                )
+                )[:limit]
             elif function == "metric_explore":
                 pass
+            else:
+                continue
+
+            result.append({"function": function, "name": name, "items": items})
 
         return result
 
@@ -582,6 +589,8 @@ class AddAccessRecordResource(Resource):
             elif attrs["function"] == "metric_retrieve":
                 attrs["config"] = self.MetricRetrieveConfigSerializer(data=attrs["config"]).validate(attrs["config"])
                 attrs["id"] = str(attrs["config"]["favorite_record_id"])
+            else:
+                raise serializers.ValidationError(f"unsupported function: {attrs['function']}")
             return attrs
 
     def perform_request(self, params: Dict[str, Any]) -> None:
@@ -610,13 +619,14 @@ class AddAccessRecordResource(Resource):
 
             # 更新访问时间
             for item in value[params["function"]]:
-                if item["id"] == params["id"] and item["bk_biz_id"] == params["bk_biz_id"]:
+                if item.get("id") == params["id"] and item["bk_biz_id"] == params["bk_biz_id"]:
                     item["time"] = int(timezone.now().timestamp())
                     break
             else:
                 # 新增访问记录
                 value[params["function"]].append(
                     {
+                        "id": params["id"],
                         "bk_biz_id": params["bk_biz_id"],
                         "time": int(timezone.now().timestamp()),
                         **params["config"],
