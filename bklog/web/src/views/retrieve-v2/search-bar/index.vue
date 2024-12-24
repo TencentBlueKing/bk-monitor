@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, nextTick } from 'vue';
+  import { ref, computed, watch, nextTick, onMounted } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';

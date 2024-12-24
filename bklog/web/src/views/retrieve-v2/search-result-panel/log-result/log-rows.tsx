@@ -220,19 +220,20 @@ export default defineComponent({
       delayUpdate();
     });
 
-    const resizeObserver = new ResizeObserver(entries => {
-      entries.forEach(entry => {
-        const index = entry.target.getAttribute('data-row-index');
-        const isPending = entry.target.getAttribute('data-is-pending');
-        if (isPending !== 'true') {
-          updateIntersectionArgs(index, undefined, entry.contentRect.height);
-        }
-      });
-      delayUpdate();
-    });
+    // const resizeObserver = new ResizeObserver(entries => {
+    //   entries.forEach(entry => {
+    //     const index = entry.target.getAttribute('data-row-index');
+    //     console.log('index', index, entry.contentRect);
+    //     // const changed = (rowProxy[index]?.height ?? 40) !== entry.contentRect.height;
+    //     // if (changed && !entry.target.classList.contains('is-pending')) {
+    //     //   updateIntersectionArgs(index, undefined, entry.contentRect.height);
+    //     //   entry.target.parentElement.style.setProperty('min-height', `${entry.contentRect.height}px`);
+    //     // }
+    //   });
+    // });
 
     provide('intersectionObserver', intersectionObserver);
-    provide('resizeObserver', resizeObserver);
+    // provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
 
     const searchContainerHeight = ref(52);
@@ -588,11 +589,15 @@ export default defineComponent({
     watch(
       () => isLoading.value,
       () => {
-        if (isLoading.value) {
-          if (!isRequesting.value) {
+        if (!isRequesting.value) {
+          if (isLoading.value) {
             renderList.value.length = 0;
             renderList.value = [];
+
+            return;
           }
+
+          setRenderList();
         }
       },
     );

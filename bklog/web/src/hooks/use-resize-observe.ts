@@ -51,9 +51,19 @@ export default (
     return target?.value;
   };
 
-  let resizeObserver = null;
+  let resizeObserver: ResizeObserver;
+  let isStoped = true;
+
+  const observeElement = () => {
+    if (isStoped) {
+      isStoped = false;
+      const cellElement = getTarget() as HTMLElement;
+      resizeObserver?.observe(cellElement);
+    }
+  };
+
   const createResizeObserve = () => {
-    const cellElement = getTarget();
+    const cellElement = getTarget() as HTMLElement;
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
@@ -63,19 +73,24 @@ export default (
           debounceCallback(entry);
         }
       });
-
-      resizeObserver?.observe(cellElement);
     }
+
+    observeElement();
   };
 
-  const destoyResizeObserve = () => {
-    const cellElement = getTarget();
+  const stopObserve = () => {
+    const cellElement = getTarget() as HTMLElement;
+    isStoped = true;
 
     if (isElement(cellElement)) {
       resizeObserver?.unobserve(cellElement);
       resizeObserver?.disconnect();
-      resizeObserver = null;
     }
+  };
+
+  const destoyResizeObserve = () => {
+    stopObserve();
+    resizeObserver = undefined;
   };
 
   onMounted(() => {
@@ -86,5 +101,7 @@ export default (
     destoyResizeObserve();
   });
 
-  return { destoyResizeObserve };
+  const getInstance = () => resizeObserver;
+
+  return { destoyResizeObserve, getInstance, observeElement, stopObserve };
 };

@@ -972,7 +972,7 @@ export const calculateTableColsWidth = (field, list) => {
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
     if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
-    if (field.field_name === 'time') return [200, minWidth];
+    if (/time/i.test(field.field_name)) return [256, minWidth];
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -981,12 +981,12 @@ export const calculateTableColsWidth = (field, list) => {
     // 实际字段值长度
     const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
 
-    if (field.field_type === 'string') {
-      return [Math.min(480, fieldValueLen), minWidth];
+    if (field.field_type === 'text') {
+      // 800为默认自适应最大宽度
+      if (fieldValueLen > 800) return [800, minWidth];
     }
 
-    // 800为默认自适应最大宽度
-    if (fieldValueLen > 800) return [800, minWidth];
+    if (fieldValueLen > 480) return [480, minWidth];
 
     // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
     if (fieldValueLen < minWidth) return [minWidth, minWidth];
