@@ -50,7 +50,7 @@ class ProfileDiffer:
         for base_child in base.children.values():
             comp_child = comp.children.get(base_child.id)
             if comp_child is None:
-                diff_child_node = self._process_add_or_remove(base, DiffMark.ADDED)
+                diff_child_node = self._process_add_or_remove(base_child, DiffMark.ADDED)
                 diff_node.add_child(diff_child_node)
             else:
                 diff_child_node = self._diff_func_node(base_child, comp_child)
@@ -58,7 +58,7 @@ class ProfileDiffer:
 
         for comp_child in comp.children.values():
             if comp_child.id not in base.children:
-                diff_child_node = self._process_add_or_remove(comp, DiffMark.REMOVED)
+                diff_child_node = self._process_add_or_remove(comp_child, DiffMark.REMOVED)
                 diff_node.add_child(diff_child_node)
 
         return diff_node
