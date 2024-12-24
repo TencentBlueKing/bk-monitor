@@ -121,59 +121,67 @@ class UseSegmentProp {
           iconName: 'bklog-icon bklog-jump',
         },
       },
-    ];
+    ]
+      .filter(item => {
+        if (window?.__IS_MONITOR_TRACE__) {
+          return item.text !== this.$t('新建检索');
+        }
+        return true;
+      })
+      .map(item => {
+        if (window?.__IS_MONITOR_TRACE__) {
+          return {
+            ...item,
+            link: undefined,
+          };
+        }
+        return item;
+      });
 
     return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [
-      eventBoxList
-        .filter(item => {
-          if (window?.__IS_MONITOR_TRACE__) {
-            return item.text !== this.$t('新建检索');
-          }
-          return true;
-        })
-        .map(item =>
-          h(
-            'div',
-            {
-              class: 'segment-event-box',
-            },
-            [
-              h(
-                'span',
-                {
-                  class: 'segment-event-btn',
-                  on: {
-                    click: item.onClick,
-                  },
+      eventBoxList.map(item =>
+        h(
+          'div',
+          {
+            class: 'segment-event-box',
+          },
+          [
+            h(
+              'span',
+              {
+                class: 'segment-event-btn',
+                on: {
+                  click: item.onClick,
                 },
-                [
-                  h('span', { class: 'segment-btn-left' }, [
-                    h('i', { class: item.iconName }),
-                    h('span', {}, [item.text]),
-                  ]),
-                  item.link
-                    ? h(
-                        'div',
-                        {
-                          class: 'segment-new-link',
-                          on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
-                          directives: item.link.tooltip
-                            ? [
-                                {
-                                  name: 'bk-tooltips',
-                                  value: item.link.tooltip,
-                                },
-                              ]
-                            : [],
-                        },
-                        [h('i', { class: item.link.iconName })],
-                      )
-                    : null,
-                ],
-              ),
-            ],
-          ),
+              },
+              [
+                h('span', { class: 'segment-btn-left' }, [
+                  h('i', { class: item.iconName }),
+                  h('span', {}, [item.text]),
+                ]),
+                item.link
+                  ? h(
+                      'div',
+                      {
+                        class: 'segment-new-link',
+                        on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
+                        directives: item.link.tooltip
+                          ? [
+                              {
+                                name: 'bk-tooltips',
+                                value: item.link.tooltip,
+                              },
+                            ]
+                          : [],
+                      },
+                      [h('i', { class: item.link.iconName })],
+                    )
+                  : null,
+              ],
+            ),
+          ],
         ),
+      ),
     ]);
   }
 
