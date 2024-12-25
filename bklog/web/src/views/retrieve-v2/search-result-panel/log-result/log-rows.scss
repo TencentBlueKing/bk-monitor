@@ -85,6 +85,10 @@
     content-visibility: auto;
     will-change: auto;
 
+    &.is-visible {
+      transition: all 0.2s ease;
+    }
+
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
