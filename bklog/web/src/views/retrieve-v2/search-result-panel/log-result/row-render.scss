@@ -3,7 +3,6 @@
   height: fit-content;
 
   &.is-pending {
-
     @keyframes lazyanimloader {
       0% {
         box-shadow:
@@ -48,7 +47,7 @@
 
     &::before {
       position: absolute;
-      top: 50%;
+      top: 14px;
       left: 100px;
       box-sizing: border-box;
       display: block;
