@@ -31,6 +31,7 @@ import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
+import MonitorTraceLog from '../charts/monitor-trace-log/monitor-trace-log';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
 import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
@@ -73,6 +74,10 @@ export default defineComponent({
     const errorMsg = ref('');
     /** 水印图 */
     const waterMaskImg = ref('');
+
+    const needWaterMask = computed(() => {
+      return !['monitor-trace-log'].includes(props.panel.type);
+    });
 
     /** hover样式 */
     const needHoverStryle = computed(() => {
@@ -156,6 +161,8 @@ export default defineComponent({
               onLoading={handleChangeLoading}
             />
           );
+        case 'monitor-trace-log':
+          return <MonitorTraceLog />;
         default:
           return (
             <TimeSeries
@@ -180,6 +187,7 @@ export default defineComponent({
       handleCloseViewDetail,
       waterMaskImg,
       errorMsg,
+      needWaterMask,
     };
   },
   render() {
@@ -195,7 +203,7 @@ export default defineComponent({
           'row-chart': this.panel.type === 'row',
         }}
       >
-        {!!window.graph_watermark && (
+        {!!window.graph_watermark && this.needWaterMask && (
           <div
             class='wm'
             v-watermark={{
@@ -217,7 +225,7 @@ export default defineComponent({
             onClick={this.handleChartCheck}
           />
         )}
-        {!!window.graph_watermark && (
+        {!!window.graph_watermark && this.needWaterMask && (
           <div
             class='wm'
             v-watermark={{

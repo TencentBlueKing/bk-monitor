@@ -140,16 +140,37 @@ class ServiceLogHandler:
     @classmethod
     def list_host_indexes_by_span(cls, bk_biz_id, app_name, span_id):
         """从 span 中找主机关联的采集项"""
-        span_host = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
+        span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
 
-        if span_host:
+        if span_hosts:
             from monitor_web.scene_view.resources import HostIndexQueryMixin
 
-            return HostIndexQueryMixin.query_indexes(
-                {"bk_biz_id": bk_biz_id, "bk_host_id": span_host["bk_host_id"]},
-            ), span_host.get("bk_host_innerip")
+            pool = ThreadPool()
+            indies = pool.map_ignore_exception(
+                HostIndexQueryMixin.query_indexes,
+                [({"bk_biz_id": bk_biz_id, "bk_host_id": i["bk_host_id"]},) for i in span_hosts],
+            )
 
-        return [], None
+            res = []
+            for index, i in enumerate(indies):
+                if not i:
+                    continue
+                for j in i:
+                    res.append(
+                        {
+                            **j,
+                            "addition": [
+                                {
+                                    "field": "*",
+                                    "operator": "contains match phrase",
+                                    "value": [span_hosts[index]["bk_host_innerip"]],
+                                }
+                            ],
+                        }
+                    )
+            return res
+
+        return []
 
     @classmethod
     def get_log_relation(cls, bk_biz_id, app_name, service_name):
