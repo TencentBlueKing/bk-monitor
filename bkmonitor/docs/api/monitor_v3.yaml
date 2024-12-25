@@ -2382,6 +2382,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/application_web/apply_strategies_to_services/
+  is_hidden: false
+  label: 导入策略到 APM 服务
+  label_en: apply_strategies_to_services
+  name: apply_strategies_to_services
+  path: /v2/monitor_v3/apply_strategies_to_services/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/action_instance/get_action_params_by_config/
   is_hidden: true
   label: 根据套餐ID获取当前告警处理参数

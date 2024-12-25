@@ -24,9 +24,9 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
         bk_biz_id: api.log_search.search_index_set(bk_biz_id=bk_biz_id),
     }
 
-    # Resource: 从 SpanId 关联主机中找
+    # Resource: 从 SpanId 关联主机 / 关联容器中找
     if span_id:
-        host_indexes, ip = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
+        host_indexes = ServiceLogHandler.list_host_indexes_by_span(bk_biz_id, app_name, span_id)
         for item in host_indexes:
             if str(item["index_set_id"]) not in index_set_ids:
                 index_info = next(
@@ -39,7 +39,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 )
                 if index_info:
                     # 默认查询: 机器 IP
-                    index_info["addition"] = [{"field": "*", "operator": "contains match phrase", "value": [ip]}]
+                    index_info["addition"] = item.get("addition", [])
                     index_set_ids.append(str(item["index_set_id"]))
                     yield index_info
 

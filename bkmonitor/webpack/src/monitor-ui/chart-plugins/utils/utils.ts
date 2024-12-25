@@ -367,7 +367,7 @@ export const filterDictConvertedToWhere = (
         value === 'undefined' ||
         value === null ||
         value === '' ||
-        (Array.isArray(value) && value.length === 0) ||
+        (Array.isArray(value) && (value.length === 0 || value.some(v => typeof v === 'object'))) ||
         (typeof value === 'object' && !Object.keys(value).length)
       ) {
         return total;

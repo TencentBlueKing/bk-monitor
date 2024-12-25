@@ -199,7 +199,7 @@ export default defineComponent({
             <span class='segment-content'>{getBodyRender()}</span>
           </span>
           <span
-            class={['btn-more-action', { 'is-show': hasEllipsis.value }]}
+            class={['btn-more-action', { 'is-show': hasEllipsis.value || showAll.value }]}
             onClick={handleClickMore}
           >
             {btnText.value}
