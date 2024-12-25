@@ -18,9 +18,9 @@
   import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import CommonFilterSettingPop from './common-filter-setting-pop.vue';
+  // import CommonFilterSettingPop from './common-filter-setting-pop.vue';
   import { bkMessage } from 'bk-magic-vue';
-  import CommonFilterSelect from './common-filter-select.vue';
+  // import CommonFilterSelect from './common-filter-select.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
   import { debounce } from 'lodash';
 
@@ -386,12 +386,12 @@
               @click="saveCurrentActiveFavorite"
             ></div>
           </template>
-          <CommonFilterSettingPop
+          <!-- <CommonFilterSettingPop
             v-bk-tooltips="$t('常用查询设置')"
             :class="{ disabled: isInputLoading }"
             :filterList="uiQueryValue"
           >
-          </CommonFilterSettingPop>
+          </CommonFilterSettingPop> -->
         </div>
         <div
           class="search-tool search-btn"
@@ -407,7 +407,7 @@
         </div>
       </div>
     </div>
-    <CommonFilterSelect></CommonFilterSelect>
+    <!-- <CommonFilterSelect></CommonFilterSelect> -->
   </div>
 </template>
 <style scoped lang="scss">
