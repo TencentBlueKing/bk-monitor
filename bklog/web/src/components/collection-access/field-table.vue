@@ -189,14 +189,17 @@
                         :theme="'danger'" 
                         class="tooltips-btn" 
                         @click="handlePopoverRename(props.row)"
-                        v-bk-tooltips.top="props.row.fieldAliasErr || '点击定义字段名映射'"
+                        v-bk-tooltips.top="{
+                          width: props.row.width,
+                          content:props.row.fieldAliasErr 
+                        } || '点击定义字段名映射'"
                       >
-                          重命名
+                        字段映射
                       </bk-button>
                     </bk-popconfirm>
                   </template>
-                  <!-- 重命名提示，永久触发 -->
-                  <template v-if="selectEtlConfig === 'bk_log_json' && !props.row.btnShow && !props.row.fieldErr && props.row.field_name">
+                  <!-- 重命名提示 -->
+                  <template v-if="selectEtlConfig === 'bk_log_json' && !props.row.btnShow && !props.row.fieldErr && props.row.alias_name">
                     <bk-popconfirm
                       class="participle-popconfirm-btn"
                       trigger="click"
@@ -217,7 +220,7 @@
                         style="right: 8px"
                         :class="props.row.fieldAliasErr? 'red-icon' : ''"
                         class="bk-icon icon-exclamation-circle tooltips-icon2"
-                        v-bk-tooltips.top="props.row.fieldAliasErr || '点击定义字段名映射'"
+                        v-bk-tooltips.top="props.row.fieldAliasErr || '映射后原字段名称被覆盖，建议仅在结构化日志时配置；'"
                       >
                       </i>
                     </bk-popconfirm>
@@ -474,7 +477,9 @@
                           v-if="props.row.is_analyzed"
                           style="width: 85%"
                         >
-                          <div>
+                          <div class="participle_content"
+                            v-bk-tooltips="props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'  "
+                          >
                             {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                           </div>
                           <div style="margin-top: -10px">
@@ -1003,6 +1008,7 @@
         const { field_name, is_delete, field_index } = row;
         let result = '';
         let aliasResult = ''
+        let width = 220
         let btnShow = false
         if (!is_delete) {
           if (!field_name) {
@@ -1010,7 +1016,8 @@
           } else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
             if(this.selectEtlConfig === 'bk_log_json'){
               btnShow = true
-              aliasResult = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
+              aliasResult = this.$t('检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；')
+              width = 300
             }else{
               result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
             }
@@ -1027,7 +1034,8 @@
             this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
           ) {
             btnShow = true
-            aliasResult = this.$t('重命名与系统内置字段重复')
+            aliasResult = this.$t('检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖')
+            width = 220
           } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
             
             console.log(this.filedNameIsConflict(field_index, field_name));
@@ -1043,6 +1051,7 @@
         }
         row.fieldErr = result;
         this.$set(row, 'fieldAliasErr', aliasResult);
+        this.$set(row, 'width', width);
         this.$emit('handle-table-data', this.changeTableList);
         return result || aliasResult;
       },
@@ -1441,7 +1450,7 @@
       .participle-popconfirm {
         width: 100%;
 
-        .bk-tooltip-ref {
+        :deep(.bk-tooltip-ref) {
           width: 100%;
         }
 
@@ -1449,6 +1458,11 @@
           display: flex;
           align-items: center;
           margin-left: 10px;
+          .participle_content{
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
         }
       }
       :deep(thead tr th:first-child .cell) {

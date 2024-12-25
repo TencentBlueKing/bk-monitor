@@ -1028,8 +1028,6 @@ const store = new Vuex.Store({
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
         .then(res => {
-          console.log(res);
-          
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
           // commit('updateAddition');
