@@ -500,17 +500,6 @@ INGESTER_HOST = os.getenv("BKAPP_INGESTER_HOST", "http://ingester.bkfta.service.
 # CORS配置
 CORS_ALLOW_ALL_ORIGINS = True
 
-# BK-Repo
-if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
-    USE_CEPH = True
-    BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
-    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
-    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
-    BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
-    BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
-
-    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
-
 CSRF_USE_SESSIONS = True
 
 # 设置最大请求大小
