@@ -233,7 +233,7 @@ class MonitorInfoResource(CacheResource):
                 "strategy_id", "target"
             )
             for item in items:
-                if (item.target and item.target[0]) or item["strategy_id"] not in id__strategy_map:
+                if (item.target and item.target[0]) or item.strategy_id not in id__strategy_map:
                     continue
                 no_target_strategies.append(
                     {"strategy_id": item.strategy_id, "strategy_name": id__strategy_map[item.strategy_id]["name"]}
