@@ -275,6 +275,7 @@ export default class ApmServiceList extends tsc<
     this.cancelTokenSource = axios.CancelToken.source();
     const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token })
       .catch(() => {
+        this.filterLoading = false
         return {
           columns: [],
           data: [],
@@ -284,25 +285,11 @@ export default class ApmServiceList extends tsc<
       })
       .finally(() => {
         this.loading = false;
-        this.filterLoading = false;
       });
     this.tableData = data;
     this.tableColumns = columns;
     this.pagination.count = total;
-    this.filterList = filter.map(item => {
-      let newData = item.data;
-      if (item.id === 'category') {
-        newData = item.data.map(dataItem => ({
-          ...dataItem,
-          icon: NODE_TYPE_ICON[dataItem.id],
-        }));
-      }
-      return {
-        ...item,
-        data: newData,
-      };
-    });
-
+    this.filterLoading && (this.filterList = filter); // 只需要首次给值
     this.loadAsyncData(startTime, endTime);
     this.onRouteUrlChange();
     this.firstRequest = false;
@@ -323,8 +310,10 @@ export default class ApmServiceList extends tsc<
     const valueTitleList = this.tableColumns.map(item => ({
       id: item.id,
       name: item.name,
-    }));    
+    }));
     for (const field of fields) {
+      // data_status，增加filter_keys选项获取左侧筛选 数据上报、数据状态 的全量数据
+      const filter_keys = field === 'data_status' ? ["have_data", "apply_module"] : [];
       serviceListAsync(
         {
           app_name: this.appName,
@@ -332,13 +321,36 @@ export default class ApmServiceList extends tsc<
           end_time: endTime,
           column: field, // 指标、日志、调用链、性能分析列的入参，统一使用data_status
           service_names: services,
+          filter_keys,
         },
         { cancelToken: this.cancelTokenSource.token }
       ).then(serviceData => {
-        console.log(serviceData, 'serviceData');
         this.mapAsyncData(serviceData, field, valueTitleList);
       });
     }
+  }
+
+  /**
+   * 合并列表左侧筛选数据
+   * @param filterDataPart1 // serviceList接口返回的筛选数据（不含数据上报、数据状态）
+   * @param filterDataPart2 // serviceListAsync接口返回的筛选数据（数据上报、数据状态）
+   */
+  async mergeServiceFilterData(filterDataPart2) {
+    const filterDataPart1 = JSON.parse(JSON.stringify(this.filterList));
+    this.filterList = [...filterDataPart1, ...filterDataPart2].map(item => {
+      let newData = item.data;
+      if (item.id === 'category') {
+        newData = item.data.map(dataItem => ({
+          ...dataItem,
+          icon: NODE_TYPE_ICON[dataItem.id],
+        }));
+      }
+      return {
+        ...item,
+        data: newData,
+      };
+    });
+    this.filterLoading = false;
   }
   getServiceListAsyncChartData(
     startTime: number,
@@ -364,9 +376,9 @@ export default class ApmServiceList extends tsc<
   }
   mapAsyncData(serviceData, field, valueTitleList) {
     const dataMap = {};
-    if (serviceData) {
+    if (serviceData.data) {
       field === 'data_status' && this.mapArrayAsyncData(serviceData);
-      for (const serviceItem of serviceData) {
+      for (const serviceItem of serviceData.data) {
         if (serviceItem.service_name) {
           if (['request_count', 'error_rate', 'avg_duration'].includes(field)) {
             const operationItem = valueTitleList.find(item => item.id === field);
@@ -375,28 +387,34 @@ export default class ApmServiceList extends tsc<
               serviceItem[field].unitDecimal = 0;
             }
           }
-          dataMap[String(serviceItem.service_name)] = serviceItem[field];          
+          dataMap[String(serviceItem.service_name)] = serviceItem[field];
         }
       }
     }
-    this.renderTableBatchByBatch(field, dataMap);
+    field !== 'data_status' && this.renderTableBatchByBatch(field, dataMap);
   }
 
   // data_status(指标、日志、调用链、性能分析)特殊处理
   mapArrayAsyncData(serviceData) {
-    const fields = Object.keys(serviceData[0]).filter(key => key !== 'service_name');
+    const fields = serviceData.data.length
+      ? Object.keys(serviceData.data[0]).filter(key => key !== 'service_name')
+      : [];
     const newData = fields.map(field => {
-      const data = serviceData.reduce((res, service) => {
-          if (service[field]) {
-            res[service.service_name] = { icon: service[field].icon };
-          }
-          return res;
+      const data = serviceData.data.reduce((res, service) => {
+        if (service[field]) {
+          res[service.service_name] = { icon: service[field].icon };
+        }
+        return res;
       }, {});
-        return { field, data };
-      });
+      return { field, data };
+    });
     newData.forEach(item => {
       this.renderTableBatchByBatch(item.field, item.data);
-    })
+    });
+    if (this.filterLoading) {
+      const { filter: filterDataPart2 = [] } = serviceData;
+      this.mergeServiceFilterData(filterDataPart2);
+    }
   }
   /**
    *
