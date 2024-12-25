@@ -364,6 +364,8 @@ class ResourceTrendResource(Resource):
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         resource_type: str = validated_request_data["resource_type"]
         resource_list: List[str] = validated_request_data["resource_list"]
+        if not resource_list:
+            return []
         start_time: int = validated_request_data["start_time"]
         end_time: int = validated_request_data["end_time"]
 

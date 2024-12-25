@@ -7,7 +7,7 @@
     {
       "id": 1,
       "title": "",
-      "type": "related-log-chart",
+      "type": "log-retrieve",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -33,39 +33,6 @@
             "bk_biz_id": "${bk_biz_id}",
             "service_name": "${service_name}",
             "span_id": "${span_id}"
-          }
-        },
-        {
-          "dataType": "time_series",
-          "api": "scene_view.getIndexSetLogSeries",
-          "datasource": "time_series",
-          "alias": "总趋势",
-          "data": {
-            "bk_biz_id": "${bk_biz_id}",
-            "index_set_id": "${index_set_id}",
-            "start_time": "${start_time}",
-            "end_time": "${end_time}",
-            "interval": "${interval}",
-            "keyword": "${keyword}"
-          }
-        },
-        {
-          "dataType": "table-chart",
-          "api": "scene_view.listIndexSetLog",
-          "data": {
-            "bk_biz_id": "${bk_biz_id}",
-            "index_set_id": "${index_set_id}",
-            "start_time": "${start_time}",
-            "end_time": "${end_time}",
-            "offset": "${offset}",
-            "limit": "${limit}",
-            "keyword": "${keyword}"
-          },
-          "options": {
-            "table_chart": {
-              "json_viewer_data_key": "data",
-              "show_expand": true
-            }
           }
         }
       ]

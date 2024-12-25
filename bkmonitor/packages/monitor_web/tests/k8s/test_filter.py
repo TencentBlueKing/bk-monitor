@@ -1476,8 +1476,11 @@ class TestK8sListResources(TestCase):
         # 验证 promql
         self.assertEqual(
             meta.meta_prom,
-            "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
-            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
+            (
+                'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+                '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",'
+                'container_name!="POD"}[1m]))'
+            ),
         )
 
         # 校验包含更多查询的内容
