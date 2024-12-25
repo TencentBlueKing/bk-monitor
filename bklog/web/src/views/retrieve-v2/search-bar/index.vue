@@ -22,7 +22,6 @@
   import { bkMessage } from 'bk-magic-vue';
   // import CommonFilterSelect from './common-filter-select.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
-  import { debounce } from 'lodash';
 
   const props = defineProps({
     activeFavorite: {
