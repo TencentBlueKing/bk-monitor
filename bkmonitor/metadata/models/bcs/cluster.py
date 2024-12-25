@@ -441,6 +441,7 @@ class BCSClusterInfo(models.Model):
                 transfer_cluster_id=transfer_cluster_id,
                 source_system=settings.SAAS_APP_CODE,
                 bcs_cluster_id=self.cluster_id,
+                bk_biz_id=self.bk_biz_id,
             )
         except ValueError as err:
             logger.exception(
