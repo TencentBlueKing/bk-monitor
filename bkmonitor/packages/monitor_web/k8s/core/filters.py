@@ -114,9 +114,11 @@ class ContainerFilter(ResourceFilter):
     resource_type = "container"
     filter_field = "container_name"
 
+    default_filter_string = 'container_name!="POD"'
+
     def filter_string(self):
         where = super().filter_string()
-        return where + ',container_name!="POD"'
+        return where + f",{self.default_filter_string}"
 
 
 @register_filter
