@@ -618,7 +618,7 @@ class K8SCustomChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision: this.panel.options?.precision || 2,
+        precision: this.panel.options?.precision || precision || 4,
         lineStyle: {
           width: 2,
         },
