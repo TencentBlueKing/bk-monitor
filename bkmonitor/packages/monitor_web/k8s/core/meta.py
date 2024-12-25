@@ -329,6 +329,10 @@ class K8sWorkloadMeta(K8sResourceMeta):
     only_fields = ["type", "name", "namespace", "bk_biz_id", "bcs_cluster_id"]
 
     @property
+    def resource_field_list(self):
+        return ["workload_kind", self.resource_field]
+
+    @property
     def meta_prom(self):
         return (
             "sum by (workload_kind, workload_name, namespace) "

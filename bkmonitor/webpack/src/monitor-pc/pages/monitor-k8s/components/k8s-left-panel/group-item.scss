@@ -78,6 +78,12 @@
       height: 32px;
       padding: 0 7px 0 24px;
 
+      &.active {
+        .content-name {
+          color: #3a84ff;
+        }
+      }
+
       .content-name {
         flex: 1;
         overflow: hidden;

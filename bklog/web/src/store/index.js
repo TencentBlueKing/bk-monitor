@@ -731,7 +731,7 @@ const store = new Vuex.Store({
         const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
         setDefaultTableWidth(
           state.visibleFields,
-          payload.list ?? state.indexSetQueryResult.list,
+          payload?.list ?? state.indexSetQueryResult.list,
           catchFieldsWidthObj,
           staticWidth + 60,
         );
@@ -1064,7 +1064,7 @@ const store = new Vuex.Store({
     },
 
     /** 请求获取用户个人配置信息 */
-    requestIndexSetCustomConfigInfo({ commit, dispatch, state }) {
+    requestIndexSetCustomConfigInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
       if (!ids.length) {
@@ -1096,7 +1096,7 @@ const store = new Vuex.Store({
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           return res;
         })
-        .catch(err => {
+        .catch(() => {
           commit('retrieve/updateCatchFieldCustomConfig', {
             ...state.retrieve.catchFieldCustomConfig,
             filterSetting: {},
@@ -1168,7 +1168,7 @@ const store = new Vuex.Store({
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload.isPagination
-          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+          ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,
       }));

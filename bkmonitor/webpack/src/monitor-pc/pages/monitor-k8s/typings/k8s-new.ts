@@ -91,12 +91,12 @@ export enum SceneEnum {
   Performance = 'performance',
 }
 
-export interface GroupListItem {
-  id: EDimensionKey;
+export interface GroupListItem<T = string> {
+  id: T;
   name: string;
   count?: number;
   showMore?: boolean;
-  children?: GroupListItem[];
+  children?: GroupListItem<T>[];
   relation?: Record<EDimensionKey, string>; // 关联维度
   [key: string]: any;
 }

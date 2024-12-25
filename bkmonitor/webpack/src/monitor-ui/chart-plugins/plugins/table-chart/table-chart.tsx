@@ -341,7 +341,7 @@ export class TableChart extends CommonSimpleChart {
             )
             .then(res => {
               // 组合结果 以键值对形式组合字段值
-              const resultMap = res.reduce((pre, cur) => {
+              const resultMap = res.data.reduce((pre, cur) => {
                 if (!pre[cur[asyncField]]) {
                   pre[cur[asyncField]] = cur[field];
                 }

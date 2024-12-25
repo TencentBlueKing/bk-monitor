@@ -28,4 +28,12 @@
       margin: 0 7px 12px 24px;
     }
   }
+
+  .group-content-item {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f1f7ff;
+    }
+  }
 }
