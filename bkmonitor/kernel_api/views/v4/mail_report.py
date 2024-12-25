@@ -217,7 +217,7 @@ class GetRenderImageResource(Resource):
 
         return {
             "status": task.status,
-            "image": task.image.url if task.image else None,
+            "image_url": task.image.url if task.image else None,
             "error": task.error,
         }
 
@@ -229,5 +229,5 @@ class RenderImageViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", RenderImageResource, endpoint="render"),
-        ResourceRoute("GET", GetRenderImageResource, endpoint="get_render_image"),
+        ResourceRoute("GET", GetRenderImageResource, endpoint="result"),
     ]
