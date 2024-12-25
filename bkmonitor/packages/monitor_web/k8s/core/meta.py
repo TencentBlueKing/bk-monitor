@@ -353,23 +353,25 @@ class K8sContainerMeta(K8sResourceMeta):
     def resource_field_list(self):
         return ["pod_name", self.resource_field]
 
-    @property
-    def meta_prom(self):
+    def get_filter_string(self):
         filter_string = self.filter.filter_string()
         if ContainerFilter.default_filter_string not in filter_string:
             filter_string = ",".join([self.filter.filter_string(), ContainerFilter.default_filter_string])
+        return filter_string
+
+    @property
+    def meta_prom(self):
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
-            f"(rate(container_cpu_system_seconds_total{{{filter_string}}}[1m]))"
+            f"(rate(container_cpu_system_seconds_total{{{self.get_filter_string()}}}[1m]))"
         )
 
     @property
     def meta_prom_with_mem(self):
         """按内存排序的资源查询promql"""
-        filter_string = ",".join([self.filter.filter_string(), self.default_filter_string])
         return (
             "sum by (workload_kind, workload_name, namespace, container_name, pod_name)"
-            f" (container_memory_rss{{{filter_string}}})"
+            f" (container_memory_rss{{{self.get_filter_string()}}})"
         )
 
 
