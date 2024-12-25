@@ -124,7 +124,9 @@ export default defineComponent({
       return count;
     });
 
-    const hasMoreList = computed(() => totalCount.value > tableList.value.length);
+    const hasMoreList = computed(
+      () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
+    );
 
     const intersectionArgs: Ref<RowProxyData> = ref({});
     const rowProxy: RowProxyData = {};
@@ -220,19 +222,20 @@ export default defineComponent({
       delayUpdate();
     });
 
-    const resizeObserver = new ResizeObserver(entries => {
-      entries.forEach(entry => {
-        const index = entry.target.getAttribute('data-row-index');
-        const isPending = entry.target.getAttribute('data-is-pending');
-        if (isPending !== 'true') {
-          updateIntersectionArgs(index, undefined, entry.contentRect.height);
-        }
-      });
-      delayUpdate();
-    });
+    // const resizeObserver = new ResizeObserver(entries => {
+    //   entries.forEach(entry => {
+    //     const index = entry.target.getAttribute('data-row-index');
+    //     console.log('index', index, entry.contentRect);
+    //     // const changed = (rowProxy[index]?.height ?? 40) !== entry.contentRect.height;
+    //     // if (changed && !entry.target.classList.contains('is-pending')) {
+    //     //   updateIntersectionArgs(index, undefined, entry.contentRect.height);
+    //     //   entry.target.parentElement.style.setProperty('min-height', `${entry.contentRect.height}px`);
+    //     // }
+    //   });
+    // });
 
     provide('intersectionObserver', intersectionObserver);
-    provide('resizeObserver', resizeObserver);
+    // provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
 
     const searchContainerHeight = ref(52);
@@ -588,11 +591,15 @@ export default defineComponent({
     watch(
       () => isLoading.value,
       () => {
-        if (isLoading.value) {
-          if (!isRequesting.value) {
+        if (!isRequesting.value) {
+          if (isLoading.value) {
             renderList.value.length = 0;
             renderList.value = [];
+
+            return;
           }
+
+          setRenderList();
         }
       },
     );
@@ -651,7 +658,7 @@ export default defineComponent({
     const debounceSetLoading = () => {
       setTimeout(() => {
         isRequesting.value = false;
-      }, 300);
+      }, 120);
     };
 
     const loadMoreTableData = () => {
@@ -659,15 +666,16 @@ export default defineComponent({
         return;
       }
 
+      if (pageIndex.value * pageSize.value < tableDataSize.value) {
+        isRequesting.value = true;
+        pageIndex.value++;
+        const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+        setRenderList(maxLength, debounceSetLoading);
+        return;
+      }
+
       if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
-
-        if (pageIndex.value * pageSize.value < tableDataSize.value) {
-          pageIndex.value++;
-          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength, debounceSetLoading);
-          return;
-        }
 
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           pageIndex.value++;
@@ -858,7 +866,7 @@ export default defineComponent({
       }
 
       if (!isRequesting.value && !hasMoreList.value && tableDataSize.value > 0) {
-        return '已加载所有数据';
+        return `已加载所有数据: 共计${tableDataSize.value}条`;
       }
 
       return '';

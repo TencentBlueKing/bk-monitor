@@ -69,7 +69,7 @@
 
       &:first-of-type {
         margin-right: 8px;
-        margin-left : 16px;
+        margin-left: 16px;
       }
 
       &.disabled {
@@ -82,7 +82,6 @@
           color: #c4c6cc;
         }
       }
-
     }
 
     .header-tool {
@@ -295,6 +294,21 @@
       .chart-legend {
         /* stylelint-disable-next-line declaration-no-important */
         max-height: 72px !important;
+      }
+    }
+
+    &.is-log-tab {
+      height: 100%;
+      padding: 24px 0px 0px 40px;
+      overflow: initial;
+
+      .flex-dashboard-item {
+        margin-right: 0;
+        margin-bottom: 0;
+
+        .monitor-trace-log {
+          padding-right: 40px;
+        }
       }
     }
   }
@@ -641,6 +655,10 @@
       @extend %json-head;
     }
   }
+
+  .retrieve-v2-index {
+    padding: 0;
+  }
 }
 
 .span-details-sideslider-content {
@@ -828,6 +846,26 @@
     .content-list {
       height: calc(100% - 155px);
       padding: 0 16px 14px;
+    }
+
+    .retrieve-v2-index {
+      padding: 0 16px;
+
+      .retrieve-body {
+        .retrieve-context {
+          .search-bar-container {
+            .search-input {
+              .search-items {
+                .search-item {
+                  .tag-row.match-value {
+                    max-width: 450px;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 

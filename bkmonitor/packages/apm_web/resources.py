@@ -52,9 +52,12 @@ class SidebarPageListResource(PageListResource):
     def get_status_filter(self):
         return []
 
-    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False):
+    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False, **kwargs):
         res = {}
-        data = copy.deepcopy(origin_data)
+        if not kwargs.get("in_place", False):
+            data = copy.deepcopy(origin_data)
+        else:
+            data = origin_data
 
         column_formats, column_format_map = self.get_columns_config(data, column_type)
         # 筛选
@@ -286,4 +289,6 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
                     "service_name": i["service"],
                 }
             )
-        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(origin_data, params, column_type)
+        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(
+            origin_data, params, column_type, in_place=True
+        )
