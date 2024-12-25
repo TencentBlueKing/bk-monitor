@@ -399,7 +399,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             >
               {(this as any).localPanels.slice(0, 1000).map((panel, index) => (
                 <div
-                  id={`${panel.id}__key__`}
+                  id={`${CSS.escape(panel.id)}__key__`}
                   key={`${panel.id}__key__`}
                   style={{
                     width: `calc(${(1 / +this.column) * 100}% - 16px)`,

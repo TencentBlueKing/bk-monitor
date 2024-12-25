@@ -551,7 +551,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   loadAsyncData(resourceType: K8sTableColumnResourceKey, resourceParam) {
     const asyncColumns = (this.tableColumns || []).filter(column => 'asyncable' in column);
-    console.info('asyncColumns', asyncColumns, Array.from(resourceParam.ids));
     for (const field of asyncColumns) {
       const controller = new AbortController();
       this.abortControllerQueue.add(controller);
