@@ -115,6 +115,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   metricList: IK8SMetricItem[] = [];
   // 指标隐藏项
   hideMetrics: string[] = [];
+  /** 当前选中的指标 */
+  activeMetricId = '';
 
   metricLoading = true;
   /** 自动刷新定时器 */
@@ -360,6 +362,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(hideMetrics));
   }
 
+  /** 指标列表项点击 */
+  async handleMetricItemClick(metricId: string) {
+    if (this.hideMetrics.includes(metricId) || !metricId) return;
+    this.activeTab = K8sNewTabEnum.CHART;
+    this.activeMetricId = metricId;
+  }
+
   handleClusterChange(cluster: string) {
     this.cluster = cluster;
     this.initFilterBy();
@@ -453,6 +462,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       case K8sNewTabEnum.CHART:
         return (
           <K8SCharts
+            activeMetricId={this.activeMetricId}
             filterCommonParams={this.filterCommonParams}
             groupBy={this.groupFilters}
             hideMetrics={this.hideMetrics}
@@ -565,9 +575,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 onGroupByChange={this.groupByChange}
               />
               <K8sMetricList
+                activeMetric={this.activeMetricId}
                 hideMetrics={this.hideMetrics}
                 loading={this.metricLoading}
                 metricList={this.metricList}
+                onHandleItemClick={this.handleMetricItemClick}
                 onMetricHiddenChange={this.metricHiddenChange}
               />
             </K8sLeftPanel>
