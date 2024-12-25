@@ -1050,7 +1050,7 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
-          commit('resetVisibleFields', res.data.display_fields);
+          commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
           commit('updateIsSetDefaultTableColumn');
           return res;
