@@ -77,7 +77,6 @@
       justify-content: space-between;
       height: 32px;
       padding: 0 7px 0 24px;
-      cursor: pointer;
 
       .content-name {
         flex: 1;
@@ -100,20 +99,24 @@
 
           &:hover {
             color: #3a84ff;
+            cursor: pointer;
           }
         }
 
         .icon-monitor:hover {
           color: #3a84ff;
+          cursor: pointer;
         }
 
         .icon-a-sousuo {
           font-size: 16px;
+          cursor: pointer;
         }
 
         .icon-sousuo- {
           font-size: 16px;
           color: #3a84ff;
+          cursor: pointer;
         }
       }
     }
