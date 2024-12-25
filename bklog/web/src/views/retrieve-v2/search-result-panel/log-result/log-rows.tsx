@@ -759,6 +759,7 @@ export default defineComponent({
         refRootElement.value.style.setProperty('--scroll-left', `-${scrollXOffsetLeft.value}px`);
         refRootElement.value.style.setProperty('--padding-right', `${operatorToolsWidth.value}px`);
         refRootElement.value.style.setProperty('--fix-right-width', `${operatorFixRightWidth.value}px`);
+        refRootElement.value.style.setProperty('--scroll-width', `${Math.max(offsetWidth.value, scrollWidth.value)}px`);
         refRootElement.value.style.setProperty(
           '--last-column-left',
           `${offsetWidth.value - operatorToolsWidth.value + scrollXOffsetLeft.value}px`,
@@ -772,6 +773,7 @@ export default defineComponent({
         operatorToolsWidth.value,
         operatorFixRightWidth.value,
         offsetWidth.value,
+        scrollWidth.value,
         searchContainerHeight.value,
       ],
       () => {
