@@ -823,7 +823,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           groupId={this.chartGroupIdsMap[column.id]}
           lastValueWidth={80}
           unit={chartData.unit}
-          unitDecimal={chartData?.unitDecimal}
+          unitDecimal={chartData?.unitDecimal || 4}
           valueTitle={chartData.valueTitle}
         />
       ) : (
