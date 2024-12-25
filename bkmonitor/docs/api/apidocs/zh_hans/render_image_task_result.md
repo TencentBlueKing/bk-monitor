@@ -24,7 +24,7 @@
 
 | 字段名  | 类型   | 描述         |
 | ------- | ------ | ------------ |
-| status  | string | 任务状态     |
+| status  | string | 任务状态, success, failed, pending, rendering |
 | image_url | string | 图片地址     |
 | error | string | 错误信息     |
 
