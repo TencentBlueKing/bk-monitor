@@ -695,10 +695,29 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { hasScrollX, offsetWidth, scrollWidth, computeRect } = useLazyRender({
+    const { offsetWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
+    });
+
+    const scrollWidth = computed(() => {
+      const callback = (acc, item) => {
+        acc = acc + (item?.width ?? 0);
+        return acc;
+      };
+
+      const leftWidth = leftColumns.value.reduce(callback, 0);
+
+      const rightWidth = rightColumns.value.reduce(callback, 0);
+
+      const visibleWidth = getFieldColumns().reduce(callback, 0);
+
+      return leftWidth + rightWidth + visibleWidth;
+    });
+
+    const hasScrollX = computed(() => {
+      return offsetWidth.value < scrollWidth.value;
     });
 
     useWheel({
