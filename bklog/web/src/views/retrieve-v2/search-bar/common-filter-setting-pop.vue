@@ -21,13 +21,7 @@
 
   const filterFieldList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    // todo 后续这里的select下拉框增加创建自定义选项功能时，这个filterHasOptionListFn函数需要删掉
-    const filterHasOptionListFn = field =>
-      !store.state.indexFieldInfo.aggs_items[field.field_name]?.length &&
-      field.es_doc_values &&
-      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
-      !/^__dist_/.test(field.field_name);
-    return fieldList.value.filter(filterFn && filterHasOptionListFn);
+    return fieldList.value.filter(filterFn);
   });
 
   const filterFieldsList = computed(() => {
