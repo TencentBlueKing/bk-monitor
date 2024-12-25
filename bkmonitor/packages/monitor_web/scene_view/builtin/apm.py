@@ -31,7 +31,7 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
-from monitor_web.scene_view.builtin import BuiltinProcessor
+from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
 
 logger = logging.getLogger(__name__)
 
@@ -526,7 +526,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             scene_id="kubernetes",
             name="pod",
             type="",
-        ).first()
+        )
+        if pod_view.exists():
+            pod_view = pod_view.first()
+        else:
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="kubernetes", view_type="", existed_views=pod_view)
+            pod_view = pod_view.first()
+
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
         pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
 
@@ -554,9 +560,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
 
         # 特殊处理服务主机页面 -> 为主机监控panel配置
-        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
-        if host_view:
-            view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail")
+        if not host_view.exists():
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="host", view_type="detail", existed_views=host_view)
+
+        view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
         if "overview_panel" in view_config.get("options"):
             # 去除顶部栏中的策略告警信息
             del view_config["options"]["overview_panel"]
