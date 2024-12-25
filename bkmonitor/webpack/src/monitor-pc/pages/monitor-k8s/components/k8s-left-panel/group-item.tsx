@@ -54,6 +54,7 @@ interface GroupItemEvent {
   onHandleGroupByChange: (val: boolean) => void;
   onHandleMoreClick: (dimension: string) => void;
   onHandleHiddenChange: (ids: string[]) => void;
+  onHandleItemClick: (id: string) => void;
   onClear: () => void;
   onFirstExpand: (id: string) => void;
 }
@@ -140,6 +141,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
     return res ? this.hiddenList.filter(item => item !== id) : [...this.hiddenList, id];
   }
 
+  @Emit('handleItemClick')
+  handleItemClick(id: string) {
+    return id;
+  }
+
   /** 渲染骨架屏 */
   renderGroupSkeleton() {
     return (
@@ -199,6 +205,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           <div
             key={`${child.id}-${ind}`}
             class='group-content-item'
+            onClick={() => this.handleItemClick(child.id)}
           >
             <span
               class='content-name'
@@ -206,7 +213,10 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             >
               {child.name}
             </span>
-            <div class='tools'>
+            <div
+              class='tools'
+              onClick={e => e.stopPropagation()}
+            >
               {this.tools.includes('search') && (
                 <i
                   class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}

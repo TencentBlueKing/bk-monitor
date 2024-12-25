@@ -40,6 +40,7 @@ interface K8sMetricListProps {
 
 interface K8sMetricListEvent {
   onMetricHiddenChange: (val: string[]) => void;
+  onHandleItemClick: (id: string) => void;
 }
 
 @Component
@@ -51,6 +52,11 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
   @Emit('metricHiddenChange')
   handleMetricHiddenChange(ids: string[]) {
     return ids;
+  }
+
+  @Emit('handleItemClick')
+  handleItemClick(id: string) {
+    return id;
   }
 
   renderGroupSkeleton() {
@@ -78,6 +84,7 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
                 list={group}
                 tools={['view']}
                 onHandleHiddenChange={this.handleMetricHiddenChange}
+                onHandleItemClick={this.handleItemClick}
               />
             ))}
       </div>
