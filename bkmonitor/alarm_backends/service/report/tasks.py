@@ -298,6 +298,10 @@ def render_image_task(task: RenderImageTask):
 
     :param task: 渲染图片任务
     """
+    # 更新任务状态为渲染中
+    task.status = RenderImageTask.Status.RENDERING
+    task.save()
+
     event_loop = get_or_create_eventloop()
 
     # 根据任务类型，定义渲染函数及配置
