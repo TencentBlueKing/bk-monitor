@@ -487,6 +487,9 @@
       getParticipleWidth() {
         return this.$store.getters.isEnLanguage ? '65' : '50';
       },
+      showAddField(){
+
+      }
     },
     watch: {
       fields: {
@@ -545,6 +548,13 @@
       },
       batchAddField() {
         console.log(this.collectorConfigId, 'collectorConfigId');
+        // console.log(this.$store.state.retrieve?.indexSetList);
+        console.log(this.$store.state.spaceUid);
+        const indexSetList = this.$store.state.retrieve.indexSetList;
+        const indexSetId = this.$route.params?.indexId;
+        const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+        console.log(currentIndexSet.spaceUid);
+
         if (!this.collectorConfigId) return;
         const newURL = this.$router.resolve({
           name: 'clean-edit',
@@ -552,7 +562,7 @@
             collectorId: this.collectorConfigId,
           },
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: currentIndexSet.spaceUid,
           },
         });
         window.open(newURL.href, '_blank');

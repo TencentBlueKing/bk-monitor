@@ -1261,6 +1261,8 @@
       }
     },
     async mounted() {
+      console.log( this.$store.state.retrieve.indexSetList);
+      
       // 清洗列表进入
       if (this.isCleanField) {
         this.initCleanItem();
