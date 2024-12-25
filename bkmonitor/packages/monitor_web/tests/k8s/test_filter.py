@@ -1476,8 +1476,11 @@ class TestK8sListResources(TestCase):
         # 验证 promql
         self.assertEqual(
             meta.meta_prom,
-            "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
-            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
+            (
+                'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+                '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",'
+                'container_name!="POD"}[1m]))'
+            ),
         )
 
         # 校验包含更多查询的内容
@@ -1558,12 +1561,11 @@ class TestK8sListResources(TestCase):
         validated_request_data = {
             "scenario": "performance",
             "bcs_cluster_id": "BCS-K8S-00000",
-            "start_time": 1734574879,
-            "end_time": 1734578479,
-            "filter_dict": {},
-            "query_string": "",
-            "page_size": 1,
-            "page": 2,
+            "start_time": 1735114628,
+            "end_time": 1735116428,
+            "filter_dict": {"workload": ["Deployment:bk-monitor-web"]},
+            "page_size": 20,
+            "page": 1,
             "resource_type": "container",
             "with_history": True,
             "page_type": "scrolling",

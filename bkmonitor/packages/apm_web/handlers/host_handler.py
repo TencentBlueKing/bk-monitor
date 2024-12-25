@@ -165,55 +165,53 @@ class HostHandler:
 
         span = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
         if not span:
-            return None
+            return []
 
-        source_type = None
-
+        ip_mapping = {}
         # 尝试从 net.host.ip / host.ip 字段中找主机 IP 地址
         for f in [SpanAttributes.NET_HOST_IP, "host.ip"]:
             ip = span[OtlpKey.RESOURCE].get(f)
             if ip:
-                source_type = cls.SourceType.FIELD
+                ip_mapping[ip] = {"source_type": cls.SourceType.FIELD}
                 break
 
-        if not ip:
-            bcs_cluster_id = span[OtlpKey.RESOURCE].get("k8s.bcs.cluster.id")
-            namespace = span[OtlpKey.RESOURCE].get("k8s.namespace.name")
-            pod = span[OtlpKey.RESOURCE].get("k8s.pod.name")
+        # 从容器字段中获取关联的 IP 地址
+        bcs_cluster_id = span[OtlpKey.RESOURCE].get("k8s.bcs.cluster.id")
+        namespace = span[OtlpKey.RESOURCE].get("k8s.namespace.name")
+        pod = span[OtlpKey.RESOURCE].get("k8s.pod.name")
 
-            if bcs_cluster_id and namespace and pod:
-                # 字段齐全才查询关联数据
-                system_relations = RelationQ.query(
-                    RelationQ.generate_q(
-                        bk_biz_id=bk_biz_id,
-                        source_info=SourceK8sPod(
-                            bcs_cluster_id=bcs_cluster_id,
-                            namespace=namespace,
-                            pod=pod,
-                        ),
-                        target_type=SourceSystem,
-                        start_time=int(span["start_time"] / 1e6),
-                        end_time=int(span["end_time"] / 1e6),
-                        step="1s",
-                    )
+        if bcs_cluster_id and namespace and pod:
+            # 字段齐全才查询关联数据
+            system_relations = RelationQ.query(
+                RelationQ.generate_q(
+                    bk_biz_id=bk_biz_id,
+                    source_info=SourceK8sPod(
+                        bcs_cluster_id=bcs_cluster_id,
+                        namespace=namespace,
+                        pod=pod,
+                    ),
+                    target_type=SourceSystem,
+                    start_time=int(span["start_time"] / 1e6),
+                    end_time=int(span["end_time"] / 1e6),
+                    step="1s",
                 )
-                for r in system_relations:
-                    found = False
-                    for n in r.nodes:
-                        source_info = n.source_info.to_source_info()
-                        if source_info.get("bk_target_ip"):
-                            ip = source_info["bk_target_ip"]
-                            source_type = cls.SourceType.RELATION
-                            found = True
-                            break
-                    if found:
+            )
+            for r in system_relations:
+                found = False
+                for n in r.nodes:
+                    source_info = n.source_info.to_source_info()
+                    if source_info.get("bk_target_ip"):
+                        ip_mapping[source_info["bk_target_ip"]] = {"source_type": cls.SourceType.RELATION}
+                        found = True
                         break
+                if found:
+                    break
 
-        if not ip:
-            return None
+        if not ip_mapping:
+            return []
 
-        infos = cls.list_host_by_ips(bk_biz_id, [ip], {ip: {"source_type": source_type}})
-        return infos[0] if infos else None
+        infos = cls.list_host_by_ips(bk_biz_id, list(ip_mapping.keys()), ip_mapping)
+        return infos
 
     @classmethod
     def list_host_by_ips(cls, bk_biz_id, ips, ip_info_mapping=None):

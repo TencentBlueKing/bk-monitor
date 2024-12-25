@@ -12,6 +12,7 @@ from apm_web.decorators import user_visit_record
 from apm_web.meta.resources import (
     ApplicationInfoByAppNameResource,
     ApplicationInfoResource,
+    ApplyStrategiesToServicesResource,
     CheckDuplicateNameResource,
     CreateApplicationResource,
     CustomServiceConfigResource,
@@ -121,6 +122,15 @@ class ApplicationViewSet(ResourceViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
+        if self.action in ["apply_strategies_to_services"]:
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
         return [ViewBusinessPermission()]
 
     resource_routes = [
@@ -218,6 +228,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", NoDataStrategyInfoResource, endpoint="nodata_strategy_info"),
         ResourceRoute("POST", NoDataStrategyEnableResource, endpoint="nodata_strategy_enable"),
         ResourceRoute("POST", NoDataStrategyDisableResource, endpoint="nodata_strategy_disable"),
+        ResourceRoute("POST", ApplyStrategiesToServicesResource, endpoint="apply_strategies_to_services"),
         ResourceRoute("POST", DataViewConfigResource, endpoint="data_view_config", pk_field="application_id"),
         ResourceRoute("POST", DataHistogramResource, endpoint="data_histogram", pk_field="application_id"),
         ResourceRoute("POST", DataSamplingResource, endpoint="data_sampling", pk_field="application_id"),
