@@ -85,31 +85,11 @@
     content-visibility: auto;
     will-change: auto;
 
-    // transform: translateZ(0);
-    // will-change: scroll-position;
-    // visibility: hidden;
-    // content-visibility: auto;
-
-    // .row-pending {
-    //   display: none;
-    //   background-image: url('./fade-stagger-circles.svg');
-    //   background-repeat: no-repeat;
-    //   background-position: center;
-
-    //   &.is-pending {
-    //     position: absolute;
-    //     top: 0;
-    //     left: 0;
-    //     display: block;
-    //     width: 100%;
-    //     height: 100%;
-    //   }
-    // }
-
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
       height: fit-content;
+      min-height: 40px;
       visibility: visible;
 
       &.is-pending {

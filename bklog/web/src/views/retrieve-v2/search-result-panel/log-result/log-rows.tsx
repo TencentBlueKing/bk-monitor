@@ -656,7 +656,7 @@ export default defineComponent({
     const debounceSetLoading = () => {
       setTimeout(() => {
         isRequesting.value = false;
-      }, 300);
+      }, 120);
     };
 
     const loadMoreTableData = () => {
@@ -863,7 +863,7 @@ export default defineComponent({
       }
 
       if (!isRequesting.value && !hasMoreList.value && tableDataSize.value > 0) {
-        return '已加载所有数据';
+        return `已加载所有数据: 共计${tableDataSize.value}条`;
       }
 
       return '';
