@@ -499,7 +499,7 @@
         }
       },
       handleSearchChange() {
-        this.nextTick(() => {
+        setTimeout(() => {
           if (this.searchParams.keyword === '' && !this.isTableLoading) {
             this.getIndexSetList();
           }
