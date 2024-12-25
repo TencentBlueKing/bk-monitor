@@ -392,7 +392,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [CPU]: {
         id: CPU,
-        name: this.$t('CPU使用率'),
+        name: this.$t('CPU使用量'),
         sortable: 'custom',
         type: K8sTableColumnTypeEnum.DATA_CHART,
         min_width: 180,
@@ -400,7 +400,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [INTERNAL_MEMORY]: {
         id: INTERNAL_MEMORY,
-        name: this.$t('内存使用率'),
+        name: this.$t('内存使用量'),
         sortable: 'custom',
         type: K8sTableColumnTypeEnum.DATA_CHART,
         min_width: 180,
