@@ -862,12 +862,17 @@ export default class App extends tsc<object> {
                         >
                           {item.children
                             .filter(child => !child.hidden)
+                            .filter(menu => {
+                              if (menu.id === 'k8s') return !this.$store.getters.isEnableK8sV2;
+                              if (menu.id === 'k8s-new') return this.$store.getters.isEnableK8sV2;
+                              return true;
+                            })
                             .map(child => (
                               <bk-navigation-menu-item
                                 key={child.id}
                                 scopedSlots={{
                                   child: () =>
-                                    child?.children?.map(set => (
+                                    child?.children.map(set => (
                                       <bk-navigation-menu-item
                                         key={set.id}
                                         class={{ 'disabled-event': !set.href && !set.path }}
