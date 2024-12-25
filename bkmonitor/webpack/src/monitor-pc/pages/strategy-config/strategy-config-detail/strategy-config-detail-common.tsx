@@ -1184,11 +1184,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         );
                       })()}
                     </div>
-                    {this.targetsDesc.message || this.targetsDesc.subMessage ? (
-                      <div
-                        class='targets-desc'
-                        v-bkloading={{ isLoading: this.targetDetailLoading, size: 'mini', zIndex: 10 }}
-                      >
+                    {this.targetDetailLoading ? (
+                      <div class='targets-desc skeleton-element' />
+                    ) : this.targetsDesc.message || this.targetsDesc.subMessage ? (
+                      <div class='targets-desc'>
                         <span onClick={this.handleShowTargetTable}>
                           <i class='icon-monitor icon-mc-tv' />
                           <span class='targets-desc-text'>
