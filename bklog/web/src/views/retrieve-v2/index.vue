@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -36,10 +36,13 @@
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
-  import GraphAnalysis from './search-result-panel/graph-analysis';
 
+  import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
-  import { bus } from '@/common/bus';
+  import useScroll from '../../hooks/use-scroll';
+
+  import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
+  import useResizeObserve from '../../hooks/use-resize-observe';
 
   const store = useStore();
   const router = useRouter();
@@ -145,7 +148,6 @@
   const activeTab = ref('origin');
   const isRefreshList = ref(false);
   const searchBarHeight = ref(0);
-  const resultRow = ref();
   /** 刷新收藏夹列表 */
   const handleRefresh = v => {
     isRefreshList.value = v;
@@ -174,6 +176,18 @@
     },
   );
 
+  const stickyStyle = computed(() => {
+    return {
+      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
+    };
+  });
+
+  const contentStyle = computed(() => {
+    return {
+      '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
+    };
+  });
+
   const debounceUpdateTabValue = debounce(() => {
     const isClustering = activeTab.value === 'clustering';
     router.replace({
@@ -199,9 +213,50 @@
   const updateActiveFavorite = value => {
     activeFavorite.value = value;
   };
+
+  /** 开始处理滚动容器滚动时，收藏夹高度 */
+
+  // 顶部二级导航高度，这个高度是固定的
+  const subBarHeight = ref(64);
+  const paddingTop = ref(0);
+  // 滚动容器高度
+  const scrollContainerHeight = ref(0);
+
+  useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+    const scrollTop = event.target.scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  });
+
+  useResizeObserve(
+    GLOBAL_SCROLL_SELECTOR,
+    entry => {
+      scrollContainerHeight.value = entry.target.offsetHeight;
+    },
+    0,
+  );
+
+  const favoritesStlye = computed(() => {
+    const height = scrollContainerHeight.value - subBarHeight.value;
+    if (showFavorites.value) {
+      return {
+        height: `${height + paddingTop.value}px`,
+      };
+    }
+
+    return {};
+  });
+
+  const isStickyTop = computed(() => {
+    return paddingTop.value === subBarHeight.value;
+  });
+
+  /*** 结束计算 ***/
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
+  <div
+    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
+    :style="stickyStyle"
+  >
     <div class="sub-head">
       <div
         :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
@@ -234,37 +289,32 @@
         show-favorites
       />
     </div>
-    <div class="retrieve-body">
+    <div
+      :class="['retrieve-v2-body']"
+      :style="contentStyle"
+    >
       <CollectFavorites
         ref="favoriteRef"
         class="collect-favorites"
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
+        :style="favoritesStlye"
         @update-active-favorite="updateActiveFavorite"
       ></CollectFavorites>
-      <div
-        :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
-        class="retrieve-context"
-      >
+      <div class="retrieve-v2-content">
         <SearchBar
           :active-favorite="activeFavorite"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         ></SearchBar>
-        <div
-          ref="resultRow"
-          :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
-          class="result-row"
-        >
-          <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <template v-if="showAnalysisTab">
-            <GraphAnalysis></GraphAnalysis>
-          </template>
-          <template v-else>
-            <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
-          </template>
-        </div>
+        <SearchResultTab v-model="activeTab"></SearchResultTab>
+        <template v-if="showAnalysisTab">
+          <GraphAnalysis></GraphAnalysis>
+        </template>
+        <template v-else>
+          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+        </template>
       </div>
     </div>
   </div>

@@ -130,7 +130,7 @@ def test_clean_index_v2(mock_get_client, es_storage, create_or_delete_records, m
     mock_get_client.side_effect = mock_get_client_by_cluster_id
 
     # 执行清理逻辑
-    es_storage.clean_index_v2()
+    es_storage.clean_history_es_index()
 
     # 验证【过期别名】的删除
     mock_es_clients[1].indices.delete_alias.assert_any_call(

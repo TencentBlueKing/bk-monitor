@@ -53,6 +53,9 @@ class RolePermission(OperateRecordModel):
 class UserConfig(models.Model):
     """用户配置信息"""
 
+    class Keys:
+        FUNCTION_ACCESS_RECORD = "function_access_record"
+
     username = models.CharField("用户名", max_length=30)
     key = models.CharField("key", max_length=255)
     value = ConfigDataField("配置信息")

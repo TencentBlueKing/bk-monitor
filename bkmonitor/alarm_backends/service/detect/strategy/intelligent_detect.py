@@ -76,7 +76,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 "history_anomaly": {
                     "source": "backfill",
                     "retention_period": "8d",
-                    "backfill_fields": ["timestamp", "anomaly_alert", "extra_info"],
+                    "backfill_fields": ["anomaly_alert", "extra_info"],
                     "backfill_conditions": [
                         {
                             "field_name": "is_anomaly",

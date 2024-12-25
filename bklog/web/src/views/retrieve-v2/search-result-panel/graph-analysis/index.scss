@@ -86,7 +86,7 @@
   .graph-analysis-body {
     display: flex;
     width: 100%;
-    height: calc(100vh - 220px);
+    height: calc(100vh - 150px - var(--offset-search-bar));
 
     .body-left {
       position: relative;
@@ -175,11 +175,13 @@
         position: relative;
         display: flex;
         flex-direction: column;
+        min-height: fit-content;
         padding: 12px 16px;
         margin: 0 0 16px 0;
         margin-bottom: 0;
         background: #ffffff;
         border-radius: 2px;
+
         box-shadow:
           0 -2px 4px -1px #1919290d,
           -2px 0 4px -1px #1919290d,

@@ -157,7 +157,6 @@ class ThreadPool(_ThreadPool):
         return super(ThreadPool, self).imap(self.get_func_with_local(func), iterable, chunksize)
 
     def imap_unordered(self, func, iterable, chunksize=1):
-        func = partial(run_func_with_local, func, local)
         return super(ThreadPool, self).imap_unordered(self.get_func_with_local(func), iterable, chunksize=chunksize)
 
 

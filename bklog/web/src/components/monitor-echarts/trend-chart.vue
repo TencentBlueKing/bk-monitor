@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch, onUnmounted, inject } from 'vue';
+  import { ref, computed, watch, onBeforeUnmount, inject } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -190,7 +190,7 @@
     },
   );
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     logChartCancel?.();
   });
 </script>
