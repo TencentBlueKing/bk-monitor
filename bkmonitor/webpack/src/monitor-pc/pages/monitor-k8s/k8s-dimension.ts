@@ -49,7 +49,7 @@ export const sceneDimensionMap = {
  */
 export abstract class K8sDimensionBase {
   /** 所有的维度数据 */
-  public originDimensionData: GroupListItem[] = [];
+  public originDimensionData: GroupListItem<EDimensionKey>[] = [];
   /** 各维度分页 */
   public pageMap = {};
   /** 分页数量 */

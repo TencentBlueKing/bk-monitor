@@ -95,6 +95,13 @@ export default defineComponent({
               move(event) {
                 let { x, y } = event.target.dataset;
 
+                Object.assign(event.target.dataset, { x, y });
+                if (event.rect.width > 30) {
+                  setGuidLeft(event);
+                }
+              },
+              end(event) {
+                let { x, y } = event.target.dataset;
                 x = (parseFloat(x) || 0) + event.deltaRect.left;
                 y = (parseFloat(y) || 0) + event.deltaRect.top;
 
@@ -104,12 +111,6 @@ export default defineComponent({
                   transform: `translate(${x}px, ${y}px)`,
                 });
 
-                Object.assign(event.target.dataset, { x, y });
-                if (event.rect.width > 30) {
-                  setGuidLeft(event);
-                }
-              },
-              end(event) {
                 // Hide the guide line when resizing ends
                 guideLineElement.style.display = 'none';
                 document.body.classList.remove('no-user-select');

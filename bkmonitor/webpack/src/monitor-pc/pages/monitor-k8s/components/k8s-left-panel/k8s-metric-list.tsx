@@ -36,10 +36,12 @@ interface K8sMetricListProps {
   loading?: boolean;
   metricList: GroupListItem[];
   hideMetrics?: string[];
+  activeMetric?: string;
 }
 
 interface K8sMetricListEvent {
   onMetricHiddenChange: (val: string[]) => void;
+  onHandleItemClick: (id: string) => void;
 }
 
 @Component
@@ -47,10 +49,16 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) metricList: GroupListItem[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
+  @Prop({ type: String, default: '' }) activeMetric: string;
 
   @Emit('metricHiddenChange')
   handleMetricHiddenChange(ids: string[]) {
     return ids;
+  }
+
+  @Emit('handleItemClick')
+  handleItemClick(id: string) {
+    return id;
   }
 
   renderGroupSkeleton() {
@@ -73,11 +81,13 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
           : this.metricList.map(group => (
               <GroupItem
                 key={group.id}
+                activeMetric={this.activeMetric}
                 defaultExpand={true}
                 hiddenList={this.hideMetrics}
                 list={group}
                 tools={['view']}
                 onHandleHiddenChange={this.handleMetricHiddenChange}
+                onHandleItemClick={this.handleItemClick}
               />
             ))}
       </div>

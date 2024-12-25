@@ -32,6 +32,7 @@ from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
+from monitor_web.scene_view.builtin.utils import gen_string_md5
 
 logger = logging.getLogger(__name__)
 
@@ -436,9 +437,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             metric_group_mapping[monitor_name] = group_panel
                         metric_panel_instance = copy.deepcopy(metric_panel)
                         # 设置monitor_name的id
-                        metric_panel_instance = cls._replace_variable(
-                            metric_panel_instance, "${id}", f"{monitor_name}_{idx}"
-                        )
+                        graph_idx = gen_string_md5(f"{monitor_name}_{idx}")
+                        metric_panel_instance = cls._replace_variable(metric_panel_instance, "${id}", graph_idx)
                         # 设置monitor_name和metric_panel
                         metric_panel_instance = cls._replace_variable(
                             metric_panel_instance, "${scope_name_value}", monitor_name
