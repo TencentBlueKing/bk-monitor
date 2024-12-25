@@ -14,7 +14,7 @@ ul.search-items {
       flex-direction: column;
       align-content: center;
       justify-content: center;
-      height: 40px;
+      height: 48px;
       margin-right: 4px;
       margin-bottom: 4px;
       cursor: pointer;
@@ -37,16 +37,16 @@ ul.search-items {
 
     &.btn-add {
       font-size: 12px;
-      color: #3A84FF;
+      color: #3a84ff;
       letter-spacing: 0;
-      background: #F0F5FF;
+      background: #f0f5ff;
 
       &:not(.is-focus-input) {
         padding-right: 8px;
       }
 
       &:hover {
-        background: #E1ECFF;
+        background: #e1ecff;
       }
 
       .tag-add {
@@ -69,12 +69,12 @@ ul.search-items {
 
     &.tag-item {
       position: relative;
-      background: #F0F5FF;
+      background: #f0f5ff;
 
       &.disabled {
         .tag-row {
           &.match-value {
-            color: #C4C6CC;
+            color: #c4c6cc;
 
             span {
               position: relative;
@@ -86,7 +86,7 @@ ul.search-items {
                 width: 100%;
                 height: 1px;
                 content: '';
-                border-bottom: 1px solid #C4C6CC;
+                border-bottom: 1px solid #c4c6cc;
               }
             }
           }
@@ -94,7 +94,7 @@ ul.search-items {
       }
 
       &:hover {
-        background: #E1ECFF;
+        background: #e1ecff;
 
         .tag-options {
           display: flex;
@@ -114,7 +114,7 @@ ul.search-items {
 
         span {
           font-size: 16px;
-          color: #979BA5;
+          color: #979ba5;
 
           &.icon-close {
             font-size: 18px;
@@ -130,14 +130,14 @@ ul.search-items {
         font-size: 12px;
 
         &.match-name {
-          color: #979BA5;
+          color: #979ba5;
 
           .symbol {
             padding: 0 4px;
-            color: #FF9C01;
+            color: #ff9c01;
 
             &[data-operator^='not contains'] {
-              color: #EA3636;
+              color: #ea3636;
             }
           }
         }
@@ -168,8 +168,8 @@ ul.search-items {
               padding: 0 2px;
               margin: 0 4px;
               font-size: 12px;
-              color: #FF9C01;
-              background: #FFF3E1;
+              color: #ff9c01;
+              background: #fff3e1;
               border-radius: 2px;
             }
           }

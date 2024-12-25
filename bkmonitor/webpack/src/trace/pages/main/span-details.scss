@@ -620,6 +620,14 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .expan-item-small-subtitle {
+        flex: 1;
+        padding: 0 24px 0 16px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     .expan-item-small-content {
@@ -662,9 +670,10 @@
       position: relative;
       display: flex;
       align-items: flex-start;
-      min-height: 20px;
-      padding: 2px 0;
-      line-height: 20px;
+      min-height: 24px;
+      max-height: 484px;
+      overflow-y: auto;
+      line-height: 24px;
 
       &:hover {
         .format-button {
@@ -679,9 +688,16 @@
       .left {
         display: flex;
         align-items: flex-start;
-        min-width: 216px;
+        width: 216px;
         padding-left: 16px;
         color: #63656e;
+
+        .left-title {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         .operator {
           display: flex;

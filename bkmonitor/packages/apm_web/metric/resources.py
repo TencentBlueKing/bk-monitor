@@ -31,12 +31,13 @@ from apm_web.constants import (
     COLLECT_SERVICE_CONFIG_KEY,
     AlertLevel,
     AlertStatus,
-    Apdex,
+    ApdexCachedEnum,
     ApmCacheKey,
-    CategoryEnum,
+    CategoryCachedEnum,
     DataStatus,
     SceneEventKey,
     ServiceStatus,
+    ServiceStatusCachedEnum,
     TopoNodeKind,
     component_filter_mapping,
     component_where_mapping,
@@ -567,6 +568,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="log_data_status",
@@ -577,6 +579,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="trace_data_status",
@@ -587,6 +590,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             DataStatusTableFormat(
                 id="profiling_data_status",
@@ -597,6 +601,7 @@ class ServiceListResource(PageListResource):
                 props={
                     "align": "center",
                 },
+                asyncable=True,
             ),
             NumberTableFormat(
                 id="strategy_count",
@@ -610,7 +615,7 @@ class ServiceListResource(PageListResource):
                 id="alert_status",
                 name=_lazy("告警状态"),
                 checked=True,
-                status_map_cls=ServiceStatus,
+                status_map_cls=ServiceStatusCachedEnum,
                 asyncable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
@@ -726,7 +731,7 @@ class ServiceListResource(PageListResource):
     class StatisticsCategory(FieldStatistics):
         key = "category"
         name = _("分类")
-        all_fields = CategoryEnum.get_filter_fields()
+        all_fields = CategoryCachedEnum.get_filter_fields()
         ignore_ids = ["all"]
 
     class StatisticsLanguage(FieldStatistics):
@@ -893,7 +898,7 @@ class ServiceListResource(PageListResource):
             filter_fields = []
             # 获取顶部过滤项 (服务 tab 页)
             if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
-                filter_fields = CategoryEnum.get_filter_fields()
+                filter_fields = CategoryCachedEnum.get_filter_fields()
             elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
                 filter_fields = self._get_filter_fields_by_services([])
 
@@ -913,28 +918,7 @@ class ServiceListResource(PageListResource):
         # 2. 获取服务收藏列表
         collects = CollectServiceResource.get_collect_config(application).config_value
 
-        # 3. 获取服务的数据状态
         res = []
-        # 先获取缓存数据
-        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
-        data_status_mapping = cache.get(cache_key)
-        if data_status_mapping:
-            try:
-                data_status_mapping = json.loads(data_status_mapping)
-            except JSONDecodeError:
-                pass
-        if not data_status_mapping:
-            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
-            start_time, end_time = get_datetime_range("minute", application.no_data_period)
-            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
-                application,
-                start_time,
-                end_time,
-                services,
-            )
-            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
-
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
             operator.attrgetter("level_key"),
@@ -954,20 +938,8 @@ class ServiceListResource(PageListResource):
                     "app_name": application.app_name,
                     "collect": name in collects,
                     "service_name": name,
-                    "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
+                    "type": CategoryCachedEnum.from_value(service["extra_data"]["category"]).label,
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.METRIC.value, DataStatus.DISABLED
-                    ),
-                    "log_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.LOG.value, DataStatus.DISABLED
-                    ),
-                    "trace_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.TRACE.value, DataStatus.DISABLED
-                    ),
-                    "profiling_data_status": data_status_mapping.get(name, {}).get(
-                        TelemetryDataType.PROFILING.value, DataStatus.DISABLED
-                    ),
                     "operation": {
                         "config": _lazy("配置"),
                     },
@@ -982,7 +954,7 @@ class ServiceListResource(PageListResource):
         filter_fields = []
         # 获取顶部过滤项 (服务 tab 页)
         if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
-            filter_fields = CategoryEnum.get_filter_fields()
+            filter_fields = CategoryCachedEnum.get_filter_fields()
         elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
             filter_fields = self._get_filter_fields_by_services(res)
 
@@ -1023,6 +995,8 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         "strategy_count": {},
         # alert_status 特殊处理
         "alert_status": {},
+        # data_status 特殊处理
+        "data_status": {},
     }
 
     SyncResource = ServiceListResource
@@ -1076,7 +1050,32 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         return service_names
 
     @classmethod
-    def _get_service_strategy_mapping(cls, application, start_time, end_time):
+    def _get_data_status_mapping(cls, service_names, application, **kwargs):
+        """获取服务的数据状态"""
+        # 先获取缓存数据
+        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
+        data_status_mapping = cache.get(cache_key)
+        if data_status_mapping:
+            try:
+                data_status_mapping = json.loads(data_status_mapping)
+            except JSONDecodeError:
+                pass
+        if not data_status_mapping:
+            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
+            start_time, end_time = get_datetime_range("minute", application.no_data_period)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+                application,
+                start_time,
+                end_time,
+                [{"topo_key": service_name} for service_name in service_names],
+            )
+            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
+
+        return data_status_mapping
+
+    @classmethod
+    def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
         """获取服务的策略和告警信息"""
         query_params = {
             "bk_biz_id": application.bk_biz_id,
@@ -1146,7 +1145,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             else:
                 service_alert_status_mapping[svr] = ServiceStatus.NORMAL
 
-        return service_strategy_count_mapping, service_alert_status_mapping
+        return {"strategy_count": service_strategy_count_mapping, "alert_status": service_alert_status_mapping}.get(
+            column, {}
+        )
 
     def perform_request(self, validated_data):
         column = validated_data["column"]
@@ -1162,8 +1163,14 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "end_time": validated_data["end_time"],
         }
 
-        if column in ["strategy_count", "alert_status"]:
-            info_mapping = self._get_service_strategy_mapping(**metric_params)
+        multi_sub_columns = None
+        default_value = None
+        if column in ["data_status"]:
+            info_mapping = self._get_data_status_mapping(validated_data["service_names"], **metric_params)
+            multi_sub_columns = TelemetryDataType.values()
+            default_value = DataStatus.DISABLED
+        elif column in ["strategy_count", "alert_status"]:
+            info_mapping = self._get_service_strategy_mapping(column, **metric_params)
         else:
             info_mapping = self._get_column_metric_mapping(m, metric_params)
 
@@ -1171,11 +1178,18 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             res.append(
                 {
                     "service_name": service_name,
-                    **self.get_async_column_item({column: info_mapping.get(service_name)}, column),
+                    **self.get_async_column_item(
+                        {column: info_mapping.get(service_name)},
+                        column,
+                        multi_sub_columns=multi_sub_columns,
+                        default_value=default_value,
+                    ),
                 }
             )
-
-        return self.get_async_data(res, validated_data["column"])
+        multi_output_columns = (
+            [f"{sub_column}_{column}" for sub_column in multi_sub_columns] if multi_sub_columns else None
+        )
+        return self.get_async_data(res, validated_data["column"], multi_output_columns=multi_output_columns)
 
 
 class CollectServiceResource(Resource):
@@ -1347,7 +1361,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 name=_lazy("分类"),
                 checked=True,
                 filterable=True,
-                label_getter=CategoryEnum.get_label_by_key,
+                label_getter=CategoryCachedEnum,
                 icon_getter=lambda row: get_icon(row["category"]),
                 min_width=120,
             ),
@@ -2006,7 +2020,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 id="apdex",
                 name=_lazy("Apdex"),
                 checked=True,
-                status_map_cls=Apdex,
+                status_map_cls=ApdexCachedEnum,
                 filterable=True,
                 min_width=120,
             ),
@@ -2022,7 +2036,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 name=_lazy("分类"),
                 checked=True,
                 filterable=True,
-                label_getter=CategoryEnum.get_label_by_key,
+                label_getter=CategoryCachedEnum,
                 icon_getter=lambda row: get_icon(row["category"]),
                 min_width=120,
             ),
@@ -2062,7 +2076,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     @classmethod
     def _build_group_key(cls, endpoint, ignore_index=None, overwrite_service_name=None):
         category = []
-        for category_k in CategoryEnum.list_span_keys():
+        for category_k in CategoryCachedEnum.list_span_keys():
             if category_k == endpoint["category_kind"]["key"]:
                 category.append(str(endpoint["category_kind"]["value"]))
                 continue
@@ -2083,7 +2097,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     @classmethod
     def _build_status_count_group_key(cls, endpoint, value_getter=lambda i: i):
         category = []
-        for category_k in CategoryEnum.list_span_keys():
+        for category_k in CategoryCachedEnum.list_span_keys():
             if category_k == endpoint["origin_category_kind"]["key"]:
                 category.append(str(endpoint["origin_category_kind"]["value"]))
                 continue
@@ -2246,7 +2260,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             # 添加额外的查询条件 让右侧图标查询指标时查到正确的数据(通过图标配置中 metric_condition 指定)
             extra_filter_dict = {"kind": endpoint["kind"]}
             category_kind_key = endpoint.get("category_kind", {}).get("key")
-            if category_kind_key in CategoryEnum.list_component_generate_keys():
+            if category_kind_key in CategoryCachedEnum.list_component_generate_keys():
                 # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
                 extra_filter_dict.update(
@@ -2314,13 +2328,13 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 {},
             )
         elif node and ComponentHandler.is_component_by_node(node):
-            if node["extra_data"]["category"] == CategoryEnum.DB:
+            if node["extra_data"]["category"] == CategoryCachedEnum.DB.value:
                 # 如果是 DB 类服务 则直接对比所有项目 服务名称需要改为原始名称
                 component_prefix = cls._build_group_key(
                     endpoint,
                     overwrite_service_name=ComponentHandler.get_component_belong_service(node["topo_key"]),
                 )
-            elif node["extra_data"]["category"] == CategoryEnum.MESSAGING:
+            elif node["extra_data"]["category"] == CategoryCachedEnum.MESSAGING.value:
                 # 如果是 Messaging 类服务 不对比最后一项
                 # (messaging.destination, 因为消息队列场景中可能同时存在 message.system 和 message.destination
                 # 又因为拓扑发现中没有针对多个category_kind场景做处理所以这里忽略最后一项)
@@ -2486,7 +2500,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 id="apdex",
                 name=_lazy("状态"),
                 checked=True,
-                status_map_cls=Apdex,
+                status_map_cls=ApdexCachedEnum,
                 filterable=True,
                 min_width=120,
             ),
@@ -2909,7 +2923,7 @@ class ErrorListByTraceIdsResource(PageListResource):
             res += ErrorListResource().get_data(request_data)
 
         paginated_data = self.get_pagination_data(res, validated_request_data)
-        paginated_data["filter"] = CategoryEnum.get_filter_fields()
+        paginated_data["filter"] = CategoryCachedEnum.get_filter_fields()
         paginated_data["check_filter"] = []
 
         return paginated_data

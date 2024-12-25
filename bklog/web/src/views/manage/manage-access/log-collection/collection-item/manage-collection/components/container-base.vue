@@ -273,7 +273,7 @@
                             v-if="!isMatchType(configItem.params)"
                             class="item the-column"
                           >
-                            {{ $t('第{n}行', { n: item.fieldindex + 1 }) }}
+                            {{ $t('第{n}列', { n: item.fieldindex }) }}
                           </div>
                           <div class="item the-column">{{ showOperatorObj(configItem.params)[item.op] }}</div>
                           <p

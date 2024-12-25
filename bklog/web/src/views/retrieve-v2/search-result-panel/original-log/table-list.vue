@@ -52,8 +52,8 @@
       <template #default="{ $index, row }">
         <LazyRender :delay="1">
           <expand-view
-            :kv-show-fields-list="kvShowFieldsList"
             :data="originTableList[$index]"
+            :kv-show-fields-list="kvShowFieldsList"
             :list-data="tableList[$index]"
             :retrieve-params="retrieveParams"
             :total-fields="totalFields"
@@ -69,8 +69,8 @@
 
     <bk-table-column
       :width="tableShowRowIndex ? 50 : 0"
-      type="index"
       class-name="bklog-result-list-col-index"
+      type="index"
     ></bk-table-column>
     <!-- 显示字段 -->
     <template>
@@ -109,7 +109,7 @@
     >
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
-        <LazyRender>
+        <LazyRender :root="lazyRoot">
           <operator-tools
             :handle-click="event => handleClickTools(event, row, operatorConfig)"
             :index="$index"

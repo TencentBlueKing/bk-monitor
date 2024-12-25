@@ -48,8 +48,8 @@
         <template #default="{ $index, row }">
           <LazyRender :delay="1">
             <expand-view
-              :kv-show-fields-list="kvShowFieldsList"
               :data="originTableList[$index]"
+              :kv-show-fields-list="kvShowFieldsList"
               :list-data="tableList[$index]"
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
@@ -65,15 +65,15 @@
 
       <bk-table-column
         :width="tableShowRowIndex ? 50 : 0"
-        type="index"
         class-name="bklog-result-list-col-index"
+        type="index"
       ></bk-table-column>
 
       <!-- 显示字段 -->
       <template>
         <bk-table-column :width="originFieldWidth">
           <template #default="{ row }">
-            <LazyRender :visibleOnly="!tableJsonFormat">
+            <LazyRender :visible-only="!tableJsonFormat">
               <span
                 class="time-field"
                 :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
@@ -88,13 +88,13 @@
           <template slot-scope="{ row, column, $index }">
             <LazyRender
               :delay="1"
-              :visibleOnly="!tableJsonFormat"
+              :visible-only="!tableJsonFormat"
             >
               <JsonFormatter
-                :jsonValue="row"
-                :fields="getShowTableVisibleFields"
-                :formatJson="formatJson"
                 class="bklog-column-container"
+                :fields="getShowTableVisibleFields"
+                :format-json="formatJson"
+                :json-value="row"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               ></JsonFormatter>
             </LazyRender>
@@ -131,14 +131,15 @@
 </template>
 
 <script>
-  import resultTableMixin from '../../mixins/result-table-mixin';
-  import JsonFormatter from '../../../../global/json-formatter.vue';
   import { mapState } from 'vuex';
+
+  import JsonFormatter from '../../../../global/json-formatter.vue';
+  import resultTableMixin from '../../mixins/result-table-mixin';
 
   export default {
     name: 'OriginalList',
-    mixins: [resultTableMixin],
     components: { JsonFormatter },
+    mixins: [resultTableMixin],
     inheritAttrs: false,
     computed: {
       ...mapState({

@@ -92,7 +92,7 @@ export default ({ fields, onSegmentClick }) => {
       }
 
       if (!value.isJson) {
-        value.editor?.initStringAsValue();
+        value.editor?.initStringAsValue(value.value as string);
       }
     });
   };
@@ -100,7 +100,7 @@ export default ({ fields, onSegmentClick }) => {
   const destroy = () => {
     rootFieldOperator.values().forEach(value => {
       if (value.isJson && value.ref.value) {
-        value.editor?.initEditor(0);
+        value.editor?.destroy();
       }
 
       if (!value.isJson) {

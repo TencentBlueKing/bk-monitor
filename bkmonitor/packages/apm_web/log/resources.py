@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.handlers.log_handler import ServiceLogHandler
+from apm_web.handlers.service_handler import ServiceHandler
+from constants.apm import Vendor
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources import HostIndexQueryMixin
 
@@ -53,8 +55,12 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             None,
         )
         if index_info:
-            # 默认查询: 服务名称
-            index_info["addition"] = [{"field": "resource.service.name", "operator": "=", "value": [service_name]}]
+            # 默认查询: 服务名称 / 根据不同 SDK 进行调整
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
+            if node and Vendor.has_sdk(node.get("sdk"), Vendor.G):
+                index_info["addition"] = [{"field": "target", "operator": "=", "value": [service_name]}]
+            else:
+                index_info["addition"] = [{"field": "resource.service.name", "operator": "=", "value": [service_name]}]
             index_set_ids.append(str(datasource_index_set_id))
             yield index_info
 

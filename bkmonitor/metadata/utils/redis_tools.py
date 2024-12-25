@@ -46,11 +46,12 @@ class RedisTools(object):
     @classmethod
     def publish(cls, channel: str, msg_list: List[str]):
         """当数据变动时，发布数据"""
+        logger.info("publish: channel->[%s],publish msg_list->[%s]", channel, msg_list)
         try:
             for msg in msg_list:
                 cls().client.publish(channel, msg)
-        except Exception as e:
-            logging.error("publish msg error, %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error("publish: publish msg into channel->[%s] for ->[%s], error->[%s]", channel, msg_list, e)
             raise Exception(f"publish msg error, {e}")
         return
 
@@ -62,6 +63,7 @@ class RedisTools(object):
     @classmethod
     def hmset_to_redis(cls, key: str, field_value: Dict[str, str]) -> bool:
         """推送表数据到 redis"""
+        logger.info("hmset_to_redis: key->[%s], field_value->[%s]", key, field_value)
         return cls().client.hmset(key, field_value)
 
     @classmethod

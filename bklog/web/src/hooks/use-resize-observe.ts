@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onUnmounted } from 'vue';
+import { onMounted, Ref, onBeforeUnmount } from 'vue';
 
 import { debounce, isElement } from 'lodash';
 
 export default (
   target: (() => HTMLElement | string) | Ref<HTMLElement> | string,
   callbackFn: (entry: ResizeObserverEntry) => void,
+  delayCallback: boolean | number = 120,
 ) => {
   const debounceCallback = debounce(entry => {
     callbackFn?.(entry);
-  }, 120);
+  }, delayCallback);
 
   const getTarget = () => {
     if (typeof target === 'string') {
@@ -51,40 +52,63 @@ export default (
     return target?.value;
   };
 
-  let resizeObserver = null;
+  let resizeObserver: ResizeObserver;
+  let isStoped = true;
+
+  const observeElement = () => {
+    if (isStoped) {
+      isStoped = false;
+      const cellElement = getTarget() as HTMLElement;
+      resizeObserver?.observe(cellElement);
+    }
+  };
+
   const createResizeObserve = () => {
-    const cellElement = getTarget();
+    const cellElement = getTarget() as HTMLElement;
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
-          // 获取元素的新高度
-          debounceCallback(entry);
+          if (delayCallback === false) {
+            callbackFn?.(entry);
+          }
+
+          if (typeof delayCallback === 'number') {
+            // 获取元素的新高度
+            debounceCallback(entry);
+          }
         }
       });
-
-      resizeObserver?.observe(cellElement);
     }
+
+    observeElement();
   };
 
-  const destoyResizeObserve = () => {
-    const cellElement = getTarget();
+  const stopObserve = () => {
+    const cellElement = getTarget() as HTMLElement;
+    isStoped = true;
 
     if (isElement(cellElement)) {
       resizeObserver?.unobserve(cellElement);
       resizeObserver?.disconnect();
-      resizeObserver = null;
     }
+  };
+
+  const destoyResizeObserve = () => {
+    stopObserve();
+    resizeObserver = undefined;
   };
 
   onMounted(() => {
     createResizeObserve();
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     destoyResizeObserve();
   });
 
-  return { destoyResizeObserve };
+  const getInstance = () => resizeObserver;
+
+  return { destoyResizeObserve, getInstance, observeElement, stopObserve };
 };

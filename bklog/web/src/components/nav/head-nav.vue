@@ -758,7 +758,7 @@
 
         &::before {
           position: relative;
-          z-index: 999;
+          z-index: 2;
         }
 
         &.active,
@@ -770,7 +770,7 @@
         &:hover::after {
           position: absolute;
           left: 50%;
-          z-index: 99;
+          z-index: 1;
           width: 30px;
           height: 30px;
           content: '';

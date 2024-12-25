@@ -49,7 +49,7 @@ class EventGroup(CustomGroupBase):
     GROUP_NAME_FIELD = "event_group_name"
 
     # 时间字段的配置
-    STORAGE_TIME_OPTION = {"es_type": "date_nanos", "es_format": "epoch_millis"}
+    STORAGE_TIME_OPTION = {"es_type": "date", "es_format": "epoch_millis"}
 
     # Event字段配置
     STORAGE_EVENT_OPTION = {

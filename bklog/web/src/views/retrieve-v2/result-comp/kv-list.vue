@@ -80,7 +80,7 @@
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
-  import TextSegmentation from './text-segmentation';
+  import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
 
   export default {
     components: {
@@ -335,10 +335,11 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
-
   /* stylelint-disable no-descending-specificity */
   .kv-list-wrapper {
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+
     .log-item {
       display: flex;
       align-items: baseline;
