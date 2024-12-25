@@ -83,6 +83,12 @@
         background-color: #f1f7ff;
       }
 
+      &.active {
+        .content-name {
+          color: #3a84ff;
+        }
+      }
+
       .content-name {
         flex: 1;
         overflow: hidden;

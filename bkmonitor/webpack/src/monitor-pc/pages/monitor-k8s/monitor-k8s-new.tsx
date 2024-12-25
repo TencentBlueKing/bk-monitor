@@ -575,6 +575,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 onGroupByChange={this.groupByChange}
               />
               <K8sMetricList
+                activeMetric={this.activeMetricId}
                 hideMetrics={this.hideMetrics}
                 loading={this.metricLoading}
                 metricList={this.metricList}

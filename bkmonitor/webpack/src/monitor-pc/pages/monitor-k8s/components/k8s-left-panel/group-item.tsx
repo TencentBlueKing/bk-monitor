@@ -46,6 +46,7 @@ interface GroupItemProps {
   drillDownList?: string[];
   expandLoading?: Record<string, boolean>;
   loadMoreLoading?: Record<string, boolean>;
+  activeMetric?: string;
 }
 
 interface GroupItemEvent {
@@ -73,6 +74,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: () => [] }) drillDownList: string[];
   @Prop({ default: () => ({}) }) expandLoading: Record<string, boolean>;
   @Prop({ default: () => ({}) }) loadMoreLoading: Record<string, boolean>;
+  @Prop({ default: '' }) activeMetric: string;
 
   /** 展开的组  */
   expand = {};
@@ -204,7 +206,10 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
         return (
           <div
             key={`${child.id}-${ind}`}
-            class='group-content-item'
+            class={{
+              'group-content-item': true,
+              active: this.activeMetric === child.id,
+            }}
             onClick={() => this.handleItemClick(child.id)}
           >
             <span
