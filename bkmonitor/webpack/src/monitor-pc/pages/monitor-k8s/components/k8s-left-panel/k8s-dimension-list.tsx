@@ -60,7 +60,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 搜索 */
   searchValue = '';
   /** 已选择filterBy列表 */
-  showDimensionList: GroupListItem[] = [];
+  showDimensionList: GroupListItem<EDimensionKey>[] = [];
   /** 下钻弹窗列表 */
   drillDownList = [];
 

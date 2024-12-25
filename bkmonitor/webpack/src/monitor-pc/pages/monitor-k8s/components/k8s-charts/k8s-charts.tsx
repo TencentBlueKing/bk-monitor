@@ -50,6 +50,7 @@ export default class K8SCharts extends tsc<
     groupBy: K8sTableColumnResourceKey[];
     filterCommonParams: Record<string, any>;
     isDetailMode?: boolean;
+    activeMetricId?: string;
   },
   {
     onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
@@ -60,6 +61,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
+  @Prop({ type: String, default: '' }) activeMetricId: string;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
@@ -100,6 +102,17 @@ export default class K8SCharts extends tsc<
       this.createPanelList();
     }
   }
+
+  @Watch('activeMetricId')
+  onActiveMetricIdChange(id: string) {
+    document.querySelector('.dashboard-panel .scroll-in')?.classList.remove('scroll-in');
+    if (!id) return;
+    const dom = document.getElementById(`${id}__key__`);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
+  }
+
   @Provide('onDrillDown')
   handleDrillDown(group: string, name: string) {
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
@@ -202,6 +215,8 @@ export default class K8SCharts extends tsc<
     }
     this.panels = panelList;
     this.loading = false;
+    await this.$nextTick();
+    this.onActiveMetricIdChange(this.activeMetricId);
   }
   createCommonPromqlMethod() {
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) return '$method by(bcs_cluster_id)';
