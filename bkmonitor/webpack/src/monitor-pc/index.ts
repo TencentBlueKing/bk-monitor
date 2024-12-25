@@ -118,6 +118,7 @@ if (hasRouteHash) {
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
           jobUrl: window.bk_job_url,
+          k8sV2EnableList: (!data.K8S_V2_BIZ_LIST?.length ? [] : data.K8S_V2_BIZ_LIST).slice(),
         });
         window.mainComponent = new Vue({
           el: '#app',

@@ -66,6 +66,10 @@ def apply_data_id_v2(
     logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
     bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
+    if not bk_biz_id:
+        logger.info("apply_data_id_v2:data_name->[%s], bk_biz_id is None,will use default", data_name)
+        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
     )

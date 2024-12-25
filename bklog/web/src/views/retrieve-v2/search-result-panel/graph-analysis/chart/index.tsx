@@ -58,6 +58,7 @@ export default defineComponent({
     });
 
     const showTable = computed(() => props.chartOptions.type === 'table');
+    const showNumber = computed(() => props.chartOptions.type === 'number');
 
     const formatListData = computed(() => {
       const {
@@ -73,7 +74,7 @@ export default defineComponent({
             {},
             item,
             timeFields.reduce((acc, cur) => {
-              return Object.assign(acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
+              return Object.assign({}, acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
             }, {}),
           );
         }),
@@ -105,14 +106,15 @@ export default defineComponent({
     };
 
     const setTableData = () => {
-      if (showTable.value) {
+      if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {
           tableData.value.splice(0, tableData.value.length, ...(formatListData.value?.list ?? []));
           return;
         }
 
         const result = (props.chartOptions.yFields ?? []).map(yField => {
-          return [[...props.chartOptions.dimensions, props.chartOptions.xFields[0]]].map(([timeField, xField]) => {
+          const groups = showNumber.value ? [] : [...props.chartOptions.dimensions, props.chartOptions.xFields[0]];
+          return [groups].map(([timeField, xField]) => {
             if (timeField || xField) {
               return (formatListData.value?.list ?? []).map(row => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
@@ -126,12 +128,19 @@ export default defineComponent({
               });
             }
 
+            if (showNumber.value) {
+              return (formatListData.value?.list ?? []).map(row => ({ [yField]: row[yField] }));
+            }
+
             return [];
           });
         });
 
-        const length =
-          [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length * props.chartOptions.xFields.length;
+        const length = showNumber.value
+          ? (props.chartOptions.yFields ?? []).length
+          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length *
+            props.chartOptions.xFields.length;
+
         tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
       }
@@ -143,12 +152,13 @@ export default defineComponent({
       () => props.chartCounter,
       () => {
         const { xFields, yFields, dimensions, type } = props.chartOptions;
-        if (!showTable.value) {
-          debounceUpdateChartOptions(xFields, yFields, dimensions, type);
-        } else {
+        if (showTable.value || showNumber.value) {
           setTableData();
           destroyInstance();
+          return;
         }
+
+        debounceUpdateChartOptions(xFields, yFields, dimensions, type);
       },
     );
 
@@ -174,6 +184,10 @@ export default defineComponent({
           );
         }
 
+        if (props.chartOptions.category === 'number') {
+          return props.chartOptions.yFields;
+        }
+
         return [...props.chartOptions.dimensions, ...props.chartOptions.xFields, ...props.chartOptions.yFields];
       }
 
@@ -186,6 +200,14 @@ export default defineComponent({
       const endIndex = startIndex + pagination.value.limit;
 
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
+    });
+
+    const formatTableData = computed(() => {
+      return filterTableData.value.map(row => {
+        return columns.value.reduce((acc, cur) => {
+          return Object.assign({}, acc, { [cur]: getDateTimeFormatValue(row, cur) });
+        }, {});
+      });
     });
 
     const handleChartRootResize = debounce(() => {
@@ -207,6 +229,23 @@ export default defineComponent({
     };
 
     const rendChildNode = () => {
+      if (showNumber.value) {
+        return (
+          <div class='bklog-chart-number-container'>
+            {tableData.value.map(row => (
+              <div class='bklog-chart-number-list'>
+                {props.chartOptions.yFields?.map(yField => (
+                  <div class='bklog-chart-number-item'>
+                    <div class='bklog-chart-number-label'>{yField}</div>
+                    <div class='bklog-chart-number-value'>{row[yField]}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
       if (showTable.value) {
         if (!tableData.value.length) {
           return '';
@@ -234,7 +273,7 @@ export default defineComponent({
               onLimit-change={handlePageLimitChange}
             ></bk-pagination>
           </div>,
-          <bk-table data={filterTableData.value}>
+          <bk-table data={formatTableData.value}>
             <bk-table-column
               width='60'
               label={$t('行号')}
@@ -243,11 +282,8 @@ export default defineComponent({
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
-                // prop={col}
-                scopedSlots={{
-                  default: ({ row }) => <span>{getDateTimeFormatValue(row, col)}</span>,
-                }}
                 label={col}
+                prop={col}
                 sortable={true}
               ></bk-table-column>
             ))}

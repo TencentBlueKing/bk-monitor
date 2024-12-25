@@ -112,6 +112,46 @@ class SpaceTableIDRedis:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
         logger.info("push redis data_label_to_result_table")
 
+    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = True):
+        """
+        推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
+        @param table_id_list: 结果表列表
+        @param is_publish: 是否执行推送
+        """
+        logger.info(
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %s" "is_publish->[%s]",
+            json.dumps(table_id_list),
+            is_publish,
+        )
+        _table_id_detail = {}
+        try:
+            _table_id_detail.update(self._compose_es_table_id_detail(table_id_list))
+
+            if _table_id_detail:
+                logger.info(
+                    "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to set to key->[%s]",
+                    table_id_list,
+                    json.dumps(_table_id_detail),
+                    RESULT_TABLE_DETAIL_KEY,
+                )
+                RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
+                if is_publish:
+                    logger.info(
+                        "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->[%s]",
+                        table_id_list,
+                        json.dumps(_table_id_detail),
+                        RESULT_TABLE_DETAIL_CHANNEL,
+                    )
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "push_es_table_id_detail: failed to push es_table_detail for table_id_list->[%s],error->[%s]",
+                table_id_list,
+                e,
+            )
+            return
+        logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
+
     def push_table_id_detail(
         self,
         table_id_list: Optional[List] = None,
@@ -177,8 +217,18 @@ class SpaceTableIDRedis:
 
         # 推送数据
         if _table_id_detail:
+            logger.info(
+                "push_table_id_detail: try to set to key->[%s] with value->[%s]",
+                RESULT_TABLE_DETAIL_KEY,
+                json.dumps(_table_id_detail),
+            )
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
+                logger.info(
+                    "push_table_id_detail: try to push into channel->[%s] for ->[%s]",
+                    RESULT_TABLE_DETAIL_CHANNEL,
+                    list(_table_id_detail.keys()),
+                )
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
         logger.info("push_table_id_detail： push redis result_table_detail")
 
@@ -213,16 +263,6 @@ class SpaceTableIDRedis:
                 }
             )
         return _table_id_detail
-
-    def push_es_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: bool = False):
-        """推送 es 结果表的详细信息"""
-        logger.info("start to push es table_id detail data, table_id_list: %s")
-        table_id_detail = self._compose_es_table_id_detail(table_id_list)
-        if table_id_detail:
-            RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, table_id_detail)
-            if is_publish:
-                RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(table_id_detail.keys()))
-        logger.info("push es table_id detail successfully")
 
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
@@ -267,7 +307,7 @@ class SpaceTableIDRedis:
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
             try:
-                storage_record = models.ESStorageClusterRecord.compose_table_id_storage_cluster_records(tid)
+                storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", tid, e)
                 storage_record = []
@@ -281,7 +321,7 @@ class SpaceTableIDRedis:
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
-                    'storage_cluster_record': storage_record,
+                    'storage_cluster_records': storage_record,
                 }
             )
         return data
@@ -600,6 +640,9 @@ class SpaceTableIDRedis:
         from_authorization: Optional[bool] = None,
         default_filters: Optional[List] = None,
     ) -> Dict:
+        logger.info(
+            "_push_bkcc_space_table_ids,start to _compose_data for space_type: %s, space_id: %s", space_type, space_id
+        )
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
             space_type,
@@ -643,10 +686,18 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label"],
-        )
+            value_field_list=["table_id", "schema_type", "data_label", "bk_biz_id_alias"],
+        )  # 新增bk_biz_id_alias,部分业务存在自定义过滤规则别名需求，如bk_biz_id -> appid
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list, table_id_data_id)
+
+        # 获取结果表-业务ID过滤别名 字典
+        try:
+            bk_biz_id_alias_dict = {data["table_id"]: data["bk_biz_id_alias"] for data in _table_list}
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("_push_bkcc_space_table_ids: get bk_biz_id_alias error->[%s]", e)
+            bk_biz_id_alias_dict = {}
+
         # 获取空间所属的数据源 ID
         _space_data_ids = models.SpaceDataSource.objects.filter(
             space_type_id=space_type, space_id=space_id, from_authorization=False
@@ -676,6 +727,7 @@ class SpaceTableIDRedis:
                 continue
             _data_id_detail = data_id_detail.get(data_id)
             is_exist_space = data_id in _space_data_ids
+            bk_biz_id_alias = bk_biz_id_alias_dict.get(tid, '')  # 获取业务ID别名
             # 拼装过滤条件, 如果有指定，则按照指定数据设置过滤条件
             if default_filters:
                 _values[tid] = {"filters": default_filters}
@@ -684,7 +736,16 @@ class SpaceTableIDRedis:
                 if self._is_need_filter_for_bkcc(
                     measurement_type, space_type, space_id, _data_id_detail, is_exist_space
                 ):
-                    filters = [{"bk_biz_id": space_id}]
+                    bk_biz_id_key = "bk_biz_id"  # 默认按照业务ID过滤
+                    if bk_biz_id_alias:  # 若存在业务ID别名，按照别名组装过滤条件
+                        logger.info(
+                            "_push_bkcc_space_table_ids: table_id->[%s] got bk_biz_id_alias ->[%s]",
+                            tid,
+                            bk_biz_id_alias,
+                        )
+                        bk_biz_id_key = bk_biz_id_alias
+                    filters = [{bk_biz_id_key: space_id}]
+
                 _values[tid] = {"filters": filters}
 
         return _values

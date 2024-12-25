@@ -55,6 +55,9 @@ const targetMessageTemp = {
   SERVICE: '监控数据维度未配置("服务实例")， 监控目标无法命中目标',
 };
 
+// 服务实例不支持的监控目标类型：静态拓扑，动态分组
+const SERVICE_UNSUPPORTED_TARGET_TYPES: string[] = ['INSTANCE', 'DYNAMIC_GROUP'];
+
 interface IMonitorDataProps {
   metricData: MetricDetail[];
   source: string;
@@ -125,6 +128,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   @Prop({ default: 'auto', type: [Number, String] }) sourceStep: number | string; /* source模式下的agg_interval */
   /* 当前的数据类型，用于判断应该弹出哪种指标选择器 */
   @Prop({ default: 'time_series', type: String }) dataTypeLabel: string;
+  /* 指标类型，分为主机、服务实例、NONE */
   @Prop({ default: '', type: String }) metricTipType: string;
   /* 报错信息 */
   @Prop({ default: '', type: String }) errMsg: string;
@@ -214,9 +218,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
 
   @Watch('metricObjectType')
-  handleMetricObjectTypeChange(v) {
-    if ((v === 'SERVICE' && this.target?.targetType === 'INSTANCE') || v === 'NONE') {
+  handleMetricObjectTypeChange(v: string) {
+    // 如果新的指标类型是服务实例，且当前监控目标为不支持的类型，或者新的指标类型为无效类型，则清空监控目标列表。
+    if ((v === 'SERVICE' && SERVICE_UNSUPPORTED_TARGET_TYPES.includes(this.target?.targetType)) || v === 'NONE') {
       this.targetList = [];
+      this.handleTargetSave();
     }
   }
 
@@ -782,7 +788,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                           />
                         )),
                       this.metricTipType && (
-                        <span class='ip-dimension-tip'>
+                        <span
+                          id='ip-dimension-tip'
+                          class='ip-dimension-tip'
+                          tabindex={-1}
+                        >
                           <span class='icon-monitor icon-remind' />
                           <span>{this.$t(targetMessageTemp[this.metricTipType])}</span>
                         </span>

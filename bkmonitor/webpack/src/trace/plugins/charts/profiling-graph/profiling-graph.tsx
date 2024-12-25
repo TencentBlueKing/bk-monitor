@@ -35,6 +35,7 @@ import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monito
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
+import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
@@ -82,6 +83,7 @@ export default defineComponent({
     });
     const unit = ref<ProfileDataUnit>('nanoseconds');
     const highlightId = ref(-1);
+    const highlightName = ref('');
     const filterKeyword = ref('');
     const topoSrc = ref('');
 
@@ -163,6 +165,8 @@ export default defineComponent({
         }),
       })
         .then(data => {
+          // 为数据节点及其子节点分配唯一 ID
+          data.flame_data?.children && assignUniqueIds(data.flame_data.children);
           if (isObject(data) && Object.keys(data)?.length) {
             unit.value = data.unit || '';
             if (activeMode.value === ViewModeType.Combine) {
@@ -314,6 +318,7 @@ export default defineComponent({
       handleModeChange,
       handleTextDirectionChange,
       highlightId,
+      highlightName,
       filterKeyword,
       flameFilterKeywords,
       handleSortChange,
@@ -357,13 +362,13 @@ export default defineComponent({
                 data={this.tableData}
                 dataType={this.queryParams.data_type}
                 filterKeyword={this.filterKeyword}
-                highlightId={this.highlightId}
+                highlightName={this.highlightName}
                 isCompared={this.isCompared}
                 textDirection={this.textDirection}
                 unit={this.unit}
                 onSortChange={this.handleSortChange}
-                onUpdateHighlightId={id => {
-                  this.highlightId = id;
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
                 }}
               />
             )}
@@ -377,12 +382,16 @@ export default defineComponent({
                 data={this.flameData}
                 filterKeywords={this.flameFilterKeywords}
                 highlightId={this.highlightId}
+                highlightName={this.highlightName}
                 isCompared={this.isCompared}
                 showGraphTools={false}
                 textDirection={this.textDirection}
                 unit={this.unit}
                 onUpdateHighlightId={id => {
                   this.highlightId = id;
+                }}
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
                 }}
               />
             )}

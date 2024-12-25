@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.strategy.new_strategy import Item
 from bkmonitor.views import serializers
@@ -41,6 +41,7 @@ class KPIAnomalyDetectionSerializer(serializers.Serializer):
     """
 
     default_plan_id = serializers.IntegerField(default=settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION)
+    is_sdk_enabled = serializers.BooleanField(default=False)
 
 
 class MultivariateAnomalyDetectionSceneSerializer(AiSettingTemplateSerializer):

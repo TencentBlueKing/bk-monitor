@@ -1,0 +1,34 @@
+.k8s-dimension-list {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: #fff;
+
+  .panel-title {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  .object-group {
+    margin-top: 12px;
+  }
+
+  .skeleton-element-group {
+    & + .skeleton-element-group {
+      margin-top: 20px;
+    }
+
+    .group-title {
+      width: 100%;
+      height: 32px;
+      margin-bottom: 8px;
+    }
+
+    .group-content {
+      width: calc(100% - 31px);
+      height: 20px;
+      margin: 0 7px 12px 24px;
+    }
+  }
+}

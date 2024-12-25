@@ -15,7 +15,7 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
 from apm.models.datasource import (

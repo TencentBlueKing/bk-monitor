@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, onUnmounted } from 'vue';
+  import { ref, computed, onBeforeUnmount } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
   import { isElement } from 'lodash';
 
@@ -71,7 +71,7 @@
     }
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     resizeObserver.disconnect();
     resizeObserver = null;
   });

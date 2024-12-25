@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.models.uptimecheck import UptimecheckCacheManager
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator

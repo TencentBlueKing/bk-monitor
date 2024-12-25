@@ -13,7 +13,7 @@ import itertools
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBase, BCSBaseManager, BCSBaseResources, BCSLabel, BCSPod
 from core.drf_resource import api
@@ -60,6 +60,12 @@ class BCSWorkload(BCSBase, BCSBaseResources):
     def save(self, *args, **kwargs):
         self.unique_hash = self.get_unique_hash()
         super().save(*args, **kwargs)
+
+    def to_meta_dict(self):
+        return {
+            "namespace": self.namespace,
+            "workload": f"{self.type}:{self.name}",
+        }
 
     @classmethod
     def get_columns(cls, columns_type="list"):

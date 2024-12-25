@@ -18,8 +18,6 @@ from apm_web.profile.diagrams.base import (
     FunctionTree,
     ValueCalculator,
 )
-from apm_web.utils import divide_biscuit
-from bkmonitor.utils.thread_backend import ThreadPool
 
 
 @dataclass
@@ -27,9 +25,6 @@ class TreeConverter:
     """
     将 doris 查询出来的原始数据直接转为 FunctionTree 而不经过 ProfileConverter
     """
-
-    # 每批解析 samples 的最大数量
-    BATCH_EXECUTE_SIZE = 1000
 
     tree: FunctionTree = None
     sample_type: dict = None
@@ -56,16 +51,16 @@ class TreeConverter:
                 system_name="",
                 filename="",
                 values=[],
-            )
+            ),
+            map_root=FunctionNode(
+                id=ROOT_DISPLAY_NAME,
+                name=ROOT_DISPLAY_NAME,
+                system_name="",
+                filename="",
+                values=[],
+            ),
         )
-        params = [(tree, g) for g in divide_biscuit(samples_info, self.BATCH_EXECUTE_SIZE)]
-        pool = ThreadPool()
-        pool.map_ignore_exception(self.build_tree, params)
-
-        # 补充根节点
-        for node in tree.function_node_map.values():
-            if not node.has_parent:
-                tree.root.children.append(node)
+        self.build_tree(tree, samples_info)
 
         # 不同数据类型的节点 value 计算方式有所不同
         ValueCalculator.calculate_nodes(tree, self.get_sample_type())
@@ -73,40 +68,60 @@ class TreeConverter:
         self.tree = tree
         return self.tree
 
-    def build_tree(self, tree: FunctionTree, samples):
+    @classmethod
+    def build_tree(cls, tree: FunctionTree, samples):
         for sample in samples:
             value = int(sample["value"])
-            parent = None
+            parent = tree.root
+            map_parent = tree.map_root
             stacktraces = json.loads(sample["stacktrace"])
 
             for stacktrace in reversed(stacktraces):
                 if not stacktrace["lines"]:
                     # 将 parent 设置为空防止生成错误的调用关系
-                    parent = None
+                    parent = tree.root
+                    map_parent = tree.map_root
                     continue
 
-                for line in stacktrace["lines"]:
+                for line in reversed(stacktrace["lines"]):
                     if not line:
-                        parent = None
+                        parent = tree.root
+                        map_parent = tree.map_root
                         continue
 
                     pure_line = FunctionNode.replace_invalid_char(line)
-                    key = FunctionNode.generate_id(pure_line)
-                    tree.lock.acquire()
-                    if key not in tree.function_node_map:
+                    node_id = FunctionNode.generate_id(pure_line)
+
+                    # 1. 构造树
+                    if node_id in parent.children:
+                        node = parent.children.get(node_id)
+                        node.add_value(value)
+                        parent = node
+                    else:
                         node = FunctionNode(
-                            id=key,
+                            id=node_id,
                             name=pure_line["function"]["name"],
                             system_name=pure_line["function"]["systemName"],
                             filename=pure_line["function"]["fileName"],
                             values=[value],
                         )
-                        if parent:
-                            parent.add_child(node)
+                        parent.add_child(node)
+                        parent = node
 
-                        tree.function_node_map[key] = node
+                    # 2. 构造图
+                    if node_id not in tree.function_node_map:
+                        map_node = FunctionNode(
+                            id=node_id,
+                            name=pure_line["function"]["name"],
+                            system_name=pure_line["function"]["systemName"],
+                            filename=pure_line["function"]["fileName"],
+                            values=[value],
+                        )
+                        tree.function_node_map[node_id] = map_node
+                        map_parent.add_child(map_node)
+                        map_parent = map_node
                     else:
-                        node = tree.function_node_map[key]
-                        node.add_value(value)
-                    tree.lock.release()
-                    parent = node
+                        map_node = tree.function_node_map[node_id]
+                        map_node.add_value(value)
+                        map_parent.add_child(map_node)
+                        map_parent = map_node

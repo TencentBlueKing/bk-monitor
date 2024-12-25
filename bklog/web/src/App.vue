@@ -752,7 +752,7 @@
 
   :root {
     --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-    --table-fount-size: 13px;
+    --table-fount-size: 12px;
     --table-fount-color: #313238;
   }
 

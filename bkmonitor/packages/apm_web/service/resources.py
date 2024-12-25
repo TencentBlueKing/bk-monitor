@@ -17,8 +17,8 @@ import re
 from multiprocessing.pool import ApplyResult
 
 import arrow
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
 
 from api.cmdb.define import Business

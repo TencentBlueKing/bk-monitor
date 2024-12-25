@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 GLOBAL_BIZ_ID = 0
 
@@ -689,13 +689,39 @@ class QuickSolutionsConfig:
 
 
 SCENARIO = {
-            "在线": ["在线", "online"],
-            "登录": ["登录", "登陆", "login"],
-            "注册": ["注册", "reg"],
-            "对局": ["对局", "排队", "bat"],
-    }
+    "在线": ["在线", "online"],
+    "登录": ["登录", "登陆", "login"],
+    "注册": ["注册", "reg"],
+    "对局": ["对局", "排队", "bat"],
+}
 TMP_HEADERS = ["biz", "biz_name", "tmp", "tmp_bk", "tmp_bk_ratio"]
-EXCLUDE_IDS = [1396, 15479, 15482, 12364, 4342, 4345, 4348, 4349, 4350, 4940, 5868, 5874, 41183, 41184, 14801, 13037, 14802, 12363, 1538, 883295, 19286, 986714, 1232, 1221, 1252124]
+EXCLUDE_IDS = [
+    1396,
+    15479,
+    15482,
+    12364,
+    4342,
+    4345,
+    4348,
+    4349,
+    4350,
+    4940,
+    5868,
+    5874,
+    41183,
+    41184,
+    14801,
+    13037,
+    14802,
+    12363,
+    1538,
+    883295,
+    19286,
+    986714,
+    1232,
+    1221,
+    1252124,
+]
 CONDITIONS_REQ = [
     {"key": "tags.tnm_attr_id", "method": "neq", "value": EXCLUDE_IDS, "condition": "and"},
     {"key": "alert_name", "method": "neq", "value": ["Ping告警", "上报超时告警", "服务器系统时间偏移告警"]},

@@ -25,7 +25,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Model, QuerySet
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -1759,7 +1759,7 @@ class Strategy(AbstractConfig):
         """
         获取Grafana图表查询配置
         """
-        __, panel_query = get_grafana_panel_query(
+        panel_query = get_grafana_panel_query(
             self.bk_biz_id, query_config.dashboard_uid, query_config.panel_id, query_config.ref_id
         )
         if not panel_query:
@@ -2482,7 +2482,7 @@ class Strategy(AbstractConfig):
         # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
         need_access = False
         # 4.3.1 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
-        if query_config.result_table_id:
+        if getattr(query_config, "result_table_id", None):
             # 4.3.2 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
             if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
                 for condition in query_config.agg_condition:
@@ -2505,7 +2505,8 @@ class Strategy(AbstractConfig):
 
         # 4.4 接入智能检测算法
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
-        if need_access:
+        # 如果已经配置了使用SDK，则不再走bkbase接入的方式
+        if need_access and not intelligent_detect.get("use_sdk", False):
             # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
             intelligent_detect["status"] = AccessStatus.PENDING
             intelligent_detect["retries"] = 0

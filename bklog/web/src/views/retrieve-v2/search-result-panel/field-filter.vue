@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, nextTick } from 'vue';
+  import { computed, nextTick, ref } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -10,6 +10,7 @@
   const props = defineProps({
     value: { type: Boolean, default: true },
   });
+  const fieldShowName = ref('field_name');
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -24,19 +25,22 @@
   const sortList = computed(() => {
     return store.state.indexFieldInfo.sort_list;
   });
+
   const totalFields = computed(() => {
     return store.state.indexFieldInfo.fields;
   });
-  const indexId = computed(() => {
-    return store.state.indexId;
-  });
+
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     store.state.indexFieldInfo.fields.forEach(item => {
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] =
+        fieldShowName.value === 'field_name'
+          ? item.field_alias || item.field_name
+          : item.alias_name || item.field_alias || item.field_name;
     });
     return fieldAliasMap;
   });
@@ -50,7 +54,7 @@
     };
   });
 
-  const showFieldAlias = computed(() => store.state.showFieldAlias);
+  // const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   /**
@@ -58,12 +62,12 @@
    * @param {Array} displayFieldNames 展示字段
    */
   const handleFieldsUpdated = async displayFieldNames => {
-    store.commit('updateIsSetDefaultTableColumn', false);
     store.dispatch('userFieldConfigChange', {
       displayFields: displayFieldNames,
     });
     await nextTick();
     store.commit('resetVisibleFields', displayFieldNames);
+    store.commit('updateIsSetDefaultTableColumn', false);
   };
   const handleCloseFilterTitle = isTextClick => {
     if (isTextClick && props.value) return;
@@ -103,7 +107,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="showFieldAlias"
+      :show-field-alias="fieldShowName"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

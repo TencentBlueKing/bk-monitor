@@ -5,8 +5,8 @@ from typing import Any, Dict, List
 
 from django.db.models import TextChoices
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -1039,3 +1039,10 @@ class Vendor:
     @classmethod
     def equal(cls, e, v):
         return base64.b64encode(v.encode()).decode() == e
+
+    @classmethod
+    def has_sdk(cls, service_sdk, expect_sdk):
+        """在服务的 sdk 字段中寻找是否有特定 SDK"""
+        if not service_sdk:
+            return False
+        return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)

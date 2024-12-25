@@ -11,14 +11,13 @@ specific language governing permissions and limitations under the License.
 """
 TimeSeriesForecasting：时序预测算法，基于计算平台的预测结果进行静态阈值检测
 """
-import copy
 import json
 import logging
 import operator
 from typing import List, Tuple, Union
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
 from alarm_backends.service.detect.strategy import (
@@ -70,7 +69,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
                 raise Exception("Strategy history dependency data not ready")
 
             # 优先从预检测结果中获取检测结果
-            if hasattr(self, "_local_pre_detect_results") and self._local_pre_detect_results:
+            if hasattr(self, "_local_pre_detect_results"):
                 predict_result_point = self.fetch_pre_detect_result_point(data_point)
                 if predict_result_point:
                     return super().detect(predict_result_point)
@@ -82,16 +81,15 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
             return self.detect_by_bkdata(data_point)
 
     def detect_by_sdk(self, data_point):
-        dimensions = copy.deepcopy(data_point.dimensions)
-        dimensions["strategy_id"] = data_point.item.strategy.id
+        dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
+        dimensions["strategy_id"] = int(data_point.item.strategy.id)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,
             "predict_args": {
                 "granularity": "T",
-                "range_level": self.validated_config["args"].get("$range_level"),
-                "forecast_mode": self.validated_config["args"].get("$forecast_mode"),
                 "mode": "serving",
+                **{arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()},
             },
         }
 

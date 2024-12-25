@@ -17,7 +17,7 @@ from typing import Optional, Tuple, Union
 
 from django.http import HttpResponse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -300,7 +300,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
     @classmethod
     def get_query_params(cls, request_data):
-
         serializer = ProfileQuerySerializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

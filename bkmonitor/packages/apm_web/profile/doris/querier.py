@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 
 from apm_web.models import Application
@@ -125,15 +125,18 @@ class Query:
         sql = json.dumps(self.to_dict())
         logger.info("[ProfileDatasource] query_data params: %s", sql)
 
-        try:
-            params = {
-                "sql": sql,
-                "prefer_storage": "doris",
-                "_user_request": True,
-            }
-            return api.bkdata.query_profile_data(**params)
-        except BKAPIError as e:
-            logger.exception(f"query bkdata doris failed, error: {e}")
+        with tracer.start_as_current_span("doris_query") as span:
+            try:
+                params = {
+                    "sql": sql,
+                    "prefer_storage": "doris",
+                    "_user_request": True,
+                }
+                span.set_attribute("request.body", json.dumps(params))
+                return api.bkdata.query_profile_data(**params)
+            except BKAPIError as e:
+                span.record_exception(exception=e)
+                logger.exception(f"query bkdata doris failed, error: {e}")
 
         return None
 

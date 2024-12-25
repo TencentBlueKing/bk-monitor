@@ -22,13 +22,11 @@ the project delivered to anyone in the future.
 
 import os
 
-__author__ = u"蓝鲸智云"
+from config.celery.celery import app as celery_app
+
+__author__ = "蓝鲸智云"
 __copyright__ = "Copyright © 2012-2019 Tencent BlueKing. All Rights Reserved."
 __all__ = ["celery_app", "ENVIRONMENT", "RUN_VER", "APP_CODE", "SECRET_KEY", "BK_URL", "BASE_DIR"]
-
-# This will make sure the app is always imported when
-# Django starts so that shared_task will use this app.
-from blueapps.core.celery import celery_app
 
 
 def get_env_or_raise(*keys, default=None):

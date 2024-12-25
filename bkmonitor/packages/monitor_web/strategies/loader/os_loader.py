@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from typing import List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import MetricListCache, StrategyModel
 from bkmonitor.strategy.new_strategy import get_metric_id

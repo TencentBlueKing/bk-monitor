@@ -48,6 +48,7 @@ import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
 import ExceptionGuide from '../plugins/exception-guide/exception-guide';
 import IconChart from '../plugins/icon-chart/icon-chart';
+import K8sCustomGraph from '../plugins/k8s-custom-graph/k8s-custom-graph';
 import LineBarEchart from '../plugins/line-bar-echart/line-bar-echart';
 import ListChart from '../plugins/list-chart/list-chart';
 import MessageChart from '../plugins/message-chart/message-chart';
@@ -72,7 +73,7 @@ import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-fore
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
-import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
+import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -94,17 +95,14 @@ interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
   onCollectChart?: () => void;
-  onZrClick?: (event: ZrClickEvent) => void;
-  onDimensionsOfSeries?: string[];
-}
-interface IChartWrapperEvent {
-  onChartCheck: boolean;
-  onCollapse: boolean;
-  onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
   onDblClick?: () => void;
   onZrClick?: (event: ZrClickEvent) => void;
+  onDimensionsOfSeries?: string[];
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
 }
+
 @Component({
   components: {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
@@ -220,7 +218,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
    * @param {*}
    */
   @Emit('collectChart')
-  handleCollectChart() {}
+  handleCollectChart(v) {
+    return v;
+  }
   /**
    * @description: 关闭查看大图弹窗
    */
@@ -250,6 +250,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Emit('zrClick')
   handleZrClick(event: ZrClickEvent) {
     return event;
+  }
+  @Emit('menuClick')
+  handleMenuClick(data) {
+    return data;
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -570,13 +574,38 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           />
         );
       case 'caller-pie-chart':
-        return <ApmCallerPieChart panel={this.panel} />;
+        return (
+          <ApmCallerPieChart
+            panel={this.panel}
+            onMenuClick={this.handleMenuClick}
+          />
+        );
       case 'caller-bar-chart':
-        return <ApmCallerBarChart panel={this.panel} />;
+        return (
+          <ApmCallerBarChart
+            panel={this.panel}
+            onMenuClick={this.handleMenuClick}
+          />
+        );
 
       case 'apm_custom_graph':
         return (
           <ApmCustomGraph
+            clearErrorMsg={this.handleClearErrorMsg}
+            isSingleChart={this.isSingleChart}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+          />
+        );
+      case 'k8s_custom_graph':
+        return (
+          <K8sCustomGraph
             clearErrorMsg={this.handleClearErrorMsg}
             isSingleChart={this.isSingleChart}
             panel={this.panel}

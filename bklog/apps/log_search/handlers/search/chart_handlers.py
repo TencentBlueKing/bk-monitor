@@ -40,7 +40,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_local_param
+from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 
 
@@ -225,4 +225,12 @@ class SQLChartHandler(ChartHandler):
             "select_fields_order": result_data["data"]["select_fields_order"],
             "result_schema": result_schema,
         }
+        # 记录doris日志
+        logger.info(
+            "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+            get_request_username(),
+            sql.replace("\n", " "),
+            result_data["data"]["totalRecords"],
+            result_data["data"]["timetaken"],
+        )
         return data

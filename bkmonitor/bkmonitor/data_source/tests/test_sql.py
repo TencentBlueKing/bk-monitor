@@ -32,15 +32,15 @@ class TestSQL(object):
 
     def test_select(self):
         qs = self.q_obj.table("2_system_cpu_summary").values("usage")
-        assert str(qs.query) == "SELECT usage FROM 2_system_cpu_summary"
+        assert str(qs.query) == "SELECT `usage` FROM 2_system_cpu_summary"
 
     def test_group_by(self):
         qs = self.q_obj.table("2_system_cpu_summary").group_by("usage")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary GROUP BY usage"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary GROUP BY `usage`"
 
     def test_order_by(self):
         qs = self.q_obj.table("2_system_cpu_summary").order_by("usage")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary ORDER BY usage"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary ORDER BY `usage`"
 
     def test_order_by_desc(self):
         qs = self.q_obj.table("2_system_cpu_summary").order_by("usage desc")
@@ -63,47 +63,47 @@ class TestComplexQuerySQL(object):
 
     def test_single_condition(self):
         qs = self.q_obj.filter(ip="127.0.0.1")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1"
 
     def test_multi_condition(self):
         qs = self.q_obj.filter(ip="127.0.0.1").filter(bk_cloud_id="0")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1 AND bk_cloud_id = 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1 AND `bk_cloud_id` = 0"
 
     def test_single_q_condition(self):
         qs = self.q_obj.filter(Q(ip="127.0.0.1"))
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1"
 
     def test_multi_q_condition(self):
         qs = self.q_obj.filter(Q(ip="127.0.0.1")).filter(Q(bk_cloud_id="0"))
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1 AND bk_cloud_id = 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1 AND `bk_cloud_id` = 0"
 
     def test_q_or_q_condition(self):
         qs = self.q_obj.filter(Q(ip="127.0.0.1") | Q(ip="127.0.0.2"))
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1 OR ip = 127.0.0.2"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1 OR `ip` = 127.0.0.2"
 
     def test_q_and_q_condition(self):
         qs = self.q_obj.filter(Q(ip="127.0.0.1") & Q(bk_cloud_id="0"))
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1 AND bk_cloud_id = 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1 AND `bk_cloud_id` = 0"
 
     def test_q_nested_condition(self):
         qs = self.q_obj.filter(Q(ip="127.0.0.1", bk_cloud_id="0") | Q(ip="127.0.0.2", bk_cloud_id=0))
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (bk_cloud_id = 0 AND ip = 127.0.0.1) OR (bk_cloud_id = 0 AND ip = 127.0.0.2)"
+            "WHERE (`bk_cloud_id` = 0 AND `ip` = 127.0.0.1) OR (`bk_cloud_id` = 0 AND `ip` = 127.0.0.2)"
         )
 
     def test_q_nested_q_condition(self):
         qs = self.q_obj.filter(Q(Q(ip="127.0.0.1") & Q(bk_cloud_id="0")) | Q(Q(ip="127.0.0.2") & Q(bk_cloud_id=0)))
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (ip = 127.0.0.1 AND bk_cloud_id = 0) OR (ip = 127.0.0.2 AND bk_cloud_id = 0)"
+            "WHERE (`ip` = 127.0.0.1 AND `bk_cloud_id` = 0) OR (`ip` = 127.0.0.2 AND `bk_cloud_id` = 0)"
         )
 
     def test_q_nested_q_and_q_condition(self):
         qs = self.q_obj.filter(Q(Q(ip="127.0.0.1") | Q(ip="127.0.0.2"))).filter(Q(bk_cloud_id=2))
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (ip = 127.0.0.1 OR ip = 127.0.0.2) AND bk_cloud_id = 2"
+            "WHERE (`ip` = 127.0.0.1 OR `ip` = 127.0.0.2) AND `bk_cloud_id` = 2"
         )
 
 
@@ -134,35 +134,35 @@ class TestLookupCondition(object):
 
     def test_default_lookup(self):
         qs = self.q_obj.filter(ip="127.0.0.1")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1"
 
     def test_exact_lookup(self):
         qs = self.q_obj.filter(ip="127.0.0.1")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1"
 
     def test_eq_lookup(self):
         qs = self.q_obj.filter(ip__eq="127.0.0.1")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip = 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` = 127.0.0.1"
 
     def test_neq_lookup(self):
         qs = self.q_obj.filter(ip__neq="127.0.0.1")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip != 127.0.0.1"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` != 127.0.0.1"
 
     def test_gt_lookup(self):
         qs = self.q_obj.filter(bk_cloud_id__gt=0)
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE bk_cloud_id > 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `bk_cloud_id` > 0"
 
     def test_gte_lookup(self):
         qs = self.q_obj.filter(bk_cloud_id__gte=0)
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE bk_cloud_id >= 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `bk_cloud_id` >= 0"
 
     def test_lt_lookup(self):
         qs = self.q_obj.filter(bk_cloud_id__lt=0)
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE bk_cloud_id < 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `bk_cloud_id` < 0"
 
     def test_lte_lookup(self):
         qs = self.q_obj.filter(bk_cloud_id__lte=0)
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE bk_cloud_id <= 0"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `bk_cloud_id` <= 0"
 
     # def test_in_lookup(self):
     #     qs = self.q_obj.filter(ip__in=0)
@@ -170,27 +170,27 @@ class TestLookupCondition(object):
 
     def test_contains_lookup(self):
         qs = self.q_obj.filter(ip__contains="123")
-        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE ip LIKE %123%"
+        assert str(qs.query) == "SELECT * FROM 2_system_cpu_summary WHERE `ip` LIKE %123%"
 
     def test_eq_neq_value_list_lookup(self):
         qs = self.q_obj.filter(a=[1, 2, 3], b=3).filter(**{"c__neq": [4, 5], "d__eq": [6, 7]})
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (a = 1 OR a = 2 OR a = 3) AND b = 3 AND (c != 4 AND c != 5) AND (d = 6 OR d = 7)"
+            "WHERE (`a` = 1 OR `a` = 2 OR `a` = 3) AND `b` = 3 AND (`c` != 4 AND `c` != 5) AND (`d` = 6 OR `d` = 7)"
         )
 
     def test_gt_lt_value_list_lookup(self):
         qs = self.q_obj.filter(a=[1, 2, 3], b=3).filter(**{"c__gt": [4, 5], "d__lt": [6, 7]})
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (a = 1 OR a = 2 OR a = 3) AND b = 3 AND c > 5 AND d < 6"
+            "WHERE (`a` = 1 OR `a` = 2 OR `a` = 3) AND `b` = 3 AND `c` > 5 AND `d` < 6"
         )
 
     def test_gte_lte_value_list_lookup(self):
         qs = self.q_obj.filter(a=[1, 2, 3], b=3).filter(**{"c__gte": [4, 5], "d__lte": [6, 7]})
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (a = 1 OR a = 2 OR a = 3) AND b = 3 AND c >= 5 AND d <= 6"
+            "WHERE (`a` = 1 OR `a` = 2 OR `a` = 3) AND `b` = 3 AND `c` >= 5 AND `d` <= 6"
         )
 
 
@@ -213,10 +213,10 @@ class TestSpecialCondition(object):
             .values("usage", "bk_cloud_id", "ip")
         )
         assert (
-            str(qs.query) == "SELECT usage, bk_cloud_id, ip "
+            str(qs.query) == "SELECT `usage`, `bk_cloud_id`, `ip` "
             "FROM 2_system_cpu_summary "
-            "WHERE (bk_cloud_id = 0 AND ip = 127.0.0.1) AND time > 5m "
-            "GROUP BY bk_cloud_id, ip "
+            "WHERE (`bk_cloud_id` = 0 AND `ip` = 127.0.0.1) AND `time` > 5m "
+            "GROUP BY `bk_cloud_id`, `ip` "
             "ORDER BY time desc "
             "LIMIT 1"
         )

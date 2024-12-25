@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
+from django.http import HttpRequest
 from django.urls import Resolver404, resolve
 from opentelemetry.trace import Span, Status, StatusCode
 
@@ -17,7 +18,7 @@ from bkmonitor.trace.utils import MAX_PARAMS_SIZE, jsonify
 from core.errors import Error
 
 
-def request_hook(span: Span, request):
+def request_hook(span: Span, request: HttpRequest):
     """将请求中的 GET、BODY 参数记录在 span 中"""
 
     if not request:
@@ -25,16 +26,15 @@ def request_hook(span: Span, request):
     try:
         if getattr(request, "FILES", None) and request.method.upper() == "POST":
             # 请求中如果包含了文件 不取 Body 内容
-            carrier = request.POST
+            carrier = jsonify(request.POST)
         else:
-            carrier = request.body
+            carrier = request.body.decode("utf-8")
     except Exception:  # noqa
-        carrier = {}
+        carrier = ""
 
-    body_str = jsonify(carrier) if carrier else ""
     param_str = jsonify(dict(request.GET)) if request.GET else ""
 
-    span.set_attribute("request.body", body_str[:MAX_PARAMS_SIZE])
+    span.set_attribute("request.body", carrier[:MAX_PARAMS_SIZE])
     span.set_attribute("request.params", param_str[:MAX_PARAMS_SIZE])
 
 

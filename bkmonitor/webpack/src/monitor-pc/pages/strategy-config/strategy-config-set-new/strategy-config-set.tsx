@@ -322,6 +322,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   };
   /* ui 转 promql 的报错信息 */
   metricDataErrorMsg = '';
+  /* 指标类型，分为主机、服务实例、NONE */
   metricTipType = '';
   monitorDataEditMode: EditModeType = 'Edit';
   // 将切换至ui模式
@@ -640,12 +641,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
         // promql
-        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
+        if (metric.mode === 'code' || metric.data?.[0]?.promql || metric.query_configs?.[0].promql) {
           await this.$nextTick();
+          const promql = metric.data?.[0]?.promql || metric.query_configs?.[0].promql || '';
+          const step = metric.data?.[0]?.step || metric.query_configs?.[0].interval || 60;
           this.monitorDataEditMode = 'Source';
-          this.sourceData.sourceCode = metric.data[0]?.promql || '';
-          this.sourceData.sourceCodeCache = metric.data[0]?.promql || '';
-          this.sourceData.step = metric.data[0]?.step === 'auto' ? 60 : metric.data[0]?.step || 60;
+          this.sourceData.sourceCode = promql;
+          this.sourceData.sourceCodeCache = promql;
+          this.sourceData.step = step;
           return;
         }
       } catch (e) {
@@ -1668,7 +1671,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.metricTipType = '';
     if (!this.target.length) return false;
     // 如果 metricData 不存在或第一个元素的 metric_type 不是 TimeSeries，则不显示提示。
-    if (this.metricData?.[0]?.metric_type !== MetricType.TimeSeries) return false;
+    if (this.metricData?.[0]?.data_type_label !== MetricType.TimeSeries) return false;
     // 如果当前的编辑模式不是 'Edit'，则不显示提示。
     if (this.monitorDataEditMode !== 'Edit') return false;
     let hasRelevantDimension = false;
@@ -1694,6 +1697,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   async handleValidateStrategyConfig() {
     let validate = true;
     if (this.showMerticMessageTip()) {
+      // 聚焦至tips上
+      this.$nextTick(() => {
+        const targetElement = document.getElementById('ip-dimension-tip');
+        targetElement?.focus();
+      });
       return false;
     }
     if (this.monitorDataEditMode === 'Source') {
@@ -2402,6 +2410,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {EditModeType} mode
    */
   async handleEditModeChange({ mode }: { mode: EditModeType; hasError: boolean }) {
+    // 切换指标的编辑模式时，警告有则消失
+    if (this.metricTipType) {
+      this.metricTipType = '';
+    }
     if (mode === 'Source') {
       if (this.metricData.every(item => item.isNullMetric)) {
         this.sourceData.sourceCode = '';
