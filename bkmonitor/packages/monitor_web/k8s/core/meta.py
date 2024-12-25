@@ -15,7 +15,7 @@ from django.utils.functional import cached_property
 from apm_web.utils import get_interval_number
 from bkmonitor.models import BCSContainer, BCSPod, BCSWorkload
 from core.drf_resource import resource
-from monitor_web.k8s.core.filters import load_resource_filter
+from monitor_web.k8s.core.filters import ContainerFilter, load_resource_filter
 
 
 class FilterCollection(object):
@@ -97,6 +97,10 @@ class K8sResourceMeta(object):
     column_mapping = {}
     only_fields = []
 
+    @property
+    def resource_field_list(self):
+        return [self.resource_field]
+
     def __init__(self, bk_biz_id, bcs_cluster_id):
         """
         初始化时还会实例化一个 FilterCollection()
@@ -159,7 +163,8 @@ class K8sResourceMeta(object):
         return list(resource_map.values())
 
     def get_resource_name(self, series):
-        return series["dimensions"][self.resource_field]
+        meta_field_list = [series["dimensions"][field] for field in self.resource_field_list]
+        return ":".join(meta_field_list)
 
     def clean_resource_obj(self, obj, series):
         dimensions = series["dimensions"]
@@ -344,11 +349,15 @@ class K8sContainerMeta(K8sResourceMeta):
     column_mapping = {"workload_kind": "workload_type", "container_name": "name"}
     only_fields = ["name", "namespace", "pod_name", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
-    default_filter_string = 'container_name!="POD"'
+    @property
+    def resource_field_list(self):
+        return ["pod_name", self.resource_field]
 
     @property
     def meta_prom(self):
-        filter_string = ",".join([self.filter.filter_string(), self.default_filter_string])
+        filter_string = self.filter.filter_string()
+        if ContainerFilter.default_filter_string not in filter_string:
+            filter_string = ",".join([self.filter.filter_string(), ContainerFilter.default_filter_string])
         return (
             f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
             f"(rate(container_cpu_system_seconds_total{{{filter_string}}}[1m]))"
