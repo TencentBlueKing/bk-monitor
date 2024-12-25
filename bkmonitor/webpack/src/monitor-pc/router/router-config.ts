@@ -200,16 +200,14 @@ export const getRouteConfig = () => {
               id: 'k8s',
               path: '/k8s',
               href: '#/k8s',
-              // isBeta: window.platform?.te === false,
               canStore: true,
             },
             {
-              name: 'New K8S',
+              name: 'Kubernetes',
               icon: 'icon-monitor icon-mc-mainboard menu-icon',
               id: 'k8s-new',
               path: '/k8s-new',
               href: '#/k8s-new',
-              // isBeta: window.platform?.te === false,
               canStore: true,
             },
             {
