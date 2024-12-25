@@ -74,9 +74,13 @@ export default defineComponent({
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
 
-    useResizeObserve(refRootElement, entry => {
-      editorConfig.value.height = entry.target?.offsetHeight ?? 400;
-    });
+    useResizeObserve(
+      refRootElement,
+      entry => {
+        editorConfig.value.height = entry.target?.offsetHeight ?? 400;
+      },
+      60,
+    );
 
     const requestId = 'graphAnalysis_searchSQL';
 

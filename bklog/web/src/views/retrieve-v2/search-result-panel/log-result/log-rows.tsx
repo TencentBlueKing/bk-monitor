@@ -664,15 +664,16 @@ export default defineComponent({
         return;
       }
 
+      if (pageIndex.value * pageSize.value < tableDataSize.value) {
+        isRequesting.value = true;
+        pageIndex.value++;
+        const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+        setRenderList(maxLength, debounceSetLoading);
+        return;
+      }
+
       if (totalCount.value > tableList.value.length) {
         isRequesting.value = true;
-
-        if (pageIndex.value * pageSize.value < tableDataSize.value) {
-          pageIndex.value++;
-          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength, debounceSetLoading);
-          return;
-        }
 
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           pageIndex.value++;

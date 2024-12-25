@@ -227,9 +227,13 @@
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
   });
 
-  useResizeObserve(GLOBAL_SCROLL_SELECTOR, entry => {
-    scrollContainerHeight.value = entry.target.offsetHeight;
-  });
+  useResizeObserve(
+    GLOBAL_SCROLL_SELECTOR,
+    entry => {
+      scrollContainerHeight.value = entry.target.offsetHeight;
+    },
+    0,
+  );
 
   const favoritesStlye = computed(() => {
     const height = scrollContainerHeight.value - subBarHeight.value;
