@@ -124,7 +124,9 @@ export default defineComponent({
       return count;
     });
 
-    const hasMoreList = computed(() => totalCount.value > tableList.value.length);
+    const hasMoreList = computed(
+      () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
+    );
 
     const intersectionArgs: Ref<RowProxyData> = ref({});
     const rowProxy: RowProxyData = {};
