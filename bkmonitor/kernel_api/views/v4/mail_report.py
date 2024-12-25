@@ -199,13 +199,21 @@ class RenderImageResource(Resource):
             return attrs
 
     def perform_request(self, params):
+        # 尝试获取当前用户
+        request = get_request(peaceful=True)
+        if request:
+            username = request.user.username
+        else:
+            username = "system"
+
         task = RenderImageTask.objects.create(
             type=params["type"],
             options=params["options"],
             status=RenderImageTask.Status.PENDING,
+            username=username,
         )
         render_image_task.delay(task)
-        return str(task.task_id)
+        return {"task_id": str(task.task_id)}
 
 
 class GetRenderImageResource(Resource):

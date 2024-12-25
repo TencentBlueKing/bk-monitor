@@ -152,6 +152,7 @@ class RenderImageTask(Model):
     type = models.CharField(verbose_name="类型", max_length=128, choices=TYPE)
     status = models.CharField(verbose_name="状态", max_length=128, choices=STATUS)
     error = models.TextField(verbose_name="错误信息", default="")
+    username = models.CharField(verbose_name="用户名", max_length=128, default="")
 
     class Meta:
         verbose_name = "渲染图片任务"
