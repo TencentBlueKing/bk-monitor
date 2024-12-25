@@ -25,8 +25,8 @@ class RenderDashboardConfig:
     height: int
     panel_id: Optional[str] = None
     variables: Dict[str, List[str]] = field(default_factory=dict)
-    from_time: int = field(default_factory=lambda: int(time.time() - 10800))
-    to_time: int = field(default_factory=lambda: int(time.time()))
+    start_time: int = field(default_factory=lambda: int(time.time() - 10800))
+    end_time: int = field(default_factory=lambda: int(time.time()))
     # 是否需要标题，仅单个图表渲染时需要
     with_panel_title: bool = True
     # 像素比，默认为2，越大越清晰，但是图片大小也越大，最大值为4
@@ -51,7 +51,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
         variables_str = f"&{variables_str}"
 
     # 生成时间url参数
-    time_str = f"&from={config.from_time*1000}&to={config.to_time*1000}"
+    time_str = f"&from={config.start_time*1000}&to={config.end_time*1000}"
 
     # 生成仪表盘链接
     prefix = "http://bk-monitor-api/grafana/"

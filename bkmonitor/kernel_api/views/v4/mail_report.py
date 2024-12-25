@@ -199,9 +199,13 @@ class RenderImageResource(Resource):
             return attrs
 
     def perform_request(self, params):
-        task = RenderImageTask.objects.create(**params)
+        task = RenderImageTask.objects.create(
+            type=params["type"],
+            options=params["options"],
+            status=RenderImageTask.Status.PENDING,
+        )
         render_image_task.delay(task)
-        return task.task_id
+        return str(task.task_id)
 
 
 class GetRenderImageResource(Resource):
