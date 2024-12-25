@@ -367,6 +367,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     if (this.hideMetrics.includes(metricId) || !metricId) return;
     this.activeTab = K8sNewTabEnum.CHART;
     this.activeMetricId = metricId;
+    setTimeout(() => {
+      this.activeMetricId = '';
+    }, 3000);
   }
 
   handleClusterChange(cluster: string) {

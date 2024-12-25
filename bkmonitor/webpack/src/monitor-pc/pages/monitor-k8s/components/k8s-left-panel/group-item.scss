@@ -77,11 +77,6 @@
       justify-content: space-between;
       height: 32px;
       padding: 0 7px 0 24px;
-      cursor: pointer;
-
-      &:hover {
-        background-color: #f1f7ff;
-      }
 
       &.active {
         .content-name {
