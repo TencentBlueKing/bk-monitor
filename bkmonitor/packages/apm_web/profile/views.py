@@ -189,9 +189,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 data_type=sample_type,
                 end=end,
             )
-            deep_flow_converter = DeepFlowConverter()
-            deep_flow_converter.convert(raw=profile_data, data_type=sample_type)
-            return deep_flow_converter
+            deepflow_converter = DeepFlowConverter()
+            deepflow_converter.convert(raw=profile_data, data_type=sample_type)
+            return deepflow_converter
 
     @staticmethod
     def query(
@@ -316,7 +316,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
         elif validated_data["is_ebpf"]:
-            cluster_id = validated_data["cluster_id"]
+            cluster_id = validated_data["app_name"]
             service_name = validated_data["service_name"]
             bk_biz_id = validated_data["bk_biz_id"]
             return {
@@ -352,7 +352,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
-        
+
         return data, essentials, extra_params
 
     @classmethod
@@ -378,7 +378,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             del validate_data["filter_labels"]["end"]
         else:
             start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
-        
+
         ebpf_type = validate_data.get("ebpf_type", "")
         if validate_data["is_ebpf"]:
             return cls.ebpf_query(
@@ -452,7 +452,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
         tree_converter = self.converter_query(essentials, validate_data, extra_params)
-
         if validate_data["global_query"] and not tree_converter:
             # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
             # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
@@ -499,7 +498,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
             data.update(tree_converter.get_sample_type())
             return Response(data=data)
-          
+
         return Response(data=self.converter_to_data(validate_data, tree_converter))
 
     @classmethod

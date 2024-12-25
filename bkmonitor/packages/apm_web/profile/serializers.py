@@ -71,8 +71,6 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
     is_ebpf = serializers.BooleanField(label="是否打开 ebpf 开关", required=False, default=False)
-    cluster_id = serializers.CharField(label="deepflow 对应的部署集群 ID", required=False)
-    service_name = serializers.CharField(label="要查询的 deepflow app_service", required=False)
     ebpf_type = serializers.CharField(label="ebpf 类型", required=False)
 
 
