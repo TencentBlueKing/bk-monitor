@@ -96,8 +96,7 @@ class TreeConverter:
                     # 1. 构造树
                     if node_id in parent.children:
                         node = parent.children.get(node_id)
-                        if node_id not in visited_node:
-                            node.add_value(value)
+                        node.add_value(value)
                         parent = node
                     else:
                         node = FunctionNode(
