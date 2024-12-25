@@ -477,6 +477,18 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
+    } else if (navId === 'k8s' || navId === 'k8s-new') {
+      setTimeout(async () => {
+        await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+          if (hasAuth) {
+            this.routeViewKey = random(10);
+            this.$router.push({ name: navId === 'k8s' ? 'k8s-new' : 'k8s' });
+          }
+        });
+        window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
+        this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+        return;
+      });
     } else {
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
         if (hasAuth) {
