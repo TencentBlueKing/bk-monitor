@@ -120,7 +120,6 @@
               <div class="fields-setting-container">
                 <fields-setting
                   v-if="showFieldsSetting"
-                  v-on="$listeners"
                   :field-alias-map="fieldAliasMap"
                   :retrieve-params="retrieveParams"
                   @cancel="cancelModifyFields"

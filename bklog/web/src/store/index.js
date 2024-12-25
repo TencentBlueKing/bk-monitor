@@ -757,6 +757,7 @@ const store = new Vuex.Store({
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+
       if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
@@ -1049,7 +1050,7 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
-          commit('resetVisibleFields');
+          commit('resetVisibleFields', res.data.display_fields);
           commit('resetIndexSetOperatorConfig');
           commit('updateIsSetDefaultTableColumn');
           return res;
@@ -1279,6 +1280,8 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfigList', {
             data: resp.data ?? [],
           });
+
+          return resp;
         })
         .finally(() => {
           commit('updateIndexSetFieldConfigList', {
