@@ -854,15 +854,20 @@ class ServiceListResource(PageListResource):
 
             return res
 
-    def _get_filter_fields_by_services(self, services):
+    def _get_filter_fields_by_services(self, services, mode=None):
         """根据服务数据获取筛选项目"""
-        fields = [
-            self.StatisticsCategory,
-            self.StatisticsLanguage,
-            self.StatisticsApplyModule,
-            self.StatisticsHaveData,
-            self.Labels,
-        ]
+        field_groups = {
+            "sync": [
+                self.StatisticsCategory,
+                self.StatisticsLanguage,
+                self.Labels,
+            ],
+            "async": [
+                self.StatisticsApplyModule,
+                self.StatisticsHaveData,
+            ],
+        }
+        fields = field_groups.get(mode) or [field for group in field_groups.values() for field in group]
         res = []
         for f in fields:
             res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
@@ -908,6 +913,7 @@ class ServiceListResource(PageListResource):
 
         # 1. 获取服务列表
         services = ServiceHandler.list_services(application)
+        service_names = [i["topo_key"] for i in services]
 
         # 主动更新一下缓存，防止出现服务数和缓存里数量不一致的问题
         # 这里通过 update 方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
@@ -919,8 +925,27 @@ class ServiceListResource(PageListResource):
         collects = CollectServiceResource.get_collect_config(application).config_value
 
         res = []
+        data_status_mapping = {}
+        # 如果存在数据状态相关的filter筛选, 加载data_status数据
+        field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
+        if not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
+            data_status_list = (
+                ServiceListAsyncResource()
+                .perform_request(
+                    validated_data={
+                        "bk_biz_id": validate_data["bk_biz_id"],
+                        "app_name": validate_data["app_name"],
+                        "start_time": validate_data["start_time"],
+                        "end_time": validate_data["end_time"],
+                        "column": "data_status",
+                        "service_names": service_names,
+                    }
+                )
+                .get("data", [])
+            )
+            data_status_mapping = {data_status["service_name"]: data_status for data_status in data_status_list}
         labels_mapping = group_by(
-            ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
+            ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, service_names, "labels"),
             operator.attrgetter("level_key"),
         )
         for service in services:
@@ -933,30 +958,46 @@ class ServiceListResource(PageListResource):
                 labels = json.loads(
                     labels_mapping[ApmMetaConfig.get_service_level_key(bk_biz_id, app_name, name)][0].config_value,
                 )
-            res.append(
-                {
-                    "app_name": application.app_name,
-                    "collect": name in collects,
-                    "service_name": name,
-                    "type": CategoryCachedEnum.from_value(service["extra_data"]["category"]).label,
-                    "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "operation": {
-                        "config": _lazy("配置"),
-                    },
-                    # category 附加数据 不显示
-                    "category": service["extra_data"]["category"],
-                    # kind 附加数据 不显示
-                    "kind": service["extra_data"]["kind"],
-                    "labels": labels,
-                }
-            )
+            res_item = {
+                "app_name": application.app_name,
+                "collect": name in collects,
+                "service_name": name,
+                "type": CategoryCachedEnum.from_value(service["extra_data"]["category"]).label,
+                "language": service["extra_data"]["service_language"] or _("其他语言"),
+                "operation": {
+                    "config": _lazy("配置"),
+                },
+                # category 附加数据 不显示
+                "category": service["extra_data"]["category"],
+                # kind 附加数据 不显示
+                "kind": service["extra_data"]["kind"],
+                "labels": labels,
+            }
+            if data_status_mapping:
+                res_item.update(
+                    {
+                        "metric_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.METRIC.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "log_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.LOG.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "trace_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.TRACE.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "profiling_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.PROFILING.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                    }
+                )
+            res.append(res_item)
 
         filter_fields = []
         # 获取顶部过滤项 (服务 tab 页)
         if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
             filter_fields = CategoryCachedEnum.get_filter_fields()
         elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
-            filter_fields = self._get_filter_fields_by_services(res)
+            filter_fields = self._get_filter_fields_by_services(res, mode="sync")
 
         if validate_data["field_conditions"]:
             res = self._filter_by_fields(res, validate_data["field_conditions"])
@@ -995,8 +1036,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         "strategy_count": {},
         # alert_status 特殊处理
         "alert_status": {},
-        # data_status 特殊处理
+        # data_status相关 特殊处理
         "data_status": {},
+        "metric_data_status": {},
+        "log_data_status": {},
+        "trace_data_status": {},
+        "profiling_data_status": {},
     }
 
     SyncResource = ServiceListResource
@@ -1006,6 +1051,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         service_names = serializers.ListSerializer(child=serializers.CharField(), default=[], label="服务列表")
         start_time = serializers.IntegerField(required=True, label="数据开始时间")
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
+        filter_keys = serializers.ListSerializer(child=serializers.CharField(), default=[], label="异步加载的过滤器类表")
 
     @classmethod
     def _get_column_metric_mapping(cls, column_metric, metric_params):
@@ -1050,9 +1096,16 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         return service_names
 
     @classmethod
-    def _get_data_status_mapping(cls, service_names, application, **kwargs):
+    def _get_data_status_mapping(cls, service_names, application, **kwargs) -> tuple:
         """获取服务的数据状态"""
         # 先获取缓存数据
+        data_status_type = kwargs.get("data_status_type")
+        filter_keys = kwargs.get("filter_keys", [])
+        filter_fields = []
+        # 需要异步加载数据状态filter时, 全量查询，设置缓存
+        fetch_service_names = service_names
+        if filter_keys:
+            fetch_service_names = [i["topo_key"] for i in ServiceHandler.list_services(application)]
         cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
         data_status_mapping = cache.get(cache_key)
         if data_status_mapping:
@@ -1068,11 +1121,40 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
                 application,
                 start_time,
                 end_time,
-                [{"topo_key": service_name} for service_name in service_names],
+                [{"topo_key": service_name} for service_name in fetch_service_names],
+                data_status_type=data_status_type,
             )
-            cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
+            if filter_keys:
+                cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
 
-        return data_status_mapping
+        if data_status_type:
+            filtered_mapping = {}
+            for service_name, status_mapping in data_status_mapping.items():
+                filtered_mapping[service_name] = status_mapping[data_status_type]
+            data_status_mapping = filtered_mapping
+
+        if filter_keys:
+            res = []
+            for name in fetch_service_names:
+                res.append(
+                    {
+                        "metric_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.METRIC.value, DataStatus.DISABLED
+                        ),
+                        "log_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.LOG.value, DataStatus.DISABLED
+                        ),
+                        "trace_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.TRACE.value, DataStatus.DISABLED
+                        ),
+                        "profiling_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.PROFILING.value, DataStatus.DISABLED
+                        ),
+                    }
+                )
+            filter_fields = ServiceListResource()._get_filter_fields_by_services(res, mode="async")  #
+
+        return data_status_mapping, filter_fields
 
     @classmethod
     def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
@@ -1149,12 +1231,14 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             column, {}
         )
 
-    def perform_request(self, validated_data):
+    def perform_request(self, validated_data) -> dict:
+        result_data = {"data": []}
         column = validated_data["column"]
-        res = []
         if column not in self.METRIC_MAP or not validated_data.get("service_names"):
-            return res
+            return result_data
 
+        res = []
+        filter_fields = []
         m: Dict = self.METRIC_MAP[column]
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
         metric_params = {
@@ -1165,16 +1249,26 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
 
         multi_sub_columns = None
         default_value = None
+        service_names = validated_data["service_names"]
+        filter_keys = validated_data.get("filter_keys", [])
+
         if column in ["data_status"]:
-            info_mapping = self._get_data_status_mapping(validated_data["service_names"], **metric_params)
+            info_mapping, filter_fields = self._get_data_status_mapping(
+                service_names, filter_keys=filter_keys, **metric_params
+            )
             multi_sub_columns = TelemetryDataType.values()
             default_value = DataStatus.DISABLED
+        elif column in [f"{data_type}_data_status" for data_type in TelemetryDataType.values()]:
+            data_status_type = column.split("_data_status")[0]
+            info_mapping, filter_fields = self._get_data_status_mapping(
+                service_names, data_status_type=data_status_type, **metric_params
+            )
         elif column in ["strategy_count", "alert_status"]:
             info_mapping = self._get_service_strategy_mapping(column, **metric_params)
         else:
             info_mapping = self._get_column_metric_mapping(m, metric_params)
 
-        for service_name in validated_data["service_names"]:
+        for service_name in service_names:
             res.append(
                 {
                     "service_name": service_name,
@@ -1189,7 +1283,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         multi_output_columns = (
             [f"{sub_column}_{column}" for sub_column in multi_sub_columns] if multi_sub_columns else None
         )
-        return self.get_async_data(res, validated_data["column"], multi_output_columns=multi_output_columns)
+        result_data["data"] = self.get_async_data(
+            res, validated_data["column"], multi_output_columns=multi_output_columns
+        )
+        if filter_fields:
+            result_data["filter"] = filter_fields
+        return result_data
 
 
 class CollectServiceResource(Resource):

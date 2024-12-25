@@ -40,35 +40,11 @@
       &.field-list-show {
         .monitor-echarts-container {
           .title-wrapper-new {
+            width: 100%;
             margin-left: 0;
           }
         }
       }
-
-      // &::before {
-      //   position: absolute;
-      //   top: 0;
-      //   bottom: 0;
-      //   left: 0;
-      //   z-index: 1;
-      //   width: 500px;
-      //   content: '';
-      //   background-color: #f4f7fa;
-      //   box-shadow: 1px 0 0 0 #eaebf0;
-      //   transform: translateX(-100%);
-      // }
-
-      // &::after {
-      //   position: absolute;
-      //   top: 0;
-      //   right: 0;
-      //   bottom: 0;
-      //   z-index: 1;
-      //   width: 10px;
-      //   content: '';
-      //   background-color: #fff;
-      //   transform: translateX(100%);
-      // }
     }
   }
 }
