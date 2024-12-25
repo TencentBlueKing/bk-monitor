@@ -757,6 +757,7 @@ const store = new Vuex.Store({
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+
       if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
@@ -1279,6 +1280,8 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfigList', {
             data: resp.data ?? [],
           });
+
+          return resp;
         })
         .finally(() => {
           commit('updateIndexSetFieldConfigList', {

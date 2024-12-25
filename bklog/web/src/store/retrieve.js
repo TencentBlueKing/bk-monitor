@@ -84,7 +84,7 @@ export default {
         state.catchFieldCustomConfig,
         {
           fieldsWidth: {},
-          displayFields: {},
+          displayFields: [],
           filterSetting: {
             filterFields: [],
           },
