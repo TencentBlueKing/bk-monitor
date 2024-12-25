@@ -1264,6 +1264,28 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/render_image/render/
+  is_hidden: true
+  label: 启动渲染图片任务
+  label_en: start render image task
+  name: start_render_image_task
+  path: /v2/monitor_v3/start_render_image_task/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/render_image/result/
+  is_hidden: true
+  label: 获取渲染图片结果
+  label_en: get render image task result
+  name: get_render_image_task_result
+  path: /v2/monitor_v3/get_render_image_task_result/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/new_report/send_report/
   is_hidden: true
   label: 发送订阅报表
