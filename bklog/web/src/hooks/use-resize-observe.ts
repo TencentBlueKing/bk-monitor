@@ -30,10 +30,11 @@ import { debounce, isElement } from 'lodash';
 export default (
   target: (() => HTMLElement | string) | Ref<HTMLElement> | string,
   callbackFn: (entry: ResizeObserverEntry) => void,
+  delayCallback: boolean | number = 120,
 ) => {
   const debounceCallback = debounce(entry => {
     callbackFn?.(entry);
-  }, 120);
+  }, delayCallback);
 
   const getTarget = () => {
     if (typeof target === 'string') {
@@ -69,8 +70,14 @@ export default (
       // 创建一个 ResizeObserver 实例
       resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
-          // 获取元素的新高度
-          debounceCallback(entry);
+          if (delayCallback === false) {
+            callbackFn?.(entry);
+          }
+
+          if (typeof delayCallback === 'number') {
+            // 获取元素的新高度
+            debounceCallback(entry);
+          }
         }
       });
     }

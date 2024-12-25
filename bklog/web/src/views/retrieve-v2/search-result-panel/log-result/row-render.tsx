@@ -54,7 +54,10 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return (
-        <div data-row-index={props.rowIndex}>
+        <div
+          data-row-index={props.rowIndex}
+          class={{ 'is-visible': visible.value }}
+        >
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': !visible.value }]}
@@ -75,9 +78,13 @@ export default defineComponent({
       }
     };
 
-    const { observeElement, stopObserve, destoyResizeObserve } = useResizeObserve(refRowNodeRoot, () => {
-      setParentElementHeight();
-    });
+    const { observeElement, stopObserve, destoyResizeObserve } = useResizeObserve(
+      refRowNodeRoot,
+      () => {
+        setParentElementHeight();
+      },
+      false,
+    );
 
     watch(
       () => [visible.value],

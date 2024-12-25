@@ -320,12 +320,9 @@
     }
   };
 
-  useResizeObserve(
-    refRootElement,
-    debounce(() => {
-      handleHeightChange(refRootElement.value.offsetHeight);
-    }),
-  );
+  useResizeObserve(refRootElement, () => {
+    handleHeightChange(refRootElement.value.offsetHeight);
+  });
 </script>
 <template>
   <div
