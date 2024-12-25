@@ -29,6 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import draggable from 'vuedraggable';
 
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../router/router-config';
+import aiWhaleSrc from '../../../static/images/png/new-page/aiWhale.png';
+import dashboardSrc from '../../../static/images/png/new-page/dashboard.png';
+import retrievalSrc from '../../../static/images/png/new-page/retrieval.png';
+import serviceSrc from '../../../static/images/png/new-page/service.png';
 import HeaderSettingModal from './components/header-setting-modal';
 
 import './my-favorites.scss';
@@ -46,6 +50,11 @@ interface Item {
 }
 
 // const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
+const srcObj = {
+  仪表盘: dashboardSrc,
+  检索: retrievalSrc,
+  服务: serviceSrc,
+};
 
 const recentItems: RecentItems[] = [
   {
@@ -180,7 +189,7 @@ const favoriteItems: RecentItems[] = [
 export default class MyFavorites extends tsc<object> {
   isRecentView = true; // 状态，用于切换视图
   userStoreRoutes = []; // 用户存储的路由
-  selectedCategories = []; // 用户选择的类别
+  selectedCategories = ['仪表盘', '检索']; // 用户选择的类别
   inputValue = ''; // 输入框的值
   isActive = false; // 输入框状态
   showModal = false; // 控制模态框显示
@@ -193,6 +202,8 @@ export default class MyFavorites extends tsc<object> {
     { id: 6, name: '容器服务', checked: true, disabled: false },
   ];
 
+  whaleHeight = 'auto';
+
   // 获取被选中的本地变量名
   get selectedLocalNames() {
     return this.localVarList.filter(item => item.checked).map(item => item.name);
@@ -204,6 +215,12 @@ export default class MyFavorites extends tsc<object> {
     return items.filter(item => this.selectedCategories.includes(item.category));
   }
 
+  categoriesHasTwoRows = false;
+
+  showPlaceholder = true;
+
+  placeholderText = '请输入';
+
   // 计算布局策略
   get rowClass() {
     const strategies = {
@@ -214,6 +231,7 @@ export default class MyFavorites extends tsc<object> {
       5: 'row-3',
       6: 'row-3',
     };
+    this.categoriesHasTwoRows = this.selectedCategories.length > 3;
     return strategies[this.selectedCategories.length] || '';
   }
 
@@ -331,6 +349,44 @@ export default class MyFavorites extends tsc<object> {
     );
   }
 
+  expandTextarea(event) {
+    this.showPlaceholder = false;
+    event.target.style.maxHeight = '96px';
+    event.target.style.overflowY = 'auto';
+    event.target.style.whiteSpace = 'normal';
+  }
+  shrinkTextarea(event) {
+    if (this.categoriesHasTwoRows) return;
+    const content = event.target.innerText.trim();
+    console.log(content);
+    this.showPlaceholder = content === '' || content === this.placeholderText;
+    if (content === '') {
+      event.target.innerText = this.inputValue;
+    }
+    event.target.style.maxHeight = '32px';
+    event.target.style.overflow = 'hidden';
+    event.target.style.whiteSpace = 'nowrap';
+  }
+  handleInput(event) {
+    const content = event.target.innerText.trim();
+    this.showPlaceholder = content === '';
+    if (content === this.inputValue) {
+      event.target.innerText = '';
+    }
+  }
+  handleKeyDonw(event) {
+    if (event.key === 'Enter') {
+      if (!event.shiftKey && !event.ctrlKey) {
+        // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
+        event.preventDefault();
+        // TODO
+      } else {
+        // 在按下 Shift+Enter 或 Ctrl+Enter 时插入换行符
+        document.execCommand('insertLineBreak');
+        event.preventDefault();
+      }
+    }
+  }
   render() {
     return (
       <div class='recent-and-quick-access'>
@@ -355,13 +411,7 @@ export default class MyFavorites extends tsc<object> {
             {this.getCustomize()}
           </div>
           {/* 最近/收藏列表 */}
-          <div
-            class={[
-              'recent-content',
-              this.rowClass,
-              [4, 5, 6].includes(this.selectedCategories.length) ? 'has-line' : '',
-            ]}
-          >
+          <div class={['recent-content', this.rowClass, this.categoriesHasTwoRows ? 'has-line' : '']}>
             {this.itemsToDisplay.map((section, index) => (
               <div
                 key={section.category + index}
@@ -369,7 +419,16 @@ export default class MyFavorites extends tsc<object> {
               >
                 <div class='sub-head'>
                   <div>
-                    <i class={['bk-icon bk-icon icon-search', section.icon]} />
+                    {srcObj[section.category] ? (
+                      <div class='img'>
+                        <img
+                          alt=''
+                          src={srcObj[section.category]}
+                        />
+                      </div>
+                    ) : (
+                      <i class={['bk-icon bk-icon icon-search', section.icon]} />
+                    )}
                     <span class='recent-subtitle'>{section.category}</span>
                   </div>
                   {/* <span class='more'>更多</span> */}
@@ -431,23 +490,33 @@ export default class MyFavorites extends tsc<object> {
                     <span>{this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}</span>
                   </li>
                 ))}
-              {/* AI 小鲸 */}
-              <div class='ai-whale'>
-                <div class='ai-whale-input'>
-                  <bk-input
-                    ext-cls={`${this.selectedCategories.length > 3 ? 'ai-whale-ext' : 'ai-whale-ext-cls'} ${this.isActive ? 'ai-active' : ''}`}
-                    v-model={this.inputValue}
-                    maxlength='255'
-                    placeholder={this.$t('有问题就问小鲸')}
-                    right-icon='icon-monitor icon-search'
-                    rows={this.isActive ? 3 : 1}
-                    type='textarea'
-                    onBlur={() => (this.isActive = false)}
-                    onInput={() => (this.isActive = true)}
-                  />
-                </div>
-              </div>
             </ul>
+          </div>
+          {/* AI 小鲸 */}
+          <div class={`${this.categoriesHasTwoRows ? 'max-height' : ''} ai-whale`}>
+            <div class='editable-div-wrapper'>
+              <div
+                ref='editableDiv'
+                class={{
+                  'editable-div': true,
+                  animated: !this.categoriesHasTwoRows,
+                  'placeholder-visible': this.showPlaceholder,
+                }}
+                contenteditable={true}
+                onBlur={this.shrinkTextarea}
+                onFocus={this.expandTextarea}
+                onInput={this.handleInput}
+                onKeydown={this.handleKeyDonw}
+              >
+                {this.inputValue}
+                {this.showPlaceholder && <span class='placeholder'>{this.placeholderText}</span>}
+              </div>
+              <img
+                class='icon'
+                alt='icon'
+                src={aiWhaleSrc}
+              />
+            </div>
           </div>
         </div>
       </div>

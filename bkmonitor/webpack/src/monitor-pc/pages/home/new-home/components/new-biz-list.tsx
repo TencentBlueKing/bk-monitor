@@ -456,12 +456,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
               return true;
             },
           }}
-          // always={true}
           animation='slide-toggle'
           arrow={false}
-          distance={16}
-          offset={-1}
-          placement='bottom-start'
+          offset={158}
           theme={`${this.theme} common-popover list-${this.theme}`}
           trigger='click'
         >

@@ -52,10 +52,10 @@ export default class RecentAlarmEvents extends tsc<object> {
   };
 
   tabs = [
-    { name: '王者荣耀', content: '这是王者荣耀的相关内容' },
-    { name: '和平精英', content: '这是和平精英的相关内容' },
-    { name: '地下城与勇士', content: '这是地下城与勇士的相关内容' },
-    { name: '金矿矿', content: '这是金矿矿的相关内容' },
+    { name: '王者荣耀', content: [1, 2, 3, 4, 5] },
+    { name: '和平精英', content: [2] },
+    { name: '地下城与勇士', content: [1, 2, 3, 4, 5] },
+    { name: '金矿矿', content: [2, 3, 4, 5, 6, 76, 8] },
   ];
 
   activeTab = this.tabs[0].name; // 默认选中第一个标签
@@ -173,13 +173,23 @@ export default class RecentAlarmEvents extends tsc<object> {
                 placeholder={this.$t('请选择策略')}
                 multiple
                 searchable
+                onSelected={() => {
+                  console.log(this.formData.dir);
+                }}
               >
                 {this.dirList.map(item => (
                   <bk-option
                     id={item.id}
                     key={item.id}
+                    class='add-task-select-ext'
                     name={item.name}
-                  />
+                  >
+                    <div class='strategy-name'>{item.id}</div>
+                    <div class='strategy-status'>
+                      <span class='strategy-tag'>NBA</span>
+                      {this.formData.dir.includes(item.id) && <span class='strategy-selected'>√</span>}
+                    </div>
+                  </bk-option>
                 ))}
               </bk-select>
             </bk-form-item>
@@ -306,6 +316,28 @@ export default class RecentAlarmEvents extends tsc<object> {
     );
   }
 
+  // 列表展示
+  getStrategyList(list) {
+    console.log('list', list, this.activeTab, this.tabs);
+    const add = () => (
+      <div class='add-content list-item'>
+        <i class='icon-mc-add icon-monitor' />
+        <span>{this.$t('新增图表')}</span>
+      </div>
+    );
+    return (
+      <div class='list-content'>
+        {list.map(item => (
+          <div
+            key={item}
+            class='list-item'
+          />
+        ))}
+        {add()}
+      </div>
+    );
+  }
+
   handleChange(id) {
     console.log('id', id);
     this.showAddTaskDialog = true;
@@ -313,8 +345,8 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   render() {
     const activeContent =
-      (this.tabs.find(tab => tab.name === this.activeTab)?.content && this.activeTab !== '王者荣耀') || '';
-
+      (this.tabs.find(tab => tab.name === this.activeTab)?.content.length && this.activeTab !== '王者荣耀') || '';
+    console.log('act', activeContent);
     return (
       <div class='recent-alarm-events'>
         <div class='title'>
@@ -412,9 +444,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         <div class='content'>
           {!activeContent
             ? this.getEmptyContent()
-            : {
-                /* TODO: */
-              }}
+            : this.getStrategyList(this.tabs.filter(item => item.name === this.activeTab)[0].content)}
         </div>
       </div>
     );

@@ -19,12 +19,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 
     .tabs {
       display: flex;
       align-items: center;
-      margin-bottom: 10px;
 
       .tab {
         position: relative;
@@ -35,10 +34,10 @@
         border: 1px solid transparent;
 
         .tab-title {
-          padding: 8px;
+          padding: 8px 8px 9px 8px;
           font-family: MicrosoftYaHei;
           font-size: 14px;
-          line-height: 24px;
+          line-height: 22px;
           color: #4D4F56;
           vertical-align: middle;
           cursor: pointer;
@@ -118,6 +117,48 @@
   }
 
   .content {
+    .list-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 16px;
+      align-items: center;
+
+      .list-item {
+        width: 400px;
+        height: 170px;
+        background: #FFFFFF;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        &:hover {
+          cursor: pointer;
+        }
+      }
+
+      .add-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: MicrosoftYaHei;
+        font-size: 14px;
+        line-height: 22px;
+        color: #3A84FF;
+        text-align: center;
+        background: #F0F5FF;
+        border: 1px dashed #A3C5FD;
+        border-radius: 2px;
+
+        .icon-mc-add {
+          font-size: 22px;
+        }
+
+        &:hover {
+          background: #E1ECFF;
+        }
+      }
+    }
+
     .empty-content {
       .empty-img {
         width: 220px;
@@ -132,7 +173,7 @@
     }
 
     .empty-info {
-      margin-bottom: 24px; 
+      margin-bottom: 24px;
       font-family: MicrosoftYaHei;
       font-size: 14px;
       line-height: 22px;
@@ -206,5 +247,44 @@
         margin-right: 9px;
       }
     }
+  }
+}
+
+.add-task-select-ext {
+  .bk-option-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .strategy-name {
+      font-family: MicrosoftYaHei;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4D4F56;
+    }
+
+    .strategy-status {
+      .strategy-tag {
+        display: inline-block;
+        width: 52px;
+        height: 22px;
+        font-size: 12px;
+        line-height: 22px;
+        color: #4D4F56;
+        text-align: center;
+        background: #F0F1F5;
+        border-radius: 2px;
+      }
+
+      .strategy-selected {
+        color: #3A84FF;
+      }
+    }
+  }
+}
+
+.task-add-dialog-footer {
+  button {
+    margin-left: 8px;
   }
 }

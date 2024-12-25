@@ -11,11 +11,33 @@
   color: #63656e;
 }
 
+// 定义扩展动画
+@keyframes expand {
+  from {
+    max-height: 32px;
+  }
+
+  to {
+    max-height: 96px;
+  }
+}
+
+// 定义收缩动画
+@keyframes shrink {
+  from {
+    max-height: 96px;
+  }
+
+  to {
+    max-height: 32px;
+  }
+}
+
 .recent-and-quick-access {
   display: flex;
   justify-content: space-between;
   width: 1232px;
-  padding: 20px 0;
+  padding-top: 20px;
   margin: 0 auto;
   border-radius: 8px;
 
@@ -87,10 +109,12 @@
     }
 
     .has-line {
+      gap: 27px 0;
+
       &::after {
         position: absolute;
         right: 30px;
-        bottom: 207px;
+        bottom: 252px;
         left: 30px;
         display: block;
         height: 1px;
@@ -102,36 +126,43 @@
     .recent-content {
       display: flex;
       flex-wrap: wrap;
-      height: 100%;
+      height: calc(100% - 36px);
       padding: 24px;
-      padding-bottom: 0px;
       background-color: #fff;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
       .category {
         box-sizing: box-sizing;
-        padding: 6px 8px 6px;
+        padding: 6px 8px 0 8px;
 
         .sub-head {
           display: flex;
           justify-content: space-between;
           padding-left: 8px;
+          margin-bottom: 8px;
 
           .recent-subtitle {
-            width: 42px;
-            height: 22px;
             font-family: MicrosoftYaHei-Bold;
             font-size: 14px;
             font-weight: 700;
-            line-height: 22px;
             color: #313238;
-            letter-spacing: 0;
           }
 
-          .bk-icon {
+          .bk-icon,
+          .img {
             margin-right: 6px;
             font-size: 20px;
+          }
+
+          .img {
+            display: inline-block;
+            width: 20px;
+
+            img {
+              width: 100%;
+              vertical-align: middle;
+            }
           }
 
           .more {
@@ -223,6 +254,7 @@
   }
 
   .quick-access {
+    position: relative;
     width: 240px;
 
     .quick-head {
@@ -256,7 +288,7 @@
       }
 
       .quick-title {
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         font-family: MicrosoftYaHei-Bold;
         font-size: 18px;
         font-weight: 700;
@@ -265,8 +297,10 @@
     }
 
     .quick-list {
-      position: relative;
-      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: calc(100% - 36px);
       padding: 0;
       padding-top: 16px;
       margin: 0;
@@ -276,6 +310,7 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
       .quick-items {
+        flex: 1;
         max-height: 160px;
         overflow: auto;
 
@@ -283,7 +318,7 @@
           padding: 5px 0 7px 12px;
           font-family: MicrosoftYaHei;
           font-size: 12px;
-          line-height: 20px;
+          line-height: 19px;
           color: #4D4F56;
           cursor: pointer;
           transition: color 0.3s;
@@ -299,64 +334,98 @@
           }
         }
       }
+    }
 
-      .ai-whale {
-        position: absolute;
-        bottom: 0;
-        width: 100%;
+    .ai-whale {
+      position: absolute;
+      top: calc(100% - 43px);
+      width: 100%;
 
-        .ai-whale-input {
+      &.max-height {
+        top: calc(100% - 108px);
+      }
+
+      .editable-div-wrapper {
+        position: relative;
+        width: 216px;
+        margin: 0 auto;
+        margin-bottom: 12px;
+        background: #FFFFFF;
+        border-radius: 2px;
+
+        .editable-div {
           position: relative;
-          width: 216px;
-          margin: 0 auto;
-          margin-bottom: 12px;
-          background: #FFFFFF;
+          box-sizing: border-box;
+          min-height: 96px;
+          max-height: 96px;
+          padding: 6px 8px;
+          padding-right: 30px; // 为图标腾出空间
+          line-height: 18px;
+          text-overflow: ellipsis;
+          background-image: linear-gradient(#fff, #fff), linear-gradient(#74B9FF, #64DCD7);
+          background-clip: padding-box, border-box;
+          border: 1px solid transparent;
           border-radius: 2px;
 
-          &::before {
-            position: absolute;
-            top: -1px;
-            right: -1px;
-            bottom: -1px;
-            left: -1px;
-            z-index: 0;
-            content: '';
-            background: linear-gradient(to right, #74B9FF, #64DCD7);
-            border-radius: 2px;
-          }
+          &.animated {
+            min-height: 32px;
+            max-height: 32px;
+            animation: shrink 0.3s forwards;
 
-          .ai-whale-ext,
-          .ai-whale-ext-cls {
-            .bk-form-textarea {
-              min-height: 32px;
-              max-height: 96px;
-              padding-left: 8px;
-              overflow-y: scroll; /* 启用滚动功能 */
-              line-height: 20px;
-              scrollbar-width: none; /* Firefox */
-
-              &::-webkit-scrollbar {
-                display: none; /* Chrome, Safari, Opera */
-              }
-
-              &:hover {
-                background: #F5F7FA;
-              }
-            }
-
-            .bk-textarea-wrapper,
-            .bk-form-textarea.textarea-maxlength {
-              margin-bottom: 0;
-              border: none;
+            &:focus {
+              overflow-y: auto;
+              white-space: normal;
+              outline: none;
+              animation: expand 0.3s ease forwards; // 聚焦时运行扩展动画
             }
           }
 
-          .ext-ccls {
-            .bk-form-textarea {
-              min-height: 96px;
+          &::-webkit-scrollbar {
+            width: 3px;
+          }
+
+          &::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+          }
+
+          &::-webkit-scrollbar-thumb {
+            background: #dbdbdb;
+            border-radius: 10px;
+
+            &:hover {
+              background: #555;
             }
           }
         }
+
+        .icon {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 20px;
+          height: 17px;
+          pointer-events: none;
+
+          /* 防止图标干扰文本输入 */
+        }
+      }
+
+
+      .clear-icon {
+        position: absolute;
+        top: 40px;
+        right: 10px;
+        display: none;
+        width: 20px;
+        height: 20px;
+
+        /* 图标下方 */
+        cursor: pointer;
+      }
+
+      .editable-div-wrapper:hover .clear-icon {
+        display: block;
       }
     }
   }
@@ -402,4 +471,5 @@
     }
   }
 }
+
 
