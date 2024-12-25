@@ -87,6 +87,8 @@ export default class FilterByCondition extends tsc<IProps> {
   allOptionsMap = new Map();
   // 点击加号时，记录当前选择的group和value
   addValueSelected: Map<string, Set<string>> = new Map();
+  // 编辑tag时缓存workload的已选值
+  workloadValueSelected = '';
 
   loading = false;
   scrollLoading = false;
@@ -283,6 +285,7 @@ export default class FilterByCondition extends tsc<IProps> {
         this.setTagList();
         this.updateActive = '';
         this.addValueSelected = new Map();
+        this.workloadValueSelected = '';
       },
     });
     await this.$nextTick();
@@ -319,7 +322,6 @@ export default class FilterByCondition extends tsc<IProps> {
           }
         }
       }
-
       if (this.groupSelected === EDimensionKey.workload) {
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueCategoryOptions = groupValues.map(item => ({
@@ -328,7 +330,7 @@ export default class FilterByCondition extends tsc<IProps> {
           children:
             item?.children?.map(l => ({
               ...l,
-              checked: checkedSet.has(l.id),
+              checked: this.workloadValueSelected ? this.workloadValueSelected === l.id : checkedSet.has(l.id),
             })) || [],
         }));
         if (this.valueCategorySelected) {
@@ -393,6 +395,9 @@ export default class FilterByCondition extends tsc<IProps> {
       //   }
       // }
       // workload 当前只能单选
+      if (this.updateActive && item.checked) {
+        this.workloadValueSelected = item.id;
+      }
       for (const option of this.valueCategoryOptions) {
         for (const l of option.children) {
           if (l.id === item.id) {
