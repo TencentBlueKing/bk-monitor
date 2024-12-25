@@ -2569,6 +2569,9 @@
       },
        /** 获取fields */
       async requestFields(indexSetId) {
+        const typeConversion= {
+          keyword : 'string'
+        }
         try {
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
@@ -2576,11 +2579,9 @@
             },
           });
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
-          // let fieldTypeMap = this.$store.state.globals.fieldTypeMap
           this.fieldsObjectData.forEach(item => {
             let name = item.field_name.split('.')[0]
-            // this.$set(item, 'type_conversion', fieldTypeMap[item.field_type].name );
-            this.$set(item, 'type_conversion','string' );
+            item.field_type = typeConversion[item.field_type] 
             this.$store.state.globals.fieldTypeMap;
             this.copyBuiltField.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
@@ -2592,6 +2593,8 @@
               }
             } )
           })
+          console.log(fieldsObjectData);
+          
         } catch (err) {
           console.warn(err);
         }

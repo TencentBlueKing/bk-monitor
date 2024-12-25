@@ -151,14 +151,14 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.alias_name }}</span>
+                  <span>{{ props.row.query_alias }}</span>
                 </div>
                 <bk-form-item
                   v-else
                   :class="{ 'is-required is-error': props.row.aliasErr }"
                 >
                   <bk-input
-                    v-model.trim="props.row.alias_name"
+                    v-model.trim="props.row.query_alias"
                     :disabled="props.row.is_delete || isSetDisabled"
                     @blur="checkAliasNameItem(props.row)"
                   >
@@ -470,7 +470,7 @@
             //     trigger: 'blur'
             // }
           ],
-          alias_name: [
+          query_alias: [
             // 目前组件不能拿到其他字段的值，不能通过validator进行验证
             // {
             //     validator: this.checkAliasName,
@@ -527,7 +527,7 @@
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || item.alias_name.toLowerCase().includes(query),
+            item => item.field_name.toLowerCase().includes(query) || item.query_alias.toLowerCase().includes(query),
           );
         } else {
           return currentTableList;
@@ -820,7 +820,7 @@
         });
       },
       checkAliasNameItem(row) {
-        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }

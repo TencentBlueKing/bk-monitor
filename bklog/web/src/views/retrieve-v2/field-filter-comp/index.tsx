@@ -149,7 +149,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData) {
-    const [objArr, otherArr] = arrData.reduce(([objArr, otherArr], item) => {
+    let [objArr, otherArr] = arrData.reduce(([objArr, otherArr], item) => {
       item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
       return [objArr, otherArr];
     }, [[], []]);
@@ -160,6 +160,9 @@ export default class FieldFilterComp extends tsc<object> {
     let objectField = []
     objArr.forEach(item => {
       this.addToNestedStructure(objectField, item);
+    })
+    otherArr = otherArr.filter(item => {
+      return !objectField.map(field => field.field_name).includes(item.field_name)
     })
     console.log(objectField);
     return [...objectField, ...otherArr]
@@ -201,6 +204,8 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
+    console.log(builtInFieldsValue);
+    
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
     const hiddenFieldVisible =
       !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
@@ -218,7 +223,9 @@ export default class FieldFilterComp extends tsc<object> {
   /** 展示的内置字段 */
   get showIndexSetFields() {
     if (this.searchKeyword) return this.indexSetFields();
-    return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
+    let result = this.objectHierarchy(this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9))
+    return result
+    // return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -486,6 +493,7 @@ export default class FieldFilterComp extends tsc<object> {
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map(item => (
+                    item.children?.length ? this.bigTreeRender(item) :(
                     <FieldItem
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
@@ -497,7 +505,7 @@ export default class FieldFilterComp extends tsc<object> {
                       statistical-field-data={this.statisticalFieldsData[item.field_name]}
                       type='hidden'
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                    />
+                    />)
                   ))}
                   {this.getIsShowIndexSetExpand() && (
                     <div
