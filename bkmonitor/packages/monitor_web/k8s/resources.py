@@ -397,7 +397,7 @@ class ResourceTrendResource(Resource):
         series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
 
         for line in series:
-            resource_name = line["dimensions"][resource_meta.resource_field]
+            resource_name = resource_meta.get_resource_name(line)
             series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit}
 
         return [{"resource_name": name, column: info} for name, info in series_map.items()]
