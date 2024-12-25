@@ -89,7 +89,7 @@ export default ({ loadMoreFn, container, rootElement }) => {
   const computeRect = () => {
     const current = getCurrentElement();
     const scrollElement = getParentContainer() as HTMLElement;
-    scrollWidth.value = current?.scrollWidth ?? 0;
+    scrollWidth.value = (current?.scrollWidth ?? 6) - 6;
     offsetWidth.value = scrollElement?.offsetWidth ?? 0;
   };
 

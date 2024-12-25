@@ -107,8 +107,7 @@
       box-sizing: border-box;
       display: inline-flex;
       align-items: flex-start;
-      width: fit-content;
-      min-width: 100%;
+      width: var(--scroll-width);
       min-height: 40px;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
