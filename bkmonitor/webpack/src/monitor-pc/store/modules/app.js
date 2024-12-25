@@ -82,6 +82,7 @@ const state = {
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
   paddingRoute: null,
+  k8sV2EnableList: [],
 };
 
 const mutations = {

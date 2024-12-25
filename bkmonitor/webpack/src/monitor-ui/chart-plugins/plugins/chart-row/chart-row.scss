@@ -1,4 +1,4 @@
-@import "../../../../monitor-pc//theme/";
+@import '../../../../monitor-pc//theme/';
 
 .chart-row {
   display: flex;
@@ -6,31 +6,37 @@
   width: 100%;
   height: 100%;
   background-color: #fafbfd;
+
   &:hover {
     cursor: pointer;
   }
+
   &.is-collapsed {
     background-color: transparent;
+
     .chart-row-icon {
       transform: rotate(90deg);
     }
   }
+
   &-icon {
-    color: #979ba5;
-    margin: 0 8px;
     flex: 0 0 24px;
-    transition: transform ease-in-out .3s;
+    margin: 0 8px;
+    color: #979ba5;
+    transition: transform ease-in-out 0.3s;
     transform-origin: center;
 
     @include icon-size(24px, 16px);
   }
+
   &-content {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 100%;
     font-size: 14px;
     color: #63656e;
-    flex: 1;
-    height: 100%;
-    display: flex;
-    align-items: center;
+
     .panel-count {
       margin-left: 4px;
       font-size: 12px;

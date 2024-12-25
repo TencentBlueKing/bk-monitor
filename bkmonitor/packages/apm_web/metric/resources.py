@@ -1155,7 +1155,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         if column not in self.METRIC_MAP or not validated_data.get("service_names"):
             return res
 
-        m = self.METRIC_MAP[column]
+        m: Dict = self.METRIC_MAP[column]
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
         metric_params = {
             "application": app,

@@ -1906,4 +1906,8 @@ export default {
   告警历史: 'Alarm history',
   上报配置: 'Upload configuration',
   '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
+
+  // K8s 容器场景
+  图表: 'Chart',
+  数据明细: 'Data details',
 };
