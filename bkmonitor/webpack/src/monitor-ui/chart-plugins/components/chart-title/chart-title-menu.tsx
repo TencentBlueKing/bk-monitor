@@ -45,6 +45,7 @@ export interface IChartTitleMenuEvents {
   onMetricSelect?: IExtendMetricData;
   onChildMenuToggle: boolean;
   onSelectChild: { menu: IMenuItem; child: IMenuChildItem };
+  onShowChildren: () => void;
 }
 @Component
 export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMenuEvents> {
@@ -53,6 +54,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ type: Boolean, default: true }) showAddMetric: boolean;
   menuList: IMenuItem[] = [];
+  showMenuItem = false;
   created() {
     this.menuList = [
       {
@@ -197,10 +199,34 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     return val;
   }
 
+  /**
+   * 展示子菜单
+   */
+  @Emit('showChildren')
+  handleShowChildren() {}
+
   handleGetItemName(options: IMenuChildItem[], id: string) {
     return options.find(item => item.id === id)?.name;
   }
 
+  /**
+   * 展示子菜单
+   * @param event
+   * @param key
+   */
+  toggleMenuItem(event, key: string) {
+    this.showMenuItem = !this.showMenuItem;
+    const popoverRef = this.$refs[`${key}-popover`] as any;
+    if (popoverRef) {
+      if (this.showMenuItem && popoverRef.showHandler) {
+        popoverRef.showHandler();
+        this.handleShowChildren();
+      } else if (!this.showMenuItem && popoverRef.hideHandler) {
+        popoverRef.hideHandler();
+      }
+    }
+    event.stopPropagation();
+  }
   render() {
     return (
       <ul class='chart-menu'>
@@ -249,6 +275,13 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 <bk-popover
                   ref={`${item.id}-popover`}
                   class='menu-item-trigger-popover'
+                  tippy-options={{
+                    trigger: 'click',
+                    onHide: () => {
+                      this.showMenuItem = false;
+                      return true;
+                    },
+                  }}
                   animation='slide-toggle'
                   arrow={false}
                   disabled={item.children.length < 2}
@@ -257,7 +290,17 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                   placement='bottom-start'
                   theme='light cycle-list-wrapper child-list-popover'
                 >
-                  <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue)}</span>
+                  <div
+                    class={['menu-item-trigger', { 'menu-item-show': this.showMenuItem }]}
+                    onClick={e => {
+                      this.toggleMenuItem(e, item.id);
+                    }}
+                  >
+                    <span class='menu-item-trigger-content'>
+                      {this.handleGetItemName(item.children, item.childValue)}
+                    </span>
+                    <i class='bk-icon icon-angle-down' />
+                  </div>
                   {childTpl(item)}
                 </bk-popover>
               )}
