@@ -143,6 +143,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 新增图表
   handleAddChart() {
     // TODO
+    this.showAddTaskDialog = true;
   }
 
   handleCancel() {}
@@ -318,7 +319,7 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 列表展示
   getStrategyList(list) {
-    console.log('list', list, this.activeTab, this.tabs);
+    // 列表最后一个为新增图表
     const add = () => (
       <div class='add-content list-item'>
         <i class='icon-mc-add icon-monitor' />
@@ -331,7 +332,9 @@ export default class RecentAlarmEvents extends tsc<object> {
           <div
             key={item}
             class='list-item'
-          />
+          >
+            {/* TODO：图表放置位 */}
+          </div>
         ))}
         {add()}
       </div>

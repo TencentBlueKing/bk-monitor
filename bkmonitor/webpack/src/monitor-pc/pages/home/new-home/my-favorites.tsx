@@ -223,6 +223,7 @@ export default class MyFavorites extends tsc<object> {
 
   // 计算布局策略
   get rowClass() {
+    // 三种布局方式
     const strategies = {
       1: 'row-1',
       2: 'row-2',
@@ -242,12 +243,8 @@ export default class MyFavorites extends tsc<object> {
 
   // 处理列选择变化
   handleCheckColChange(item) {
+    // TODO
     console.log(item, this.selectedLocalNames);
-  }
-
-  // 拖动结束事件
-  onDragEnd(event) {
-    console.log('Drag ended:', event);
   }
 
   // 显示或隐藏头部设置模态框
@@ -349,6 +346,7 @@ export default class MyFavorites extends tsc<object> {
     );
   }
 
+  // AI 小鲸 start
   expandTextarea(event) {
     this.showPlaceholder = false;
     event.target.style.maxHeight = '96px';
@@ -358,7 +356,6 @@ export default class MyFavorites extends tsc<object> {
   shrinkTextarea(event) {
     if (this.categoriesHasTwoRows) return;
     const content = event.target.innerText.trim();
-    console.log(content);
     this.showPlaceholder = content === '' || content === this.placeholderText;
     if (content === '') {
       event.target.innerText = this.inputValue;
@@ -387,6 +384,8 @@ export default class MyFavorites extends tsc<object> {
       }
     }
   }
+  // AI 小鲸 end
+
   render() {
     return (
       <div class='recent-and-quick-access'>
