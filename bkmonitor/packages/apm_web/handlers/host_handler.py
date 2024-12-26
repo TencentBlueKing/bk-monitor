@@ -156,14 +156,15 @@ class HostHandler:
         return res
 
     @classmethod
-    def find_host_in_span(cls, bk_biz_id, app_name, span_id):
+    def find_host_in_span(cls, bk_biz_id, app_name, span_id, span=None):
         """
         从span中寻找主机
         来源:
         1. 字段 net.host.ip
         """
 
-        span = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
+        if not span:
+            span = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
         if not span:
             return []
 
