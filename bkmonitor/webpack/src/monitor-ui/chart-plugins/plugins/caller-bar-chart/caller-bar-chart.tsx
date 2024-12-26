@@ -42,7 +42,7 @@ import type { CallOptions, IDataItem } from '../apm-service-caller-callee/type';
 
 import './caller-bar-chart.scss';
 
-interface IPieEchartProps {
+interface IBarEchartProps {
   panel: PanelModel;
 }
 @Component
@@ -280,4 +280,4 @@ class CallerBarChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<IPieEchartProps>().convert(CallerBarChart);
+export default ofType<IBarEchartProps>().convert(CallerBarChart);
