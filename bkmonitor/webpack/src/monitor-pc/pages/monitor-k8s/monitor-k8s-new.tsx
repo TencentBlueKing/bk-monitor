@@ -223,13 +223,13 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       /** workload维度只能选择一项 */
       if (dimensionId === EDimensionKey.workload) {
         this.filterBy[dimensionId] = [id];
-      } else {
+      } else if (!this.filterBy[dimensionId].includes(id)) {
         this.filterBy[dimensionId].push(id);
       }
     } else {
       this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
     }
-    this.filterBy = { ...this.filterBy };
+    // this.filterBy = { ...this.filterBy };
   }
 
   created() {
