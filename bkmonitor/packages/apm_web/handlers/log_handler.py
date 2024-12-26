@@ -138,9 +138,9 @@ class ServiceLogHandler:
         return application_info["log_config"]
 
     @classmethod
-    def list_host_indexes_by_span(cls, bk_biz_id, app_name, span_id):
+    def list_host_indexes_by_span(cls, bk_biz_id, app_name, span_id, span_detail=None):
         """从 span 中找主机关联的采集项"""
-        span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
+        span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id, span_detail)
 
         if span_hosts:
             from monitor_web.scene_view.resources import HostIndexQueryMixin
