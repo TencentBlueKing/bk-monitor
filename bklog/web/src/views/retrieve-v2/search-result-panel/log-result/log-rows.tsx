@@ -736,6 +736,10 @@ export default defineComponent({
       const rightWidth = rightColumns.value.reduce(callback, 0);
       const visibleWidth = getFieldColumns().reduce(callback, 0);
 
+      if (isNaN(visibleWidth)) {
+        return offsetWidth.value;
+      }
+
       return leftWidth + rightWidth + visibleWidth - 2;
     });
 
