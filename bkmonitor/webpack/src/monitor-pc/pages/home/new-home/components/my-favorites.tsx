@@ -204,22 +204,11 @@ export default class MyFavorites extends tsc<object> {
 
   whaleHeight = 'auto';
 
-  // 获取被选中的本地变量名
-  get selectedLocalNames() {
-    return this.localVarList.filter(item => item.checked).map(item => item.name);
-  }
-
-  // 根据当前视图状态获取要显示的项目
-  get itemsToDisplay() {
-    const items = this.isRecentView ? recentItems : favoriteItems;
-    return items.filter(item => this.selectedCategories.includes(item.category));
-  }
-
   categoriesHasTwoRows = false;
 
   showPlaceholder = true;
 
-  placeholderText = '请输入';
+  placeholderText = window.i18n.tc('有问题就问 AI 小鲸');
 
   // 计算布局策略
   get rowClass() {
@@ -235,6 +224,32 @@ export default class MyFavorites extends tsc<object> {
     this.categoriesHasTwoRows = this.selectedCategories.length > 3;
     return strategies[this.selectedCategories.length] || '';
   }
+
+  // 获取被选中的本地变量名
+  get selectedLocalNames() {
+    return this.localVarList.filter(item => item.checked).map(item => item.name);
+  }
+
+  // 根据当前视图状态获取要显示的项目
+  get itemsToDisplay() {
+    const items = this.isRecentView ? recentItems : favoriteItems;
+    return items
+      .filter(item => this.selectedCategories.includes(item.category))
+      .sort((a, b) => {
+        const orderA = this.orderMap[a.category] !== undefined ? this.orderMap[a.category] : Number.POSITIVE_INFINITY;
+        const orderB = this.orderMap[b.category] !== undefined ? this.orderMap[b.category] : Number.POSITIVE_INFINITY;
+        return orderA - orderB;
+      });
+  }
+
+  get orderMap() {
+    return this.selectedLocalNames.reduce((acc, category, index) => {
+      acc[category] = index;
+      return acc;
+    }, {});
+  }
+
+  onDragEnd() {}
 
   // 切换视图状态
   toggleView(viewType: 'favorite' | 'recent'): void {
@@ -299,13 +314,13 @@ export default class MyFavorites extends tsc<object> {
           trigger: 'click',
         }}
         animation='slide-toggle'
-        offset='-1, 2'
+        offset='1, 4'
         placement='bottom-start'
         theme='light strategy-setting'
         trigger='click'
       >
         <div class='customize'>
-          <i class='input-right-icon bk-icon bk-icon icon-search' />
+          <i class='icon-monitor icon-menu-setting' />
           <span>{this.$t('自定义')}</span>
         </div>
         <div
@@ -322,6 +337,7 @@ export default class MyFavorites extends tsc<object> {
               <draggable
                 class='draggable-container'
                 v-model={this.localVarList}
+                onEnd={this.onDragEnd}
               >
                 {this.localVarList.map(item => (
                   <li
@@ -352,6 +368,7 @@ export default class MyFavorites extends tsc<object> {
     event.target.style.maxHeight = '96px';
     event.target.style.overflowY = 'auto';
     event.target.style.whiteSpace = 'normal';
+    this.focusDiv();
   }
   shrinkTextarea(event) {
     if (this.categoriesHasTwoRows) return;
@@ -371,7 +388,7 @@ export default class MyFavorites extends tsc<object> {
       event.target.innerText = '';
     }
   }
-  handleKeyDonw(event) {
+  handleKeyDown(event) {
     if (event.key === 'Enter') {
       if (!event.shiftKey && !event.ctrlKey) {
         // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
@@ -379,11 +396,60 @@ export default class MyFavorites extends tsc<object> {
         // TODO
       } else {
         // 在按下 Shift+Enter 或 Ctrl+Enter 时插入换行符
-        document.execCommand('insertLineBreak');
-        event.preventDefault();
+        // document.execCommand('insertLineBreak');
+        // 插入换行并移动光标
+        // this.insertLineBreakAndMoveCursor();
+        // event.preventDefault();
       }
     }
   }
+
+  // 插入回车符
+  insertLineBreakAndMoveCursor() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+
+    // 创建一个换行元素
+    const br = document.createElement('br');
+
+    // 插入换行符
+    range.insertNode(br);
+
+    // 移动光标到换行符之后
+    range.setStartAfter(br);
+    range.setEndAfter(br);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    this.ensureCursorVisible(br);
+  }
+
+  // 光标切换至可视区域
+  ensureCursorVisible(node) {
+    // 使用 scrollIntoView 方法确保节点可见
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // 点击placeholder
+  focusDiv() {
+    // 使用 this.$refs 访问可编辑的 div
+    const editableDiv = this.$refs.editableDiv;
+    editableDiv.focus();
+
+    // 确保光标在内容的末尾
+    const range = document.createRange();
+    range.selectNodeContents(editableDiv);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
   // AI 小鲸 end
 
   render() {
@@ -463,17 +529,9 @@ export default class MyFavorites extends tsc<object> {
               onClick={() => (this.showModal = true)}
               // onClick={() => (this.exampleSetting1.primary.visible = true)}
             >
-              <i class='input-right-icon bk-icon bk-icon icon-search' />
+              <i class='icon-monitor icon-menu-setting' />
               <span>{this.$t('自定义')}</span>
             </div>
-            <HeaderSettingModal
-              show={this.showModal}
-              onChange={this.handleHeaderSettingShowChange}
-              onConfirm={() => (this.showModal = false)}
-              onStoreRoutesChange={v => {
-                this.userStoreRoutes = v;
-              }}
-            />
           </div>
           <div class='quick-list'>
             <ul class='quick-items'>
@@ -502,10 +560,11 @@ export default class MyFavorites extends tsc<object> {
                   'placeholder-visible': this.showPlaceholder,
                 }}
                 contenteditable={true}
+                tabindex={0}
                 onBlur={this.shrinkTextarea}
                 onFocus={this.expandTextarea}
                 onInput={this.handleInput}
-                onKeydown={this.handleKeyDonw}
+                onKeydown={this.handleKeyDown}
               >
                 {this.inputValue}
                 {this.showPlaceholder && <span class='placeholder'>{this.placeholderText}</span>}
@@ -518,6 +577,14 @@ export default class MyFavorites extends tsc<object> {
             </div>
           </div>
         </div>
+        <HeaderSettingModal
+          show={this.showModal}
+          onChange={this.handleHeaderSettingShowChange}
+          onConfirm={() => (this.showModal = false)}
+          onStoreRoutesChange={v => {
+            this.userStoreRoutes = v;
+          }}
+        />
       </div>
     );
   }

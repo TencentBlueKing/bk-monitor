@@ -146,8 +146,15 @@ export default class RecentAlarmEvents extends tsc<object> {
     this.showAddTaskDialog = true;
   }
 
-  handleCancel() {}
-  handleConfirm() {}
+  // 取消新增图表
+  handleCancel() {
+    this.showAddTaskDialog = false;
+  }
+  // 确定新增图表
+  handleConfirm() {
+    // TODO
+    this.showAddTaskDialog = false;
+  }
 
   getAddDialog() {
     return (
@@ -247,9 +254,9 @@ export default class RecentAlarmEvents extends tsc<object> {
         onCancel={this.handleCancelDel}
       >
         <div class='icon'>!</div>
-        <div class='info'>确定删除？</div>
+        <div class='info'>{this.$t('确定删除该业务的告警事件视图？')}</div>
         <div class='detail'>业务：{this.currentDelId}</div>
-        <div class='tips'>删了就真的没有了</div>
+        <div class='tips'>{this.$t('删除后，首页将不再显示当前业务的告警事件视图')}</div>
         <div class='foot'>
           <bk-button
             theme='danger'
@@ -321,7 +328,10 @@ export default class RecentAlarmEvents extends tsc<object> {
   getStrategyList(list) {
     // 列表最后一个为新增图表
     const add = () => (
-      <div class='add-content list-item'>
+      <div
+        class='add-content list-item'
+        onClick={this.handleAddChart}
+      >
         <i class='icon-mc-add icon-monitor' />
         <span>{this.$t('新增图表')}</span>
       </div>
@@ -349,7 +359,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   render() {
     const activeContent =
       (this.tabs.find(tab => tab.name === this.activeTab)?.content.length && this.activeTab !== '王者荣耀') || '';
-    console.log('act', activeContent);
+    // console.log('act', activeContent);
     return (
       <div class='recent-alarm-events'>
         <div class='title'>
@@ -425,9 +435,9 @@ export default class RecentAlarmEvents extends tsc<object> {
             )}
           </div>
           {/* 时间选择器 */}
-          <div class='time-filter'>
+          <div class='alarm-time-filter'>
             <bk-select
-              ext-cls='time-select'
+              ext-cls='alarm-time-select'
               v-model={this.dataOverview.timeChecked}
               clearable={false}
               popover-width={70}
