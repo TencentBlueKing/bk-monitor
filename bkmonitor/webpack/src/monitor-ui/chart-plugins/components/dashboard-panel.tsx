@@ -612,7 +612,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                 return (
                   <GridItem
                     {...{ props: item }}
-                    id={`${item.i}__key__`}
+                    id={`${CSS.escape(item.i.toString())}__key__`}
                     key={`${item.i}_${index}__key__`}
                     class={{ 'row-panel': panel.type === 'row' }}
                     onMove={() => this.handleItemMoving(panel)}

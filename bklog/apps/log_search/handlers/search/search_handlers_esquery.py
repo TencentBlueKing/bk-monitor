@@ -2668,16 +2668,15 @@ class UnionSearchHandler(object):
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
+                sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True)
-                result_origin_log_list = sorted(
-                    result_origin_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True
-                )
+                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True)
+                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True
+                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)

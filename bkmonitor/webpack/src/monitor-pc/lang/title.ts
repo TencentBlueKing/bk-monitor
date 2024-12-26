@@ -156,4 +156,5 @@ export default {
   例如: 'For example',
   // 调用分析
   维度值分布: 'Dimension value distribution',
+  K8s对象: 'K8s object',
 };

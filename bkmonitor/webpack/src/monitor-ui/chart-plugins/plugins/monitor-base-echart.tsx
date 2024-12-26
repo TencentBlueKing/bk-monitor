@@ -333,9 +333,9 @@ class MonitorBaseEchart extends BaseEchart {
         const precision =
           !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
         const valueObj = unitFormater(item.value[1] - minBase, precision);
-        return `<li class="tooltips-content-item">
-                  <span class="item-series"
-                   style="background-color:${item.color};">
+        return `<li class="tooltips-content-item" style="--series-color: ${curSeries.lineStyle?.color || item.color}">
+                  <span class="item-series is-${curSeries.lineStyle?.type}"
+                   style="background-color:${curSeries.lineStyle?.color || item.color};">
                   </span>
                   <span class="item-name" style="${markColor}">${item.seriesName}:</span>
                   <span class="item-value" style="${markColor}">

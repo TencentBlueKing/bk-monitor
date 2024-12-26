@@ -27,6 +27,14 @@
     background: transparent !important;
     border: 1px solid transparent !important;
     box-shadow: none !important;
+
+    .chart-row {
+      background-color: transparent;
+
+      .chart-row-icon {
+        transform: rotate(90deg) !important;
+      }
+    }
   }
 
   &.hover-style {
@@ -224,14 +232,17 @@
     }
   }
 }
+
 .pop-drill-down-list {
   height: 260px;
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;
+
   .contextmenu-list-item-title {
     padding: 8px 10px;
     color: #979ba5;
   }
+
   .contextmenu-list-item-disabled {
     position: relative;
     z-index: 9;
@@ -242,6 +253,7 @@
     color: #ccc;
     cursor: not-allowed;
   }
+
   .active {
     color: #3a84ff;
     background: #f5f7fa;

@@ -37,6 +37,7 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
+    commonFilters: [],
   };
 };
 
@@ -52,6 +53,7 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -65,6 +67,7 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
+  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],

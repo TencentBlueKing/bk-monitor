@@ -159,7 +159,7 @@
 
   onBeforeUnmount(() => {
     instance?.destroy?.();
-    resizeObserver.disconnect();
+    resizeObserver?.disconnect();
     resizeObserver = null;
   });
 </script>

@@ -94,12 +94,19 @@ def push_and_publish_es_table_id(
     - 数据平台: 追加时间戳
     - 第三方: 不追加任何，直接按照规则处理
     """
+    logger.info(
+        "push_and_publish_es_table_id: table_id->[%s], index_set->[%s], source_type->[%s]",
+        table_id,
+        index_set,
+        source_type,
+    )
     # 组装values，包含 options 字段
     values = {
         "source_type": source_type,
         "storage_id": cluster_id,
         "db": index_set,
         "measurement": "__default__",
+        'storage_type': models.ESStorage.STORAGE_TYPE,
         "options": {},
     }
     if options:
@@ -115,9 +122,25 @@ def push_and_publish_es_table_id(
                 _options[option["name"]] = {}
         values["options"] = _options
 
+    try:
+        logger.info("push_and_publish_es_table_id: table_id->[%s] try to compose storage cluster records", table_id)
+        storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(table_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", table_id, e)
+        storage_record = []
+
+    values["storage_cluster_records"] = storage_record
+
+    logger.info("push_and_publish_es_table_id: table_id->[%s] try to hmset to redis with value->[%s]", table_id, values)
+
     RedisTools.hmset_to_redis(
         RESULT_TABLE_DETAIL_KEY,
         {table_id: json.dumps(values)},
+    )
+    logger.info(
+        "push_and_publish_es_table_id: table_id->[%s] try to publish to channel->[%s]",
+        table_id,
+        RESULT_TABLE_DETAIL_CHANNEL,
     )
     RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
 
