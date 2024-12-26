@@ -114,7 +114,11 @@ export default class K8SCharts extends tsc<
   }
 
   @Provide('onDrillDown')
-  handleDrillDown(group: string, name: string) {
+  handleDrillDown(group: string, field: string) {
+    let name = field;
+    if (this.timeOffset.length) {
+      name = field.split('-')?.slice(1).join('-');
+    }
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container] = name.split(':');
       this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, false);
@@ -124,7 +128,11 @@ export default class K8SCharts extends tsc<
   }
 
   @Provide('onShowDetail')
-  handleShowDetail(dimension: string) {
+  handleShowDetail(field: string) {
+    let dimension = field;
+    if (this.timeOffset.length) {
+      dimension = dimension.split('-')?.slice(1).join('-');
+    }
     let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container, pod] = dimension.split(':');
@@ -273,7 +281,7 @@ export default class K8SCharts extends tsc<
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_memory_limits_ratio{${this.createCommonPromqlContent(true)}}
+      kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent(true)}}
     )))`;
     return `(sum by (workload_kind, workload_name)
                 (count by (workload_kind, workload_name, pod_name, namespace) (
@@ -282,7 +290,7 @@ export default class K8SCharts extends tsc<
             on(pod_name, namespace)
             group_right(workload_kind, workload_name)
             sum by (pod_name, namespace) (
-              kube_pod_memory_requests_ratio{${this.createCommonPromqlContent(true)}}
+              kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent(true)}}
             )))`;
   }
   createPerformancePanelPromql(metric: string) {
@@ -459,9 +467,7 @@ export default class K8SCharts extends tsc<
   }
 
   handleShowTimeCompare(v: boolean) {
-    if (!v) {
-      this.handleCompareTimeChange([]);
-    }
+    this.handleCompareTimeChange(!v ? [] : ['1h']);
   }
   render() {
     return (
