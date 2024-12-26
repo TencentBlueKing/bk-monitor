@@ -281,7 +281,6 @@
       },
       // 需要更新图表数据
       async getSeriesData(startTime, endTime) {
-        debugger;
         if (startTime && endTime) {
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;

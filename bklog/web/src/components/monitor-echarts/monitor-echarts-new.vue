@@ -372,7 +372,6 @@
     }
 
     init() {
-      debugger;
       if (this.series) {
         this.initChart();
         this.handleSetChartData(deepMerge({}, { series: this.series }));
