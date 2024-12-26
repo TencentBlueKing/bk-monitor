@@ -542,6 +542,14 @@ export default defineComponent({
       }
     };
 
+    const isRequesting = ref(false);
+
+    const debounceSetLoading = () => {
+      setTimeout(() => {
+        isRequesting.value = false;
+      }, 120);
+    };
+
     const expandOption = {
       render: ({ row }) => {
         return (
@@ -633,6 +641,9 @@ export default defineComponent({
         });
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
+      {
+        immediate: true,
+      },
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -668,18 +679,11 @@ export default defineComponent({
       const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
-      store.commit('updateVisibleFields', visibleFields.value);
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
-    };
 
-    const isRequesting = ref(false);
-
-    const debounceSetLoading = () => {
-      setTimeout(() => {
-        isRequesting.value = false;
-      }, 120);
+      store.commit('updateVisibleFields', visibleFields.value);
     };
 
     const loadMoreTableData = () => {
