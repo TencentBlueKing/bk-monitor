@@ -394,8 +394,8 @@
               this.$store.commit('resetVisibleFields', this.shadowVisible);
               this.$store.commit('updateIsSetDefaultTableColumn');
             });
-          // await this.$store.dispatch('requestIndexSetFieldInfo');
-          // await this.$store.dispatch('requestIndexSetQuery');
+          await this.$store.dispatch('requestIndexSetFieldInfo');
+          await this.$store.dispatch('requestIndexSetQuery');
         } catch (error) {
           console.warn(error);
         } finally {
