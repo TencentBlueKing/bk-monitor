@@ -53,6 +53,7 @@ class SdkGroupPredictResource(APIResource):
 class DependencyDataSerializer(serializers.Serializer):
     data = serializers.ListField(child=serializers.DictField())
     dimensions = serializers.DictField(default=dict())
+    partition = serializers.CharField(allow_blank=True, default=None)
 
 
 class SdkInitDependResource(APIResource):
@@ -62,7 +63,6 @@ class SdkInitDependResource(APIResource):
 
     class RequestSerializer(serializers.Serializer):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
-        replace = serializers.BooleanField(default=True)
 
     action = "/api/aiops/init_depend/"
     method = "POST"
