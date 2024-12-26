@@ -87,21 +87,21 @@ class DorisProfileConverter(ProfileConverter):
             self._location_id_mapping[location.id] = location
             self.profile.location.append(location)
 
-        for line_info in stacktrace["lines"]:
-            function = self._function_mapping.get(line_info["function"]["name"])
-            if function is None:
-                function = Function(
-                    id=len(self.profile.function) + 1,
-                    name=self.add_string(line_info["function"]["name"]),
-                    system_name=self.add_string(line_info["function"]["systemName"]),
-                    filename=self.add_string(line_info["function"]["fileName"]),
-                    start_line=line_info["function"]["startLine"],
-                )
-                self._function_mapping[line_info["function"]["name"]] = function
-                self._function_id_mapping[function.id] = function
-                self.profile.function.append(function)
+            for line_info in stacktrace["lines"]:
+                function = self._function_mapping.get(line_info["function"]["name"])
+                if function is None:
+                    function = Function(
+                        id=len(self.profile.function) + 1,
+                        name=self.add_string(line_info["function"]["name"]),
+                        system_name=self.add_string(line_info["function"]["systemName"]),
+                        filename=self.add_string(line_info["function"]["fileName"]),
+                        start_line=line_info["function"]["startLine"],
+                    )
+                    self._function_mapping[line_info["function"]["name"]] = function
+                    self._function_id_mapping[function.id] = function
+                    self.profile.function.append(function)
 
-            location.line.append(Line(function_id=function.id, line=line_info["line"]))
+                location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
 

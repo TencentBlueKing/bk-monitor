@@ -321,8 +321,12 @@ class DataSource(models.Model):
         pass
 
     @classmethod
-    def apply_for_data_id_from_bkdata(cls, data_name: str) -> int:
-        """从计算平台申请data_id"""
+    def apply_for_data_id_from_bkdata(cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID) -> int:
+        """
+        从计算平台申请data_id
+        :param data_name: 数据源名称
+        :param bk_biz_id: 业务ID
+        """
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
         from metadata.models.data_link.service import (
@@ -332,10 +336,17 @@ class DataSource(models.Model):
             get_data_id_v2,
         )
 
+        if not bk_biz_id:
+            logger.info("apply_for_data_id_from_bkdata:data_name->[%s], bk_biz_id is None,will use default", data_name)
+            bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+
         try:
             if settings.ENABLE_V2_ACCESS_BKBASE_METHOD:
                 logger.info("apply_for_data_id_from_bkdata:apply data id from bkdata v2,data_name->[%s]", data_name)
-                apply_data_id_v2(data_name)
+                apply_data_id_v2(
+                    data_name=data_name,
+                    bk_biz_id=bk_biz_id,
+                )
             else:
                 apply_data_id(data_name)
             # 写入记录
@@ -442,6 +453,7 @@ class DataSource(models.Model):
         authorized_spaces=None,
         space_uid=None,
         created_from=DataIdCreatedFromSystem.BKGSE.value,
+        bk_biz_id=None,
         bcs_cluster_id=None,
     ):
         """
@@ -468,6 +480,7 @@ class DataSource(models.Model):
         :param space_uid: 空间 UID
         :param created_from: 数据源 ID 来源
         :param bcs_cluster_id: bcs 集群 ID
+        :param bk_biz_id: 业务ID
         :return: DataSource instance | raise Exception
         """
         # 判断两个使用到的标签是否存在
@@ -509,7 +522,7 @@ class DataSource(models.Model):
                 logger.info(
                     "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
                 )
-                bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
+                bk_data_id = cls.apply_for_data_id_from_bkdata(data_name, bk_biz_id)
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)

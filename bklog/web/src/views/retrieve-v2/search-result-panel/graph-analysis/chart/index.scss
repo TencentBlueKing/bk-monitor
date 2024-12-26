@@ -69,4 +69,35 @@
       }
     }
   }
+
+  .bklog-chart-number-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .bklog-chart-number-list {
+      display: flex;
+      flex-wrap: wrap;
+
+      .bklog-chart-number-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+
+        .bklog-chart-number-label {
+          font-size: 18px;
+        }
+
+        .bklog-chart-number-value {
+          padding: 20px 0;
+          font-size: 40px;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
 }

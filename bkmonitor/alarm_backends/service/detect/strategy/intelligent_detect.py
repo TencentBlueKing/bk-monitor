@@ -43,6 +43,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
+    WITH_HISTORY_ANOMALY = True
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -76,7 +77,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 "history_anomaly": {
                     "source": "backfill",
                     "retention_period": "8d",
-                    "backfill_fields": ["timestamp", "anomaly_alert", "extra_info"],
+                    "backfill_fields": ["anomaly_alert", "extra_info"],
                     "backfill_conditions": [
                         {
                             "field_name": "is_anomaly",
