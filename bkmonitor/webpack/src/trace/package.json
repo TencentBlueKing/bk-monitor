@@ -52,7 +52,10 @@
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.4.0"
   },
-  "keywords": ["monitor", "trace"],
+  "keywords": [
+    "monitor",
+    "trace"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

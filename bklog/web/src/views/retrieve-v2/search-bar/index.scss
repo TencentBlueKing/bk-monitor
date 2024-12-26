@@ -7,10 +7,10 @@
   .search-bar-container {
     display: flex;
     background-color: #fff;
+    border-bottom: 1px solid #f0f2f6;
     box-shadow:
       0 2px 8px 0 #00000026,
       0 1px 0 0 #eaebf0;
-    border-bottom: 1px solid #f0f2f6;
 
     .search-options {
       display: flex;

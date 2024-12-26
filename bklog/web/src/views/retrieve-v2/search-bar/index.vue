@@ -3,10 +3,10 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
-  // #if APP !== 'apm'
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
   // #else
   // #code const BookmarkPop = () => null;
@@ -73,6 +73,8 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
+  const isMonitorTraceLog = computed(() => !!window?.__IS_MONITOR_TRACE__);
 
   watch(
     () => isIndexFieldLoading.value,
@@ -193,7 +195,7 @@
   };
 
   const handleRefresh = isRefresh => {
-    // #if APP !== 'apm'
+    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
     emit('refresh', isRefresh);
     // #endif
   };

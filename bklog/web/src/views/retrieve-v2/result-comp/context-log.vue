@@ -271,7 +271,7 @@
           this.isConfigLoading = true;
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: {
               scope: 'search_context',
@@ -314,7 +314,7 @@
           this.logLoading = true;
           const res = await this.$http.request('retrieve/getContentLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data,
           });
@@ -386,7 +386,7 @@
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
               config_id: this.currentConfigID,
             },
           });
@@ -394,7 +394,7 @@
             sort_list: configRes.data.sort_list,
             name: configRes.data.name,
             config_id: this.currentConfigID,
-            index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           });
           await this.$http.request('retrieve/updateFieldsConfig', {
             data,

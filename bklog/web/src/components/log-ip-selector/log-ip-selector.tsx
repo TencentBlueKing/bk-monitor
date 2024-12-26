@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { VNode } from 'vue';
-
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import create from '@blueking/ip-selector/dist/index.esm';
 
 import $http from '../../api';
+
+import type { VNode } from 'vue';
 
 import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 const BkIpSelector = create({
