@@ -108,7 +108,6 @@ export default class DataQuery extends tsc<IProps> {
   }
 
   handleShowTargetTable() {
-    console.log('123');
     this.showTargetTable = true;
   }
 
