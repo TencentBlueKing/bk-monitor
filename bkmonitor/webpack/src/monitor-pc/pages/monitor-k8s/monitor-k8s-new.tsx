@@ -102,6 +102,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   activeTab = K8sNewTabEnum.LIST;
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
+  @ProvideReactive('groupInstance')
   groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
 
   // 是否展示取消下钻

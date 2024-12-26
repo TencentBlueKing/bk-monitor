@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 interface K8sDimensionDrillDownProps {
@@ -31,6 +31,8 @@ interface K8sDimensionDrillDownProps {
   dimension: string;
   enableTip?: boolean;
 }
+import type { K8sGroupDimension } from 'monitor-pc/pages/monitor-k8s/k8s-dimension';
+
 import './k8s-dimension-drilldown.scss';
 
 interface K8sDimensionDrillDownEvents {
@@ -51,6 +53,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   /** 是否下转 tip 提示 */
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
+  @InjectReactive('groupInstance') readonly groupInstance!: K8sGroupDimension;
   @Ref('menu')
   menuRef: any;
 
@@ -60,6 +63,18 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   get drillDownList() {
     return drillListMap[this.dimension] || [];
+  }
+
+  get disabledDownDrill() {
+    if (!this.drillDownList?.length) {
+      return 'none';
+    }
+    for (const drill of this.drillDownList) {
+      if (this.groupInstance.hasGroupFilter(drill)) {
+        return 'none';
+      }
+    }
+    return 'block';
   }
 
   async handleDrillDown(id: number | string, e: Event) {
@@ -102,7 +117,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   render() {
     return (
       <div
-        style={{ display: this.drillDownList.length ? 'block' : 'none' }}
+        style={{ display: this.disabledDownDrill }}
         class='k8s-dimension-drillDown'
       >
         <div
