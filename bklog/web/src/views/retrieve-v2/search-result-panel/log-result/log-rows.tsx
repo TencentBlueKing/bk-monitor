@@ -729,12 +729,10 @@ export default defineComponent({
       };
 
       const leftWidth = leftColumns.value.reduce(callback, 0);
-
       const rightWidth = rightColumns.value.reduce(callback, 0);
-
       const visibleWidth = getFieldColumns().reduce(callback, 0);
 
-      return leftWidth + rightWidth + visibleWidth;
+      return leftWidth + rightWidth + visibleWidth - 2;
     });
 
     const hasScrollX = computed(() => {
@@ -923,7 +921,11 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
-      return <div class='fixed-right-shadown'></div>;
+      if (tableDataSize.value > 0) {
+        return <div class='fixed-right-shadown'></div>;
+      }
+
+      return null;
     };
 
     const isTableLoading = computed(() => {
