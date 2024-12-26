@@ -970,3 +970,10 @@ class QueryStringSerializer(serializers.Serializer):
         required=True,
         child=SearchConditionSerializer(label=_("搜索条件"), required=True),
     )
+
+
+class UserCustomConfigSerializer(serializers.Serializer):
+    """
+    用户自定义配置
+    """
+    custom_config = serializers.JSONField(label=_("自定义配置"), required=True)

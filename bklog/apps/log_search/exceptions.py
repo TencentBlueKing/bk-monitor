@@ -556,3 +556,13 @@ class IndexSetDorisQueryException(BaseException):
 class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
     MESSAGE = _("SQL查询异常: {name}")
+
+
+# =================================================
+# 用户自定义配置
+# =================================================
+
+
+class UserCustomConfigNotExistException(BaseException):
+    ERROR_CODE = "1101"
+    MESSAGE = _("用户自定义配置不存在")
