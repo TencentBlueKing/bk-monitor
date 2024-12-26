@@ -641,7 +641,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               });
             }
           },
-          { timeout: 500 }
+          { timeout: 360 }
         );
       } else {
         return { shouldBreak, endIndex };
@@ -655,7 +655,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           setData(0, true, 2);
         });
       },
-      { timeout: 500 }
+      { timeout: 360 }
     );
   }
 
