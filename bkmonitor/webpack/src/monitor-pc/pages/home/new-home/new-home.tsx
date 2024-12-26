@@ -26,6 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import MyFavorites from './components/my-favorites';
+import RecentAlarmEvents from './components/recent-alarm-events';
 // import HomeAlarmChart from './components/home-alarm-chart';
 import HomeSelect from './components/home-select';
 import { testData } from './testData';
@@ -81,14 +83,18 @@ export default class NewHome extends tsc<object> {
   render() {
     return (
       <div class='monitor-new-home'>
-        <div class='new-home-bg'></div>
+        <div class='new-home-bg' />
         <div class='new-home-content'>
           <HomeSelect
             historyList={this.data}
             searchList={testData}
           />
-          <div class='new-home-tool'></div>
-          <div class='new-home-alarm-list'>{/* <HomeAlarmChart config={this.config} /> */}</div>
+          <div class='new-home-tool'>
+            <MyFavorites />
+          </div>
+          <div class='new-home-alarm-list'>
+            <RecentAlarmEvents />
+          </div>
         </div>
       </div>
     );
