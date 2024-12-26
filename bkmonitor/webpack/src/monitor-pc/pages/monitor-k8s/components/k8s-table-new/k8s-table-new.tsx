@@ -268,14 +268,16 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /** 缩略图分组Id枚举 */
   get chartGroupIdsMap() {
-    return this.tableColumns.reduce((acc, cur, ind) => {
-      if (cur.type === K8sTableColumnTypeEnum.DATA_CHART) {
-        if (acc[cur.id]) disconnect(acc[cur.id]);
-        acc[cur.id] = `${random(8)}_${ind}`;
-        connect(acc[cur.id]);
-      }
-      return acc;
-    }, {});
+    // 暂时不支持图表联动
+    // return this.tableColumns.reduce((acc, cur, ind) => {
+    //   if (cur.type === K8sTableColumnTypeEnum.DATA_CHART) {
+    //     if (acc[cur.id]) disconnect(acc[cur.id]);
+    //     acc[cur.id] = `${random(8)}_${ind}`;
+    //     connect(acc[cur.id]);
+    //   }
+    //   return acc;
+    // }, {});
+    return {};
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -527,10 +529,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         curr[K8sTableColumnKeysEnum.CPU] = {
           datapoints: null,
           unit: '',
+          unitDecimal: null,
+          valueTitle: '用量',
         };
         curr[K8sTableColumnKeysEnum.INTERNAL_MEMORY] = {
           datapoints: null,
           unit: '',
+          unitDecimal: null,
+          valueTitle: '用量',
         };
         if (prev.tableDataMap[id]) {
           prev.tableDataMap[id].push(index);
@@ -625,7 +631,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             /** 控制浏览器一帧内空闲时间足够的情况下最多应可渲染多少条数据
              * （step > canRenderMaxCount 时以step为准，但是一帧内只会执行 1 次）
              **/
-            let canRenderMaxCount = 6;
+            let canRenderMaxCount = 4;
             canRenderMaxCount -= step;
             while (deadline.timeRemaining() > 0 && !shouldBreak && canRenderMaxCount > 0 && !deadline.didTimeout) {
               const res = setData(endIndex, false, step);
@@ -639,15 +645,22 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               });
             }
           },
-          { timeout: 300 }
+          { timeout: 360 }
         );
       } else {
         return { shouldBreak, endIndex };
       }
     };
-    requestAnimationFrame(() => {
-      setData(0, true, 2);
-    });
+
+    // 递归渲染入口
+    this.requestIdleCallbackId = requestIdleCallback(
+      () => {
+        requestAnimationFrame(() => {
+          setData(0, true, 2);
+        });
+      },
+      { timeout: 360 }
+    );
   }
 
   /**
@@ -815,9 +828,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           />
         );
       }
-      return chartData?.datapoints.length ? (
+      return chartData?.datapoints?.length ? (
         <MiniTimeSeries
-          data={chartData?.datapoints || []}
+          data={chartData?.datapoints}
           disableHover={true}
           groupId={this.chartGroupIdsMap[column.id]}
           lastValueWidth={80}
