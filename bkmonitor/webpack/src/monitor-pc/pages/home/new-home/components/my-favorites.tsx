@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import draggable from 'vuedraggable';
 
-import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../router/router-config';
-import aiWhaleSrc from '../../../static/images/png/new-page/aiWhale.png';
-import dashboardSrc from '../../../static/images/png/new-page/dashboard.png';
-import retrievalSrc from '../../../static/images/png/new-page/retrieval.png';
-import serviceSrc from '../../../static/images/png/new-page/service.png';
-import HeaderSettingModal from './components/header-setting-modal';
+import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
+import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
+import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
+import serviceSrc from '../../../../static/images/png/new-page/service.png';
+import HeaderSettingModal from './header-setting-modal';
 
 import './my-favorites.scss';
 interface RecentItems {

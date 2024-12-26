@@ -36,14 +36,13 @@
 .recent-and-quick-access {
   display: flex;
   justify-content: space-between;
-  width: 1232px;
-  padding-top: 20px;
+  width: 100%;
   margin: 0 auto;
   border-radius: 8px;
 
   .recent-use {
     position: relative;
-    width: 968px;
+    width: 78%;
 
     .recent-head {
       display: flex;
@@ -104,8 +103,8 @@
     }
 
     .row-3 .category {
-      /* min-width: 31%; */
-      min-width: 300px;
+      min-width: 32%;
+      // min-width: 300px;
     }
 
     .has-line {
@@ -255,7 +254,7 @@
 
   .quick-access {
     position: relative;
-    width: 240px;
+    width: 19%;
 
     .quick-head {
       display: flex;
@@ -347,7 +346,7 @@
 
       .editable-div-wrapper {
         position: relative;
-        width: 216px;
+        width: 90%;
         margin: 0 auto;
         margin-bottom: 12px;
         background: #FFFFFF;

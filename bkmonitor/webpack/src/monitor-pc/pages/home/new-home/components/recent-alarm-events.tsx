@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import draggable from 'vuedraggable';
 
-import emptyImageSrc from '../../../static/images/png/empty.png';
-import BizSelect from './components/new-biz-list';
+import emptyImageSrc from '../../../../static/images/png/empty.png';
+import BizSelect from './new-biz-list';
 
 import './recent-alarm-events.scss';
 
