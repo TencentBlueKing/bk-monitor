@@ -998,4 +998,6 @@ export default {
   '当前缺少指标': 'Current metrics are missing',
   字段名不支持快速修改: 'Field name does not support quick modification',
   去重后字段统计: 'Field statistics after deduplication',
+  "检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；": 'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
+  "检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖": 'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
 };
