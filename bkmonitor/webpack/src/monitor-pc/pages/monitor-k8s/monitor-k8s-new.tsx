@@ -221,6 +221,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.showCancelDrill = false;
     if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
     if (isSelect) {
+      if (!this.groupInstance.hasGroupFilter(dimensionId as K8sTableColumnResourceKey)) {
+        this.groupByChange(dimensionId, true);
+      }
       /** workload维度只能选择一项 */
       if (dimensionId === EDimensionKey.workload) {
         this.filterBy[dimensionId] = [id];
