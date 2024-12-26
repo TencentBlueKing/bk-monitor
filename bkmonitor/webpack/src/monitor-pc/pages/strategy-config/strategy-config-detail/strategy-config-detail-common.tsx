@@ -1119,7 +1119,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                   />
                 ) : (
                   <QueryConfigsMain
-                    strategyId={this.strategyId}
+                    strategyId={Number(this.strategyId)}
                     metricData={this.metricData}
                     editMode={this.editMode}
                     expression={this.expression}

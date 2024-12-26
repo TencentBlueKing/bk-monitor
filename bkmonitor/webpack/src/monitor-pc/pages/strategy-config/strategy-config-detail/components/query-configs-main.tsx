@@ -179,7 +179,6 @@ export default class DataQuery extends tsc<IProps> {
       detail: strategyTarget.target_detail || [],
       target_detail: targetList,
     };
-    console.log(JSON.parse(JSON.stringify(this.targetDetail)), 'targetDetail');
 
     this.handleTargetDetailData({ ...this.targetDetail });
 
@@ -195,7 +194,6 @@ export default class DataQuery extends tsc<IProps> {
       item.objectType = this.targetDetail.instance_type;
       item.targetType = this.targetDetail.node_type;
     }
-    console.log(this.targetsDesc, 'targetsDesctargetsDesctargetsDesc');
 
     /** 监控目标数据 */
     this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;

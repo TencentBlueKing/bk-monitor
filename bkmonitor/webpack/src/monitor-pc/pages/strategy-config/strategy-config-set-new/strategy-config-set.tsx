@@ -414,14 +414,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   targetsDesc: Record<string, string> = {
     message: '',
     subMessage: '',
-  }
+  };
 
   /** 详情信息 */
   detailData: Record<string, any> = {};
 
   /** 监控目标 */
   targetDetail: Record<string, any> = {};
-
 
   get isEdit(): boolean {
     return !!this.$route.params.id;
@@ -1149,11 +1148,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.editAllowed = !!strategyDetail?.edit_allowed;
     }
     const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
-    const {message, subMessage} = getTargetDesc(targetList, targetType, objectType, 0, 0);
+    const { message, subMessage } = getTargetDesc(targetList, targetType, objectType, 0, 0);
     this.targetsDesc = {
       message,
-      subMessage
-    }
+      subMessage,
+    };
     await this.handleProcessData({
       ...strategyDetail,
       targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList },
@@ -2605,7 +2604,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const { sourceCode, step } = this.sourceData;
       return (
         <QueryConfigsMain
-          strategyId={this.strategyId}
+          strategyId={Number(this.strategyId)}
           metricData={this.metricData}
           editMode={this.monitorDataEditMode}
           expression={this.expression}
