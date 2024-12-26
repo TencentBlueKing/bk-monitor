@@ -43,6 +43,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
+    WITH_HISTORY_ANOMALY = True
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):

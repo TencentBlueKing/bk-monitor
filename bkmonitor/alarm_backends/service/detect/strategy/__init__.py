@@ -468,6 +468,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 class SDKPreDetectMixin(object):
     GROUP_PREDICT_FUNC = None
     PREDICT_FUNC = None
+    WITH_HISTORY_ANOMALY = False
 
     def pre_detect(self, data_points: List[DataPoint]) -> None:
         """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
@@ -493,20 +494,20 @@ class SDKPreDetectMixin(object):
                 predict_inputs[dimension_md5] = {
                     "dimensions": dimensions,
                     "data": [],
-                    "extra_data": {
-                        "history_anomaly": {
-                            "source": "backfill",
-                            "retention_period": "8d",
-                            "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
-                            "backfill_conditions": [
-                                {
-                                    "field_name": "is_anomaly",
-                                    "value": 1,
-                                }
-                            ],
-                        },
-                    },
+                    "extra_data": {},
                 }
+                if self.WITH_HISTORY_ANOMALY:
+                    predict_inputs[dimension_md5]["extra_data"]["history_anomaly"] = {
+                        "source": "backfill",
+                        "retention_period": "8d",
+                        "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
+                        "backfill_conditions": [
+                            {
+                                "field_name": "is_anomaly",
+                                "value": 1,
+                            }
+                        ],
+                    }
 
             predict_inputs[dimension_md5]["data"].append(
                 {

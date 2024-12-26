@@ -166,7 +166,7 @@ def external(request):
     response = render(
         request,
         "external/index.html",
-        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": biz_id_list},
+        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": list(biz_id_list)},
     )
     response.set_cookie("bk_biz_id", str(cc_biz_id))
     return response
