@@ -23,6 +23,7 @@ import functools
 import operator
 from typing import Any, Dict, List
 
+from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.utils.local import get_request_external_username, get_request_username
 
 
@@ -59,6 +60,10 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
                 continue
 
             try:
+                if field_name == DEFAULT_TIME_FIELD:
+                    # 转化为相同的数据类型
+                    _x_value = str(_x_value)
+                    _y_value = str(_y_value)
                 if _x_value != _y_value:
                     if order == "desc":
                         return (_x_value < _y_value) - (_x_value > _y_value)

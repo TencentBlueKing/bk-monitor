@@ -52,9 +52,12 @@ class SidebarPageListResource(PageListResource):
     def get_status_filter(self):
         return []
 
-    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False):
+    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False, **kwargs):
         res = {}
-        data = copy.deepcopy(origin_data)
+        if not kwargs.get("in_place", False):
+            data = copy.deepcopy(origin_data)
+        else:
+            data = origin_data
 
         column_formats, column_format_map = self.get_columns_config(data, column_type)
         # 筛选
@@ -232,25 +235,40 @@ class AsyncColumnsListResource(ApiAuthResource, ABC):
 
     SyncResource = None
 
-    def get_async_column_item(self, data, column):
-        if column in data:
-            return {column: data[column]}
+    @classmethod
+    def get_async_column_item(cls, data, column, **kwargs):
+        multi_sub_columns = kwargs.get("multi_sub_columns", None)
+        default_value = kwargs.get("default_value", None)
+        items = {}
+        if column in data or default_value:
+            column_data = data.get(column, default_value)
+            if multi_sub_columns and isinstance(column_data, dict):
+                for sub_column in multi_sub_columns:
+                    if sub_column in column_data or default_value:
+                        items[f"{sub_column}_{column}"] = column_data.get(sub_column, default_value)
+            else:
+                items[column] = column_data
+        return items
 
-        return {}
+    def get_async_data(self, data, column, column_type=None, **kwargs):
+        multi_output_columns = kwargs.get("multi_output_columns")
+        columns = multi_output_columns or [column]
 
-    def get_async_data(self, data, column, column_type=None):
-        async_column = next((i for i in self.SyncResource.get_columns(column_type) if i.id == column), None)
-        if not async_column:
-            raise ValueError(_("不存在的列: {}").format(column))
-        if not async_column.asyncable:
-            raise ValueError(_("列: {} 不是异步列").format(column))
+        columns_mapping = {i.id: i for i in self.SyncResource.get_columns(column_type)}
+        for async_column_name in columns:
+            if async_column_name not in columns_mapping:
+                raise ValueError(_("不存在的列: {}").format(async_column_name))
+            if not columns_mapping[async_column_name].asyncable:
+                raise ValueError(_("列: {} 不是异步列").format(async_column_name))
 
         res = []
         for item in data:
             c_item = copy.deepcopy(item)
             try:
-                if async_column.id in c_item:
-                    c_item[async_column.id] = async_column.format(c_item)
+                for async_column_name in columns:
+                    async_column = columns_mapping[async_column_name]
+                    if async_column.id in c_item:
+                        c_item[async_column.id] = async_column.format(c_item)
 
                 res.append(c_item)
             except KeyError:
@@ -271,4 +289,6 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
                     "service_name": i["service"],
                 }
             )
-        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(origin_data, params, column_type)
+        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(
+            origin_data, params, column_type, in_place=True
+        )

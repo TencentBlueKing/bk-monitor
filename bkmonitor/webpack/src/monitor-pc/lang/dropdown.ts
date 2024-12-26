@@ -119,4 +119,9 @@ export default {
   腾讯云指标采集插件: 'Tencent Cloud Metric Plugin',
   主调错误率: 'Caller Error Rate',
   被调错误率: 'Callee Error Rate',
+  性能: 'Performance',
+  网络: 'Network',
+  存储: 'Storage',
+  容量: 'Capacity',
+  成本: 'Cost',
 };

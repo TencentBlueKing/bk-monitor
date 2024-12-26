@@ -76,6 +76,7 @@ class TreeConverter:
             map_parent = tree.map_root
             stacktraces = json.loads(sample["stacktrace"])
 
+            visited_node = set()
             for stacktrace in reversed(stacktraces):
                 if not stacktrace["lines"]:
                     # 将 parent 设置为空防止生成错误的调用关系
@@ -122,6 +123,9 @@ class TreeConverter:
                         map_parent = map_node
                     else:
                         map_node = tree.function_node_map[node_id]
-                        map_node.add_value(value)
+                        if node_id not in visited_node:
+                            map_node.add_value(value)
                         map_parent.add_child(map_node)
                         map_parent = map_node
+
+                    visited_node.add(node_id)

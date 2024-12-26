@@ -39,6 +39,7 @@ class AuthType(object):
     Dashboard = "dashboard"
     Apm = "apm"
     API = "api"
+    Incident = "incident"
 
 
 class ApiAuthToken(AbstractRecordModel):
@@ -60,6 +61,7 @@ class ApiAuthToken(AbstractRecordModel):
         (AuthType.Event, "Event"),
         (AuthType.Dashboard, "Dashboard"),
         (AuthType.Apm, "Apm"),
+        (AuthType.Incident, "Incident"),
     )
 
     name = models.CharField("令牌名称", max_length=64, unique=True)

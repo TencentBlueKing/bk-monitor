@@ -44,7 +44,7 @@
       v-if="isRenderChart"
       ref="chartRef"
       v-show="!isFold && !isLoading"
-      style="padding: 0 24px;"
+      style="padding: 0 24px"
       :get-series-data="getSeriesData"
       :is-fold="isFold"
       :key="chartKey"
@@ -338,7 +338,7 @@
           const urlStr = this.isUnionSearch ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
           const queryData = {
             ...this.retrieveParams,
-            addition: this.localAddition,
+            addition: [...this.localAddition, ...this.retrieveParams.commonFilters],
             time_range: 'customized',
             interval: this.interval,
             // 每次轮循的起始时间

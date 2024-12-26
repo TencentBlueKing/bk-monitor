@@ -32,6 +32,7 @@ from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
 from metadata.task.tasks import (
     bulk_check_and_delete_ds_consul_config,
     bulk_refresh_data_link_status,
+    clean_disable_es_storage,
     manage_es_storage,
 )
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
@@ -367,6 +368,55 @@ def refresh_es_storage():
 
     end_time = time.time()  # 记录结束时间
     logger.info("refresh_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time)
+
+
+@share_lock(identify="metadata_manageDisableESStorage", ttl=7200)
+def manage_disable_es_storage():
+    """
+    清理禁用的采集项索引
+    """
+    logger.info("manage_disable_es_storage:start to clean disable es_storage")
+
+    start_time = time.time()  # 记录开始时间
+    # 1. 获取轮转集群黑名单
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+
+    # 2.筛选出需要创建索引且不在黑名单中的集群
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
+        storage_cluster_id__in=es_blacklist
+    )
+
+    # 3. 只处理禁用的结果表/采集项
+    table_id_list = models.ResultTable.objects.filter(
+        table_id__in=es_storages.values_list("table_id", flat=True), is_enable=False
+    ).values_list("table_id", flat=True)
+
+    es_storages = es_storages.filter(table_id__in=table_id_list)
+
+    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+
+    # 4, 分集群执行并发清理
+    for cluster in es_storages_by_cluster:
+        try:
+            cluster_id = cluster['storage_cluster_id']
+            cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+            count = cluster_storages.count()
+            logger.info(
+                "manage_disable_es_storage:clean cluster_id->[%s] es_storages count->[%s]，now try to clean",
+                cluster_id,
+                count,
+            )
+
+            # 默认使用新方式轮转
+            clean_disable_es_storage.delay(cluster_storages, cluster_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("manage_disable_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
+            continue
+
+    end_time = time.time()  # 记录结束时间
+    logger.info(
+        "manage_disable_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time
+    )
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")

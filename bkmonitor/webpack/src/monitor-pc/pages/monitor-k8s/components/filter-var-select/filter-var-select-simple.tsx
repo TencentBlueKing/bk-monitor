@@ -33,7 +33,7 @@ import './filter-var-select-simple.scss';
 
 type ValueType = number | string | string[];
 export interface IProps {
-  label: TranslateResult | string;
+  label: string | TranslateResult;
   field: string;
   multiple?: boolean;
   options: IOption[];
@@ -46,7 +46,7 @@ export interface IEvents {
 @Component
 export default class FilterVarSelectSimple extends tsc<IProps, IEvents> {
   /** 组件标题 */
-  @Prop({ default: '', type: String }) label: TranslateResult | string;
+  @Prop({ default: '', type: String }) label: string | TranslateResult;
   /** 组件返回值的key */
   @Prop({ default: 'key', type: String }) field: string;
   /** 是否多选 */
@@ -83,6 +83,7 @@ export default class FilterVarSelectSimple extends tsc<IProps, IEvents> {
           {this.options.map(item => (
             <bk-option
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}

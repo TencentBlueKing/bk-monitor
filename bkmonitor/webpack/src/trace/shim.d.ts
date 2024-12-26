@@ -57,5 +57,10 @@ declare global {
     bk_docs_site_url: string;
     bk_doc_version: string;
     graph_watermark: boolean;
+    // 以下为日志全局变量配置
+    mainComponent: any;
+    AJAX_URL_PREFIX: string;
+    BK_DOC_URL?: string;
+    FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
   }
 }

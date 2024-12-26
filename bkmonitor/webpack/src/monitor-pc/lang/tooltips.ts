@@ -309,4 +309,8 @@ export default {
   下一跳: 'Next hop',
   已经是第一个span: 'It is already the first span',
   已经是最后一个span: 'It is already the last span',
+  点击隐藏该指标: 'Click to hide this indicator',
+  点击显示该指标: 'Click to display this indicator',
+  清空整组筛选项: 'Clear all filter options in the group',
+  请先删除子级维度: 'Please delete the child dimension first',
 };

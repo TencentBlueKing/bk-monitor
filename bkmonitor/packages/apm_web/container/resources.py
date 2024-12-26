@@ -28,9 +28,7 @@ class PodDetailResource(Resource):
     def perform_request(self, validated_data):
         from bkmonitor.models import BCSPod
 
-        query_params = {
-            "bk_biz_id": validated_data["bk_biz_id"],
-        }
+        query_params = {}
         if validated_data.get("bcs_cluster_id"):
             query_params["bcs_cluster_id"] = validated_data["bcs_cluster_id"]
         if validated_data.get("namespace"):
@@ -40,7 +38,9 @@ class PodDetailResource(Resource):
 
         if BCSPod.objects.filter(**query_params).exists():
             # 存在则交给 Pod 详情接口
-            return resource.scene_view.get_kubernetes_pod(**validated_data)
+            # 获取业务 Id (Pod 可能存在于空间下但是不属于此空间的业务)
+            bk_biz_id = BCSPod.objects.filter(**query_params).first().bk_biz_id
+            return resource.scene_view.get_kubernetes_pod(**{**validated_data, "bk_biz_id": bk_biz_id})
 
         res = [{"key": "monitor_status", "name": "状态", "type": "status", "value": {"text": "已销毁", "type": "failed"}}]
         if validated_data.get("pod_name"):
