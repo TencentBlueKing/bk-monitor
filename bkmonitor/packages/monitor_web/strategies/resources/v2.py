@@ -15,7 +15,7 @@ import arrow
 import pytz
 from django.conf import settings
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -3177,6 +3177,9 @@ class ListIntelligentModelsResource(Resource):
                     "ts_depend": plan["ts_depend"],
                 }
             )
+
+        # 默认is_default在最前面，除此外，按照ID降序排序
+        model_list = sorted(model_list, key=lambda x: (not x["is_default"], -int(x["id"])))
 
         return model_list
 

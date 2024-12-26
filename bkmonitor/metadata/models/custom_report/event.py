@@ -16,7 +16,7 @@ from typing import Optional
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField
@@ -49,7 +49,7 @@ class EventGroup(CustomGroupBase):
     GROUP_NAME_FIELD = "event_group_name"
 
     # 时间字段的配置
-    STORAGE_TIME_OPTION = {"es_type": "date_nanos", "es_format": "epoch_millis"}
+    STORAGE_TIME_OPTION = {"es_type": "date", "es_format": "epoch_millis"}
 
     # Event字段配置
     STORAGE_EVENT_OPTION = {

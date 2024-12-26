@@ -32,13 +32,16 @@ class EsRoute:
         self._scenario_id = scenario_id
         self._raise_exception = raise_exception
 
-    def cat_indices(self):
+    def cat_indices(self, need_filter=True):
+        """
+        :param need_filter: 是否需要根据索引集创建规则过滤
+        """
         if self._scenario_id in [Scenario.BKDATA]:
             return self._get_bkdata_indices()
         target_index = self._get_index_target(self._indices)
         url = f"_cat/indices/{target_index}?bytes=b"
         result = self._query(url)
-        if self._scenario_id == Scenario.LOG:
+        if self._scenario_id == Scenario.LOG and need_filter:
             # 根据索引集创建规则进行过滤
             pattern = re.compile(f".*?" + target_index + r"_\d{8}_\d+$")
             result_list = []

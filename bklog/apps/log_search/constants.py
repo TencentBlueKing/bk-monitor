@@ -1452,11 +1452,11 @@ class ExportFileType(ChoicesEnum):
     日志下载文件类型枚举
     """
 
-    TXT = "txt"
+    LOG = "log"
     CSV = "csv"
 
     _choices_labels = (
-        (TXT, _("txt类型")),
+        (LOG, _("log类型")),
         (CSV, _("csv类型")),
     )
 
@@ -1677,3 +1677,30 @@ SQL_CONDITION_MAPPINGS = {
     "is true": "IS TRUE",
     "is false": "IS FALSE",
 }
+
+# es保留字符
+ES_RESERVED_CHARACTERS = [
+    "\\",
+    "+",
+    "-",
+    "=",
+    "&&",
+    "||",
+    ">",
+    "<",
+    "!",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]",
+    "^",
+    "\"",
+    "~",
+    "*",
+    "?",
+    ":",
+    "/",
+    " ",
+]

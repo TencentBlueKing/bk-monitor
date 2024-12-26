@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 AI_SETTING_APPLICATION_CONFIG_KEY = "ai_setting"
 
@@ -64,6 +64,7 @@ class SDKDetectStatus(object):
 DEPEND_DATA_MAX_FETCH_COUNT = 1000000
 DEPEND_DATA_MAX_FETCH_TIME_RANGE = 30  # 单位分钟
 DEPEND_DATA_MIN_FETCH_TIME_RANGE = 5  # 单位分钟
+DEPEND_DATA_MAX_INIT_COUNT = 100  # 单次调用最大更新分组
 
 SCENE_NAME_MAPPING = {SceneSet.HOST: _("主机场景")}
 

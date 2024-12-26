@@ -16,8 +16,8 @@ from functools import reduce
 from itertools import chain
 from typing import Dict, List, Tuple
 
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
@@ -347,10 +347,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         CategoryTranslator().translate_from_dict(alerts, "category", "category_display")
         PluginTranslator().translate_from_dict(alerts, "plugin_id", "plugin_display_name")
 
-        result = {
-            "alerts": alerts,
-            "total": min(search_result.hits.total.value, 10000),
-        }
+        result = {"alerts": alerts, "total": search_result.hits.total.value}
 
         if show_overview:
             result["overview"] = self.handle_overview(search_result)

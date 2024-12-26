@@ -14,7 +14,7 @@ from typing import Dict
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseResources, BCSLabel
@@ -66,6 +66,14 @@ class BCSContainer(BCSBase, BCSBaseResources):
     def save(self, *args, **kwargs):
         self.unique_hash = self.get_unique_hash()
         super().save(*args, **kwargs)
+
+    def to_meta_dict(self):
+        return {
+            "pod": self.pod_name,
+            "container": self.name,
+            "namespace": self.namespace,
+            "workload": f"{self.workload_type}:{self.workload_name}",
+        }
 
     @classmethod
     def get_columns(cls, columns_type="list"):

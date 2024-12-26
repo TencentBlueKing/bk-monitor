@@ -47,6 +47,7 @@ import './temporary-share.scss';
 export interface ITemporaryShareProps {
   navList?: INavItem[];
   onlyCopy?: boolean;
+  icon?: string;
   navMode?: NavBarMode;
   customData?: Record<string, any>;
   positionText?: string;
@@ -62,6 +63,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   @Prop({ default: () => ({}) }) customData: Record<string, any>;
   /** 定位文本 */
   @Prop({ type: String }) positionText: string;
+  @Prop({ type: String }) icon: string;
   @Prop({ type: String, default: 'copy' }) navMode: NavBarMode;
   /* 当前分享页的基本信息（用于页面路径显示） */
   @Prop({ type: Object, default: () => ({}) }) pageInfo: Record<string, any>;
@@ -304,7 +306,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   }
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {
-    if (!!data?.value) {
+    if (data?.value) {
       this.timeRange = new TimeRange([...data.value] as TimeRangeType).format();
       this.oldTimeRange = this.timeRange.slice();
       this.timeRangePanelShow = false;
@@ -406,6 +408,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
           >
             {this.shortcuts.map(item => (
               <li
+                key={item.text.toString()}
                 class='shortcuts-item'
                 onClick={() => this.handleShortcutChange(item)}
               >
@@ -464,11 +467,14 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       placement: 'right',
       disabled: this.readonly || this.onlyDisplay,
     };
+    const icon = this.icon
+      ? [this.icon]
+      : [this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share'];
     return (
       <div class='temporary-share'>
         {!this.positionText?.length ? (
           <span
-            class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
+            class={['icon-monitor', ...icon]}
             v-bk-tooltips={tipsOpts}
             onClick={this.handleShowDialog}
           />

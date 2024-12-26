@@ -31,7 +31,6 @@ class SdkPredictResource(APIResource):
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
         extra_data = serializers.DictField(default=dict())
-        backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
 
     action = "/api/aiops/default/"
     method = "POST"
@@ -46,7 +45,6 @@ class SdkGroupPredictResource(APIResource):
         group_data = serializers.ListField(required=True, child=serializers.DictField())
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
-        backfill_fields = serializers.ListField(required=False, default=list(), child=serializers.CharField())
 
     action = "/api/aiops/group_predict/"
     method = "POST"
@@ -55,6 +53,7 @@ class SdkGroupPredictResource(APIResource):
 class DependencyDataSerializer(serializers.Serializer):
     data = serializers.ListField(child=serializers.DictField())
     dimensions = serializers.DictField(default=dict())
+    partition = serializers.CharField(allow_blank=True, default=None)
 
 
 class SdkInitDependResource(APIResource):
@@ -64,7 +63,6 @@ class SdkInitDependResource(APIResource):
 
     class RequestSerializer(serializers.Serializer):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
-        replace = serializers.BooleanField(default=True)
 
     action = "/api/aiops/init_depend/"
     method = "POST"

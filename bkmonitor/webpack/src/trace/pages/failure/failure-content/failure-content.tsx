@@ -123,11 +123,11 @@ export default defineComponent({
     const currentNodeData = computed(() => {
       return props.currentNode;
     });
-    const route = useRoute();
     const inputStatus = ref<string>('success');
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
+      alertIdsObject.value = {};
     };
     const playingHandle = status => {
       playLoading.value = status;
@@ -149,13 +149,7 @@ export default defineComponent({
         chooseOperation.value = data;
       });
     };
-    // watch(
-    //   () => route.query,
-    //   val => {
-    //     val.tab && handleChangeActive(val.tab as string);
-    //   },
-    //   { immediate: true }
-    // );
+
     watch(
       () => currentNodeData.value,
       () => {
@@ -172,7 +166,7 @@ export default defineComponent({
     };
     const handleValidateQueryString = async () => {
       let validate = true;
-      if (alertIdsObject.value.ids?.length) {
+      if (alertIdsObject.value?.ids?.length) {
         validate = await incidentValidateQueryString(
           { query_string: replaceSpecialCondition(alertIdsObject.value?.ids), search_type: 'incident' },
           { needMessage: false, needRes: true }

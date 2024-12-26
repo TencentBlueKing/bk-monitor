@@ -44,7 +44,7 @@
       v-if="isRenderChart"
       ref="chartRef"
       v-show="!isFold && !isLoading"
-      style="padding: 0 24px;"
+      style="padding: 0 24px"
       :get-series-data="getSeriesData"
       :is-fold="isFold"
       :key="chartKey"

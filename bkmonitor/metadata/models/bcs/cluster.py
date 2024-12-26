@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
 
 from bkmonitor.utils.db import JsonField
@@ -441,6 +441,7 @@ class BCSClusterInfo(models.Model):
                 transfer_cluster_id=transfer_cluster_id,
                 source_system=settings.SAAS_APP_CODE,
                 bcs_cluster_id=self.cluster_id,
+                bk_biz_id=self.bk_biz_id,
             )
         except ValueError as err:
             logger.exception(

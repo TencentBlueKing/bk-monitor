@@ -23,6 +23,7 @@ logger = logging.getLogger("apm")
 
 
 class HostDiscover(DiscoverBase):
+    DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     PAGE_LIMIT = 100
     DEFAULT_BK_CLOUD_ID = -1

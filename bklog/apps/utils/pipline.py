@@ -111,6 +111,7 @@ class BaseService(Service):
                     )
 
         if not result:
+            content = f"{exc_info} => {reason}"
             if index_set_id:
                 ClusteringConfig.update_task_details(
                     **common_params,
@@ -118,9 +119,10 @@ class BaseService(Service):
                     message=reason,
                     exc_info=f"execute failed: {exc_info}",
                 )
+                content = f"{content} (index_set_id: {index_set_id})"
 
             PIPELINE_MONITOR_EVENT(
-                content=f"{exc_info} => {reason}",
+                content=content,
                 dimensions={"pipeline_id": root_pipeline_id, "node_id": node_id, "pipeline_name": str(self.name)},
             )
         return result
@@ -171,6 +173,7 @@ class BaseService(Service):
                 )
 
         if not result:
+            content = f"{exec_info} => {reason}"
             if index_set_id:
                 ClusteringConfig.update_task_details(
                     **common_params,
@@ -178,8 +181,10 @@ class BaseService(Service):
                     message=reason,
                     exc_info=f"schedule failed: {exec_info}",
                 )
+                content = f"{content} (index_set_id: {index_set_id})"
+
             PIPELINE_MONITOR_EVENT(
-                content=f"{exec_info} => {reason}",
+                content=content,
                 dimensions={"pipeline_id": root_pipeline_id, "node_id": node_id, "pipeline_name": str(self.name)},
             )
         return result

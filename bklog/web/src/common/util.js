@@ -29,6 +29,8 @@
  * @author  <>
  */
 
+import { set } from 'vue';
+
 import dayjs from 'dayjs';
 import JSONBigNumber from 'json-bignumber';
 
@@ -965,31 +967,37 @@ export const calculateTableColsWidth = (field, list) => {
       parseTableRowData(a, field.field_name, field.field_type).length
     );
   });
+
+  // 字段名长度 需保证字段名完全显示
+  const fieldNameLen = getTextPxWidth(field.field_name, '12px', TABLE_FOUNT_FAMILY);
+  const minWidth = fieldNameLen + 80;
   if (firstLoadList[0]) {
-    if (['ip', 'serverIp'].includes(field.field_name)) return 124;
-    if (field.field_name === 'dtEventTimeStamp') return 256;
-    if (field.field_name === 'time') return 175;
+    if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
+    if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
+    if (/time/i.test(field.field_name)) return [256, minWidth];
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
     // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue, '13px', TABLE_FOUNT_FAMILY);
-    // 字段名长度 需保证字段名完全显示
-    const fieldNameLen = getTextPxWidth(field.field_name, '13px', TABLE_FOUNT_FAMILY);
+    const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
 
-    // 600为默认自适应最大宽度
-    if (fieldValueLen > 600) return 600;
+    if (field.field_type === 'text') {
+      // 800为默认自适应最大宽度
+      if (fieldValueLen > 800) return [800, minWidth];
+    }
+
+    if (fieldValueLen > 480) return [480, minWidth];
 
     // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
-    if (fieldValueLen < fieldNameLen + 80) return fieldNameLen + 80;
+    if (fieldValueLen < minWidth) return [minWidth, minWidth];
 
     // 默认计算长度 40为padding
-    return fieldValueLen + 40;
+    return [fieldValueLen + 40, minWidth];
   }
 
-  return field.width;
+  return [field.width, minWidth];
 };
 
 /**
@@ -1064,24 +1072,37 @@ export const utcFormatDate = val => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach(field => {
+        const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
+        let width = fieldWidth < minWidth ? minWidth : fieldWidth;
         if (catchFieldsWidthObj) {
           const catchWidth = catchFieldsWidthObj[field.field_name];
-          field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
-        } else {
-          field.width = calculateTableColsWidth(field, tableData);
+          width = catchWidth ?? fieldWidth;
         }
+
+        set(field, 'width', width);
+        set(field, 'minWidth', minWidth);
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
-      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-      if (tableElem && columnsWidth && columnsWidth < tableElem.clientWidth - 115) {
-        visibleFields.forEach(field => {
-          field.width = field.width < 300 ? 'default' : field.width;
-        });
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
+      const availableWidth = tableElem.clientWidth - staticWidth;
+      if (tableElem && columnsWidth && columnsWidth < availableWidth) {
+        const longFiels = visibleFields.filter(item => item.width >= 800);
+        if (longFiels.length) {
+          const addWidth = (availableWidth - columnsWidth) / longFiels.length;
+          longFiels.forEach(item => {
+            set(item, 'width', item.width + Math.ceil(addWidth));
+          });
+        } else {
+          const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
+          visibleFields.forEach(field => {
+            set(field, 'width', field.width + Math.ceil(addWidth));
+          });
+        }
       }
     }
 

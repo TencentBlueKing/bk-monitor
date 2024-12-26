@@ -12,14 +12,15 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 from functools import partial
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q, QuerySet
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_ipchooser.handlers import topo_handler
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import (
     BCSCluster,
@@ -40,10 +41,11 @@ from constants.data_source import (
 from constants.strategy import EVENT_QUERY_CONFIG_MAP, SYSTEM_EVENT_RT_TABLE_ID
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
-from monitor_web.grafana.utils import get_cookies_filter
+from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
+from monitor_web.strategies.default_settings.k8s_event import DEFAULT_K8S_EVENT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -509,6 +511,29 @@ class GetVariableValue(Resource):
 
         return new_labels, new_values
 
+    @staticmethod
+    def get_host_count(bk_biz_id: int, target_type: str) -> Dict[int, int]:
+        """
+        获取主机数量，比如集群或者模块的主机数量
+        """
+        host_count = {}
+
+        def collect(trees: List[Dict[str, Any]]):
+            for node in trees:
+                if node["object_id"] == target_type:
+                    host_count[node["instance_id"]] = node["count"]
+
+                if "child" in node and node["child"]:
+                    collect(node["child"])
+
+        trees = topo_handler.TopoHandler.trees(
+            scope_list=[{"bk_biz_id": bk_biz_id}],
+            count_instance_type="host",
+        )
+        collect(trees)
+
+        return host_count
+
     def query_cmdb(self, type, bk_biz_id, params):
         label_fields = [label_field for label_field in params["label_field"].split("|") if label_field]
         value_fields = [value_field for value_field in params["value_field"].split("|") if value_field]
@@ -517,8 +542,10 @@ class GetVariableValue(Resource):
             instances = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         elif type == "module":
             instances = api.cmdb.get_module(bk_biz_id=bk_biz_id)
+            host_count = self.get_host_count(bk_biz_id, "module")
         elif type == "set":
             instances = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+            host_count = self.get_host_count(bk_biz_id, "set")
         elif type == "service_instance":
             instances = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
         else:
@@ -540,7 +567,12 @@ class GetVariableValue(Resource):
                 continue
 
             new_labels, new_values = self.format_label_and_value(labels, values)
-            value_dict["|".join(new_values)] = "|".join(new_labels)
+            if type in ["module", "set"]:
+                # 模块和集群变量加上主机数量
+                instance_id = instance.bk_module_id if type == "module" else instance.bk_set_id
+                value_dict["|".join(new_values)] = "|".join(new_labels) + f"[{host_count.get(instance_id, 0)}]"
+            else:
+                value_dict["|".join(new_values)] = "|".join(new_labels)
 
         return [{"label": k, "value": v} for v, k in value_dict.items()]
 
@@ -737,7 +769,11 @@ class GetVariableValue(Resource):
         # 7、对维度的返回字段进行组装，使得其支持多字段查询
         dimensions = self.assemble_dimensions(fields, records)
 
-        # 8、对维度值进行翻译并返回
+        # 8、给全局k8s事件的 event_name 维度提供常用事件名的默认值
+        if is_global_k8s_event(params, bk_biz_id):
+            dimensions = set(dimensions) | set(DEFAULT_K8S_EVENT_NAME)
+
+        # 9、对维度值进行翻译并返回
         return self.dimension_translate(bk_biz_id, params, list(dimensions))
 
     def query_promql(self, bk_biz_id, params):

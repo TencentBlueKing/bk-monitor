@@ -18,7 +18,7 @@ from typing import List
 
 from django.conf import settings
 from django.template import Context, Template
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.data.records import DataRecord
@@ -468,6 +468,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 class SDKPreDetectMixin(object):
     GROUP_PREDICT_FUNC = None
     PREDICT_FUNC = None
+    WITH_HISTORY_ANOMALY = False
 
     def pre_detect(self, data_points: List[DataPoint]) -> None:
         """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
@@ -477,22 +478,36 @@ class SDKPreDetectMixin(object):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
-        if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
-            logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+        if item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+                return
+        else:
             return
 
         predict_inputs = {}
         for data_point in data_points:
             dimension_md5 = data_point.record_id.split(".")[0]
             if dimension_md5 not in predict_inputs:
+                dimensions = {key: data_point.dimensions[key] for key in item.query_configs[0]["agg_dimension"]}
+                dimensions["strategy_id"] = int(data_point.item.strategy.id)
                 predict_inputs[dimension_md5] = {
-                    "dimensions": data_point.dimensions,
+                    "dimensions": dimensions,
                     "data": [],
-                    "extra_data": {
-                        "history_anomaly": [],
-                    },
+                    "extra_data": {},
                 }
-                predict_inputs[dimension_md5]["dimensions"]["strategy_id"] = int(data_point.item.strategy.id)
+                if self.WITH_HISTORY_ANOMALY:
+                    predict_inputs[dimension_md5]["extra_data"]["history_anomaly"] = {
+                        "source": "backfill",
+                        "retention_period": "8d",
+                        "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
+                        "backfill_conditions": [
+                            {
+                                "field_name": "is_anomaly",
+                                "value": 1,
+                            }
+                        ],
+                    }
 
             predict_inputs[dimension_md5]["data"].append(
                 {
@@ -511,9 +526,8 @@ class SDKPreDetectMixin(object):
                         **predict_input,
                         interval=int(data_points[0].item.query_configs[0]["agg_interval"]),
                         predict_args={
-                            "alert_up": self.validated_config["args"].get("$alert_up"),
-                            "alert_down": self.validated_config["args"].get("$alert_down"),
-                            "sensitivity": self.validated_config["args"].get("$sensitivity"),
+                            arg_key.lstrip("$"): arg_value
+                            for arg_key, arg_value in self.validated_config["args"].items()
                         },
                     )
                 )

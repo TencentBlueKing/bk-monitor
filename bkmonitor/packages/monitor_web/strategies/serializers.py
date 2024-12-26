@@ -10,16 +10,16 @@ specific language governing permissions and limitations under the License.
 """
 from django.conf import settings
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import ValidationError
+
+from bkmonitor.views import serializers
+from constants.strategy import TargetFieldType
 from monitor_web.strategies.constant import (
     DETECT_ALGORITHM_FLOAT_OR_INT_LIST,
     DETECT_ALGORITHM_INT_LIST,
     DETECT_ALGORITHM_METHOD_LIST,
 )
-from rest_framework.exceptions import ValidationError
-
-from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
 
 
 class Ipserializer(serializers.Serializer):
@@ -65,18 +65,14 @@ def handle_target(value):
                 ]
 
             # 针对拓扑和模板，只保留bk_obj_id和bk_inst_id，避免脏数据
-            if (
-                value_detail["field"]
-                in [
-                    TargetFieldType.host_topo,
-                    TargetFieldType.service_topo,
-                    TargetFieldType.host_set_template,
-                    TargetFieldType.host_service_template,
-                    TargetFieldType.service_set_template,
-                    TargetFieldType.service_set_template,
-                ]
-                and isinstance(value_detail["value"], list)
-            ):
+            if value_detail["field"] in [
+                TargetFieldType.host_topo,
+                TargetFieldType.service_topo,
+                TargetFieldType.host_set_template,
+                TargetFieldType.host_service_template,
+                TargetFieldType.service_set_template,
+                TargetFieldType.service_set_template,
+            ] and isinstance(value_detail["value"], list):
                 value_detail["value"] = [
                     {"bk_obj_id": x["bk_obj_id"], "bk_inst_id": x["bk_inst_id"]} for x in value_detail["value"]
                 ]

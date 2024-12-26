@@ -31,7 +31,8 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
-from monitor_web.scene_view.builtin import BuiltinProcessor
+from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
+from monitor_web.scene_view.builtin.utils import gen_string_md5
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +191,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if not span_id:
                     raise ValueError(_("缺少SpanId参数"))
 
-                span_host = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
+                span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
 
-                if span_host:
+                if span_hosts:
+                    # TODO 关联主机页面后续需要改为多主机 现在先直接取第一个
+                    span_host = span_hosts[0]
                     cls._add_config_from_host(view, view_config)
                     # 替换模版中变量
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
@@ -388,7 +391,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     except Exception as e:  # pylint: disable=broad-except
                         logger.warning(f"当前条件下 {cache_key} 暂无scope_name缓存: {e}")
                         monitor_info_mapping = {}
-                if not monitor_info_mapping:
+                if not monitor_info_mapping or not monitor_info_mapping.get(service_name):
                     monitor_info_mapping = metric_group.MetricHelper.get_monitor_info(
                         bk_biz_id,
                         result_table_id,
@@ -404,12 +407,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     if any([str(i.metric_field).startswith("apm_"), str(i.metric_field).startswith("bk_apm_")]):
                         continue
                     # 根据dimension获取monitor_name监控项, 获取不到的则跳过
-                    metric_info = monitor_info_mapping.get(service_name, {}).get(f"{i.metric_field}_value")
+                    metric_info = monitor_info_mapping.get(service_name, {}).get(i.metric_field)
                     if not metric_info:
                         continue
                     # 进行panels的变量渲染
                     variables = {
-                        "id": f"idx_{idx}",
                         "table_id": i.result_table_id,
                         "metric_field": i.metric_field,
                         "readable_name": i.readable_name,
@@ -433,9 +435,15 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             }
                             group_panel = cls._multi_replace_variables(group_panel, group_variables)
                             metric_group_mapping[monitor_name] = group_panel
+                        metric_panel_instance = copy.deepcopy(metric_panel)
+                        # 设置monitor_name的id
+                        graph_idx = gen_string_md5(f"{monitor_name}_{idx}")
+                        metric_panel_instance = cls._replace_variable(metric_panel_instance, "${id}", graph_idx)
                         # 设置monitor_name和metric_panel
-                        metric_panel = cls._replace_variable(metric_panel, "${scope_name_value}", monitor_name)
-                        metric_group_mapping[monitor_name]["panels"].append(metric_panel)
+                        metric_panel_instance = cls._replace_variable(
+                            metric_panel_instance, "${scope_name_value}", monitor_name
+                        )
+                        metric_group_mapping[monitor_name]["panels"].append(metric_panel_instance)
                 view_config["overview_panels"] = list(metric_group_mapping.values())
             if not view_config["overview_panels"]:
                 cls._generate_non_custom_metric_view_config(view_config)
@@ -518,7 +526,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             scene_id="kubernetes",
             name="pod",
             type="",
-        ).first()
+        )
+        if pod_view.exists():
+            pod_view = pod_view.first()
+        else:
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="kubernetes", view_type="", existed_views=pod_view)
+            pod_view = pod_view.first()
+
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
         pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
 
@@ -546,9 +560,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
 
         # 特殊处理服务主机页面 -> 为主机监控panel配置
-        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
-        if host_view:
-            view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail")
+        if not host_view.exists():
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="host", view_type="detail", existed_views=host_view)
+
+        view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
         if "overview_panel" in view_config.get("options"):
             # 去除顶部栏中的策略告警信息
             del view_config["options"]["overview_panel"]

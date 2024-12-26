@@ -16,13 +16,25 @@ from collections import defaultdict
 import arrow
 from django.apps import apps
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db.models import Q
 
+from alarm_backends.service.report.render.dashboard import (
+    RenderDashboardConfig,
+    render_dashboard_panel,
+)
+from alarm_backends.service.report.utils import get_or_create_eventloop
 from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
 from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.models import ReportContents, ReportItems, ReportStatus, StatisticsMetric
+from bkmonitor.models import (
+    RenderImageTask,
+    ReportContents,
+    ReportItems,
+    ReportStatus,
+    StatisticsMetric,
+)
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
@@ -277,3 +289,47 @@ def run_collect_redis_metric(seq):
     if seq > 0:
         run_collect_redis_metric.apply_async(kwargs={"seq": seq}, countdown=collector_interval)
     RedisMetricCollectReport().collect_redis_metric_data()
+
+
+@app.task(ignore_result=True, queue="celery_report_cron")
+def render_image_task(task: RenderImageTask):
+    """
+    渲染图片任务
+
+    :param task: 渲染图片任务
+    """
+    # 更新任务状态为渲染中
+    task.status = RenderImageTask.Status.RENDERING
+    task.save()
+
+    event_loop = get_or_create_eventloop()
+
+    # 根据任务类型，定义渲染函数及配置
+    func, config = None, None
+    if task.type == RenderImageTask.Type.DASHBOARD:
+        config = RenderDashboardConfig(**task.options)
+        func = render_dashboard_panel
+    else:
+        raise ValueError(f"Invalid task type: {task.type}")
+
+    image: bytes = None
+    if func:
+        # 执行渲染
+        try:
+            image = event_loop.run_until_complete(func(config))
+        except Exception as e:
+            task.error = str(e)
+    else:
+        task.error = f"Invalid task type: {task.type}"
+
+    # 完成时间
+    task.finish_time = datetime.datetime.now()
+
+    # 如果错误，则状态为失败
+    if task.error:
+        task.status = RenderImageTask.Status.FAILED
+    else:
+        task.status = RenderImageTask.Status.SUCCESS
+        task.image = ContentFile(image, name=f"{task.type}/{str(task.task_id)}.jpeg")
+
+    task.save()

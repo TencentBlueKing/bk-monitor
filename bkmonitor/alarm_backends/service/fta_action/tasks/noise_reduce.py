@@ -2,7 +2,6 @@ import logging
 import time
 from collections import defaultdict
 
-from celery.task import task
 from django.conf import settings
 from django.db.models import Q
 from django.utils.functional import cached_property
@@ -13,6 +12,7 @@ from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.fta_action.utils import PushActionProcessor
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance
@@ -24,7 +24,7 @@ from core.errors.alarm_backends import LockError
 logger = logging.getLogger("fta_action.run")
 
 
-@task(ignore_result=True, queue="celery_action")
+@app.task(ignore_result=True, queue="celery_action")
 def run_noise_reduce_task(processor):
     processor.process()
 
