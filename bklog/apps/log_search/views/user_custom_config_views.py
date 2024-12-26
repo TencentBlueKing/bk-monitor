@@ -39,7 +39,9 @@ class UserCustomConfigViewSet(ModelViewSet):
         @apiGroup user_custom_config
         @apiParamExample {Json} 请求参数
         {
-            "is_keep_filter_conditions": false
+            "custom_config": {
+                "is_keep_filter_conditions": false
+            }
         }
         @apiSuccessExample {json} 成功返回:
         {
@@ -65,7 +67,9 @@ class UserCustomConfigViewSet(ModelViewSet):
         @apiGroup user_custom_config
         @apiParamExample {Json} 请求参数
         {
-            "is_keep_filter_conditions": false
+            "custom_config": {
+                "is_keep_filter_conditions": false
+            }
         }
         @apiSuccessExample {json} 成功返回:
         {
