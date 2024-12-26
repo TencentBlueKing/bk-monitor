@@ -26,7 +26,6 @@
 import { Prop, Component, Emit, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { connect, disconnect } from 'echarts/core';
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
@@ -836,7 +835,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           lastValueWidth={80}
           unit={chartData.unit}
           unitDecimal={chartData?.unitDecimal || 4}
-          valueTitle={chartData.valueTitle}
+          valueTitle={chartData.valueTitle || this.$tc('用量')}
         />
       ) : (
         '--'
