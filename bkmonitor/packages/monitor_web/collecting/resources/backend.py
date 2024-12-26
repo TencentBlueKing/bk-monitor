@@ -941,7 +941,7 @@ class SaveCollectConfigResource(Resource):
             if not attrs.get("id") and attrs["collect_type"] == CollectConfigMeta.CollectType.PUSHGATEWAY:
                 password = attrs["params"]["collector"].get("password")
                 if password is True:
-                    raise serializers.ValidationError("password must be a string, not be a bool")  # 表示需要重置密码
+                    raise serializers.ValidationError("Please reset your password")  # 表示需要重置密码
                 elif password is False:
                     # 将如果密码为空则设为空密码
                     attrs["params"]["collector"]["password"] = ""

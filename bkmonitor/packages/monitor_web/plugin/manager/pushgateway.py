@@ -40,7 +40,7 @@ class PushgatewayPluginManager(PluginManager):
         # 如果 password 为 True 抛出异常让用户修改密码
         # 如果 password 为 False 则在上面转成 ""
         if password is True:
-            raise TypeError("password must be a string, not be a bool")
+            raise TypeError("Please reset your password")
 
         if username:
             # 如果用户填写了用户名，则在url中添加基础认证
