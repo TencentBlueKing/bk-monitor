@@ -267,8 +267,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
   // 渲染常用导航的路由部分
   leftRoutes() {
     return (
-      <div class='left-route'>
-        <div class='left-route-title'>
+      <div class='right-route'>
+        <div class='right-route-title'>
           {this.$t('结果预览')}
           <span class='route-count'>{this.storeRoutes.length}</span>
         </div>
@@ -276,20 +276,22 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
           {this.storeRoutes.map((item, index) => (
             <li
               key={item.id}
-              class={`route-list-item ${this.dragoverId === item.id ? 'is-dragover' : ''}`}
+              class='route-list-item'
               draggable={true}
               onDragleave={this.handleDragleave}
               onDragover={e => this.handleDragover(item, e)}
               onDragstart={() => this.handleDragstart(item)}
               onDrop={this.handleDrop}
             >
-              <i class={`${item.icon} item-icon`} />
               <span class='icon-monitor icon-mc-tuozhuai item-drag' />
-              {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
-              <span
-                class='icon-monitor icon-mc-close item-close'
-                onClick={() => this.handleDeleteStoreRoute(index)}
-              />
+              <div class={`route-list-item-main ${this.dragoverId === item.id ? 'is-dragover' : ''}`}>
+                <i class={`${item.icon} item-icon`} />
+                {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
+                <span
+                  class='icon-monitor icon-mc-close item-close'
+                  onClick={() => this.handleDeleteStoreRoute(index)}
+                />
+              </div>
             </li>
           ))}
         </ul>
@@ -303,6 +305,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
       <MonitorDialog
         width='1054'
         class='quick-access-modal'
+        appendToBody={true}
         maskClose={true}
         needCloseIcon={false}
         needFooter={true}
@@ -313,11 +316,11 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
         onConfirm={this.handleConfirm}
       >
         <div class='route-setting'>
-          <div class='route-setting-right'>
+          <div class='route-setting-left'>
             <div class='content-header'>{this.$t('快捷入口管理')}</div>
             {this.contentRoutes()}
           </div>
-          <div class='route-setting-left'>{this.leftRoutes()}</div>
+          <div class='route-setting-right'>{this.leftRoutes()}</div>
         </div>
       </MonitorDialog>
     );
