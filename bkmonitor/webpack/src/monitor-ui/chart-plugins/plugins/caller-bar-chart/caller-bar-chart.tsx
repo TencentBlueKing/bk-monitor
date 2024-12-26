@@ -31,7 +31,7 @@ import { CancelToken } from 'monitor-api/index';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { VariablesService } from '../../utils/variable';
-import { type IChartOption } from '../apm-service-caller-callee/type';
+import type { IChartOption } from '../apm-service-caller-callee/type';
 import { createDrillDownList } from '../apm-service-caller-callee/utils';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -42,7 +42,7 @@ import type { CallOptions, IDataItem } from '../apm-service-caller-callee/type';
 
 import './caller-bar-chart.scss';
 
-interface IPieEchartProps {
+interface IBarEchartProps {
   panel: PanelModel;
 }
 @Component
@@ -343,7 +343,7 @@ class CallerBarChart extends CommonSimpleChart {
 }
 
 export default ofType<
-  IPieEchartProps,
+  IBarEchartProps,
   {
     /** 图表鼠标右击事件的回调方法 */
     onMenuClick?: (data: IDataItem) => void;
