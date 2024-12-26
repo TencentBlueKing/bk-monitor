@@ -33,6 +33,7 @@ from bkmonitor.utils.time_tools import (
 from constants.aiops import (
     DEPEND_DATA_MAX_FETCH_COUNT,
     DEPEND_DATA_MAX_FETCH_TIME_RANGE,
+    DEPEND_DATA_MAX_INIT_COUNT,
     DEPEND_DATA_MIN_FETCH_TIME_RANGE,
     SDKDetectStatus,
 )
@@ -129,6 +130,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
         # 先查询5min估算大概数据量
         minute_step = 5
         step_end_time = end_time
+        prefetch_results = {}
 
         # 直到当前取数据的末尾时间超过实际时间，一直按照上一次数据量调整每次取数据的时间范围，根据上一次取数据的量
         # 1. 每次至少取5分钟的数据(DEPEND_DATA_MIN_FETCH_TIME_RANGE)
@@ -148,19 +150,56 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 )
             )
 
-            item_records = item.query_record(step_start_time, step_end_time)
+            # 如果预加载数据包含当前时间段，则直接使用预加载数据
+            if (step_start_time, step_end_time) in prefetch_results:
+                item_records = prefetch_results.pop((step_start_time, step_end_time), [])
+            else:
+                item_records = item.query_record(step_start_time, step_end_time)
             step_end_time = step_start_time
+
             if len(item_records) == 0:
                 minute_step = DEPEND_DATA_MAX_FETCH_TIME_RANGE
                 continue
-
-            self.init_depend_data_by_records(strategy, init_depend_api_func, item_records, processed_dimensions)
 
             # 根据实际数据量调整每次查询的时间范围
             minute_step = max(
                 DEPEND_DATA_MIN_FETCH_TIME_RANGE, int(DEPEND_DATA_MAX_FETCH_COUNT / (len(item_records) / minute_step))
             )
             minute_step = min(minute_step, DEPEND_DATA_MAX_FETCH_TIME_RANGE)
+
+            tasks = []
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                tasks.append(
+                    executor.submit(
+                        self.init_depend_data_by_records,
+                        strategy=strategy,
+                        init_depend_api_func=init_depend_api_func,
+                        strategy_records=item_records,
+                        processed_dimensions=processed_dimensions,
+                    )
+                )
+                if start_time < step_end_time:
+                    tasks.append(
+                        executor.submit(
+                            self.prefetch_item_records,
+                            item=item,
+                            prefetch_results=prefetch_results,
+                            start_time=max(step_end_time - minute_step * 60, start_time),
+                            end_time=step_end_time,
+                        )
+                    )
+
+            as_completed(tasks)
+
+    def prefetch_item_records(self, item: Item, prefetch_results: dict, start_time: int, end_time: int):
+        """预加载查询结果
+
+        :param item: 策略项
+        :param prefetch_results: 预加载结果集
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        """
+        prefetch_results[(start_time, end_time)] = item.query_record(start_time, end_time)
 
     def init_depend_data_by_records(
         self,
@@ -191,35 +230,25 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 }
             )
 
-        replace_data = []
-        append_data = []
-        for dimensions_key, series_info in depend_data_by_dimensions.items():
-            series_info["dimensions"]["strategy_id"] = strategy.id
-
-            if dimensions_key not in processed_dimensions:
-                replace_data.append(
-                    {
-                        "data": series_info["data"],
-                        "dimensions": series_info["dimensions"],
-                    }
-                )
-            else:
-                append_data.append(
-                    {
-                        "data": series_info["data"],
-                        "dimensions": series_info["dimensions"],
-                    }
-                )
-
-            processed_dimensions.add(dimensions_key)
-
         tasks = []
         with ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_INIT_CONCURRENCY) as executor:
-            # 第一次刷新某个维度的时候使用覆盖式刷新，后面时间段刷新时在进行增量刷新
-            if replace_data:
-                executor.submit(init_depend_api_func, replace=True, dependency_data=replace_data)
+            init_data = []
+            for dimensions_key, series_info in depend_data_by_dimensions.items():
+                series_info["dimensions"]["strategy_id"] = strategy.id
+                init_data.append(
+                    {
+                        "data": series_info["data"],
+                        "dimensions": series_info["dimensions"],
+                        "partition": series_info["data"][0]["timestamp"],
+                    }
+                )
 
-            if append_data:
-                executor.submit(init_depend_api_func, replace=False, dependency_data=append_data)
+                if len(init_data) >= DEPEND_DATA_MAX_INIT_COUNT:
+                    tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
+                    init_data = []
+
+                processed_dimensions.add(dimensions_key)
+
+            tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
 
         as_completed(tasks)
