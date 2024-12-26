@@ -121,6 +121,8 @@ export default defineComponent({
             data: props.data,
           },
         });
+
+        debounceUpdateSegmentTag();
       },
     );
 

@@ -33,13 +33,13 @@
     <template v-if="isJsonFormat">
       <JsonFormatter
         :fields="field"
-        :json-value="content"
+        :json-value="formatContent"
         @menu-click="handleJsonSegmentClick"
       ></JsonFormatter>
     </template>
     <template v-else>
       <text-segmentation
-        :content="content"
+        :content="formatContent"
         :field="field"
         @menu-click="handleJsonSegmentClick"
       />
@@ -50,6 +50,7 @@
 <script>
   import JsonFormatter from '@/global/json-formatter.vue';
   import { mapState } from 'vuex';
+  import { formatDate, formatDateNanos } from '@/common/util';
 
   import TextSegmentation from './text-segmentation';
   export default {
@@ -80,10 +81,25 @@
       ...mapState({
         formatJson: state => state.tableJsonFormat,
         tableLineIsWrap: state => state.tableLineIsWrap,
+        isFormatDateField: state => state.isFormatDate,
       }),
 
       isJsonFormat() {
         return this.formatJson && /^\[|\{/.test(this.content);
+      },
+
+      formatContent() {
+        if (this.isFormatDateField) {
+          if (this.field.field_type === 'date') {
+            return formatDate(Number(this.content)) || this.content || '--';
+          }
+
+          // 处理纳秒精度的UTC时间格式
+          if (this.field.field_type === 'date_nanos') {
+            return formatDateNanos(this.content) || '--';
+          }
+        }
+        return this.content;
       },
     },
     methods: {
@@ -104,9 +120,9 @@
 
 <style lang="scss" scoped>
   .bklog-column-wrapper {
-    padding: 0;
     display: flex;
     align-items: flex-start;
     height: 100%;
+    padding: 0;
   }
 </style>
