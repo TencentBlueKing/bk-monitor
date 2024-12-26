@@ -1090,6 +1090,7 @@
           is_case_sensitive: false,
           is_analyzed: false,
           is_built_in: false,
+          is_add_in: true,
           is_dimension: false,
           previous_type: '',
           tokenize_on_chars: '',
@@ -2581,8 +2582,8 @@
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
           this.fieldsObjectData.forEach(item => {
             let name = item.field_name.split('.')[0]
-            item.field_type = typeConversion[item.field_type] 
-            this.$store.state.globals.fieldTypeMap;
+            item.field_type = typeConversion[item.field_type]
+            item.is_objectKey = true
             this.copyBuiltField.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
                 if (!Array.isArray(builtField.children)) {
