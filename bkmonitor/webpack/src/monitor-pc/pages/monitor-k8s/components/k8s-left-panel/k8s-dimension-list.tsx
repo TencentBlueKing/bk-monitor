@@ -85,6 +85,21 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     }, {});
   }
 
+  get groupItemDefaultExpandIndexSet() {
+    const set = new Set();
+    if (this.searchValue === '') {
+      set.add(0);
+    } else {
+      for (let i = 0; i < this.showDimensionList.length; i++) {
+        if (this.showDimensionList?.[i]?.count) {
+          set.add(i);
+          return set;
+        }
+      }
+    }
+    return set;
+  }
+
   @Watch('localCommonParams')
   handleCommonParamsChange(newVal: ICommonParams, oldVal: ICommonParams) {
     if (newVal.scenario === oldVal.scenario && newVal.bcs_cluster_id === oldVal.bcs_cluster_id) return;
@@ -248,7 +263,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
             : this.showDimensionList.map((group, index) => (
                 <GroupItem
                   key={group.id}
-                  defaultExpand={index === 0}
+                  defaultExpand={this.groupItemDefaultExpandIndexSet.has(index)}
                   drillDownList={this.drillDownList}
                   expandLoading={this.expandLoading}
                   isGroupBy={this.groupBy.includes(group.id)}
