@@ -142,7 +142,7 @@ export default class FilterByCondition extends tsc<IProps> {
     this.resizeObserver.observe(this.$el);
   }
 
-  @Watch('filterBy', { immediate: true })
+  @Watch('filterBy', { immediate: true, deep: true })
   handleWatchFilterBy() {
     let filterBy = [];
     if (Array.isArray(this.filterBy)) {

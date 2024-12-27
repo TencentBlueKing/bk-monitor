@@ -102,6 +102,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   activeTab = K8sNewTabEnum.LIST;
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
+  @ProvideReactive('groupInstance')
   groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
 
   // 是否展示取消下钻
@@ -220,16 +221,19 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.showCancelDrill = false;
     if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
     if (isSelect) {
+      if (!this.groupInstance.hasGroupFilter(dimensionId as K8sTableColumnResourceKey)) {
+        this.groupByChange(dimensionId, true);
+      }
       /** workload维度只能选择一项 */
       if (dimensionId === EDimensionKey.workload) {
         this.filterBy[dimensionId] = [id];
-      } else {
+      } else if (!this.filterBy[dimensionId].includes(id)) {
         this.filterBy[dimensionId].push(id);
       }
     } else {
       this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
     }
-    this.filterBy = { ...this.filterBy };
+    // this.filterBy = { ...this.filterBy };
   }
 
   created() {
