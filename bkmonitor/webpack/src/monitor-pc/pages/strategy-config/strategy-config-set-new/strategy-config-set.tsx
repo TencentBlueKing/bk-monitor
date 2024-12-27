@@ -1128,7 +1128,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
     this.targetType = targetType;
-    this.hasPanelVal = !strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
+    this.hasPanelVal = !!strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
     let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
@@ -2419,7 +2419,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     const res = await queryConfigToPromql('', param, { needMessage: false })
       .catch(err => {
-        this.metricDataErrorMsg = err.data.message || err.msg || '';
+        this.metricDataErrorMsg = err?.data?.message || err?.msg || '';
         return false;
       })
       .finally(() => {
