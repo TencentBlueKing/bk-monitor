@@ -716,7 +716,7 @@ export default class App extends tsc<object> {
           class='page-wrapper'
           name='noCache'
         />
-        {this.$route.name === 'home' ? (
+        {this.$route.name === 'home' || this.$route.name === 'newHome' ? (
           <div class='monitor-footer'>
             <div
               class='footer-link'

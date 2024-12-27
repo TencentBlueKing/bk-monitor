@@ -64,19 +64,6 @@ export default class NewHome extends tsc<object> {
       sub: '（demo/demo_k8s/k8s)',
     },
   ];
-  config = {
-    name: '全部策略',
-    tips: [
-      {
-        status: 'deleted',
-        label: 'Monitor】componentDaemonsetRestart',
-      },
-      {
-        status: 'stop',
-        label: 'Monitor】componentDaemonsetRestart',
-      },
-    ],
-  };
   handleGetAlertDateHistogram() {
     return testData;
   }

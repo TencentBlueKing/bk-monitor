@@ -62,6 +62,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     { name: this.$t('关联的屏蔽策略'), key: 'strategy' },
   ];
   isLoading = false;
+  highlightedIndex = -1;
   flattenRoute(tree) {
     let result = [];
     const traverse = node => {
@@ -139,10 +140,15 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     );
   }
   /** 渲染历史搜索Item */
-  renderHistoryItem(item) {
+  renderHistoryItem(item, ind) {
     return (
       <div
-        class='new-home-select-history-item'
+        class={[
+          'new-home-select-history-item',
+          {
+            active: this.highlightedIndex === ind,
+          },
+        ]}
         onClick={() => this.handleItemClick(item, 'history')}
       >
         <i class='icon-monitor icon-lishijilu item-icon'></i>
@@ -179,11 +185,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.searchType = type;
     this.showPopover = false;
     this.currentValue = item;
-    this.searchValue = item.name;
+    // this.searchValue = item.name;
   }
   /** 渲染历史搜索列表 */
   renderHistoryList() {
-    return this.historyList.map(item => this.renderHistoryItem(item));
+    return this.historyList.map((item, ind) => this.renderHistoryItem(item, ind));
   }
 
   renderRouteAndWord() {
@@ -205,18 +211,23 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       );
     });
   }
-  handleBlur() {
-    this.showHostView = true;
-  }
-  handleFocus() {
-    this.showHostView = false;
-  }
+  // handleBlur() {
+  //   this.showHostView = true;
+  // }
+  // handleFocus() {
+  //   this.showHostView = false;
+  // }
   handleInputFocus() {
-    this.handleFocus();
+    // this.handleFocus();
     this.textareaInputRef.focus();
   }
   clearSearchValue() {
     this.searchValue = '';
+  }
+  clearInput(e) {
+    e.stopPropagation();
+    this.searchValue = '';
+    console.log(this.showPopover, '---');
   }
   /** 溢出动态展示输入框高度 */
   autoResize() {
@@ -226,17 +237,35 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 清空历史 */
   clearHistory() {}
 
+  handleKeydown(event) {
+    switch (event.key) {
+      case 'ArrowUp':
+        if (this.highlightedIndex > 0) {
+          this.highlightedIndex--;
+        }
+        break;
+      case 'ArrowDown':
+        if (this.highlightedIndex < this.historyList.length - 1) {
+          this.highlightedIndex++;
+        }
+        break;
+      case 'Enter':
+        event.preventDefault();
+        console.log('Enter');
+        break;
+    }
+  }
+
   render() {
     return (
       <div class='new-home-select'>
         <div
           ref='select'
           class='new-home-select-input'
-          onMousedown={this.handleMousedown}
         >
           <span class='new-home-select-icon'></span>
           {/* ip类型选中后的特殊展示处理 */}
-          {this.showHostView && this.searchType === ESearchType.host && (
+          {/* {this.showHostView && this.searchType === ESearchType.host && (
             <span
               class='host-show-view'
               on-click={this.handleInputFocus}
@@ -245,7 +274,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
               <span class='item-label'>{this.currentValue.name}</span>
               <span class='ip-sub'>{this.currentValue.bk_host_name}</span>
             </span>
-          )}
+          )} */}
           <textarea
             ref='textareaInput'
             class='home-select-input'
@@ -254,11 +283,17 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             rows={1}
             type='textarea'
             clearable
-            on-enter={() => console.log('111')}
-            onBlur={this.handleBlur}
-            onFocus={this.handleFocus}
+            onFocus={this.handleMousedown}
             onInput={this.autoResize}
+            onKeydown={this.handleKeydown}
+            // onMousedown={this.handleMousedown}
           ></textarea>
+          {this.searchValue && (
+            <span
+              class='icon-monitor clear-btn icon-mc-close-fill'
+              onClick={e => this.clearInput(e)}
+            ></span>
+          )}
         </div>
         {this.showPopover && (
           <div
