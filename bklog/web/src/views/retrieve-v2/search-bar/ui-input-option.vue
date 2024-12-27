@@ -1089,6 +1089,7 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
+                      @input="handleInputVlaueChange"
                       @blur.stop="handleTagInputBlur"
                       @keyup.enter="handleTagInputEnter"
                     />
