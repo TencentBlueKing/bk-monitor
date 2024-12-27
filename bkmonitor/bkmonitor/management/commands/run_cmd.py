@@ -396,70 +396,87 @@ def parse_target_dimension_strategy():
 def parse_usergroup_not_under_business(preview: bool = True):
     """
     排查关联的但是不在当前业务下的策略及告警组信息
-    打印的信息：
-    策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典(key为告警组名称，value是同名的告警组id列表)
-
-    example:
-    >> parse_usergroup_not_under_business(preview=True)
-    >> 1263,test_stragety_11,2,[518 519],[6],{'test_user_group_1': [513, 508], 'test_user_group_2': [514, 509]}
-
+    巡检用户组对应业务和策略业务不一致并同步修改，同时兜底使用运维用户组
     :param preview: 是否开启预览模式，开启预览模式，不替换数据，只打印信息
     :return:
     """
+
     if preview:
-        print("策略id，策略名称，业务id，关联的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
+        print("策略id，策略名称，业务id，关联的非本业务的告警组信息，本业务下相同名称的告警组ID")
     else:
-        # 不开启预览，将原关联的告警组ID和对应的业务ID，替换为当前业务下具有相同名称的告警组id，和当前业务id
-        print("策略id，策略名称，业务id，相同名称的告警组id列表，对应的业务id列表，本业务下相同名称的告警组id字典")
+        print("策略id，策略名称，业务id，替换后关联的告警组信息")
 
-    for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id'):
-        try:
-            # 获取关联的告警组ID
-            user_group_ids = StrategyActionConfigRelation.objects.filter(strategy_id=strategy_id).values_list(
-                'user_groups', flat=True
-            )[0]
-        except IndexError:
+    # 获取到所有的策略
+    strategies_map = {
+        strategy_id: (strategy_name, bk_biz_id)
+        for strategy_id, strategy_name, bk_biz_id in StrategyModel.objects.all().values_list('id', 'name', 'bk_biz_id')
+    }
+
+    strategy_relations_map = {}
+
+    # 获取到关联的告警组id
+    for item in StrategyActionConfigRelation.objects.filter(strategy_id__in=strategies_map.keys()).only(
+        "strategy_id", "user_groups"
+    ):
+        strategy_relations_map[item.strategy_id] = item
+
+    # 所有的告警组key为id
+    user_groups_base_id = {}
+    # 所有的告警组key为name+bk_biz_id,value为告警组ID列表
+    user_groups_base_name = defaultdict(list)
+
+    for group in UserGroup.objects.filter().only("id", "name", "bk_biz_id"):
+        user_groups_base_id[group.id] = (group.name, group.bk_biz_id)
+        user_groups_base_name[(group.name, group.bk_biz_id)].append(group.id)
+
+    strategy_relation_instances = []
+
+    for strategy_id, (strategy_name, bk_biz_id) in strategies_map.items():
+        strategy_relation = strategy_relations_map.get(strategy_id)
+        if not strategy_relation:
             continue
 
-        bk_biz_ids = set()  # 关联的告警组对应的业务id集合
-        other_business_group_names = set()  # 非当前业务下的告警组名称集合
+        user_group_ids = strategy_relation.user_groups
+        # 当前策略关联的告警组
+        user_groups = {group_id: user_groups_base_id.get(group_id, (None, None)) for group_id in user_group_ids}
+        same_group_ids = []  # 当前业务下想通名称的告警组
+        raw_group_ids = []  # 原有的当前业务下的的告警组
 
-        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("bk_biz_id", "name")
-        for item in user_groups:
-            bk_biz_ids.add(item["bk_biz_id"])
-
-            # 不是当前业务下的告警组，则进行保存记录
-            if bk_biz_id != item["bk_biz_id"]:
-                other_business_group_names.add(item["name"])
-
-        # 不存在非当前业务下的告警组，则跳过
-        if not other_business_group_names:
-            continue
-
-        # 具有相同名称的告警组字典，key为告警组名称，value为告警组id集合
-        same_name_groups_map = {}
-
-        # 一个策略可以关联多个告警组，所以对每个名称进行查询
-        for group_name in other_business_group_names:
-            # 告警组名称已存在，则跳过
-            if group_name in same_name_groups_map:
+        for gp_id, (gp_name, gp_bk_biz_id) in user_groups.items():
+            if not gp_name:
                 continue
-            # 获取到当前业务下，相同名称的告警组
-            same_name_groups_ids = UserGroup.objects.filter(name=group_name, bk_biz_id=bk_biz_id).values_list(
-                "id", flat=True
-            )
-            same_name_groups_map[group_name] = list(same_name_groups_ids)
 
-        if preview:
-            user_group_ids = " ".join(map(str, user_group_ids))
-            print(
-                f"{strategy_id},{strategy_name},{bk_biz_id},[{user_group_ids}],"
-                f"[{' '.join(map(str, bk_biz_ids))}],{same_name_groups_map}"
-            )
-        else:
-            # 不开启预览，将原关联的告警组ID和对应的业务ID，替换为当前业务下具有相同名称的告警组id，和当前业务id
-            ids_to_same_name = [str(_id) for ids in same_name_groups_map.values() for _id in ids]
-            ids_to_same_name = " ".join(ids_to_same_name)
-            print(
-                f"{strategy_id},{strategy_name},{bk_biz_id},[{ids_to_same_name}] [{bk_biz_id}],{same_name_groups_map}"
-            )
+            if gp_bk_biz_id == bk_biz_id:
+                # 保留原有的当前业务下的的告警组
+                raw_group_ids.append(gp_id)
+                continue
+
+            same_name_groups = user_groups_base_name.get((gp_name, bk_biz_id), [])
+            if not same_name_groups:
+                print("get default group: 【运维】")
+                same_name_groups = user_groups_base_name.get(("运维", bk_biz_id), [])
+            if preview:
+                related_group_info = {
+                    "id": gp_id,
+                    "name": gp_name,
+                    "bk_biz_id": gp_bk_biz_id,
+                }
+                print(f"{strategy_id},{strategy_name},{bk_biz_id},{related_group_info},{same_name_groups}")
+            else:
+                same_group_ids.extend(same_name_groups)
+
+        if not preview and same_group_ids:
+            strategy_relation = strategy_relations_map.get(strategy_id)
+            strategy_relation.user_groups = raw_group_ids + same_group_ids
+            strategy_relation_instances.append(strategy_relation)
+            for group_id in raw_group_ids + same_group_ids:
+                group_name, group_bk_biz_id = user_groups_base_id.get(group_id)
+                related_group_info = {
+                    "id": group_id,
+                    "name": group_name,
+                    "bk_biz_id": group_bk_biz_id,
+                }
+                print(f"{strategy_id},{strategy_name},{bk_biz_id},{related_group_info}")
+
+    if not preview:
+        StrategyActionConfigRelation.objects.bulk_update(strategy_relation_instances, ["user_groups"])

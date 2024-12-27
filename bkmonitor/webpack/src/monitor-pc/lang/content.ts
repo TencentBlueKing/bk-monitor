@@ -287,4 +287,5 @@ export default {
   搜索指标名称: 'Search metric name',
   '关联日志方法：\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n2. 在服务配置 - 关联日志出关联对应索引集\n3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项':
     'Associated log method:\n1. Turn on the log reporting switch of the application, which will automatically associate the corresponding index set\n2. In service configuration - associate log out and associate the corresponding index set\n3. Add IP address in Span, will automatically associate the corresponding collection item of this host',
+  暂不支持: 'Not supported yet',
 };

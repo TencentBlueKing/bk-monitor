@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, type Ref } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
@@ -71,7 +71,11 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
 
     if (/\d+(m|h)$/.test(interval)) {
-      return dayjs.tz(data).format('MM-DD HH:mm:ss').replace(/:00$/, '');
+      const { start_time, end_time } = retrieveParams.value;
+      const durationHour = (end_time - start_time) / 3600;
+      // 当筛选时间间隔6小时以上 显示日期
+      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
+      return dayjs.tz(data).format(format).replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
@@ -300,7 +304,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     }
   });
 
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     if (target.value) {
       removeListener(target.value, handleCanvasResize);
     }

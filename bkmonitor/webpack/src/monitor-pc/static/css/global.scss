@@ -391,6 +391,14 @@
         height: 6px;
         margin-right: 6px;
         border-radius: 50%;
+
+        &.is-dashed {
+          height: 1px;
+          background-color: transparent !important;
+          background-image: linear-gradient(to right, var(--series-color, black) 50%, transparent 50%) !important;
+          background-size: 4px 1px;
+          border-radius: 0;
+        }
       }
 
       .item-name {

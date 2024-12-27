@@ -44,7 +44,7 @@ class GroupType(Enum):
 
     @classmethod
     def choices(cls):
-        return [(cls.RPC, cls.RPC)]
+        return [(cls.RPC.value, cls.RPC.value)]
 
 
 class AlgorithmType(Enum):

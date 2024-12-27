@@ -200,7 +200,14 @@ export const getRouteConfig = () => {
               id: 'k8s',
               path: '/k8s',
               href: '#/k8s',
-              // isBeta: window.platform?.te === false,
+              canStore: true,
+            },
+            {
+              name: 'Kubernetes',
+              icon: 'icon-monitor icon-mc-mainboard menu-icon',
+              id: 'k8s-new',
+              path: '/k8s-new',
+              href: '#/k8s-new',
               canStore: true,
             },
             {
@@ -518,6 +525,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
       return {
         ...item,
         children: item.children.reduce(
+          // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
           []
         ),

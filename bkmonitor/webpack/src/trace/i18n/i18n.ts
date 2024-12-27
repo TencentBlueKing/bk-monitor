@@ -49,4 +49,7 @@ const i18n = createI18n({
   },
 });
 window.i18n = i18n.global;
+window.mainComponent = {
+  $t: window.i18n.tc,
+};
 export default i18n;

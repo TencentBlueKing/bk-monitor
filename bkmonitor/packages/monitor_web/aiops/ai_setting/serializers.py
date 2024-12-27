@@ -41,6 +41,7 @@ class KPIAnomalyDetectionSerializer(serializers.Serializer):
     """
 
     default_plan_id = serializers.IntegerField(default=settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION)
+    is_sdk_enabled = serializers.BooleanField(default=False)
 
 
 class MultivariateAnomalyDetectionSceneSerializer(AiSettingTemplateSerializer):

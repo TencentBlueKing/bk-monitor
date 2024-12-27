@@ -53,11 +53,11 @@ class TableDiagrammer:
 
         return sorted_nodes
 
-    def diff(self, base_tree_converter: TreeConverter, diff_tree_converter: TreeConverter, **options) -> dict:
-        diff_tree = ProfileDiffer.from_raw(base_tree_converter, diff_tree_converter).diff_tree()
+    def diff(self, base_tree_converter: TreeConverter, comp_tree_converter: TreeConverter, **options) -> dict:
+        diff_table = ProfileDiffer.from_raw(base_tree_converter, comp_tree_converter).diff_table()
         table_data = []
         miss_value = {"id": 0, "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
-        for node in diff_tree.children_map.values():
+        for node in diff_table.diff_node_map.values():
             table_data.append(
                 {
                     **node.default.to_dict(),

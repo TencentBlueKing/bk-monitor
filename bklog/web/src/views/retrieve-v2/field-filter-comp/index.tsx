@@ -72,7 +72,6 @@ export default class FieldFilterComp extends tsc<object> {
   ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
-  fieldContainerHeight = 400;
 
   isShowErrInfo = false;
   get errInfo() {
@@ -153,7 +152,6 @@ export default class FieldFilterComp extends tsc<object> {
       item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
       return [objArr, otherArr];
     }, [[], []]);
-    console.log(objArr, otherArr);
     if(!objArr.length){
       return arrData
     }
@@ -164,7 +162,6 @@ export default class FieldFilterComp extends tsc<object> {
     otherArr = otherArr.filter(item => {
       return !objectField.map(field => field.field_name).includes(item.field_name)
     })
-    console.log(objectField);
     return [...objectField, ...otherArr]
   }
   /** 递归将数组变成tree */
@@ -204,7 +201,6 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
-    console.log(builtInFieldsValue);
     
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
     const hiddenFieldVisible =
@@ -288,23 +284,6 @@ export default class FieldFilterComp extends tsc<object> {
   @Watch('visibleFields', { immediate: true, deep: true })
   watchVisibleFields() {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
-  }
-
-  mounted() {
-    window.addEventListener('resize', this.updateContainerHeight);
-    this.updateContainerHeight();
-  }
-
-  beforeDestroy() {
-    window.removeEventListener('resize', this.updateContainerHeight);
-  }
-
-  @Debounce(200)
-  updateContainerHeight() {
-    this.$nextTick(() => {
-      const height = Math.floor(window.innerHeight - this.fieldFilterRef?.getBoundingClientRect().top);
-      this.fieldContainerHeight = height >= 150 ? height : 150;
-    });
   }
 
   // 字段类型过滤：可聚合、字段类型
@@ -418,7 +397,6 @@ export default class FieldFilterComp extends tsc<object> {
         </div>
         <div
           ref='fieldFilter'
-          style={{ height: `${this.fieldContainerHeight}px` }}
           class='field-filter-container-new'
         >
           {!this.totalFields.length && (

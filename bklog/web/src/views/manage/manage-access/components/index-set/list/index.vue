@@ -368,7 +368,7 @@
        * 筛选条件变更，重新获取列表
        */
       reFilter() {
-        this.pagination.page = 1;
+        this.pagination.current = 1;
         this.getIndexSetList();
       },
       /**
@@ -498,10 +498,12 @@
           });
         }
       },
-      handleSearchChange(val) {
-        if (val === '' && !this.isTableLoading) {
-          this.getIndexSetList();
-        }
+      handleSearchChange() {
+        setTimeout(() => {
+          if (this.searchParams.keyword === '' && !this.isTableLoading) {
+            this.getIndexSetList();
+          }
+        });
       },
       handleOperation(type) {
         if (type === 'clear-filter') {

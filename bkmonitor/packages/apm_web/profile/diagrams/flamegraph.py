@@ -44,16 +44,18 @@ class FlamegraphDiagrammer:
 
         return {"flame_data": root}
 
-    def diff(self, base_tree_c: TreeConverter, diff_tree_c: TreeConverter, **_) -> dict:
-        diff_tree = ProfileDiffer.from_raw(base_tree_c, diff_tree_c).diff_tree()
+    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **_) -> dict:
+        diff_tree = ProfileDiffer.from_raw(base_tree_c, comp_tree_c).diff_tree()
+        diff_tree_root = diff_tree.root
+        if diff_tree_root is None:
+            return {"flame_data": {}}
 
         flame_data = [
             {
-                **root.default.to_dict(),
-                "diff_info": root.diff_info,
-                "children": [diff_node_to_element(child) for child in root.children],
+                **diff_tree_root.default.to_dict(),
+                "diff_info": diff_tree_root.diff_info,
+                "children": [diff_node_to_element(child) for child in diff_tree_root.children],
             }
-            for root in diff_tree.roots
         ]
 
         if not flame_data:
