@@ -43,8 +43,6 @@ class ConverterType:
     Profile = "profile"
     # Tree 类型使用 TreeConverter
     Tree = "tree"
-    # Deepflow 类型使用 DeepFlowConverter
-    DeepFlow = "deepflow"
 
 
 @dataclass

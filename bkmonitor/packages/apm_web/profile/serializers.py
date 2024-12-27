@@ -70,9 +70,6 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
-    is_ebpf = serializers.BooleanField(label="是否打开 ebpf 开关", required=False, default=False)
-    ebpf_type = serializers.CharField(label="ebpf 类型", required=False)
-
 
 class ProfileQueryExportSerializer(ProfileQuerySerializer):
     # export
