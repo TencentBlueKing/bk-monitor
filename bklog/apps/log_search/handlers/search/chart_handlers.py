@@ -41,7 +41,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import get_local_param, get_request_app_code, get_request_username
 from apps.utils.log import logger
 
 
@@ -221,9 +221,9 @@ class SQLChartHandler(ChartHandler):
         finally:
             labels = {
                 "index_set_id": self.index_set_id,
-                "doris_table_id": self.data.doris_table_id,
+                "result_table_id": self.data.doris_table_id,
                 "status": str(exc),
-                "source_app_code": settings.APP_CODE,
+                "source_app_code": get_request_app_code(),
             }
             metrics.DORIS_QUERY_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.DORIS_QUERY_COUNT.labels(**labels).inc()
