@@ -498,7 +498,7 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '填写后原字段名和别名均可查询。':
+  '填写后原字段名和别名均可查询':
   'The original field name and the alias can both be used for querying after being populated.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",

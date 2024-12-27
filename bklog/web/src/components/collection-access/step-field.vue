@@ -1028,6 +1028,7 @@
           is_delete: false,
           is_dimension: false,
           is_time: false,
+          query_alias:'',
           value: '',
           option: {
             time_format: '',
@@ -1087,6 +1088,7 @@
           field_name: '',
           field_type: '',
           description: '',
+          query_alias:'',
           is_case_sensitive: false,
           is_analyzed: false,
           is_built_in: false,
@@ -1116,7 +1118,8 @@
         metaDataList: [],
         isDebugLoading: false,
         builtFieldShow:false,
-        fieldsObjectData: []
+        fieldsObjectData: [],
+        alias_settings:[]
       };
     },
     computed: {
@@ -1900,7 +1903,6 @@
             row.option = Object.assign({}, option);
           }
         });
-
         this.params.etl_config = etl_config;
         Object.assign(this.params.etl_params, {
           separator_regexp: etlParams?.separator_regexp || '',
@@ -2287,6 +2289,7 @@
           .then(res => {
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+              this.concatenationQueryAlias(etlFields)
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
@@ -2356,7 +2359,6 @@
           })
           .then(async res => {
             if (res.data) {
-              // console.log(res.data);
               let keys = Object.keys(res.data.alias_settings);
               let arr = keys.map( key => {
                return {
@@ -2364,10 +2366,8 @@
                 field_name : res.data.alias_settings[key].path
                } 
               })
-              console.log(arr);
-              res.data.field(item => {
-                
-              })
+              this.alias_settings = arr
+              this.concatenationQueryAlias( res.data.fields)
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);
@@ -2378,6 +2378,16 @@
           .finally(() => {
             this.basicLoading = false;
           });
+      },
+      // 拼接query_alias
+      concatenationQueryAlias(fields) {
+        fields.forEach(item => {
+          this.alias_settings.forEach(item2 => {
+            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+              item.query_alias = item2.query_alias
+            }
+          })
+        })
       },
       // 新增、编辑清洗选择采集项
       async handleCollectorChange(id) {
@@ -2599,7 +2609,6 @@
               }
             } )
           })
-          console.log(fieldsObjectData);
           
         } catch (err) {
           console.warn(err);
