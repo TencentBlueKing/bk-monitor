@@ -26,11 +26,11 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import pytz
+from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
-from celery.task import periodic_task
 from django.conf import settings
 from django.utils import timezone, translation
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
 
 from apps.api import CmsiApi

@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from celery.task import task
+from blueapps.core.celery.celery import app
 
 from apps.api import TransferApi
 from apps.log_databus.constants import ArchiveInstanceType
@@ -29,7 +29,7 @@ from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 
 
-@task(ignore_result=True)
+@app.task(ignore_result=True)
 def sync_index_set_archive(index_set_id: int = None):
     """
     更新索引集归档配置

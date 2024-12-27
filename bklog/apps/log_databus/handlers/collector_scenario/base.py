@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError

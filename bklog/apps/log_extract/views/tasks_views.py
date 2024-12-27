@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import os
 
+from django.conf import settings
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.utils.translation import gettext_lazy as _
+from rest_framework.response import Response
+
 from apps.generic import ModelViewSet
 from apps.log_extract import exceptions, serializers
 from apps.log_extract.exceptions import TaskFileLinkNotExist
@@ -29,11 +35,6 @@ from apps.log_extract.handlers.tasks import TasksHandler
 from apps.log_extract.models import Tasks
 from apps.log_extract.serializers import DownloadFileSerializer
 from apps.utils.drf import list_route
-from django.conf import settings
-from django.http import HttpResponse
-from django.shortcuts import redirect
-from django.utils.translation import ugettext_lazy as _
-from rest_framework.response import Response
 
 
 class TasksViewSet(ModelViewSet):

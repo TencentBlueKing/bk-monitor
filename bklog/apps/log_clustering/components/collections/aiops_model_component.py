@@ -19,6 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
+from pipeline.builder import ServiceActivity, Var
+from pipeline.component_framework.component import Component
+from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
@@ -34,10 +39,6 @@ from apps.log_clustering.models import (
 from apps.log_clustering.tasks.sync_pattern import sync
 from apps.utils.log import logger
 from apps.utils.pipline import BaseService
-from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
 
 class CreateModelService(BaseService):

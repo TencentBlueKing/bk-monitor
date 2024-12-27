@@ -23,7 +23,7 @@ from enum import Enum
 
 from django.apps import apps
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
@@ -1098,7 +1098,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-07:00",
+                "description": "2006-01-02T15:04:05.000-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1120,7 +1120,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time_no_millis",
                 "name": "YYYY-MM-DDTHH:mm:ssZ",
-                "description": "2006-01-02T15:04:05-07:00",
+                "description": "2006-01-02T15:04:05-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },

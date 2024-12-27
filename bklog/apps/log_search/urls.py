@@ -19,7 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
 
 from apps.log_search.views import (
@@ -55,4 +56,4 @@ router.register(r"result_table", result_table_views.ResultTablesViewSet, basenam
 
 router.register(r"field/index_set", field_views.FieldViewSet, basename="field")
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [re_path(r"^", include(router.urls))]

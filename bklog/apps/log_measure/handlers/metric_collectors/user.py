@@ -23,16 +23,17 @@ import datetime
 import time
 
 import arrow
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db.models import Count
+from django.utils.translation import gettext as _
+
 from apps.log_measure.constants import TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
 from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
 from apps.utils.db import array_group
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import Metric, register_metric
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.db.models import Count
-from django.utils.translation import ugettext as _
 
 
 class UserMetricCollector(object):

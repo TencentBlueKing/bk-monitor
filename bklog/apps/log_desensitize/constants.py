@@ -19,14 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
+
 from apps.utils import ChoicesEnum
-from django.utils.translation import ugettext_lazy as _
 
 
 class DesensitizeOperator(ChoicesEnum):
     """
     脱敏算子
     """
+
     MASK_SHIELD = "mask_shield"
     TEXT_REPLACE = "text_replace"
 
@@ -36,13 +38,7 @@ class DesensitizeOperator(ChoicesEnum):
     )
 
 
-MODEL_TO_DICT_EXCLUDE_FIELD = [
-    "id",
-    "created_at",
-    "created_by",
-    "updated_at",
-    "updated_by"
-]
+MODEL_TO_DICT_EXCLUDE_FIELD = ["id", "created_at", "created_by", "updated_at", "updated_by"]
 
 
 class ScenarioEnum(ChoicesEnum):
