@@ -31,13 +31,13 @@ import { CancelToken } from 'monitor-api/index';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { VariablesService } from '../../utils/variable';
-import type { IChartOption } from '../apm-service-caller-callee/type';
 import { createDrillDownList } from '../apm-service-caller-callee/utils';
 import CommonSimpleChart from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
 import type { IExtendMetricData, ILegendItem, LegendActionType, PanelModel } from '../../typings';
 import type { MonitorEchartOptions } from '../../typings';
+import type { IChartOption } from '../apm-service-caller-callee/type';
 import type { CallOptions, IDataItem } from '../apm-service-caller-callee/type';
 
 import './caller-bar-chart.scss';
