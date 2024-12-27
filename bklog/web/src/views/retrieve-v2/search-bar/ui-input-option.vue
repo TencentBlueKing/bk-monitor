@@ -561,8 +561,9 @@
     });
   };
 
-  const handleConditionValueInputFocus = () => {
+  const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
+    handleInputVlaueChange(e);
   };
 
   const hanleDeleteTagItem = index => {
@@ -882,6 +883,8 @@
       e.target.value = '';
       appendConditionValue(value);
     }
+
+    handleInputVlaueChange(e);
   };
 
   const handleConditionValueInputBlur = e => {
