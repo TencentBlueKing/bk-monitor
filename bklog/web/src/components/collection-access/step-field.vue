@@ -1935,14 +1935,9 @@
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
-        console.log(copyFields,'233');
-        
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
-        
-        console.log(this.copyBuiltField,'233');
-        
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
         }
@@ -2353,8 +2348,6 @@
       },
       // 新建、编辑采集项时获取更新详情
       async setDetail(id) {
-        console.log(23333);
-        
         if (!id) return;
         this.basicLoading = true;
         this.$http
@@ -2363,6 +2356,18 @@
           })
           .then(async res => {
             if (res.data) {
+              // console.log(res.data);
+              let keys = Object.keys(res.data.alias_settings);
+              let arr = keys.map( key => {
+               return {
+                query_alias : key,
+                field_name : res.data.alias_settings[key].path
+               } 
+              })
+              console.log(arr);
+              res.data.field(item => {
+                
+              })
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);

@@ -1297,7 +1297,7 @@
               cursor: pointer;
               font-size: 18px;
               position: absolute;
-              z-index: 999;
+              z-index: 99;
               bottom: 14px;
             }
             .rotate{
@@ -1324,7 +1324,7 @@
             width: 10%;
             background-color: white;
             position: absolute;
-            z-index: 999
+            z-index: 99
           }
           .participle-icon-color{
             background-color: rgb(250, 251, 253) !important;
