@@ -466,10 +466,7 @@
   const conditionValueInputVal = ref('');
 
   const activeItemMatchList = computed(() => {
-    const regExp = getRegExp(conditionValueInputVal.value);
-    return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(val =>
-      regExp.test(val),
-    );
+    return store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? [];
   });
 
   /**
@@ -1092,6 +1089,7 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
+                      @input="handleInputVlaueChange"
                       @blur.stop="handleTagInputBlur"
                       @keyup.enter="handleTagInputEnter"
                     />
