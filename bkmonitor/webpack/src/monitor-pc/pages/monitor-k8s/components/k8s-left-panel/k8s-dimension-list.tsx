@@ -87,16 +87,15 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   get groupItemDefaultExpandIndexSet() {
     const set = new Set();
-    if (this.searchValue === '') {
-      set.add(0);
-    } else {
-      for (let i = 0; i < this.showDimensionList.length; i++) {
-        if (this.showDimensionList?.[i]?.count) {
-          set.add(i);
-          return set;
-        }
+    for (let i = 0; i < this.showDimensionList.length; i++) {
+      const item = this.showDimensionList[i];
+      if (item.count && this.searchValue) {
+        set.add(i);
+      } else if (this.groupBy.includes(item.id)) {
+        set.add(i);
       }
     }
+
     return set;
   }
 
@@ -143,6 +142,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   /** 搜索 */
   async handleSearch(val: string) {
+    console.log(val);
     this.searchValue = val;
     this.loading = true;
     await (this as any).dimension.search(val);
@@ -152,7 +152,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   handleBlur(val: string) {
-    if (this.searchValue === this.cacheSearchValue) return;
+    console.log(val);
+    if (val === this.cacheSearchValue) return;
     this.handleSearch(val);
   }
 
@@ -201,20 +202,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     if (!oldDimensionData.showMore) return;
     this.loadMoreLoading[dimension] = true;
     await (this as any).dimension.loadNextPageData([parentDimension, dimension]);
-
-    /** 如果请求的新数据全是去重的，继续请求下一页 */
-    const showDimensionData = (this as any).dimension.showDimensionData;
-    let newDimensionData: GroupListItem = showDimensionData.find(item => item.id === parentDimension);
-    if (parentDimension === EDimensionKey.workload) {
-      // workload 需要获取下级类目进行判断
-      newDimensionData = newDimensionData.children.find(item => item.id === dimension);
-    }
-    if (oldDimensionData.children.length === newDimensionData.children.length) {
-      await this.handleMoreClick(dimension, parentDimension);
-    } else {
-      this.showDimensionList = showDimensionData;
-      this.loadMoreLoading[dimension] = false;
-    }
+    this.showDimensionList = (this as any).dimension.showDimensionData;
+    this.loadMoreLoading[dimension] = false;
   }
 
   /** 渲染骨架屏 */
@@ -246,10 +235,10 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
         <div class='panel-title'>{this.$t('K8s对象')}</div>
         <bk-input
           class='left-panel-search'
-          v-model={this.searchValue}
           placeholder={this.$tc('请输入关键字')}
           right-icon='bk-icon icon-search'
           show-clear-only-hover={true}
+          value={this.searchValue}
           clearable
           on-blur={this.handleBlur}
           on-clear={this.handleSearch}
@@ -267,6 +256,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
                   drillDownList={this.drillDownList}
                   expandLoading={this.expandLoading}
                   isGroupBy={this.groupBy.includes(group.id)}
+                  keyword={this.searchValue}
                   list={group}
                   loadMoreLoading={this.loadMoreLoading}
                   tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
