@@ -271,8 +271,8 @@
           //   name: 'csv',
           // },
           {
-            id: 'txt',
-            name: 'txt',
+            id: 'log',
+            name: 'log',
           },
         ],
         modeHintMap: {},
