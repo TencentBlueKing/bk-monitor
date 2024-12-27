@@ -149,7 +149,7 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
   }
 
   clearError() {
-    this.ruleRef.clearError?.();
+    this.ruleRef?.clearError?.();
   }
 
   renderContent() {
