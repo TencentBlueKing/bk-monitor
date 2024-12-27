@@ -2569,6 +2569,7 @@ class UnionSearchHandler(object):
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
         }
 
         # 数据排序处理  兼容第三方ES检索排序

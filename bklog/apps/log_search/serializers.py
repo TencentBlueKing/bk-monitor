@@ -307,6 +307,8 @@ class SearchAttrSerializer(serializers.Serializer):
 
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
 
+    track_total_hits = serializers.BooleanField(label=_("是否统计总数"), required=False, default=False)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if attrs.get("keyword") and attrs["keyword"].strip() == "":
