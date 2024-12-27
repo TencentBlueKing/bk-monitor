@@ -122,13 +122,12 @@ class AppServiceQueryResource(Resource):
                 services_list = future.get()
                 cluster_service = {}
                 # 需要将 deepflow 的查询结果伪装成 application 的格式
-                cluster_service["application_id"] = cluster_id
+                cluster_service["application_id"] = "epbf-" + cluster_id
                 cluster_service["bk_biz_id"] = params["bk_biz_id"]
                 cluster_name = deepflow_server_clusters.get(cluster_id).get("clusterName", "")
-                cluster_service["app_name"] = cluster_name
-                cluster_service["app_alias"] = cluster_name
+                cluster_service["app_name"] = "epbf-" + cluster_name
+                cluster_service["app_alias"] = "epbf-" + cluster_name
                 cluster_service["description"] = deepflow_server_clusters.get(cluster_id).get("description", "")
-                cluster_service["is_ebpf"] = True
                 services = []
                 for app_service in services_list:
                     service = {"name": app_service.get("app_service", "")}
