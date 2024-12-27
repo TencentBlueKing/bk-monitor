@@ -237,9 +237,11 @@ export default class FilterByCondition extends tsc<IProps> {
           };
           for (const cc of child.children) {
             if (!tempSet.has(cc.id)) {
+              const regex = new RegExp(`^${child.name}:`);
+              const name = cc.name.replace(regex, '');
               objChild.children.push({
                 id: cc.id,
-                name: cc.name,
+                name: name,
               });
             }
             tempSet.add(cc.id);
@@ -718,7 +720,7 @@ export default class FilterByCondition extends tsc<IProps> {
             >
               <span
                 class='value-item-name'
-                v-bk-overflow-tips
+                v-bk-overflow-tips={{ content: item.id }}
               >
                 {item.name}
               </span>
