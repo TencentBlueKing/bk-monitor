@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
+from typing_extensions import Literal
+
 from bkmonitor.utils.thread_backend import ThreadPool
 
 """
@@ -18,10 +20,10 @@ DRF 插件
 from functools import wraps
 from typing import Callable, List, Optional
 
+from iam import Resource
 from rest_framework import permissions
 
 from core.errors.iam import PermissionDeniedError
-from iam import Resource
 
 from . import Permission
 from .action import ActionEnum, ActionMeta
@@ -268,3 +270,52 @@ def extract_attribute(item):
     if "space_uid" in item:
         attribute["space_uid"] = item["space_uid"]
     return attribute
+
+
+def filter_data_by_permission(
+    data: List[dict],
+    actions: List[ActionMeta],
+    resource_meta: ResourceMeta,
+    id_field: Callable[[dict], str] = lambda item: item["id"],
+    always_allowed: Callable[[dict], bool] = lambda item: False,
+    instance_create_func: Optional[Callable[[dict], Resource]] = None,
+    mode: Literal["any", "all", "insert"] = "any",
+) -> List[dict]:
+    """
+    根据权限过滤数据
+    :param mode: 过滤模式，"any" 表示只要有一个权限通过就返回，"all" 表示所有权限通过才返回, "insert" 表示插入权限信息，但不过滤数据
+    """
+    resources = batch_create_instance(data, resource_meta, id_field, instance_create_func)
+    if not resources:
+        return []
+
+    # 批量鉴权
+    permission_result = Permission().batch_is_allowed(actions, resources)
+
+    allowed_data = []
+    for item in data:
+        # 获取实例ID
+        origin_instance_id = id_field(item)
+        if not origin_instance_id:
+            continue
+        instance_id = str(origin_instance_id)
+
+        # 插入权限信息
+        if mode == "insert":
+            item["permission"] = permission_result[instance_id]
+            if always_allowed(item):
+                for action_id in item["permission"]:
+                    item["permission"][action_id] = True
+            allowed_data.append(item)
+            continue
+
+        # 过滤数据
+        if mode == "any":
+            filter_func = any
+        else:
+            filter_func = all
+
+        if always_allowed(item) or filter_func(permission_result[instance_id].values()):
+            allowed_data.append(item)
+
+    return allowed_data

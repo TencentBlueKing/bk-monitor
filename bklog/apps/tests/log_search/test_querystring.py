@@ -4,10 +4,10 @@ from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 
 SEARCH_PARAMS = {
     "addition": [
-        {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
+        {"field": "bk_host_id", "operator": "=", "value": [1, "2"]},
         {"field": "bk_host_id", "operator": "eq", "value": ["3", "4"]},
         {"field": "bk_host_id", "operator": "is", "value": ["5", "6"]},
-        {"field": "service", "operator": "!=", "value": ["php"]},
+        {"field": "service", "operator": "!=", "value": ["php", 12]},
         {"field": "service", "operator": "is not", "value": ["a", "b"]},
         {"field": "service", "operator": "is one of", "value": ["c", "d"]},
         {"field": "service", "operator": "is not one of", "value": ["e", "f"]},
@@ -47,7 +47,7 @@ TRANSFORM_RESULT = (
     " AND "
     "bk_host_id: (\"5\" OR \"6\")"
     " AND "
-    "NOT service: \"php\""
+    "NOT service: (\"php\" OR \"12\")"
     " AND "
     "NOT service: (\"a\" OR \"b\")"
     " AND "
@@ -55,19 +55,19 @@ TRANSFORM_RESULT = (
     " AND "
     "NOT service: (\"e\" OR \"f\")"
     " AND "
-    "count: <200"
+    "count: <100"
     " AND "
     "index: >500"
     " AND "
-    "number: >=50"
+    "number: >=100"
     " AND "
     "id: <=500"
     " AND "
-    "count: <200"
+    "count: <100"
     " AND "
     "index: >500"
     " AND "
-    "number: >=50"
+    "number: >=100"
     " AND "
     "id: <=500"
     " AND "

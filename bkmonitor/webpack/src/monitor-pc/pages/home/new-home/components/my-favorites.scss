@@ -11,6 +11,36 @@
   color: #63656e;
 }
 
+@mixin customize {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 70px;
+  height: 23px;
+  cursor: pointer;
+  background: #0F1216;
+  border: 1px solid #33415B;
+  border-radius: 2px;
+
+  &:hover {
+    background: #293241;
+    border: 1px solid #405680;
+  }
+
+  .icon-menu-setting {
+    color: #699DF4;
+  }
+
+  span {
+    width: 36px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #699DF4;
+    letter-spacing: 0;
+  }
+}
+
 // 定义扩展动画
 @keyframes expand {
   from {
@@ -67,29 +97,7 @@
       }
 
       .customize {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        width: 70px;
-        height: 23px;
-        cursor: pointer;
-        background: #0F1216;
-        border: 1px solid #33415B;
-        border-radius: 2px;
-
-        &:hover {
-          background: #293241;
-          border: 1px solid #405680;
-        }
-
-        span {
-          width: 36px;
-          height: 20px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #699DF4;
-          letter-spacing: 0;
-        }
+        @include customize;
       }
     }
 
@@ -243,8 +251,11 @@
             }
 
             &:hover {
-              color: #3A84FF;
               background: #E1ECFF;
+
+              .detail {
+                color: #3A84FF;
+              }
             }
           }
         }
@@ -261,29 +272,7 @@
       justify-content: space-between;
 
       .customize {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        width: 70px;
-        height: 23px;
-        cursor: pointer;
-        background: #0F1216;
-        border: 1px solid #33415B;
-        border-radius: 2px;
-
-        &:hover {
-          background: #293241;
-          border: 1px solid #405680;
-        }
-
-        span {
-          width: 36px;
-          height: 20px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #699DF4;
-          letter-spacing: 0;
-        }
+        @include customize;
       }
 
       .quick-title {
@@ -325,11 +314,16 @@
           .icon-monitor {
             margin-right: 5px;
             font-size: 14px;
+            color: #979BA5;
           }
 
           &:hover {
             color: #007bff;
             background: #E1ECFF;
+
+            .icon-monitor {
+              color: #007bff;
+            }
           }
         }
       }
@@ -365,6 +359,11 @@
           background-clip: padding-box, border-box;
           border: 1px solid transparent;
           border-radius: 2px;
+
+          .placeholder {
+            font-size: 12px;
+            color: #C4C6CC;
+          }
 
           &.animated {
             min-height: 32px;
@@ -455,6 +454,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 4px 0 6px 16px;
+      margin-bottom: 4px;
 
       .icon-mc-tuozhuai {
         width: 16px;

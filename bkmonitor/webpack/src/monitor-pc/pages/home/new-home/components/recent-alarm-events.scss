@@ -1,6 +1,5 @@
 .recent-alarm-events {
-  padding: 10px;
-  padding: 20px 0;
+  padding-bottom: 20px;
   margin: 0 auto;
   background-color: #f5f7fa;
   border-radius: 8px;
@@ -105,9 +104,14 @@
         color: #c4c6cc;
         cursor: not-allowed;
       }
+    }
 
-      .time-filter {
-        margin-top: 10px;
+    .alarm-time-filter {
+      color: #4d4f56;
+      background: #ffffff;
+
+      .icon-angle-down {
+        color: #979ba5;
       }
     }
   }
@@ -116,7 +120,7 @@
     .list-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px 16px;
+      gap: 24px 2%;
       align-items: center;
 
       .list-item {
@@ -160,6 +164,7 @@
         width: 220px;
         height: 100px;
         margin: 70px auto 0;
+        border: 1px dashed #afb0b2;
 
         img {
           width: 100%;

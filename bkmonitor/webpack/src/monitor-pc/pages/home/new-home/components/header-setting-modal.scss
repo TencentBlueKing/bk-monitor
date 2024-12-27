@@ -7,10 +7,10 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin: 0 4px;
+  margin-right: 4px;
   overflow: hidden;
   font-size: 12px;
-  color: #63656e;
+  color: #979BA5;
 }
 
 .quick-access-modal {
@@ -31,27 +31,28 @@
     width: 100%;
     height: 100%;
 
-    &-left {
+    &-right {
       position: relative;
       flex: 0 0 246px;
       flex: 0 0 200px;
       width: 400px;
-      background-color: #f5f7fa;
+      background: #FAFBFD;
 
-      .left-route {
+      .right-route {
         position: absolute;
         top: 24px;
         right: 16px;
         bottom: 15px;
         display: flex;
         flex-direction: column;
-        width: 152px;
+        width: 170px;
 
         &-title {
           display: flex;
           align-items: center;
           width: 100%;
           margin-bottom: 16px;
+          margin-left: 18px;
           font-size: 16px;
           font-weight: bold;
           line-height: 24px;
@@ -77,75 +78,83 @@
           display: flex;
           flex-direction: column;
           min-height: 280px;
-          overflow: auto;
+          overflow-x: visible;
+          overflow-y: auto;
 
           &-item {
-            display: flex;
+            position: relative;
             flex: 0 0 32px;
-            align-items: center;
             width: 100%;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: #313238;
-            user-select: none;
-            border-radius: 2px;
+            padding-left: 18px;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
 
-            &.is-dragover {
-              background-color: #e1ecff;
-            }
-
-            .item-drag {
-              @include common-route-icon;
-              display: none;
-              color: #979ba5;
-            }
-
-            .item-icon {
-              @include common-route-icon;
-            }
-
-            .item-close {
+            &-main {
               display: flex;
-              display: none;
               align-items: center;
-              justify-content: center;
-              width: 16px;
-              height: 16px;
-              margin-right: 10px;
-              margin-left: auto;
-              overflow: hidden;
-              font-size: 20px;
-              color: #979ba5;
+              padding: 6px 0;
+              font-size: 14px;
+              color: #4D4F56;
+              border-radius: 2px;
 
-              &:hover {
-                color: #3a84ff;
-                cursor: pointer;
-              }
-            }
-
-            &:hover {
-              cursor: move;
-              background-color: #eaebf0;
-              border-color: transparent;
-
-              .item-drag {
-                display: flex;
+              &.is-dragover {
+                background-color: #e1ecff;
               }
 
               .item-icon {
+                @include common-route-icon;
+              }
+
+              .item-close {
+                display: flex;
                 display: none;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                margin-right: 10px;
+                margin-left: auto;
+                overflow: hidden;
+                font-size: 20px;
+                color: #979ba5;
+
+                &:hover {
+                  color: #3a84ff;
+                  cursor: pointer;
+                }
+              }
+
+              &:hover {
+                background-color: #eaebf0;
+                border-color: transparent;
+              }
+
+            }
+
+            &:hover {
+              .item-drag {
+                cursor: move;
+                visibility: inherit;
               }
 
               .item-close {
                 display: flex;
               }
             }
+
+            .item-drag {
+              @include common-route-icon;
+              position: absolute;
+              top: 8px;
+              left: 0;
+              visibility: hidden;
+            }
           }
         }
       }
     }
 
-    &-right {
+    &-left {
       display: flex;
       flex: 1;
       flex-direction: column;
