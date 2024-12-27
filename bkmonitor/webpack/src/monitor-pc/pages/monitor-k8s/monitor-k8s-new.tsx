@@ -243,7 +243,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
-    this.setRouteParams();
   }
 
   /** 初始化filterBy结构 */
@@ -273,6 +272,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     if (this.clusterList.length) {
       this.cluster = this.clusterList[0].id;
     }
+    this.setRouteParams();
   }
 
   /**
@@ -382,6 +382,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.groupInstance.setGroupFilters([K8sTableColumnKeysEnum.NAMESPACE]);
     this.showCancelDrill = false;
     this.getScenarioMetricList();
+    this.setRouteParams();
   }
 
   /**

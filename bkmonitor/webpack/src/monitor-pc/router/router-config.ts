@@ -195,7 +195,7 @@ export const getRouteConfig = () => {
           id: 'monitor-serivice',
           children: [
             {
-              name: 'Kubernetes',
+              name: '容器监控',
               icon: 'icon-monitor icon-mc-mainboard menu-icon',
               id: 'k8s',
               path: '/k8s',
@@ -203,7 +203,7 @@ export const getRouteConfig = () => {
               canStore: true,
             },
             {
-              name: 'Kubernetes',
+              name: '容器监控',
               icon: 'icon-monitor icon-mc-mainboard menu-icon',
               id: 'k8s-new',
               path: '/k8s-new',
