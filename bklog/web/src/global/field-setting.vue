@@ -529,12 +529,15 @@
               alias_settings: [
                 ...indexfieldTableData.map(item =>{
                   return  {
-                    field_name: item.field_name,
+                    field_name: item.alias_name || item.field_name,
                     query_alias: item.query_alias, 
                     path_type:  item.field_type}
                 }),
               ],
             };
+            console.log(data);
+            
+            return
             await http
               .request('collect/fastUpdateCollection', {
                 params: {

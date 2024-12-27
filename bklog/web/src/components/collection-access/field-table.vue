@@ -143,10 +143,12 @@
             >
               <template #default="props">
                 <div
-                  v-if="isPreviewMode"
-                  class="overflow-tips"
+                  v-if="isPreviewMode || props.row.is_objectKey"
+                  class="overflow-tips-field-name"
+                  v-bk-tooltips.top="props.row.field_name"
                   v-bk-overflow-tips
-                >
+                > 
+                  <span v-if="props.row.is_objectKey" class="ext-btn bklog-icon bklog-subnode"></span>
                   <span>{{ props.row.field_name }}</span>
                 </div>
                 <bk-form-item
@@ -154,9 +156,9 @@
                   :class="{ 'is-required is-error': props.row.fieldErr || props.row.fieldAliasErr,'disable-background': props.row.is_built_in}"
                   class="participle-form-item"
                 >
-                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand" @click="expandObject(props.row,true)" class="ext-btn bk-icon icon-angle-right"></span>
-                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && props.row.expand " @click="expandObject(props.row,false)" class="ext-btn bk-icon icon-angle-down"></span>
-                  <span v-if="true" class="ext-btn bklog-icon bklog-subnode"></span>
+                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand" @click="expandObject(props.row,true)" class="ext-btn rotate bklog-icon bklog-arrow-down-filled"></span>
+                  <span v-if="props.row.field_type === 'object' && props.row.children?.length && props.row.expand " @click="expandObject(props.row,false)" class="ext-btn  bklog-icon bklog-arrow-down-filled"></span>
+                  
                   <bk-input
                     :class="props.row.alias_name || props.row.alias_name_show?'participle-field-name-input':''"
                     v-model.trim="props.row.field_name"
@@ -166,7 +168,10 @@
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
                   <template v-if="props.row.alias_name || props.row.alias_name_show">
-                    <div class="participle-icon">
+                    <div 
+                      class="participle-icon"
+                      :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
+                    >
                       <i
                       style ='color: #3A84FF;margin: 0 10px;'
                       class="bk-icon bklog-icon bklog-yingshe"
@@ -1272,6 +1277,21 @@
 
           /* stylelint-disable-next-line declaration-no-important */
           padding: 0 !important;
+          .overflow-tips-field-name{
+            display: flex;
+            height: 100%;
+            align-items: center;
+            padding:0 15px;
+            background-color: rgb(250, 251, 253);
+            span{
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .ext-btn{
+              font-size: 16px;
+            }
+          }
           .participle-form-item{
             .ext-btn{
               cursor: pointer;
@@ -1279,6 +1299,9 @@
               position: absolute;
               z-index: 999;
               bottom: 14px;
+            }
+            .rotate{
+              transform: rotate(-90deg);
             }
             .bk-form-input[disabled] {
               border-color: transparent !important;
@@ -1292,13 +1315,25 @@
             background-color: #fafbfd 
           }
           .participle-field-name-input{
-            width: 40%;
+            width: 50%;
+            border-right: 1px solid rgb(223, 224, 229);
           }
           .participle-icon{
-            width: 20%;
+            font-size: 18px;
+            left: 42%;
+            width: 10%;
+            background-color: white;
+            position: absolute;
+            z-index: 999
+          }
+          .participle-icon-color{
+            background-color: rgb(250, 251, 253) !important;
           }
           .participle-alias-name-input{
-            width: 40%;
+            width: 50%;
+            .bk-form-input{
+              padding-left: 15px;
+            }
           }
           .participle-field-name-input-pl5{
             input{
