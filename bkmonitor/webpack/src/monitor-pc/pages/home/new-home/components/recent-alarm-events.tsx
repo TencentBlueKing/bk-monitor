@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import draggable from 'vuedraggable';
 
 import emptyImageSrc from '../../../../static/images/png/empty.png';
+import HomeAlarmChart from './home-alarm-chart';
 import BizSelect from './new-biz-list';
 
 import './recent-alarm-events.scss';
@@ -67,7 +68,19 @@ export default class RecentAlarmEvents extends tsc<object> {
   bizId = window.cc_biz_id;
 
   currentDelId = '';
-
+  config = {
+    name: '全部策略',
+    tips: [
+      {
+        status: 'deleted',
+        label: 'Monitor】componentDaemonsetRestart',
+      },
+      {
+        status: 'stop',
+        label: 'Monitor】componentDaemonsetRestart',
+      },
+    ],
+  };
   formData = {
     dir: [],
     name: '张三',
@@ -343,7 +356,7 @@ export default class RecentAlarmEvents extends tsc<object> {
             key={item}
             class='list-item'
           >
-            {/* TODO：图表放置位 */}
+            <HomeAlarmChart config={this.config} />
           </div>
         ))}
         {add()}

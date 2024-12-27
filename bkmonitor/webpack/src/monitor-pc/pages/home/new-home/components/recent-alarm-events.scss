@@ -35,7 +35,7 @@
           font-family: MicrosoftYaHei;
           font-size: 14px;
           line-height: 22px;
-          color: #4D4F56;
+          color: #4d4f56;
           vertical-align: middle;
           cursor: pointer;
 
@@ -43,8 +43,8 @@
             font-family: MicrosoftYaHei-Bold;
             font-size: 16px;
             font-weight: 700;
-            color: #4D4F56;
-            border-bottom: 2px solid #3A84FF;
+            color: #4d4f56;
+            border-bottom: 2px solid #3a84ff;
           }
         }
 
@@ -53,7 +53,7 @@
           top: 12px;
           left: -13px;
           height: 16px;
-          color: #979BA5;
+          color: #979ba5;
           visibility: hidden;
 
           &:hover {
@@ -63,13 +63,12 @@
         }
 
         .item-close {
-
           font-size: 13px;
-          color: #4D4F56;
+          color: #4d4f56;
           visibility: hidden;
 
           &:hover {
-            color: #EA3636;
+            color: #ea3636;
             cursor: pointer;
           }
         }
@@ -84,7 +83,6 @@
             visibility: visible;
           }
         }
-
       }
 
       .add-task {
@@ -92,7 +90,7 @@
         font-family: MicrosoftYaHei;
         font-size: 12px;
         line-height: 20px;
-        color: #3A84FF;
+        color: #3a84ff;
         letter-spacing: 0;
         cursor: pointer;
 
@@ -103,17 +101,17 @@
       }
 
       .task-disabled {
-        color: #C4C6CC;
+        color: #c4c6cc;
         cursor: not-allowed;
       }
     }
 
     .alarm-time-filter {
-      color: #4D4F56;
-      background: #FFFFFF;
+      color: #4d4f56;
+      background: #ffffff;
 
       .icon-angle-down {
-        color: #979BA5;
+        color: #979ba5;
       }
     }
   }
@@ -127,8 +125,8 @@
 
       .list-item {
         width: 32%;
-        min-height: 200px;
-        background: #FFFFFF;
+        height: 210px;
+        background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
 
@@ -145,10 +143,10 @@
         font-family: MicrosoftYaHei;
         font-size: 14px;
         line-height: 22px;
-        color: #3A84FF;
+        color: #3a84ff;
         text-align: center;
-        background: #F0F5FF;
-        border: 1px dashed #A3C5FD;
+        background: #f0f5ff;
+        border: 1px dashed #a3c5fd;
         border-radius: 2px;
 
         .icon-mc-add {
@@ -156,7 +154,7 @@
         }
 
         &:hover {
-          background: #E1ECFF;
+          background: #e1ecff;
         }
       }
     }
@@ -180,7 +178,7 @@
       font-family: MicrosoftYaHei;
       font-size: 14px;
       line-height: 22px;
-      color: #4D4F56;
+      color: #4d4f56;
       text-align: center;
     }
 
@@ -205,9 +203,9 @@
       margin-bottom: 19px;
       font-size: 30px;
       line-height: 42px;
-      color: #FF9C01;
+      color: #ff9c01;
       text-align: center;
-      background: #FFE8C3;
+      background: #ffe8c3;
       border-radius: 50%;
     }
 
@@ -228,7 +226,7 @@
       font-family: MicrosoftYaHei;
       font-size: 14px;
       line-height: 22px;
-      color: #4D4F56;
+      color: #4d4f56;
     }
 
     .tips {
@@ -240,13 +238,14 @@
       font-family: MicrosoftYaHei;
       font-size: 14px;
       line-height: 22px;
-      color: #4D4F56;
-      background: #F5F6FA;
+      color: #4d4f56;
+      background: #f5f6fa;
       border-radius: 2px;
     }
 
     .foot {
-      &:first-child,button {
+      &:first-child,
+      button {
         margin-right: 9px;
       }
     }
@@ -263,7 +262,7 @@
       font-family: MicrosoftYaHei;
       font-size: 12px;
       line-height: 20px;
-      color: #4D4F56;
+      color: #4d4f56;
     }
 
     .strategy-status {
@@ -273,14 +272,14 @@
         height: 22px;
         font-size: 12px;
         line-height: 22px;
-        color: #4D4F56;
+        color: #4d4f56;
         text-align: center;
-        background: #F0F1F5;
+        background: #f0f1f5;
         border-radius: 2px;
       }
 
       .strategy-selected {
-        color: #3A84FF;
+        color: #3a84ff;
       }
     }
   }
