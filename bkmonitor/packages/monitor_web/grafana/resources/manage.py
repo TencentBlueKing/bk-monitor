@@ -92,7 +92,9 @@ class GetDirectoryTree(Resource):
             raise GetFolderOrDashboardError(**result)
 
         # 获取仪表盘权限
-        _, role, dashboard_permissions = DashboardPermission.has_permission(request, None, params["bk_biz_id"])
+        _, role, dashboard_permissions = DashboardPermission.has_permission(
+            request, None, params["bk_biz_id"], force_check=True
+        )
 
         folders: Dict[int, Dict] = defaultdict(lambda: {"dashboards": []})
 

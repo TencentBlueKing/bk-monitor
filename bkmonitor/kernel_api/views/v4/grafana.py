@@ -30,4 +30,5 @@ class GrafanaViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
         ResourceRoute("POST", resource.grafana.log_query, endpoint="log/query"),
+        ResourceRoute("GET", resource.grafana.get_directory_tree, endpoint="get_directory_tree"),
     ]
