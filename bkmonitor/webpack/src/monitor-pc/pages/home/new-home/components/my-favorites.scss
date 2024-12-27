@@ -112,7 +112,6 @@
 
     .row-3 .category {
       min-width: 32%;
-      // min-width: 300px;
     }
 
     .has-line {
@@ -457,11 +456,9 @@
       margin-bottom: 4px;
 
       .icon-mc-tuozhuai {
-        width: 16px;
-        height: 16px;
+        @include common-route-icon;
         color: #DCDEE5;
         cursor: move;
-        @include common-route-icon;
       }
 
       &:last-child {

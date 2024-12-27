@@ -23,12 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  deleteAlarmGraphConfig,
+  getAlarmGraphConfig,
+  saveAlarmGraphBizIndex,
+  saveAlarmGraphConfig,
+} from 'monitor-api/modules/overview';
 import draggable from 'vuedraggable';
 
 import emptyImageSrc from '../../../../static/images/png/empty.png';
+import HomeAlarmChart from './home-alarm-chart';
 import BizSelect from './new-biz-list';
 
 import './recent-alarm-events.scss';
@@ -51,14 +58,9 @@ export default class RecentAlarmEvents extends tsc<object> {
     ],
   };
 
-  tabs = [
-    { name: '王者荣耀', content: [1, 2, 3, 4, 5] },
-    { name: '和平精英', content: [2] },
-    { name: '地下城与勇士', content: [1, 2, 3, 4, 5] },
-    { name: '金矿矿', content: [2, 3, 4, 5, 6, 76, 8] },
-  ];
+  tabs = [];
 
-  activeTab = this.tabs[0].name; // 默认选中第一个标签
+  activeTabId = 3; // 默认选中第一个标签
 
   showDelDialog = false;
   showAddTaskDialog = false; // 展示添加业务弹窗
@@ -66,8 +68,20 @@ export default class RecentAlarmEvents extends tsc<object> {
   dragId = '';
   bizId = window.cc_biz_id;
 
-  currentDelId = '';
-
+  currentDelId = null;
+  config = {
+    name: '全部策略',
+    tips: [
+      {
+        status: 'deleted',
+        label: 'Monitor】componentDaemonsetRestart',
+      },
+      {
+        status: 'stop',
+        label: 'Monitor】componentDaemonsetRestart',
+      },
+    ],
+  };
   formData = {
     dir: [],
     name: '张三',
@@ -92,10 +106,130 @@ export default class RecentAlarmEvents extends tsc<object> {
     },
   ];
 
+  content = [];
+
+  // @Watch('activeTabId')
+  // handleSwitchTab() {
+  //   console.log('啊哈哈哈哈');
+  //   this.getData();
+  // }
+
+  async getData() {
+    // const map = {
+    //   2: {
+    //     bk_biz_id: 2,
+    //     config: [
+    //       {
+    //         name: '主机告警',
+    //         strategy_ids: [1, 2, 3],
+    //         status: [
+    //           { strategy_id: 1, name: '主机策略1', status: 'normal' },
+    //           { strategy_id: 2, name: '主机策略2', status: 'disabled' },
+    //           { strategy_id: 3, name: '主机策略3', status: 'shielded' },
+    //         ],
+    //       },
+    //       {
+    //         name: '服务告警',
+    //         strategy_ids: [4, 5, 6],
+    //         status: [
+    //           { strategy_id: 4, name: '服务策略1', status: 'normal' },
+    //           { strategy_id: 5, name: '服务策略2', status: 'disabled' },
+    //           { strategy_id: 6, name: '服务策略3', status: 'shielded' },
+    //           { strategy_id: 7, name: '服务策略4', status: 'deleted' },
+    //         ],
+    //       },
+    //     ],
+    //     tags: [
+    //       { bk_biz_id: 2, bk_biz_name: '蓝鲸' },
+    //       { bk_biz_id: 3, bk_biz_name: '业务3' },
+    //       { bk_biz_id: 4, bk_biz_name: '业务54' },
+    //     ],
+    //   },
+    //   3: {
+    //     bk_biz_id: 2,
+    //     config: [
+    //       {
+    //         name: '主机告警1',
+    //         strategy_ids: [1, 2, 3],
+    //         status: [
+    //           { strategy_id: 1, name: '主机策略1', status: 'normal' },
+    //           { strategy_id: 2, name: '主机策略2', status: 'disabled' },
+    //           { strategy_id: 3, name: '主机策略3', status: 'shielded' },
+    //         ],
+    //       },
+    //       {
+    //         name: '服务告警1',
+    //         strategy_ids: [4, 5, 6],
+    //         status: [
+    //           { strategy_id: 4, name: '服务策略1', status: 'normal' },
+    //           { strategy_id: 5, name: '服务策略2', status: 'disabled' },
+    //           { strategy_id: 6, name: '服务策略3', status: 'shielded' },
+    //           { strategy_id: 7, name: '服务策略4', status: 'deleted' },
+    //         ],
+    //       },
+    //     ],
+    //     tags: [
+    //       { bk_biz_id: 3, bk_biz_name: '业务3' },
+    //       { bk_biz_id: 4, bk_biz_name: '业务54' },
+    //     ],
+    //   },
+    //   4: {
+    //     bk_biz_id: 2,
+    //     config: null,
+    //     tags: [{ bk_biz_id: 4, bk_biz_name: '没有图表' }],
+    //   },
+    // };
+    // const data = {
+    //   bk_biz_id: 2,
+    //   config: [
+    //     {
+    //       name: '主机告警',
+    //       strategy_ids: [1, 2, 3],
+    //       status: [
+    //         { strategy_id: 1, name: '主机策略1', status: 'normal' },
+    //         { strategy_id: 2, name: '主机策略2', status: 'disabled' },
+    //         { strategy_id: 3, name: '主机策略3', status: 'shielded' },
+    //       ],
+    //     },
+    //     {
+    //       name: '服务告警',
+    //       strategy_ids: [4, 5, 6],
+    //       status: [
+    //         { strategy_id: 4, name: '服务策略1', status: 'normal' },
+    //         { strategy_id: 5, name: '服务策略2', status: 'disabled' },
+    //         { strategy_id: 6, name: '服务策略3', status: 'shielded' },
+    //         { strategy_id: 7, name: '服务策略4', status: 'deleted' },
+    //       ],
+    //     },
+    //   ],
+    //   tags: [
+    //     { bk_biz_id: 2, bk_biz_name: '蓝鲸' },
+    //     { bk_biz_id: 3, bk_biz_name: '业务3' },
+    //     { bk_biz_id: 4, bk_biz_name: '业务54' },
+    //   ],
+    // };
+    const data = await getAlarmGraphConfig({
+      bk_biz_id: this.activeTabId || 3,
+    });
+    console.log('= = = =>>》》》', data, this.activeTabId);
+    this.$set(this, 'tabs', data.tags || []);
+    this.$set(this, 'content', data.config || []);
+  }
+
+  async created() {
+    await this.getData();
+    this.activeTabId = this.tabs[0]?.bk_biz_id; // 默认选中第一个标签
+    console.log('啊哈哈哈', this.activeTabId, this.tabs);
+  }
+
   // 可以添加业务flag
   get canAddBusiness() {
     // 仅支持添加 10 个业务
     return this.tabs.length <= 10;
+  }
+
+  get noBusiness() {
+    return this.tabs.length === 0;
   }
 
   init() {
@@ -103,8 +237,8 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
 
   // 选择标签
-  selectTab(tab: string) {
-    this.activeTab = tab;
+  selectTab(tabId: number) {
+    this.activeTabId = tabId;
   }
 
   // 拖拽 start
@@ -137,6 +271,10 @@ export default class RecentAlarmEvents extends tsc<object> {
 
     this.dragId = '';
     this.dragoverId = '';
+    // 保存排序
+    saveAlarmGraphBizIndex({
+      bk_biz_ids: this.tabs.map(tab => tab.bk_biz_id),
+    });
   }
   // 拖拽 end
 
@@ -153,6 +291,23 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 确定新增图表
   handleConfirm() {
     // TODO
+    saveAlarmGraphConfig({
+      bk_biz_id: 3,
+      config: [
+        {
+          name: 'zj_demo002',
+          strategy_ids: [4, 33, 40],
+        },
+        {
+          name: 'zj_demo003',
+          strategy_ids: [40],
+        },
+        {
+          name: 'zj_demo004',
+          strategy_ids: [44],
+        },
+      ],
+    });
     this.showAddTaskDialog = false;
   }
 
@@ -288,13 +443,21 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 取消删除
   handleCancelDel() {
-    this.currentDelId = '';
+    this.currentDelId = null;
     this.showDelDialog = false;
   }
 
   // 删除
   delTaskByIndex() {
-    this.tabs = this.tabs.filter(item => item.name !== this.currentDelId);
+    this.tabs = this.tabs.filter(item => item.bk_biz_id !== this.currentDelId);
+    deleteAlarmGraphConfig({
+      bk_biz_id: this.currentDelId,
+    });
+    // 当删除的是当前的业务，切换activeTab状态
+    if (this.currentDelId === this.activeTabId && this.tabs.length) {
+      this.activeTabId = this.tabs[0].bk_biz_id;
+    }
+    console.log(this.activeTabId);
     this.showDelDialog = false;
   }
   // 删除业务 end
@@ -327,39 +490,37 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 列表展示
   getStrategyList(list) {
     // 列表最后一个为新增图表
-    const add = () => (
-      <div
-        class='add-content list-item'
-        onClick={this.handleAddChart}
-      >
-        <i class='icon-mc-add icon-monitor' />
-        <span>{this.$t('新增图表')}</span>
-      </div>
-    );
-    return (
-      <div class='list-content'>
-        {list.map(item => (
-          <div
-            key={item}
-            class='list-item'
-          >
-            {/* TODO：图表放置位 */}
-          </div>
-        ))}
-        {add()}
-      </div>
-    );
+    // const add = () => (
+    //   <div
+    //     class='add-content list-item'
+    //     onClick={this.handleAddChart}
+    //   >
+    //     <i class='icon-mc-add icon-monitor' />
+    //     <span>{this.$t('新增图表')}</span>
+    //   </div>
+    // );
+    // return (
+    //   <div class='list-content'>
+    //     {list.map(item => (
+    //       <div
+    //         key={item.name}
+    //         class='list-item'
+    //       >
+    //         <HomeAlarmChart config={item} />
+    //       </div>
+    //     ))}
+    //     {add()}
+    //   </div>
+    // );
   }
 
   handleChange(id) {
-    console.log('id', id);
     this.showAddTaskDialog = true;
   }
 
   render() {
-    const activeContent =
-      (this.tabs.find(tab => tab.name === this.activeTab)?.content.length && this.activeTab !== '王者荣耀') || '';
-    // console.log('act', activeContent);
+    const activeContent = this.content.length !== 0;
+    console.log('tabs', JSON.parse(JSON.stringify(this.tabs)));
     return (
       <div class='recent-alarm-events'>
         <div class='title'>
@@ -368,9 +529,9 @@ export default class RecentAlarmEvents extends tsc<object> {
         {/* 头部功能区 */}
         <div class='head'>
           <div class='tabs'>
-            {this.tabs.map((tab, index) => (
+            {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
               <div
-                key={tab.name}
+                key={id}
                 class='tab'
                 draggable={true}
                 onDragleave={this.handleDragleave}
@@ -380,10 +541,10 @@ export default class RecentAlarmEvents extends tsc<object> {
               >
                 <span class='icon-monitor icon-mc-tuozhuai item-drag' />
                 <span
-                  class={['tab-title', this.activeTab === tab.name ? 'active' : '']}
-                  onClick={() => this.selectTab(tab.name)}
+                  class={['tab-title', this.activeTabId === id ? 'active' : '']}
+                  onClick={() => this.selectTab(id)}
                 >
-                  {tab.name}
+                  {name}
                 </span>
                 <div>
                   <span
@@ -395,11 +556,15 @@ export default class RecentAlarmEvents extends tsc<object> {
                       boundary: document.body,
                       allowHTML: false,
                     }}
-                    onClick={() => this.handleDelTask(tab.name)}
+                    onClick={() => this.handleDelTask(id)}
                   />
                 </div>
               </div>
             ))}
+            {this.tabs.map(item => {
+              console.log('item - - -- - - >', item);
+              return <div key={item.bk_biz_id + item.bk_biz_name}>{item.bk_biz_name}</div>;
+            })}
             {/* 删除业务-模态框 */}
             {this.getDelDialog()}
 
@@ -454,11 +619,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           </div>
         </div>
         {/* 主体内容 */}
-        <div class='content'>
-          {!activeContent
-            ? this.getEmptyContent()
-            : this.getStrategyList(this.tabs.filter(item => item.name === this.activeTab)[0].content)}
-        </div>
+        <div class='content'>{!activeContent ? this.getEmptyContent() : this.getStrategyList(this.content)}</div>
       </div>
     );
   }

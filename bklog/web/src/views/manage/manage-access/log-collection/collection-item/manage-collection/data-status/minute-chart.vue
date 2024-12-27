@@ -138,7 +138,9 @@
           this.basicLoading = true;
           const res = await this.$http.request('retrieve/getLogChartList', {
             params: { index_set_id: this.curCollect.index_set_id },
-            data: this.retrieveParams,
+            data: Object.assign({}, this.retrieveParams, {
+              addition: [...this.retrieveParams.addition, ...this.retrieveParams.commonFilters],
+            }),
           });
           const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
           this.updateChart(originChartData.map(item => [item.key, item.doc_count]));

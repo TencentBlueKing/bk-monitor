@@ -1,5 +1,6 @@
 .new-home-select {
   width: 100%;
+  position: relative;
   min-height: 52px;
   .loading-view {
     width: 170px;
@@ -22,6 +23,17 @@
     background: #333c5d;
     border-radius: 8px;
     position: relative;
+    .clear-btn {
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 50%;
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      z-index: 1;
+      color: #c4c6cc;
+      // display: none;
+    }
   }
   .ip-tag {
     font-size: 10px;
@@ -96,11 +108,10 @@
   }
 }
 .select-empty {
-  width: calc(100% - 10px);
+  width: 100%;
   height: 300px;
   background: #fff;
   border-radius: 2px;
-  margin-left: 5px;
   padding-top: 60px;
   .bk-exception-img.part-img .exception-image {
     height: 150px;
@@ -119,17 +130,22 @@
   }
 }
 .new-home-select-popover {
+  width: 100%;
+  position: absolute;
   margin-top: 4px;
+  left: 0;
+  z-index: 1;
+  border-radius: 2px;
 }
 .new-home-select-popover-content {
-  width: calc(100% - 10px);
+  width: 100%;
+  box-shadow: 0 4px 10px 10px rgba(0, 0, 0, 0.15);
   height: 405px;
   background: #fff;
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 12px;
   overflow: auto;
   padding-bottom: 12px;
-  margin-left: 5px;
   .item-list-title {
     font-size: 12px;
     color: #979ba5;
@@ -193,6 +209,7 @@
     color: #4d4f56;
     padding: 0 16px 0 24px;
     cursor: pointer;
+    &.active,
     &:hover {
       background: #f0f1f5;
       .ip-tag {

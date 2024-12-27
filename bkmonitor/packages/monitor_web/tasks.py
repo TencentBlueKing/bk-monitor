@@ -1346,7 +1346,7 @@ def clean_bkrepo_temp_file():
         endpoint_url=settings.BKREPO_ENDPOINT_URL,
     )
 
-    clean_paths = ["as_code/export/", "as_code/"]
+    clean_paths = ["as_code/export/", "as_code/", "render/image/dashboard/"]
     for clean_path in clean_paths:
         filenames = set(client.list_dir(clean_path)[1])
         logger.info("cleaning bkrepo temp files, path: {}, file count: {}".format(clean_path, len(filenames)))

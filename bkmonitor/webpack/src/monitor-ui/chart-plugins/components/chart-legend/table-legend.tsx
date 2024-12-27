@@ -108,24 +108,28 @@ export default class TableLegend extends CommonLegend {
                     <div class='content-wrapper'>
                       {title === 'Min' && (
                         <div
+                          style={`--series-color: ${item.color};`}
                           class='legend-metric'
-                          onMousedown={e => this.handleLegendMouseEvent(e, 'mousedown')}
-                          onMouseenter={e => this.handleLegendEvent(e, 'highlight', item)}
-                          onMouseleave={e => this.handleLegendEvent(e, 'downplay', item)}
-                          onMousemove={e => this.handleLegendMouseEvent(e, 'mousemove')}
-                          onMouseup={e => this.handleLegendMouseEvent(e, 'mouseup', item)}
+                          onMousedown={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mousedown')}
+                          onMouseenter={e => !this.preventEvent && this.handleLegendEvent(e, 'highlight', item)}
+                          onMouseleave={e => !this.preventEvent && this.handleLegendEvent(e, 'downplay', item)}
+                          onMousemove={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mousemove')}
+                          onMouseup={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mouseup', item)}
                         >
                           <span
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
-                            class='metric-label'
+                            class={`metric-label is-${item.lineStyleType}`}
+                            onMousedown={e => this.preventEvent && this.handleLegendEvent(e, 'click', item)}
                           />
-                          <span
-                            style={{ color: item.show ? '#63656e' : '#ccc' }}
-                            class='metric-name'
-                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                          >
-                            {item.name}
-                          </span>
+                          {this.$scopedSlots.name?.({ item }) || (
+                            <span
+                              style={{ color: item.show ? '#63656e' : '#ccc' }}
+                              class='metric-name'
+                              v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                            >
+                              {item.name}
+                            </span>
+                          )}
                         </div>
                       )}
                       <div class='legend-value'>{item[title.toLocaleLowerCase()]}</div>

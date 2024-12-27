@@ -597,7 +597,7 @@ class IndexSetHandler(APIModel):
         ret = defaultdict(list)
         indices = EsRoute(
             scenario_id=scenario_id, storage_cluster_id=storage_cluster_id, indices=",".join(index_list)
-        ).cat_indices()
+        ).cat_indices(need_filter=False)
         indices = StorageHandler.sort_indices(indices)
         index_list.sort(key=lambda s: len(s), reverse=True)
         for index_es_info in indices:

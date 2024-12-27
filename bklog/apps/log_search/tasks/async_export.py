@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
 import datetime
 import json
 import os
@@ -52,10 +53,17 @@ from apps.log_search.constants import (
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
+from apps.log_search.models import (
+    AsyncTask,
+    LogIndexSet,
+    Scenario,
+    StorageClusterRecord,
+)
+from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
+from apps.utils.thread import MultiExecuteFunc
 
 
 @task(ignore_result=True, queue="async_export")
@@ -258,37 +266,117 @@ class AsyncExportUtils(object):
         export_method = self.quick_export if self.is_quick_export else self.async_export
         export_method()
 
-    def async_export(self):
-        max_result_window = self.search_handler.index_set_obj.result_window
-        result = self.search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+    def process_time(self, time_value, tz_info):
+        """
+        处理时间值并返回转换后的 datetime 对象
+        """
+        if isinstance(time_value, (int, float)):
+            return arrow.get(time_value).to(tz=tz_info).datetime
+        else:
+            return arrow.get(time_value).replace(tzinfo=tz_info).datetime
+
+    def get_storage_cluster_record(self):
+        """
+        获取集群切换记录
+        """
+        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+        start_time = self.process_time(self.search_handler.start_time, tz_info)
+        end_time = self.process_time(self.search_handler.end_time, tz_info)
+        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+            index_set_id=int(self.search_handler.index_set_id),
+            created_at__gt=(start_time - datetime.timedelta(hours=1)),
+        ).order_by("created_at")
+        max_created_at = None
+        for obj in storage_cluster_record_objs:
+            if end_time <= obj.created_at:
+                max_created_at = obj.created_at
+                break
+        if max_created_at:
+            storage_cluster_record_objs = storage_cluster_record_objs.filter(created_at__lte=max_created_at)
+            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
+        else:
+            storage_cluster_ids = set(storage_cluster_record_objs.values_list("storage_cluster_id", flat=True))
+            storage_cluster_ids.add(self.search_handler.storage_cluster_id)
+        return storage_cluster_ids
+
+    def _async_export(self, search_handler, file_path):
+        max_result_window = search_handler.index_set_obj.result_window
+        result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
         # 判断是否成功
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
-        with open(self.file_path, "a+", encoding="utf-8") as f:
-            result_list = self.search_handler._deal_query_result(result_dict=result).get("origin_log_list")
+        with open(file_path, "a+", encoding="utf-8") as f:
+            result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
             for item in result_list:
                 f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
-            if self.search_handler.scenario_id == Scenario.ES:
-                generate_result = self.search_handler.scroll_result(result)
+            if search_handler.scenario_id == Scenario.ES:
+                generate_result = search_handler.scroll_result(result)
             else:
-                generate_result = self.search_handler.search_after_result(result, self.sorted_fields)
+                generate_result = search_handler.search_after_result(result, self.sorted_fields)
             self.write_file(f, generate_result)
 
-        with tarfile.open(self.tar_file_path, "w:gz") as tar:
-            tar.add(self.file_path, arcname=self.file_name)
+        return file_path
 
-    def quick_export(self):
-        result_list = self.search_handler.multi_get_slice_data(
-            pre_file_name=self.file_name, export_file_type=self.export_file_type
-        )
-        with tarfile.open(self.tar_file_path, "w:gz") as tar:
-            for idx, result in enumerate(result_list):
+    def async_export(self):
+        storage_cluster_record_ids = self.get_storage_cluster_record()
+        multi_execute_func = MultiExecuteFunc()
+        for storage_cluster_record_id in storage_cluster_record_ids:
+            search_handler = SearchHandler(
+                index_set_id=self.search_handler.index_set_id,
+                search_dict=copy.deepcopy(self.search_handler.search_dict),
+                export_fields=self.search_handler.export_fields,
+                export_log=True,
+            )
+            search_handler.storage_cluster_id = storage_cluster_record_id
+            current_cluster_id = search_handler.storage_cluster_id
+            file_path = f"{ASYNC_DIR}/{self.file_name}_cluster_{current_cluster_id}.{self.export_file_type}"
+            params = {
+                "search_handler": search_handler,
+                "file_path": file_path,
+            }
+            multi_execute_func.append(
+                result_key=search_handler.storage_cluster_id,
+                func=self._async_export,
+                params=params,
+                multi_func_params=True,
+            )
+        multi_result = multi_execute_func.run(return_exception=True)
+        summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+        with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
+            for result_key, result in multi_result.items():
                 if isinstance(result, Exception):
-                    logger.error(f"{self.file_name}_slice_{idx}_error: {result}\n")
+                    logger.error(f"{self.file_name}_cluster_{result_key}_error: {result}\n")
                 else:
                     self.file_path_list.append(result)
-                    tar.add(result, arcname=os.path.basename(result))
+                    # 读取文件内容并写入汇总文件
+                    with open(result, "r", encoding="utf-8") as f:
+                        for line in f:
+                            summary_file.write(line)
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
+            self.file_path_list.append(summary_file_path)
+
+    def _quick_export(self, search_handler):
+        multi_result = search_handler.multi_get_slice_data(
+            pre_file_name=self.file_name, export_file_type=self.export_file_type
+        )
+        for idx, result in multi_result.items():
+            if isinstance(result, Exception):
+                logger.error(
+                    f"{self.file_name}_slice_{idx}_cluster_{search_handler.storage_cluster_id}error: {result}\n"
+                )
+            else:
+                self.file_path_list.append(result)
+
+    def quick_export(self):
+        storage_cluster_record_ids = self.get_storage_cluster_record()
+        for storage_cluster_record_id in storage_cluster_record_ids:
+            self.search_handler.storage_cluster_id = storage_cluster_record_id
+            self._quick_export(self.search_handler)
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            for file_path in self.file_path_list:
+                tar.add(file_path, arcname=os.path.basename(file_path))
 
     def export_upload(self):
         """
@@ -354,16 +442,8 @@ class AsyncExportUtils(object):
         """
         清空产生的临时文件
         """
-        clean_method = self.clean_quick_export if self.is_quick_export else self.clean_async_export
-        clean_method()
-
-    def clean_quick_export(self):
         for file_path in self.file_path_list:
             os.remove(file_path)
-        os.remove(self.tar_file_path)
-
-    def clean_async_export(self):
-        os.remove(self.file_path)
         os.remove(self.tar_file_path)
 
     def init_remote_storage(self):

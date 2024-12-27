@@ -249,6 +249,9 @@ export default class MyFavorites extends tsc<object> {
     }, {});
   }
 
+  async created() {
+  }
+
   onDragEnd() {}
 
   // 切换视图状态

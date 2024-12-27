@@ -43,6 +43,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
+    WITH_HISTORY_ANOMALY = True
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -63,19 +64,27 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
             return super().detect(data_point)
 
     def detect_by_sdk(self, data_point):
-        dimensions = copy.deepcopy(data_point.dimensions)
+        dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
         dimensions["strategy_id"] = int(data_point.item.strategy.id)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,
             "interval": data_point.item.query_configs[0]["agg_interval"],
             "predict_args": {
-                "alert_up": self.validated_config["args"].get("$alert_up"),
-                "alert_down": self.validated_config["args"].get("$alert_down"),
-                "sensitivity": self.validated_config["args"].get("$sensitivity"),
+                arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()
             },
             "extra_data": {
-                "history_anomaly": [],
+                "history_anomaly": {
+                    "source": "backfill",
+                    "retention_period": "8d",
+                    "backfill_fields": ["anomaly_alert", "extra_info"],
+                    "backfill_conditions": [
+                        {
+                            "field_name": "is_anomaly",
+                            "value": 1,
+                        }
+                    ],
+                },
             },
         }
 

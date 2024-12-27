@@ -43,8 +43,9 @@ export enum ESearchType {
 /* status */
 export const EStatusType = {
   deleted: '已删除',
-  stop: '已停用',
-  shield: '已屏蔽',
+  disabled: '已停用',
+  shielded: '已屏蔽',
+  normal: '正常',
 };
 /**
  * @description 输入字段匹配字段高亮

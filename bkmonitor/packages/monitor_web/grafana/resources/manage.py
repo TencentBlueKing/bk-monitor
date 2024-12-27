@@ -633,14 +633,14 @@ class GetRelatedStrategy(Resource):
         strategies = StrategyModel.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             type=StrategyModel.StrategyType.Dashboard,
-        ).values("id", "name")
+        ).only("id", "name", "is_enabled", "is_invalid", "invalid_type")
 
-        strategy_names = {strategy["id"]: strategy["name"] for strategy in strategies}
+        strategy_id_to_strategy = {strategy.id: strategy for strategy in strategies}
 
         qcs = QueryConfigModel.objects.filter(
             data_source_label=DataSourceLabel.DASHBOARD,
             config__dashboard_uid=params["dashboard_uid"],
-            strategy_id__in=list(strategy_names.keys()),
+            strategy_id__in=list(strategy_id_to_strategy.keys()),
         )
 
         if params.get("panel_id"):
@@ -648,6 +648,7 @@ class GetRelatedStrategy(Resource):
 
         result = []
         for qc in qcs:
+            strategy = strategy_id_to_strategy[qc.strategy_id]
             result.append(
                 {
                     "dashboard_uid": qc.config["dashboard_uid"],
@@ -655,7 +656,10 @@ class GetRelatedStrategy(Resource):
                     "panel_id": qc.config["panel_id"],
                     "ref_id": qc.config["ref_id"],
                     "strategy_id": qc.strategy_id,
-                    "strategy_name": strategy_names[qc.strategy_id],
+                    "strategy_name": strategy.name,
+                    "is_enabled": strategy.is_enabled,
+                    "is_invalid": strategy.is_invalid,
+                    "invalid_type": strategy.invalid_type,
                 }
             )
 

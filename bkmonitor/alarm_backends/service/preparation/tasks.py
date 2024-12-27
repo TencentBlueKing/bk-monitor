@@ -26,14 +26,14 @@ logger = logging.getLogger("preparation")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def refresh_aiops_sdk_depend_data(strategy_id, update_time: int = None):
+def refresh_aiops_sdk_depend_data(strategy_id, update_time: int = None, force: bool = False):
     """刷新用于AIOPS SDK异常检测的历史依赖数据.
 
     :param strategy_id: 策略ID
     :return:
     """
     try:
-        TsDependPreparationProcess().process(strategy_id, update_time)
+        TsDependPreparationProcess().process(strategy_id, update_time, force)
     except LockError:
         logger.info("Failed to acquire lock. on strategy({}) with update time: {}".format(strategy_id, update_time))
     except Exception as e:

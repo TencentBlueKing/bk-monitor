@@ -555,7 +555,7 @@ class ExportConfigFileResource(ExportConfigResource):
                 [f"{count}条{config_type}" for config_type, count in config_stats_info.items()]
             )
 
-            send_frontend_report_event(bk_biz_id, username, event_content)
+            send_frontend_report_event(self, bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event failed: {e}")
 

@@ -54,7 +54,7 @@ export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {
   render() {
     return (
       <div
-        class={`chart-row ${this.panel.collapsed ? 'is-collapsed' : ''} `}
+        class={'chart-row'}
         onClick={this.handleCollapsed}
       >
         <i class='bk-icon icon-right-shape chart-row-icon' />

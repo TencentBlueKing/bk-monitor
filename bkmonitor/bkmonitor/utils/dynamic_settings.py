@@ -38,11 +38,13 @@ class DynamicSettings(object):
             return value
 
         if self._cache.exists(name):
-            return self._cache.get(name)
-        else:
-            value = self._global_config_model.get(name, value)
-            self._cache.set(name, value, self.__cache_expires__, use_round=True)
-            return value
+            value = self._cache.get(name)
+            if value is not None:
+                return value
+
+        value = self._global_config_model.get(name, value)
+        self._cache.set(name, value, self.__cache_expires__, use_round=True)
+        return value
 
     def __setattr__(self, name, value):
         if name in self.__name_list__:

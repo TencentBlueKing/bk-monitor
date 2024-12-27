@@ -13,14 +13,14 @@ from rest_framework.exceptions import ValidationError
 
 from alarm_backends.core.cache.mail_report import MailReportCacheManager
 from alarm_backends.service.report.handler import ReportHandler
-from alarm_backends.service.report.tasks import render_mails
+from alarm_backends.service.report.tasks import render_image_task, render_mails
 from bkmonitor.action.serializers.report import (
     FrequencySerializer,
     ReceiverSerializer,
     ReportChannelSerializer,
     ReportContentSerializer,
 )
-from bkmonitor.models import ReportItems
+from bkmonitor.models import RenderImageTask, ReportItems
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
@@ -164,4 +164,82 @@ class MailReportViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.report.group_list, endpoint="group_list"),
         ResourceRoute("GET", resource.report.report_list, endpoint="report_mail_list"),
         ResourceRoute("POST", IsSuperuser, endpoint="is_superuser"),
+    ]
+
+
+class RenderImageResource(Resource):
+    """
+    渲染图片
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        type = serializers.ChoiceField(choices=RenderImageTask.TYPE)
+        options = serializers.DictField()
+
+        class DashboardOptionsSerializer(serializers.Serializer):
+            bk_biz_id = serializers.IntegerField()
+            dashboard_uid = serializers.CharField()
+            panel_id = serializers.CharField(allow_null=True, allow_blank=True, default=None)
+            height = serializers.IntegerField(default=300)
+            width = serializers.IntegerField()
+            variables = serializers.DictField(default=dict)
+            start_time = serializers.IntegerField()
+            end_time = serializers.IntegerField()
+            scale = serializers.IntegerField(default=2)
+            with_panel_title = serializers.BooleanField(default=True)
+
+        def validate(self, attrs):
+            options = attrs.pop("options")
+            if attrs["type"] == RenderImageTask.Type.DASHBOARD:
+                serializer = self.DashboardOptionsSerializer(data=options)
+            else:
+                raise ValidationError(f"Invalid type: {attrs['type']}")
+            serializer.is_valid(raise_exception=True)
+            attrs["options"] = serializer.validated_data
+            return attrs
+
+    def perform_request(self, params):
+        # 尝试获取当前用户
+        request = get_request(peaceful=True)
+        if request:
+            username = request.user.username
+        else:
+            username = "system"
+
+        task = RenderImageTask.objects.create(
+            type=params["type"],
+            options=params["options"],
+            status=RenderImageTask.Status.PENDING,
+            username=username,
+        )
+        render_image_task.delay(task)
+        return {"task_id": str(task.task_id)}
+
+
+class GetRenderImageResource(Resource):
+    """
+    获取渲染图片
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        task_id = serializers.UUIDField()
+
+    def perform_request(self, params):
+        task = RenderImageTask.objects.get(task_id=params["task_id"])
+
+        return {
+            "status": task.status,
+            "image_url": task.image.url if task.image else None,
+            "error": task.error,
+        }
+
+
+class RenderImageViewSet(ResourceViewSet):
+    """
+    渲染图片
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", RenderImageResource, endpoint="render"),
+        ResourceRoute("GET", GetRenderImageResource, endpoint="result"),
     ]

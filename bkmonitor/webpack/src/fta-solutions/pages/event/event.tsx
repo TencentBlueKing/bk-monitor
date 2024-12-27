@@ -1044,7 +1044,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--',
       })),
       overview,
-      total,
+      total: Math.min(total, 10000),
       code,
     };
   }
