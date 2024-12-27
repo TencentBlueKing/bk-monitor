@@ -30,6 +30,12 @@ export default {
   watch: {
     'formData.storage_cluster_id': {
       handler(newVal, oldVal) {
+        if (oldVal) {
+          const oldRes = this.storageList.find(res => res.storage_cluster_id === oldVal);
+          if (oldRes) {
+            this.handlerSetFormData(oldRes);
+          }
+        }
         this.storageList.forEach(res => {
           if (res.storage_cluster_id === newVal) {
             this.selectedStorageCluster = res; // 当前选择的存储集群
@@ -179,13 +185,23 @@ export default {
         this.basicLoading = false;
       }
     },
+    /**
+     * @desc: 在切换前保存之前的选择，并在展示时优先展示保存的选择
+     * @param {*} res  // 旧选项对应的存储集群
+     */
+    handlerSetFormData(res) {
+      const { retention, storage_replies, es_shards } = this.formData;
+      res.setup_config.retention = retention // 过期时间
+      res.setup_config.storage_replies = storage_replies //副本数
+      res.setup_config.es_shards = es_shards // 分片数
+    },
     // 选择存储集群
     handleSelectStorageCluster(res) {
       // 因为有最大天数限制，不同集群限制可能不同，所以切换集群时展示默认
       const { setup_config: setupConfig } = res;
-      this.formData.retention = setupConfig?.retention_days_default || '7';
-      this.formData.storage_replies = setupConfig?.number_of_replicas_default || 0;
-      this.formData.es_shards = setupConfig?.es_shards_default || 0;
+      this.formData.retention = setupConfig?.retention || setupConfig?.retention_days_default || '7';
+      this.formData.storage_replies = setupConfig?.storage_replies || setupConfig?.number_of_replicas_default || 0;
+      this.formData.es_shards = setupConfig?.es_shards || setupConfig?.es_shards_default || 0;
       this.replicasMax = setupConfig?.number_of_replicas_max || 0;
       this.shardsMax = setupConfig?.es_shards_max || 1;
       this.formData.allocation_min_days = '0';
