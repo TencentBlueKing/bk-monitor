@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "three": "^0.172.0",
+    "troika-three-text": "^0.52.3"
+  }
+}

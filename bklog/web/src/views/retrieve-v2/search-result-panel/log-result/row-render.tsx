@@ -55,8 +55,8 @@ export default defineComponent({
     const renderRowVNode = () => {
       return (
         <div
-          data-row-index={props.rowIndex}
           class={{ 'is-visible': visible.value }}
+          data-row-index={props.rowIndex}
         >
           <div
             ref={refRowNodeRoot}
@@ -73,7 +73,7 @@ export default defineComponent({
       if (refRowNodeRoot.value && refRowNodeRoot.value.offsetHeight > 0) {
         refRowNodeRoot.value.parentElement.style.setProperty(
           'min-height',
-          `${visible.value ? refRowNodeRoot.value.offsetHeight : 40}px`,
+          `${visible.value ? refRowNodeRoot.value.offsetHeight + 1 : 40}px`,
         );
       }
     };
