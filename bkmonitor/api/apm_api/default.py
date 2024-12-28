@@ -242,6 +242,7 @@ class QuerySpanDetailResource(ApmAPIGWResource):
 
     action = "/query_apm_span_detail/"
     method = "POST"
+    backend_cache_type = CacheType.APM
 
 
 class ReleaseAppConfigResource(ApmAPIGWResource):
@@ -323,6 +324,7 @@ class QueryHostInstance(ApmAPIGWResource):
 
     action = "/query_host_instance/"
     method = "POST"
+    backend_cache_type = CacheType.APM
 
 
 class QueryRemoteServiceRelation(ApmAPIGWResource):

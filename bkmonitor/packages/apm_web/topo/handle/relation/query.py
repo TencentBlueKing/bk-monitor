@@ -28,7 +28,7 @@ class Q:
 
 class RelationQ:
     @classmethod
-    def query(cls, qs, expect_paths=None):
+    def query(cls, qs, expect_paths=None, fill_with_empty=False):
         """Relation 接口普通查询"""
 
         # 从查询参数提取业务 ID，用于数据查询鉴权
@@ -44,8 +44,12 @@ class RelationQ:
         res = []
         for item in response.get("data", []):
             if item.get("code") != 200:
+                if fill_with_empty:
+                    res.append(None)
                 continue
             if expect_paths and item.get("path") != expect_paths:
+                if fill_with_empty:
+                    res.append(None)
                 continue
 
             source_info_id = Source.calculate_id_from_dict(item["source_info"])

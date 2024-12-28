@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.container.helpers import ContainerHelper
-from core.drf_resource import Resource, resource
+from core.drf_resource import Resource, api, resource
 from monitor_web.collecting.constant import CollectStatus
 
 
@@ -61,20 +61,28 @@ class PodDetailResource(Resource):
 class ListServicePodsResource(Resource):
     """获取关联 Pod 列表"""
 
+    class SpanSourceType:
+        """span关联容器来源"""
+
+        SPAN = "通过 Span 发现"
+        SERVICE = "通过 Service 发现"
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
         app_name = serializers.CharField(label="应用名称")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
         service_name = serializers.CharField(label="服务名称")
+        span_id = serializers.CharField(label="Span Id", required=False)
 
     def perform_request(self, validated_data):
         # 获取服务关联的 Pod 节点
+        bk_biz_id = validated_data["bk_biz_id"]
         app_name = validated_data.pop("app_name")
         service_name = validated_data.pop("service_name")
 
         relations = ContainerHelper.list_pod_relations(
-            validated_data["bk_biz_id"],
+            bk_biz_id,
             app_name,
             service_name,
             validated_data.pop("start_time"),
@@ -142,4 +150,25 @@ class ListServicePodsResource(Resource):
 
                 index += 1
 
-        return have_data_pods + no_data_pods
+        all_pods = have_data_pods + no_data_pods
+        if not validated_data.get("span_id"):
+            return all_pods
+
+        # 优先展示此 span 关联的 Pod 并补充来源信息
+        span_detail = api.apm_api.query_span_detail(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            span_id=validated_data["span_id"],
+        )
+        if not span_detail:
+            return all_pods
+        res = []
+        for i in all_pods:
+            if i.get("pod_name") == span_detail.get("resource", {}).get("k8s.pod.name"):
+                i["source"] = self.SpanSourceType.SPAN
+                res.insert(0, i)
+            else:
+                i["source"] = self.SpanSourceType.SERVICE
+                res.append(i)
+
+        return res

@@ -194,33 +194,28 @@ class ServiceLogHandler:
 
         datasource_infos = defaultdict(list)
         data_ids = set()
-        path_mapping = {
-            SourceK8sPod: (SourceDatasource, SourceK8sPod),
-            SourceSystem: (SourceDatasource, SourceSystem),
-        }
-        for path, path_item in path_mapping.items():
-            relations = RelationQ.query(
-                RelationQ.generate_q(
-                    bk_biz_id=bk_biz_id,
-                    source_info=SourceService(
-                        apm_application_name=app_name,
-                        apm_service_name=service_name,
-                    ),
-                    target_type=SourceDatasource,
-                    start_time=start_time,
-                    end_time=end_time,
-                    path_resource=[path],
-                )
+        paths = [(SourceK8sPod, (SourceDatasource, SourceK8sPod)), (SourceSystem, (SourceDatasource, SourceSystem))]
+        relation_qs = []
+        for path_item in paths:
+            relation_qs += RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceDatasource,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[path_item[0]],
             )
-            for r in relations:
-                for n in r.nodes:
-                    source_info = n.source_info.to_source_info()
-                    bk_data_id = source_info.get("bk_data_id")
-                    if bk_data_id and bk_data_id not in data_ids:
-                        datasource_infos[path_item].append(SourceDatasource(bk_data_id=bk_data_id))
-                        data_ids.add(bk_data_id)
-            if len(data_ids) >= cls.LOG_RELATION_BY_UNIFY_QUERY:
-                break
+        relations = RelationQ.query(relation_qs, fill_with_empty=True)
+        for index, r in enumerate(relations):
+            for n in r.nodes:
+                source_info = n.source_info.to_source_info()
+                bk_data_id = source_info.get("bk_data_id")
+                if bk_data_id and bk_data_id not in data_ids and len(data_ids) <= cls.LOG_RELATION_BY_UNIFY_QUERY:
+                    datasource_infos[paths[index][-1]].append(SourceDatasource(bk_data_id=bk_data_id))
+                    data_ids.add(bk_data_id)
 
         if not datasource_infos:
             return []
@@ -262,13 +257,12 @@ class ServiceLogHandler:
                     else:
                         data_id_query_mapping[data_id]["serverIp"].add(pod)
 
-        @using_cache(CacheType.APM(600))
         def log_list_collectors():
             return api.log_search.list_collectors(
                 space_uid=SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).space_uid,
             )
 
-        full_collectors = log_list_collectors()
+        full_collectors = using_cache(CacheType.APM(10 * 60))(log_list_collectors)()
 
         res = []
         for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:

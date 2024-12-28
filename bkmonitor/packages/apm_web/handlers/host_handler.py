@@ -25,6 +25,7 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.commons.tools import batch_request
+from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
@@ -123,26 +124,27 @@ class HostHandler:
 
         # step3: 从拓扑关联中取出主机 (来源: system / pod 两个路径)
         extra_ip_info = defaultdict(dict)
+        relation_qs = []
         for path_item in [SourceSystem, SourceK8sPod]:
-            system_relations = RelationQ.query(
-                RelationQ.generate_q(
-                    bk_biz_id=bk_biz_id,
-                    source_info=SourceService(
-                        apm_application_name=app_name,
-                        apm_service_name=service_name,
-                    ),
-                    target_type=SourceSystem,
-                    start_time=start_time,
-                    end_time=end_time,
-                    path_resource=[path_item],
-                )
+            relation_qs += RelationQ.generate_q(
+                bk_biz_id=bk_biz_id,
+                source_info=SourceService(
+                    apm_application_name=app_name,
+                    apm_service_name=service_name,
+                ),
+                target_type=SourceSystem,
+                start_time=start_time,
+                end_time=end_time,
+                path_resource=[path_item],
             )
-            for r in system_relations:
-                for n in r.nodes:
-                    source_info = n.source_info.to_source_info()
-                    if source_info.get("bk_target_ip"):
-                        query_ips.append(source_info["bk_target_ip"])
-                        extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
+
+        system_relations = RelationQ.query(relation_qs)
+        for r in system_relations:
+            for n in r.nodes:
+                source_info = n.source_info.to_source_info()
+                if source_info.get("bk_target_ip"):
+                    query_ips.append(source_info["bk_target_ip"])
+                    extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
 
         query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
 
@@ -215,6 +217,7 @@ class HostHandler:
         return infos
 
     @classmethod
+    @using_cache(CacheType.APM(60 * 10))
     def list_host_by_ips(cls, bk_biz_id, ips, ip_info_mapping=None):
         """根据 IP 列表请求 CMDB 获取主机信息列表"""
         if not ip_info_mapping:
