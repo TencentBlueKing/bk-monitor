@@ -147,6 +147,32 @@ class CreateDashboardOrFolder(Resource):
         return result
 
 
+class GetDashboardDetail(Resource):
+    """
+    获取仪表盘详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        dashboard_uid = serializers.CharField(label="仪表盘UID")
+
+    def perform_request(self, params):
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
+
+        dashboard = Dashboard.objects.filter(org_id=org_id, uid=params["uid"], is_folder=0).first()
+        if not dashboard:
+            return None
+
+        return {
+            "id": dashboard.id,
+            "uid": dashboard.uid,
+            "title": dashboard.title,
+            "data": dashboard.data,
+            "version": dashboard.version,
+            "slug": dashboard.slug,
+        }
+
+
 class DeleteDashboard(Resource):
     """
     删除指定仪表盘
