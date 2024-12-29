@@ -9,6 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import arrow
+
+from bkmonitor.models import StatisticsMetric
+from core.statistics.metric import Metric
 from monitor_web.statistics.v2.action_config import ActionConfigCollector
 from monitor_web.statistics.v2.alert_action import AlertActionCollector
 from monitor_web.statistics.v2.apm import APMCollector
@@ -32,9 +35,6 @@ from monitor_web.statistics.v2.storage import StorageCollector
 from monitor_web.statistics.v2.strategy import StrategyCollector
 from monitor_web.statistics.v2.uptimecheck import UptimeCheckCollector
 from monitor_web.statistics.v2.user_group import UserGroupCollector
-
-from bkmonitor.models import StatisticsMetric
-from core.statistics.metric import Metric
 
 INSTALLED_COLLECTORS = [
     UserGroupCollector,
@@ -70,7 +70,7 @@ class CollectorFactory:
         输出指标JSON形式
         """
         metric_data = []
-        timestamp = arrow.now().timestamp
+        timestamp = arrow.now().int_timestamp
         # 获取运营数据，更新时间大于1天前的直接忽略
         statistics = StatisticsMetric.objects.filter(update_time__gte=timestamp - 24 * 60 * 60)
         for stat in statistics:
@@ -84,7 +84,7 @@ class CollectorFactory:
         输出指标文本形式
         """
         metric_text = []
-        timestamp = arrow.now().timestamp
+        timestamp = arrow.now().int_timestamp
         # 获取运营数据，更新时间大于1天前的直接忽略
         statistics = StatisticsMetric.objects.filter(update_time__gte=timestamp - 24 * 60 * 60)
         for stat in statistics:

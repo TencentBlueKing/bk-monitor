@@ -60,7 +60,7 @@ class custom_report_tool:
             # 来源标识
             "target": settings.BK_PAAS_INNER_HOST,
             # 数据时间，精确到毫秒，非必需项
-            "timestamp": arrow.now().timestamp * 1000
+            "timestamp": arrow.now().int_timestamp * 1000
         }]
         """
 
@@ -107,7 +107,7 @@ class custom_report_tool:
             # 来源标识
             "target": settings.BK_PAAS_INNER_HOST,
             # 数据时间，精确到毫秒，非必需项
-            "timestamp": arrow.now().timestamp * 1000
+            "timestamp": arrow.now().int_timestamp * 1000
         }]
         :param access_token: token
         :param parallel: 是否并发请求

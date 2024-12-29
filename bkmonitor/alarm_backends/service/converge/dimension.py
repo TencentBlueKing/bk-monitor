@@ -52,7 +52,7 @@ class DimensionHandler(object):
         self.condition = condition
         self.strategy_id = strategy_id
         self.start_timestamp = start_timestamp
-        self.end_timestamp = end_timestamp or arrow.utcnow().timestamp
+        self.end_timestamp = end_timestamp or arrow.utcnow().int_timestamp
         self.instance_id = instance_id
         self.instance_type = instance_type
         self.converged_condition = converged_condition
@@ -177,7 +177,7 @@ class DimensionCalculator:
         """
         收敛维度计算
         """
-        score = arrow.get(self.related_instance.create_time).replace(tzinfo="utc").timestamp
+        score = arrow.get(self.related_instance.create_time).replace(tzinfo="utc").int_timestamp
         pipeline = FTA_CONVERGE_DIMENSION_KEY.client.pipeline()
         for dimension in COMPARED_CONVERGE_DIMENSION.keys():
             values = self.converge_ctx.get(dimension)
@@ -193,8 +193,8 @@ class DimensionCalculator:
                 # 先清理过期的数据
                 pipeline.zremrangebyscore(
                     key,
-                    arrow.utcnow().shift(years=-1).timestamp,
-                    arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).timestamp,
+                    arrow.utcnow().shift(years=-1).int_timestamp,
+                    arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).int_timestamp,
                 )
                 # 保存的score
                 kwargs = {"{}_{}".format(self.instance_type, str(self.related_instance.id)): score}
@@ -208,7 +208,7 @@ class DimensionCalculator:
         二级收敛的维度计算
         :return:
         """
-        score = arrow.get(self.related_instance.create_time).replace(tzinfo="utc").timestamp
+        score = arrow.get(self.related_instance.create_time).replace(tzinfo="utc").int_timestamp
 
         label_info = {}
         for dimension in SUB_CONVERGE_DIMENSION.keys():
@@ -225,8 +225,8 @@ class DimensionCalculator:
         # 先清理过期的数据
         pipeline.zremrangebyscore(
             sub_converge_key,
-            arrow.utcnow().shift(years=-1).timestamp,
-            arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).timestamp,
+            arrow.utcnow().shift(years=-1).int_timestamp,
+            arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).int_timestamp,
         )
         # 保存的score
         kwargs = {"{}_{}".format(self.instance_type, str(self.related_instance.id)): score}
