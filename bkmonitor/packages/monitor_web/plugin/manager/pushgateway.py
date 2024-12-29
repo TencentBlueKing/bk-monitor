@@ -33,8 +33,14 @@ class PushgatewayPluginManager(PluginManager):
         plugin_data = param["plugin"]
 
         username = collector_data.get("username", "")
-        password = collector_data.get("password", "")
+        password = collector_data.get("password", "") or ""
         metrics_url = collector_data.get("metrics_url")
+
+        # 对存量数据进行处理
+        # 如果 password 为 True 抛出异常让用户修改密码
+        # 如果 password 为 False 则在上面转成 ""
+        if password is True:
+            raise TypeError("Please reset your password")
 
         if username:
             # 如果用户填写了用户名，则在url中添加基础认证
