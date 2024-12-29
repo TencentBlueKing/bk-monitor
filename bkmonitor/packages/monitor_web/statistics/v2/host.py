@@ -138,7 +138,7 @@ class HostCollector(BaseCollector):
         )
         query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         records = query.query_data(
-            start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+            start_time=now_ts.shift(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
         )
 
         biz_cnt_map = defaultdict(int)

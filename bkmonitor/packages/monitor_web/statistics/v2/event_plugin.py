@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 import arrow
 from django.conf import settings
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
 
 from bkmonitor.documents import EventDocument
 from bkmonitor.models import EventPlugin
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
 
 
 class EventPluginCollector(BaseCollector):
@@ -54,7 +54,7 @@ class EventPluginCollector(BaseCollector):
 
         now_time = arrow.now()
         for le_en, seconds in TIME_RANGE:
-            start_time = int(now_time.replace(seconds=-seconds).timestamp)
+            start_time = int(now_time.shift(seconds=-seconds).timestamp)
             end_time = int(now_time.timestamp)
             search_obj = (
                 EventDocument.search()

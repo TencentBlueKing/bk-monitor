@@ -193,8 +193,8 @@ class DimensionCalculator:
                 # 先清理过期的数据
                 pipeline.zremrangebyscore(
                     key,
-                    arrow.utcnow().replace(years=-1).timestamp,
-                    arrow.utcnow().replace(minutes=-self.DimensionExpireMinutes).timestamp,
+                    arrow.utcnow().shift(years=-1).timestamp,
+                    arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).timestamp,
                 )
                 # 保存的score
                 kwargs = {"{}_{}".format(self.instance_type, str(self.related_instance.id)): score}
@@ -225,8 +225,8 @@ class DimensionCalculator:
         # 先清理过期的数据
         pipeline.zremrangebyscore(
             sub_converge_key,
-            arrow.utcnow().replace(years=-1).timestamp,
-            arrow.utcnow().replace(minutes=-self.DimensionExpireMinutes).timestamp,
+            arrow.utcnow().shift(years=-1).timestamp,
+            arrow.utcnow().shift(minutes=-self.DimensionExpireMinutes).timestamp,
         )
         # 保存的score
         kwargs = {"{}_{}".format(self.instance_type, str(self.related_instance.id)): score}
