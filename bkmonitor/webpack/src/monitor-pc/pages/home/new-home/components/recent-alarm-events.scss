@@ -1,3 +1,5 @@
+@import '../../../../theme/index.scss';
+
 .recent-alarm-events {
   padding-bottom: 20px;
   margin: 0 auto;
@@ -85,6 +87,11 @@
         }
       }
 
+      .skeleton-element {
+        width: 600px;
+        height: 36px;
+      }
+
       .add-task {
         margin-left: auto;
         font-family: MicrosoftYaHei;
@@ -109,7 +116,10 @@
     .alarm-time-filter {
       color: #4d4f56;
       background: #ffffff;
-      padding-right: 24px;
+
+      .alarm-time-select {
+        padding-right: 24px;
+      }
 
       .icon-angle-down {
         color: #979ba5;
@@ -253,23 +263,32 @@
 }
 
 .add-task-select-ext {
+  padding: 3px 0;
+
   .bk-option-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
 
     .strategy-name {
+      width: 75%;
       font-family: MicrosoftYaHei;
-      font-size: 12px;
-      line-height: 20px;
+      font-size: 13px;
+      line-height: 22px;
       color: #4d4f56;
+      @include ellipsis();
+
+      &.selected {
+        color: #3A84FF;
+      }
     }
 
     .strategy-status {
+      // display: flex;display
+      // align-items: center;align-items
       .strategy-tag {
         display: inline-block;
-        width: 52px;
-        height: 22px;
+        padding: 0 12px;
         font-size: 12px;
         line-height: 22px;
         color: #4d4f56;
@@ -278,8 +297,10 @@
         border-radius: 2px;
       }
 
-      .strategy-selected {
+      .icon-monitor {
+        font-size: 20px;
         color: #3a84ff;
+        vertical-align: middle;
       }
     }
   }

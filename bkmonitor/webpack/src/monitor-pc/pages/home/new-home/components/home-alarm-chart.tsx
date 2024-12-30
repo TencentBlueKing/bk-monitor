@@ -42,7 +42,6 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { handleYAxisLabelFormatter, EStatusType } from '../utils';
-import { chartData } from './data';
 
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -50,6 +49,9 @@ import './home-alarm-chart.scss';
 
 interface IHomeAlarmChartProps {
   config: object;
+}
+interface IHomeAlarmChartEvents {
+  onMenuClick: any;
 }
 
 @Component
@@ -203,7 +205,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       //   this.emptyText = window.i18n.tc('查无数据');
       //   this.empty = true;
       // }
-    } catch (e) {
+    } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
     }
@@ -250,9 +252,9 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
               class='home-chart-tips-list'
               slot='content'
             >
-              {(this.config.status || []).map(item => (
+              {(this.config.status || []).map((item, index) => (
                 <div
-                  key={item.name}
+                  key={item.name + index}
                   class={`tips-item ${item.status}`}
                 >
                   <span class='tips-item-tag'>{EStatusType[item.status]}</span>
@@ -341,4 +343,4 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     );
   }
 }
-export default ofType<IHomeAlarmChartProps>().convert(HomeAlarmChart);
+export default ofType<IHomeAlarmChartProps, IHomeAlarmChartEvents>().convert(HomeAlarmChart);
