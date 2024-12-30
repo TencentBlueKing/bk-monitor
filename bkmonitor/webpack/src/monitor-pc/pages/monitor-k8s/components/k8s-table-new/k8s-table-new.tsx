@@ -84,7 +84,7 @@ export type K8sTableRow = Partial<Record<K8sTableColumnResourceKey, string>> &
   Record<K8sTableColumnChartKey, Pick<ITableItemMap, 'datapoints'>['datapoints']>;
 
 export interface K8sTableSort {
-  prop: K8sTableColumnResourceKey | null;
+  prop: K8sTableColumnChartKey | null;
   order: 'ascending' | 'descending' | null;
 }
 
@@ -116,6 +116,7 @@ interface K8sTableNewProps {
   hideMetrics: string[];
 }
 interface K8sTableNewEvent {
+  onSortChange: (sort: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) => void;
   onClearSearch: () => void;
 }
 
@@ -295,12 +296,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
   }
 
-  @Watch('groupInstance.groupFilters')
-  onGroupFiltersChange() {
-    if (!this.isListTab || !this.filterCommonParams.bcs_cluster_id) return;
+  @Watch('groupInstance', { deep: true })
+  onGroupFiltersChange(newInstance, oldInstance) {
+    if (!this.filterCommonParams.bcs_cluster_id) {
+      return;
+    }
+    if (newInstance === oldInstance) {
+      if (!this.isListTab) return;
+      this.tableLoading.loading = true;
+      this.debounceGetK8sList();
+      return;
+    }
+    this.initSortContainer(this.groupInstance.defaultSortProp);
+    this.sortChange(this.groupInstance.defaultSortProp);
     this.tableLoading.loading = true;
     this.debounceGetK8sList();
+    this.refreshTable();
   }
+
   @Watch('filterCommonParams')
   onFilterCommonParamsChange() {
     this.debounceGetK8sList();
@@ -316,12 +329,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.getK8sList({ needRefresh: true });
   }
 
+  @Emit('sortChange')
+  sortChange(sort: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) {
+    return sort;
+  }
+
   @Emit('clearSearch')
   clearSearch() {
     return {};
   }
 
   created() {
+    const orderBy = (this.$route.query?.tableSort as string) || this.groupInstance.defaultSortProp;
+    this.initSortContainer(orderBy as `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey);
     this.getK8sList();
   }
   beforeUnmount() {
@@ -417,6 +437,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.refreshKey = random(10);
   }
 
+  /**
+   * @description 初始化排序
+   * @param {string} orderBy 排序字段
+   */
+  initSortContainer(orderBy: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) {
+    const matchReg = orderBy?.match(/^(-?)(\w+)$/) || [];
+    this.sortContainer.prop = (matchReg?.[2] || '') as K8sTableColumnChartKey;
+    this.sortContainer.order = matchReg?.[1] === '-' ? 'descending' : 'ascending';
+    this.sortContainer.initDone = false;
+  }
+
   @Debounce(200)
   debounceGetK8sList() {
     this.getK8sList({ needRefresh: true });
@@ -430,19 +461,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading) {
       return;
     }
-
-    // 如请求资源列表时候，发现视图趋势接口未完成，则中断不请求
-    if (this.abortControllerQueue.size) {
-      for (const controller of this.abortControllerQueue) {
-        controller.abort();
-      }
-      this.abortControllerQueue.clear();
-    }
-    // 如请求资源列表时候，发现异步渲染未全部完成，则中断
-    if (this.requestIdleCallbackId) {
-      cancelIdleCallback(this.requestIdleCallbackId);
-      this.requestIdleCallbackId = null;
-    }
+    this.abortAsyncData();
     let loadingKey = 'scrollLoading';
     const initPagination = () => {
       this.pagination.page = 1;
@@ -462,12 +481,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
     this.tableLoading[loadingKey] = true;
     if (config.needRefresh) {
-      this.sortContainer = {
-        prop: K8sTableColumnKeysEnum.CPU,
-        order: 'descending',
-        /** 处理 table 设置了 default-sort 时导致初始化时会自动走一遍sort-change事件问题 */
-        initDone: false,
-      };
       this.asyncDataCache.clear();
     }
     const order_by =
@@ -494,10 +507,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     const resourceParam = this.formatTableData(data.items, resourceType as K8sTableColumnResourceKey);
     this.tableData = data.items;
     this.tableDataTotal = data.count;
-    if (config.needRefresh) {
-      this.refreshTable();
-      this.asyncDataCache.clear();
-    }
     this.tableLoading[loadingKey] = false;
     this.loadAsyncData(resourceType, resourceParam);
   }
@@ -554,6 +563,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       { ids: new Set() as Set<string>, tableDataMap: {} }
     );
+  }
+
+  /**
+   * @description 終止目前还在执行的异步列处理逻辑（请求与渲染）
+   */
+  abortAsyncData() {
+    // 如请求资源列表时候，发现视图趋势接口未完成，则中断不请求
+    if (this.abortControllerQueue.size) {
+      for (const controller of this.abortControllerQueue) {
+        controller.abort();
+      }
+      this.abortControllerQueue.clear();
+    }
+    // 如请求资源列表时候，发现异步渲染未全部完成，则中断
+    if (this.requestIdleCallbackId) {
+      cancelIdleCallback(this.requestIdleCallbackId);
+      this.requestIdleCallbackId = null;
+    }
   }
 
   /**
@@ -701,6 +728,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
     this.sortContainer.prop = sortItem.prop;
     this.sortContainer.order = sortItem.order;
+    const orderBy: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey =
+      this.sortContainer.order === 'descending' ? `-${this.sortContainer.prop}` : this.sortContainer.prop;
+    this.sortChange(orderBy);
     this.getK8sList();
   }
 
@@ -885,8 +915,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           style={{ display: !this.tableLoading.loading ? 'block' : 'none' }}
           height='100%'
           default-sort={{
-            prop: K8sTableColumnKeysEnum.CPU,
-            order: 'descending',
+            prop: this.sortContainer.prop,
+            order: this.sortContainer.order,
           }}
           border={false}
           data={this.tableViewData}

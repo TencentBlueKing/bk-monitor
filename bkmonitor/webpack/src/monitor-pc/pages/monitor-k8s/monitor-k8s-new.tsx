@@ -41,6 +41,7 @@ import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
+  type K8sTableColumnChartKey,
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
@@ -399,6 +400,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.setGroupFilters(groupId, { single: true });
   }
 
+  /**
+   * @description 表格 sort 排序事件后回调，将排序信息存入路由
+   */
+  handleTableSortChange(sort: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) {
+    if (!sort) {
+      return;
+    }
+    this.setRouteParams({ tableSort: sort });
+  }
+
   handleTableClearSearch() {
     this.initFilterBy();
   }
@@ -440,8 +451,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(otherQuery = {}) {
     const query = {
+      ...this.$route.query,
       sceneId: 'kubernetes',
       from: this.timeRange[0],
       to: this.timeRange[1],
@@ -451,6 +463,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       cluster: this.cluster,
       scene: this.scene,
       activeTab: this.activeTab,
+      ...otherQuery,
     };
 
     const targetRoute = this.$router.resolve({
@@ -488,6 +501,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             hideMetrics={this.hideMetrics}
             metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
+            onSortChange={this.handleTableSortChange}
           />
         );
     }
