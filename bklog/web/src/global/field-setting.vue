@@ -443,8 +443,8 @@
         },
       })
       .then(res => {
-        let keys = Object.keys(res.data.alias_settings);
-        let arr = keys.map( key => {
+        const keys = Object.keys(res.data.alias_settings);
+        const arr = keys.map( key => {
           return {
           query_alias : key,
           field_name : res.data.alias_settings[key].path
@@ -466,7 +466,6 @@
         },
       })
       .then(res => {
-        console.log(res);
         res.data.etl_fields.forEach(item => {
           alias_settings.value.forEach(item2 => {
             if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
@@ -553,9 +552,6 @@
                 }),
               ],
             };
-            console.log(data);
-            
-            return
             await http
               .request('collect/fastUpdateCollection', {
                 params: {
