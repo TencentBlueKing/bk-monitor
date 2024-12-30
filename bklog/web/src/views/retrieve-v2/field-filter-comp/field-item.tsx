@@ -222,7 +222,7 @@ export default class FieldItem extends tsc<object> {
     this.distinctCount = val
   }
   retuanFieldName(){
-    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias || this.fieldItem.field_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
+    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
     if(this.isFieldObject){
       name = name.split('.')[1] || name.split('.')[0]
     }

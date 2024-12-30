@@ -60,9 +60,10 @@
                 size="small"
                 class="expand-table"
                 col-border>
-                  <bk-table-column label="字段名" prop="field_name"   width="180">
+                  <bk-table-column label="字段名" prop="field_name"   width="220">
                     <template #default="props">
                       <div class="ext-field_name">
+                        <span class="ext-subnode bklog-icon bklog-subnode"></span>
                         <span v-bk-tooltips.top="props.row.field_name">{{ props.row.field_name }}</span>
                       </div>
                     </template>
@@ -96,7 +97,7 @@
                       </bk-form-item>
                     </template>
                   </bk-table-column>
-                  <bk-table-column label="数据类型" prop="field_type" width="120" align="center"></bk-table-column>
+                  <bk-table-column label="数据类型" prop="field_type" width="100" align="center"></bk-table-column>
                   <bk-table-column label="分词符" prop="" width="200"></bk-table-column>
               </bk-table>
               </template>
@@ -106,17 +107,31 @@
             <bk-table-column
               :render-header="renderHeaderFieldName"
               :resizable="false"
-              width="180"
+              width="220"
             >
               <template #default="props">
                 <div
                   v-if="!props.row.is_edit"
-                  class="overflow-tips"
+                  class="field-name-overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn bk-icon icon-angle-right"></span>
-                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bk-icon icon-angle-down"></span>
-                  <span v-bk-tooltips.top="$t('字段名不支持快速修改')">{{ props.row.field_name }} </span>
+                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn rotate bklog-icon bklog-arrow-down-filled"></span>
+                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bklog-icon bklog-arrow-down-filled"></span>
+                  <div v-if="!props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.field_name }} </div>
+                  <div v-else class="field-name-box">
+                    <div class="alias-name">{{ props.row.field_name }}</div>
+                    <div 
+                      class="participle-icon"
+                      :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
+                    >
+                      <i
+                      style ='color: #3A84FF;margin: 0 10px;'
+                      class="bk-icon bklog-icon bklog-yingshe"
+                    ></i>
+                    </div>
+                    <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
+                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name"></bk-input>
+                  </div>
                 </div>
                 <bk-form-item
                   v-else
@@ -151,14 +166,14 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span>{{ props.row.alias_name }}</span>
+                  <span>{{ props.row.query_alias }}</span>
                 </div>
                 <bk-form-item
                   v-else
                   :class="{ 'is-required is-error': props.row.aliasErr }"
                 >
                   <bk-input
-                    v-model.trim="props.row.alias_name"
+                    v-model.trim="props.row.query_alias"
                     :disabled="props.row.is_delete || isSetDisabled"
                     @blur="checkAliasNameItem(props.row)"
                   >
@@ -178,7 +193,7 @@
               :render-header="renderHeaderDataType"
               :resizable="false"
               align="center"
-              width="120"
+              width="100"
             >
               <template #default="props">
                 <div
@@ -470,7 +485,7 @@
             //     trigger: 'blur'
             // }
           ],
-          alias_name: [
+          query_alias: [
             // 目前组件不能拿到其他字段的值，不能通过validator进行验证
             // {
             //     validator: this.checkAliasName,
@@ -527,7 +542,7 @@
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || item.alias_name.toLowerCase().includes(query),
+            item => item.field_name.toLowerCase().includes(query) || item.query_alias.toLowerCase().includes(query),
           );
         } else {
           return currentTableList;
@@ -824,7 +839,7 @@
         });
       },
       checkAliasNameItem(row) {
-        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -902,7 +917,7 @@
             directives: [
               {
                 name: 'bk-tooltips',
-                value: this.$t('非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。'),
+                value: this.$t('填写后原字段名和别名均可查询'),
               },
             ],
             class: 'render-header decoration-header-cell',
@@ -1049,6 +1064,9 @@
         }
         :deep(.ext-field_name) {
           margin-left: 20px;
+          .ext-subnode{
+            font-size: 16px;
+          }
         }
       }
       :deep(.bk-table-body) {
@@ -1065,12 +1083,38 @@
 
           .overflow-tips {
             padding: 10px 15px;
+          }
+          .field-name-overflow-tips{
             .ext-btn{
               cursor: pointer;
               font-size: 18px;
               position: absolute;
               left: 0;
-              bottom: 10px;
+            }
+            .rotate{
+              transform: rotate(-90deg);
+            }
+            .field-name{
+                margin: 15px 15px;
+            }
+            .field-name-box{
+              display: flex;
+              height: 100%;
+              align-items: center;
+              .alias-name{
+                padding-left: 15px;
+                width: 50%
+              }
+              .participle-icon{
+                font-size: 18px;
+                left: 40%;
+                width: 10%;
+                position: absolute;
+                z-index: 999
+              }
+              .participle-icon-color{
+                background-color: rgb(250, 251, 253) !important;
+              }
             }
           }
         }
