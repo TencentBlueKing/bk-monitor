@@ -430,12 +430,15 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading) {
       return;
     }
+
+    // 如请求资源列表时候，发现视图趋势接口未完成，则中断不请求
     if (this.abortControllerQueue.size) {
       for (const controller of this.abortControllerQueue) {
         controller.abort();
       }
       this.abortControllerQueue.clear();
     }
+    // 如请求资源列表时候，发现异步渲染未全部完成，则中断
     if (this.requestIdleCallbackId) {
       cancelIdleCallback(this.requestIdleCallbackId);
       this.requestIdleCallbackId = null;
@@ -883,7 +886,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             prop: K8sTableColumnKeysEnum.CPU,
             order: 'descending',
           }}
+          border={false}
           data={this.tableViewData}
+          outer-border={false}
           // row-key={this.tableRowKey}
           size='small'
           on-scroll-end={this.handleTableScrollEnd}
