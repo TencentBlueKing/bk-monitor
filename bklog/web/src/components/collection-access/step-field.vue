@@ -2359,8 +2359,8 @@
           })
           .then(async res => {
             if (res.data) {
-              let keys = Object.keys(res.data.alias_settings);
-              let arr = keys.map( key => {
+              const keys = Object.keys(res.data.alias_settings);
+              const arr = keys.map( key => {
                return {
                 query_alias : key,
                 field_name : res.data.alias_settings[key].path

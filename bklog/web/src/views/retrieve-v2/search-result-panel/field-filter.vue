@@ -11,7 +11,7 @@
     value: { type: Boolean, default: true },
   });
   const fieldShowName = ref('field_name');
-  const storage =  ref('null');
+  const storage = new Storage();
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -77,12 +77,10 @@
     emit('input', !props.value);
   };
   const handlerChange = (value) => {
-    
-    storage.value.set('fieldShowName', value);
+    storage.set('fieldShowName', value);
   }
   onMounted(()=>{
-    storage.value = new Storage();
-    fieldShowName.value = storage.value.get('fieldShowName') || 'field_name'
+    fieldShowName.value = storage.get('fieldShowName') || 'field_name'
   })
 </script>
 
