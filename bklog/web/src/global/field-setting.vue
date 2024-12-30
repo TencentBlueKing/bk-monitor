@@ -308,6 +308,7 @@
     participleState: 'default',
     is_edit: true,
   });
+  const alias_settings = ref([])
   const batchAddField = () => {
     console.log(collectorConfigId.value, 'collectorConfigId');
     if (!collectorConfigId.value) return;
@@ -442,6 +443,15 @@
         },
       })
       .then(res => {
+        let keys = Object.keys(res.data.alias_settings);
+        let arr = keys.map( key => {
+          return {
+          query_alias : key,
+          field_name : res.data.alias_settings[key].path
+          } 
+        })
+        alias_settings.value = arr
+
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
@@ -456,6 +466,14 @@
         },
       })
       .then(res => {
+        console.log(res);
+        res.data.etl_fields.forEach(item => {
+          alias_settings.value.forEach(item2 => {
+            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+              item.query_alias = item2.query_alias
+            }
+          })
+        })
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
@@ -529,12 +547,15 @@
               alias_settings: [
                 ...indexfieldTableData.map(item =>{
                   return  {
-                    field_name: item.field_name,
+                    field_name: item.alias_name || item.field_name,
                     query_alias: item.query_alias, 
                     path_type:  item.field_type}
                 }),
               ],
             };
+            console.log(data);
+            
+            return
             await http
               .request('collect/fastUpdateCollection', {
                 params: {
