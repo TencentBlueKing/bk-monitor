@@ -87,7 +87,7 @@ export default class K8SCharts extends tsc<
   }
   @Watch('hideMetrics')
   onHideMetricListChange() {
-    this.createPanelList();
+    this.createPanelList(false);
   }
   @Watch('filterCommonParams')
   onFilterCommonParamsChange(newVal: Record<string, string>, oldVal: Record<string, string>) {
@@ -156,8 +156,10 @@ export default class K8SCharts extends tsc<
     this.createPanelList();
   }
   @Debounce(300)
-  async createPanelList() {
-    this.loading = true;
+  async createPanelList(hasLoading = true) {
+    if (hasLoading) {
+      this.loading = true;
+    }
     await this.getResourceList();
     const displayMode = this.isDetailMode ? 'hidden' : 'table';
     const panelList = [];
@@ -223,7 +225,9 @@ export default class K8SCharts extends tsc<
       });
     }
     this.panels = panelList;
-    this.loading = false;
+    if (hasLoading) {
+      this.loading = false;
+    }
     await this.$nextTick();
     this.onActiveMetricIdChange(this.activeMetricId);
   }
