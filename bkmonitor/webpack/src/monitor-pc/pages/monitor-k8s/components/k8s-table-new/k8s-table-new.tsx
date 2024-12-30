@@ -350,7 +350,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
         canClick: true,
-        k8s_filter: false,
+        k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
       [WORKLOAD_TYPE]: {
@@ -501,12 +501,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.tableLoading[loadingKey] = false;
     this.loadAsyncData(resourceType, resourceParam);
   }
+
   getResourceId(key: K8sTableColumnKeysEnum, data: Record<K8sTableColumnKeysEnum, string>) {
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
       return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
     }
     return data[key];
   }
+
   /**
    * @description 格式化接口数据结构为table需要的数据结构，并返回异步请求加载 图表数据 时需要数据
    */

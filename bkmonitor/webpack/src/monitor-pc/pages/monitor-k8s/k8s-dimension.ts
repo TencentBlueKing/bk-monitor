@@ -33,7 +33,7 @@ import {
   SceneEnum,
 } from './typings/k8s-new';
 
-import type { K8sTableColumnResourceKey } from './components/k8s-table-new/k8s-table-new';
+import type { K8sTableColumnChartKey, K8sTableColumnResourceKey } from './components/k8s-table-new/k8s-table-new';
 
 export const sceneDimensionMap = {
   [SceneEnum.Performance]: [
@@ -305,6 +305,8 @@ export abstract class K8sGroupDimension {
   private defaultGroupFilter: Set<K8sTableColumnKeysEnum>;
   /** Set 结构的 groupFilters 参数（主要用于校验判断是否存在某个值） */
   private groupFiltersSet: Set<K8sTableColumnKeysEnum>;
+  /** 默认排序字段 */
+  abstract defaultSortProp: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey;
   /** 实现类填充存在的 dimensions  */
   abstract dimensions: K8sTableColumnKeysEnum[];
   abstract dimensionsMap: Partial<Record<K8sTableColumnKeysEnum, K8sTableColumnKeysEnum[]>>;
@@ -406,6 +408,7 @@ export abstract class K8sGroupDimension {
  * @description 性能 类型 GroupFilter 实现类
  * */
 export class K8sPerformanceGroupDimension extends K8sGroupDimension {
+  readonly defaultSortProp = `-${K8sTableColumnKeysEnum.CPU}`;
   readonly dimensions = [
     K8sTableColumnKeysEnum.NAMESPACE,
     K8sTableColumnKeysEnum.WORKLOAD,
