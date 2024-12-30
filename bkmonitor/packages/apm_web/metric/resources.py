@@ -3055,11 +3055,23 @@ class HostInstanceDetailListResource(Resource):
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
+        span_id = serializers.CharField(label="SpanId", required=False)
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
 
         host_instances = HostHandler.list_application_hosts(**data)
+
+        if data.get("span_id"):
+            # 优先展示 span 关联的主机信息
+            host_instances = (
+                HostHandler.find_host_in_span(
+                    data["bk_biz_id"],
+                    data["app_name"],
+                    data["span_id"],
+                )
+                + host_instances
+            )
 
         host_mapping = {
             int(i["bk_host_id"]): {
@@ -3070,11 +3082,23 @@ class HostInstanceDetailListResource(Resource):
                 "app_name": data["app_name"],
                 "service_name": data["service_name"],
             }
-            for i in host_instances
+            for i in self.remove_duplicates(host_instances)
         }
+
         res = self.filter_keyword(host_mapping, keyword)
         self.add_status(data["bk_biz_id"], res)
         return list(res.values())
+
+    @classmethod
+    def remove_duplicates(cls, hosts):
+        visited = set()
+        res = []
+        for d in hosts:
+            v = d.get("bk_host_innerip")
+            if v not in visited:
+                visited.add(v)
+                res.append(d)
+        return res
 
     def add_status(self, bk_biz_id, hosts):
         """添加主机 agent 状态字段"""

@@ -189,19 +189,29 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             if builtin_view == f"{cls.APM_TRACE_PREFIX}-host":
                 span_id = params.get("span_id")
-                if not span_id:
-                    raise ValueError(_("缺少SpanId参数"))
+                if not span_id or not service_name:
+                    raise ValueError(_("缺少 SpanId / ServiceName 参数"))
 
-                span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
-
-                if span_hosts:
-                    # TODO 关联主机页面后续需要改为多主机 现在先直接取第一个
-                    span_host = span_hosts[0]
+                host_predicate = any(
+                    [
+                        bool(HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)),
+                        bool(
+                            HostHandler.list_application_hosts(
+                                view.bk_biz_id,
+                                app_name,
+                                service_name,
+                                start_time=params.get("start_time"),
+                                end_time=params.get("end_time"),
+                            )
+                        ),
+                    ]
+                )
+                if host_predicate:
                     cls._add_config_from_host(view, view_config)
-                    # 替换模版中变量
+                    # Trace 检索主机特殊配置：直接固定图表配置中的变量
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
+                    view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
-                    cls._handle_current_target(span_host, view_config)
                     return view_config
 
                 return cls._get_non_host_view_config(builtin_view, params)
