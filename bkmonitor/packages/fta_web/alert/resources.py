@@ -1017,11 +1017,12 @@ class AlertRelatedInfoResource(Resource):
                 )
 
                 if environment_types and bk_set_ids:
-                    environments = [
-                        environment_mapping[environment_types[bk_set_id]]
-                        for bk_set_id in bk_set_ids
-                        if bk_set_id in environment_types and environment_types[bk_set_id] in environment_mapping
-                    ]
+                    environments = []
+                    for bk_set_id in bk_set_ids:
+                        environment_type_id = environment_types.get(bk_set_id)
+                        if environment_type_id is not None:
+                            environment = environment_mapping.get(environment_type_id, str(environment_type_id))
+                            environments.append(environment)
 
                     if environments:
                         topo_info += environment_template.format(",".join(environments))
