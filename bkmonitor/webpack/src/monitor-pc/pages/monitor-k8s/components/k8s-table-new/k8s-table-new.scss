@@ -63,8 +63,12 @@
       white-space: nowrap;
 
       &.can-click {
-        color: #3a84ff;
+        text-decoration: underline;
         cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
 
