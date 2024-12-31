@@ -187,6 +187,27 @@
           height: 180px;
           overflow: auto;
 
+          &-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: 14px;
+            text-align: center;
+
+            .empty-img {
+              width: 220px;
+              height: 100px;
+
+              img {
+                width: 100%;
+                height: 100%;
+              }
+            }
+          }
+
           .recent-item {
             display: flex;
             justify-content: space-between;
@@ -300,6 +321,28 @@
         flex: 1;
         max-height: 160px;
         overflow: auto;
+
+        &-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          font-size: 14px;
+          color: #4D4F56;
+          text-align: center;
+
+          .empty-img {
+            width: 220px;
+            height: 100px;
+
+            img {
+              width: 100%;
+              height: 100%;
+            }
+          }
+        }
 
         .quick-item {
           padding: 5px 0 7px 12px;
@@ -456,9 +499,9 @@
       margin-bottom: 4px;
 
       .icon-mc-tuozhuai {
-        @include common-route-icon;
         color: #DCDEE5;
         cursor: move;
+        @include common-route-icon;
       }
 
       &:last-child {

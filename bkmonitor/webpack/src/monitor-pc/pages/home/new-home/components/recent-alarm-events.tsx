@@ -77,6 +77,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   showAddTaskDialog = false; // 展示添加业务弹窗
   dragoverId = '';
   dragId = '';
+
   loading = false;
 
   currentDelId = null;
@@ -105,6 +106,9 @@ export default class RecentAlarmEvents extends tsc<object> {
     });
     this.loading = false;
     if (updateTab) {
+      if (this.tabs.length === 0) {
+        this.activeTabId = data.tags?.[0].bk_biz_id;
+      }
       this.tabs = data.tags || [];
     }
     this.content = data.config || [];
@@ -125,8 +129,9 @@ export default class RecentAlarmEvents extends tsc<object> {
     return this.tabs.length === 0;
   }
 
-  init() {
+  handleTimeChange() {
     // TODO
+    console.log(this.dataOverview.timeChecked);
   }
 
   // 选择标签
@@ -201,13 +206,18 @@ export default class RecentAlarmEvents extends tsc<object> {
     } else {
       config.push(this.strategyConfig);
     }
-    await saveAlarmGraphConfig({
-      bk_biz_id: this.alarmGraphConfig.bizId,
-      config,
-    });
-    await this.getData();
+    try {
+      await saveAlarmGraphConfig({
+        bk_biz_id: this.alarmGraphConfig.bizId,
+        config,
+      });
+      await this.getData();
+    } catch (error) {
+      console.log('error', error);
+    }
     this.editChartIndex = null;
     this.showAddTaskDialog = false;
+    this.clearStrategyConfig();
   }
 
   // 清除表格数据
@@ -326,13 +336,6 @@ export default class RecentAlarmEvents extends tsc<object> {
     );
   }
 
-  // 处理添加业务逻辑
-  handleAddTask() {
-    if (!this.canAddBusiness) {
-      return;
-    }
-  }
-
   // 删除业务 start
   getDelDialog() {
     return (
@@ -396,6 +399,11 @@ export default class RecentAlarmEvents extends tsc<object> {
     if (this.currentDelId === this.activeTabId && this.tabs.length) {
       this.activeTabId = this.tabs[0].bk_biz_id;
     }
+    // 业务全部删除
+    if (this.tabs.length === 0) {
+      this.content = [];
+    }
+    this.clearStrategyConfig();
     this.showDelDialog = false;
   }
   // 删除业务 end
@@ -410,17 +418,23 @@ export default class RecentAlarmEvents extends tsc<object> {
             src={emptyImageSrc}
           />
         </div>
-        <div class='empty-info'>{this.$t('当前业务还未配置视图，快点击下方按钮新增图表')}</div>
-        <div class='empty-btn'>
-          <bk-button
-            icon='plus'
-            outline={true}
-            theme='primary'
-            onClick={this.handleAddChart}
-          >
-            {this.$t('新增图表')}
-          </bk-button>
+        <div class='empty-info'>
+          {this.tabs.length === 0
+            ? this.$t('当前还未配置业务，快点击添加业务按钮新增图表')
+            : this.$t('当前业务还未配置视图，快点击下方按钮新增图表')}
         </div>
+        {this.tabs.length > 0 && (
+          <div class='empty-btn'>
+            <bk-button
+              icon='plus'
+              outline={true}
+              theme='primary'
+              onClick={this.handleAddChart}
+            >
+              {this.$t('新增图表')}
+            </bk-button>
+          </div>
+        )}
       </div>
     );
   }
@@ -464,9 +478,11 @@ export default class RecentAlarmEvents extends tsc<object> {
         this.handleAddChart();
         break;
       case 'delete':
+        // TODO 删除
         this.editChartIndex = index;
         break;
       case 'detail':
+        // TODO 详情
         break;
     }
   }
@@ -479,7 +495,6 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
 
   render() {
-    const activeContent = this.content.length !== 0;
     return (
       <div class='recent-alarm-events'>
         <div class='title'>
@@ -487,48 +502,40 @@ export default class RecentAlarmEvents extends tsc<object> {
         </div>
         {/* 头部功能区 */}
         <div class='head'>
-          <keep-alive>
+          {!this.loading ? (
             <div class='tabs'>
-              {!this.loading ? (
-                this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
-                  <div
-                    key={id}
-                    class='tab'
-                    draggable={true}
-                    onDragleave={this.handleDragleave}
-                    onDragover={e => this.handleDragover(index, e)}
-                    onDragstart={() => this.handleDragstart(index)}
-                    onDrop={this.handleDrop}
+              {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
+                <div
+                  key={id}
+                  class='tab'
+                  draggable={true}
+                  onDragleave={this.handleDragleave}
+                  onDragover={e => this.handleDragover(index, e)}
+                  onDragstart={() => this.handleDragstart(index)}
+                  onDrop={this.handleDrop}
+                >
+                  <span class='icon-monitor icon-mc-tuozhuai item-drag' />
+                  <span
+                    class={['tab-title', this.activeTabId === id ? 'active' : '']}
+                    onClick={() => this.selectTab(id)}
                   >
-                    <span class='icon-monitor icon-mc-tuozhuai item-drag' />
+                    {name}
+                  </span>
+                  <div>
                     <span
-                      class={['tab-title', this.activeTabId === id ? 'active' : '']}
-                      onClick={() => this.selectTab(id)}
-                    >
-                      {name}
-                    </span>
-                    <div>
-                      <span
-                        class='icon-monitor item-close icon-mc-delete-line'
-                        v-bk-tooltips={{
-                          content: this.$t('删除该业务'),
-                          trigger: 'mouseenter',
-                          zIndex: 9999,
-                          boundary: document.body,
-                          allowHTML: false,
-                        }}
-                        onClick={() => this.handleDelTask(id)}
-                      />
-                    </div>
+                      class='icon-monitor item-close icon-mc-delete-line'
+                      v-bk-tooltips={{
+                        content: this.$t('删除该业务'),
+                        trigger: 'mouseenter',
+                        zIndex: 9999,
+                        boundary: document.body,
+                        allowHTML: false,
+                      }}
+                      onClick={() => this.handleDelTask(id)}
+                    />
                   </div>
-                ))
-              ) : (
-                <div class='tab skeleton-element' />
-              )}
-              {/* 删除业务-模态框 */}
-              {this.getDelDialog()}
-              {/* 新增业务-模态框 */}
-              {this.getAddDialog()}
+                </div>
+              ))}
               {!this.canAddBusiness ? (
                 <span
                   class='add-task task-disabled'
@@ -557,7 +564,13 @@ export default class RecentAlarmEvents extends tsc<object> {
                 />
               )}
             </div>
-          </keep-alive>
+          ) : (
+            <div class='skeleton-element' />
+          )}
+          {/* 删除业务-模态框 */}
+          {this.getDelDialog()}
+          {/* 新增业务-模态框 */}
+          {this.getAddDialog()}
           {/* 时间选择器 */}
           <div class='alarm-time-filter'>
             <bk-select
@@ -565,7 +578,7 @@ export default class RecentAlarmEvents extends tsc<object> {
               v-model={this.dataOverview.timeChecked}
               clearable={false}
               popover-width={70}
-              on-change={() => this.init()}
+              on-change={this.handleTimeChange}
             >
               {this.dataOverview.timeOption.map(option => (
                 <bk-option
@@ -578,7 +591,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           </div>
         </div>
         {/* 主体内容 */}
-        <div class='content'>{!activeContent ? this.getEmptyContent() : this.getStrategyList(this.content)}</div>
+        <div class='content'>{!this.content.length ? this.getEmptyContent() : this.getStrategyList(this.content)}</div>
       </div>
     );
   }

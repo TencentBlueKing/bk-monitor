@@ -87,11 +87,6 @@
         }
       }
 
-      .skeleton-element {
-        width: 600px;
-        height: 36px;
-      }
-
       .add-task {
         margin-left: auto;
         font-family: MicrosoftYaHei;
@@ -124,6 +119,11 @@
       .icon-angle-down {
         color: #979ba5;
       }
+    }
+
+    .skeleton-element {
+      width: 600px;
+      height: 36px;
     }
   }
 

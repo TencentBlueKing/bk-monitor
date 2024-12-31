@@ -30,6 +30,7 @@ import { getFunctionShortcut } from 'monitor-api/modules/overview';
 import draggable from 'vuedraggable';
 
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import emptyImageSrc from '../../../../static/images/png/empty.png';
 import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
 import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
@@ -41,6 +42,7 @@ import './my-favorites.scss';
 interface RecentItems {
   function: string;
   items: Item[];
+  name: string;
   icon?: string;
 }
 
@@ -155,6 +157,7 @@ export default class MyFavorites extends tsc<object> {
       functions: this.selectedCategories,
       limit: 10,
     });
+    console.log('data', data);
     if (this.isRecentView) {
       this.recentItems = data;
     } else {
@@ -364,7 +367,7 @@ export default class MyFavorites extends tsc<object> {
     if (!item) return;
     return (
       <li
-        key={item.bk_biz_id}
+        key={item.id}
         class='recent-item'
       >
         <div class='detail'>
@@ -380,15 +383,18 @@ export default class MyFavorites extends tsc<object> {
       </li>
     );
   }
+
   // 根据模块类型，获取对应参数
   getListItemParams(type, item) {
     const typeHandlers = {
       dashboard: {
         item,
+        id: item.dashboard_uid,
         title: item.dashboard_title,
       },
       apm_service: {
         item,
+        id: item.application_id,
         title: `${item.app_name}/${item.service_name}`,
       },
       // TODO 为其他模块类型添加相关处理
@@ -450,7 +456,20 @@ export default class MyFavorites extends tsc<object> {
                   {/* <span class='more'>更多</span> */}
                 </div>
                 <ul class='recent-list'>
-                  {shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))}
+                  {shortcut.items.length ? (
+                    shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
+                  ) : (
+                    <div class='recent-list-empty'>
+                      {' '}
+                      <div class='empty-img'>
+                        <img
+                          alt=''
+                          src={emptyImageSrc}
+                        />
+                      </div>
+                      {this.$t('暂无告警事件')}
+                    </div>
+                  )}
                 </ul>
               </div>
             ))}
@@ -472,18 +491,31 @@ export default class MyFavorites extends tsc<object> {
           </div>
           <div class='quick-list'>
             <ul class='quick-items'>
-              {this.userStoreRoutes
-                ?.filter(item => item.id)
-                .map(item => (
-                  <li
-                    key={item.id}
-                    class='quick-item'
-                    onClick={() => this.handleGoStoreRoute(item)}
-                  >
-                    <i class={`${item.icon} list-item-icon`} />
-                    <span>{this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}</span>
-                  </li>
-                ))}
+              {this.userStoreRoutes.length ? (
+                this.userStoreRoutes
+                  ?.filter(item => item.id)
+                  .map(item => (
+                    <li
+                      key={item.id}
+                      class='quick-item'
+                      onClick={() => this.handleGoStoreRoute(item)}
+                    >
+                      <i class={`${item.icon} list-item-icon`} />
+                      <span>{this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}</span>
+                    </li>
+                  ))
+              ) : (
+                <div class='quick-items-empty'>
+                  {' '}
+                  <div class='empty-img'>
+                    <img
+                      alt=''
+                      src={emptyImageSrc}
+                    />
+                  </div>
+                  {this.$t('暂无快捷入口')}
+                </div>
+              )}
             </ul>
           </div>
           {/* AI 小鲸 */}
