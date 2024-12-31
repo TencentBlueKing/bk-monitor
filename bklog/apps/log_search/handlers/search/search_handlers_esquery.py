@@ -683,7 +683,7 @@ class SearchHandler(object):
                 "scenario_id": data.get("scenario_id") or "",
                 "storage_cluster_id": data.get("storage_cluster_id") or -1,
                 "status": str(exc),
-                "source_app_code": settings.APP_CODE,
+                "source_app_code": get_request_app_code(),
             }
             metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
@@ -1129,14 +1129,11 @@ class SearchHandler(object):
 
     def multi_get_slice_data(self, pre_file_name, export_file_type):
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if collector_config:
-            storage_shards_nums = collector_config.storage_shards_nums
-            if storage_shards_nums == 1 or storage_shards_nums >= MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT:
-                slice_max = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
-            else:
-                slice_max = storage_shards_nums
-        else:
-            slice_max = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+        slice_max = (
+            collector_config.storage_shards_nums
+            if collector_config and collector_config.storage_shards_nums < MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+            else MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT
+        )
         multi_execute_func = MultiExecuteFunc(max_workers=slice_max)
         for idx in range(slice_max):
             body = {
@@ -1147,7 +1144,7 @@ class SearchHandler(object):
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
-        return result
+        return list(result.values())
 
     def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
         """
@@ -1162,7 +1159,7 @@ class SearchHandler(object):
         generate_result = self.sliced_scroll_result(result)
 
         # 文件路径
-        file_path = f"{ASYNC_DIR}/{file_name}_cluster_{self.storage_cluster_id}.{export_file_type}"
+        file_path = f"{ASYNC_DIR}/{file_name}.{export_file_type}"
 
         def content_generator():
             for item in result.get("hits", {}).get("hits", []):
@@ -2572,6 +2569,7 @@ class UnionSearchHandler(object):
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
         }
 
         # 数据排序处理  兼容第三方ES检索排序

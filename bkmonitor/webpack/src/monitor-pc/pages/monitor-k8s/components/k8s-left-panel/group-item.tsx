@@ -47,6 +47,7 @@ interface GroupItemProps {
   expandLoading?: Record<string, boolean>;
   loadMoreLoading?: Record<string, boolean>;
   activeMetric?: string;
+  keyword?: string;
 }
 
 interface GroupItemEvent {
@@ -75,6 +76,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: () => ({}) }) expandLoading: Record<string, boolean>;
   @Prop({ default: () => ({}) }) loadMoreLoading: Record<string, boolean>;
   @Prop({ default: '' }) activeMetric: string;
+  @Prop({ default: '' }) keyword: string;
 
   /** 展开的组  */
   expand = {};
@@ -203,6 +205,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             </div>
           );
         }
+
+        const keywordPick = this.keyword ? child.name.indexOf(this.keyword) : -1;
         return (
           <div
             key={`${child.id}-${ind}`}
@@ -216,7 +220,15 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               class='content-name'
               v-bk-overflow-tips
             >
-              {child.name}
+              {keywordPick > -1 ? (
+                <span>
+                  <span>{child.name.slice(0, keywordPick)}</span>
+                  <span class='pick-name'>{this.keyword}</span>
+                  <span>{child.name.slice(keywordPick + this.keyword.length)}</span>
+                </span>
+              ) : (
+                child.name
+              )}
             </span>
             <div
               class='tools'
