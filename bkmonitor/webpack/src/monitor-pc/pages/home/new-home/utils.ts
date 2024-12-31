@@ -32,7 +32,7 @@ export enum ESearchType {
   // alert: 告警
   alert = 'alert',
   // apm_application: APM应用
-  'apm_application' = 'apm_application',
+  apm_application = 'apm_application',
   // host: 主机
   host = 'host',
   // strategy: 策略
@@ -46,6 +46,14 @@ export const EStatusType = {
   disabled: '已停用',
   shielded: '已屏蔽',
   normal: '正常',
+};
+/* functionName */
+export const EFunctionNameType = {
+  dashboard: '仪表盘',
+  apm_service: '服务',
+  log_retrieve: '日志索引集',
+  metric_retrieve: '指标集',
+  // TODO
 };
 /**
  * @description 输入字段匹配字段高亮

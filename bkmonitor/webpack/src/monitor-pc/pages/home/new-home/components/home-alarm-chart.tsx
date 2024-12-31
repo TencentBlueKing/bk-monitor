@@ -195,7 +195,6 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
         interval: 'auto',
         bk_biz_id: 2,
       });
-      console.log('seriesData', series);
       // const res = await aipHandle;
       this.updateChartData(series);
       // if (res) {
@@ -215,7 +214,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    * @description: 更新图表的数据
    */
   updateChartData(srcData) {
-    console.log(srcData, 'srcData');
+    // console.log(srcData, 'srcData');
     const legendList = [];
     const dataList = [];
     srcData.forEach((item, ind) => {

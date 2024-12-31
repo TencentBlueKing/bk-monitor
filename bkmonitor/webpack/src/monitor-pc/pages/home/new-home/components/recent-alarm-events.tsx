@@ -173,7 +173,6 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 新增图表
   handleAddChart() {
-    // TODO
     this.alarmGraphConfig.bizId = this.activeTabId;
     this.isAppendMode = true;
     this.getStrategyListById(this.activeTabId);
@@ -188,7 +187,6 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
   // 确定新增图表
   async handleConfirm() {
-    // TODO
     let config = [];
     // 区分新增业务/新增图表
     if (this.isAppendMode) {
@@ -197,12 +195,12 @@ export default class RecentAlarmEvents extends tsc<object> {
         strategy_ids,
       }));
     }
+    // 区分修改/新增
     if (this.editChartIndex !== null) {
       config.splice(this.editChartIndex, 1, this.strategyConfig);
     } else {
       config.push(this.strategyConfig);
     }
-    console.log('config = = = >>', config);
     await saveAlarmGraphConfig({
       bk_biz_id: this.alarmGraphConfig.bizId,
       config,
@@ -212,7 +210,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     this.showAddTaskDialog = false;
   }
 
-  // 清楚表格数据
+  // 清除表格数据
   clearStrategyConfig() {
     this.strategyConfig = {
       strategy_ids: [],
@@ -224,10 +222,10 @@ export default class RecentAlarmEvents extends tsc<object> {
   async getStrategyListById(id) {
     try {
       // 要分页
-      const demo = await getStrategyListV2({
+      const data = await getStrategyListV2({
         bk_biz_id: id,
       });
-      this.strategyList = demo.strategy_config_list || [];
+      this.strategyList = data.strategy_config_list || [];
     } catch (error) {
       console.log('error', error);
     }
@@ -236,6 +234,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   getStrategyStatus(isDeleted = false, isInvalid = false, isEnabled = true) {
     let status = ''; // 默认状态
 
+    // 已删除 > 已屏蔽 > 已停用
     if (isDeleted) {
       status = 'deleted';
     } else if (isInvalid) {
