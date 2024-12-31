@@ -468,6 +468,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       loadingKey = 'loading';
     };
     let pageRequestParam = {};
+    // 是否启用前端分页
     if (enabledFrontendLimit) {
       initPagination();
     } else {
@@ -479,6 +480,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         page: this.pagination.page,
       };
     }
+
     this.tableLoading[loadingKey] = true;
     if (config.needRefresh) {
       this.asyncDataCache.clear();
@@ -898,6 +900,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         label={column.name}
         minWidth={column.min_width}
         prop={column.id}
+        render-header={() => 'test'}
         resizable={typeof column.resizable === 'boolean' ? column.resizable : true}
         show-overflow-tooltip={false}
         sort-orders={['ascending', 'descending']}
