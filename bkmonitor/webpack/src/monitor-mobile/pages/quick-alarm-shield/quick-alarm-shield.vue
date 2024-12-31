@@ -51,14 +51,34 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          class="detail-item"
+          :class="['detail-item', { 'is-dimension': item.name === '维度' }]"
           :key="index"
         >
           <template v-if="item.type === shieldType">
             <span>
               {{ `${item.name}:` }}
             </span>
-            <span class="detail-item-span">{{ item.value }}</span>
+            <van-checkbox-group
+              v-if="item.name === '维度' && Array.isArray(item.value)"
+              class="detail-item-span"
+              v-model="selectedDimension"
+              icon-size="16px"
+            >
+              <van-checkbox
+                v-for="dimension in item.value"
+                :key="dimension.id"
+                :name="dimension.name"
+                shape="square"
+              >
+                {{ dimension.name }}
+              </van-checkbox>
+            </van-checkbox-group>
+            <span
+              v-else
+              class="detail-item-span"
+            >
+              {{ item.value }}
+            </span>
           </template>
         </div>
       </div>
@@ -116,7 +136,7 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import { Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
@@ -128,6 +148,10 @@ interface IRadioList {
   name: string;
   value: string;
 }
+interface IDimensionItem {
+  id: string;
+  name: string;
+}
 interface IDataPickerList {
   id: number;
   name: string;
@@ -136,10 +160,10 @@ interface IDataPickerList {
 interface IShieldItem {
   type: string;
   name: string;
-  value: string;
+  value: IDimensionItem[] | string;
 }
 interface IEentDetail {
-  dimensionMessage: string;
+  dimensionMessage: IDimensionItem[];
   strategyName: string;
   targetMessage: string;
   anomalyMessage: string;
@@ -159,6 +183,8 @@ enum TimeSemantics {
   components: {
     [RadioGroup.name]: RadioGroup,
     [Radio.name]: Radio,
+    [CheckboxGroup.name]: CheckboxGroup,
+    [Checkbox.name]: Checkbox,
     DatetimePicker,
     [Popup.name]: Popup,
     [Grid.name]: Grid,
@@ -179,10 +205,11 @@ export default class AlarmDetail extends Vue {
   private loading = false;
   private minDate: Date = new Date(); // 可选的最小时间
   private shieldContent: IShieldItem[] = []; // 屏蔽内容
+  private selectedDimension: IDimensionItem[] = []; // 选择的维度信息
   private endTime = ''; // 截止时间
   private eventDetail: IEentDetail = {
     // 事件详情
-    dimensionMessage: '',
+    dimensionMessage: [],
     strategyName: '',
     targetMessage: '',
     anomalyMessage: '',
@@ -236,8 +263,15 @@ export default class AlarmDetail extends Vue {
       EventModule.getEventDetail({ id: this.eventId }),
       AlarmModule.getEventNum(),
     ]);
+    // 处理维度信息为多选框数据结构并选中
+    this.selectedDimension = eventDetail.dimensionMessage.split(',');
+    eventDetail.dimensionMessage = eventDetail.dimensionMessage.split(',').map(item => ({
+      id: item,
+      name: item,
+    }));
     this.eventDetail = eventDetail;
     this.handleSetRadioList();
+    console.log(this.eventDetail.dimensionMessage, 'this.eventDetail.dimensionMessage');
     this.shieldContent = [
       {
         type: 'event',
@@ -396,6 +430,38 @@ export default class AlarmDetail extends Vue {
 
         &-span {
           word-break: break-all;
+        }
+      }
+
+      .is-dimension {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+
+        span {
+          flex-shrink: 0;
+        }
+
+        .detail-item-span {
+          width: 100%;
+          padding-bottom: 5px;
+          margin-left: 4px;
+          overflow: hidden;
+        }
+
+        .van-checkbox {
+          padding-bottom: 5px;
+          border-bottom: 1px solid #ebecf1;
+
+          & + .van-checkbox {
+            margin-top: 5px;
+          }
+        }
+
+        :deep(.van-checkbox__label) {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
       }
     }
