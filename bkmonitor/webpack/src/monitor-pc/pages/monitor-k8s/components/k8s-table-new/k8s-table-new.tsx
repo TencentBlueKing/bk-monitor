@@ -543,13 +543,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           datapoints: null,
           unit: '',
           unitDecimal: null,
-          valueTitle: '用量',
+          valueTitle: this.$tc('用量'),
         };
         curr[K8sTableColumnKeysEnum.INTERNAL_MEMORY] = {
           datapoints: null,
           unit: '',
           unitDecimal: null,
-          valueTitle: '用量',
+          valueTitle: this.$tc('用量'),
         };
         if (prev.tableDataMap[id]) {
           prev.tableDataMap[id].push(index);
