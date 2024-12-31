@@ -241,7 +241,7 @@ export default class K8SCharts extends tsc<
   }
   createCommonPromqlContent(onlyNameSpace = false) {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
-    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE);
+    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
       content += `,namespace=~"^(${namespace})$"`;
       return content;
@@ -397,6 +397,32 @@ export default class K8SCharts extends tsc<
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
       [K8sTableColumnKeysEnum.WORKLOAD_TYPE, ''],
     ]);
+    // todo
+    // if (this.isDetailMode) {
+    //   const workload = new Set();
+    //   const workloadKind = new Set();
+    //   for (const item of this.filterCommonParams?.filter_dict?.workload || []) {
+    //     const [workloadType, workloadName] = item.split(':');
+    //     workload.add(workloadName);
+    //     workloadKind.add(workloadType);
+    //   }
+    //   resourceMap.set(
+    //     K8sTableColumnKeysEnum.CONTAINER,
+    //     (this.filterCommonParams?.filter_dict?.container || []).filter(Boolean).join('|')
+    //   );
+    //   resourceMap.set(
+    //     K8sTableColumnKeysEnum.POD,
+    //     (this.filterCommonParams?.filter_dict?.pod || []).filter(Boolean).join('|')
+    //   );
+    //   resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
+    //   resourceMap.set(
+    //     K8sTableColumnKeysEnum.NAMESPACE,
+    //     (this.filterCommonParams?.filter_dict?.namespace || []).filter(Boolean).join('|')
+    //   );
+    //   resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
+    //   this.resourceMap = resourceMap;
+    //   return;
+    // }
     let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) {
       data = [
