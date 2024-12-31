@@ -50,6 +50,7 @@ from apps.log_search.serializers import (
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
+from apps.utils.local import get_request_username
 from bkm_space.serializers import SpaceUIDField
 
 
@@ -72,7 +73,7 @@ class IndexSetViewSet(ModelViewSet):
                 return []
         except Exception:  # pylint: disable=broad-except
             pass
-        if self.action in ["mark_favorite", "cancel_favorite"]:
+        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite"]:
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
@@ -1145,3 +1146,76 @@ class IndexSetViewSet(ModelViewSet):
         @apiGroup 05_AccessIndexSet
         """
         return Response(IndexSetHandler().tag_list())
+
+    @list_route(methods=["GET"], url_path="user_search")
+    def user_search(self, request):
+        """
+        @api {get} /index_set/user_search/
+        @apiDescription 获取用户最近查询的索引集
+        @apiName user_search
+        @apiGroup 05_AccessIndexSet
+        @apiParam {String} start_time 开始时间(必填)
+        @apiParam {String} end_time 结束时间(必填)
+        @apiParam {String} [limit] 结束时间(非必填)
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "index_set_id": 305,
+                    "created_at": "2024-12-23T09:10:59.968318Z",
+                    "params": {
+                        "keyword": "mylevel: *",
+                        "ip_chooser": {},
+                        "addition": [],
+                        "start_time": "2024-12-23 16:55:59",
+                        "end_time": "2024-12-23 17:10:59",
+                        "time_range": null
+                    },
+                    "duration": 680.0,
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证"
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        username = get_request_username()
+        start_time = request.GET.get("start_time", "").replace("&nbsp;", " ")
+        end_time = request.GET.get("end_time", "").replace("&nbsp;", " ")
+        limit = request.GET.get("limit", "").replace("&nbsp;", " ")
+        return Response(IndexSetHandler.fetch_user_search_index_set(
+            username=username,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit
+        ))
+
+    @list_route(methods=["GET"], url_path="user_favorite")
+    def user_favorite(self, request):
+        """
+        @api {get} /index_set/user_favorite/
+        @apiDescription 获取用户收藏的索引集
+        @apiName user_favorite
+        @apiGroup 05_AccessIndexSet
+        @apiParam {String} [limit] 结束时间(非必填)
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "index_set_id": 305,
+                    "created_at": "2024-12-23T09:10:59.968318Z",
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证"
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        username = get_request_username()
+        limit = request.GET.get("limit", "").replace("&nbsp;", " ")
+        return Response(IndexSetHandler.fetch_user_favorite_index_set(
+            username=username,
+            limit=limit
+        ))

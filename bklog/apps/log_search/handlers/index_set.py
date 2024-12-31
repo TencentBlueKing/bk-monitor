@@ -24,6 +24,8 @@ import re
 from collections import defaultdict
 from typing import List, Optional
 
+import arrow
+import pytz
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -90,6 +92,8 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetCustomConfig,
     UserIndexSetFieldsConfig,
+    UserIndexSetSearchHistory,
+    IndexSetUserFavorite,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -103,6 +107,7 @@ from apps.utils.local import (
     get_request_app_code,
     get_request_external_username,
     get_request_username,
+    get_local_param,
 )
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -1169,6 +1174,67 @@ class IndexSetHandler(APIModel):
         user_operation_record.delay(operation_record)
 
         return index_set
+
+    @staticmethod
+    def process_time(time_value, tz_info):
+        """
+        处理时间值并返回转换后的 datetime 对象
+        """
+        if isinstance(time_value, (int, float)):
+            return arrow.get(time_value).to(tz=tz_info).datetime
+        else:
+            return arrow.get(time_value).replace(tzinfo=tz_info).datetime
+
+    @staticmethod
+    def fetch_user_search_index_set(username, start_time, end_time, limit):
+        """
+        根据创建者、时间范围、限制条数获取某用户最近查询的索引集
+        """
+        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+        start_time = IndexSetHandler.process_time(start_time, tz_info)
+        end_time = IndexSetHandler.process_time(end_time, tz_info)
+        history_obj = (
+            UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False,
+                search_type="default",
+                created_at__range=[start_time, end_time],
+                created_by=username
+            )
+            .order_by("-created_at")
+        )
+        history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
+        index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
+        detail_data = list(
+            LogIndexSet.objects.filter(
+                index_set_id__in=index_set_ids,
+                is_active=True
+            )
+            .values("index_set_id", "index_set_name")
+        )
+        for history in history_data:
+            for detail in detail_data:
+                if detail["index_set_id"] == history["index_set_id"]:
+                    history.update({"index_set_name": detail["index_set_name"]})
+        if limit:
+            history_data = history_data[:int(limit)]
+        return history_data
+
+    @staticmethod
+    def fetch_user_favorite_index_set(username, limit):
+        """
+        根据创建者、限制条数获取某用户收藏的索引集
+        """
+        index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
+        index_set_data = list(
+            LogIndexSet.objects.filter(
+                index_set_id__in=index_set_ids,
+                is_active=True
+            )
+            .values("index_set_id", "index_set_name", "created_at")
+        )
+        if limit:
+            index_set_data = index_set_data[:int(limit)]
+        return index_set_data
 
 
 class BaseIndexSetHandler(object):
