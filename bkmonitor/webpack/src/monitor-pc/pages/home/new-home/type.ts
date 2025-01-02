@@ -43,3 +43,16 @@ export interface ISearchListItem {
   name: string;
   items: ISearchItem[];
 }
+
+export interface IAlarmGraphConfig {
+  name: string;
+  strategy_ids: number[];
+  status?: IAlarmGraphStatus[];
+  strategy_names?: string[];
+}
+
+interface IAlarmGraphStatus {
+  name: string;
+  status: string;
+  strategy_id: number;
+}

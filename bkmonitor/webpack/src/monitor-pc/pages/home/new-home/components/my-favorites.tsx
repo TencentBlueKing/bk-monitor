@@ -23,19 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Watch } from 'vue-property-decorator';
 
 import { getFunctionShortcut } from 'monitor-api/modules/overview';
 import draggable from 'vuedraggable';
 
+import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
 import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
 import serviceSrc from '../../../../static/images/png/new-page/service.png';
-import { EFunctionNameType } from '../utils';
+import { EFunctionNameType, RECENT_FAVORITE_STORE_KEY } from '../utils';
 import HeaderSettingModal from './header-setting-modal';
 
 import './my-favorites.scss';
@@ -60,14 +60,24 @@ const srcObj = {
   apm_service: serviceSrc,
 };
 
+// 三种布局方式
+const strategies = {
+  1: 'row-1',
+  2: 'row-2',
+  3: 'row-3',
+  4: 'row-2',
+  5: 'row-3',
+  6: 'row-3',
+};
+
 // 模块名称映射
 const modeNameMap = {
-  仪表盘: 'dashboard',
-  检索: 'retrieval',
-  服务: 'apm_service',
-  服务拨测: '-',
-  主机监控: '-',
-  容器服务: '-',
+  [window.i18n.tc('仪表盘')]: 'dashboard',
+  [window.i18n.tc('检索')]: 'retrieval',
+  [window.i18n.tc('服务')]: 'apm_service',
+  [window.i18n.tc('服务拨测')]: '-',
+  [window.i18n.tc('主机监控')]: '-',
+  [window.i18n.tc('容器服务')]: '-',
 };
 
 @Component({
@@ -76,7 +86,7 @@ const modeNameMap = {
     draggable,
   },
 })
-export default class MyFavorites extends tsc<object> {
+export default class MyFavorites extends Mixins(UserConfigMixin) {
   isRecentView = true; // 状态，用于切换视图
   userStoreRoutes = []; // 用户存储的路由
   selectedCategories = ['dashboard']; // 用户选择的类别
@@ -102,22 +112,18 @@ export default class MyFavorites extends tsc<object> {
   favoriteItems: RecentItems[] = []; // 收藏列表
 
   @Watch('selectedCategories')
-  handleSelect(v) {
-    console.log('v', v);
+  handleSelect() {
+    this.handleLocalListSortChange();
     this.updateFunctionShortcut();
+  }
+
+  @Watch('localVarList')
+  handleLocalListSortChange() {
+    this.setStoreSelectedCategories();
   }
 
   // 计算布局策略
   get rowClass() {
-    // 三种布局方式
-    const strategies = {
-      1: 'row-1',
-      2: 'row-2',
-      4: 'row-2',
-      3: 'row-3',
-      5: 'row-3',
-      6: 'row-3',
-    };
     this.categoriesHasTwoRows = this.selectedCategories.length > 3;
     return strategies[this.selectedCategories.length] || '';
   }
@@ -147,21 +153,39 @@ export default class MyFavorites extends tsc<object> {
   }
 
   async created() {
-    await this.updateFunctionShortcut();
+    try {
+      const [selected, selectList] =
+        (await this.handleGetUserConfig<[string[], []]>(RECENT_FAVORITE_STORE_KEY, {
+          reject403: true,
+        })) || [];
+      this.selectedCategories = selected || this.selectedCategories;
+      this.localVarList = selectList || this.localVarList;
+      await this.updateFunctionShortcut();
+    } catch (error) {
+      console.log('error', error);
+    }
+  }
+
+  // 设置存储的最近使用模块并同步到用户配置
+  setStoreSelectedCategories() {
+    this.handleSetUserConfig(RECENT_FAVORITE_STORE_KEY, JSON.stringify([this.selectedCategories, this.localVarList]));
   }
 
   async updateFunctionShortcut() {
     // TODO 分页
-    const data = await getFunctionShortcut({
-      type: this.isRecentView ? 'recent' : 'favorite',
-      functions: this.selectedCategories,
-      limit: 10,
-    });
-    console.log('data', data);
-    if (this.isRecentView) {
-      this.recentItems = data;
-    } else {
-      this.favoriteItems = data;
+    try {
+      const data = await getFunctionShortcut({
+        type: this.isRecentView ? 'recent' : 'favorite',
+        functions: this.selectedCategories,
+        limit: 10,
+      });
+      if (this.isRecentView) {
+        this.recentItems = data;
+      } else {
+        this.favoriteItems = data;
+      }
+    } catch (error) {
+      console.log('error', error);
     }
   }
 
@@ -211,6 +235,10 @@ export default class MyFavorites extends tsc<object> {
     }
   }
 
+  handleDropEnd() {
+    console.log('拖拽结束！', this.selectedCategories);
+  }
+
   // 自定义设置组件
   getCustomize() {
     return (
@@ -247,6 +275,8 @@ export default class MyFavorites extends tsc<object> {
               <draggable
                 class='draggable-container'
                 v-model={this.localVarList}
+                onDragover={this.handleDropEnd}
+                onDrop={this.handleDropEnd}
               >
                 {this.localVarList.map(item => (
                   <li
@@ -299,18 +329,18 @@ export default class MyFavorites extends tsc<object> {
     }
   }
   handleKeyDown(event) {
-    if (event.key === 'Enter') {
-      if (!event.shiftKey && !event.ctrlKey) {
-        // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
-        event.preventDefault();
-        // TODO 触发 AI 功能
-      } else {
-        // 在按下 Shift+Enter 或 Ctrl+Enter 时插入换行符
-        // document.execCommand('insertLineBreak');
-        // 插入换行并移动光标
-        // this.insertLineBreakAndMoveCursor();
-        // event.preventDefault();
-      }
+    // 针对回车做处理
+    if (event.key !== 'Enter') return;
+    if (!event.shiftKey && !event.ctrlKey) {
+      // TODO 触发 AI 功能
+      // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
+      event.preventDefault();
+    } else {
+      // 在按下 Shift+Enter 或 Ctrl+Enter 时插入换行符
+      // document.execCommand('insertLineBreak');
+      // 插入换行并移动光标
+      // this.insertLineBreakAndMoveCursor();
+      // event.preventDefault();
     }
   }
 
@@ -483,7 +513,7 @@ export default class MyFavorites extends tsc<object> {
             <div
               class='customize'
               onClick={() => (this.showModal = true)}
-              // onClick={() => (this.exampleSetting1.primary.visible = true)}
+            // onClick={() => (this.exampleSetting1.primary.visible = true)}
             >
               <i class='icon-monitor icon-menu-setting' />
               <span>{this.$t('自定义')}</span>

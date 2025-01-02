@@ -499,9 +499,9 @@
       margin-bottom: 4px;
 
       .icon-mc-tuozhuai {
-        color: #DCDEE5;
         cursor: move;
         @include common-route-icon;
+        color: #DCDEE5;
       }
 
       &:last-child {

@@ -55,6 +55,8 @@ export const EFunctionNameType = {
   metric_retrieve: '指标集',
   // TODO
 };
+export const RECENT_FAVORITE_STORE_KEY = 'recent_favorite_store_key'.toLocaleUpperCase();
+
 /**
  * @description 输入字段匹配字段高亮
  * @param searchValue 输入的字段
