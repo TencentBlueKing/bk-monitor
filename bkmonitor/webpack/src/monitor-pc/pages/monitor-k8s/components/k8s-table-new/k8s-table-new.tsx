@@ -282,8 +282,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType() {
-    if (this.filterBy?.length) {
-      return 'search-empty';
+    for (const filtersArgs of Object.values(this.filterBy)) {
+      if (filtersArgs?.length) {
+        return 'search-empty';
+      }
     }
     return 'empty';
   }
@@ -900,7 +902,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         label={column.name}
         minWidth={column.min_width}
         prop={column.id}
-        render-header={() => 'test'}
         resizable={typeof column.resizable === 'boolean' ? column.resizable : true}
         show-overflow-tooltip={false}
         sort-orders={['ascending', 'descending']}
