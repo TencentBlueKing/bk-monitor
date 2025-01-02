@@ -1562,18 +1562,17 @@ class TestK8sListResources(TestCase):
         validated_request_data = {
             "scenario": "performance",
             "bcs_cluster_id": "BCS-K8S-00000",
-            "start_time": 1735114628,
-            "end_time": 1735116428,
+            "start_time": 1735801850,
+            "end_time": 1735805450,
             "filter_dict": {"workload": ["Deployment:bk-monitor-web"]},
             "page_size": 20,
             "page": 1,
-            "resource_type": "container",
+            "resource_type": "pod",
             "with_history": True,
             "page_type": "scrolling",
+            "bk_biz_id": 2,
             "order_by": "desc",
             "column": "container_cpu_usage_seconds_total",
-            "method": "sum",
-            "bk_biz_id": 2,
         }
         query_result = [
             {

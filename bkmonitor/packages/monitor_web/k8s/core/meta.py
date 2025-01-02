@@ -141,7 +141,7 @@ class K8sResourceMeta(object):
             interval = get_interval_number(start_time, end_time, interval=60)
             query_type = "instant"
         else:
-            interval = (start_time - end_time) // 60 * 60
+            interval = (end_time - start_time) // 60 * 60
             query_type = "range"
 
         return query_type, interval
@@ -212,13 +212,30 @@ class K8sResourceMeta(object):
 
     @property
     def meta_prom_with_container_memory_rss(self):
-        """按内存排序的资源查询promql"""
-        return ""
+        raise NotImplementedError("metric: [container_memory_rss] not supported")
 
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
+        raise NotImplementedError("metric: [container_cpu_usage_seconds_total] not supported")
+
+    @property
+    def meta_prom_with_kube_pod_cpu_requests_ratio(self):
+        raise NotImplementedError("metric: [kube_pod_cpu_requests_ratio] not supported")
+
+    @property
+    def meta_prom_with_kube_pod_cpu_limits_ratio(self):
         """按cpu使用量排序的资源查询promql"""
-        return ""
+        raise NotImplementedError("metric: [kube_pod_cpu_limits_ratio] not supported")
+
+    @property
+    def meta_prom_with_kube_pod_memory_requests_ratio(self):
+        """按cpu使用量排序的资源查询promql"""
+        raise NotImplementedError("metric: [kube_pod_memory_requests_ratio] not supported")
+
+    @property
+    def meta_prom_with_kube_pod_memory_limits_ratio(self):
+        """按cpu使用量排序的资源查询promql"""
+        raise NotImplementedError("metric: [kube_pod_memory_limits_ratio] not supported")
 
     @property
     def agg_method(self):
@@ -248,6 +265,10 @@ class K8sPodMeta(K8sResourceMeta):
             f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
+
+    @property
+    def meta_prom_with_kube_pod_cpu_requests_ratio(self):
+        return ""
 
 
 class K8sNodeMeta(K8sResourceMeta):
