@@ -47,6 +47,8 @@ from apps.log_search.serializers import (
     ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
+    UserSearchSerializer,
+    UserFavoriteSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
@@ -1147,16 +1149,24 @@ class IndexSetViewSet(ModelViewSet):
         """
         return Response(IndexSetHandler().tag_list())
 
-    @list_route(methods=["GET"], url_path="user_search")
+    @list_route(methods=["POST"], url_path="user_search")
     def user_search(self, request):
         """
         @api {get} /index_set/user_search/
         @apiDescription 获取用户最近查询的索引集
         @apiName user_search
         @apiGroup 05_AccessIndexSet
-        @apiParam {String} start_time 开始时间(必填)
-        @apiParam {String} end_time 结束时间(必填)
-        @apiParam {String} [limit] 结束时间(非必填)
+        @apiParam {String} username 用户名(必填)
+        @apiParam {String} [start_time] 开始时间(非必填)
+        @apiParam {String} [end_time] 结束时间(非必填)
+        @apiParam {String} limit 限制条数(必填)
+        @apiParamExample {Json} 请求参数
+        {
+            "username": "admin",
+            "start_time": 1732694693,
+            "end_time": 1735286693,
+            "limit": 1
+        }
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
@@ -1180,25 +1190,23 @@ class IndexSetViewSet(ModelViewSet):
             "message": ""
         }
         """
-        username = get_request_username()
-        start_time = request.GET.get("start_time", "").replace("&nbsp;", " ")
-        end_time = request.GET.get("end_time", "").replace("&nbsp;", " ")
-        limit = request.GET.get("limit", "").replace("&nbsp;", " ")
-        return Response(IndexSetHandler.fetch_user_search_index_set(
-            username=username,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit
-        ))
+        data = self.params_valid(UserSearchSerializer)
+        return Response(IndexSetHandler.fetch_user_search_index_set(params=data))
 
-    @list_route(methods=["GET"], url_path="user_favorite")
+    @list_route(methods=["POST"], url_path="user_favorite")
     def user_favorite(self, request):
         """
-        @api {get} /index_set/user_favorite/
+        @api {post} /index_set/user_favorite/
         @apiDescription 获取用户收藏的索引集
         @apiName user_favorite
         @apiGroup 05_AccessIndexSet
-        @apiParam {String} [limit] 结束时间(非必填)
+        @apiParam {String} username 用户名(必填)
+        @apiParam {String} [limit] 限制条数(非必填)
+        @apiParamExample {Json} 请求参数
+        {
+            "username": "admin",
+            "limit": 1
+        }
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
@@ -1213,9 +1221,5 @@ class IndexSetViewSet(ModelViewSet):
             "message": ""
         }
         """
-        username = get_request_username()
-        limit = request.GET.get("limit", "").replace("&nbsp;", " ")
-        return Response(IndexSetHandler.fetch_user_favorite_index_set(
-            username=username,
-            limit=limit
-        ))
+        data = self.params_valid(UserFavoriteSerializer)
+        return Response(IndexSetHandler.fetch_user_favorite_index_set(params=data))

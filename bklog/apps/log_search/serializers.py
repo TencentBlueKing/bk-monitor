@@ -979,3 +979,21 @@ class UserCustomConfigSerializer(serializers.Serializer):
     用户自定义配置
     """
     custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
+
+
+class UserSearchSerializer(serializers.Serializer):
+    """
+    用户最近查询的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    limit = serializers.IntegerField(label=_("限制条数"), required=True)
+
+
+class UserFavoriteSerializer(serializers.Serializer):
+    """
+    用户收藏的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    limit = serializers.IntegerField(label=_("限制条数"), required=False)

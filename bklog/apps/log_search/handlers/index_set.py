@@ -1186,22 +1186,36 @@ class IndexSetHandler(APIModel):
             return arrow.get(time_value).replace(tzinfo=tz_info).datetime
 
     @staticmethod
-    def fetch_user_search_index_set(username, start_time, end_time, limit):
+    def fetch_user_search_index_set(params):
         """
         根据创建者、时间范围、限制条数获取某用户最近查询的索引集
         """
-        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-        start_time = IndexSetHandler.process_time(start_time, tz_info)
-        end_time = IndexSetHandler.process_time(end_time, tz_info)
-        history_obj = (
-            UserIndexSetSearchHistory.objects.filter(
-                is_deleted=False,
-                search_type="default",
-                created_at__range=[start_time, end_time],
-                created_by=username
+        username = params["username"]
+        start_time = params.get("start_time")
+        end_time = params.get("end_time")
+        limit = params["limit"]
+        if not start_time:
+            history_obj = (
+                UserIndexSetSearchHistory.objects.filter(
+                    is_deleted=False,
+                    search_type="default",
+                    created_by=username
+                )
+                .order_by("-created_at")
             )
-            .order_by("-created_at")
-        )
+        else:
+            tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+            start_time = IndexSetHandler.process_time(start_time, tz_info)
+            end_time = IndexSetHandler.process_time(end_time, tz_info)
+            history_obj = (
+                UserIndexSetSearchHistory.objects.filter(
+                    is_deleted=False,
+                    search_type="default",
+                    created_at__range=[start_time, end_time],
+                    created_by=username
+                )
+                .order_by("-created_at")
+            )
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
         index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
         detail_data = list(
@@ -1220,10 +1234,12 @@ class IndexSetHandler(APIModel):
         return history_data
 
     @staticmethod
-    def fetch_user_favorite_index_set(username, limit):
+    def fetch_user_favorite_index_set(params):
         """
         根据创建者、限制条数获取某用户收藏的索引集
         """
+        username = params["username"]
+        limit = params.get("limit")
         index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
         index_set_data = list(
             LogIndexSet.objects.filter(
