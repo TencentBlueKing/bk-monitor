@@ -64,8 +64,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
             return super().detect(data_point)
 
     def detect_by_sdk(self, data_point):
-        dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
-        dimensions["strategy_id"] = int(data_point.item.strategy.id)
+        dimensions = self.generate_dimensions(data_point)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,

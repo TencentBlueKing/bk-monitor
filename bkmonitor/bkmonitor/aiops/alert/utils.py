@@ -563,7 +563,6 @@ class DimensionDrillManager(AIOPSManager):
             query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
             for query_config in query_configs:
                 query_config["group_by"] = []
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
 
             # 补充维度下钻的维度过滤条件
             dimension_keys = sorted(dimension["root"].keys())
