@@ -1159,7 +1159,7 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {String} username 用户名(必填)
         @apiParam {Int} [start_time] 开始时间(非必填)
         @apiParam {Int} [end_time] 结束时间(非必填)
-        @apiParam {String} limit 限制条数(必填)
+        @apiParam {Int} limit 限制条数(必填)
         @apiParamExample {Json} 请求参数
         {
             "username": "admin",
@@ -1201,7 +1201,7 @@ class IndexSetViewSet(ModelViewSet):
         @apiName user_favorite
         @apiGroup 05_AccessIndexSet
         @apiParam {String} username 用户名(必填)
-        @apiParam {String} [limit] 限制条数(非必填)
+        @apiParam {Int} [limit] 限制条数(非必填)
         @apiParamExample {Json} 请求参数
         {
             "username": "admin",

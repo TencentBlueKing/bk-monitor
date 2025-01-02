@@ -1176,16 +1176,6 @@ class IndexSetHandler(APIModel):
         return index_set
 
     @staticmethod
-    def process_time(time_value, tz_info):
-        """
-        处理时间值并返回转换后的 datetime 对象
-        """
-        if isinstance(time_value, (int, float)):
-            return arrow.get(time_value).to(tz=tz_info).datetime
-        else:
-            return arrow.get(time_value).replace(tzinfo=tz_info).datetime
-
-    @staticmethod
     def fetch_user_search_index_set(params):
         """
         根据创建者、时间范围、限制条数获取某用户最近查询的索引集
@@ -1205,8 +1195,8 @@ class IndexSetHandler(APIModel):
             )
         else:
             tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-            start_time = IndexSetHandler.process_time(start_time, tz_info)
-            end_time = IndexSetHandler.process_time(end_time, tz_info)
+            start_time = arrow.get(start_time).to(tz=tz_info).datetime
+            end_time = arrow.get(end_time).to(tz=tz_info).datetime
             history_obj = (
                 UserIndexSetSearchHistory.objects.filter(
                     is_deleted=False,
