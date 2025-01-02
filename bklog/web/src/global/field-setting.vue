@@ -443,7 +443,7 @@
         },
       })
       .then(res => {
-        const keys = Object.keys(res.data.alias_settings);
+        const keys = Object.keys(res.data.alias_settings || {}); 
         const arr = keys.map( key => {
           return {
           query_alias : key,
