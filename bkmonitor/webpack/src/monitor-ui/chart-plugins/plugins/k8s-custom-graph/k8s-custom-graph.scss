@@ -62,6 +62,22 @@
   .k8s-legend-name {
     display: flex;
     align-items: center;
+
+    .metric-name {
+      color: #ccc;
+
+      &.is-show {
+        color: #63656e;
+      }
+
+      &.can-show-detail {
+        text-decoration: underline;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
   }
 
   .empty-chart {
