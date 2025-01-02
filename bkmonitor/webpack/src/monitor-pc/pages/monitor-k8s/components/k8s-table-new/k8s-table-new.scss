@@ -31,6 +31,11 @@
           }
         }
       }
+
+      .bk-table-empty-block {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 100% !important;
+      }
     }
 
     .bk-table-row.hover-row {
@@ -54,12 +59,17 @@
       flex-basis: auto;
       min-width: 0;
       overflow: hidden;
+      color: #63656e;
       text-overflow: ellipsis;
       white-space: nowrap;
 
       &.can-click {
-        color: #3a84ff;
+        text-decoration: underline;
         cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
 

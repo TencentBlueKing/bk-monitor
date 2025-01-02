@@ -71,6 +71,6 @@ class DiscoverHandler:
         end_time = timezone.now()
         start_time = end_time - datetime.timedelta(minutes=self.TIME_DELTA)
 
-        for i in DiscoverContainer.list_discovers(TelemetryDataType.PROFILING.value).items():
+        for i in DiscoverContainer.list_discovers(TelemetryDataType.PROFILING.value):
             i(self.datasource).discover(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
             logger.info(f"[DiscoverHandler] profile discover finished {self.bk_biz_id}-{self.app_name}")

@@ -102,3 +102,10 @@ def set_request_username(username):
     else:
         # 没有请求对象，就设置local
         local.username = username
+
+
+def is_ajax_request(request):
+    """
+    断是否是ajax请求
+    """
+    return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'

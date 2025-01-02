@@ -624,9 +624,23 @@ class K8SCustomChart extends CommonSimpleChart {
         },
       };
     });
-    this.legendSorts.sort((a, b) => {
-      return timeToDayNum(a.timeShift) - timeToDayNum(b.timeShift);
-    });
+
+    const bottomLegend = [];
+    const legendSorts = [];
+
+    for (const item of this.legendSorts) {
+      if (item.name === 'limit') {
+        bottomLegend[0] = item;
+      } else if (item.name === 'request') {
+        bottomLegend[1] = item;
+      } else {
+        legendSorts.push(item);
+      }
+    }
+    this.legendSorts = [
+      ...legendSorts.sort((a, b) => timeToDayNum(a.timeShift) - timeToDayNum(b.timeShift)),
+      ...bottomLegend,
+    ];
     const result = [];
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);
@@ -988,14 +1002,11 @@ class K8SCustomChart extends CommonSimpleChart {
                         onMousedown={(e: MouseEvent) => e.stopPropagation()}
                       >
                         <span
-                          style={{
-                            color: item.show
-                              ? this.isSpecialSeries(item.name) || !canShowDetail
-                                ? '#63656e'
-                                : '#3a84ff'
-                              : '#ccc',
-                          }}
-                          class='metric-name'
+                          class={[
+                            'metric-name',
+                            item.show ? 'is-show' : '',
+                            item.show && !this.isSpecialSeries(item.name) && canShowDetail ? 'can-show-detail' : '',
+                          ]}
                           v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
                           onClick={() => canShowDetail && this.onShowDetail(item.name)}
                         >

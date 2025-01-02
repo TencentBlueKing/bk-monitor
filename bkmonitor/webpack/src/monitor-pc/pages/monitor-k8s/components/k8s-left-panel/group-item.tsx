@@ -28,8 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
-
 import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
@@ -47,6 +45,7 @@ interface GroupItemProps {
   expandLoading?: Record<string, boolean>;
   loadMoreLoading?: Record<string, boolean>;
   activeMetric?: string;
+  keyword?: string;
 }
 
 interface GroupItemEvent {
@@ -75,6 +74,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: () => ({}) }) expandLoading: Record<string, boolean>;
   @Prop({ default: () => ({}) }) loadMoreLoading: Record<string, boolean>;
   @Prop({ default: '' }) activeMetric: string;
+  @Prop({ default: '' }) keyword: string;
 
   /** 展开的组  */
   expand = {};
@@ -178,11 +178,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   renderGroupContent(item: GroupListItem) {
-    if (!item.children?.length) return this.$slots.empty || <EmptyStatus type='empty' />;
+    if (!item.children?.length) return;
     return [
       item.children.map((child, ind) => {
         const isSelectSearch = this.value.includes(child.id);
-        const isHidden = this.hiddenList.includes(child.id);
+        const isHidden = this.hiddenList.includes(child.id) || child.disabled;
         if (child.children) {
           return (
             <div class='child-item'>
@@ -203,20 +203,36 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             </div>
           );
         }
+
+        const keywordPick = this.keyword ? child.name.indexOf(this.keyword) : -1;
         return (
           <div
             key={`${child.id}-${ind}`}
             class={{
               'group-content-item': true,
               active: this.activeMetric === child.id,
+              disabled: child.disabled,
             }}
-            onClick={() => this.handleItemClick(child.id)}
+            v-bk-tooltips={{
+              content: child.tooltips,
+              disabled: !child.disabled && child.tooltips,
+              placements: ['left'],
+            }}
+            onClick={() => !child.disabled && this.handleItemClick(child.id)}
           >
             <span
               class='content-name'
               v-bk-overflow-tips
             >
-              {child.name}
+              {keywordPick > -1 ? (
+                <span>
+                  <span>{child.name.slice(0, keywordPick)}</span>
+                  <span class='pick-name'>{this.keyword}</span>
+                  <span>{child.name.slice(keywordPick + this.keyword.length)}</span>
+                </span>
+              ) : (
+                child.name
+              )}
             </span>
             <div
               class='tools'
@@ -225,7 +241,9 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               {this.tools.includes('search') && (
                 <i
                   class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
-                  v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
+                  v-bk-tooltips={{
+                    content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项'),
+                  }}
                   onClick={() => this.handleSearch(child.id, !isSelectSearch)}
                 />
               )}
@@ -239,8 +257,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               {this.tools.includes('view') && (
                 <i
                   class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
-                  v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
-                  onClick={() => this.handleHiddenChange(child.id)}
+                  v-bk-tooltips={{
+                    content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标'),
+                    disabled: child.disabled,
+                  }}
+                  onClick={() => !child.disabled && this.handleHiddenChange(child.id)}
                 />
               )}
             </div>
