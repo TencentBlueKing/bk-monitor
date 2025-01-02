@@ -159,7 +159,7 @@ class GetDashboardDetail(Resource):
     def perform_request(self, params):
         org_id = get_or_create_org(params["bk_biz_id"])["id"]
 
-        dashboard = Dashboard.objects.filter(org_id=org_id, uid=params["uid"], is_folder=0).first()
+        dashboard = Dashboard.objects.filter(org_id=org_id, uid=params["dashboard_uid"], is_folder=0).first()
         if not dashboard:
             return None
 
