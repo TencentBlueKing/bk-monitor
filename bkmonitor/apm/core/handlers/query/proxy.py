@@ -226,3 +226,13 @@ class QueryProxy:
         for trace_info in trace_infos:
             trace_id__info_map[trace_info["trace_id"]] = trace_info
         return trace_id__info_map, total
+
+
+class EbpfQueryProxy(QueryProxy):
+    def __init__(self, bk_biz_id: int, app_name: str):
+        self.bk_biz_id = bk_biz_id
+        self.app_name = app_name
+
+    def get_profile(self, service_name: str, start: int, end: int, data_type: str):
+        # 可以在此处增加通过判断 app_name 或其他属性来决定查询可拓展的其他数据源
+        return DeepFlowQuery.get_profile(self.bk_biz_id, self.app_name, service_name, start, data_type, end)

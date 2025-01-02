@@ -24,12 +24,14 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
+from apm.core.handlers.query.proxy import EbpfQueryProxy
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
     BUILTIN_APP_NAME,
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
+    EBPF_PROFILING_APP_PREFIX,
     EXPORT_FORMAT_MAP,
     LARGE_SERVICE_MAX_QUERY_SIZE,
     NORMAL_SERVICE_MAX_QUERY_SIZE,
@@ -38,6 +40,7 @@ from apm_web.profile.constants import (
     CallGraphResponseDataMode,
 )
 from apm_web.profile.diagrams import get_diagrammer
+from apm_web.profile.diagrams.ebpf_converter import EbpfConverter
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.doris.querier import APIParams, APIType, ConverterType, Query
@@ -165,6 +168,31 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
     @staticmethod
+    def ebpf_query(
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        start: int,
+        end: int,
+        sample_type: str,
+        converter: Optional[ConverterType] = None,
+    ) -> TreeConverter:
+        """
+        获取 ebpf profile 数据
+        """
+        query_proxy = EbpfQueryProxy(app_name=app_name, bk_biz_id=bk_biz_id)
+        # 通过 EbpfQueryProxy 获取 ebpf profile 数据
+        profile_data = query_proxy.get_profile(
+            service_name=service_name,
+            start=start,
+            data_type=sample_type,
+            end=end,
+        )
+        ebpf_converter = EbpfConverter()
+        ebpf_converter.convert(raw=profile_data, data_type=sample_type)
+        return ebpf_converter
+
+    @staticmethod
     def query(
         bk_biz_id: int,
         app_name: str,
@@ -274,7 +302,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @classmethod
     def get_essentials(cls, validated_data: dict) -> dict:
         """获取 app_name,service_name,bk_biz_id,result_table_id"""
-
+        is_ebpf = False
+        result_table_id = ""
         # storing data in 2 ways:
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
@@ -285,17 +314,23 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
         else:
-            bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
+            if validated_data["app_name"].startswith(EBPF_PROFILING_APP_PREFIX):
+                # 如果以 app_name 以 ebpf- 开头，则认为是 ebpf 采集数据 请求参数伪装成 application 格式 并在返回 essential 时增加标识位
+                app_name = validated_data["app_name"][len(EBPF_PROFILING_APP_PREFIX) :]
+                is_ebpf = True
+            bk_biz_id = validated_data["bk_biz_id"]
             service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-            application_info = cls._examine_application(bk_biz_id, app_name)
-            result_table_id = application_info["profiling_config"]["result_table_id"]
+            if not is_ebpf:
+                application_info = cls._examine_application(bk_biz_id, app_name)
+                result_table_id = application_info["profiling_config"]["result_table_id"]
 
         return {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "service_name": service_name,
             "result_table_id": result_table_id,
+            "is_ebpf": is_ebpf,
         }
 
     @classmethod
@@ -306,7 +341,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         essentials = cls.get_essentials(data)
         # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if cls.is_large_service(
+        if not essentials["is_ebpf"] and cls.is_large_service(
             essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
         ):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
@@ -335,20 +370,29 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             del validate_data["filter_labels"]["end"]
         else:
             start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
-
-        return cls.query(
-            bk_biz_id=essentials["bk_biz_id"],
-            app_name=essentials["app_name"],
-            service_name=essentials["service_name"],
-            start=start_time,
-            end=end_time,
-            profile_id=validate_data.get("profile_id"),
-            filter_labels=validate_data.get("filter_labels"),
-            result_table_id=essentials["result_table_id"],
-            sample_type=validate_data["data_type"],
-            converter=ConverterType.Tree,
-            extra_params=extra_params,
-        )
+        if essentials["is_ebpf"]:
+            return cls.ebpf_query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                sample_type=validate_data["data_type"],
+            )
+        else:
+            return cls.query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                profile_id=validate_data.get("profile_id"),
+                filter_labels=validate_data.get("filter_labels"),
+                result_table_id=essentials["result_table_id"],
+                sample_type=validate_data["data_type"],
+                converter=ConverterType.Tree,
+                extra_params=extra_params,
+            )
 
     @classmethod
     def get_converter_options(cls, validate_data):
@@ -396,9 +440,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 if validate_data.get("is_compared"):
                     return Response(data=compare_tendency_result)
                 return Response(data=tendency_result)
-
         tree_converter = self.converter_query(essentials, validate_data, extra_params)
-
         if validate_data["global_query"] and not tree_converter:
             # 如果是全局搜索并且无返回结果 说明文件上传可能发生了异常
             # 文件查询时，如果搜索不到数，将会用文件上传记录的异常信息进行提示
@@ -445,7 +487,6 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             data = {k: v for diagram_dict in diff_diagram_dicts for k, v in diagram_dict.items()}
             data.update(tree_converter.get_sample_type())
             return Response(data=data)
-
         return Response(data=self.converter_to_data(validate_data, tree_converter))
 
     @classmethod
