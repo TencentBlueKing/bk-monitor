@@ -211,14 +211,25 @@ class TsDependPreparationProcess(BasePreparationProcess):
         item: Item = strategy.items[0]
 
         depend_data_by_dimensions = {}
+        is_structure = "agg_dimension" in item.query_configs[0]
         for item_record in strategy_records:
-            try:
-                dimensions_key = tuple(item_record[dim] for dim in item.query_configs[0]["agg_dimension"])
-            except KeyError:
-                # 如果缺少维度，则认为数据无效，跳过
-                continue
+            if is_structure:
+                try:
+                    dimensions_key = tuple(item_record[dim] for dim in item.query_configs[0]["agg_dimension"])
+                except KeyError:
+                    # 如果缺少维度，则认为数据无效，跳过
+                    continue
+            else:
+                dimensions_key = tuple(
+                    item_record[dim] for dim in item_record.keys() if dim not in ["_result_", "_time_"]
+                )
             if dimensions_key not in depend_data_by_dimensions:
-                dimensions = {dim: item_record[dim] for dim in item.query_configs[0]["agg_dimension"]}
+                if is_structure:
+                    dimensions = {dim: item_record[dim] for dim in item.query_configs[0]["agg_dimension"]}
+                else:
+                    dimensions = {
+                        dim: item_record[dim] for dim in item_record.keys() if dim not in ["_result_", "_time_"]
+                    }
                 depend_data_by_dimensions[dimensions_key] = {
                     "dimensions": dimensions,
                     "data": [],
@@ -249,6 +260,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
                 processed_dimensions.add(dimensions_key)
 
-            tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
+            if len(init_data) > 0:
+                tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
 
         as_completed(tasks)

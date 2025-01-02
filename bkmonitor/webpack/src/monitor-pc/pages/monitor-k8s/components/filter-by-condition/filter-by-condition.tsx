@@ -98,6 +98,7 @@ export default class FilterByCondition extends tsc<IProps> {
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
+
   handleValueOptionsScrollThrottle = _v => {};
 
   @Watch('commonParams', { deep: true, immediate: true })
@@ -131,6 +132,10 @@ export default class FilterByCondition extends tsc<IProps> {
     return !ids.every(id => tags.has(id));
   }
 
+  get isSelectedWorkload() {
+    return this.groupSelected === EDimensionKey.workload;
+  }
+
   mounted() {
     this.handleValueOptionsScrollThrottle = throttle(500, this.handleValueOptionsScroll);
     this.overflowCountRenderDebounce = debounce(300, this.overflowCountRender);
@@ -140,6 +145,10 @@ export default class FilterByCondition extends tsc<IProps> {
       }
     });
     this.resizeObserver.observe(this.$el);
+  }
+
+  destroyed() {
+    this.resizeObserver.disconnect();
   }
 
   @Watch('filterBy', { immediate: true, deep: true })
@@ -237,9 +246,11 @@ export default class FilterByCondition extends tsc<IProps> {
           };
           for (const cc of child.children) {
             if (!tempSet.has(cc.id)) {
+              const regex = new RegExp(`^${child.name}:`);
+              const name = cc.name.replace(regex, '');
               objChild.children.push({
                 id: cc.id,
-                name: cc.name,
+                name: name,
               });
             }
             tempSet.add(cc.id);
@@ -480,7 +491,8 @@ export default class FilterByCondition extends tsc<IProps> {
             name: groupItem.name,
             values: curSelected.map(item => ({
               id: item.id,
-              name: item.name,
+              // name: item.name,
+              name: item.id,
             })),
           });
         } else {
@@ -488,7 +500,8 @@ export default class FilterByCondition extends tsc<IProps> {
             if (tag.id === this.groupSelected) {
               const values = curSelected.map(item => ({
                 id: item.id,
-                name: item.name,
+                // name: item.name,
+                name: item.id,
               }));
               values.unshift(
                 ...otherIds.map(id => ({
@@ -706,7 +719,7 @@ export default class FilterByCondition extends tsc<IProps> {
     return (
       <div
         ref='valueItems'
-        class='value-items'
+        class={['value-items', { 'value-items--workload': this.isSelectedWorkload }]}
         onScroll={this.handleValueOptionsScrollThrottle}
       >
         {this.valueOptions.length ? (
@@ -718,13 +731,15 @@ export default class FilterByCondition extends tsc<IProps> {
             >
               <span
                 class='value-item-name'
-                v-bk-overflow-tips
+                v-bk-overflow-tips={{ content: item.id }}
               >
                 {item.name}
               </span>
-              <span class='value-item-checked'>
-                {item.checked && <span class='icon-monitor icon-mc-check-small' />}
-              </span>
+              {!this.isSelectedWorkload && (
+                <span class='value-item-checked'>
+                  {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+                </span>
+              )}
             </div>
           ))
         ) : (
@@ -807,7 +822,7 @@ export default class FilterByCondition extends tsc<IProps> {
           class='filter-by-condition-tag type-count'
           onClick={() => this.handleExpand()}
         >
-          <span class='count-text'>{this.overflowCount}</span>
+          <span class='count-text'>{`+${this.overflowCount}`}</span>
           <span class='icon-monitor icon-arrow-down' />
         </span>
       ) : this.hasAdd ? (

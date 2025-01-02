@@ -201,6 +201,14 @@ class K8sResourceMeta(object):
         """按cpu排序的资源查询promql"""
         return self.meta_prom
 
+    @property
+    def meta_prom_with_container_cpu_usage_seconds_total(self):
+        return self.meta_prom_with_cpu
+
+    @property
+    def meta_prom_with_container_memory_rss(self):
+        return self.meta_prom_with_mem
+
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
 

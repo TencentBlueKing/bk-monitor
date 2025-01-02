@@ -41,6 +41,7 @@ import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
+  type K8sTableColumnChartKey,
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
@@ -61,17 +62,17 @@ import './monitor-k8s-new.scss';
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
-    label: '列表',
+    label: window.i18n.t('K8s对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
   {
-    label: '图表',
+    label: window.i18n.t('指标视图'),
     id: K8sNewTabEnum.CHART,
     icon: 'icon-mc-two-column',
   },
   {
-    label: '数据明细',
+    label: window.i18n.t('K8s集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-mingxi',
   },
@@ -126,12 +127,33 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   dimensionTotal: Record<string, number> = {};
 
   cacheTimeRange = [];
+
+  resizeObserver = null;
+  headerHeight = 102;
+
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
 
   get groupFilters() {
     return this.groupInstance.groupFilters;
+  }
+
+  /** 最终的指标列表 */
+  get resultMetricList(): IK8SMetricItem[] {
+    /** 最后一级维度 */
+    const lastDimension = this.groupInstance.getResourceType();
+    return this.metricList.map(metrics => {
+      metrics.children = metrics.children.map(metric => {
+        const disabled = (metric.unsupported_resource || []).includes(lastDimension);
+        return {
+          ...metric,
+          disabled,
+          tooltips: disabled ? this.$t('该指标在当前级别({0})不可用', [lastDimension]) : '',
+        };
+      });
+      return metrics;
+    });
   }
 
   /** 当前场景下的维度列表 */
@@ -233,7 +255,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     } else {
       this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
     }
-    // this.filterBy = { ...this.filterBy };
   }
 
   created() {
@@ -243,6 +264,21 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
+  }
+
+  mounted() {
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const height = entry?.contentRect?.height || 50;
+        this.headerHeight = 52 + height;
+      }
+    });
+    const el = this.$el.querySelector('.____monitor-k8s-new-header');
+    this.resizeObserver.observe(el);
+  }
+
+  destroyed() {
+    this.resizeObserver.disconnect();
   }
 
   /** 初始化filterBy结构 */
@@ -399,6 +435,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.setGroupFilters(groupId, { single: true });
   }
 
+  /**
+   * @description 表格 sort 排序事件后回调，将排序信息存入路由
+   */
+  handleTableSortChange(sort: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) {
+    if (!sort) {
+      return;
+    }
+    this.setRouteParams({ tableSort: sort });
+  }
+
   handleTableClearSearch() {
     this.initFilterBy();
   }
@@ -440,8 +486,9 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(otherQuery = {}) {
     const query = {
+      ...this.$route.query,
       sceneId: 'kubernetes',
       from: this.timeRange[0],
       to: this.timeRange[1],
@@ -451,6 +498,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       cluster: this.cluster,
       scene: this.scene,
       activeTab: this.activeTab,
+      ...otherQuery,
     };
 
     const targetRoute = this.$router.resolve({
@@ -488,6 +536,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             hideMetrics={this.hideMetrics}
             metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
+            onSortChange={this.handleTableSortChange}
           />
         );
     }
@@ -527,7 +576,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             )}
           </K8sNavBar>
         </div>
-        <div class='monitor-k8s-new-header'>
+        <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
           {this.clusterLoading ? (
             <div class='skeleton-element cluster-skeleton' />
           ) : (
@@ -569,7 +618,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           </div>
         </div>
 
-        <div class='monitor-k8s-new-content'>
+        <div
+          style={{
+            height: `calc(100% - ${this.headerHeight}px)`,
+          }}
+          class='monitor-k8s-new-content'
+        >
           <div class='content-left'>
             <K8sLeftPanel>
               <K8sDimensionList
@@ -586,7 +640,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 activeMetric={this.activeMetricId}
                 hideMetrics={this.hideMetrics}
                 loading={this.metricLoading}
-                metricList={this.metricList}
+                metricList={this.resultMetricList}
                 onHandleItemClick={this.handleMetricItemClick}
                 onMetricHiddenChange={this.metricHiddenChange}
               />

@@ -97,6 +97,25 @@ class ScenarioMetricList(Resource):
         return get_metrics(validated_request_data["scenario"])
 
 
+class GetScenarioMetric(Resource):
+    """
+    获取场景下指标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
+        metric_id = serializers.CharField(required=True, label="指标id")
+
+    def perform_request(self, validated_request_data):
+        metric_list = get_metrics(validated_request_data["scenario"])
+        metric_id = validated_request_data["metric_id"]
+        for category in metric_list:
+            for metric in category["children"]:
+                if metric["id"] == metric_id:
+                    return metric
+        return {}
+
+
 class MetricGraphQueryConfig(Resource):
     """
     获取指标图表查询配置
@@ -341,9 +360,9 @@ class ListK8SResources(Resource):
 class ResourceTrendResource(Resource):
     """资源趋势缩略图"""
 
-    unit_choice = {
-        "cpu": "short",
-        "mem": "bytes",
+    metric_transfer_map = {
+        "cpu": "container_cpu_usage_seconds_total",
+        "mem": "container_memory_rss",
     }
 
     class RequestSerializer(FilterDictSerializer):
@@ -374,14 +393,16 @@ class ResourceTrendResource(Resource):
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
-        unit = self.unit_choice.get(column, "short")
+        metric_id = self.metric_transfer_map.get(column, column)
+        metric = resource.k8s.get_scenario_metric(metric_id=metric_id, scenario="performance")
+        unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
             promql_list = []
             for wl in resource_list:
                 filter_obj = load_resource_filter(resource_type, [wl])
                 resource_meta.filter.add(filter_obj)
-                promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
+                promql_list.append(getattr(resource_meta, f"meta_prom_with_{metric_id}"))
                 resource_meta.filter.remove(filter_obj)
                 workload_name = wl.split(":")[-1]
                 # 初始化series_map
@@ -398,7 +419,7 @@ class ResourceTrendResource(Resource):
 
         for line in series:
             resource_name = resource_meta.get_resource_name(line)
-            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit}
+            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit, "value_title": metric["name"]}
 
         return [{"resource_name": name, column: info} for name, info in series_map.items()]
 
@@ -423,3 +444,36 @@ class ResourceTrendResource(Resource):
             "down_sample_range": "",
         }
         return resource.grafana.graph_unify_query(query_params)["series"]
+
+
+class ResourceDataView(Resource):
+    """
+    资源数据视图
+    """
+
+    class RequestSerializer(FilterDictSerializer):
+        bcs_cluster_id = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        column = serializers.ChoiceField(
+            required=True,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+            ],
+        )
+        resource_type = serializers.ChoiceField(
+            required=True,
+            choices=["pod", "workload", "namespace", "container"],
+            label="资源类型",
+        )
+        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "last", "count"])
+        resource_list = serializers.ListField(required=True, label="资源列表")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
+
+    def perform_request(self, validated_request_data):
+        pass

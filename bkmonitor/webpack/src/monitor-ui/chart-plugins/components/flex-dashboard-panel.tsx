@@ -178,13 +178,18 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             updatePanelsGridpos(item.panels);
           }
         } else {
+          const commonLegendOptions = {
+            displayMode: this.column === 1 ? 'table' : 'list',
+            placement: this.column === 1 ? 'right' : 'bottom',
+          };
           item.options = {
             ...item.options,
-            legend: {
-              displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom',
-              ...item.options?.legend,
-            },
+            legend: ['k8s_custom_graph'].includes(item.type)
+              ? {
+                  ...commonLegendOptions,
+                  ...item.options?.legend,
+                }
+              : commonLegendOptions,
           } as any;
         }
       });
