@@ -138,6 +138,23 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return this.groupInstance.groupFilters;
   }
 
+  /** 最终的指标列表 */
+  get resultMetricList(): IK8SMetricItem[] {
+    /** 最后一级维度 */
+    const lastDimension = this.groupInstance.getResourceType();
+    return this.metricList.map(metrics => {
+      metrics.children = metrics.children.map(metric => {
+        const disabled = (metric.unsupported_resource || []).includes(lastDimension);
+        return {
+          ...metric,
+          disabled,
+          tooltips: disabled ? this.$t('该指标在当前级别({0})不可用', [lastDimension]) : '',
+        };
+      });
+      return metrics;
+    });
+  }
+
   /** 当前场景下的维度列表 */
   get sceneDimensionList() {
     return sceneDimensionMap[this.scene] || [];
@@ -237,7 +254,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     } else {
       this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
     }
-    // this.filterBy = { ...this.filterBy };
   }
 
   created() {
@@ -610,7 +626,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 activeMetric={this.activeMetricId}
                 hideMetrics={this.hideMetrics}
                 loading={this.metricLoading}
-                metricList={this.metricList}
+                metricList={this.resultMetricList}
                 onHandleItemClick={this.handleMetricItemClick}
                 onMetricHiddenChange={this.metricHiddenChange}
               />

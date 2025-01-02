@@ -28,8 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
-
 import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
@@ -180,11 +178,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   renderGroupContent(item: GroupListItem) {
-    if (!item.children?.length) return this.$slots.empty || <EmptyStatus type='empty' />;
+    if (!item.children?.length) return;
     return [
       item.children.map((child, ind) => {
         const isSelectSearch = this.value.includes(child.id);
-        const isHidden = this.hiddenList.includes(child.id);
+        const isHidden = this.hiddenList.includes(child.id) || child.disabled;
         if (child.children) {
           return (
             <div class='child-item'>
@@ -213,8 +211,14 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             class={{
               'group-content-item': true,
               active: this.activeMetric === child.id,
+              disabled: child.disabled,
             }}
-            onClick={() => this.handleItemClick(child.id)}
+            v-bk-tooltips={{
+              content: child.tooltips,
+              disabled: !child.disabled && child.tooltips,
+              placements: ['left'],
+            }}
+            onClick={() => !child.disabled && this.handleItemClick(child.id)}
           >
             <span
               class='content-name'
@@ -237,7 +241,9 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               {this.tools.includes('search') && (
                 <i
                   class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
-                  v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
+                  v-bk-tooltips={{
+                    content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项'),
+                  }}
                   onClick={() => this.handleSearch(child.id, !isSelectSearch)}
                 />
               )}
@@ -251,8 +257,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               {this.tools.includes('view') && (
                 <i
                   class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
-                  v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
-                  onClick={() => this.handleHiddenChange(child.id)}
+                  v-bk-tooltips={{
+                    content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标'),
+                    disabled: child.disabled,
+                  }}
+                  onClick={() => !child.disabled && this.handleHiddenChange(child.id)}
                 />
               )}
             </div>

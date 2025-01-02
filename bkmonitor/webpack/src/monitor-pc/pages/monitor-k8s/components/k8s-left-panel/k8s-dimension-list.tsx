@@ -78,6 +78,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     };
   }
 
+  /** 各维度总数据 */
   get dimensionTotal() {
     return this.showDimensionList.reduce((pre, cur) => {
       pre[cur.id] = cur.count;
@@ -229,6 +230,43 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     return dimension;
   }
 
+  renderContent() {
+    if (this.loading) return [this.renderGroupSkeleton(), this.renderGroupSkeleton()];
+
+    const total = Object.keys(this.dimensionTotal).reduce((pre, cur) => {
+      return pre + this.dimensionTotal[cur];
+    }, 0);
+
+    if (total === 0)
+      return (
+        <EmptyStatus
+          type={this.searchValue ? 'search-empty' : 'empty'}
+          onOperation={this.handleEmptyOperation}
+        />
+      );
+
+    return this.showDimensionList.map((group, index) => (
+      <GroupItem
+        key={group.id}
+        defaultExpand={this.groupItemDefaultExpandIndexSet.has(index)}
+        drillDownList={this.drillDownList}
+        expandLoading={this.expandLoading}
+        isGroupBy={this.groupBy.includes(group.id)}
+        keyword={this.searchValue}
+        list={group}
+        loadMoreLoading={this.loadMoreLoading}
+        tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
+        value={this.filterBy[group.id]}
+        onClear={() => this.handleClear(group.id)}
+        onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
+        onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
+        onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
+        onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
+        onHandleSearch={val => this.handleGroupSearch(val, group.id)}
+      />
+    ));
+  }
+
   render() {
     return (
       <div class='k8s-dimension-list'>
@@ -246,36 +284,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
           on-right-icon-click={this.handleSearch}
         />
 
-        <div class='object-group'>
-          {this.loading
-            ? [this.renderGroupSkeleton(), this.renderGroupSkeleton()]
-            : this.showDimensionList.map((group, index) => (
-                <GroupItem
-                  key={group.id}
-                  defaultExpand={this.groupItemDefaultExpandIndexSet.has(index)}
-                  drillDownList={this.drillDownList}
-                  expandLoading={this.expandLoading}
-                  isGroupBy={this.groupBy.includes(group.id)}
-                  keyword={this.searchValue}
-                  list={group}
-                  loadMoreLoading={this.loadMoreLoading}
-                  tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
-                  value={this.filterBy[group.id]}
-                  onClear={() => this.handleClear(group.id)}
-                  onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
-                  onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
-                  onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
-                  onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
-                  onHandleSearch={val => this.handleGroupSearch(val, group.id)}
-                >
-                  <EmptyStatus
-                    slot='empty'
-                    type={this.searchValue ? 'search-empty' : 'empty'}
-                    onOperation={this.handleEmptyOperation}
-                  />
-                </GroupItem>
-              ))}
-        </div>
+        <div class='object-group'>{this.renderContent()}</div>
       </div>
     );
   }
