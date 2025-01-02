@@ -1029,8 +1029,8 @@ class TestK8sListResources(TestCase):
         # 验证promql 生成
         self.assertEqual(
             meta.meta_prom,
-            "sum by (bk_biz_id,bcs_cluster_id,namespace) "
-            '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"})',
+            "sum by (namespace) "
+            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
         )
 
         # 验证基于promql 获取 namespace对象
@@ -1092,6 +1092,7 @@ class TestK8sListResources(TestCase):
                 meta.get_from_promql(
                     validated_request_data["start_time"],
                     validated_request_data["end_time"],
+                    order_by="-container_cpu_usage_seconds_total",
                 ),
                 promql_resource,
             )
@@ -1147,9 +1148,9 @@ class TestK8sListResources(TestCase):
             self.assertEqual(
                 meta.meta_prom,
                 (
-                    "sum by (bk_biz_id,bcs_cluster_id,namespace) "
-                    '(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
-                    'bk_biz_id="2",namespace=~"(blue)"})'
+                    "sum by (namespace) "
+                    '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
+                    'bk_biz_id="2",namespace=~"(blue)"}[1m]))'
                 ),
             )
             # 第一个namespace: blueking 命中 检索

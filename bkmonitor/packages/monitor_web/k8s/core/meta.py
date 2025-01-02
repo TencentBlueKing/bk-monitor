@@ -135,7 +135,8 @@ class K8sResourceMeta(object):
         """
         return self.filter.filter_queryset
 
-    def parse_query_type(self, start_time, end_time, method):
+    @classmethod
+    def parse_query_type(cls, start_time, end_time, method):
         if method == "last":
             interval = get_interval_number(start_time, end_time, interval=60)
             query_type = "instant"
@@ -219,6 +220,10 @@ class K8sResourceMeta(object):
         """按cpu使用量排序的资源查询promql"""
         return ""
 
+    @property
+    def agg_method(self):
+        return "sum" if self.method == "last" else self.method
+
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
 
@@ -232,7 +237,7 @@ class K8sPodMeta(K8sResourceMeta):
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
         return (
-            "sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
@@ -240,7 +245,7 @@ class K8sPodMeta(K8sResourceMeta):
     def meta_prom_with_container_memory_rss(self):
         """按内存排序的资源查询promql"""
         return (
-            "sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
 
@@ -313,12 +318,15 @@ class K8sNamespaceMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
-        return f"sum by (namespace) (rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
+        return (
+            f"{self.agg_method} by (namespace) "
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
+        )
 
     @property
     def meta_prom_with_container_memory_rss(self):
         """按内存排序的资源查询promql"""
-        return f"sum by (namespace) (container_memory_rss{{{self.filter.filter_string()}}})"
+        return f"{self.agg_method} by (namespace) (container_memory_rss{{{self.filter.filter_string()}}})"
 
     @classmethod
     def distinct(cls, objs):
@@ -346,7 +354,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
         return (
-            "sum by (workload_kind, workload_name, namespace) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace) "
             f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
@@ -354,7 +362,8 @@ class K8sWorkloadMeta(K8sResourceMeta):
     def meta_prom_with_container_memory_rss(self):
         """按内存排序的资源查询promql"""
         return (
-            f"sum by (workload_kind, workload_name, namespace) (container_memory_rss{{{self.filter.filter_string()}}})"
+            f"{self.agg_method} by (workload_kind, workload_name, namespace) "
+            f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
 
 
@@ -377,7 +386,7 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
         return (
-            f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, container_name, pod_name) "
             f"(rate(container_cpu_system_seconds_total{{{self.get_filter_string()}}}[1m]))"
         )
 
@@ -385,7 +394,7 @@ class K8sContainerMeta(K8sResourceMeta):
     def meta_prom_with_container_memory_rss(self):
         """按内存排序的资源查询promql"""
         return (
-            "sum by (workload_kind, workload_name, namespace, container_name, pod_name)"
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, container_name, pod_name)"
             f" (container_memory_rss{{{self.get_filter_string()}}})"
         )
 

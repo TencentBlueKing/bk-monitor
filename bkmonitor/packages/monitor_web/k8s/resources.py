@@ -255,7 +255,7 @@ class ListK8SResources(Resource):
             required=False, choices=["max", "avg", "min", "sum", "last", "count"], default="max"
         )
         column = serializers.ChoiceField(
-            required=True,
+            required=False,
             choices=[
                 'container_cpu_usage_seconds_total',
                 'kube_pod_cpu_requests_ratio',
@@ -265,6 +265,7 @@ class ListK8SResources(Resource):
                 'kube_pod_memory_limits_ratio',
                 'container_cpu_cfs_throttled_ratio',
             ],
+            default="container_cpu_usage_seconds_total",
         )
 
     def perform_request(self, validated_request_data):
@@ -306,7 +307,8 @@ class ListK8SResources(Resource):
         column = validated_request_data["column"]
         if order_by:
             page_count = validated_request_data["page"] * validated_request_data["page_size"]
-            order_by = "-{}".format(column) if order_by == "desc" else column
+
+        order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
             validated_request_data["start_time"],
@@ -443,7 +445,7 @@ class ResourceTrendResource(Resource):
             # 初始化series_map
             for resource_id in resource_list:
                 series_map[resource_id] = {"datapoints": [], "unit": unit}
-        query_type, interval = resource_meta.parse_query_type(start_time, end_time, agg_method)
+        query_type, interval = K8sResourceMeta.parse_query_type(start_time, end_time, agg_method)
         query_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
