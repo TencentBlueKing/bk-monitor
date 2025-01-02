@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .k8s-custom-graph {
   display: flex;
   flex: 1;
@@ -33,7 +34,7 @@
       flex-grow: 2;
 
       &.is-table-legend {
-        width: 50%;
+        min-width: 50%;
         max-width: calc(100% - 320px);
       }
     }
@@ -47,13 +48,20 @@
       overflow: auto;
 
       &.right-legend {
-        width: 50%;
+        width: auto;
         min-width: 320px;
         max-width: 50%;
         max-height: 100%;
 
         .table-legend {
           width: auto;
+          table-layout: auto;
+
+          & > colgroup {
+            & > col {
+              width: auto !important;
+            }
+          }
         }
       }
     }
