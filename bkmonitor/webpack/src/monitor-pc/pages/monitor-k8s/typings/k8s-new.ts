@@ -120,7 +120,6 @@ export interface IK8SMetricItem {
   count?: number;
   unit?: string;
   children: IK8SMetricItem[];
-  disabled?: boolean;
   unsupported_resource?: string[];
 }
 

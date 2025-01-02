@@ -624,23 +624,9 @@ class K8SCustomChart extends CommonSimpleChart {
         },
       };
     });
-
-    const bottomLegend = [];
-    const legendSorts = [];
-
-    for (const item of this.legendSorts) {
-      if (item.name === 'limit') {
-        bottomLegend[0] = item;
-      } else if (item.name === 'request') {
-        bottomLegend[1] = item;
-      } else {
-        legendSorts.push(item);
-      }
-    }
-    this.legendSorts = [
-      ...legendSorts.sort((a, b) => timeToDayNum(a.timeShift) - timeToDayNum(b.timeShift)),
-      ...bottomLegend,
-    ];
+    this.legendSorts.sort((a, b) => {
+      return timeToDayNum(a.timeShift) - timeToDayNum(b.timeShift);
+    });
     const result = [];
     for (const item of this.legendSorts) {
       const lItem = legendData.find(l => l.name === item.name);

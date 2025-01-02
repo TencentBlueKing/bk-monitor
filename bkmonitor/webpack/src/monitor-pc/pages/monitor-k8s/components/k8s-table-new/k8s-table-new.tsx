@@ -608,7 +608,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             )
           ),
         },
-        { signal: controller.signal }
+        { signal: controller.signal, needMessage: false }
       )
         .then(tableAsyncData => {
           this.renderTableBatchByBatch(
