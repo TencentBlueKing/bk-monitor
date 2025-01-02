@@ -56,12 +56,16 @@ export default class TableLegend extends CommonLegend {
     }
     if (this.sort === 0 || !title) {
       // 默认按avg排序
-      const sortId = 'avgSource';
-      this.list = this.legendData.slice().sort((a, b) => {
-        const aVal = a[sortId] || 0;
-        const bVal = b[sortId] || 0;
-        return +bVal - +aVal;
-      });
+      if (!title && !sort) {
+        const sortId = 'avgSource';
+        this.list = this.legendData.slice().sort((a, b) => {
+          const aVal = a[sortId] || 0;
+          const bVal = b[sortId] || 0;
+          return +bVal - +aVal;
+        });
+        this.sortTitle = 'Avg';
+        this.sort = 2;
+      }
       return;
     }
     const sortId = `${title.toLocaleLowerCase()}Source`;
