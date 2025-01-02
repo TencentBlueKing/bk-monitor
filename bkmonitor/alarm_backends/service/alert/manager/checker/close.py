@@ -14,7 +14,7 @@ import logging
 import time
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.alert import Alert
@@ -38,6 +38,18 @@ from constants.alert import EventStatus, EventTargetType
 from constants.data_source import DataTypeLabel
 
 logger = logging.getLogger("alert.manager")
+
+
+def get_agg_condition_md5(agg_condition):
+    # 查询条件变更判定，仅关注核心影响数据查询的条件字段
+    key_list = ["key", "value", "method", "condition"]
+    target_condition = []
+    for agg in agg_condition:
+        target_condition.append({key: agg[key] for key in key_list if key in agg})
+    if target_condition:
+        # 第一个条件的condition， 默认都是AND， 因此直接去掉，不参与变更判定
+        target_condition[0].pop("condition", None)
+    return count_md5(target_condition)
 
 
 class CloseStatusChecker(BaseChecker):
@@ -160,9 +172,11 @@ class CloseStatusChecker(BaseChecker):
         else:
             # 如果是无数据告警，还需要判断 agg_condition 是否发生了改变，一旦改变了就关闭
             for origin_query, latest_query in zip(origin_item["query_configs"], latest_item["query_configs"]):
-                latest_condition = origin_query.get("agg_condition", [])
-                origin_condition = latest_query.get("agg_condition", [])
-                if count_md5(latest_condition) != count_md5(origin_condition):
+                origin_condition = origin_query.get("agg_condition", [])
+                latest_condition = latest_query.get("agg_condition", [])
+                origin_condition_md5 = get_agg_condition_md5(origin_condition)
+                latest_condition_md5 = get_agg_condition_md5(latest_condition)
+                if origin_condition_md5 != latest_condition_md5:
                     logger.info(
                         "[close 处理结果] (closed) alert({}), strategy({}), "
                         "策略过滤条件已被修改，告警关闭".format(
@@ -247,7 +261,9 @@ class CloseStatusChecker(BaseChecker):
         window_unit = Strategy.get_check_window_unit(latest_item, self.DEFAULT_CHECK_WINDOW_UNIT)
 
         # TODO：智能异常检测，目前只支持单指标
-        if query_configs[0].get("intelligent_detect", {}):
+        if query_configs[0].get("intelligent_detect", {}) and not query_configs[0]["intelligent_detect"].get(
+            "use_sdk", False
+        ):
             # 智能异常检测在计算平台会经过几层dataflow，会有一定的周期延时，所以这里需要再加上这个延时窗口
             trigger_window_size = trigger_window_size + settings.BK_DATA_INTELLIGENT_DETECT_DELAY_WINDOW
 

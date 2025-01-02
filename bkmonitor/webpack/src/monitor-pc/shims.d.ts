@@ -118,6 +118,7 @@ declare global {
     bk_bcs_url: string;
     __BK_WEWEB_DATA__: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
+    rawWindow: Window;
     token?: string;
     enable_create_chat_group: boolean;
     __bk_zIndex_manager: {
@@ -139,11 +140,15 @@ declare global {
     csrf_token: string;
     enable_ai_assistant?: boolean;
     graph_watermark?: boolean;
+    k8s_v2_biz_list?: number[]; // 开启 k8s v2 版本的业务列表
     // 以下为日志全局变量配置
     mainComponent: any;
     AJAX_URL_PREFIX: string;
     BK_DOC_URL?: string;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+  }
+  interface HTMLElement {
+    ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

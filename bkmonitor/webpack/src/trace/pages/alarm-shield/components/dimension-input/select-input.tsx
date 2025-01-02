@@ -26,9 +26,10 @@
 import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { Input, Loading, Popover, Radio, bkTooltips } from 'bkui-vue';
+import { Input, Loading, OverflowTitle, Popover, Radio, bkTooltips } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
+
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 
 import type { IDimensionItem } from '../../typing';
@@ -536,12 +537,12 @@ export default defineComponent({
                                   key={item.id}
                                   label={item.id}
                                 >
-                                  <span
-                                    class='radio-label'
-                                    v-overflowText={{ text: item.name, placement: 'right' }}
+                                  <OverflowTitle
+                                    placement='right'
+                                    type='tips'
                                   >
-                                    {item.name}
-                                  </span>
+                                    <span class='radio-label'>{item.name}</span>
+                                  </OverflowTitle>
                                 </Radio>
                               ))}
                             </Radio.Group>
@@ -590,7 +591,7 @@ export default defineComponent({
                                 scene='part'
                                 type={!!this.selectData.optionsSearch ? 'search-empty' : 'empty'}
                                 onOperation={this.handleNoDataOperation}
-                              ></EmptyStatus>
+                              />
                             </div>
                           )}
                         </div>

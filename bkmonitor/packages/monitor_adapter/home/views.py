@@ -25,7 +25,7 @@ from django.test import RequestFactory
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -166,7 +166,7 @@ def external(request):
     response = render(
         request,
         "external/index.html",
-        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": biz_id_list},
+        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": list(biz_id_list)},
     )
     response.set_cookie("bk_biz_id", str(cc_biz_id))
     return response

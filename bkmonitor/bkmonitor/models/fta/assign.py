@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.model_manager import AbstractRecordModel

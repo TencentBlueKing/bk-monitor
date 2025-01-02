@@ -437,7 +437,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   handleScrollToIndex(item: IIndexListItem) {
     document.querySelector('.dashboard-panel .scroll-in')?.classList.remove('scroll-in');
     if (!item) return;
-    const dom = document.getElementById(`${item.id}__key__`);
+    const dom = document.getElementById(`${CSS.escape(item.id)}__key__`);
     if (!dom) return;
     dom.scrollIntoView?.();
     dom.classList.add('scroll-in');
@@ -649,7 +649,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
         <div />
         <div
           style={{
-            height: `${this.indexListHeight - 40}px`,
+            height: this.isOnlyShowIndex ? `${this.indexListHeight - 80}px` : `${this.indexListHeight - 40}px`,
           }}
           class='index-tree-main'
         >

@@ -25,7 +25,7 @@
  */
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
-import { filterDictConvertedToWhere } from '../utils/utils';
+import { filterDictConvertedToWhere, getMetricId } from '../utils/utils';
 
 import type { MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
@@ -122,6 +122,13 @@ export interface ITargetListOption {
     show_overview?: boolean;
     show_status_bar?: boolean;
     placeholder?: string;
+    time_range_change_refresh?: boolean; // 时间范围变化是否刷新列表数据
+    status_tab_list?: {
+      id: string;
+      name: string;
+      status: string;
+      tips: string;
+    }[];
   };
 }
 export interface ITableChartOption {
@@ -509,6 +516,7 @@ export class PanelModel implements IPanelModel {
   dimensions: string[];
   // 是否正在drag中
   draging = false;
+  externalData: Record<string, any>; // 一些额外自定义数据 用于图表
   extra_panels?: PanelModel[];
   // 图表位置
   gridPos!: IGridPos;
@@ -522,8 +530,8 @@ export class PanelModel implements IPanelModel {
   matchDisplay?: Record<string, any>;
   // 图表配置
   options?: PanelOption;
-  panels?: PanelModel[];
 
+  panels?: PanelModel[];
   // 是否显示百分比
   percent?: boolean;
   rawTargetQueryMap = new WeakMap<Record<string, any>>();
@@ -581,9 +589,14 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart', 'apm-custom-graph'].includes(
-      this.type
-    );
+    return [
+      'graph',
+      'performance-chart',
+      'caller-line-chart',
+      'apm-timeseries-chart',
+      'apm-custom-graph',
+      'k8s_custom_graph',
+    ].includes(this.type);
   }
   setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
     this.rawTargetQueryMap.set(target, data);
@@ -597,7 +610,11 @@ export class PanelModel implements IPanelModel {
             alias: set.alias || '',
             expression: set.expression || 'A',
             ...config,
-            query_configs: filterDictConvertedToWhere(config.query_configs),
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
           };
         }
         return undefined;
@@ -619,7 +636,11 @@ export class PanelModel implements IPanelModel {
           return {
             data: {
               ...config,
-              query_configs: filterDictConvertedToWhere(config.query_configs),
+              query_configs: [
+                filterDictConvertedToWhere(
+                  Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+                ),
+              ],
             },
           };
         }
@@ -629,6 +650,55 @@ export class PanelModel implements IPanelModel {
     if (!targets.length) return undefined;
     return targets;
   }
+  public toRelateEvent() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    const metricIdMap = {};
+    const promqlSet = new Set<string>();
+    for (const target of queries) {
+      if (target?.query_configs?.length) {
+        for (const item of target.query_configs) {
+          if (item.promql) {
+            promqlSet.add(JSON.stringify(item.promql));
+          } else {
+            const metricId = getMetricId(
+              item.data_source_label,
+              item.data_type_label,
+              item.metrics?.[0]?.field,
+              item.table,
+              item.index_set_id
+            );
+            if (metricId) {
+              metricIdMap[metricId] = 'true';
+            }
+          }
+        }
+      }
+    }
+    let queryString = '';
+    for (const metricId of Object.keys(metricIdMap)) {
+      queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
+    }
+    let promqlString = '';
+    for (const promql of promqlSet) {
+      promqlString = `promql=${promql}`;
+    }
+    return promqlString || `queryString=${queryString}`;
+  }
   public toStrategy() {
     const queries = this.targets
       .map(set => {
@@ -636,7 +706,11 @@ export class PanelModel implements IPanelModel {
           const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
           return {
             expression: set.expression || 'A',
-            query_configs: filterDictConvertedToWhere(config.query_configs),
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
           };
         }
         return undefined;

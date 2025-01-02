@@ -509,7 +509,9 @@ class DataSource(metaclass=ABCMeta):
 
         q = DataQueryHandler(cls.data_source_label, cls.data_type_label)
         if where:
-            q = q.where(dict_to_q(where))
+            where_node = dict_to_q(where)
+            if where_node:
+                q = q.where(where_node)
 
         if time_filter:
             q = q.where(**time_filter)
@@ -609,6 +611,9 @@ class InfluxdbDimensionFetcher(object):
             "table_id": conditions_param["table_id"],
             "info_type": "tag_values",
         }
+        # 修复 management 场景下获取维度候选值无权限的问题，同时仅对显示传入的 case 进行处理。
+        if "space_uid" in kwargs:
+            query_data["space_uid"] = kwargs["space_uid"]
 
         if conditions_param["field_name"]:
             query_data["metric_name"] = conditions_param["field_name"]
@@ -877,8 +882,11 @@ class TimeSeriesDataSource(DataSource):
             if operator in ["include", "exclude"]:
                 value = [re.escape(v) for v in value]
             conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator})
+        for con in conditions["field_list"]:
+            if None in con["value"]:
+                con["value"].remove(None)
+                con["value"].append("")
 
-        # 聚合方法参数
         query_list = []
         for metric in self.metrics:
             if self.data_source_label == DataSourceLabel.BK_DATA:
@@ -1157,6 +1165,9 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
     def switch_unify_query(self, bk_biz_id):
         def _check(bk_biz_id):
             # __init__ 之前的会有该判定被调用， 此时属性还未被赋值
+            # 0. web服务统一走unify-query
+            if settings.ROLE == "web":
+                return True
             # 1. 如果使用了查询函数，会走统一查询模块
             if getattr(self, "functions", []):
                 return True
@@ -1271,6 +1282,7 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
         if not isinstance(dimension_field, list):
             dimension_field = [dimension_field]
         dimension_field = [dmf if dmf.startswith("`") else f"`{dmf}`" for dmf in dimension_field]
+        self.rollback_query()
         return super().query_dimensions(
             dimension_field=dimension_field,
             start_time=start_time,

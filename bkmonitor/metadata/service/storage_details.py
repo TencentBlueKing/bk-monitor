@@ -144,7 +144,8 @@ class ResultTableAndDataSource:
             "updater": ds.last_modify_user,
             "cluster_id": cluster_id,
             "is_enable": ds.is_enable,
-            "create_time": ds.create_time,
+            "create_time": ds.create_time.timestamp(),
+            "created_from": ds.created_from,
         }
 
     def get_table_id(self, table_id: str) -> Dict:

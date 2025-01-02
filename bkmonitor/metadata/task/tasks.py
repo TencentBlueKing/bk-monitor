@@ -19,7 +19,8 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
@@ -229,6 +230,93 @@ def manage_es_storage(es_storages, cluster_id: int = None):
     logger.info("manage_es_storage:manage_es_storage cost time: %s", cost_time)
 
 
+@app.task(ignore_result=True, queue="celery_long_task_cron")
+def clean_disable_es_storage(es_storages, cluster_id: int = None):
+    """
+    停用采集项管理异步任务
+    @param es_storages: 待处理采集项
+    @param cluster_id: 集群ID
+    @return:
+    """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="clean_disable_es_storage", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    logger.info("clean_disable_es_storage: start to clean_disable_es_storage for cluster_id->[%s]", cluster_id)
+    start_time = time.time()
+
+    for es_storage in es_storages:
+        logger.info(
+            "clean_disable_es_storage:cluster_id->[%s],table_id->[%s],start to clean index",
+            cluster_id,
+            es_storage.table_id,
+        )
+        try:
+            _clean_disable_es_storage(es_storage)
+            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
+            logger.info(
+                "clean_disable_es_storage:cluster_id->[%s],table_id->[%s],clean index finished",
+                cluster_id,
+                es_storage.table_id,
+            )
+        except Exception as e:
+            logger.error(
+                "clean_disable_es_storage:cluster_id->[%s],table_id->[%s],clean index failed, error->[%s]",
+                cluster_id,
+                es_storage.table_id,
+                e,
+            )
+            continue
+
+    cost_time = time.time() - start_time
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="clean_disable_es_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="clean_disable_es_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("clean_disable_es_storage:clean_disable_es_storage cost time: %s", cost_time)
+
+
+def _clean_disable_es_storage(es_storage):
+    """
+    停用采集项管理异步子任务
+    @param es_storage: 待处理采集项
+    """
+    logger.info("_clean_disable_es_storage: start to _clean_disable_es_storage,table_id->[%s]", es_storage.table_id)
+    start_time = time.time()
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_clean_disable_es_storage", status=TASK_STARTED, process_target=es_storage.table_id
+    ).inc()
+    try:
+        es_storage.clean_index_v2()
+        logger.info("_clean_disable_es_storage: table_id->[%s], clean index success", es_storage.table_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "_clean_disable_es_storage: table_id->[%s], clean index failed, error->[%s]", es_storage.table_id, e
+        )
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="_clean_disable_es_storage", status=TASK_FINISHED_SUCCESS, process_target=es_storage.table_id
+    ).inc()
+
+    cost_time = time.time() - start_time
+
+    # 统计耗时，并上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="_clean_disable_es_storage", process_target=es_storage.table_id
+    ).observe(cost_time)
+    metrics.report_all()
+
+
 def _manage_es_storage(es_storage):
     """
     NOTE: 针对结果表校验使用的es集群状态，不要统一校验
@@ -283,16 +371,31 @@ def _manage_es_storage(es_storage):
         # 创建快照
         logger.info("manage_es_storage:table_id->[%s] try to create snapshot", es_storage.table_id)
         es_storage.create_snapshot()
+
         # 清理过期的index
         logger.info("manage_es_storage:table_id->[%s] try to clean index", es_storage.table_id)
         es_storage.clean_index_v2()
+
+        # 清理历史ES集群中的过期Index
+        logger.info("manage_es_storage:table_id->[%s] try to clean index in old es cluster", es_storage.table_id)
+        es_storage.clean_history_es_index()
+
         # 清理过期快照
         logger.info("manage_es_storage:table_id->[%s] try to clean snapshot", es_storage.table_id)
         es_storage.clean_snapshot()
+
         # 重新分配索引数据
         logger.info("manage_es_storage:table_id->[%s] try to reallocate index", es_storage.table_id)
         es_storage.reallocate_index()
+
         logger.info("manage_es_storage:es_storage->[{}] cron task success".format(es_storage.table_id))
+    except RetryError as e:
+        logger.error(
+            "manage_es_storage:es_storage index lifecycle failed,table_id->{},error->{}".format(
+                es_storage.table_id, e.__cause__
+            )
+        )
+        logger.exception(e)
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
         logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
@@ -390,8 +493,10 @@ def _access_bkdata_vm(
     if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
+        logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
+        logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
@@ -421,9 +526,22 @@ def access_bkdata_vm(
             bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
-    except Exception as e:
+    except RetryError as e:
         logger.error(
-            "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e.__cause__,
+        )
+        return
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "access_bkdata_vm: bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s",
+            bk_biz_id,
+            table_id,
+            data_id,
+            e,
         )
         return
 

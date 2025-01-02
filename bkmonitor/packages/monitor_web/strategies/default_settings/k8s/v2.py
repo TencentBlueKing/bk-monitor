@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
@@ -523,7 +523,7 @@ DEFAULT_K8S_STRATEGIES = [
                         "alias": "b",
                         "data_source_label": "bk_monitor",
                         "data_type_label": "time_series",
-                        "functions": [{"id": "topk", "params": [{"id": "k", "value": 1}]}],
+                        "functions": [],
                         "metric_field": "kube_pod_owner",
                         "metric_id": "bk_monitor..kube_pod_owner",
                         "name": "kube_pod_owner",

@@ -232,6 +232,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        commonFilters,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -270,6 +271,7 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         ...searchParams,
+        commonFilters,
       };
     },
     isNewRetrieveRoute: () => {
@@ -280,9 +282,15 @@ const store = new Vuex.Store({
     getApiError: state => apiName => {
       return state.apiErrorInfo[apiName];
     },
+    resultTableStaticWidth: state => {
+      return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
+    },
   },
   // 公共 mutations
   mutations: {
+    updateCommonFilter(state, param) {
+      state.indexItem.commonFilters = param;
+    },
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -303,6 +311,15 @@ const store = new Vuex.Store({
       state.favoriteList = [];
       state.favoriteList.push(...(payload ?? []));
     },
+    updateChartParams(state, params) {
+      Object.keys(params).forEach(key => {
+        if (Array.isArray(state.indexItem.chart_params[key])) {
+          state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
+        } else {
+          set(state.indexItem.chart_params, key, params[key]);
+        }
+      });
+    },
     updateIndexItem(state, payload) {
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
@@ -318,7 +335,9 @@ const store = new Vuex.Store({
     },
 
     updateIndexSetOperatorConfig(state, payload) {
-      Object.assign(state.indexSetOperatorConfig, payload ?? {});
+      Object.keys(payload ?? {}).forEach(key => {
+        set(state.indexSetOperatorConfig, key, payload[key]);
+      });
     },
 
     /**
@@ -340,6 +359,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
+      state.indexItem.chart_params = deepClone(IndexItem.chart_params);
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -588,10 +608,12 @@ const store = new Vuex.Store({
       state.externalMenu = val;
     },
     updateVisibleFields(state, val) {
-      state.visibleFields = val;
+      state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
+      state.indexFieldInfo.request_counter++;
     },
-    updateVisibleFieldMinWidth(state, fields) {
-      setDefaultTableWidth(state.visibleFields, fields);
+    updateVisibleFieldMinWidth(state, tableList, fieldList) {
+      const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
+      setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
     },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
@@ -706,11 +728,15 @@ const store = new Vuex.Store({
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
-        state.isSetDefaultTableColumn = setDefaultTableWidth(
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58;
+        setDefaultTableWidth(
           state.visibleFields,
-          state.indexSetQueryResult.list,
+          payload?.list ?? state.indexSetQueryResult.list,
           catchFieldsWidthObj,
+          staticWidth + 60,
         );
+        // request_counter 用于触发查询结果表格的更新
+        state.indexFieldInfo.request_counter++;
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
@@ -731,6 +757,7 @@ const store = new Vuex.Store({
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+
       if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
@@ -899,7 +926,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit, state }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list = [] }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -949,22 +976,36 @@ const store = new Vuex.Store({
       if (ids.length) {
         delete result.unionList;
         delete result.clusterParams;
-
         const payload = {
           ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
+          chart_params: deepClone(IndexItem.chart_params),
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-
+        if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
+          if (payload.items[0].query_string) {
+            payload.keyword = payload.items[0].query_string;
+            payload.search_mode = 'sql';
+            payload.addition = [];
+          } else if (payload.items[0].addition) {
+            payload.addition = payload.items[0].addition;
+            payload.search_mode = 'ui';
+            payload.keyword = '';
+          }
+        }
+        // if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
+        //   payload.keyword = payload.items[0].query_string;
+        //   payload.search_mode = 'sql';
+        // }
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
     },
 
     /** 请求字段config信息 */
-    requestIndexSetFieldInfo({ commit, dispatch, state }) {
+    requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
 
@@ -972,6 +1013,7 @@ const store = new Vuex.Store({
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
       commit('updateIndexSetFieldConfig', {});
+      commit('updateVisibleFields', []);
 
       if (!ids.length) {
         return;
@@ -1004,17 +1046,13 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
-          // commit('updateAddition');
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
           commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
-
-          // 请求字段联想相关配置
-          dispatch('requestIndexSetValueList');
-
+          commit('updateIsSetDefaultTableColumn');
           return res;
         })
         .catch(err => {
@@ -1026,6 +1064,47 @@ const store = new Vuex.Store({
         });
     },
 
+    /** 请求获取用户个人配置信息 */
+    requestIndexSetCustomConfigInfo({ commit, state }) {
+      // @ts-ignore
+      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
+      if (!ids.length) {
+        return;
+      }
+      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      !isUnionIndex && commit('deleteApiError', urlStr);
+      const queryData = {
+        start_time,
+        end_time,
+        is_realtime: 'True',
+      };
+      if (isUnionIndex) {
+        Object.assign(queryData, {
+          index_set_ids: ids,
+        });
+      }
+      return http
+        .request(
+          urlStr,
+          {
+            params: { index_set_id: ids[0] },
+            query: !isUnionIndex ? queryData : undefined,
+            data: isUnionIndex ? queryData : undefined,
+          },
+          isUnionIndex ? {} : { catchIsShowMessage: false },
+        )
+        .then(res => {
+          commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
+          return res;
+        })
+        .catch(() => {
+          commit('retrieve/updateCatchFieldCustomConfig', {
+            ...state.retrieve.catchFieldCustomConfig,
+            filterSetting: {},
+          });
+        })
+        .finally();
+    },
     /**
      * 执行查询
      */
@@ -1078,27 +1157,19 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      // const addition = otherPrams.addition.map(a => {
-      //   if (['is true', 'is false'].includes(a.operator)) {
-      //     a.value = [''];
-      //   }
-
-      //   return a;
-      // });
-
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
         ...otherPrams,
         start_time,
         end_time,
-        // addition,
+        addition: [...otherPrams.addition, ...otherPrams.commonFilters],
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload.isPagination
-          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+          ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,
       }));
@@ -1144,22 +1215,27 @@ const store = new Vuex.Store({
               rsolvedData.origin_log_list = payload.isPagination
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
                 : originLogList;
+
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
               state.tookTime = payload.isPagination
                 ? state.tookTime + Number(data?.took || 0)
                 : Number(data?.took || 0);
+
+              if (!payload?.isPagination) {
+                commit('updateIsSetDefaultTableColumn', { list: logList });
+                dispatch('requestSearchTotal');
+              }
               // 更新页数
               commit('updateSqlQueryFieldList', logList);
               commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
-              commit('updateIsSetDefaultTableColumn');
 
-              if (!payload?.isPagination) dispatch('requestSearchTotal');
               return {
                 data,
                 message,
                 code,
                 result,
+                length: logList.length,
               };
             });
           }
@@ -1204,6 +1280,8 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfigList', {
             data: resp.data ?? [],
           });
+
+          return resp;
         })
         .finally(() => {
           commit('updateIndexSetFieldConfigList', {
@@ -1221,7 +1299,6 @@ const store = new Vuex.Store({
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
-      commit('updateIsSetDefaultTableColumn', false);
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);
@@ -1239,11 +1316,17 @@ const store = new Vuex.Store({
         set(state.indexFieldInfo, 'aggs_items', {});
       }
 
+      if (!!payload.force) {
+        (payload?.fields ?? []).forEach(field => {
+          set(state.indexFieldInfo.aggs_items, field.field_name, []);
+        });
+      }
+
       const isDefaultQuery = !(payload?.fields?.length ?? false);
       const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
       const filterFn = field =>
-        !state.indexFieldInfo.aggs_items[field.field_name] &&
+        !state.indexFieldInfo.aggs_items[field.field_name]?.length &&
         field.es_doc_values &&
         filterBuildIn(field) &&
         ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
@@ -1260,8 +1343,10 @@ const store = new Vuex.Store({
       const queryData = {
         keyword: '*',
         fields,
+        addition: payload?.addition ?? [],
         start_time: formatDate(start_time * 1000),
         end_time: formatDate(end_time * 1000),
+        size: payload?.size ?? 100,
       };
 
       if (state.indexItem.isUnionIndex) {
@@ -1490,6 +1575,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
+              addition: [...getters.retrieveParams.addition, ...getters.retrieveParams.commonFilters],
             },
           },
           {
@@ -1548,6 +1634,7 @@ const store = new Vuex.Store({
             const userConfig = {
               fieldsWidth: res.data.index_set_config.fieldsWidth,
               displayFields: res.data.index_set_config.displayFields,
+              filterSetting: res.data.index_set_config.filterSetting,
             };
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }

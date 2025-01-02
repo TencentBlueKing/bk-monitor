@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 import six
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.country import CHINESE_PROVINCE_MAP, COUNTRY_MAP, ISP_MAP
 
@@ -149,6 +149,7 @@ class Business(TopoNode):
         :param str or unicode bk_biz_name: 业务名称
         :param str time_zone: 时区
         """
+        kwargs.pop("bk_obj_id", "")
         super(Business, self).__init__(
             bk_obj_id="biz", bk_obj_name="business", bk_inst_id=bk_biz_id, bk_inst_name=bk_biz_name, **kwargs
         )

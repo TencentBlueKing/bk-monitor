@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Ref } from 'vue-property-decorator';
+import { Component, Prop, Emit, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { From } from 'bk-magic-vue';
@@ -91,6 +91,16 @@ export default class QuickOpenCluster extends tsc<IProps> {
   @Emit('cluster-created')
   handleCreateCluster() {
     return true;
+  }
+
+  @Watch('formData.clustering_fields')
+  handleClusteringFields(fieldName) {
+    if (this.formData.filter_rules.length) {
+      this.formData.filter_rules.forEach(rule => {
+        const targetField = this.totalFields.find(f => f.field_name === fieldName);
+        Object.assign(rule, { ...targetField, fields_name: targetField.field_name });
+      });
+    }
   }
 
   handleAccessCluster() {
@@ -193,7 +203,16 @@ export default class QuickOpenCluster extends tsc<IProps> {
   handleOpenDialog(v: boolean) {
     if (v) {
       this.cloneFormData = deepClone(this.formData);
-      this.formData.clustering_fields = this.clusterField[0]?.id || '';
+      if (this.clusterField[0]?.id) {
+        this.formData.clustering_fields = this.clusterField[0]?.id || '';
+        const targetField = this.totalFields.find(f => f.field_name === this.clusterField[0]?.id);
+        this.formData.filter_rules.push({
+          ...targetField,
+          op: 'LIKE',
+          value: ['%ERROR%'],
+          fields_name: targetField.field_name,
+        });
+      }
     } else {
       this.formData = this.cloneFormData;
     }

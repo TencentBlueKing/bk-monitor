@@ -204,4 +204,11 @@ export default {
   补齐: 'Make up for',
   新建模板: 'Create template',
   索引集配置: 'Index set configuration',
+  中止: 'Abort',
+  同步查询条件到SQL: 'Sync Query Condition To SQL',
+  格式化: 'Format',
+  取消全屏: 'Exit Full Screen',
+  展示字段名: 'Show Field Name',
+  展示别名: 'Show Alias Name',
+  定位到当前行: 'Locate the current row',
 };

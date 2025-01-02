@@ -200,6 +200,7 @@ export default {
   新增消息通知渠道: 'Add Notification Channel',
   新增后会进行回填: 'Auto-Filling will be done',
   新建仪表盘: 'New Dashboard',
+  复制仪表盘: 'Copy Dashboard',
   新建目录: 'New Directory',
   新建拨测任务: 'New Probe Task',
   新建拨测节点: 'New Probe Node',
@@ -489,4 +490,7 @@ export default {
   任务终止: 'Task Termination',
   失败重试: 'Failure Retry',
   保存并接入服务: 'Save and Access Service',
+  K8s对象列表: 'K8s Object List',
+  指标视图: 'Metric View',
+  K8s集群数据详情: 'K8s Cluster Data Details',
 };

@@ -151,8 +151,8 @@ class TestDataSource:
         assert len(data) == 2
         assert (
             mock_get_ts_data.call_args[1]["sql"] == "SELECT AVG(pct_used) as pct_used FROM system.mem "
-            "WHERE time >= 0 AND time < 45000 AND (hostname = 'host1' OR hostname = 'host2') "
-            "GROUP BY bk_target_ip, bk_target_cloud_id, hostname, time(15s) "
+            "WHERE `time` >= 0 AND `time` < 45000 AND (`hostname` = 'host1' OR `hostname` = 'host2') "
+            "GROUP BY `bk_target_ip`, `bk_target_cloud_id`, `hostname`, time(15s) "
             "ORDER BY time desc LIMIT 100"
         )
 
@@ -163,8 +163,8 @@ class TestDataSource:
         assert len(data) == 2
         assert (
             mock_get_ts_data.call_args[1]["sql"] == "SELECT AVG(pct_used) as pct_used FROM system.mem "
-            "WHERE (hostname = 'host1' OR hostname = 'host2') "
-            "GROUP BY bk_target_ip, bk_target_cloud_id, hostname, time(15s) "
+            "WHERE (`hostname` = 'host1' OR `hostname` = 'host2') "
+            "GROUP BY `bk_target_ip`, `bk_target_cloud_id`, `hostname`, time(15s) "
             "ORDER BY time desc LIMIT " + str(settings.SQL_MAX_LIMIT)
         )
 
@@ -204,8 +204,8 @@ class TestDataSource:
         assert len(data) == 3
         assert (
             mock_get_ts_data.call_args[1]["sql"] == "SELECT AVG(pct_used) as pct_used FROM system.mem "
-            "WHERE (hostname =~ /host1/ OR hostname =~ /host2/) "
-            "GROUP BY bk_target_ip, bk_target_cloud_id, hostname, time(120s) "
+            "WHERE (`hostname` =~ /host1/ OR `hostname` =~ /host2/) "
+            "GROUP BY `bk_target_ip`, `bk_target_cloud_id`, `hostname`, time(120s) "
             "ORDER BY time desc LIMIT " + str(settings.SQL_MAX_LIMIT)
         )
 
@@ -242,9 +242,9 @@ class TestDataSource:
         assert len(data) == 1
         assert (
             mock_bk_data_query_data.call_args[1]["sql"]
-            == "SELECT AVG(`iUserNum`) as `iUserNum`, iWorldId, minute1, MAX(dtEventTimeStamp) as dtEventTimeStamp "
-            "FROM 123_monitor_oss_online_1491 WHERE (iWorldId != '61' AND iWorldId != '63') "
-            "GROUP BY iWorldId, minute1 ORDER BY dtEventTimeStamp desc LIMIT " + str(settings.SQL_MAX_LIMIT)
+            == "SELECT AVG(`iUserNum`) as `iUserNum`, `iWorldId`, `minute1`, MAX(dtEventTimeStamp) as dtEventTimeStamp "
+            "FROM 123_monitor_oss_online_1491 WHERE (`iWorldId` != '61' AND `iWorldId` != '63') "
+            "GROUP BY `iWorldId`, `minute1` ORDER BY dtEventTimeStamp desc LIMIT " + str(settings.SQL_MAX_LIMIT)
         )
 
         query_config = {
@@ -285,9 +285,9 @@ class TestDataSource:
         assert len(data) == 3
         assert (
             mock_bk_data_query_data.call_args[1]["sql"]
-            == "SELECT AVG(`iUserNum`) as `iUserNum`, iWorldId, minute2, MAX(dtEventTimeStamp) as dtEventTimeStamp "
-            "FROM 123_monitor_oss_online_1491 WHERE dtEventTimeStamp >= 120000 AND dtEventTimeStamp < 480000 "
-            "GROUP BY iWorldId, minute2 ORDER BY dtEventTimeStamp desc LIMIT 100"
+            == "SELECT AVG(`iUserNum`) as `iUserNum`, `iWorldId`, `minute2`, MAX(dtEventTimeStamp) as dtEventTimeStamp "
+            "FROM 123_monitor_oss_online_1491 WHERE `dtEventTimeStamp` >= 120000 AND `dtEventTimeStamp` < 480000 "
+            "GROUP BY `iWorldId`, `minute2` ORDER BY dtEventTimeStamp desc LIMIT 100"
         )
 
     def test_custom_time_series_query_data(self, mock_get_ts_data):
@@ -318,7 +318,7 @@ class TestDataSource:
         assert (
             mock_get_ts_data.call_args[1]["sql"]
             == "SELECT AVG(test1) as test1 FROM 2_bkmonitor_time_series_1500001.base "
-            "WHERE time >= 0 AND time < 45000 AND name = 'name1' "
+            "WHERE `time` >= 0 AND `time` < 45000 AND `name` = 'name1' "
             "GROUP BY time(15s) ORDER BY time desc LIMIT 100"
         )
 
@@ -354,8 +354,8 @@ class TestDataSource:
         assert len(data) == 3
         assert mock_get_ts_data.call_args[1]["sql"] == (
             "SELECT AVG(test1) as test1 FROM 2_bkmonitor_time_series_1500001.base "
-            "WHERE time >= 0 AND time < 540000 AND name =~ /^name\\d+$/ "
-            f"GROUP BY name, time(180s) ORDER BY time desc LIMIT {settings.SQL_MAX_LIMIT}"
+            "WHERE `time` >= 0 AND `time` < 540000 AND `name` =~ /^name\\d+$/ "
+            f"GROUP BY `name`, time(180s) ORDER BY time desc LIMIT {settings.SQL_MAX_LIMIT}"
         )
 
     def test_log_search_time_series_query_data(self, mock_es_query_search):

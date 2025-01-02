@@ -13,6 +13,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.sql import AND
 from django.utils import tree
 
+from bkmonitor.data_source.backends.time_series import escape_sql_field_name
 from bkmonitor.data_source.models.lookups import get_lookup_class
 
 
@@ -67,7 +68,7 @@ class WhereNode(tree.Node):
             field_name, lookup_name = lookup_splitted
         else:
             raise Exception("Unsupported query conditions(%s)" % str(filter_expr))
-
+        field_name = escape_sql_field_name(field_name)
         return get_lookup_class(lookup_name)(field_name, value)
 
     def clone(self):

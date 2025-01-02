@@ -31,8 +31,9 @@ from django.conf import settings
 from django.db import models
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic
+from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pytz import timezone
 from tenacity import (
     RetryError,
@@ -651,6 +652,63 @@ class StorageResultTable(object):
 
     def update_storage(self, **kwargs):
         """更新存储配置"""
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        space_client = SpaceTableIDRedis()
+
+        # 仅当 last_storage_cluster_id 和 new_storage_cluster_id 不一致时，更新存储集群记录。
+        if self.storage_type == ClusterInfo.TYPE_ES and kwargs.get("storage_cluster_id", '') != '':
+            try:
+                # 当集群发生迁移时，创建StorageClusterRecord记录
+                last_storage_cluster_id = self.storage_cluster_id
+                new_storage_cluster_id = kwargs.get("storage_cluster_id")
+
+                logger.info(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id to ->[%s].old_cluster->[%s]",
+                    self.table_id,
+                    new_storage_cluster_id,
+                    last_storage_cluster_id,
+                )
+
+                if last_storage_cluster_id != new_storage_cluster_id:
+                    # 更新上一次集群记录，更新停止写入时间
+                    record, _ = StorageClusterRecord.objects.update_or_create(
+                        table_id=self.table_id,
+                        cluster_id=last_storage_cluster_id,
+                        defaults={
+                            "is_current": False,
+                            "disable_time": django_timezone.now(),
+                        },
+                    )
+                    logger.info(
+                        "update_storage: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+                        self.table_id,
+                        record.cluster_id,
+                    )
+
+                    # 创建新纪录
+                    new_record, _ = StorageClusterRecord.objects.update_or_create(
+                        table_id=self.table_id,
+                        cluster_id=new_storage_cluster_id,
+                        enable_time=django_timezone.now(),
+                        defaults={
+                            "is_current": True,
+                        },
+                    )
+                    logger.info(
+                        "update_storage: table_id->[%s] update_or_create es_storage_record success,new_cluster->[%s]",
+                        self.table_id,
+                        new_record.cluster_id,
+                    )
+
+                # 刷新RESULT_TABLE_DETAIL路由
+                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
+                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
+                )
+
         # 遍历获取所有可以更新的字段，逐一更新
         for field_name in self.UPGRADE_FIELD_CONFIG:
             # 尝试获取配置
@@ -677,6 +735,7 @@ class StorageResultTable(object):
             )
 
         self.save()
+
         logger.info("table->[{}] storage->[{}] upgrade operation success.".format(self.table_id, self.STORAGE_TYPE))
 
         return True
@@ -1789,6 +1848,7 @@ class ESStorage(models.Model, StorageResultTable):
     index_set = models.TextField("索引集", blank=True, null=True)
     # 新增标记位，用于标识是否需要创建索引
     need_create_index = models.BooleanField("是否需要创建索引", default=True)
+    archive_index_days = models.IntegerField("索引归档天数", null=True, default=0)
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1959,6 +2019,20 @@ class ESStorage(models.Model, StorageResultTable):
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 
+        storage_record, tag = StorageClusterRecord.objects.update_or_create(
+            table_id=table_id,
+            cluster_id=cluster_id,
+            enable_time=django_timezone.now(),
+            defaults={
+                "is_current": True,
+            },
+        )
+        logger.info(
+            "create_table: table_id->[%s] update_or_create es_storage_record success,old_cluster->[%s]",
+            table_id,
+            storage_record.cluster_id,
+        )
+
         # 判断是否启用创建索引，默认是启用
         if enable_create_index:
             new_record.create_es_index(is_sync_db)
@@ -1967,6 +2041,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
+            logger.info("create_table: table_id->[%s] push detail start", table_id)
             SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
@@ -1978,7 +2053,7 @@ class ESStorage(models.Model, StorageResultTable):
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ResultTableField
+        from metadata.models import ESFieldQueryAliasOption, ResultTableField
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -1991,12 +2066,6 @@ class ESStorage(models.Model, StorageResultTable):
                 properties[field.field_name] = ResultTableFieldOption.get_field_option_es_format(
                     table_id=self.table_id, field_name=field.field_name
                 )
-                alias_settings = ResultTableFieldOption.get_field_es_read_alias(
-                    table_id=self.table_id, field_name=field.field_name
-                )
-
-                if alias_settings:  # 当别名配置不为空时，将别名添加至索引body中
-                    properties.update(alias_settings)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "index_body: error occurs for table_id->[%s],field->[%s],error->[%s]",
@@ -2004,6 +2073,18 @@ class ESStorage(models.Model, StorageResultTable):
                     field.field_name,
                     e,
                 )
+
+        try:
+            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
+            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
+            alias_path_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(self.table_id)
+            logger.info("index_body: table_id->[%s] got alias_path_config->[%s]", self.table_id, alias_path_config)
+            if alias_config and alias_path_config:
+                properties.update(alias_config)
+                properties.update(alias_path_config)
+        except Exception as e:
+            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
 
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
@@ -2016,21 +2097,15 @@ class ESStorage(models.Model, StorageResultTable):
         组装采集项的别名配置
         :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
         """
-        properties = {}
+        from metadata.models import ESFieldQueryAliasOption
+
         logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        for field in ResultTableField.objects.filter(table_id=self.table_id):
-            try:
-                properties.update(
-                    ResultTableFieldOption.get_field_es_read_alias(table_id=self.table_id, field_name=field.field_name)
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "compose_field_alias_settings: unexpected error occurs for table_id->[%s],field_name->[%s],"
-                    "error->[%s]",
-                    self.table_id,
-                    field.field_name,
-                    e,
-                )
+        properties = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        logger.info(
+            "compose_field_alias_settings: compose alias mapping for->[%s] success,alias_settings->[%s]",
+            self.table_id,
+            properties,
+        )
         return {"properties": properties}
 
     def put_field_alias_mapping_to_es(self):
@@ -2685,7 +2760,7 @@ class ESStorage(models.Model, StorageResultTable):
                     logger.error(
                         "create_or_update_aliases: table_id->[%s] try to add index binding failed," "error->[%s]",
                         self.table_id,
-                        e,
+                        e.__cause__ if isinstance(e, RetryError) else e,
                     )
                     continue
 
@@ -2829,7 +2904,10 @@ class ESStorage(models.Model, StorageResultTable):
 
         now_datetime_object = self.now
         logger.info(
-            "update_index_v2: table_id->[%s] start to update index,time->[%s]", self.table_id, now_datetime_object
+            "update_index_v2: table_id->[%s] start to update index,time->[%s],force_rotate->[%s]",
+            self.table_id,
+            now_datetime_object,
+            force_rotate,
         )
 
         # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
@@ -2875,59 +2953,10 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        # 5. 判断index是否需要分割，三个判断条件
-        # 如果是小于分割大小的，不必进行处理
-        should_create = False
-        # 5.1 如果index大小大于分割大小，需要创建新的index
-        if index_size_in_byte / 1024.0 / 1024.0 / 1024.0 > self.slice_size:
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], "
-                "create new index slice",
-                self.table_id,
-                last_index_name,
-                index_size_in_byte,
-                self.slice_size,
-            )
-            should_create = True
+        should_create = self._should_create_index(force_rotate=force_rotate)
+        logger.info("update_index_v2: table_id->[%s] should_create->[%s]", self.table_id, should_create)
 
-        # 5.2 mapping 不一样了，也需要创建新的index
-        if not self.is_mapping_same(last_index_name):
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] mapping is not the same, will create the new",
-                self.table_id,
-                last_index_name,
-            )
-            should_create = True
-
-        # 5.3 达到保存期限进行分裂
-        expired_time_point = self.now - datetime.timedelta(days=self.retention)
-        if current_index_info["datetime_object"] < expired_time_point:
-            logger.info(
-                "update_index_v2: table_id->[%s] index->[%s] has arrive retention date, will create the new",
-                self.table_id,
-                last_index_name,
-            )
-            should_create = True
-
-        # 5.4 暖数据等待天数大于0且当前索引未过期，需要创建新的index
-        # arrive warm_phase_days date to split index
-        # avoid index always not split, it not be allocate to cold node
-        if self.warm_phase_days > 0:
-            expired_time_point = self.now - datetime.timedelta(days=self.warm_phase_days)
-            if current_index_info["datetime_object"] < expired_time_point:
-                logger.info(
-                    "update_index_v2: table_id->[%s] index->[%s] has arrive warm_phase_days date, will create the new",
-                    self.table_id,
-                    last_index_name,
-                )
-                should_create = True
-
-        # 5.5 根据参数决定是否强制轮转
-        if force_rotate:
-            logger.info("update_index_v2:table_id->[%s],enable force rotate", self.table_id)
-            should_create = True
-
-        # 6. 若should_create为True，执行创建/更新 索引逻辑
+        # 5. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
                 "update_index_v2: table_id->[%s] index->[%s] everything is ok,nothing to do",
@@ -2940,7 +2969,7 @@ class ESStorage(models.Model, StorageResultTable):
             "update_index_v2: table_id->[%s] index->[%s] need to create new index", self.table_id, last_index_name
         )
         new_index = 0
-        # 7. 判断日期是否是当前日期
+        # 6. 判断日期是否是当前日期
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
@@ -2981,11 +3010,11 @@ class ESStorage(models.Model, StorageResultTable):
                     new_index,
                 )
 
-        # 8. 但凡涉及到index新增，都使用v2版本的格式
+        # 7. 但凡涉及到index新增，都使用v2版本的格式
         new_index_name = self.make_index_name(now_datetime_object, new_index, "v2")
         logger.info("update_index_v2: table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
-        # 9. 创建新的index,添加重试机制
+        # 8. 创建新的index,添加重试机制
         response = self._create_index_with_retry(new_index_name)
         logger.info(
             "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
@@ -2994,6 +3023,95 @@ class ESStorage(models.Model, StorageResultTable):
             response,
         )
         return True
+
+    def _should_create_index(self, force_rotate: bool = False):
+        """
+        是否需要创建新索引
+        :param force_rotate: 是否强制创建新索引
+        :return: True | False
+        """
+        try:
+            current_index_info = self.current_index_info()
+            last_index_name = self.make_index_name(
+                current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
+            )
+            index_size_in_byte = current_index_info["size"]
+
+            logger.info(
+                "_should_create_index:table_id->[%s],current index info:last_index->[%s],index_size_in_byte->[%s]",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+            )
+        except Exception as e:
+            logger.error(
+                "_should_create_index: table_id->[%s] get current index info failed, error->[%s]", self.table_id, e
+            )
+            return False
+
+        # 1.如果index大小大于分割大小，需要创建新的index
+        if index_size_in_byte / 1024.0 / 1024.0 / 1024.0 > self.slice_size:
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], "
+                "create new index slice",
+                self.table_id,
+                last_index_name,
+                index_size_in_byte,
+                self.slice_size,
+            )
+            return True
+
+        # 2. mapping 不一样了，也需要创建新的index
+        if not self.is_mapping_same(last_index_name):
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] mapping is not the same, will create the new",
+                self.table_id,
+                last_index_name,
+            )
+            return True
+
+        # 3. 达到保存期限进行分裂
+        expired_time_point = self.now - datetime.timedelta(days=self.retention)
+        if current_index_info["datetime_object"] < expired_time_point:
+            logger.info(
+                "_should_create_index: table_id->[%s] index->[%s] has arrive retention date, will create the new",
+                self.table_id,
+                last_index_name,
+            )
+            return True
+
+        # 4. 若配置了归档时间，且当前索引在归档日期之前，需要创建新的index
+        if self.archive_index_days > 0:
+            archive_time_point = self.now - datetime.timedelta(days=self.archive_index_days)
+            if current_index_info["datetime_object"] < archive_time_point:
+                logger.info(
+                    "_should_create_index: table_id->[%s] index->[%s] has arrive archive date, will create new "
+                    "index",
+                    self.table_id,
+                    last_index_name,
+                )
+                return True
+
+        # 5. 暖数据等待天数大于0且当前索引未过期，需要创建新的index
+        # arrive warm_phase_days date to split index
+        # avoid index always not split, it not be allocate to cold node
+        if self.warm_phase_days > 0:
+            expired_time_point = self.now - datetime.timedelta(days=self.warm_phase_days)
+            if current_index_info["datetime_object"] < expired_time_point:
+                logger.info(
+                    "_should_create_index: table_id->[%s] index->[%s] has arrive warm_phase_days date, will create "
+                    "the new",
+                    self.table_id,
+                    last_index_name,
+                )
+                return True
+
+        # 6. 根据参数决定是否强制轮转
+        if force_rotate:
+            logger.info("_should_create_index:table_id->[%s],enable force rotate", self.table_id)
+            return True
+
+        return False
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def _update_aliases_with_retry(self, actions, new_index_name, force_rotate: bool = False):
@@ -3012,10 +3130,16 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             is_ready = self.is_index_ready(new_index_name)
             logger.info(
-                "create_or_update_aliases: table_id->[%s] index->[%s] is ready, will create alias.",
+                "update_aliases_with_retry: table_id->[%s] index->[%s] is ready, will create alias.",
             )
-        except RetryError:  # 若重试后依然失败，则认为未就绪
+        except RetryError as e:  # 若重试后依然失败，则认为未就绪
             is_ready = True if force_rotate else False  # 若强制刷新，则认为就绪
+            logger.warning(
+                "update_aliases_with_retry:table_id->[%s],new_index->[%s] not ready,error->[%s]",
+                self.table_id,
+                new_index_name,
+                e.__cause__,
+            )
 
         if not is_ready:
             logger.info(
@@ -3170,6 +3294,12 @@ class ESStorage(models.Model, StorageResultTable):
         now_datetime_str = self.now.strftime(self.date_format)
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
+        logger.info(
+            "clean_index_v2: table_id->[%s] in es->[%s] got filter_result ->[%s]",
+            self.table_id,
+            self.storage_cluster_id,
+            filter_result,
+        )
 
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
@@ -3224,10 +3354,173 @@ class ESStorage(models.Model, StorageResultTable):
                     index_name,
                 )
                 continue
-            logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
+            logger.warning("clean_index_v2: table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
 
-        logger.info("table_id->[%s] is process done.", self.table_id)
+        logger.info("clean_index_v2: table_id->[%s] is process done.", self.table_id)
 
+        return True
+
+    def clean_history_es_index(self):
+        """
+        清理过期的写入别名及 index 的操作，支持对所有关联的集群进行清理。
+        如果某个集群内不再存在该采集项的数据，则将对应的 StorageClusterRecord 中的 is_deleted 设置为 True。
+        :return: bool | raise Exception
+        """
+        # 没有快照任务可以直接删除
+        if not self.can_delete():
+            logger.info("clean_history_es_index:table_id->[%s] clean index is not allowed, skip", self.table_id)
+            return False
+
+        logger.info("clean_history_es_index:table_id->[%s] start cleaning indices", self.table_id)
+
+        # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
+        storage_records = StorageClusterRecord.objects.filter(
+            table_id=self.table_id, is_deleted=False, is_current=False
+        )
+
+        # 遍历所有集群记录
+        for record in storage_records:
+            cluster_id = record.cluster_id  # 提取当前轮次处理的ES集群ID
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] start cleaning", self.table_id, cluster_id
+            )
+            # 初始化对应存储集群的 ES 客户端
+            try:
+                es_client = es_tools.get_client(cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_history_es_index:table_id->[%s] failed to get ES client for cluster_id->[%s]: %s",
+                    self.table_id,
+                    cluster_id,
+                    str(e),
+                )
+                continue
+
+            # 获取该集群的所有写入别名
+            try:
+                alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_history_es_index:table_id->[%s] failed to get aliases for cluster_id->[%s]: %s",
+                    self.table_id,
+                    cluster_id,
+                    str(e),
+                )
+                continue
+
+            # 当前日期字符串，用于判断是否是当前的索引
+            now_datetime_str = self.now.strftime(self.date_format)
+
+            # 分组索引中的过期和未过期别名
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] got filter_result ->[%s]",
+                self.table_id,
+                cluster_id,
+                filter_result,
+            )
+
+            # 跟踪是否集群中还存在该采集项相关的数据
+            has_active_indices = False
+
+            # 遍历所有索引进行处理
+            for index_name, alias_info in filter_result.items():
+                # 跳过回溯索引
+                if index_name.startswith(self.restore_index_prefix):
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s],is restore index, skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                    continue
+
+                # 跳过当前日期相关的索引
+                if now_datetime_str in index_name:
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s] "
+                        "contains now_datetime_str->[%s], skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        now_datetime_str,
+                    )
+                    has_active_indices = True
+                    continue
+
+                # 如果索引有未过期别名，保留索引，只清理过期别名
+                if alias_info["not_expired_alias"]:
+                    has_active_indices = True
+                    if alias_info["expired_alias"]:
+                        try:
+                            es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
+                            logger.info(
+                                "clean_history_es_index:table_id->[%s] expired aliases for index->[%s] "
+                                "in cluster_id->[%s] ,deleted: [%s]",
+                                self.table_id,
+                                index_name,
+                                cluster_id,
+                                alias_info["expired_alias"],
+                            )
+                        except Exception as e:  # pylint: disable=broad-except
+                            logger.warning(
+                                "clean_history_es_index:table_id->[%s] ,cluster_id->[%s],failed to delete expired "
+                                "aliases"
+                                "for index->[%s]: %s",
+                                self.table_id,
+                                cluster_id,
+                                index_name,
+                                str(e),
+                            )
+                    continue
+
+                logger.info(
+                    "clean_history_es_index: table_id->[%s] index->[%s] in cluster_id->[%s]has no alias to keep,"
+                    "deleting",
+                    self.table_id,
+                    index_name,
+                    record.cluster_id,
+                )
+                # 如果索引没有未过期的别名，直接删除索引
+                try:
+                    es_client.indices.delete(index=index_name)
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s],is deleted.",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "clean_history_es_index:table_id->[%s] failed to delete index->[%s]in cluster_id->[%s],"
+                        "error->%s",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        str(e),
+                    )
+                    continue
+
+            # 如果当前集群中没有任何属于该采集项的未过期索引，则更新 StorageClusterRecord 为 is_deleted=True
+            if not has_active_indices:
+                logger.info(
+                    "clean_history_es_index:table_id->[%s] no active indices found in cluster_id->[%s], marking as "
+                    "deleted",
+                    self.table_id,
+                    cluster_id,
+                )
+                record.is_deleted = True
+                record.save(update_fields=["is_deleted"])
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] cleaning process is complete.",
+                self.table_id,
+                cluster_id,
+            )
+
+        logger.info("clean_history_es_index:table_id->[%s] cleaning process is complete.", self.table_id)
         return True
 
     def is_mapping_same(self, index_name):
@@ -4452,3 +4745,69 @@ class ArgusStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         """增加一个新的字段"""
         pass
+
+
+class StorageClusterRecord(models.Model):
+    """
+    采集项历史存储记录表
+    """
+
+    table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
+    cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
+    is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
+    is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
+    creator = models.CharField(max_length=128, verbose_name="创建者")
+
+    # enable_time & disable_time 分别对应 数据 开始/停止 写入 时间
+    # create_time -> enable_time -> disable_time -> delete_time(完成索引清理)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    enable_time = models.DateTimeField(null=True, blank=True, verbose_name='启用时间')
+    disable_time = models.DateTimeField(null=True, blank=True, verbose_name="停用时间")
+
+    delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
+
+    class Meta:
+        unique_together = ('table_id', 'cluster_id', 'enable_time')  # 联合索引，保证唯一性
+
+    @classmethod
+    def compose_table_id_storage_cluster_records(cls, table_id):
+        """
+        组装指定结果表的历史存储集群记录
+        [
+            {
+                "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
+                "enable_time": 1111111111,  # Unix 时间戳
+            },
+        ]
+        """
+        logger.info(
+            "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s]", table_id
+        )
+        # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
+        records = (
+            cls.objects.filter(table_id=table_id, is_deleted=False)
+            .order_by('-create_time')
+            .values('cluster_id', 'is_current', 'enable_time')
+        )
+
+        result = []
+        for record in records:
+            # 将 datetime 转换为 Unix 时间戳
+            enable_timestamp = int(record['enable_time'].timestamp())
+
+            result.append(
+                {
+                    "storage_id": record['cluster_id'],
+                    "enable_time": enable_timestamp,
+                }
+            )
+
+        logger.info(
+            "compose_table_id_storage_cluster_records: get storage cluster records for table_id->[%s] success,"
+            "records->[%s]",
+            table_id,
+            result,
+        )
+
+        return result

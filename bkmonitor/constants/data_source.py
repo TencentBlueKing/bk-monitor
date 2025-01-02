@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 
 class LabelType(object):
@@ -22,12 +22,12 @@ class LabelType(object):
 class DataSourceLabel(object):
     BK_MONITOR_COLLECTOR = "bk_monitor"
     BK_DATA = "bk_data"
-    BKDATA = "bkdata"
     CUSTOM = "custom"
     BK_LOG_SEARCH = "bk_log_search"
     BK_FTA = "bk_fta"
     BK_APM = "bk_apm"
     PROMETHEUS = "prometheus"
+    DASHBOARD = "dashboard"
 
 
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)

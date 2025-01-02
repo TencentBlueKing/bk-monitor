@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import uuid
 from datetime import datetime, timedelta
 
 import arrow
@@ -118,3 +119,42 @@ class ReportApplyRecord(AbstractRecordModel):
         verbose_name = "订阅审批记录"
         verbose_name_plural = "订阅审批记录"
         db_table = "report_apply_record"
+
+
+class RenderImageTask(Model):
+    """
+    渲染图片任务
+    """
+
+    class Status:
+        PENDING = "pending"
+        RENDERING = "rendering"
+        SUCCESS = "success"
+        FAILED = "failed"
+
+    STATUS = (
+        (Status.PENDING, "待渲染"),
+        (Status.RENDERING, "渲染中"),
+        (Status.SUCCESS, "渲染成功"),
+        (Status.FAILED, "渲染失败"),
+    )
+
+    class Type:
+        DASHBOARD = "dashboard"
+
+    TYPE = ((Type.DASHBOARD, "仪表盘"),)
+
+    task_id = models.UUIDField(verbose_name="任务ID", default=uuid.uuid4, editable=False, db_index=True)
+    create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
+    finish_time = models.DateTimeField(verbose_name="完成时间", null=True)
+    image = models.ImageField(verbose_name="图片", null=True, upload_to="render/image/")
+    options = models.JSONField(verbose_name="图片渲染参数", default=dict)
+    type = models.CharField(verbose_name="类型", max_length=128, choices=TYPE)
+    status = models.CharField(verbose_name="状态", max_length=128, choices=STATUS)
+    error = models.TextField(verbose_name="错误信息", default="")
+    username = models.CharField(verbose_name="用户名", max_length=128, default="")
+
+    class Meta:
+        verbose_name = "渲染图片任务"
+        verbose_name_plural = "渲染图片任务"
+        db_table = "render_image_task"

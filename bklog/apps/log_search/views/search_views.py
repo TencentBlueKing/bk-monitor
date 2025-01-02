@@ -59,12 +59,14 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
@@ -73,10 +75,12 @@ from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
+    ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
     IndexSetFieldsConfigListSerializer,
     OriginalSearchAttrSerializer,
+    QueryStringSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
@@ -84,6 +88,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetDeleteConfigSerializer,
     SearchUserIndexSetOptionHistoryDeleteSerializer,
     SearchUserIndexSetOptionHistorySerializer,
+    UISearchSerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -116,7 +121,17 @@ class SearchViewSet(APIViewSet):
         if self.action in ["operators", "user_search_history"]:
             return []
 
-        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "history"]:
+        if self.action in [
+            "bizs",
+            "search",
+            "context",
+            "tailf",
+            "export",
+            "fields",
+            "history",
+            "chart",
+            "generate_sql",
+        ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         if self.action in ["union_search", "config"]:
@@ -1682,3 +1697,105 @@ class SearchViewSet(APIViewSet):
                 index_set_type=data["index_set_type"],
             ).update_or_create(index_set_config=data["index_set_config"])
         )
+
+    @detail_route(methods=["POST"], url_path="chart")
+    def chart(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/chart/
+        @apiDescription 获取图表信息
+        @apiName chart
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+          "result": true,
+          "data": {
+            "total_records": 2,
+            "time_taken": 0.092,
+            "list": [
+              {
+                "aa": "aa",
+                "number": 16.3
+                "time": 1731260184
+              },
+              {
+                "aa": "bb",
+                "number": 20.56
+                "time": 1731260184
+              }
+            ],
+            "select_fields_order": [
+              "aa",
+              "number",
+              "time"
+            ],
+            "result_schema": [
+            {
+                "field_type": "string",
+                "field_name": "aa",
+                "field_alias": "aa",
+                "field_index": 0
+            },
+            {
+                "field_type": "double",
+                "field_name": "number",
+                "field_alias": "number",
+                "field_index": 1
+            },
+            {
+                "field_type": "long",
+                "field_name": "time",
+                "field_alias": "time",
+                "field_index": 2
+            }
+            ]
+          },
+          "code": 0,
+          "message": ""
+        }
+        """
+        params = self.params_valid(ChartSerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+        result = instance.get_chart_data(params)
+        return Response(result)
+
+    @detail_route(methods=["POST"], url_path="generate_sql")
+    def generate_sql(self, request, index_set_id=None):
+        """
+        @api {get} /search/index_set/$index_set_id/generate_sql/
+        @apiDescription 生成sql条件
+        @apiName generate_sql
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "sql": "dtEventTimeStamp>=1732220441000 and dtEventTimeStamp<=1732220443000"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(UISearchSerializer)
+        sql = ChartHandler.generate_sql(params)
+        return Response({"sql": sql})
+
+    @list_route(methods=["POST"], url_path="generate_querystring")
+    def generate_querystring(self, request):
+        """
+        @api {get} /search/index_set/generate_querystring/
+        @apiDescription 生成querystring语法
+        @apiName generate_querystring
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "querystring": "color: * AND name: x"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(QueryStringSerializer)
+        querystring = QueryStringBuilder.to_querystring(params)
+        return Response({"querystring": querystring})

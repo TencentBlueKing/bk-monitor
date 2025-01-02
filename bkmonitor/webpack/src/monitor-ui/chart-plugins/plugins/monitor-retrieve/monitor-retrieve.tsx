@@ -33,15 +33,15 @@ import {
   initGlobalComponents,
   logStore,
   i18n,
-} from '@blueking/monitor-retrieve/main';
+} from '@blueking/monitor-apm-log/main';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import '@blueking/monitor-retrieve/css/main03b9907.css';
 import './monitor-retrieve.scss';
+import '@blueking/monitor-apm-log/css/main.css';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
 @Component

@@ -9,14 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+from typing import Optional
 
-from celery import task
+from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -42,6 +44,7 @@ from apm_web.constants import (
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
+from bkm_space.api import SpaceApi
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils import group_by
@@ -399,8 +402,20 @@ class Application(AbstractRecordModel):
     @classmethod
     def get_application_id_by_app_name(cls, app_name: str):
         request = get_request()
+        biz_id: Optional[int] = request.biz_id
+
+        if biz_id is None:
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except (TypeError, json.JSONDecodeError):
+                raise ValueError("application({}) not found".format(app_name))
+
+            # space_uid to biz_id
+            if "space_uid" in data:
+                biz_id = SpaceApi.get_space_detail(space_uid=data["space_uid"]).bk_biz_id
+
         try:
-            return cls.objects.get(app_name=app_name, bk_biz_id=request.biz_id).application_id
+            return cls.objects.get(app_name=app_name, bk_biz_id=biz_id).application_id
         except cls.DoesNotExist:
             raise ValueError("application({}) not found".format(app_name))
 
@@ -648,8 +663,22 @@ class Application(AbstractRecordModel):
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
 
+    @property
+    def is_create_finished(self):
+        return bool(self.trace_result_table_id and self.metric_result_table_id)
+
+    @classmethod
+    def q_filter_create_finished(cls):
+        """
+        获取过滤应用未创建完成的过滤条件 (是否有 trace_table_id 和 metric_table_id)
+        """
+        return Q(
+            trace_result_table_id__isnull=False,
+            metric_result_table_id__isnull=False,
+        ) & ~(Q(trace_result_table_id="") | Q(metric_result_table_id=""))
+
     @staticmethod
-    @task()
+    @shared_task()
     def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
@@ -894,7 +923,7 @@ class ApmMetaConfig(models.Model):
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=528)
+    level_key = models.CharField("配置目标key", max_length=512)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 

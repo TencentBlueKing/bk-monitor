@@ -166,11 +166,13 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
+        is_verify_dimensions = serializers.BooleanField(required=False, default=True)
         start = serializers.CharField()
         end = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
+        down_sample_range = serializers.CharField(allow_blank=True, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
@@ -214,6 +216,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     path = "/query/ts/info/{info_type}"
 
     class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
@@ -327,4 +330,5 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
             source_info = serializers.DictField()
             path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

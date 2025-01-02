@@ -269,7 +269,7 @@ def test_sync_federation_clusters(create_or_delete_records):
         )
 
         fed_record_10002_after_part2 = models.BcsFederalClusterInfo.objects.filter(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001', is_deleted=False
+            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001'
         )
         assert fed_record_10002_after_part2.first().is_deleted
 
@@ -292,5 +292,3 @@ def test_sync_federation_clusters(create_or_delete_records):
         databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
         assert databus_ins.namespace == 'bkmonitor'
         assert databus_ins.name == bkbase_vmrt_name_10002_fed
-
-        assert mock_apply_with_retry.call_count == 3

@@ -79,7 +79,13 @@ class IncidentGraphEntity:
         "namespace": "k8s-xxxxx-trunk",
         "pod_name": "uid-0"
     },
-    "tags": {}
+    "tags": {},
+    "properties": {},
+    "observe_time_rage": {
+        "start_at": 11111,
+        "end_at": 1111,
+    },
+    "rca_trace_info": {}
     """
 
     entity_id: str
@@ -96,6 +102,9 @@ class IncidentGraphEntity:
     tags: Dict = field(default_factory=dict)
     aggregated_entities: List["IncidentGraphEntity"] = field(default_factory=list)
     component_type: IncidentGraphComponentType = IncidentGraphComponentType.PRIMARY
+    properties: Dict = field(default_factory=dict)
+    observe_time_rage: Dict = field(default_factory=dict)
+    rca_trace_info: Dict = field(default_factory=dict)
 
     def to_src_dict(self):
         data = asdict(self)
@@ -172,6 +181,7 @@ class IncidentGraphEdge:
     edge_cluster_id: str = None
     aggregated_edges: List["IncidentGraphEdge"] = field(default_factory=list)
     component_type: IncidentGraphComponentType = IncidentGraphComponentType.PRIMARY
+    properties: Dict = field(default_factory=dict)
 
     def to_src_dict(self):
         return {
@@ -194,6 +204,7 @@ class IncidentGraphEdge:
             "events": [event.to_src_dict() for event in self.events],
             "aggregated_edges": [edge.to_src_dict() for edge in self.aggregated_edges],
             "component_type": self.component_type.value,
+            "properties": self.properties,
         }
 
     def __str__(self):
@@ -290,6 +301,7 @@ class IncidentSnapshot(object):
                 component_type=IncidentGraphComponentType(
                     edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
                 ),
+                properties=edge_info.get("properties", {}),
             )
 
         self.bk_biz_id = self.incident_snapshot_content["bk_biz_id"]
@@ -504,6 +516,8 @@ class IncidentSnapshot(object):
         if aggregate_cluster:
             # 根据调用关系聚类结果进行聚合
             groups_by_clusters = self.generate_groups_by_edge_clusters()
+            groups_by_clusters = self.drop_groups_duplicates(groups_by_clusters)
+            groups_by_clusters = self.split_by_logic_key(groups_by_clusters)
             self.aggregate_by_groups(groups_by_clusters, entities_orders)
 
     def generate_groups_by_aggregate_configs(
@@ -640,6 +654,47 @@ class IncidentSnapshot(object):
 
         return False
 
+    def drop_groups_duplicates(self, groups_by_clusters: Dict[Tuple, set]) -> Dict[Tuple, set]:
+        """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 去重后的分组
+        """
+        result_groups = {}
+
+        for edge_cluster_id, groups in groups_by_clusters.items():
+            is_subset = False
+
+            for comp_edge_cluster_id, comp_groups in groups_by_clusters.items():
+                if edge_cluster_id != comp_edge_cluster_id:
+                    if groups.issubset(comp_groups):
+                        is_subset = True
+                        break
+
+            # 如果当前集合不是任何集合的子集，则保留
+            if not is_subset:
+                result_groups[edge_cluster_id] = groups
+
+        return result_groups
+
+    def split_by_logic_key(self, groups_by_clusters: Dict[Tuple, set]) -> Dict[Tuple, set]:
+        """分组去重，如果任意一个分组属于其中一个分组的子集，则去掉这个分组
+
+        :param groups_by_clusters: 按照边聚类结果的分组情况
+        :return: 去重后的分组
+        """
+        result_groups = {}
+
+        for edge_cluster_id, groups in groups_by_clusters.items():
+            for entity_id in groups:
+                entity = self.incident_graph_entities[entity_id]
+                if (entity.logic_key(), edge_cluster_id) not in result_groups:
+                    result_groups[(entity.logic_key(), edge_cluster_id)] = set()
+
+                result_groups[(entity.logic_key(), edge_cluster_id)].add(entity_id)
+
+        return result_groups
+
     def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
         """按照分组合并节点和边.
 
@@ -740,6 +795,7 @@ class IncidentSnapshot(object):
                 events=self.incident_graph_edges[_from].events,
                 aggregated_edges=[],
                 component_type=self.incident_graph_edges[_from].component_type,
+                properties=self.incident_graph_edges[_from].properties,
             )
         elif _from in self.incident_graph_edges:
             self.incident_graph_edges[_to].is_anomaly = (

@@ -51,7 +51,9 @@
         :list-data="listData"
         :total-fields="totalFields"
         :visible-fields="visibleFields"
-        @value-click="(type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)"
+        @value-click="
+          (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
+        "
       />
     </div>
     <div

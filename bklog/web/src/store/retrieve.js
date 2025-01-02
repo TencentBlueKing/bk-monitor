@@ -43,6 +43,9 @@ export default {
     catchFieldCustomConfig: {
       fieldsWidth: {},
       displayFields: [],
+      filterSetting: {
+        filterFields: [],
+      },
     },
     activeVersion: 'v2',
   },
@@ -81,7 +84,10 @@ export default {
         state.catchFieldCustomConfig,
         {
           fieldsWidth: {},
-          displayFields: {},
+          displayFields: [],
+          filterSetting: {
+            filterFields: [],
+          },
         },
         payload ?? {},
       );
@@ -91,6 +97,8 @@ export default {
     getIndexSetList(ctx, payload) {
       const { spaceUid, isLoading = true } = payload;
       if (isLoading) ctx.commit('updateIndexSetLoading', true);
+
+      ctx.commit('updateIndexSetList', []);
       return http
         .request('retrieve/getIndexSetList', {
           query: {

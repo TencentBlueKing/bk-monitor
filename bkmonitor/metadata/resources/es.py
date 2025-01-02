@@ -201,7 +201,7 @@ class CreateOrUpdateEsRouter(Resource):
         space_id = serializers.CharField(required=False, label="空间ID")
         table_id = serializers.CharField(required=True, label="ES 结果表 ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
-        cluster_id = serializers.IntegerField(required=False, label="ES 集群 ID")
+        cluster_id = serializers.IntegerField(required=False, allow_null=True, label="ES 集群 ID")
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否需要创建索引")

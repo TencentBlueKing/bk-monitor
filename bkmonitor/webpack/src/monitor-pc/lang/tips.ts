@@ -191,8 +191,10 @@ export default {
   主机当前状态: 'Host current status',
   可对当前采集内容进行检索: 'The current collection can be retrieved',
   去检索: 'To retrieve',
-  '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
-    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
+  '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标':
+    'The monitoring data dimensions are not configured ("target IP" and "cloud region ID"), and the monitoring target cannot hit the target',
+  '监控数据维度未配置("服务实例")， 监控目标无法命中目标':
+    'The monitoring data dimension is not configured ("service instance"), and the monitoring target cannot hit the target',
   存在关联的告警组: 'There is an associated alarm group',
   已选: 'selected',
   设置展示类型: 'Set display type',
@@ -316,4 +318,8 @@ export default {
   'Grafana已经升级到10版本，来看看有哪些功能差异':
     'Grafana has been upgraded to version 10.1. What are the differences in functions?',
   '稍等几分钟后，前往 {0} 查看相关数据': 'Wait a few minutes and go to {0} to view related data',
+  移除下钻: 'Remove drill down',
+  添加为筛选项: 'Add as filter',
+  移除该筛选项: 'Remove this filter',
+  点击加载更多: 'Click to load more',
 };

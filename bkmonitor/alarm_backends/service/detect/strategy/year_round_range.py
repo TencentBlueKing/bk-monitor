@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 
 
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from six.moves import range
 
 from alarm_backends.constants import CONST_ONE_DAY

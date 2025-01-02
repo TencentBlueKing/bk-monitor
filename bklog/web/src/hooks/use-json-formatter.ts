@@ -156,10 +156,24 @@ export default class UseJsonFormatter {
     return result;
   }
 
+  escapeString(val: string) {
+    const map = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#x27;': "'",
+    };
+
+    return typeof val !== 'string'
+      ? val
+      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+  }
+
   getSplitList(field: any, content: any) {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
-    const value = `${content}`;
+    const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
       // 这里进来的都是开了分词的情况
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
@@ -183,13 +197,14 @@ export default class UseJsonFormatter {
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
       mrkNode.innerHTML = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.classList.add('valid-text');
       return mrkNode;
     }
 
     if (!item.isNotParticiple) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.innerHTML = item.text;
+      validTextNode.innerText = item.text;
       return validTextNode;
     }
 
@@ -199,13 +214,20 @@ export default class UseJsonFormatter {
     return textNode;
   }
 
-  creatSegmentNodes = (vlaues: any[]) => {
+  creatSegmentNodes = (values: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
+    const tagItems = values.slice(0, 1000);
+    const staticItems = values.slice(1000);
 
-    vlaues.forEach(item => {
+    tagItems.forEach(item => {
       segmentNode.append(this.getChildItem(item));
     });
+
+    const textNode = document.createElement('span');
+    textNode.classList.add('others-text');
+    textNode.innerText = staticItems.map(item => item.text).join('');
+    segmentNode.append(textNode);
 
     return segmentNode;
   };
@@ -232,7 +254,7 @@ export default class UseJsonFormatter {
     // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
     target.querySelectorAll(valueSelector).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = textValue ?? (element as HTMLDivElement).innerText;
+        const text = textValue ?? (element as HTMLDivElement).innerHTML;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
@@ -241,7 +263,7 @@ export default class UseJsonFormatter {
         element.append(this.creatSegmentNodes(vlaues));
         element.addEventListener('click', e => {
           if ((e.target as HTMLElement).classList.contains('valid-text')) {
-            this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
+            this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
           }
         });
 
@@ -302,8 +324,10 @@ export default class UseJsonFormatter {
   setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
     const root = this.getTargetRoot();
-    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-    this.setNodeValueWordSplit(root, fieldName);
+    if (root) {
+      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(root, fieldName);
+    }
   }
 
   setValue(depth) {

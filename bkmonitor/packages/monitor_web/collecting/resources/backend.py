@@ -15,7 +15,7 @@ from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkmonitor.utils import shortuuid
@@ -936,6 +936,15 @@ class SaveCollectConfigResource(Resource):
                     if rule_name in name_set:
                         raise CollectConfigParamsError(msg="Duplicate keyword rule name({})".format(rule_name))
                     name_set.add(rule_name)
+
+            # 克隆时 插件 bk-pull 密码不能为bool
+            if not attrs.get("id") and attrs["collect_type"] == CollectConfigMeta.CollectType.PUSHGATEWAY:
+                password = attrs["params"]["collector"].get("password")
+                if password is True:
+                    raise serializers.ValidationError("Please reset your password")  # 表示需要重置密码
+                elif password is False:
+                    # 将如果密码为空则设为空密码
+                    attrs["params"]["collector"]["password"] = ""
 
             return attrs
 

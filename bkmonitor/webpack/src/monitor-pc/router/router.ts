@@ -103,6 +103,15 @@ const specialReportRouteList = [
   'grafana-admin',
 ];
 router.beforeEach(async (to, from, next) => {
+  // 灰度 新版容器监控
+  if (to.name === 'k8s' && store.getters.isEnableK8sV2) {
+    next({ name: 'k8s-new' });
+    return;
+  }
+  if (to.name === 'k8s-new' && !store.getters.isEnableK8sV2) {
+    next({ name: 'k8s' });
+    return;
+  }
   store.commit('app/SET_PADDING_ROUTE', to);
   // 空闲初始化introduce数据
   if (store.getters.bizList?.length) {
@@ -115,10 +124,7 @@ router.beforeEach(async (to, from, next) => {
   ) {
     return next({ name: 'no-business' });
   }
-  if ((document.body as any).___zrEVENTSAVED) {
-    /* 图表tip异常问题解决办法 */
-    (document.body as any).___zrEVENTSAVED = null;
-  }
+  document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题
   // 设置本地缓存常用访问列表
   if (isInCommonRoute(to.name)) {
     setLocalStoreRoute(to.name);

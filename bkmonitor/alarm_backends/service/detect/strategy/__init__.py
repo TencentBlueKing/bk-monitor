@@ -9,21 +9,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
+import concurrent.futures
+import copy
 import functools
 import inspect
 import json
 import logging
+from typing import Dict, List
 
 from django.conf import settings
 from django.template import Context, Template
-from django.utils.translation import ugettext as _
-from six.moves import range
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache import key
 from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
 from alarm_backends.templatetags.unit import unit_auto_convert, unit_convert_min
+from constants.aiops import SDKDetectStatus
 from core.errors.alarm_backends.detect import (
     HistoryDataNotExists,
     InvalidAlgorithmsConfig,
@@ -418,8 +420,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
     def gen_expr(self):
         if self.validated_config["floor"]:
             yield ExprDetectAlgorithms(
-                "(unit_convert_min(value, unit) or "
-                "(unit_convert_min(floor_history_value, unit) * (100 - floor) * 0.01)) "
+                "(unit_convert_min(value, unit) or unit_convert_min(floor_history_value, unit)) "
                 "and (unit_convert_min(value, unit) <= "
                 "(unit_convert_min(floor_history_value, unit) * (100 - floor) * 0.01))",
                 self.floor_desc_tpl,
@@ -427,8 +428,7 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 
         if self.validated_config["ceil"]:
             yield ExprDetectAlgorithms(
-                "(unit_convert_min(value, unit) or "
-                "(unit_convert_min(ceil_history_value, unit) * (100 + ceil) * 0.01)) "
+                "(unit_convert_min(value, unit) or unit_convert_min(ceil_history_value, unit)) "
                 "and (unit_convert_min(value, unit) >= "
                 "(unit_convert_min(ceil_history_value, unit) * (100 + ceil) * 0.01))",
                 self.ceil_desc_tpl,
@@ -464,6 +464,117 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
         if "greed" in kwargs:
             return list(g)
         return next(g)
+
+
+class SDKPreDetectMixin(object):
+    GROUP_PREDICT_FUNC = None
+    PREDICT_FUNC = None
+    WITH_HISTORY_ANOMALY = False
+
+    def generate_dimensions(self, data_point: DataPoint) -> Dict:
+        """生成维度字典.
+
+        :param data_point: 数据点
+        :return: 维度字典
+        """
+        if "agg_dimension" not in data_point.item.query_configs[0]:
+            dimensions = copy.deepcopy(data_point.dimensions)
+        else:
+            dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
+        dimensions["strategy_id"] = int(data_point.item.strategy.id)
+        return dimensions
+
+    def pre_detect(self, data_points: List[DataPoint]) -> None:
+        """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
+
+        :param data_points: 待预测的数据
+        """
+        self._local_pre_detect_results = {}
+
+        item = data_points[0].item
+        if item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
+                return
+        else:
+            return
+
+        predict_inputs = {}
+        for data_point in data_points:
+            dimension_md5 = data_point.record_id.split(".")[0]
+            if dimension_md5 not in predict_inputs:
+                dimensions = self.generate_dimensions(data_point)
+                predict_inputs[dimension_md5] = {
+                    "dimensions": dimensions,
+                    "data": [],
+                    "extra_data": {},
+                }
+                if self.WITH_HISTORY_ANOMALY:
+                    predict_inputs[dimension_md5]["extra_data"]["history_anomaly"] = {
+                        "source": "backfill",
+                        "retention_period": "8d",
+                        "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
+                        "backfill_conditions": [
+                            {
+                                "field_name": "is_anomaly",
+                                "value": 1,
+                            }
+                        ],
+                    }
+
+            predict_inputs[dimension_md5]["data"].append(
+                {
+                    "__index__": data_point.record_id,
+                    "value": data_point.value,
+                    "timestamp": data_point.timestamp * 1000,
+                }
+            )
+
+        tasks = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
+            for predict_input in predict_inputs.values():
+                tasks.append(
+                    executor.submit(
+                        self.PREDICT_FUNC,
+                        **predict_input,
+                        interval=int(data_points[0].item.query_configs[0]["agg_interval"]),
+                        predict_args={
+                            arg_key.lstrip("$"): arg_value
+                            for arg_key, arg_value in self.validated_config["args"].items()
+                        },
+                    )
+                )
+
+        for future in concurrent.futures.as_completed(tasks):
+            try:
+                predict_result = future.result()
+                for output_data in predict_result:
+                    self._local_pre_detect_results[output_data["__index__"]] = output_data
+            except Exception as e:
+                logger.warning(f"Predict error: {e}")
+
+    def fetch_pre_detect_result_point(self, data_point, **kwargs) -> DataPoint:
+        """从预检测结果中获取检测输入的结果
+
+        :param data_point: 检测输入数据
+        :return: 检测结果
+        """
+        local_pre_detect_results = getattr(self, "_local_pre_detect_results", {})
+        predict_result = local_pre_detect_results.get(data_point.record_id, {})
+
+        if predict_result:
+            return DataPoint(
+                accessed_data={
+                    "record_id": data_point.record_id,
+                    "value": data_point.value,
+                    "values": predict_result,
+                    "time": int(predict_result["timestamp"] / 1000),
+                    "dimensions": data_point.dimensions,
+                },
+                item=data_point.item,
+            )
+        else:
+            return None
 
 
 def adapter_data_access_2_detect(data_record, item):

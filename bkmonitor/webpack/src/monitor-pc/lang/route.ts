@@ -38,6 +38,7 @@ export default {
   'route-综合拨测': 'Synthetics',
   'route-APM': 'APM',
   'route-Kubernetes': 'Kubernetes',
+  'route-New K8S': 'New K8S',
   'route-主机监控': 'Hosts',
   'route-自定义场景': 'Customs',
   'route-常用': 'Starred',
@@ -209,4 +210,5 @@ export default {
   'route-订阅配置': 'Subscription configuration',
   'route-配置服务': 'Configuration Service',
   智能: 'AI',
+  'route-容器监控': 'Container Monitor',
 };

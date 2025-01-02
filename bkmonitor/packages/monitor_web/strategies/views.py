@@ -39,6 +39,7 @@ class StrategiesViewSet(ResourceViewSet):
             "strategy_config_list",
             "v2/get_strategy_list",
             "get_target_detail",
+            "dashboard_panel_to_query_config",
         ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         if self.action in [
@@ -141,4 +142,8 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.update_metric_list_by_biz, endpoint="update_metric_list_by_biz"),
         # 获取单位详情
         ResourceRoute("GET", resource.strategies.multivariate_anomaly_scenes, endpoint="multivariate_anomaly_scenes"),
+        # 将仪表盘图表转换为查询配置
+        ResourceRoute(
+            "POST", resource.strategies.dashboard_panel_to_query_config, endpoint="dashboard_panel_to_query_config"
+        ),
     ]

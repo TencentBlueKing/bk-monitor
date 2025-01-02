@@ -19,7 +19,7 @@ from typing import Tuple
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
@@ -52,6 +52,9 @@ class RolePermission(OperateRecordModel):
 # key的格式: '[dashboard_view_config]:menu_id=1'
 class UserConfig(models.Model):
     """用户配置信息"""
+
+    class Keys:
+        FUNCTION_ACCESS_RECORD = "function_access_record"
 
     username = models.CharField("用户名", max_length=30)
     key = models.CharField("key", max_length=255)

@@ -13,7 +13,7 @@ import logging
 
 from django.conf import settings
 from django.db import models, transaction
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata.models.data_link import utils
@@ -199,14 +199,13 @@ class DataLink(models.Model):
         for record in federal_records:
             # 联邦代理集群的RT名
             proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
-            match_labels = [{"name": "namespace", "value": ns} for ns in record.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
             logger.info(
                 "compose_federal_sub_configs: data_link_name->[%s] start to compose for fed_cluster_id->[%s],"
                 "match_labels ->[%s]",
                 self.data_link_name,
                 record.fed_cluster_id,
-                match_labels,
+                record.fed_namespaces,
             )
             sinks = [
                 {
@@ -215,7 +214,14 @@ class DataLink(models.Model):
                     "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 }
             ]
-            conditions.append({"match_labels": match_labels, "relabels": relabels, "sinks": sinks})
+            # 将每个 namespace 单独生成一个 condition
+            for ns in record.fed_namespaces:
+                condition = {
+                    "match_labels": [{"name": "namespace", "value": ns}],
+                    "relabels": relabels,
+                    "sinks": sinks,
+                }
+                conditions.append(condition)
 
         logger.info(
             "compose_federal_sub_configs: data_link_name->[%s],bcs_cluster_id->[%s] will use conditions->[%s]to "
@@ -360,6 +366,10 @@ class DataLink(models.Model):
         )
         try:
             response = self.apply_data_link_with_retry(configs)
+        except RetryError as e:
+            logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
+            # 抛出底层错误原因，而非直接RetryError
+            raise e.__cause__
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e

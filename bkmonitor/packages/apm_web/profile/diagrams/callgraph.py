@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import math
+import os
 import re
 from collections import deque
 from dataclasses import dataclass
@@ -20,16 +21,65 @@ from apm_web.profile.constants import CallGraph, CallGraphResponseDataMode
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
+# 定义正则表达式 来过滤切割不同语言的 pkg 名称
+cpp_anonymous_prefix_re = re.compile(r'^\(anonymous namespace\)::')
+go_ver_re = re.compile(r'^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$')
+go_re = re.compile(r'^(?:[\w\-\.]+\/)+([^.]+\..+)')
+java_re = re.compile(r'^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)')
+cpp_re = re.compile(r'^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)')
+
+
+def shorten_function_name(f):
+    """
+    缩短函数名 减少显示长度
+    """
+    f = cpp_anonymous_prefix_re.sub('', f)
+    f = go_ver_re.sub(r'\1\2', f)
+    for re_pattern in [go_re, java_re, cpp_re]:
+        matches = re_pattern.findall(f)
+        if matches:
+            return ''.join(matches)
+    return f
+
+
+def escape_for_dot(string):
+    """
+    过滤 graphviz 不能识别的转义字符
+    """
+    return string.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\l')
+
+
+def multiline_printable_name(name, file_path=''):
+    """
+    生成多行可读的函数名
+    """
+    name = escape_for_dot(shorten_function_name(name))
+    name = name.replace('::', '\\n')
+    name = name.replace('[...]', '[…]')
+    name = name.replace('.', '\\n')
+    if file_path:
+        file_path = os.path.basename(file_path)
+    return f"{name}\\n{file_path}\\n" if file_path else f"{name}\\n"
+
 
 def build_edge_relation(node_list: List[FunctionNode]) -> list:
-    edges = []
+    edges = {}
+    visited_nodes = set()
+
     queue = deque(node_list)
     while queue:
         node = queue.popleft()
-        for child in node.children:
-            edges.append({"source_id": node.id, "target_id": child.id, "value": child.value})
-            queue.append(child)
-    return edges
+        for child in node.children.values():
+            edge_key = (node.id, child.id)
+            if edge_key in edges:
+                continue
+
+            edge_value = min(node.value, child.value)
+            edges[edge_key] = {"source_id": node.id, "target_id": child.id, "value": edge_value}
+            if child.id not in visited_nodes:
+                visited_nodes.add(child.id)
+                queue.append(child)
+    return list(edges.values())
 
 
 def dot_color(score: float, is_back_ground: bool = False) -> str:
@@ -100,26 +150,29 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     """
 
     dot = Digraph(comment="The Round Table", format="svg")
-    dot.attr("node", shape="rectangle")
     call_graph_data = data.get("call_graph_data", {})
     for node in call_graph_data.get("call_graph_nodes", []):
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
-        title = f"""
-        {node["name"]}
-        {display(node["value"], unit)} of {display(data["call_graph_all"], unit)} ({ratio_str})
-        """
-        node_color = dot_color(score=ratio)
-
+        node_name = multiline_printable_name(node["name"])
+        title = f"""{node_name} {display(node["self"], unit)} of {display(node["value"], unit)} ({ratio_str})"""
+        node_color = dot_color(score=ratio, is_back_ground=True)
+        background_color = dot_color(score=ratio, is_back_ground=False)
         width, height = calculate_node_size(ratio)
+        base_font_size, max_font_size = 10, 32
+        font_size = int(base_font_size + (max_font_size - base_font_size) * ratio**2)
+
         dot.node(
             str(node["id"]),
             label=title,
             style="filled",
             fillcolor=node_color,
+            color=background_color,
+            fontsize=str(font_size),
+            tooltip=node["name"],
             width=str(width),
             height=str(height),
-            tooltip=node["name"],
+            shape="box",
         )
 
     for edge in call_graph_data.get("call_graph_relation", []):
@@ -130,12 +183,19 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
             if edge["target_id"] in tree.function_node_map
             else "unknown"
         )
+        penwidth = max(int(min((edge["value"] * 5 / data["call_graph_all"]), 5)), 1)
+        # 线条宽度 避免为零 至少为一
+        ratio = 0.00 if data["call_graph_all"] == 0 else edge["value"] / data["call_graph_all"]
+        background_color = dot_color(score=ratio, is_back_ground=False)
 
         dot.edge(
             str(edge["source_id"]),
             str(edge["target_id"]),
             label=f'{display(edge["value"], unit)}',
             tooltip=tooltip,
+            color=background_color,
+            splines="curved",
+            penwidth=str(penwidth),
         )
 
     svg_data = dot.pipe(format="svg")
@@ -150,14 +210,17 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     return data
 
 
-def calculate_node_size(percentage):
-    """根据百分比计算节点大小"""
+def calculate_node_size(percentage, exponent=2):
+    """根据百分比计算节点大小 指数级放大增强对比"""
 
     percentage = max(0, min(1, percentage))
+    adjusted_percentage = percentage**exponent
 
-    node_size = CallGraph.BASE_SIZE + percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
+    # 计算节点宽度和高度
+    node_width = CallGraph.BASE_SIZE + adjusted_percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
+    node_height = CallGraph.BASE_SIZE + adjusted_percentage * (CallGraph.MAX_SIZE - CallGraph.MIN_SIZE)
 
-    return node_size, CallGraph.BASE_SIZE
+    return node_width, node_height
 
 
 def display(value, unit):
@@ -214,7 +277,7 @@ def convert_seconds(seconds):
 class CallGraphDiagrammer:
     def draw(self, c: TreeConverter, **options) -> Any:
         nodes = list(c.tree.function_node_map.values())
-        edges = build_edge_relation(c.tree.root.children)
+        edges = build_edge_relation(list(c.tree.map_root.children.values()))
         data = {
             "call_graph_data": {
                 "call_graph_nodes": [
@@ -222,7 +285,7 @@ class CallGraphDiagrammer:
                 ],
                 "call_graph_relation": edges,
             },
-            "call_graph_all": c.tree.root.value,
+            "call_graph_all": c.tree.map_root.value,
         }
         if options.get("data_mode") and options.get("data_mode") == CallGraphResponseDataMode.IMAGE_DATA_MODE:
             # 补充 sample_type 信息

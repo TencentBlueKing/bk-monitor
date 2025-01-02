@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from functools import partial
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import get_host_view_display_fields
 from bkmonitor.views import serializers

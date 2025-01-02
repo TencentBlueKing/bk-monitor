@@ -17,22 +17,31 @@ import operator
 from typing import List, Tuple, Union
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
-from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection
+from alarm_backends.service.detect.strategy import (
+    BasicAlgorithmsCollection,
+    SDKPreDetectMixin,
+)
 from alarm_backends.templatetags.unit import unit_convert_min, unit_suffix
 from bkmonitor.strategy.serializers import TimeSeriesForecastingSerializer
 from bkmonitor.utils.time_tools import hms_string
+from constants.aiops import SDKDetectStatus
+from core.drf_resource import api
 from core.unit import load_unit
 
 logger = logging.getLogger("detect")
 
 
-class TimeSeriesForecasting(BasicAlgorithmsCollection):
+class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
     """
     智能异常检测（动态阈值算法）
     """
+
+    GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
+    PREDICT_FUNC = api.aiops_sdk.tf_predict
+    WITH_HISTORY_ANOMALY = False
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
@@ -55,6 +64,51 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection):
     desc_tpl = "{method_desc} {threshold}{unit_suffix}"
 
     def detect(self, data_point):
+        if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            # 历史依赖准备就绪才开始检测
+            if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                raise Exception("Strategy history dependency data not ready")
+
+            # 优先从预检测结果中获取检测结果
+            if hasattr(self, "_local_pre_detect_results"):
+                predict_result_point = self.fetch_pre_detect_result_point(data_point)
+                if predict_result_point:
+                    return super().detect(predict_result_point)
+                else:
+                    raise Exception("Pre delete error.")
+            else:
+                return self.detect_by_sdk(data_point)
+        else:
+            return self.detect_by_bkdata(data_point)
+
+    def detect_by_sdk(self, data_point):
+        dimensions = self.generate_dimensions(data_point)
+        predict_params = {
+            "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
+            "dimensions": dimensions,
+            "predict_args": {
+                "granularity": "T",
+                "mode": "serving",
+                **{arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()},
+            },
+        }
+
+        predict_result = self.PREDICT_FUNC(**predict_params)
+
+        return self.detect_by_bkdata(
+            DataPoint(
+                accessed_data={
+                    "record_id": data_point.record_id,
+                    "value": data_point.value,
+                    "values": predict_result[0],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
+                    "dimensions": data_point.dimensions,
+                },
+                item=data_point.item,
+            )
+        )
+
+    def detect_by_bkdata(self, data_point):
         bound_type = self.validated_config.get("bound_type", TimeSeriesForecastingSerializer.BoundType.MIDDLE)
 
         if bound_type == TimeSeriesForecastingSerializer.BoundType.UPPER:

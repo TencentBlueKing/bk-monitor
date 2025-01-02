@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import json
 import re
 from collections import defaultdict
-from typing import Optional, List
+from typing import List, Optional
 
 from django.conf import settings
 from django.db import transaction
@@ -88,8 +88,8 @@ from apps.log_search.models import (
     Scenario,
     Space,
     StorageClusterRecord,
-    UserIndexSetFieldsConfig,
     UserIndexSetCustomConfig,
+    UserIndexSetFieldsConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -597,7 +597,7 @@ class IndexSetHandler(APIModel):
         ret = defaultdict(list)
         indices = EsRoute(
             scenario_id=scenario_id, storage_cluster_id=storage_cluster_id, indices=",".join(index_list)
-        ).cat_indices()
+        ).cat_indices(need_filter=False)
         indices = StorageHandler.sort_indices(indices)
         index_list.sort(key=lambda s: len(s), reverse=True)
         for index_es_info in indices:
@@ -1727,10 +1727,10 @@ class IndexSetFieldsConfigHandler(object):
 
 class UserIndexSetConfigHandler(object):
     def __init__(
-            self,
-            index_set_id: int = None,
-            index_set_ids: List[int] = None,
-            index_set_type: str = IndexSetType.SINGLE.value,
+        self,
+        index_set_id: int = None,
+        index_set_ids: List[int] = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids

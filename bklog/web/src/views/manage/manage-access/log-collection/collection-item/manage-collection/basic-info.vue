@@ -230,7 +230,7 @@
                         v-if="!isMatchType"
                         class="item the-column"
                       >
-                        {{ $t('第{n}行', { n: item.fieldindex + 1 }) }}
+                        {{ $t('第{n}列', { n: item.fieldindex }) }}
                       </div>
                       <div class="item the-column">{{ showOperatorObj[item.op] }}</div>
                       <p

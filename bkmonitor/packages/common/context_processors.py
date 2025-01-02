@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.utils.translation import get_language
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
@@ -81,6 +81,15 @@ def field_formatter(context: Dict[str, Any]):
         ]
     }
     context.update(standard_context)
+
+
+def k8s_v2_enabled(bk_biz_id):
+    try:
+        if 0 in settings.K8S_V2_BIZ_LIST:
+            return True
+        return bk_biz_id in settings.K8S_V2_BIZ_LIST
+    except AttributeError:
+        return True
 
 
 def json_formatter(context: Dict[str, Any]):
@@ -170,6 +179,8 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "SHOW_REALTIME_STRATEGY": settings.SHOW_REALTIME_STRATEGY,
             # APM 是否开启 EBPF 功能
             "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
+            # K8s v2 是否开启
+            "K8S_V2_BIZ_LIST": settings.K8S_V2_BIZ_LIST,
             # 是否开启AI助手
             "ENABLE_AI_ASSISTANT": "true" if settings.AIDEV_API_BASE_URL else "false",
             # APM 日志转发接口 Url

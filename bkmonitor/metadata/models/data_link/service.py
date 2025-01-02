@@ -13,7 +13,7 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.transaction import atomic
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import config
@@ -66,6 +66,10 @@ def apply_data_id_v2(
     logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
     bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
+    if not bk_biz_id:
+        logger.info("apply_data_id_v2:data_name->[%s], bk_biz_id is None,will use default", data_name)
+        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
     )
@@ -108,14 +112,13 @@ def get_data_id_v2(
 ) -> Dict:
     """
     获取数据源对应的 data_id
-    TODO: 待改造为通用查询状态方法
     """
     logger.info("get_data_id: data_name->[%s]", data_name)
     data_id_name = utils.compose_bkdata_data_id_name(data_name)
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
     )
-    data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace, bk_biz_id=bk_biz_id)
+    data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace)
     logger.info("get_data_id: request bkbase data_id_config->[%s]", data_id_config)
     # 解析数据获取到数据源ID
     phase = data_id_config.get("status", {}).get("phase")
@@ -196,6 +199,16 @@ def get_data_link_component_status(
         )
         phase = component_config.get("status", {}).get("phase")
         return phase
+    except RetryError as e:
+        logger.error(
+            "get_data_link_component_status: get component status failed,kind->[%s],name->[%s],namespace->["
+            "%s],error->[%s]",
+            kind,
+            component_name,
+            namespace,
+            e.__cause__,
+        )
+        return DataLinkResourceStatus.FAILED.value
     except Exception as e:
         logger.error(
             "get_data_link_component_status: get component status failed,kind->[%s],name->[%s],namespace->[%s],"
@@ -220,7 +233,7 @@ def get_bkbase_component_status_with_retry(
     try:
         bkbase_status = api.bkdata.get_data_link(kind=kind, namespace=namespace, name=name)
         return bkbase_status
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error(
             "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s]," "error->[%s]",
             kind,

@@ -141,6 +141,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   favoriteList: IListItem[] = [];
   incidentFieldList: IListItem[] = [];
   blurInPanel = false;
+  preTextWidth = 0; // placeholder距离preText的位置
+  placeholderText = ''; // 输入时的placeholder
   methodList: IListItem[] = [
     {
       id: ':',
@@ -781,17 +783,37 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     } else if (['method', 'condition', 'value'].includes(ret.show.toString())) {
       this.focusData = ret;
       if (ret.show.toString() === 'value' && !this.menuList.length) {
+        this.setPlaceholderBasedOnKeyValue();
         this.destroyMenuPopoverInstance();
         this.destroyPopoverInstance();
         return;
       }
+      this.placeholderText = '';
       this.handleMenuPopoverShow();
     } else {
       this.destroyMenuPopoverInstance();
       this.destroyPopoverInstance();
       this.focusData = {};
+      this.placeholderText = '';
     }
   }
+
+  /**
+   * @description: 提取输入值中的键并更新占位符文本
+   * @return {void}
+   */
+  setPlaceholderBasedOnKeyValue() {
+    const input = this.inputValue.trim();
+    const lastConnectorIndex = Math.max(input.lastIndexOf('AND'), input.lastIndexOf('OR'));
+    // 提取连接符后的子字符串
+    const result = lastConnectorIndex !== -1 ? input.slice(lastConnectorIndex + 3).trim() : input;
+    const [key, value] = result.split(':').map(str => str.trim());
+    this.placeholderText = value ? '' : (this.$t('请输入{0}', [key]) as string);
+    this.$nextTick(() => {
+      this.preTextWidth = this.preTextRef.offsetWidth;
+    });
+  }
+
   @debounceDecorator(20)
   handleUpdateResizePanel() {
     if (this.popoverInstance?.state?.isShown) {
@@ -890,6 +912,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
    * @return {*}
    */
   handleInput(e: any) {
+    this.placeholderText = '';
     this.inputValue = e.target.value;
   }
   /**
@@ -986,6 +1009,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleClear(e: MouseEvent) {
     e.preventDefault();
     this.inputValue = '';
+    this.placeholderText = '';
     this.isManualInput = false;
     return '';
   }
@@ -1166,7 +1190,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       </ul>
     );
   }
-  panelEmptyComponent(content?: TranslateResult | string) {
+  panelEmptyComponent(content?: string | TranslateResult) {
     return <div class='panel-empty'>{content || this.$t('暂无数据')}</div>;
   }
   render() {
@@ -1196,6 +1220,13 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             class='pre-text'
           >
             {this.inputValue.slice(0, this.focusData.replaceStart)}
+          </span>
+          <span
+            id='placeholderText'
+            style={{ left: `${this.preTextWidth + 34}px` }}
+            class='placeholder-text'
+          >
+            {this.placeholderText}
           </span>
           <i
             style={{ display: this.inputValue?.trim().length ? 'flex' : 'none' }}

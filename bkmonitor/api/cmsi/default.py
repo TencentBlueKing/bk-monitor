@@ -73,9 +73,7 @@ class CheckCMSIResource(CMSIBaseResource):
         if validated_request_data.get("receiver__username"):
             # validated_request_data["receiver"] 转换为邮箱地址, 逗号连接
             # receivers 变量表示接收用户列表
-            # 这个应该可以删掉了，已在子类实现
-            receivers: List = self.get_receivers_from_receiver_username(validated_request_data)
-            validated_request_data.get("receiver__username").split(",")
+            receivers: List[str] = self.get_receivers_from_receiver_username(validated_request_data)
         elif isinstance(validated_request_data["receiver"], list):
             receivers: List = validated_request_data["receiver"]
             validated_request_data["receiver"] = ",".join(receivers)
@@ -130,11 +128,11 @@ class CheckCMSIResource(CMSIBaseResource):
             response_data["message"] = str(e)
             return response_data
 
-    def get_receivers_from_receiver_username(self, validated_request_data):
-        if not settings.BK_USERINFO_API_BASE_URL or not isinstance(self, (SendMail, SendSms)):
-            return validated_request_data["receiver__username"]
-
+    def get_receivers_from_receiver_username(self, validated_request_data) -> List[str]:
         receivers: List[str] = validated_request_data["receiver__username"].split(",")
+
+        if not settings.BK_USERINFO_API_BASE_URL or not isinstance(self, (SendMail, SendSms)):
+            return receivers
 
         # 获取用户信息
         param = {"usernames": validated_request_data["receiver__username"], "fields": "email,phone"}

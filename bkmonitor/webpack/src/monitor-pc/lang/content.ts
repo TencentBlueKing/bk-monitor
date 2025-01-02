@@ -223,6 +223,7 @@ export default {
     'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
     'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
+  '如需使用该功能，请联系管理员': 'To use this feature, please contact the administrator',
 
   // 故障
   影响空间: 'Affected space',
@@ -286,4 +287,5 @@ export default {
   搜索指标名称: 'Search metric name',
   '关联日志方法：\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n2. 在服务配置 - 关联日志出关联对应索引集\n3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项':
     'Associated log method:\n1. Turn on the log reporting switch of the application, which will automatically associate the corresponding index set\n2. In service configuration - associate log out and associate the corresponding index set\n3. Add IP address in Span, will automatically associate the corresponding collection item of this host',
+  暂不支持: 'Not supported yet',
 };

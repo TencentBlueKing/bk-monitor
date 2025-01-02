@@ -306,7 +306,7 @@ class ApplicationConfig(BkCollectorConfig):
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
-            "drop": {"keys": ["resource.bk.data.token"]},
+            "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
     def get_sub_configs(self, unique_key: str, config_level):
@@ -536,7 +536,7 @@ class ApplicationConfig(BkCollectorConfig):
                     return _sec
 
         gzip_content = gzip.compress(application_config.encode())
-        b64_content = base64.b64encode(gzip_content)
+        b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
         namespace = ClusterConfig.bk_collector_namespace(cluster_id)

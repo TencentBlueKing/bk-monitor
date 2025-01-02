@@ -54,7 +54,7 @@ const expressPlaceholders = (type: string) => {
 };
 interface IMericDataInputProps {
   metricData: MetricDetail[];
-  metricNameLabel: TranslateResult | string;
+  metricNameLabel: string | TranslateResult;
   expression: string;
   isRealTimeModel?: boolean;
   readonly: boolean;
@@ -62,6 +62,7 @@ interface IMericDataInputProps {
   expFunctions: IFunctionsValue[];
   dataTypeLabel?: string;
   hasAiOpsDetect?: boolean;
+  isKpiAnomalySdkEnabled?: boolean;
 }
 interface IMetricDataInputEvent {
   onExpressionBlur: string;
@@ -80,12 +81,13 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   // 是否是实时模式
   @Prop({ type: Boolean, default: false }) isRealTimeModel: boolean;
   @Prop({ default: false, type: Boolean }) readonly: boolean;
-  @Prop({ type: String, default: '' }) metricNameLabel: TranslateResult | string;
+  @Prop({ type: String, default: '' }) metricNameLabel: string | TranslateResult;
   @Prop({ type: String, default: '' }) expression: string;
   @Prop({ default: false, type: Boolean }) hasAIntelligentDetect: boolean; // 存在一个智能检测算法
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[]; /** 表达式函数 */
   @Prop({ type: String, default: 'time_series' }) dataTypeLabel: string;
   @Prop({ default: false, type: Boolean }) hasAiOpsDetect: boolean;
+  @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean; // 是否智能算法支持函数
 
   hoverDeleteItemIndex = -1;
   levelIconMap: string[] = ['', 'icon-danger', 'icon-mind-fill', 'icon-tips'];
@@ -344,7 +346,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     let content = '';
     try {
       content = this.handleGetMetricTipsContent(item);
-    } catch (error) {
+    } catch {
       // content = `${this.$t('指标不存在')}`;
     }
     if (content) {
@@ -354,14 +356,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         theme: 'monitor-metric-input',
         arrow: true,
         flip: false,
+        interactive: true,
+        interactiveBorder: 6,
+        onHidden: () => {
+          this.metricpopoerInstance?.destroy?.();
+          this.metricpopoerInstance = null;
+        },
       });
       this.metricpopoerInstance?.show?.(100);
     }
-  }
-  handleMetricMouseleave() {
-    this.metricpopoerInstance?.hide?.();
-    this.metricpopoerInstance?.destroy?.();
-    this.metricpopoerInstance = null;
   }
   handleQueryStringChange(e: Event, item: MetricDetail) {
     item.keywords_query_string = String((e.target as any).value).trim();
@@ -403,7 +406,6 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='form-content monitor-input metric-wrap'
                       on-click={() => !this.readonly && this.handleAddMetric(item)}
                       onMouseenter={e => this.handleMetricMouseenter(e, item)}
-                      onMouseleave={this.handleMetricMouseleave}
                     >
                       <div
                         id={`set-panel-item-${this.dataTypeLabel}${item.key || ''}`}
@@ -558,12 +560,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                   />
                 )}
                 {/* =======函数====== */}
-                {!this.isRealTimeModel && item.canSetFunction && !this.hasAiOpsDetect && !item.isNullMetric && (
-                  <FunctionSelect
-                    v-model={item.functions}
-                    onValueChange={this.emitFunctionChange}
-                  />
-                )}
+                {!this.isRealTimeModel &&
+                  item.canSetFunction &&
+                  (!this.hasAiOpsDetect || this.isKpiAnomalySdkEnabled) &&
+                  !item.isNullMetric && (
+                    <FunctionSelect
+                      v-model={item.functions}
+                      onValueChange={this.emitFunctionChange}
+                    />
+                  )}
               </div>
               <div class='item-delete'>
                 <div

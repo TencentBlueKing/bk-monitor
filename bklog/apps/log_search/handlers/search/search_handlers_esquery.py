@@ -683,7 +683,7 @@ class SearchHandler(object):
                 "scenario_id": data.get("scenario_id") or "",
                 "storage_cluster_id": data.get("storage_cluster_id") or -1,
                 "status": str(exc),
-                "source_app_code": settings.APP_CODE,
+                "source_app_code": get_request_app_code(),
             }
             metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
@@ -1414,7 +1414,7 @@ class SearchHandler(object):
                         search_type="default",
                         index_set_type=IndexSetType.SINGLE.value,
                     )
-                    .order_by("-rank", "-created_at")[:10]
+                    .order_by("-rank", "-created_at")
                     .values("id", "params", "search_mode")
                 )
             else:
@@ -1436,7 +1436,7 @@ class SearchHandler(object):
                     index_set_ids=index_set_ids,
                     index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("-rank", "-created_at")[:10]
+                .order_by("-rank", "-created_at")
                 .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
@@ -1482,7 +1482,7 @@ class SearchHandler(object):
         # 使用 iterator() 逐行处理记录
         for _history_obj in history_obj.iterator():
             _not_repeat(_history_obj)
-            if len(not_repeat_history) >= 10:
+            if len(not_repeat_history) >= 30:
                 break
         return not_repeat_history
 
@@ -2569,6 +2569,7 @@ class UnionSearchHandler(object):
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
         }
 
         # 数据排序处理  兼容第三方ES检索排序
@@ -2665,16 +2666,15 @@ class UnionSearchHandler(object):
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
+                sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True)
-                result_origin_log_list = sorted(
-                    result_origin_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True
-                )
+                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True)
+                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True
+                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)

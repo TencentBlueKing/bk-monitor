@@ -51,12 +51,16 @@
 <script setup>
   import ChartTitleV2 from '@/components/monitor-echarts/components/chart-title-v2.vue';
   import TrendChart from '@/components/monitor-echarts/trend-chart';
-  import { ref, watch, onMounted, computed } from 'vue';
+  import { ref, watch, onMounted, computed, nextTick } from 'vue';
   import useStore from '@/hooks/use-store';
+  import { useRoute, useRouter } from 'vue-router/composables';
 
   const emit = defineEmits(['toggle-change', 'change-queue-res']);
 
   const store = useStore();
+  const route = useRoute();
+  const router = useRouter();
+
   const chartKey = computed(() => store.state.retrieve.chartKey);
 
   const searchTotal = computed(() => {
@@ -69,7 +73,7 @@
   const isResultLoading = computed(
     () => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading,
   );
-  const getOffsetHeight = computed(() => (chartContainer.value?.offsetHeight || 32) - (!isFold.value ? 0 : 110));
+  const getOffsetHeight = () => chartContainer.value?.offsetHeight ?? 26;
 
   const isFold = ref(false);
   const chartContainer = ref(null);
@@ -79,18 +83,28 @@
   const toggleExpand = val => {
     isFold.value = val;
     localStorage.setItem('chartIsFold', val);
-    emit('toggle-change', !isFold.value, getOffsetHeight.value);
+    nextTick(() => {
+      emit('toggle-change', !isFold.value, getOffsetHeight());
+    });
   };
 
   const handleChangeInterval = v => {
     chartInterval.value = v;
     store.commit('updateIndexItem', { interval: v });
     store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
+    router.replace({
+      query: {
+        ...route.query,
+        interval: v,
+      },
+    });
   };
 
   onMounted(() => {
     isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'true');
-    emit('toggle-change', !isFold.value, getOffsetHeight.value);
+    nextTick(() => {
+      emit('toggle-change', !isFold.value, getOffsetHeight());
+    });
   });
 
   watch(

@@ -1,11 +1,12 @@
+import base64
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List
 
 from django.db.models import TextChoices
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -684,7 +685,6 @@ class TrpcAttributes:
 
 
 class TRPCMetricTag:
-
     # 通用
     REGION = "region"
     ENV_NAME = "env_name"
@@ -714,6 +714,8 @@ class TRPCMetricTag:
     CALLEE_CON_SETID: str = "callee_con_setid"
 
     TARGET: str = "target"
+    # 后续不同上报端都会使用该字段唯一标识一个 RPC 服务
+    SERVICE_NAME: str = "service_name"
     # 特殊维度
     APP: str = "server"
 
@@ -1029,3 +1031,18 @@ class MetricTemporality:
     @classmethod
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
+
+
+class Vendor:
+    G = "Z2FsaWxlbw=="
+
+    @classmethod
+    def equal(cls, e, v):
+        return base64.b64encode(v.encode()).decode() == e
+
+    @classmethod
+    def has_sdk(cls, service_sdk, expect_sdk):
+        """在服务的 sdk 字段中寻找是否有特定 SDK"""
+        if not service_sdk:
+            return False
+        return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
