@@ -31,6 +31,7 @@ from apm_web.profile.constants import (
     BUILTIN_APP_NAME,
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
+    EBPF_PROFILING_APP_PREFIX,
     EXPORT_FORMAT_MAP,
     LARGE_SERVICE_MAX_QUERY_SIZE,
     NORMAL_SERVICE_MAX_QUERY_SIZE,
@@ -310,15 +311,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             builtin_datasource = api.apm_api.query_builtin_profile_datasource()
             app_name = BUILTIN_APP_NAME
             service_name = app_name
-            # TODO: fetch from apm api in the future
-            # we keep the same rule for now
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
         else:
             app_name = validated_data["app_name"]
-            if validated_data["app_name"].startswith("ebpf-"):
+            if validated_data["app_name"].startswith(EBPF_PROFILING_APP_PREFIX):
                 # 如果以 app_name 以 ebpf- 开头，则认为是 ebpf 采集数据 请求参数伪装成 application 格式 并在返回 essential 时增加标识位
-                app_name = validated_data["app_name"][len("ebpf-") :]
+                app_name = validated_data["app_name"][len(EBPF_PROFILING_APP_PREFIX) :]
                 is_ebpf = True
             bk_biz_id = validated_data["bk_biz_id"]
             service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
