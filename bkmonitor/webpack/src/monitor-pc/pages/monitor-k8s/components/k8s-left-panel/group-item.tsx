@@ -40,6 +40,7 @@ interface GroupItemProps {
   isGroupBy?: boolean;
   tools?: Tools[];
   hiddenList?: string[];
+  disabledList?: { id: string; tooltips: string }[];
   defaultExpand?: { [key: string]: boolean } | boolean;
   drillDownList?: string[];
   expandLoading?: Record<string, boolean>;
@@ -68,6 +69,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: false }) isGroupBy: boolean;
   /** 隐藏项列表 */
   @Prop({ default: () => [] }) hiddenList: string[];
+  @Prop({ default: () => [] }) disabledList: GroupItemProps['disabledList'];
   @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
   @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
   @Prop({ default: () => [] }) drillDownList: string[];
@@ -84,6 +86,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Watch('defaultExpand', { immediate: true })
   handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
     if (typeof val === 'boolean') {
+      if (val === this.expand[this.list.id]) return;
       this.expand = {
         [this.list.id]: val,
       };
@@ -110,7 +113,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   @Emit('handleSearch')
-  handleSearch(id: string, isSelect: boolean) {
+  handleSearch(id: string, isSelect: boolean, e: Event) {
+    e.stopPropagation();
     return {
       id,
       isSelect,
@@ -183,6 +187,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
       item.children.map((child, ind) => {
         const isSelectSearch = this.value.includes(child.id);
         const isHidden = this.hiddenList.includes(child.id) || child.disabled;
+        const isDisabled = this.disabledList.find(item => item.id === child.id);
+
         if (child.children) {
           return (
             <div class='child-item'>
@@ -211,42 +217,46 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             class={{
               'group-content-item': true,
               active: this.activeMetric === child.id,
-              disabled: child.disabled,
+              disabled: isDisabled,
             }}
-            v-bk-tooltips={{
-              content: child.tooltips,
-              disabled: !child.disabled && child.tooltips,
-              placements: ['left'],
-            }}
-            onClick={() => !child.disabled && this.handleItemClick(child.id)}
           >
-            <span
-              class='content-name'
-              v-bk-overflow-tips
-            >
-              {keywordPick > -1 ? (
-                <span>
-                  <span>{child.name.slice(0, keywordPick)}</span>
-                  <span class='pick-name'>{this.keyword}</span>
-                  <span>{child.name.slice(keywordPick + this.keyword.length)}</span>
-                </span>
-              ) : (
-                child.name
-              )}
-            </span>
             <div
-              class='tools'
-              onClick={e => e.stopPropagation()}
+              class={{
+                'content-name': true,
+                select: isSelectSearch,
+              }}
+              v-bk-tooltips={{
+                content: isDisabled?.tooltips,
+                disabled: !isDisabled,
+                placements: ['left'],
+              }}
+              onClick={() => !isDisabled && this.handleItemClick(child.id)}
             >
+              <span
+                class='name'
+                v-bk-overflow-tips
+              >
+                {keywordPick > -1 ? (
+                  <span>
+                    <span>{child.name.slice(0, keywordPick)}</span>
+                    <span class='pick-name'>{this.keyword}</span>
+                    <span>{child.name.slice(keywordPick + this.keyword.length)}</span>
+                  </span>
+                ) : (
+                  child.name
+                )}
+              </span>
               {this.tools.includes('search') && (
                 <i
-                  class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
+                  class={`icon-monitor search-tools ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
                   v-bk-tooltips={{
                     content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项'),
                   }}
-                  onClick={() => this.handleSearch(child.id, !isSelectSearch)}
+                  onClick={e => this.handleSearch(child.id, !isSelectSearch, e)}
                 />
               )}
+            </div>
+            <div class='tools'>
               {this.tools.includes('drillDown') && (
                 <K8sDimensionDrillDown
                   dimension={this.list.id}

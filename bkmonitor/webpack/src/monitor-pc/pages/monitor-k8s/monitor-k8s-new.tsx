@@ -139,21 +139,28 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     return this.groupInstance.groupFilters;
   }
 
-  /** 最终的指标列表 */
-  get resultMetricList(): IK8SMetricItem[] {
+  // 禁用的指标列表
+  get disabledMetricList(): { id: string; tooltips: string }[] {
     /** 最后一级维度 */
     const lastDimension = this.groupInstance.getResourceType();
-    return this.metricList.map(metrics => {
-      metrics.children = metrics.children.map(metric => {
-        const disabled = (metric.unsupported_resource || []).includes(lastDimension);
-        return {
-          ...metric,
-          disabled,
-          tooltips: disabled ? this.$t('该指标在当前级别({0})不可用', [lastDimension]) : '',
-        };
-      });
-      return metrics;
-    });
+    const disabledMetricList = [];
+    for (const metrics of this.metricList) {
+      for (const metric of metrics.children) {
+        if ((metric.unsupported_resource || []).includes(lastDimension)) {
+          disabledMetricList.push({
+            id: metric.id,
+            tooltips: this.$t('该指标在当前级别({0})不可用', [lastDimension]),
+          });
+        }
+      }
+    }
+    return disabledMetricList;
+  }
+
+  /** 最终需要隐藏的指标项， 需要通过用户配置以及groupBy选择两种一起判断 */
+  get resultHideMetrics(): string[] {
+    const set = new Set<string>([...this.hideMetrics, ...this.disabledMetricList.map(item => item.id)]);
+    return Array.from(set);
   }
 
   /** 当前场景下的维度列表 */
@@ -210,7 +217,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.setRouteParams();
   }
 
-  @Watch('filterBy')
+  @Watch('filterBy', { deep: true })
   watchFilterByChange() {
     this.setRouteParams();
   }
@@ -521,7 +528,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             activeMetricId={this.activeMetricId}
             filterCommonParams={this.filterCommonParams}
             groupBy={this.groupFilters}
-            hideMetrics={this.hideMetrics}
+            hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
             onDrillDown={this.handleTableGroupChange}
           />
@@ -533,7 +540,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             filterBy={this.filterBy}
             filterCommonParams={this.tableCommonParam}
             groupInstance={this.groupInstance}
-            hideMetrics={this.hideMetrics}
+            hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
             onSortChange={this.handleTableSortChange}
@@ -632,15 +639,16 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 groupBy={this.groupFilters}
                 onClearFilterBy={this.clearFilterBy}
                 onDimensionTotal={this.dimensionTotalChange}
-                onDrillDown={this.handleDrillDown}
+                onDrillDown={this.handleTableGroupChange}
                 onFilterByChange={this.filterByChange}
                 onGroupByChange={this.groupByChange}
               />
               <K8sMetricList
                 activeMetric={this.activeMetricId}
-                hideMetrics={this.hideMetrics}
+                disabledMetricList={this.disabledMetricList}
+                hideMetrics={this.resultHideMetrics}
                 loading={this.metricLoading}
-                metricList={this.resultMetricList}
+                metricList={this.metricList}
                 onHandleItemClick={this.handleMetricItemClick}
                 onMetricHiddenChange={this.metricHiddenChange}
               />

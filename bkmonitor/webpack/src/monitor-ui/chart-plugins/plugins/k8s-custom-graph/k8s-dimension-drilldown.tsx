@@ -62,17 +62,13 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   popoverInstance = null;
 
   get drillDownList() {
-    return drillListMap[this.dimension] || [];
+    const list = drillListMap[this.dimension] || [];
+    return list.filter(item => item !== this.groupInstance.getResourceType());
   }
 
   get disabledDownDrill() {
     if (!this.drillDownList?.length) {
       return 'none';
-    }
-    for (const drill of this.drillDownList) {
-      if (this.groupInstance.hasGroupFilter(drill)) {
-        return 'none';
-      }
     }
     return 'block';
   }

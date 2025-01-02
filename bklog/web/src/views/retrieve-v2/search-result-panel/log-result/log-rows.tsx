@@ -226,7 +226,6 @@ export default defineComponent({
 
     const intersectionObserver = new IntersectionObserver(
       entries => {
-        console.log('intersectionObserver', entries);
         entries.forEach(entry => {
           const index = entry.target.getAttribute('data-row-index');
           updateIntersectionArgs(index, entry.isIntersecting);
