@@ -128,6 +128,10 @@ class GetDirectoryTree(Resource):
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
 
+        # 清理空目录
+        if filter_no_permission:
+            folders = {k: v for k, v in folders.items() if v["dashboards"]}
+
         return list(folders.values())
 
 
