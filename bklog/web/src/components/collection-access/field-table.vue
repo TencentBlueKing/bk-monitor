@@ -506,8 +506,25 @@
                   class="table-link"
                   @click="isDisableOperate(props.row)"
                 >
-                  {{ props.row.is_delete ? $t('复原') : $t('隐藏') }}
+                  <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
+                  <i
+                    v-if="props.row.is_delete"
+                    class="bk-icon bklog-icon bklog-eye"
+                    v-bk-tooltips.top="$t('复原')"
+                  ></i>
+                  <i  
+                    v-else
+                    class="bk-icon bklog-icon bklog-eye-slash"
+                    v-bk-tooltips.top="$t('隐藏')"
+                  ></i>
                 </span>
+              
+                <i
+                  v-if="props.row.is_add_in"
+                  class="bk-icon bklog-icon bklog-log-delete"
+                  v-bk-tooltips.top="$t('删除')"
+                  @click="deleteField(props.row)"
+                ></i>
               </template>
             </bk-table-column>
             <div
@@ -919,10 +936,6 @@
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
           }
-
-          if (item.hasOwnProperty('is_add_in')) {
-            delete item.is_add_in;
-          }
         });
         return data;
       },
@@ -1246,6 +1259,9 @@
                 this.formData.tableList.splice(index + 1, childrenCount);
             }
         }
+      },
+      deleteField(row) {
+        this.$emit('delete-field', row);
       }
       // isShowFieldDateIcon(row) {
       //   return ['string', 'int', 'long'].includes(row.field_type);
@@ -1515,9 +1531,23 @@
       }
     }
 
-    .bk-table .table-link {
+    .bk-table{
+      .table-link {
       cursor: pointer;
-    }
+      }
+      .bklog-eye {
+        font-size: 16px;
+        color: #3A84FF;
+      }
+      .bklog-eye-slash {
+        font-size: 16px;
+        color: #3A84FF;
+      }
+      .bklog-log-delete {
+        font-size: 17px;
+        color: #EA3636;
+      }
+    } 
 
     .field-date {
       display: inline-block;

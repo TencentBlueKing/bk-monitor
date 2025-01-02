@@ -188,7 +188,10 @@
                   data-test-id="fieldExtractionBox_span_applyTemp"
                   @click="openTemplateDialog(false)"
                 >
-                  <span class="bklog-icon bklog-daoru"></span>
+                  <i  
+                    class="bk-icon bklog-icon bklog-app-store"
+                    v-bk-tooltips.top="$t('隐藏')"
+                  ></i>
                   {{ $t('应用模版') }}
                 </span>
                 <span
@@ -196,7 +199,11 @@
                   class="template-text documentation button-text"
                   @click="handleGotoLink('logExtract')"
                 >
-                  {{ $t('说明文档') }}<span class="bklog-icon bklog-jump"></span>
+                  <i  
+                    class="bk-icon bklog-icon bklog-help"
+                    v-bk-tooltips.top="$t('隐藏')"
+                  ></i>
+                  {{ $t('说明文档') }}
                 </span>
               </div>
 
@@ -209,6 +216,7 @@
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
                     :key="option.id"
+                    class="bk-button"
                     @click="handleSelectConfig(option.id)"
                   >
                     {{ option.name }}
@@ -348,6 +356,7 @@
                 :built-field-show = "builtFieldShow"
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
+                @delete-field="deleteField"
                 @handle-keep-field="handleKeepField"
                 @handle-table-data="handleTableData"
                 @handle-built-field="handleBuiltField"
@@ -1325,7 +1334,8 @@
       handleBuiltField(value){
         this.builtFieldShow = value
         if(value){
-          this.formData.fields = [... this.formData.fields,...this.copyBuiltField]
+          const allFields = this.$refs.fieldTable.getData();
+          this.formData.fields = [...allFields, ...this.copyBuiltField]
           this.savaFormData();
         }else{
           const allFields = this.$refs.fieldTable.getData();
@@ -2359,7 +2369,7 @@
           })
           .then(async res => {
             if (res.data) {
-              const keys = Object.keys(res.data.alias_settings);
+              const keys = Object.keys(res.data.alias_settings || {});
               const arr = keys.map( key => {
                return {
                 query_alias : key,
@@ -2614,6 +2624,9 @@
           console.warn(err);
         }
       },
+      deleteField(field) {
+        this.formData.fields =  this.formData.fields.filter(item => item.field_index !== field.field_index)
+      }
     },
   };
 </script>
@@ -2874,8 +2887,13 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
+        .bk-button{
+          font-size: 12px;
+        }
       }
-
+      .bklog-icon{
+        font-size: 16px;
+      }
       .documentation {
         margin-left: 15px;
       }
