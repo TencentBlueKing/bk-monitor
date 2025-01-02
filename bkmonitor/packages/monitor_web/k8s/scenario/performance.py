@@ -44,6 +44,12 @@ def get_metrics() -> List:
                     unit="percentunit",
                     unsupported_resource=["workload", "namespace"],
                 ),
+                Metric(
+                    id="container_cpu_cfs_throttled_ratio",
+                    name=_lazy("CPU 限流占比"),
+                    unit="percentunit",
+                    unsupported_resource=[],
+                ),
             ],
         ),
         Category(
