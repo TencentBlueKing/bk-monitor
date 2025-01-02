@@ -13,8 +13,8 @@ prometheus-client==0.16.0
 django-prometheus==2.2.0
 
 # redis & django
-redis==3.2.1
-django-redis==5.0.0
+redis==4.6.0
+django-redis==5.4.0
 
 # django rest framework
 djangorestframework==3.12.4
