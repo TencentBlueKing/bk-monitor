@@ -394,7 +394,7 @@ class ResourceTrendResource(Resource):
         column = validated_request_data["column"]
         series_map = {}
         metric_id = self.metric_transfer_map.get(column, column)
-        metric = resource.k8s.get_scenario_metric(metric_id)
+        metric = resource.k8s.get_scenario_metric(metric_id=metric_id, scenario="performance")
         unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
@@ -444,3 +444,36 @@ class ResourceTrendResource(Resource):
             "down_sample_range": "",
         }
         return resource.grafana.graph_unify_query(query_params)["series"]
+
+
+class ResourceDataView(Resource):
+    """
+    资源数据视图
+    """
+
+    class RequestSerializer(FilterDictSerializer):
+        bcs_cluster_id = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        column = serializers.ChoiceField(
+            required=True,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+            ],
+        )
+        resource_type = serializers.ChoiceField(
+            required=True,
+            choices=["pod", "workload", "namespace", "container"],
+            label="资源类型",
+        )
+        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "last", "count"])
+        resource_list = serializers.ListField(required=True, label="资源列表")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="结束时间")
+
+    def perform_request(self, validated_request_data):
+        pass
