@@ -61,17 +61,17 @@ import './monitor-k8s-new.scss';
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
-    label: '列表',
+    label: window.i18n.t('K8s对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
   {
-    label: '图表',
+    label: window.i18n.t('指标视图'),
     id: K8sNewTabEnum.CHART,
     icon: 'icon-mc-two-column',
   },
   {
-    label: '数据明细',
+    label: window.i18n.t('K8s集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-mingxi',
   },
@@ -126,6 +126,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   dimensionTotal: Record<string, number> = {};
 
   cacheTimeRange = [];
+
+  resizeObserver = null;
+  headerHeight = 102;
+
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
@@ -243,6 +247,21 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       this.hideMetrics = res || [];
     });
+  }
+
+  mounted() {
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const height = entry?.contentRect?.height || 50;
+        this.headerHeight = 52 + height;
+      }
+    });
+    const el = this.$el.querySelector('.____monitor-k8s-new-header');
+    this.resizeObserver.observe(el);
+  }
+
+  destroyed() {
+    this.resizeObserver.disconnect();
   }
 
   /** 初始化filterBy结构 */
@@ -527,7 +546,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             )}
           </K8sNavBar>
         </div>
-        <div class='monitor-k8s-new-header'>
+        <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
           {this.clusterLoading ? (
             <div class='skeleton-element cluster-skeleton' />
           ) : (
@@ -569,7 +588,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
           </div>
         </div>
 
-        <div class='monitor-k8s-new-content'>
+        <div
+          style={{
+            height: `calc(100% - ${this.headerHeight}px)`,
+          }}
+          class='monitor-k8s-new-content'
+        >
           <div class='content-left'>
             <K8sLeftPanel>
               <K8sDimensionList

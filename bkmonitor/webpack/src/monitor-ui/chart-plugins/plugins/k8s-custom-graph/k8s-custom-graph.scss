@@ -6,7 +6,7 @@
   height: 100%;
   background-color: transparent;
 
-  &-header {
+  .time-series-header {
     display: flex;
     flex: 0 0 46px;
     align-items: center;
@@ -14,7 +14,7 @@
     height: 46px;
   }
 
-  &-content {
+  .time-series-content {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -23,6 +23,7 @@
     padding-bottom: 6px;
 
     &.right-legend {
+      position: relative;
       flex-direction: row;
     }
 
@@ -32,7 +33,7 @@
       flex-grow: 2;
 
       &.is-table-legend {
-        width: calc(100% - 320px);
+        width: 50%;
         max-width: calc(100% - 320px);
       }
     }
@@ -46,10 +47,14 @@
       overflow: auto;
 
       &.right-legend {
-        width: 320px;
+        width: 50%;
         min-width: 320px;
-        max-width: 320px;
+        max-width: 50%;
         max-height: 100%;
+
+        .table-legend {
+          width: auto;
+        }
       }
     }
   }

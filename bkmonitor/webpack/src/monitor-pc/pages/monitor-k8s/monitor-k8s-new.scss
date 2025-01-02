@@ -63,12 +63,12 @@
 
     .cluster-skeleton {
       width: 320px;
-      height: 48px;
+      min-height: 48px;
     }
 
     .cluster-select {
       width: 321px;
-      height: 50px;
+      min-height: 50px;
       line-height: 48px;
       background: #fdf4e8;
       border: 1px solid #dcdee5;
@@ -91,17 +91,17 @@
 
     .cluster-select-trigger {
       width: 320px;
-      height: 48px;
+      min-height: 48px;
       line-height: 48px;
       background: #fdf4e8;
       border: 1px solid #dcdee5;
     }
 
     .filter-header-wrap {
-      position: absolute;
-      top: 0;
-      left: 321px;
-      z-index: 666;
+      // position: absolute;
+      // top: 0;
+      // left: 321px;
+      // z-index: 666;
       display: flex;
       width: calc(100% - 321px);
       min-height: 48px;
@@ -148,6 +148,7 @@
 
         &.__group-by__ {
           flex: 1;
+          min-width: 440px;
         }
       }
     }
@@ -155,7 +156,7 @@
 
   .monitor-k8s-new-content {
     display: flex;
-    height: calc(100% - 100px);
+    // height: calc(100% - 100px);
 
     .content-left {
       flex-shrink: 0;
