@@ -65,6 +65,7 @@
             <text-segmentation
               :content="formatterStr(data, field)"
               :field="getFieldItem(field)"
+              :forceAll="true"
               :autoWidth="true"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
             />
@@ -389,12 +390,12 @@
     }
 
     .relation-monitor-btn {
+      min-width: fit-content;
+      padding-right: 6px;
       // margin-left: 12px;
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
-      min-width: fit-content;
-      padding-right: 6px;
     }
   }
 </style>

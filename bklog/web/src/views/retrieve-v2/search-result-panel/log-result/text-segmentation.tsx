@@ -38,6 +38,10 @@ export default defineComponent({
     field: { type: Object, required: true },
     data: { type: Object },
     content: { type: [String, Number, Boolean], required: true },
+    forceAll: {
+      type: Boolean,
+      default: false,
+    },
     autoWidth: {
       type: Boolean,
       default: false,
@@ -75,7 +79,7 @@ export default defineComponent({
     const refSegmentContent: Ref<HTMLElement> = ref();
     const textLineCount = ref(0);
     const isWrap = computed(() => store.state.tableLineIsWrap);
-    const isLimitExpandView = computed(() => store.state.isLimitExpandView);
+    const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
     const hasEllipsis = computed(() => !isLimitExpandView.value && textLineCount.value > 3);
     const btnText = computed(() => {
       if (showAll.value) {
