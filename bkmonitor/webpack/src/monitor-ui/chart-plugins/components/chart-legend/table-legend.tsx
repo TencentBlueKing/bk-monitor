@@ -62,6 +62,8 @@ export default class TableLegend extends CommonLegend {
         const bVal = b[sortId] || 0;
         return +bVal - +aVal;
       });
+      this.sortTitle = 'Avg';
+      this.sort = 2;
       return;
     }
     const sortId = `${title.toLocaleLowerCase()}Source`;
