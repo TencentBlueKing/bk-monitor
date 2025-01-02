@@ -283,7 +283,7 @@ export default defineComponent({
       }
       const fragment = new DocumentFragment();
 
-      const stepRun = () => {
+      const stepRun = (size?) => {
         if (textSegmentIndex > 1000) {
           const text = wordList
             .slice(textSegmentIndex)
@@ -298,7 +298,7 @@ export default defineComponent({
           return;
         }
 
-        const endIndex = textSegmentIndex + textSegmentPageSize;
+        const endIndex = textSegmentIndex + (size ?? textSegmentPageSize);
         if (textSegmentIndex < wordList.length) {
           wordList.slice(textSegmentIndex, endIndex).forEach(item => {
             const child = document.createElement(getTagName(item));
@@ -313,7 +313,7 @@ export default defineComponent({
             if (refContent.value) {
               const lines = refContent.value.scrollHeight / 20;
               if (lines < maxLength) {
-                stepRun();
+                stepRun(lines > 3 ? 1000 : undefined);
               }
             }
           });
