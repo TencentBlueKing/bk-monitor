@@ -217,7 +217,10 @@ export default class AiopsDimensionLine extends LineChart {
           series.map(item => ({
             name: item.name,
             cursor: 'auto',
-            data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
+            data: item.datapoints.reduce((pre: any, cur: any) => {
+              pre.push(cur.reverse());
+              return pre;
+            }, []),
             stack: item.stack || random(10),
             unit: item.unit,
             markArea: this.createMarkArea(),
@@ -437,7 +440,7 @@ export default class AiopsDimensionLine extends LineChart {
       recommendation_metric_class: this.panel.recommend_info.class,
     })
       .then(res => {
-        this.panel.feedback = res?.feedback || {};
+        Object.assign(this.panel.feedback, res?.feedback ?? {});
       })
       .catch(() => {});
   }
@@ -456,6 +459,7 @@ export default class AiopsDimensionLine extends LineChart {
       <span class='aiops-correlation-reason'>
         {this.reasons.map(reasons => (
           <span
+            key={reasons}
             class={[reasons.indexOf('异常') > -1 ? 'err-reason' : '']}
             v-bk-overflow-tips
           >
