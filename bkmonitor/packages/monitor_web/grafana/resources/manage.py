@@ -115,7 +115,7 @@ class GetDirectoryTree(Resource):
                 folders[record["id"]].update(record)
             elif _type == "dash-db":
                 # 过滤无权限的仪表盘
-                if filter_no_permission and record["uid"] not in dashboard_permissions:
+                if filter_no_permission and record["uid"] not in dashboard_permissions and role < GrafanaRole.Viewer:
                     continue
                 # 仪表盘是否可编辑
                 record["editable"] = (
