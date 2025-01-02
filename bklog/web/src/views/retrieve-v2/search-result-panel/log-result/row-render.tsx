@@ -41,6 +41,8 @@ export default defineComponent({
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
     const rowProxy: Ref<RowProxyData> = inject('rowProxy');
+    let isLeave = false;
+    let isComponentMountedComplete = false;
 
     const visible = computed(() => {
       const { visible = true } = rowProxy.value[props.rowIndex] ?? {};
@@ -65,13 +67,31 @@ export default defineComponent({
       );
     };
 
+    let mountedCompleteTimer;
+    const setIsComponentMountedComplete = () => {
+      mountedCompleteTimer && clearTimeout(mountedCompleteTimer);
+      mountedCompleteTimer = setTimeout(() => {
+        isComponentMountedComplete = true;
+      }, 100);
+    };
+
     const setParentElementHeight = () => {
-      if (!isIntersecting.value) {
+      if (isLeave) {
         return;
       }
 
       if (refRowNodeRoot.value && refRowNodeRoot.value.offsetHeight > 0) {
         const target = refRowNodeRoot.value.parentElement;
+
+        if (!isComponentMountedComplete) {
+          if (target.hasAttribute('data-bklog-row-mounted')) {
+            return;
+          }
+
+          target.setAttribute('data-bklog-row-mounted', 'true');
+          setIsComponentMountedComplete();
+        }
+
         target.style.setProperty('min-height', `${refRowNodeRoot.value.offsetHeight + 1}px`);
       }
     };
@@ -86,17 +106,21 @@ export default defineComponent({
 
     watch(
       () => [visible.value],
-      () => {
-        if (visible.value) {
-          observeElement();
-          return;
-        }
+      (val, old) => {
+        if (val[0] !== old[0]) {
+          isLeave = old[0] === true;
+          if (val[0]) {
+            observeElement();
+            return;
+          }
 
-        stopObserve();
+          stopObserve();
+        }
       },
     );
 
     onMounted(() => {
+      isComponentMountedComplete = false;
       intersectionObserver?.observe(refRowNodeRoot.value);
       setParentElementHeight();
     });

@@ -74,6 +74,8 @@ export default defineComponent({
       return tableCellCache?.get(props.data)?.get(props.field)?.value?.[attr] ?? defaultValue;
     };
 
+    let containerWidth = 0;
+
     const showAll = ref(getCachedValue('showAll', false));
 
     const refSegmentContent: Ref<HTMLElement> = ref();
@@ -107,6 +109,7 @@ export default defineComponent({
     let wordList: any[];
     let pageIndex = getCachedValue('pageIndex', 0);
     let mountedAllTag = false;
+    let isDispose = false;
     const pageSize = 400;
 
     const getNextList = (size?) => {
@@ -145,7 +148,7 @@ export default defineComponent({
     };
 
     const updateCanvas = () => {
-      canvasInstance.setHeight(Math.ceil(textBox.height) - 1);
+      canvasInstance.setHeight(Math.max(textLineCount.value * 20, 40));
       canvasInstance.renderAll();
     };
 
@@ -168,10 +171,13 @@ export default defineComponent({
 
           textBox.insertChars(nextValue, undefined, insertionPoint, endPoint);
           setMarkText(nextList);
+          textLineCount.value = textBox.textLines.length;
           updateCanvas();
-          requestAnimationFrame(() => {
-            setNextText(max);
-          });
+          if (!isDispose) {
+            requestAnimationFrame(() => {
+              setNextText(max);
+            });
+          }
         }
       }
     };
@@ -235,7 +241,7 @@ export default defineComponent({
           wrapWidth: width,
           lineHeight: 1.6, // 行距
           left: 0,
-          top: 0,
+          top: 4,
           selectable: false,
           editable: false, // 禁止编辑
           hoverCursor: 'pointer',
@@ -259,6 +265,8 @@ export default defineComponent({
 
       setMarkText(nextListItems);
       canvasInstance.add(textBox);
+      textLineCount.value = textBox.textLines.length;
+
       updateCanvas();
       requestAnimationFrame(() => {
         setNextText(maxLength);
@@ -283,9 +291,12 @@ export default defineComponent({
     let textSegmentIndex = 0;
     const textSegmentPageSize = 50;
     const setTextSegmentChildNodes = (maxLength = 4) => {
-      if (canvasInstance) {
-      }
       const fragment = new DocumentFragment();
+      textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
+
+      if (textLineCount.value >= maxLength) {
+        return;
+      }
 
       const stepRun = (size?) => {
         if (textSegmentIndex > 1000) {
@@ -315,9 +326,9 @@ export default defineComponent({
 
           requestAnimationFrame(() => {
             if (refContent.value) {
-              const lines = refContent.value.scrollHeight / 20;
-              if (lines < maxLength) {
-                stepRun(lines > 3 ? 1000 : undefined);
+              textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
+              if (textLineCount.value < maxLength && !isDispose) {
+                stepRun(textLineCount.value > 3 ? 1000 : undefined);
               }
             }
           });
@@ -326,15 +337,6 @@ export default defineComponent({
 
       stepRun();
     };
-
-    // const setFabricVisible = isShowAll => {
-    //   if (getSegmentRenderType() === 'text') {
-    //     const target = canvasInstance?.getSelectionElement()?.parentElement as HTMLElement;
-    //     if (target) {
-    //       target.style.setProperty('display', isShowAll ? 'none' : 'block');
-    //     }
-    //   }
-    // };
 
     const setMoreLines = () => {
       if (getSegmentRenderType() === 'fabric' && showAll.value) {
@@ -357,7 +359,6 @@ export default defineComponent({
       e.preventDefault();
       e.stopImmediatePropagation();
       showAll.value = !showAll.value;
-      // setFabricVisible(showAll.value);
 
       setMoreLines();
     };
@@ -370,10 +371,6 @@ export default defineComponent({
       if (wordList.length < 3000) {
         return 'fabric';
       }
-
-      // if (!isLimitExpandView.value && !showAll.value) {
-      //   return 'fabric';
-      // }
 
       return 'text';
     };
@@ -406,24 +403,30 @@ export default defineComponent({
     };
 
     onBeforeMount(() => {
+      isDispose = false;
       wordList = textSegmentInstance.getChildNodes();
     });
 
     onMounted(() => {
+      containerWidth = refContent.value.offsetWidth;
       setMounted();
     });
 
     onBeforeUnmount(() => {
+      isDispose = true;
       destroyFabricInstance();
-      Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
-        showAll: showAll.value,
-      });
+      if (tableCellCache?.get(props.data)?.get(props.field)) {
+        Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
+          showAll: showAll.value,
+        });
+      }
     });
 
     watch(
       () => [isLimitExpandView.value],
       () => {
         if (isLimitExpandView.value) {
+          textSegmentIndex = 0;
           setMoreLines();
         }
       },
@@ -434,15 +437,22 @@ export default defineComponent({
         return;
       }
 
-      if (getSegmentRenderType() === 'fabric') {
-        const width = refContent.value.offsetWidth;
-        canvasInstance.setWidth(width);
-        textBox.set({ width, wrapWidth: width });
-        updateCanvas();
-      }
+      if (containerWidth !== refContent.value.offsetWidth) {
+        containerWidth = refContent.value.offsetWidth;
 
-      if (getSegmentRenderType() === 'text') {
-        textLineCount.value = refContent.value.scrollHeight > refContent.value.offsetHeight ? 4 : 1;
+        if (getSegmentRenderType() === 'fabric') {
+          mountedAllTag = false;
+          pageIndex = 0;
+          const width = refContent.value.offsetWidth;
+          canvasInstance.setWidth(width);
+          textBox.text = '';
+          textBox.set({ width, wrapWidth: width });
+          setNextText();
+        }
+
+        if (getSegmentRenderType() === 'text') {
+          setTextSegmentChildNodes();
+        }
       }
     });
 
@@ -484,7 +494,11 @@ export default defineComponent({
         >
           {renderSegmentList()}
           <span
-            class={['btn-more-action', { 'is-show': hasEllipsis.value || showAll.value }]}
+            class={[
+              'btn-more-action',
+              `word-${getSegmentRenderType()}`,
+              { 'is-show': hasEllipsis.value || showAll.value },
+            ]}
             onClick={handleClickMore}
           >
             {btnText.value}

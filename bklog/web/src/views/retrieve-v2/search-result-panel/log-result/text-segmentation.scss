@@ -57,6 +57,12 @@
     &.is-show {
       display: block;
     }
+
+    &.word-fabric {
+      right: 2px;
+      bottom: 0;
+      line-height: 1;
+    }
   }
 
   &.is-inline {
