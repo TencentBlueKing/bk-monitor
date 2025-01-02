@@ -16,7 +16,6 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework import serializers
 
-from apm_web.utils import get_interval_number
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -248,7 +247,24 @@ class ListK8SResources(Resource):
             label="分页标识",
         )
         order_by = serializers.ChoiceField(
-            required=False, default="-cpu", label="排序", choices=["cpu", "-cpu", "mem", "-mem"]
+            required=False,
+            choices=["desc", "asc"],
+            default="",
+        )
+        method = serializers.ChoiceField(
+            required=False, choices=["max", "avg", "min", "sum", "last", "count"], default="max"
+        )
+        column = serializers.ChoiceField(
+            required=True,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+                'container_cpu_cfs_throttled_ratio',
+            ],
         )
 
     def perform_request(self, validated_request_data):
@@ -286,14 +302,18 @@ class ListK8SResources(Resource):
         page_count = 0
         # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
-        if validated_request_data["order_by"]:
+        order_by = validated_request_data["order_by"]
+        column = validated_request_data["column"]
+        if order_by:
             page_count = validated_request_data["page"] * validated_request_data["page_size"]
+            order_by = "-{}".format(column) if order_by == "desc" else column
 
         history_resource_list = resource_meta.get_from_promql(
             validated_request_data["start_time"],
             validated_request_data["end_time"],
-            validated_request_data["order_by"],
+            order_by,
             page_count,
+            validated_request_data["method"],
         )
         resource_id_set = set()
         for rs in history_resource_list:
@@ -358,22 +378,29 @@ class ListK8SResources(Resource):
 
 
 class ResourceTrendResource(Resource):
-    """资源趋势缩略图"""
-
-    metric_transfer_map = {
-        "cpu": "container_cpu_usage_seconds_total",
-        "mem": "container_memory_rss",
-    }
+    """资源数据视图"""
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
-        column = serializers.ChoiceField(required=True, choices=["cpu", "mem"])
+        column = serializers.ChoiceField(
+            required=True,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+                'container_cpu_cfs_throttled_ratio',
+            ],
+        )
         resource_type = serializers.ChoiceField(
             required=True,
             choices=["pod", "workload", "namespace", "container"],
             label="资源类型",
         )
+        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "last", "count"])
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
@@ -390,11 +417,12 @@ class ResourceTrendResource(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        agg_method = validated_request_data["method"]
+        resource_meta.set_agg_method(agg_method)
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
-        metric_id = self.metric_transfer_map.get(column, column)
-        metric = resource.k8s.get_scenario_metric(metric_id=metric_id, scenario="performance")
+        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario="performance")
         unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
@@ -402,7 +430,7 @@ class ResourceTrendResource(Resource):
             for wl in resource_list:
                 filter_obj = load_resource_filter(resource_type, [wl])
                 resource_meta.filter.add(filter_obj)
-                promql_list.append(getattr(resource_meta, f"meta_prom_with_{metric_id}"))
+                promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
                 resource_meta.filter.remove(filter_obj)
                 workload_name = wl.split(":")[-1]
                 # 初始化series_map
@@ -415,15 +443,7 @@ class ResourceTrendResource(Resource):
             # 初始化series_map
             for resource_id in resource_list:
                 series_map[resource_id] = {"datapoints": [], "unit": unit}
-        series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
-
-        for line in series:
-            resource_name = resource_meta.get_resource_name(line)
-            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit, "value_title": metric["name"]}
-
-        return [{"resource_name": name, column: info} for name, info in series_map.items()]
-
-    def query_data_by_promql(self, promql, bk_biz_id, start_time, end_time):
+        query_type, interval = resource_meta.parse_query_type(start_time, end_time, agg_method)
         query_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
@@ -431,7 +451,7 @@ class ResourceTrendResource(Resource):
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
                     "promql": promql,
-                    "interval": get_interval_number(start_time, end_time, interval=60),
+                    "interval": interval,
                     "alias": "result",
                 }
             ],
@@ -439,41 +459,13 @@ class ResourceTrendResource(Resource):
             "alias": "result",
             "start_time": start_time,
             "end_time": end_time,
-            "type": "range",
+            "type": query_type,
             "slimit": 10001,
             "down_sample_range": "",
         }
-        return resource.grafana.graph_unify_query(query_params)["series"]
+        series = resource.grafana.graph_unify_query(query_params)["series"]
+        for line in series:
+            resource_name = resource_meta.get_resource_name(line)
+            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit, "value_title": metric["name"]}
 
-
-class ResourceDataView(Resource):
-    """
-    资源数据视图
-    """
-
-    class RequestSerializer(FilterDictSerializer):
-        bcs_cluster_id = serializers.CharField(required=True)
-        bk_biz_id = serializers.IntegerField(required=True)
-        column = serializers.ChoiceField(
-            required=True,
-            choices=[
-                'container_cpu_usage_seconds_total',
-                'kube_pod_cpu_requests_ratio',
-                'kube_pod_cpu_limits_ratio',
-                'container_memory_rss',
-                'kube_pod_memory_requests_ratio',
-                'kube_pod_memory_limits_ratio',
-            ],
-        )
-        resource_type = serializers.ChoiceField(
-            required=True,
-            choices=["pod", "workload", "namespace", "container"],
-            label="资源类型",
-        )
-        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "last", "count"])
-        resource_list = serializers.ListField(required=True, label="资源列表")
-        start_time = serializers.IntegerField(required=True, label="开始时间")
-        end_time = serializers.IntegerField(required=True, label="结束时间")
-
-    def perform_request(self, validated_request_data):
-        pass
+        return [{"resource_name": name, column: info} for name, info in series_map.items()]

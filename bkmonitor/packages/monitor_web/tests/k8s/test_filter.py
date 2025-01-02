@@ -1569,7 +1569,9 @@ class TestK8sListResources(TestCase):
             "resource_type": "container",
             "with_history": True,
             "page_type": "scrolling",
-            "order_by": "-cpu",
+            "order_by": "desc",
+            "column": "container_cpu_usage_seconds_total",
+            "method": "sum",
             "bk_biz_id": 2,
         }
         query_result = [
