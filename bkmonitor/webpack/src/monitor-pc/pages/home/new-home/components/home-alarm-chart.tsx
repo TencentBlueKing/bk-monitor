@@ -28,6 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import {
@@ -41,7 +42,6 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { handleYAxisLabelFormatter, EStatusType } from '../utils';
-import { chartData } from './data';
 
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -49,6 +49,9 @@ import './home-alarm-chart.scss';
 
 interface IHomeAlarmChartProps {
   config: object;
+}
+interface IHomeAlarmChartEvents {
+  onMenuClick: any;
 }
 
 @Component
@@ -182,9 +185,18 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     if (this.init) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      const seriesData = chartData.series;
+      // const seriesData = chartData.series;
+      const { series } = await alertDateHistogram({
+        bk_biz_ids: [2],
+        conditions: [{ key: 'strategy_id', value: this.config.strategy_ids || [] }],
+        query_string: '',
+        start_time: 1734683156,
+        end_time: 1735287956,
+        interval: 'auto',
+        bk_biz_id: 2,
+      });
       // const res = await aipHandle;
-      this.updateChartData(seriesData);
+      this.updateChartData(series);
       // if (res) {
       //   this.init = true;
       //   this.empty = false;
@@ -192,7 +204,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       //   this.emptyText = window.i18n.tc('查无数据');
       //   this.empty = true;
       // }
-    } catch (e) {
+    } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
     }
@@ -202,7 +214,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    * @description: 更新图表的数据
    */
   updateChartData(srcData) {
-    console.log(srcData, 'srcData');
+    // console.log(srcData, 'srcData');
     const legendList = [];
     const dataList = [];
     srcData.forEach((item, ind) => {
@@ -233,16 +245,19 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             theme='light'
           >
             <span class='chart-tips'>
-              <i class='icon-monitor icon-mind-fill'></i>
+              <i class='icon-monitor icon-mind-fill' />
             </span>
             <div
               class='home-chart-tips-list'
               slot='content'
             >
-              {(this.config.tips || []).map(item => (
-                <div class={`tips-item ${item.status}`}>
+              {(this.config.status || []).map((item, index) => (
+                <div
+                  key={item.name + index}
+                  class={`tips-item ${item.status}`}
+                >
                   <span class='tips-item-tag'>{EStatusType[item.status]}</span>
-                  <span class='txt'>{item.label}</span>
+                  <span class='txt'>{item.name}</span>
                 </div>
               ))}
             </div>
@@ -280,7 +295,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             trigger='click'
           >
             <span class='more-operation'>
-              <i class='icon-monitor icon-mc-more'></i>
+              <i class='icon-monitor icon-mc-more' />
             </span>
             <div
               class='home-chart-more-list'
@@ -288,6 +303,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             >
               {this.menuList.map(item => (
                 <span
+                  key={item.id}
                   class={`more-list-item ${item.id}`}
                   on-click={() => this.handleMenuClick(item)}
                 >
@@ -326,4 +342,4 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     );
   }
 }
-export default ofType<IHomeAlarmChartProps>().convert(HomeAlarmChart);
+export default ofType<IHomeAlarmChartProps, IHomeAlarmChartEvents>().convert(HomeAlarmChart);
