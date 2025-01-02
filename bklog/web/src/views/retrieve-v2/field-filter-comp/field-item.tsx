@@ -224,7 +224,8 @@ export default class FieldItem extends tsc<object> {
   retuanFieldName(){
     let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
     if(this.isFieldObject){
-      name = name.split('.')[1] || name.split('.')[0]
+      const objectName = name.split('.')
+      name = objectName[objectName.length - 1] || objectName[0]
     }
     return  name
   }
