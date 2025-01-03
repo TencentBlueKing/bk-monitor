@@ -240,7 +240,7 @@ class ClusteringConfigHandler(object):
         # 缓存15分钟
         cache.set(
             f"start_pipeline_time_{collector_config_id}",
-            now_time.timestamp,
+            now_time.shift(minutes=10).timestamp,
             15 * TimeEnum.ONE_MINUTE_SECOND.value
         )
         flow_ids = [self.data.predict_flow_id, self.data.pre_treat_flow_id, self.data.after_treat_flow_id]
