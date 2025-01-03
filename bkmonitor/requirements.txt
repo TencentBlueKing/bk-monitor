@@ -23,6 +23,7 @@ drf-yasg==1.21.8
 django-cors-headers==4.1.0
 django-versionlog==1.8.0
 
+MarkupSafe==1.1.1
 jinja2==2.11.3
 django-jinja==2.7.1 # 3.11需要升级到2.11.0，同时需要更新 jinja2 到 3 以上版本
 
