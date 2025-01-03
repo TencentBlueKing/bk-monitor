@@ -36,7 +36,7 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 // 接入OTLP
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { debounce } from 'lodash';
+// import { debounce } from 'lodash';
 
 import App from './App';
 import http from './api';
@@ -138,7 +138,7 @@ if (process.env.NODE_ENV === 'development') {
 const _ResizeObserver = window.ResizeObserver;
 window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
   constructor(callback) {
-    callback = debounce(callback, 61);
+    callback = debounce(callback);
     super(callback);
   }
 };
