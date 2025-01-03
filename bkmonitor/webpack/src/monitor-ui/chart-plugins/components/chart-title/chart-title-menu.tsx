@@ -45,7 +45,6 @@ export interface IChartTitleMenuEvents {
   onMetricSelect?: IExtendMetricData;
   onChildMenuToggle: boolean;
   onSelectChild: { menu: IMenuItem; child: IMenuChildItem };
-  onShowChildren: () => void;
 }
 @Component
 export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMenuEvents> {
@@ -199,12 +198,6 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     return val;
   }
 
-  /**
-   * 展示子菜单
-   */
-  @Emit('showChildren')
-  handleShowChildren() {}
-
   handleGetItemName(options: IMenuChildItem[], id: string) {
     return options.find(item => item.id === id)?.name;
   }
@@ -220,7 +213,6 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     if (popoverRef) {
       if (this.showMenuItem && popoverRef.showHandler) {
         popoverRef.showHandler();
-        this.handleShowChildren();
       } else if (!this.showMenuItem && popoverRef.hideHandler) {
         popoverRef.hideHandler();
       }
@@ -295,8 +287,14 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                     onClick={e => {
                       this.toggleMenuItem(e, item.id);
                     }}
+                    onMousedown={e => {
+                      e.preventDefault();
+                    }}
                   >
-                    <span class='menu-item-trigger-content'>
+                    <span
+                      class='menu-item-trigger-content'
+                      v-bk-overflow-tips
+                    >
                       {this.handleGetItemName(item.children, item.childValue)}
                     </span>
                     <i class='bk-icon icon-angle-down' />
