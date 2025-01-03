@@ -308,11 +308,3 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
             "request_params": render_schema(request_params),
             "response_params": render_schema(response_params, using_source=True),
         }
-
-    @classmethod
-    def etag(cls, request, *args, **kwargs):
-        return
-
-    @classmethod
-    def last_modified(cls, request, *args, **kwargs):
-        return
