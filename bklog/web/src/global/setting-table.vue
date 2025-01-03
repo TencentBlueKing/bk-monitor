@@ -44,7 +44,7 @@
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
           :max-height="isPreviewMode ? 300 : 320"
-          row-key="field_name"
+          row-key="field_index"
           size="small"
           col-border
           :expand-row-keys="expandRowKeys"
@@ -84,7 +84,7 @@
                         <bk-input
                           v-model.trim="props.row.query_alias"
                           :disabled="props.row.is_delete || isSetDisabled"
-                          @blur="checkAliasNameItem(props.row)"
+                          @blur="checkQueryAliasItem(props.row)"
                         >
                         </bk-input>
                         <template v-if="props.row.aliasErr">
@@ -115,9 +115,19 @@
                   class="field-name-overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-if="props.row.field_name === 'ext' && !extExpand" @click="expandObject(props.row,true)" class="ext-btn rotate bklog-icon bklog-arrow-down-filled"></span>
-                  <span v-if="props.row.field_name === 'ext' && extExpand" @click="expandObject(props.row,false)" class="ext-btn bklog-icon bklog-arrow-down-filled"></span>
+                  <span 
+                    v-if="props.row.field_name === 'ext' && !extExpand" 
+                    @click="expandObject(props.row,true)" 
+                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
+                  </span>
+                  <span 
+                    v-if="props.row.field_name === 'ext' && extExpand" 
+                    @click="expandObject(props.row,false)" 
+                    class="ext-btn bklog-icon bklog-arrow-down-filled">
+                  </span>
+                  <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div v-if="!props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.field_name }} </div>
+                  <div v-else-if="props.row.is_built_in && props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.alias_name }} </div>
                   <div v-else class="field-name-box">
                     <div class="alias-name">{{ props.row.field_name }}</div>
                     <div 
@@ -154,7 +164,7 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 重命名 -->
+            <!-- 别名 -->
             <bk-table-column
               :render-header="renderHeaderAliasName"
               :resizable="false"
@@ -162,7 +172,7 @@
             >
               <template #default="props">
                 <div
-                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog'"
+                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog' || props.row.field_type === 'object'"
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -174,8 +184,8 @@
                 >
                   <bk-input
                     v-model.trim="props.row.query_alias"
-                    :disabled="props.row.is_delete || isSetDisabled"
-                    @blur="checkAliasNameItem(props.row)"
+                    :disabled="props.row.is_delete || isSetDisabled "
+                    @blur="checkQueryAliasItem(props.row)"
                   >
                   </bk-input>
                   <template v-if="props.row.aliasErr">
@@ -787,6 +797,8 @@
         });
       },
       checkFieldNameItem(row) {
+        console.log(row);
+        
         const { field_name, is_delete, field_index } = row;
         let result = '';
 
@@ -884,6 +896,34 @@
             reject(err);
           }
         });
+      },
+      checkQueryAliasItem(row) {
+        const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
+        if (isDelete) {
+          return true;
+        }
+        console.log(queryAlias);
+        this.$set(row, 'aliasErr', '');
+        if (queryAlias) {
+          // 设置了别名
+          if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
+            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }
+          if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
+            row.aliasErr = this.$t('别名不能与内置字段名相同');
+            return false;
+          }
+        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+          if(row.query_alias || row.is_built_in){
+            row.aliasErr = '';
+            return true
+          }
+          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
+          return false;
+        }
+        row.aliasErr = '';
+        return true;
       },
       validateFieldTable() {
         const promises = [];
@@ -1006,6 +1046,8 @@
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
       expandObject(row, show){
+        console.log(this.extExpand);
+        
         this.extExpand = show
         if(show){
           this.expandRowKeys.push(row.field_name)
@@ -1132,7 +1174,7 @@
         }
       }
 
-      .bk-select {
+      :deep(.bk-select) {
         height: 50px;
         border: 1px solid transparent;
 
@@ -1147,10 +1189,11 @@
 
         &.is-default-trigger.is-unselected:before {
           top: 8px;
+          left: 30px
         }
       }
 
-      .is-center {
+      :deep(.is-center) {
         .bk-select {
           .bk-select-name {
             height: 50px;

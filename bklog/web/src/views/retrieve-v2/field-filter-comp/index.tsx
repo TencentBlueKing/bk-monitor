@@ -160,8 +160,6 @@ export default class FieldFilterComp extends tsc<object> {
     objArr.forEach(item => {
       this.addToNestedStructure(objectField, item);
     })
-   
-    console.log(objectField);
     return [...objectField, ...otherArr.filter(item => {
       return !objectField.map(field => field.field_name).includes(item.field_name)
     })]
@@ -367,7 +365,6 @@ export default class FieldFilterComp extends tsc<object> {
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
   bigTreeRender(field){
-    // console.log(field);
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
