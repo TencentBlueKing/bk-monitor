@@ -77,7 +77,7 @@ blueapps==4.15.4
 # monitor
 supervisor==4.2.5
 pyinstrument==4.6.2
-ddtrace==1.9.7
+ddtrace==1.7.5
 
 # other
 pyppeteer==0.2.5
