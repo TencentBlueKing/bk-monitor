@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import time
 from datetime import datetime, timedelta
+from typing import Optional
 
 import arrow
 
@@ -23,7 +24,7 @@ class TimeMatch(object):
     时间屏蔽/订阅基类
     """
 
-    def __init__(self, cycle, begin_datetime=None, end_datetime=None):
+    def __init__(self, cycle, begin_datetime: Optional[arrow.Arrow] = None, end_datetime: Optional[arrow.Arrow] = None):
         self.cycle = cycle
         self.begin_datetime = begin_datetime
         self.end_datetime = end_datetime
@@ -31,26 +32,26 @@ class TimeMatch(object):
         self.start_time = self.cycle.get("begin_time")
         self.end_time = self.cycle.get("end_time")
 
-    def is_match(self, data_time):
+    def is_match(self, data_time: arrow.Arrow):
         raise NotImplementedError("you must implement this method")
 
     def shield_left_time(self, current_time):
         return int(self.time_match_left_time(current_time))
 
-    def is_datetime_match(self, data_time):
+    def is_datetime_match(self, data_time: arrow.Arrow):
         """
         判断是否在时间范围内
         """
-        if self.begin_datetime and data_time.timestamp < self.begin_datetime.timestamp:
+        if self.begin_datetime and data_time.int_timestamp < self.begin_datetime.int_timestamp:
             return False
 
-        if self.end_datetime and data_time.timestamp > self.end_datetime.timestamp:
+        if self.end_datetime and data_time.int_timestamp > self.end_datetime.int_timestamp:
             return False
 
         return True
 
-    def datetime_match_left_time(self, current_time):
-        return self.end_datetime.timestamp - current_time.timestamp
+    def datetime_match_left_time(self, current_time: arrow.Arrow):
+        return self.end_datetime.int_timestamp - current_time.int_timestamp
 
     def is_time_match(self, data_time):
         """
@@ -67,8 +68,7 @@ class TimeMatch(object):
         else:
             return start_time <= now_time or now_time <= end_time
 
-    def time_match_left_time(self, current_time):
-
+    def time_match_left_time(self, current_time: arrow.Arrow):
         # 1. 获取当前时间小时/分钟/秒
         now_time = time_tools.localtime(current_time).replace(microsecond=0).time()
 
@@ -82,7 +82,7 @@ class TimeMatch(object):
             # 需要跨天计算
             tomorrow_str = (current_time + timedelta(days=1)).strftime("%Y-%m-%d")
             end_time = time_tools.str2datetime(end_time.strftime("{} %H:%M:%S".format(tomorrow_str)))
-        return end_time.timestamp() - current_time.timestamp
+        return end_time.timestamp() - current_time.int_timestamp
 
     @staticmethod
     def convert_datetime_to_arrow(t):
@@ -117,7 +117,7 @@ class TimeMatchByDay(TimeMatch):
 
     def is_match(self, data_time):
         """
-        根据week_list进行判断
+        根据week_list进行判断at
         若为空，则进行屏蔽操作，否则进行订阅操作
         """
         if not self.week_list:
@@ -125,14 +125,14 @@ class TimeMatchByDay(TimeMatch):
         else:
             return self.is_datetime_match(data_time) and self.is_time_match(data_time) and self.is_week_match(data_time)
 
-    def is_week_match(self, data_time):
+    def is_week_match(self, data_time: arrow.Arrow):
         """
         按week_list屏蔽/订阅
         :return: bool
         """
         if isinstance(self.week_list, list):
             # 这里获取到的天数会少一
-            day_of_week = time.localtime(data_time.timestamp).tm_wday + 1
+            day_of_week = time.localtime(data_time.int_timestamp).tm_wday + 1
             return day_of_week in self.week_list
         return False
 
@@ -149,14 +149,14 @@ class TimeMatchByWeek(TimeMatch):
     def is_match(self, data_time):
         return self.is_datetime_match(data_time) and self.is_time_match(data_time) and self.is_week_match(data_time)
 
-    def is_week_match(self, data_time):
+    def is_week_match(self, data_time: arrow.Arrow):
         """
         按周屏蔽/订阅
         :return: bool
         """
         if isinstance(self.week_list, list):
             # 这里获取到的天数会少一
-            day_of_week = time.localtime(data_time.timestamp).tm_wday + 1
+            day_of_week = time.localtime(data_time.int_timestamp).tm_wday + 1
             return day_of_week in self.week_list
         return False
 
@@ -173,8 +173,8 @@ class TimeMatchByMonth(TimeMatch):
     def is_match(self, data_time):
         return self.is_datetime_match(data_time) and self.is_time_match(data_time) and self.is_month_match(data_time)
 
-    def is_month_match(self, data_time):
+    def is_month_match(self, data_time: arrow.Arrow):
         if isinstance(self.day_list, list):
-            day_of_month = time.localtime(data_time.timestamp).tm_mday
+            day_of_month = time.localtime(data_time.int_timestamp).tm_mday
             return day_of_month in self.day_list
         return False

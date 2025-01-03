@@ -112,7 +112,6 @@ class ILM:
         # 1.1 判断获取最新的index
         datetime_index_list = []
         for stat_index_name in list(stat_info_list["indices"].keys()):
-
             re_result = self.index_re.match(stat_index_name)
             if re_result is None:
                 # 去掉一个整体index的计数
@@ -163,7 +162,6 @@ class ILM:
         created_alias = []
 
         while now_gap <= ahead_time:
-
             round_time = now_datetime_object + datetime.timedelta(minutes=now_gap)
             round_time_str = round_time.strftime(self.date_format)
 
@@ -329,7 +327,6 @@ class ILM:
 
         # 当不需要创建的时候, 需要判断mapping是否修改
         if not should_create:
-
             is_same_mapping, should_create = self.is_mapping_same(last_index_name)
 
             # mapping一致地情况，直接返回
@@ -365,7 +362,6 @@ class ILM:
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
-
             # 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
             if es_client.count(index=last_index_name).get("count", 0) == 0:
                 new_index = current_index_info["index"]
@@ -463,13 +459,11 @@ class ILM:
         filter_result = {}
 
         for index_name, alias_info in alias_list.items():
-
             expired_alias = []
             not_expired_alias = []
 
             # 遍历所有的alias是否需要删除
             for alias_name in alias_info["aliases"]:
-
                 logger.info("going to process index_name->[%s] ", self.index_name)
 
                 # 判断这个alias是否命中正则，是否需要删除的范围内
@@ -768,7 +762,7 @@ class ILM:
         current_datetime_str = re_result.group("datetime")
 
         current_datetime_object = datetime.datetime.strptime(current_datetime_str, self.date_format)
-        start_ts = int(arrow.get(current_datetime_object).timestamp)
+        start_ts = int(arrow.get(current_datetime_object).int_timestamp)
 
         search = Search().from_dict(self.reindex_query or {}).filter("range", create_time={"gte": start_ts})
         search_dsl = search.to_dict()

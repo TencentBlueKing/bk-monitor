@@ -350,7 +350,7 @@ class AIOPSWithBkdataConvert(object):
         #         continue
         #
         #     # 如果策略新建时间未超过10分钟，则不显示智能异常检测的数据
-        #     if arrow.utcnow().timestamp - arrow.get(strategy.create_time).timestamp < 600:
+        #     if arrow.utcnow().int_timestamp - arrow.get(strategy.create_time).int_timestamp < 600:
         #         delattr(query_config, "intelligent_detect")
 
 

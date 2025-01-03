@@ -18,7 +18,7 @@ now = arrow.now()
 utc_now = now.to("utc")
 now_str = str(now.to("local").naive)
 utc_now_str = str(now.to("utc").naive)
-utc_timestamp = now.timestamp
+utc_timestamp = now.int_timestamp
 
 AGENT_LOSE_DATA = {
     "utctime2": utc_now_str,

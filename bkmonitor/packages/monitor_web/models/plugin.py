@@ -499,7 +499,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         """
         update_time = arrow.get(self.current_version.info.update_time)
         current_time = arrow.now(tz=update_time.tzinfo)
-        time_delta = current_time.timestamp - update_time.timestamp
+        time_delta = current_time.int_timestamp - update_time.int_timestamp
         if time_delta > timeout:
             return True
         return False

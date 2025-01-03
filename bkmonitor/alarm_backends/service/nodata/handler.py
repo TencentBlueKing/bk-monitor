@@ -45,7 +45,7 @@ class NodataHandler(base.BaseHandler):
             return
 
         logger.info("[nodata] get leader now")
-        now_timestamp = arrow.utcnow().timestamp - constants.CONST_MINUTES
+        now_timestamp = arrow.utcnow().int_timestamp - constants.CONST_MINUTES
         strategy_ids = StrategyCacheManager.get_nodata_strategy_ids()
         published = []
         for strategy_id in strategy_ids:

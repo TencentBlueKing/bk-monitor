@@ -120,7 +120,7 @@ class LogQueryResource(ApiAuthResource):
             logger.exception(e)
             _time = arrow.now()
 
-        return int(_time.timestamp)
+        return int(_time.int_timestamp)
 
     def perform_request(self, params):
         if "start_time" not in params or "end_time" not in params:

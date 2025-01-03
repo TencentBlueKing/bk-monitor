@@ -71,8 +71,8 @@ def get_chart_data(item: Item, source_time, title=""):
     interval = max(data_source.interval for data_source in unify_query.data_sources)
     chart_option = {_("今日"): 0, _("昨日"): -1, _("上周"): -7}
 
-    start_time = source_time.replace(hours=-max(interval * 5 // 3600, 1))
-    end_time = source_time.replace(minutes=max(interval // 60, 5))
+    start_time = source_time.shift(hours=-max(interval * 5 // 3600, 1))
+    end_time = source_time.shift(minutes=max(interval // 60, 5))
 
     unit = load_unit(item.unit)
 
@@ -80,8 +80,8 @@ def get_chart_data(item: Item, source_time, title=""):
     for name, offset in list(chart_option.items()):
         data = []
         records = unify_query.query_data(
-            start_time=start_time.replace(days=offset).timestamp * 1000,
-            end_time=(end_time.replace(days=offset) if offset != 0 else source_time.replace(seconds=interval)).timestamp
+            start_time=start_time.shift(days=offset).int_timestamp * 1000,
+            end_time=(end_time.shift(days=offset) if offset != 0 else source_time.shift(seconds=interval)).int_timestamp
             * 1000,
         )
         for record in records:
@@ -99,7 +99,7 @@ def get_chart_data(item: Item, source_time, title=""):
         "chart_type": "spline",
         "title": title or item.name,
         "subtitle": item.query_configs[0].get("metric_field", ""),
-        "source_timestamp": source_time.timestamp * 1000,
+        "source_timestamp": source_time.int_timestamp * 1000,
         "locale": i18n.get_locale().replace("_", "-"),
         "timezone": timezone,
         "series": series,
