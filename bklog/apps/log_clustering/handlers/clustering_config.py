@@ -20,9 +20,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import json
-import re
 
 import arrow
+from django.core.cache import cache
 from django.utils.translation import ugettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -35,16 +35,12 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
-    BkdataRegexException,
     ClusteringAccessNotSupportedException,
     ClusteringConfigHasExistException,
     ClusteringConfigNotExistException,
     ClusteringDebugException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
-)
-from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
-    AiopsModelHandler,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
@@ -53,10 +49,10 @@ from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
-from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
+from apps.log_search.constants import TimeEnum
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -237,6 +233,21 @@ class ClusteringConfigHandler(object):
             {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": now_time.timestamp}
         )
         self.data.save(update_fields=["task_records"])
+
+        # 延迟10分钟重启flow
+        from apps.log_clustering.tasks.flow import restart_flow
+        collector_config_id = self.data.collector_config_id
+        # 缓存15分钟
+        cache.set(
+            f"start_pipeline_time_{collector_config_id}",
+            now_time.shift(minutes=10).timestamp,
+            15 * TimeEnum.ONE_MINUTE_SECOND.value
+        )
+        flow_ids = [self.data.predict_flow_id, self.data.pre_treat_flow_id, self.data.after_treat_flow_id]
+        restart_flow.apply_async(
+            args=[collector_config_id, flow_ids],
+            countdown=10 * TimeEnum.ONE_MINUTE_SECOND.value,
+        )
         return pipeline.id
 
     def synchronous_update(self, params):
