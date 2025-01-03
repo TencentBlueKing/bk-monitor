@@ -33,13 +33,13 @@ django-celery-results==2.2.0
 celery-redbeat==2.2.0
 
 # elasticsearch
-elasticsearch_dsl==7.3.0
-elasticsearch==7.12.0
+elasticsearch-dsl==7.4.1
+elasticsearch==7.17.12
 elasticsearch5==5.5.6
-elasticsearch6==6.4.2
-elasticsearch-curator==5.8.4
-django-elasticsearch-dsl==7.1.4
-luqum==0.11.0
+elasticsearch6==6.8.2
+elasticsearch-curator==7.0.1
+django-elasticsearch-dsl==7.4
+luqum==0.13.0
 
 # bk_audit
 bk-audit==1.0.7
@@ -60,7 +60,7 @@ opentelemetry-instrumentation-logging==0.30b1
 
 # kubernetes
 kubernetes==18.20.0
-google-auth==2.4.0
+google-auth==2.37.0
 
 # blueking
 cryptography==3.3.2
