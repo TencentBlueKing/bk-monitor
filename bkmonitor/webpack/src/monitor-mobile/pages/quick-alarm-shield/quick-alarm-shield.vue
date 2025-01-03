@@ -51,26 +51,27 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          :class="['detail-item', { 'is-dimension': item.name === '维度' }]"
+          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
           :key="index"
         >
           <template v-if="item.type === shieldType">
             <span>
               {{ `${item.name}:` }}
             </span>
+            <!-- 维度信息需要可复选 -->
             <van-checkbox-group
-              v-if="item.name === '维度' && Array.isArray(item.value)"
+              v-if="item.name === $t('维度') && Array.isArray(item.value)"
               class="detail-item-span"
               v-model="selectedDimension"
               icon-size="16px"
             >
               <van-checkbox
                 v-for="dimension in item.value"
-                :key="dimension.id"
-                :name="dimension.name"
+                :key="dimension.displayValue"
+                :name="dimension.key"
                 shape="square"
               >
-                {{ dimension.name }}
+                {{ dimension.displayValue }}
               </van-checkbox>
             </van-checkbox-group>
             <span
@@ -149,8 +150,10 @@ interface IRadioList {
   value: string;
 }
 interface IDimensionItem {
-  id: string;
-  name: string;
+  displayValue: string;
+  displayKey: string;
+  value: string;
+  key: string;
 }
 interface IDataPickerList {
   id: number;
@@ -163,7 +166,8 @@ interface IShieldItem {
   value: IDimensionItem[] | string;
 }
 interface IEentDetail {
-  dimensionMessage: IDimensionItem[];
+  dimensions: IDimensionItem[];
+  dimensionMessage: string;
   strategyName: string;
   targetMessage: string;
   anomalyMessage: string;
@@ -205,11 +209,12 @@ export default class AlarmDetail extends Vue {
   private loading = false;
   private minDate: Date = new Date(); // 可选的最小时间
   private shieldContent: IShieldItem[] = []; // 屏蔽内容
-  private selectedDimension: IDimensionItem[] = []; // 选择的维度信息
+  private selectedDimension: string[] = []; // 选择的维度信息
   private endTime = ''; // 截止时间
   private eventDetail: IEentDetail = {
     // 事件详情
-    dimensionMessage: [],
+    dimensions: [],
+    dimensionMessage: '',
     strategyName: '',
     targetMessage: '',
     anomalyMessage: '',
@@ -263,15 +268,9 @@ export default class AlarmDetail extends Vue {
       EventModule.getEventDetail({ id: this.eventId }),
       AlarmModule.getEventNum(),
     ]);
-    // 处理维度信息为多选框数据结构并选中
-    this.selectedDimension = eventDetail.dimensionMessage.split(',');
-    eventDetail.dimensionMessage = eventDetail.dimensionMessage.split(',').map(item => ({
-      id: item,
-      name: item,
-    }));
     this.eventDetail = eventDetail;
+    this.selectedDimension = this.eventDetail.dimensions?.map(item => item.key) || []; // 默认选中所有维度信息
     this.handleSetRadioList();
-    console.log(this.eventDetail.dimensionMessage, 'this.eventDetail.dimensionMessage');
     this.shieldContent = [
       {
         type: 'event',
@@ -281,7 +280,7 @@ export default class AlarmDetail extends Vue {
       {
         type: 'event',
         name: this.$tc('维度'),
-        value: this.eventDetail.dimensionMessage,
+        value: this.eventDetail.dimensions,
       },
       {
         type: 'strategy',
@@ -353,12 +352,16 @@ export default class AlarmDetail extends Vue {
       this.$notify('选择自定义时间');
       return;
     }
+    if (this.shieldType !== 'event') {
+      this.selectedDimension = []
+    }
     this.loading = true;
     const params = {
       event_id: this.eventId,
       type: this.shieldType,
       end_time: this.endTime,
       desc: this.reason,
+      dimension_keys: this.selectedDimension,
     };
     quickShield(params)
       .then(() => {
