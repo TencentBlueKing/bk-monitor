@@ -480,7 +480,6 @@ class QuickShield(AlertPermissionResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         end_time = serializers.DateTimeField(label="屏蔽结束时间", input_formats=["%Y-%m-%d %H:%M:%S"])
         description = serializers.CharField(label="屏蔽描述", allow_blank=True, default="")
-        # 用于更新维度信息
         dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
 
     @staticmethod
@@ -544,8 +543,9 @@ class QuickShield(AlertPermissionResource):
             "shield_notice": False,
             "cycle_config": {"begin_time": "", "type": 1, "end_time": ""},
             "is_quick": True,
-            "dimension_keys": params["dimension_keys"]
         }
+        if params["dimension_keys"] is not None:
+            shield_params["dimension_keys"] = params["dimension_keys"]
 
         shield_params.update(method_map[params["type"]](alert))
         return shield_params
