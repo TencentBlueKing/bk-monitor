@@ -352,17 +352,16 @@ export default class AlarmDetail extends Vue {
       this.$notify('选择自定义时间');
       return;
     }
-    if (this.shieldType !== 'event') {
-      this.selectedDimension = []
-    }
     this.loading = true;
-    const params = {
+    const params: Record<string, any> = {
       event_id: this.eventId,
       type: this.shieldType,
       end_time: this.endTime,
       desc: this.reason,
-      dimension_keys: this.selectedDimension,
     };
+    if (this.shieldType === 'event') {
+      params.dimension_keys = this.selectedDimension;
+    }
     quickShield(params)
       .then(() => {
         this.$router.back();
