@@ -83,6 +83,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TopoType,
     WorkLoadType,
+    CC_HOST_FIELDS,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -841,6 +842,14 @@ class CollectorHandler(object):
         is_display = params.get("is_display", True)
         params["params"]["encoding"] = data_encoding
         params["params"]["run_task"] = params.get("run_task", True)
+
+        # cmdb元数据补充
+        extra_labels = params["params"].get("extra_labels")
+        if extra_labels:
+            for item in extra_labels:
+                if item["key"] in CC_HOST_FIELDS:
+                    item["value"] = "{{cmdb_instance.host." + item["key"] + "}}"
+
         # 1. 创建CollectorConfig记录
         model_fields = {
             "collector_config_name": collector_config_name,
