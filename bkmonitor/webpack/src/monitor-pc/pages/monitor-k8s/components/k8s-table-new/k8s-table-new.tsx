@@ -529,7 +529,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     tableData: K8sTableRow[],
     resourceType: K8sTableColumnResourceKey
   ): { ids: Set<string>; tableDataMap: Record<string, number[]> } {
-    console.info('tableData', tableData, resourceType);
     return tableData.reduce(
       (prev, curr, index) => {
         const id = this.getResourceId(resourceType, curr as any);
@@ -608,7 +607,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             )
           ),
         },
-        { signal: controller.signal }
+        { signal: controller.signal, needMessage: false }
       )
         .then(tableAsyncData => {
           this.renderTableBatchByBatch(

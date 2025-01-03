@@ -37,6 +37,7 @@ interface K8sMetricListProps {
   metricList: GroupListItem[];
   hideMetrics?: string[];
   activeMetric?: string;
+  disabledMetricList?: { id: string; tooltips: string }[];
 }
 
 interface K8sMetricListEvent {
@@ -50,6 +51,7 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
   @Prop({ type: Array, default: () => [] }) metricList: GroupListItem[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
   @Prop({ type: String, default: '' }) activeMetric: string;
+  @Prop({ type: Array, default: () => [] }) disabledMetricList: { id: string; tooltips: string }[];
 
   @Emit('metricHiddenChange')
   handleMetricHiddenChange(ids: string[]) {
@@ -83,6 +85,7 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
                 key={group.id}
                 activeMetric={this.activeMetric}
                 defaultExpand={true}
+                disabledList={this.disabledMetricList}
                 hiddenList={this.hideMetrics}
                 list={group}
                 tools={['view']}

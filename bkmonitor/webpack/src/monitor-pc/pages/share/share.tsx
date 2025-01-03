@@ -106,7 +106,7 @@ export default class SharePage extends tsc<object> {
       url: this.url,
       id,
       container: this.$refs.sharePageWrap as HTMLElement,
-      showSourceCode: true,
+      showSourceCode: false,
       scopeCss: true,
       scopeLocation: true,
       setShodowDom: true,
