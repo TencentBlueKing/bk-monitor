@@ -34,17 +34,17 @@ celery-redbeat==2.2.0
 elasticsearch_dsl==7.3.0
 elasticsearch==7.12.0
 elasticsearch5==5.5.6
-elasticsearch6==6.4.2
-elasticsearch-curator==5.8.4
-django-elasticsearch-dsl==7.1.4
-luqum==0.11.0
+elasticsearch6==6.8.2
+elasticsearch-curator==5.8.4 # 7.0.1 需要 python 3.8 以上
+django-elasticsearch-dsl==7.4
+luqum==0.13.0
 
 # bk_audit
-bk-audit==1.0.7
+bk-audit==1.0.7 # 升级依赖 ot 的版本
 
 # opentelemetry
 protobuf==3.19.5
-opentelemetry-api==1.11.1
+opentelemetry-api==1.11.1 # 升级会影响到 importlib-metadata，而 kombu 在 3.7 无法适配 importlib-metadata 的新版本
 opentelemetry-sdk==1.11.1
 opentelemetry-exporter-otlp==1.11.1
 opentelemetry-instrumentation-django==0.30b1
@@ -61,12 +61,12 @@ kubernetes==18.20.0
 google-auth==2.4.0
 
 # blueking
-cryptography==3.3.2
+cryptography==44.0.0
 blueapps[opentelemetry]==4.7.1
-bkstorages==1.0.8
+bkstorages==1.1.1
 bk-iam==1.3.6
-whitenoise==5.0
-bk-notice-sdk==1.2.0
+whitenoise==6.5.0
+bk-notice-sdk==1.3.2
 
 # monitor
 raven==6.9.0
