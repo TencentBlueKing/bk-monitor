@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import arrow
 from django.core.cache import cache
 
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
@@ -51,9 +52,9 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
 
 
 @high_priority_task(ignore_result=True)
-def restart_flow(collector_config_id, flow_ids, triggered_time):
-    updated_time = cache.get(f"start_pipeline_time_{collector_config_id}")
-    if not updated_time or triggered_time == updated_time or triggered_time.shift(minutes=10) < updated_time:
+def restart_flow(collector_config_id, flow_ids):
+    updated_timestamp = cache.get(f"start_pipeline_time_{collector_config_id}")
+    if not updated_timestamp or arrow.now().timestamp >= updated_timestamp:
         for flow_id in flow_ids:
             if not flow_id:
                 continue
