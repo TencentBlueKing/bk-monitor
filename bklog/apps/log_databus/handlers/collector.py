@@ -2520,12 +2520,16 @@ class CollectorHandler(object):
         storage_replies=1,
         es_shards=settings.ES_SHARDS,
         is_display=True,
+        sort_fields=None,
+        target_fields=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
             "category_id": category_id,
             "description": description or collector_config_name,
             "is_display": is_display,
+            "sort_fields": sort_fields,
+            "target_fields": target_fields,
         }
 
         _collector_config_name = self.data.collector_config_name
