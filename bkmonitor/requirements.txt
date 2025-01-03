@@ -22,7 +22,7 @@ django-filter==23.5
 drf-yasg==1.21.8
 django-cors-headers==4.1.0
 django-jinja==2.10.2 # 3.11需要升级到2.11.0
-django-versionlog==1.8.1
+django-versionlog==1.8.0
 
 # celery
 celery==5.1.2
