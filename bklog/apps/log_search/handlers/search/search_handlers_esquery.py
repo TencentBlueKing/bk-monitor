@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -610,6 +610,23 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        log_list = result.get("list")
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_dict = data.get("query_alias_settings")
+            if alias_dict:
+                for log in log_list:
+                    for query_alias, info in alias_dict.items():
+                        path = info.get("path")
+                        if "." in path:
+                            key, field = info.get("path").split(".", 1)
+                            if key in log and field in log[key]:
+                                log[query_alias] = log[key][field]
+                        else:
+                            if path in log:
+                                log[query_alias] = log[path]
         return result
 
     def get_sort_group(self):

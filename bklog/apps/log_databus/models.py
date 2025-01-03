@@ -501,6 +501,7 @@ class CleanTemplate(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务id"))
     visible_type = models.CharField(_("可见类型"), max_length=64, default=VisibleEnum.CURRENT_BIZ.value)
     visible_bk_biz_id = MultiStrSplitByCommaFieldText(_("可见业务ID"), default="")
+    alias_settings = models.JSONField(_("别名配置"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("清洗模板")
