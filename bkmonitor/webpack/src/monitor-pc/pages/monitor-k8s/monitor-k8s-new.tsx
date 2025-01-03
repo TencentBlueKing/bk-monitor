@@ -41,7 +41,6 @@ import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
 import K8sTableNew, {
-  type K8sTableColumnChartKey,
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
@@ -142,7 +141,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 禁用的指标列表
   get disabledMetricList(): { id: string; tooltips: string }[] {
     /** 最后一级维度 */
-    const lastDimension = this.groupInstance.getResourceType();
+    const { groupByDimensions: dimensions } = this.groupInstance;
+    const lastDimension =
+      this.activeTab === K8sNewTabEnum.DETAIL
+        ? dimensions[dimensions.length - 1]
+        : this.groupInstance.getResourceType();
     const disabledMetricList = [];
     for (const metrics of this.metricList) {
       for (const metric of metrics.children) {
@@ -443,13 +446,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   }
 
   /**
-   * @description 表格 sort 排序事件后回调，将排序信息存入路由
+   * @description table需要存储路由的值改变后回调，将值存入路由
    */
-  handleTableSortChange(sort: `-${K8sTableColumnChartKey}` | K8sTableColumnChartKey) {
-    if (!sort) {
-      return;
-    }
-    this.setRouteParams({ tableSort: sort });
+  handleTableRouterParamChange(tableRouterParam: Record<string, any>) {
+    this.setRouteParams(tableRouterParam);
   }
 
   handleTableClearSearch() {
@@ -543,7 +543,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
             onClearSearch={this.handleTableClearSearch}
-            onSortChange={this.handleTableSortChange}
+            onRouterParamChange={this.handleTableRouterParamChange}
           />
         );
     }

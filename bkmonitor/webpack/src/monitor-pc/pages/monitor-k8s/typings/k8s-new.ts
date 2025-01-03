@@ -66,14 +66,6 @@ export enum K8sTableColumnKeysEnum {
    */
   CONTAINER = 'container',
   /**
-   * @description: cpu - CPU使用率
-   */
-  CPU = 'cpu',
-  /**
-   * @description: mem - 内存使用率
-   */
-  INTERNAL_MEMORY = 'mem',
-  /**
    * @description: pod - pod
    */
   POD = 'pod',
@@ -85,7 +77,52 @@ export enum K8sTableColumnKeysEnum {
    * @description: workload_type - workload_type
    */
   WORKLOAD_TYPE = 'workload_type',
+  /**
+   * @description: container_cpu_usage_seconds_total - CPU使用量
+   */
+  CPU_USAGE = 'container_cpu_usage_seconds_total',
+  /**
+   * @description: kube_pod_cpu_requests_ratio - CPU request使用率
+   */
+  CPU_REQUEST = 'kube_pod_cpu_requests_ratio',
+  /**
+   * @description: kube_pod_cpu_limits_ratio - CPU limit使用率
+   */
+  CPU_LIMIT = 'kube_pod_cpu_limits_ratio',
+  /**
+   * @description: container_memory_rss - 内存使用量(rss)
+   */
+  MEMORY_RSS = 'container_memory_rss',
+  /**
+   * @description: kube_pod_memory_requests_ratio - 内存 request使用率
+   */
+  MEMORY_REQUEST = 'kube_pod_memory_requests_ratio',
+  /**
+   * @description: kube_pod_memory_limits_ratio - 内存 limit使用率
+   */
+  MEMORY_LIMIT = 'kube_pod_memory_limits_ratio',
 }
+/** 汇聚类型枚举 */
+export enum K8sConvergeTypeEnum {
+  AVG = 'avg',
+  COUNT = 'count',
+  LAST = 'last',
+  MAX = 'max',
+  MIN = 'min',
+  SUM = 'sum',
+}
+
+/** 指标字段 */
+export type K8sTableMetricKeys =
+  | 'CPU_LIMIT'
+  | 'CPU_REQUEST'
+  | 'CPU_USAGE'
+  | 'MEMORY_LIMIT'
+  | 'MEMORY_REQUEST'
+  | 'MEMORY_RSS';
+
+/** 排序类型 */
+export type K8sSortType = '' | 'asc' | 'desc';
 
 export enum SceneEnum {
   Performance = 'performance',

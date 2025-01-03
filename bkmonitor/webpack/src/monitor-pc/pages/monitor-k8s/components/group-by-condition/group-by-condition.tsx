@@ -58,8 +58,9 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   /** 可选项数据 */
   get options() {
     return (
-      this.groupInstance.dimensions?.filter(v => !this.groupInstance.hasGroupFilter(v as K8sTableColumnResourceKey)) ||
-      []
+      this.groupInstance.groupByDimensions?.filter(
+        v => !this.groupInstance.hasGroupFilter(v as K8sTableColumnResourceKey)
+      ) || []
     );
   }
 
