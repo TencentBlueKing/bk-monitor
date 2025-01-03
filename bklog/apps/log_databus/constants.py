@@ -46,6 +46,32 @@ FEATURE_TOGGLE_ES_CLUSTER_TYPE = "es_cluster_type_setup"
 
 DEFAULT_RETENTION = 14
 
+# 节点管理支持的cmdb变量
+CC_HOST_FIELDS = [
+    "bk_host_id",
+    "bk_agent_id",
+    "bk_cloud_id",
+    "bk_addressing",
+    "bk_host_innerip",
+    "bk_host_outerip",
+    "bk_host_innerip_v6",
+    "bk_host_outerip_v6",
+    "bk_host_name",
+    "bk_os_type",
+    "bk_os_name",
+    "bk_os_bit",
+    "bk_os_version",
+    "bk_cpu_module",
+    "operator",
+    "bk_bak_operator",
+    "bk_isp_name",
+    "bk_biz_id",
+    "bk_province_name",
+    "bk_state",
+    "bk_state_name",
+    "bk_supplier_account",
+    "bk_cpu_architecture",
+]
 
 class VisibleEnum(ChoicesEnum):
     # 当前业务可见
