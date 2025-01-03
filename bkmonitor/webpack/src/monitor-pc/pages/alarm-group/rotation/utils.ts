@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
-import { randomColor } from '../../../../trace/pages/rotation/utils';
+import { timeRangeMerger } from 'monitor-common/rotation-utils/calendar-preview';
+import { randomColor } from 'monitor-common/rotation-utils/utils';
 
 import type { IDutyItem } from './typing';
 
