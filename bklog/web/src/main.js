@@ -135,10 +135,10 @@ if (process.env.NODE_ENV === 'development') {
   Vue.config.devtools = true;
 }
 
-// const _ResizeObserver = window.ResizeObserver;
-// window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
-//   constructor(callback) {
-//     callback = debounce(callback, 61);
-//     super(callback);
-//   }
-// };
+const _ResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+  constructor(callback) {
+    callback = debounce(callback);
+    super(callback);
+  }
+};
