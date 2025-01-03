@@ -69,7 +69,6 @@ export default class FieldFilterComp extends tsc<object> {
     '__dist_07',
     '__dist_09',
     '__ipv6__',
-    '__ext',
   ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
@@ -153,7 +152,6 @@ export default class FieldFilterComp extends tsc<object> {
       item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
       return [objArr, otherArr];
     }, [[], []]);
-    console.log(objArr, otherArr);
     if(!objArr.length){
       return arrData
     }
@@ -161,8 +159,10 @@ export default class FieldFilterComp extends tsc<object> {
     objArr.forEach(item => {
       this.addToNestedStructure(objectField, item);
     })
-    console.log(objectField);
-    return [...otherArr,...objectField ]
+   
+    return [...objectField, ...otherArr.filter(item => {
+      return !objectField.map(field => field.field_name).includes(item.field_name)
+    })]
   }
   /** 递归将数组变成tree */
   addToNestedStructure(targetArray, originalObject) {
@@ -201,6 +201,7 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
+    
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
     const hiddenFieldVisible =
       !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
@@ -218,7 +219,9 @@ export default class FieldFilterComp extends tsc<object> {
   /** 展示的内置字段 */
   get showIndexSetFields() {
     if (this.searchKeyword) return this.indexSetFields();
-    return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
+    const result = this.objectHierarchy(this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9))
+    return result
+    // return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -345,7 +348,6 @@ export default class FieldFilterComp extends tsc<object> {
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
   bigTreeRender(field){
-    // console.log(field);
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
@@ -468,6 +470,7 @@ export default class FieldFilterComp extends tsc<object> {
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map(item => (
+                    item.children?.length ? this.bigTreeRender(item) :(
                     <FieldItem
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
@@ -479,7 +482,7 @@ export default class FieldFilterComp extends tsc<object> {
                       statistical-field-data={this.statisticalFieldsData[item.field_name]}
                       type='hidden'
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                    />
+                    />)
                   ))}
                   {this.getIsShowIndexSetExpand() && (
                     <div
