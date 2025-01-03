@@ -365,6 +365,91 @@
           </span>
         </bk-form-item>
       </div>
+      <div
+        v-if="isEdit"
+        class="create-form"
+      >
+        <div class="form-title">
+          <span>{{ $t('字段设置') }}</span>
+          <span class="title-tips">
+            <i class="bk-icon icon-exclamation-circle"></i>
+            <span>{{ $t('未匹配到对应字段，请手动指定字段后提交') }}</span>
+          </span>
+        </div>
+        <!-- 目标字段 -->
+        <bk-form-item
+          :label="$t('目标字段')"
+          :property="'target_fields'"
+          :desc="$t('用于标识日志文件来源及唯一性')"
+        >
+          <bk-select
+            style="width: 500px"
+            v-model="formData.target_fields"
+            :collapse-tag="false"
+            :is-tag-width-limit="false"
+            display-tag
+            multiple
+            searchable
+          >
+            <bk-option
+              v-for="option in targetFieldSelectList"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+        </bk-form-item>
+        <!-- 排序字段 -->
+        <bk-form-item
+          :label="$t('排序字段')"
+          :property="'sort_fields'"
+          :desc="$t('用于控制日志排序的字段')"
+        >
+          <div class="collection-select sort-box">
+            <vue-draggable
+              v-model="formData.sort_fields"
+              animation="150"
+              handle=".icon-grag-fill"
+            >
+              <transition-group>
+                <bk-tag
+                  v-for="item in formData.sort_fields"
+                  ext-cls="tag-items"
+                  :key="item"
+                  closable
+                  @close="handleCloseSortFiled(item)"
+                >
+                  <i class="bk-icon icon-grag-fill"></i>
+                  {{ item }}
+                </bk-tag>
+              </transition-group>
+            </vue-draggable>
+            <bk-select
+              :ext-cls="`add-sort-btn ${!formData.sort_fields.length && 'not-sort'}`"
+              :popover-min-width="240"
+              searchable
+              style="width: 500px"
+              @selected="handleAddSortFields"
+            >
+              <template #trigger>
+                <bk-button
+                  class="king-button"
+                  icon="plus"
+                ></bk-button>
+              </template>
+              <bk-option
+                v-for="option in targetFieldSelectList"
+                :disabled="getSortDisabledState(option.id)"
+                :id="option.id"
+                :key="option.id"
+                :name="option.name"
+              >
+              </bk-option>
+            </bk-select>
+          </div>
+        </bk-form-item>
+      </div>
     </bk-form>
 
     <div
@@ -411,6 +496,7 @@
   import dragMixin from '@/mixins/drag-mixin';
   import storageMixin from '@/mixins/storage-mixin';
   import { mapGetters } from 'vuex';
+  import VueDraggable from 'vuedraggable';
 
   import IntroPanel from './components/intro-panel';
 
@@ -419,6 +505,7 @@
     components: {
       IntroPanel,
       clusterTable,
+      VueDraggable,
     },
     mixins: [storageMixin, dragMixin],
     data() {
@@ -450,6 +537,8 @@
           category_id: '',
           description: '',
           es_shards: 0,
+          target_fields: [],
+          sort_fields: [],
         },
         replicasMax: 7,
         shardsMax: 7,
@@ -533,6 +622,8 @@
         exclusiveList: [], // 独享集群
         editStorageClusterID: null,
         isTextValid: true,
+        targetFieldSelectList: [],
+        curIndexSetId: '',
       };
     },
     computed: {
@@ -582,8 +673,9 @@
     mounted() {
       this.containerLoading = true;
       Promise.all([this.getLinkData(), this.getStorage()])
-        .then(() => {
-          this.initFormData();
+        .then(async () => {
+          await this.initFormData();
+          this.initTargetFieldSelectList();
         })
         .finally(() => {
           this.containerLoading = false;
@@ -657,6 +749,7 @@
             },
           });
           const {
+            index_set_id,
             collector_config_name,
             collector_config_name_en,
             custom_type,
@@ -668,8 +761,10 @@
             category_id,
             description,
             bk_data_id,
+            target_fields,
+            sort_fields,
             storage_shards_nums: storageShardsNums,
-          } = res.data;
+          } = res?.data;
           Object.assign(this.formData, {
             collector_config_name,
             collector_config_name_en,
@@ -683,16 +778,47 @@
             description,
             bk_data_id,
             es_shards: storageShardsNums,
+            target_fields: target_fields || [],
+            sort_fields: sort_fields || [],
           });
           // 缓存编辑时的集群ID
 
           this.editStorageClusterID = storage_cluster_id;
+          this.curIndexSetId = index_set_id || '';
         } else {
           const { retention } = this.formData;
           Object.assign(this.formData, {
             retention: retention ? `${retention}` : this.defaultRetention,
           });
         }
+      },
+
+      // 获取字段设置数据列表
+      async initTargetFieldSelectList() {
+        const res = await this.$http.request('retrieve/getLogTableHead', {
+          params: {
+            index_set_id: this.curIndexSetId,
+          },
+          query: {
+            is_realtime: 'True',
+          },
+        });
+        this.targetFieldSelectList = res?.data?.fields.map(item => {
+          return {
+            id: item.field_name,
+            name: item.field_name,
+          };
+        });
+      },
+      getSortDisabledState(id) {
+        return this.formData.sort_fields.includes(id);
+      },
+      handleAddSortFields(val) {
+        this.formData.sort_fields.push(val);
+      },
+      handleCloseSortFiled(item) {
+        const splitIndex = this.formData.sort_fields.findIndex(fItem => fItem === item);
+        this.formData.sort_fields.splice(splitIndex, 1);
       },
       cancel() {
         this.$router.back(-1);
@@ -745,6 +871,22 @@
   @import '@/scss/mixins/scroller';
   @import '@/scss/storage';
 
+  .sort-box {
+    display: inline-flex;
+    align-items: center;
+
+    .add-sort-btn {
+      display: inline-block;
+      margin-left: 6px;
+      border: none;
+      box-shadow: none;
+    }
+
+    .not-sort {
+      margin-left: 0;
+    }
+  }
+
   .custom-create-container {
     padding: 0 24px;
 
@@ -784,6 +926,30 @@
         font-size: 14px;
         font-weight: 700;
         color: #63656e;
+      }
+
+      .title-tips {
+        margin-left: 16px;
+        font-size: 12px;
+        font-weight: normal;
+
+        .icon-exclamation-circle {
+          font-size: 16px;
+          color: #ea3636;
+        }
+      }
+
+      .collection-select {
+        .tag-items {
+          height: 32px;
+          line-height: 32px;
+
+          .icon-grag-fill {
+            display: inline-block;
+            cursor: move;
+            transform: translateY(-1px);
+          }
+        }
       }
 
       .form-input {
