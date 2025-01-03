@@ -45,7 +45,7 @@ class RecordRule(BaseModelWithTime):
     vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True)
     dst_vm_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     status = models.CharField("状态", max_length=32, default="created")
-    count_freq = models.IntegerField("计算频率", default=60)
+    count_freq = models.IntegerField("计算频率(秒)", default=60)
 
     class Meta:
         verbose_name = "预计算规则"
