@@ -64,10 +64,10 @@ def test_compose_process_node_config(create_or_delete_records, create_default_re
         'from_result_table_ids': ['2_bcs_custom_metric_result_table_00000'],
         'dedicated_config': {
             'waiting_time': 30,
+            'count_freq': 60,
             'sql_list': [
                 {
                     'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
-                    'count_freq': 60,
                     'sql': 'sum by (workload, tsdb_type, space_uid, le, pod) ('
                     'label_replace(rate('
                     'unify_query_tsdb_request_seconds_bucket[2m]), "workload", '
@@ -153,10 +153,10 @@ def test_create_flow_with_full_config(create_or_delete_records, create_default_r
                 'from_result_table_ids': ['2_bcs_custom_metric_result_table_00000'],
                 'dedicated_config': {
                     'waiting_time': 30,
+                    'count_freq': 60,
                     'sql_list': [
                         {
                             'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
-                            'count_freq': 60,
                             'sql': 'sum by (workload, tsdb_type, space_uid, le, pod) '
                             '(label_replace(rate('
                             'unify_query_tsdb_request_seconds_bucket[2m]), '
