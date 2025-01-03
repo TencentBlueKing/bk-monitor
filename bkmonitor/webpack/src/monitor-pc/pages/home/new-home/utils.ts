@@ -47,6 +47,15 @@ export const EStatusType = {
   shielded: '已屏蔽',
   normal: '正常',
 };
+
+/* 告警级别 */
+export enum EAlertLevel {
+  FATAL = 1,
+  WARNING = 2,
+  // eslint-disable-next-line perfectionist/sort-enums
+  INFO = 3,
+}
+
 /* functionName */
 export const EFunctionNameType = {
   dashboard: '仪表盘',

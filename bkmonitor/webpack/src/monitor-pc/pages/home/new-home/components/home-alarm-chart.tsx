@@ -42,7 +42,7 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { handleYAxisLabelFormatter, EStatusType } from '../utils';
+import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
@@ -53,6 +53,7 @@ import './home-alarm-chart.scss';
 interface IHomeAlarmChartProps {
   config: IAlarmGraphConfig;
   timeRange: TimeRangeType;
+  currentActiveId: number;
 }
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
@@ -68,6 +69,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   ErrorMsgMixins
 ) {
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
+  @Prop() currentActiveId: number;
   @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
   @Ref('menuPopover') menuPopoverRef: HTMLDivElement;
   // 高度
@@ -82,15 +84,15 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   colorList = ['#F8B4B4', '#A1E3BA', '#C4C6CC'];
   searchList = [
     {
-      name: 'ABNORMAL',
+      name: 'FATAL',
       display_name: window.i18n.tc('致命'),
     },
     {
-      name: 'RECOVERED',
+      name: 'WARNING',
       display_name: window.i18n.tc('预警'),
     },
     {
-      name: 'CLOSED',
+      name: 'INFO',
       display_name: window.i18n.tc('提醒'),
     },
   ];
@@ -113,7 +115,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       id: 'delete',
     },
   ];
-  searchValue = ['ABNORMAL', 'RECOVERED', 'CLOSED'];
+  searchValue = ['FATAL', 'WARNING', 'INFO'];
   options = {};
   chartOption = {
     color: this.colorList,
@@ -197,14 +199,16 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     try {
       // const seriesData = chartData.series;
       const [start, end] = handleTransformToTimestamp(this.timeRange);
+      const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
+      // 下拉切换告警级别筛选
+      if (this.searchValue.length) {
+        conditions.push({ key: 'level', value: this.searchValue.map(val => EAlertLevel[val]) });
+      }
       const { series } = await alertDateHistogram({
-        bk_biz_ids: [2],
-        conditions: [{ key: 'strategy_id', value: this.config.strategy_ids || [] }],
-        query_string: '',
+        bk_biz_ids: [this.currentActiveId],
+        conditions,
         start_time: start,
         end_time: end,
-        interval: 'auto',
-        bk_biz_id: 2,
       });
       // const res = await aipHandle;
       this.updateChartData(series);

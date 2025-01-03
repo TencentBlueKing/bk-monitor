@@ -518,6 +518,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           >
             <HomeAlarmChart
               config={item}
+              currentActiveId={this.activeTabId}
               timeRange={JSON.parse(this.timeRange)}
               onMenuClick={({ id }) => this.handleMuenClick(id, item, index)}
             />
