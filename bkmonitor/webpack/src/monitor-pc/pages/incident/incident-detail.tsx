@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 import EventDetailSlider from 'fta-solutions/pages/event/event-detail/event-detail-slider';
-import { type IShowDetail } from 'fta-solutions/pages/event/event-table';
 import { random } from 'monitor-common/utils';
+
+import type { IShowDetail } from 'fta-solutions/pages/event/event-table';
 
 import './incident-detail.scss';
 
@@ -85,7 +86,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
         data,
         id: this.randomKey,
         setShodowDom: true,
-        showSourceCode: true,
+        showSourceCode: false,
         url: this.incidentDetailUrl,
       });
       mount(this.randomKey, this.incidentDetailRef.shadowRoot);
