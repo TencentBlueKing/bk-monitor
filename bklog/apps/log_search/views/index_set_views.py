@@ -1152,7 +1152,7 @@ class IndexSetViewSet(ModelViewSet):
     @list_route(methods=["POST"], url_path="user_search")
     def user_search(self, request):
         """
-        @api {get} /index_set/user_search/
+        @api {post} /index_set/user_search/
         @apiDescription 获取用户最近查询的索引集
         @apiName user_search
         @apiGroup 05_AccessIndexSet
