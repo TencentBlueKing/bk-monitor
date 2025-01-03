@@ -26,8 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MyFavorites from './components/my-favorites';
 import RecentAlarmEvents from './components/recent-alarm-events';
+import RecentFavoritesTab from './components/recent-favorites-tab';
 // import HomeAlarmChart from './components/home-alarm-chart';
 import HomeSelect from './components/home-select';
 import { testData } from './testData';
@@ -77,7 +77,7 @@ export default class NewHome extends tsc<object> {
             searchList={testData}
           />
           <div class='new-home-tool'>
-            <MyFavorites />
+            <RecentFavoritesTab />
           </div>
           <div class='new-home-alarm-list'>
             <RecentAlarmEvents />

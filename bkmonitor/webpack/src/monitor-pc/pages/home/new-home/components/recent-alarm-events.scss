@@ -264,7 +264,7 @@
 
 .add-task-select-ext {
   padding: 3px 0;
-
+  background: #fff!important;
   .bk-option-content {
     display: flex;
     align-items: center;
@@ -284,8 +284,6 @@
     }
 
     .strategy-status {
-      // display: flex;displaydisplay
-      // align-items: center;align-itemsalign-items
       .strategy-tag {
         display: inline-block;
         padding: 0 12px;
@@ -301,6 +299,24 @@
         font-size: 20px;
         color: #3a84ff;
         vertical-align: middle;
+      }
+    }
+    &:hover {
+      background: #F5F7FA;
+    }
+  }
+  &.is-deleted {
+    .bk-option-content {
+      .strategy-tag {
+        color: #E71818;
+        background-color: #FFEBEB;
+      }
+      .strategy-name {
+        color: #C4C6CC;
+        text-decoration: line-through;
+      }
+      .icon-monitor {
+        color: #C4C6CC;
       }
     }
   }
