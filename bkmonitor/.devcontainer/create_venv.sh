@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Set up extra pip mirror
-echo "extra-index-url = ${EXTRA_PIP_MIRROR}/\n" >> ~/.pip/pip.conf 
-
 # Install virtualenv
 pip install virtualenv
 
@@ -18,5 +15,4 @@ fi
 source /app/code/bkmonitor/venv/bin/activate
 
 # Install dependencies
-grep -v "dataclasses" requirements.txt | grep -v "#" | xargs pip install
-pip install betterproto==2.0.0b5
+pip install -r requirements_dev.txt

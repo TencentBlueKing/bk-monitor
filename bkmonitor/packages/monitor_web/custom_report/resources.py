@@ -777,10 +777,16 @@ class ModifyCustomTimeSeries(Resource):
     @atomic()
     def perform_request(self, validated_request_data):
         operator = get_request_username() or validated_request_data["operator"]
-        table = CustomTSTable.objects.get(
+        table = CustomTSTable.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"],
             time_series_group_id=validated_request_data["time_series_group_id"],
-        )
+        ).first()
+        if not table:
+            raise ValidationError(
+                f"custom time series table not found, bk_biz_id: {validated_request_data['bk_biz_id']},"
+                f" time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
         fields = []
         metric_labels = {}
         for field in validated_request_data["metric_json"][0]["fields"]:
@@ -833,7 +839,15 @@ class ModifyCustomTimeSeriesDesc(Resource):
 
     @atomic()
     def perform_request(self, validated_request_data):
-        time_series_obj = CustomTSTable.objects.get(time_series_group_id=validated_request_data["time_series_group_id"])
+        time_series_obj = CustomTSTable.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        ).first()
+        if not time_series_obj:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
         time_series_obj.desc = validated_request_data["desc"]
         time_series_obj.save()
         return time_series_obj
@@ -849,7 +863,14 @@ class DeleteCustomTimeSeries(Resource):
 
     @atomic()
     def perform_request(self, validated_request_data):
-        table = CustomTSTable.objects.get(time_series_group_id=validated_request_data["time_series_group_id"])
+        table = CustomTSTable.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        ).first()
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
         operator = get_request_username()
         params = {"operator": operator, "time_series_group_id": table.time_series_group_id}
         api.metadata.delete_time_series_group(params)
@@ -955,7 +976,11 @@ class CustomTimeSeriesDetail(Resource):
         with_target = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
-        config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
+        config = CustomTSTable.objects.filter(pk=params["time_series_group_id"]).first()
+        if not config:
+            raise ValidationError(
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
+            )
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         if params.get("model_only"):
