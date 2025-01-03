@@ -84,6 +84,7 @@ class CheckCMSIResource(CMSIBaseResource):
             # invalid: 通知失败的用户名列表
             "username_check": {"invalid": []},
             "message": "发送成功",
+            "message_detail": {},
         }
 
         try:
@@ -387,12 +388,19 @@ class SendMail(CheckCMSIResource):
             else:
                 internal_users.append(username)
 
+        response = {}
+        default_response_data = {
+            # invalid: 通知失败的用户名列表
+            "username_check": {"invalid": []},
+            "message": "发送成功",
+            "message_detail": {},
+        }
         # 内部用户 针对内部用户直接通过 receiver__username 发送
         if internal_users:
             request_data = deepcopy(validated_request_data)
             request_data["receiver__username"] = ",".join(internal_users)
             request_data.pop("receiver", None)
-            self.send_request(request_data, request_data["receiver__username"])
+            response = self.send_request(request_data, request_data["receiver__username"])
 
         # 外部用户 针对外部用户通过 需要转化成 receiver 邮箱的方式直接发送
         if external_users:  # <- 以@结尾,还需要转化成邮箱
@@ -402,7 +410,15 @@ class SendMail(CheckCMSIResource):
             request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
             request_data.pop("receiver__username", None)
             if receivers:
-                self.send_request(request_data, external_users)  # receivers <- 用户名
+                external_send_response = self.send_request(request_data, external_users)
+                if response:
+                    # merge response
+                    response["message_detail"].update(external_send_response["message_detail"])
+                    response["username_check"]["invalid"] += external_send_response["username_check"]["invalid"]
+                else:
+                    response = external_send_response
+
+        return response or default_response_data
 
     def get_receivers_with_external_users(self, external_users: List[str]) -> List[str]:
         """
