@@ -38,7 +38,7 @@ import serviceSrc from '../../../../static/images/png/new-page/service.png';
 import { EFunctionNameType, RECENT_FAVORITE_STORE_KEY } from '../utils';
 import HeaderSettingModal from './header-setting-modal';
 
-import './my-favorites.scss';
+import './recent-favorites-tab.scss';
 interface RecentItems {
   function: string;
   items: Item[];
@@ -81,12 +81,12 @@ const modeNameMap = {
 };
 
 @Component({
-  name: 'MyFavorites',
+  name: 'RecentFavoritesTab',
   components: {
     draggable,
   },
 })
-export default class MyFavorites extends Mixins(UserConfigMixin) {
+export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   isRecentView = true; // 状态，用于切换视图
   userStoreRoutes = []; // 用户存储的路由
   selectedCategories = ['dashboard']; // 用户选择的类别

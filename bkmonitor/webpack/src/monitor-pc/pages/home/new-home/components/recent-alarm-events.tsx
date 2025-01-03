@@ -39,7 +39,7 @@ import { shortcuts } from '../../../../components/time-range/utils';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import { EStatusType } from '../utils';
 import HomeAlarmChart from './home-alarm-chart';
-import BizSelect from './new-biz-list';
+import HomeBizSelect from './home-biz-list';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
@@ -54,17 +54,6 @@ import './recent-alarm-events.scss';
   },
 })
 export default class RecentAlarmEvents extends tsc<object> {
-  // 时间选项
-  dataOverview = {
-    timeChecked: 7,
-    timeOption: [
-      { id: 1, name: window.i18n.tc('1 天') },
-      { id: 7, name: window.i18n.tc('7 天') },
-      { id: 15, name: window.i18n.tc('15 天') },
-      { id: 30, name: window.i18n.tc('一个月') },
-    ],
-  };
-
   tabs = [];
 
   handleMuenMode: '' | 'delete' | 'detail' | 'edit' = '';
@@ -74,16 +63,12 @@ export default class RecentAlarmEvents extends tsc<object> {
     size: 'mini',
   };
 
-  // pagination: {
-  //   current: number;
-  //   count: number;
-  //   limit: number;
-  // } = {
-  //   current: 1,
-  //   count: 0,
-  //   limit: 20,
-  // };
-  page = 1;
+  // 数据分页
+  pagination = {
+    currentPage: 1,
+    limit: 10,
+    isLastPage: false,
+  };
 
   activeTabId = null; // 默认选中第一个标签
 
@@ -106,11 +91,14 @@ export default class RecentAlarmEvents extends tsc<object> {
   strategyConfig = {
     strategy_ids: [],
     name: '',
+    status: [],
   };
 
   timeRange = JSON.stringify(shortcuts[5].value as TimeRangeType);
 
   strategyList = [];
+
+  filterStrategyIdSet = new Set();
 
   content: IAlarmGraphConfig[] = [];
 
@@ -200,10 +188,10 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 拖拽 end
 
   // 新增图表
-  handleAddChart() {
+  handleAddChart(isEdit = false) {
     this.alarmGraphConfig.bizId = this.activeTabId;
     this.isAppendMode = true;
-    this.getStrategyListById(this.activeTabId);
+    isEdit ? this.getStrategyListById() : this.getStrategyListByPage();
     this.showAddTaskDialog = true;
   }
 
@@ -251,31 +239,72 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 清除相关数据
   clearStrategyConfig() {
-    this.strategyConfig = {
-      strategy_ids: [],
-      name: '',
-    };
+    this.strategyConfig.strategy_ids = [];
+    this.strategyConfig.name = '';
     this.editChartIndex = null;
     this.handleMuenMode = '';
     this.showDelDialog = false;
+    this.pagination = {
+      currentPage: 1,
+      limit: 10,
+      isLastPage: false,
+    };
+    this.filterStrategyIdSet = new Set();
   }
 
-  async getStrategyListById(id) {
+  async getStrategyListByPage() {
     try {
-      // TODO 要分页
+      const { currentPage: page, limit } = this.pagination;
       const data = await getStrategyListV2({
-        bk_biz_id: id,
+        page,
+        limit,
+        bk_biz_id: this.alarmGraphConfig.bizId,
       });
-      this.strategyList = data.strategy_config_list || [];
+      this.pagination.isLastPage = data.total <= page * limit;
+      if (this.handleMuenMode === 'edit') {
+        this.strategyList.push(
+          ...(data.strategy_config_list.filter(item => {
+            if (!this.filterStrategyIdSet.has(item.id)) {
+              return true; // 保留在 filter 结果中
+            }
+            this.filterStrategyIdSet.delete(item.id); // 从集合中移除已处理的 ID
+          }) || [])
+        );
+        return;
+      }
+      this.strategyList.push(...(data.strategy_config_list || []));
     } catch (error) {
-      console.log('error', error);
+      console.log('getStrategyListByPage error', error);
     }
   }
-
-  async getStrategyListByPage(page) {
-    return await getStrategyListV2({
-      page,
-    });
+  // 根据策略 Id 获取数据
+  async getStrategyListById() {
+    try {
+      this.strategyList = [];
+      const data = await getStrategyListV2({
+        limit: 50,
+        bk_biz_id: this.alarmGraphConfig.bizId,
+        conditions: [{ key: 'strategy_id', value: this.strategyConfig.strategy_ids }],
+      });
+      this.filterStrategyIdSet = new Set(data.strategy_config_list.map(({ id }) => id));
+      this.strategyList.unshift(
+        ...(this.strategyConfig.status.map(item => {
+          const strategy = data.strategy_config_list.find(strategy => strategy.id === item.strategy_id);
+          if (strategy) return strategy;
+          return {
+            is_deleted: true,
+            name: item.name,
+            id: item.strategy_id,
+          };
+        }) || [])
+      );
+      // 如果回显值过少，手动触发触底事件
+      if (this.strategyList.length < 10) {
+        this.handleScrollToBottom();
+      }
+    } catch (error) {
+      console.log('getStrategyListByPage error', error);
+    }
   }
 
   getStrategyStatus(isDeleted = false, isInvalid = false, isEnabled = true) {
@@ -314,27 +343,24 @@ export default class RecentAlarmEvents extends tsc<object> {
             >
               <bk-select
                 v-model={this.strategyConfig.strategy_ids}
-                enable-scroll-load={true}
                 placeholder={this.$t('请选择策略')}
                 scrollLoading={this.bottomLoadingOptions}
+                enable-scroll-load
                 multiple
                 searchable
-                // onScroll={() => {
-                //   console.log('滚动啦');
-                // }}
-                onScrollEnd={this.handleScrollToBottom}
+                on-scroll-end={this.handleScrollToBottom}
               >
                 {this.strategyList.map(item => (
                   <bk-option
                     id={item.id}
                     key={item.id}
-                    class='add-task-select-ext'
+                    class={{ 'add-task-select-ext': true, 'is-deleted': item.is_deleted }}
                     name={item.name}
                   >
                     <div class={{ 'strategy-name': true, selected: this.isSelected(item.id) }}>{item.name}</div>
                     <div class='strategy-status'>
                       <span class='strategy-tag'>
-                        {this.getStrategyStatus(false, item.is_invalid, item.is_enabled)}
+                        {this.getStrategyStatus(item.is_deleted, item.is_invalid, item.is_enabled)}
                       </span>
                       {this.isSelected(item.id) && <span class='icon-monitor icon-mc-check-small' />}
                     </div>
@@ -377,10 +403,16 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
 
   async handleScrollToBottom() {
-    this.bottomLoadingOptions.isLoading = true;
-    this.strategyList.push(...(await this.getStrategyListByPage(++this.page)));
-    console.log('触底了a', this.strategyList);
-    this.bottomLoadingOptions.isLoading = false;
+    try {
+      // 判断是否为最后一页
+      if (this.pagination.isLastPage) return;
+      this.bottomLoadingOptions.isLoading = true;
+      this.pagination.currentPage++;
+      await this.getStrategyListByPage();
+      this.bottomLoadingOptions.isLoading = false;
+    } catch (error) {
+      console.log('error', error);
+    }
   }
 
   // 删除业务 start
@@ -535,11 +567,11 @@ export default class RecentAlarmEvents extends tsc<object> {
       case 'edit':
         this.strategyConfig.name = item.name;
         this.strategyConfig.strategy_ids = item.strategy_ids;
+        this.strategyConfig.status = item.status;
         this.editChartIndex = index;
-        this.handleAddChart();
+        this.handleAddChart(true);
         break;
       case 'delete':
-        // TODO 删除
         this.editChartIndex = index;
         this.showDelDialog = true;
         break;
@@ -549,9 +581,9 @@ export default class RecentAlarmEvents extends tsc<object> {
     }
   }
 
-  handleSelectBiz(id) {
+  async handleSelectBiz(id) {
     this.alarmGraphConfig.bizId = id;
-    this.getStrategyListById(id);
+    await this.getStrategyListByPage();
     this.isAppendMode = false;
     this.showAddTaskDialog = true;
   }
@@ -613,13 +645,10 @@ export default class RecentAlarmEvents extends tsc<object> {
                   {this.$t('添加业务')}
                 </span>
               ) : (
-                <BizSelect
+                <HomeBizSelect
                   bizList={this.bizIdList}
                   canAddBusiness={this.canAddBusiness}
-                  // isShrink={!this.menuToggle}
-                  isShrink={false}
                   minWidth={380}
-                  // stickyList={this.spacestickyList}
                   stickyList={[]}
                   theme='light'
                   onChange={this.handleSelectBiz}

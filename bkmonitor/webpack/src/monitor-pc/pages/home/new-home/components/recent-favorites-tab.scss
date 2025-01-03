@@ -32,8 +32,6 @@
   }
 
   span {
-    width: 36px;
-    height: 20px;
     font-size: 12px;
     line-height: 20px;
     color: #699DF4;
@@ -140,7 +138,7 @@
 
       .category {
         box-sizing: box-sizing;
-        padding: 6px 8px 0 8px;
+        padding: 0 8px 0 8px;
 
         .sub-head {
           display: flex;

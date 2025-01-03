@@ -35,7 +35,7 @@ import { Storage } from '../../../../utils';
 
 import type { ISpaceItem } from '../../../../types';
 
-import './new-biz-list.scss';
+import './home-biz-list.scss';
 
 /** 业务组件常用的业务缓存key */
 const BIZ_SELECTOR_COMMON_IDS = 'BIZ_SELECTOR_COMMON_IDS';
@@ -73,7 +73,7 @@ interface IEvents {
  * 业务选择器组件
  */
 @Component
-export default class BizSelect extends tsc<IProps, IEvents> {
+export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
   @Prop({ default: false, type: Boolean }) isShrink: boolean;
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean;

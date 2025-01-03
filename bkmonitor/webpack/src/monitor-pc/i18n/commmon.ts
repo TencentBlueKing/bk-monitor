@@ -30,6 +30,7 @@ import dropdown from '../lang/dropdown';
 import formContent from '../lang/form-content';
 import formLabel from '../lang/form-label';
 import message from '../lang/message';
+import newHome from '../lang/new-home';
 import placeholder from '../lang/placeholder';
 import route from '../lang/route';
 import strategy from '../lang/strategy';
@@ -58,6 +59,7 @@ const MonitorLangData = {
   tooltips,
   title,
   strategy,
+  newHome,
 };
 
 // 比较两个翻译文件是否多出来的词条
