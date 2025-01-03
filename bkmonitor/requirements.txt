@@ -41,6 +41,9 @@ elasticsearch-curator==5.8.4
 django-elasticsearch-dsl==7.1.4
 luqum==0.11.0
 
+# bk_audit
+bk-audit==1.2.2
+
 # opentelemetry
 protobuf==3.19.5
 opentelemetry-api==1.20.0
@@ -54,9 +57,6 @@ opentelemetry-instrumentation-kafka-python==0.41b0
 opentelemetry-instrumentation-logging==0.41b0
 opentelemetry-instrumentation-redis==0.41b0
 opentelemetry-instrumentation-requests==0.41b0
-
-# bk_audit
-bk-audit==1.2.1
 
 # kubernetes
 kubernetes==18.20.0
@@ -74,10 +74,10 @@ bk-notice-sdk==1.2.0
 raven==6.9.0
 supervisor==4.2.5
 pyinstrument==3.4.2
-ddtrace==1.8.3
+ddtrace==1.7.5
 
 # other
-pyppeteer==1.0.2
+pyppeteer==0.2.5
 arrow==0.6.0
 six==1.16.0
 requests==2.27.1
