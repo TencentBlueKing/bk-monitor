@@ -98,6 +98,7 @@ export default class FilterByCondition extends tsc<IProps> {
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
+  overflowCountTip = [];
 
   handleValueOptionsScrollThrottle = _v => {};
 
@@ -587,6 +588,16 @@ export default class FilterByCondition extends tsc<IProps> {
       if (!this.overflowCount) {
         this.isExpand = false;
       }
+      const overflowCountTip = [];
+      if (this.overflowCount) {
+        for (let i = this.overflowCount; i > 0; i--) {
+          const tag = this.tagList[this.tagList.length - i];
+          if (tag) {
+            overflowCountTip.push(`${tag.id} = ${tag.values.map(v => v.id).join(', ')}`);
+          }
+        }
+      }
+      this.overflowCountTip = overflowCountTip;
     }, 100);
   }
 
@@ -820,6 +831,11 @@ export default class FilterByCondition extends tsc<IProps> {
         <span
           key={'__count__'}
           class='filter-by-condition-tag type-count'
+          v-bk-tooltips={{
+            content: `<div>${this.overflowCountTip.map(o => `<div>${o}</div>`).join('')}</div>`,
+            allowHTML: true,
+            delay: [300, 0],
+          }}
           onClick={() => this.handleExpand()}
         >
           <span class='count-text'>{`+${this.overflowCount}`}</span>

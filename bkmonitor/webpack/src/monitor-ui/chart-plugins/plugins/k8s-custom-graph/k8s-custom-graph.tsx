@@ -313,6 +313,8 @@ class K8SCustomChart extends CommonSimpleChart {
               dimensions: item.dimensions ?? {},
             })) as any
           );
+          let limitFirstY = 0;
+          let requestFirstY = 0;
           seriesList = seriesList.map((item: any) => {
             const isSpecialSeries = this.isSpecialSeries(item.name);
             let color = item.lineStyle?.color;
@@ -323,6 +325,12 @@ class K8SCustomChart extends CommonSimpleChart {
               const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
               const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
               const firstValue = item.data?.find(item => item.value?.[1]);
+              const firstValueY = firstValue?.value?.[1] || 0;
+              if (isLimit) {
+                limitFirstY = firstValueY;
+              } else {
+                requestFirstY = firstValueY;
+              }
               markPoint = {
                 symbol: 'rect',
                 symbolSize: [isLimit ? 30 : 46, 16],
@@ -369,6 +377,29 @@ class K8SCustomChart extends CommonSimpleChart {
               },
               markPoint,
             };
+          });
+          // 判断limit 与request是否重叠
+          let min = 0;
+          let max = 0;
+          for (const item of this.legendData) {
+            const minValue = Number(item.minSource);
+            const maxValue = Number(item.maxSource);
+            if (minValue < min) {
+              min = minValue;
+            }
+            if (maxValue > max) {
+              max = maxValue;
+            }
+          }
+          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          seriesList = seriesList.map(item => {
+            if (limitEqualRequest && item.name === 'request') {
+              return {
+                ...item,
+                markPoint: {},
+              };
+            }
+            return item;
           });
           this.seriesList = Object.freeze(seriesList) as any;
           // 1、echarts animation 配置会影响数量大时的图表性能 掉帧

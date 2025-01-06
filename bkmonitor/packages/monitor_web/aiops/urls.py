@@ -9,16 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
-from monitor_web.aiops.ai_setting import views as ai_setting_views
-from monitor_web.aiops.host_monitor import views as host_monitor_views
+from django.urls import include, re_path
 
 from core.drf_resource.routers import ResourceRouter
+from monitor_web.aiops.ai_setting import views as ai_setting_views
+from monitor_web.aiops.host_monitor import views as host_monitor_views
 
 router = ResourceRouter()
 router.register_module(ai_setting_views)
 router.register_module(host_monitor_views)
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

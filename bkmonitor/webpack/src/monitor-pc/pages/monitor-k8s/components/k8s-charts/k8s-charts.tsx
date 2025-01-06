@@ -407,20 +407,21 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
-      data = this.isDetailMode
-        ? this.resourceListData
-        : await listK8sResources({
-            ...this.filterCommonParams,
-            with_history: true,
-            page_size: Math.abs(this.limit),
-            page: 1,
-            page_type: 'scrolling',
-          })
-            .then(data => {
-              if (!data?.items?.length) return [];
-              return data.items;
+      data =
+        this.isDetailMode && this.resourceListData.length
+          ? this.resourceListData
+          : await listK8sResources({
+              ...this.filterCommonParams,
+              with_history: true,
+              page_size: Math.abs(this.limit),
+              page: 1,
+              page_type: 'scrolling',
             })
-            .catch(() => []);
+              .then(data => {
+                if (!data?.items?.length) return [];
+                return data.items;
+              })
+              .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();
