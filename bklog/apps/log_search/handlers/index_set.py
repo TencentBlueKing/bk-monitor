@@ -1181,6 +1181,7 @@ class IndexSetHandler(APIModel):
         根据创建者、时间范围、限制条数获取某用户最近查询的索引集
         """
         username = params["username"]
+        space_uid = params.get("space_uid")
         start_time = params.get("start_time")
         end_time = params.get("end_time")
         limit = params["limit"]
@@ -1213,15 +1214,25 @@ class IndexSetHandler(APIModel):
                 index_set_id__in=index_set_ids,
                 is_active=True
             )
-            .values("index_set_id", "index_set_name")
+            .values("index_set_id", "index_set_name", "space_uid")
         )
+        return_data = []
         for history in history_data:
             for detail in detail_data:
                 if detail["index_set_id"] == history["index_set_id"]:
-                    history.update({"index_set_name": detail["index_set_name"]})
-        if limit:
-            history_data = history_data[:int(limit)]
-        return history_data
+                    if space_uid and space_uid != detail["space_uid"]:
+                        continue
+                    search_data = {
+                        "index_set_id": history["index_set_id"],
+                        "created_at": history["created_at"],
+                        "params": history["params"],
+                        "duration": history["duration"],
+                        "index_set_name": detail["index_set_name"],
+                        "space_uid": detail["space_uid"]
+                    }
+                    return_data.append(search_data)
+        return_data = return_data[:int(limit)]
+        return return_data
 
     @staticmethod
     def fetch_user_favorite_index_set(params):
@@ -1229,15 +1240,18 @@ class IndexSetHandler(APIModel):
         根据创建者、限制条数获取某用户收藏的索引集
         """
         username = params["username"]
+        space_uid = params.get("space_uid")
         limit = params.get("limit")
         index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
-        index_set_data = list(
+        index_set_obj = (
             LogIndexSet.objects.filter(
                 index_set_id__in=index_set_ids,
                 is_active=True
             )
-            .values("index_set_id", "index_set_name", "created_at")
         )
+        if space_uid:
+            index_set_obj = index_set_obj.filter(space_uid=space_uid)
+        index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
         if limit:
             index_set_data = index_set_data[:int(limit)]
         return index_set_data

@@ -1157,12 +1157,14 @@ class IndexSetViewSet(ModelViewSet):
         @apiName user_search
         @apiGroup 05_AccessIndexSet
         @apiParam {String} username 用户名(必填)
+        @apiParam {String} [space_uid] 空间唯一标识(非必填)
         @apiParam {Int} [start_time] 开始时间(非必填)
         @apiParam {Int} [end_time] 结束时间(非必填)
         @apiParam {Int} limit 限制条数(必填)
         @apiParamExample {Json} 请求参数
         {
             "username": "admin",
+            "space_uid": "bkcc__2",
             "start_time": 1732694693,
             "end_time": 1735286693,
             "limit": 1
@@ -1183,7 +1185,8 @@ class IndexSetViewSet(ModelViewSet):
                         "time_range": null
                     },
                     "duration": 680.0,
-                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证"
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证",
+                    "space_uid": "bkcc__2"
                 }
             ],
             "code": 0,
@@ -1201,10 +1204,12 @@ class IndexSetViewSet(ModelViewSet):
         @apiName user_favorite
         @apiGroup 05_AccessIndexSet
         @apiParam {String} username 用户名(必填)
+        @apiParam {String} [space_uid] 空间唯一标识(非必填)
         @apiParam {Int} [limit] 限制条数(非必填)
         @apiParamExample {Json} 请求参数
         {
             "username": "admin",
+            "space_uid": "bkcc__2",
             "limit": 1
         }
         @apiSuccessExample {json} 成功返回:
@@ -1214,7 +1219,8 @@ class IndexSetViewSet(ModelViewSet):
                 {
                     "index_set_id": 305,
                     "created_at": "2024-12-23T09:10:59.968318Z",
-                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证"
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证",
+                    "space_uid": "bkcc__2"
                 }
             ],
             "code": 0,
