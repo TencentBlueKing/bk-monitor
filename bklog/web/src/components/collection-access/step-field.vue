@@ -1339,15 +1339,6 @@
           this.savaFormData();
         }else{
           const allFields = this.$refs.fieldTable.getData();
-          // const copyBuiltFieldIds = new Set(this.copyBuiltField.map(field => field.field_name));
-          // const { copyFields, remainingFields } = allFields.reduce((acc, field) => {
-          //   if (copyBuiltFieldIds.has(field.field_name)) {
-          //     acc.copyFields.push(field);
-          //   } else {
-          //     acc.remainingFields.push(field);
-          //   }
-          //   return acc;
-          // }, { copyFields: [], remainingFields: [] });
           const builtFields = allFields.filter( item => item.is_built_in)
           this.formData.fields = allFields.filter( item => !item.is_built_in)
           if(builtFields.length){

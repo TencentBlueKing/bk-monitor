@@ -59,7 +59,13 @@
       }
     }
   }
-
+  .big-tree{
+    overflow-y: hidden;
+    .is-leaf{
+      height: auto;
+      line-height: normal;
+    }
+  }
   .field-filter-container-new {
     padding: 0 16px;
     overflow-y: auto;

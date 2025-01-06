@@ -389,7 +389,7 @@ export default class FieldFilterComp extends tsc<object> {
         ref='bigTreeRef'
         data={[field]}
         scopedSlots={scopedSlots}
-        class='bk-big-tree'
+        class='big-tree'
         expand-on-click={true}
         options={{ nameKey: 'field_name', idKey: 'field_name', childrenKey: 'children' }}
       >
