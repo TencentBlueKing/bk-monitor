@@ -1120,7 +1120,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.create_container_release(container_config)
-            return True
 
         # 启动节点管理订阅功能
         if self.data.subscription_id:
@@ -1171,7 +1170,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.delete_container_release(container_config)
-            return True
 
         if self.data.subscription_id:
             # 停止节点管理订阅功能
