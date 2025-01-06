@@ -39,7 +39,12 @@
                 "expression": "A",
                 "processors": [
                   {
-                    "name": "fill_empty_dimensions"
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  },
+                  {
+                    "name": "fill_empty_dimensions",
+                    "hook": "after_response"
                   }
                 ],
                 "group_by_limit": {
@@ -185,10 +190,16 @@
                 "expression": "(a or b < bool  0) /  b * 100",
                 "processors": [
                   {
-                    "name": "fill_empty_dimensions"
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  },
+                  {
+                    "name": "fill_empty_dimensions",
+                    "hook": "after_response"
                   },
                   {
                     "name": "format_percent",
+                    "hook": "after_response",
                     "options": {
                       "precision": 3,
                       "sig_fig_cnt": 2
@@ -433,10 +444,16 @@
                 "expression": "(a or b < bool  0) /  b * 100",
                 "processors": [
                   {
-                    "name": "fill_empty_dimensions"
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  },
+                  {
+                    "name": "fill_empty_dimensions",
+                    "hook": "after_response"
                   },
                   {
                     "name": "format_percent",
+                    "hook": "after_response",
                     "options": {
                       "precision": 3,
                       "sig_fig_cnt": 2
@@ -707,7 +724,12 @@
                 "expression": "a / b",
                 "processors": [
                   {
-                    "name": "fill_empty_dimensions"
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  },
+                  {
+                    "name": "fill_empty_dimensions",
+                    "hook": "after_response"
                   }
                 ],
                 "group_by_limit": {
@@ -929,6 +951,12 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
+                "processors": [
+                  {
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  }
+                ],
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1029,6 +1057,12 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
+                "processors": [
+                  {
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  }
+                ],
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1129,6 +1163,12 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
+                "processors": [
+                  {
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  }
+                ],
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1229,6 +1269,12 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
+                "processors": [
+                  {
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  }
+                ],
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1349,6 +1395,12 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
+                "processors": [
+                  {
+                    "name": "process_pre_calculate",
+                    "hook": "before_request"
+                  }
+                ],
                 "query_configs": [
                   {
                     "data_source_label": "custom",
