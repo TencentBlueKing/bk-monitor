@@ -1481,8 +1481,8 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
 
 
 class CustomUpdateSerializer(CustomCollectorBaseSerializer):
-    sort_fields = serializers.ListField(label=_("排序字段"), required=False, default=list)
-    target_fields = serializers.ListField(label=_("目标字段"), required=False, default=list)
+    sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
+    target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
 
 class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
