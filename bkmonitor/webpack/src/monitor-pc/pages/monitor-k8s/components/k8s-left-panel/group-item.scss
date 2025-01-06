@@ -94,6 +94,23 @@
         }
       }
 
+      &.disabled {
+        background: #FAFBFD;
+        border-radius: 2px;
+
+        .content-name {
+          color: #C4C6CC;
+        }
+
+        .tools .icon-monitor {
+          color: #DCDEE5;
+
+          &:hover {
+            color: #DCDEE5;
+          }
+        }
+      }
+
       .content-name {
         display: flex;
         flex: 1;

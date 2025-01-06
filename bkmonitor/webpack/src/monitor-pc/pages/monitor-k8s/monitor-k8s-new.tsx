@@ -465,6 +465,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       }
       return pre;
     }, {});
+    this.showCancelDrill = false;
   }
 
   getRouteParams() {

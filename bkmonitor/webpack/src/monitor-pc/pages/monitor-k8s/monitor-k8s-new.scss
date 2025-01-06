@@ -98,6 +98,7 @@
     }
 
     .filter-header-wrap {
+      position: relative;
       // position: absolute;
       // top: 0;
       // left: 321px;
@@ -136,6 +137,7 @@
 
         &.__filter-by__ {
           flex: 1;
+          max-width: calc(100% - 350px);
 
           .filter-by-title {
             border-right: 1px solid #dcdee5;
@@ -148,8 +150,8 @@
 
         &.__group-by__ {
           flex: 1;
-          width: 500px;
-          max-width: 500px;
+          width: 450px;
+          max-width: 450px;
         }
       }
     }
