@@ -19,8 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import arrow
+from django.core.cache import cache
+
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
+from apps.log_clustering.handlers.dataflow.constants import ActionEnum
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
@@ -36,4 +40,23 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
     if clustering_handler.data.bkdata_etl_processing_id:
         DataAccessHandler().sync_bkdata_etl(collector_config_id)
     DataFlowHandler().update_flow(index_set_id=clustering_handler.data.index_set_id)
+    predict_flow_id = clustering_handler.data.predict_flow_id
+    pre_treat_flow_id = clustering_handler.data.pre_treat_flow_id
+    after_treat_flow_id = clustering_handler.data.after_treat_flow_id
+    if predict_flow_id:
+        DataFlowHandler().operator_flow(flow_id=predict_flow_id, action=ActionEnum.RESTART)
+    elif pre_treat_flow_id:
+        DataFlowHandler().operator_flow(flow_id=pre_treat_flow_id, action=ActionEnum.RESTART)
+        DataFlowHandler().operator_flow(flow_id=after_treat_flow_id, action=ActionEnum.RESTART)
     logger.info(f"update flow success: collector_config_id -> {collector_config_id}")
+
+
+@high_priority_task(ignore_result=True)
+def restart_flow(collector_config_id, flow_ids):
+    updated_timestamp = cache.get(f"start_pipeline_time_{collector_config_id}")
+    if not updated_timestamp or arrow.now().timestamp >= updated_timestamp:
+        for flow_id in flow_ids:
+            if not flow_id:
+                continue
+            DataFlowHandler().operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
+        logger.info(f"restart flow success: collector_config_id -> {collector_config_id}")
