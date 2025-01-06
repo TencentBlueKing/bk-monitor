@@ -252,7 +252,7 @@ class ListK8SResources(Resource):
             default="",
         )
         method = serializers.ChoiceField(
-            required=False, choices=["max", "avg", "min", "sum", "last", "count"], default="max"
+            required=False, choices=["max", "avg", "min", "sum", "last", "count"], default="sum"
         )
         column = serializers.ChoiceField(
             required=False,

@@ -186,8 +186,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
     return [
       item.children.map((child, ind) => {
         const isSelectSearch = this.value.includes(child.id);
-        const isHidden = this.hiddenList.includes(child.id) || child.disabled;
         const isDisabled = this.disabledList.find(item => item.id === child.id);
+        const isHidden = this.hiddenList.includes(child.id) || isDisabled;
 
         if (child.children) {
           return (
@@ -269,9 +269,9 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
                   class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
                   v-bk-tooltips={{
                     content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标'),
-                    disabled: child.disabled,
+                    disabled: isDisabled,
                   }}
-                  onClick={() => !child.disabled && this.handleHiddenChange(child.id)}
+                  onClick={() => !isDisabled && this.handleHiddenChange(child.id)}
                 />
               )}
             </div>

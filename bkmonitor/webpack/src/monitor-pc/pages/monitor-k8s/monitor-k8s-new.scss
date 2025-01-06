@@ -105,6 +105,7 @@
       display: flex;
       width: calc(100% - 321px);
       min-height: 48px;
+      overflow: hidden;
       background: #ffffff;
       border: 1px solid #dcdee5;
       border-left: none;
@@ -134,8 +135,7 @@
         }
 
         &.__filter-by__ {
-          min-width: 64%;
-          max-width: 64%;
+          flex: 1;
 
           .filter-by-title {
             border-right: 1px solid #dcdee5;
@@ -148,7 +148,8 @@
 
         &.__group-by__ {
           flex: 1;
-          min-width: 440px;
+          width: 500px;
+          max-width: 500px;
         }
       }
     }
