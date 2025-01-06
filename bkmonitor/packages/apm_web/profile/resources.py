@@ -17,7 +17,6 @@ from collections import defaultdict
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm_web.models import Application
 from apm_web.profile.constants import GRAFANA_LABEL_MAX_SIZE
 from apm_web.profile.doris.querier import APIType, QueryTemplate
@@ -155,7 +154,6 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
-        is_get_ebpf = serializers.BooleanField(required=False, default=False)
 
     @classmethod
     def batch_query_profile_services_detail(cls, validated_data):
@@ -173,10 +171,9 @@ class ListApplicationServicesResource(Resource):
 
     def perform_request(self, data):
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
+
         apps = []
         nodata_apps = []
-        deepflow_data = []
-        is_get_ebpf = data["is_get_ebpf"]
 
         service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
@@ -204,11 +201,7 @@ class ListApplicationServicesResource(Resource):
                         "services": [],
                     }
                 )
-        if is_get_ebpf:
-            deepflow_data = DeepFlowQuery.list_app_service(bk_biz_id=data["bk_biz_id"])
-            # 查询 deepflow 集群和 service 装载入结果
-            # 其他 ebpf 数据源数据 可横向拓展
-            apps.extend(deepflow_data)
+
         return {
             "normal": apps,
             "no_data": nodata_apps,
