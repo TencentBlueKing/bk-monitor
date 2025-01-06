@@ -404,7 +404,7 @@
 
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = deepClone(tableField.value);
+    const fields = deepClone(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,

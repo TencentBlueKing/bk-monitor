@@ -50,58 +50,6 @@
           :expand-row-keys="expandRowKeys"
           ref="fieldsTable"
         >
-          <bk-table-column type="expand" width="0" min-width="0" >
-              <template slot-scope="props" v-if="props.row.field_name === 'ext'">
-                <bk-table
-                :data="totalFields"
-                :empty-text="$t('暂无内容')"
-                row-key="field_name"
-                :show-header="false"
-                size="small"
-                class="expand-table"
-                col-border>
-                  <bk-table-column label="字段名" prop="field_name"   width="220">
-                    <template #default="props">
-                      <div class="ext-field_name">
-                        <span class="ext-subnode bklog-icon bklog-subnode"></span>
-                        <span v-bk-tooltips.top="props.row.field_name">{{ props.row.field_name }}</span>
-                      </div>
-                    </template>
-                  </bk-table-column>
-                  <bk-table-column label="别名" width="140">
-                    <template #default="props">
-                      <div
-                        v-if="isPreviewMode || tableType === 'originLog'"
-                        class="overflow-tips"
-                        v-bk-overflow-tips
-                      >
-                        <span>{{ props.row.query_alias }}</span>
-                      </div>
-                      <bk-form-item
-                        v-else
-                        :class="{ 'is-required is-error': props.row.aliasErr }"
-                      >
-                        <bk-input
-                          v-model.trim="props.row.query_alias"
-                          :disabled="props.row.is_delete || isSetDisabled"
-                          @blur="checkQueryAliasItem(props.row)"
-                        >
-                        </bk-input>
-                        <template v-if="props.row.aliasErr">
-                          <i
-                            style="right: 8px"
-                            class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                            v-bk-tooltips.top="props.row.aliasErr"
-                          ></i>
-                        </template>
-                      </bk-form-item>
-                    </template>
-                  </bk-table-column>
-                  <bk-table-column label="数据类型" prop="field_type" width="100" align="center"></bk-table-column>
-                  <bk-table-column label="分词符" prop="" width="200"></bk-table-column>
-              </bk-table>
-              </template>
-          </bk-table-column>
           <template>
             <!-- 字段名 -->
             <bk-table-column
@@ -116,17 +64,24 @@
                   v-bk-overflow-tips
                 >
                   <span 
-                    v-if="props.row.field_name === 'ext' && !extExpand" 
+                    v-if="props.row.field_name === 'ext' && !props.row.expand" 
                     @click="expandObject(props.row,true)" 
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
                   </span>
                   <span 
-                    v-if="props.row.field_name === 'ext' && extExpand" 
+                    v-if="props.row.field_name === 'ext' && props.row.expand" 
                     @click="expandObject(props.row,false)" 
                     class="ext-btn bklog-icon bklog-arrow-down-filled">
                   </span>
+                 
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
-                  <div v-if="!props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.field_name }} </div>
+                  <div 
+                    v-if="!props.row.alias_name" 
+                    v-bk-tooltips.top="$t('字段名不支持快速修改')"
+                    class="field-name">
+                    <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
+                    {{ props.row.field_name }} 
+                  </div>
                   <div v-else-if="props.row.is_built_in && props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.alias_name }} </div>
                   <div v-else class="field-name-box">
                     <div class="alias-name">{{ props.row.field_name }}</div>
@@ -525,8 +480,7 @@
             },
           ],
         },
-        expandRowKeys: [],
-        extExpand: false
+        expandRowKeys: []
       };
     },
     computed: {
@@ -543,9 +497,6 @@
       },
       tableAllList() {
         return [...this.tableList, ...this.builtFields];
-      },
-      totalFields () {
-        return  this.$store.state.indexFieldInfo.fields.filter(item => /__ext/.test(item.field_name))
       },
       changeTableList() {
         const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
@@ -573,6 +524,7 @@
     async mounted() {
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
+      this.addObject()
     },
     methods: {
       reset() {
@@ -733,6 +685,7 @@
       getData() {
         // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
         const data = cloneDeep(this.formData.tableList);
+
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -749,6 +702,14 @@
       },
       getAllData() {
         const data = cloneDeep(this.tableAllList);
+        data.forEach(field => {
+          console.log(field.expand);
+          if (field.hasOwnProperty('expand')) {
+            if (field.expand === false) {
+              data.push(...field.children)
+            } 
+          }
+        })
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -1046,14 +1007,34 @@
       //   return ['string', 'int', 'long'].includes(row.field_type);
       // },
       expandObject(row, show){
-        console.log(this.extExpand);
-        
-        this.extExpand = show
-        if(show){
-          this.expandRowKeys.push(row.field_name)
-        }else{
-          this.expandRowKeys = []
+        row.expand = show;
+        const index = this.changeTableList.findIndex(item => item.field_name === row.field_name);
+        if (show) {
+            if (index !== -1) {
+              this.changeTableList.splice(index + 1, 0, ...row.children);
+            }
+        } else {
+            if (index !== -1) {
+              const childrenCount = row.children.length;
+              this.changeTableList.splice(index + 1, childrenCount);
+            }
         }
+      },
+      addObject(){
+        const fieldsObjectData = this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.'))
+        fieldsObjectData.forEach(item => {
+          let name = item.field_name.split('.')[0]
+          item.is_objectKey = true
+          this.builtFields.forEach( builtField => {
+            if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+              if (!Array.isArray(builtField.children)) {
+                builtField.children = [];
+                this.$set(builtField, 'expand', false);
+              }
+              builtField.children.push(item);
+            }
+          } )
+        })
       }
     },
   };
@@ -1085,32 +1066,6 @@
     }
 
     .field-table.add-field-table {
-      :deep(thead tr th:first-child) {
-        border-right: none;
-      }
-
-      :deep(tbody tr td:first-child) {
-        border-right: none;
-      }
-
-      :deep(tbody tr td:first-child .bk-icon) {
-        display: none;
-      }
-      :deep(.bk-table-expanded-cell){
-        padding: 0 
-      }
-      .expand-table {
-        border: none;
-        :deep(tbody tr td:first-child) {
-          border-right: 1px solid #dfe0e5;
-        }
-        :deep(.ext-field_name) {
-          margin-left: 20px;
-          .ext-subnode{
-            font-size: 16px;
-          }
-        }
-      }
       :deep(.bk-table-body) {
         .cell {
           display: contents;
@@ -1133,11 +1088,14 @@
               position: absolute;
               left: 0;
             }
+            .bklog-subnode{
+              font-size: 16px;
+            }
             .rotate{
               transform: rotate(-90deg);
             }
             .field-name{
-                margin: 15px 15px;
+                margin: 15px 10px 15px 15px;
             }
             .field-name-box{
               display: flex;
@@ -1163,7 +1121,7 @@
       }
 
       :deep(.bk-form-input) {
-        height: 50px;
+        height: 60px;
         border: 1px solid transparent;
       }
 
