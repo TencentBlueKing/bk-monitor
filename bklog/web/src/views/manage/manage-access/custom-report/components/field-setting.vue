@@ -15,7 +15,7 @@
     >
       <bk-select
         style="width: 500px"
-        v-model="targetFields"
+        v-model="value.targetFields"
         :collapse-tag="false"
         :is-tag-width-limit="false"
         display-tag
@@ -39,13 +39,13 @@
     >
       <div class="collection-select sort-box">
         <vue-draggable
-          v-model="sortFields"
+          v-model="value.sortFields"
           animation="150"
           handle=".icon-grag-fill"
         >
           <transition-group>
             <bk-tag
-              v-for="(item, index) in sortFields"
+              v-for="(item, index) in value.sortFields"
               ext-cls="tag-items"
               :key="item"
               closable
@@ -57,7 +57,7 @@
           </transition-group>
         </vue-draggable>
         <bk-select
-          :ext-cls="`add-sort-btn ${!sortFields.length && 'not-sort'}`"
+          :ext-cls="`add-sort-btn ${!value.sortFields?.length && 'not-sort'}`"
           :popover-min-width="240"
           searchable
           style="width: 500px"
@@ -83,39 +83,28 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { ref, watch, defineProps, defineExpose } from 'vue';
+  import { ref, watch, defineProps, defineEmits } from 'vue';
   import VueDraggable from 'vuedraggable';
   import $http from '../../../../../api';
   import { cloneDeep } from 'lodash';
 
   const props = defineProps({
-    fieldSettingData: {
-      default: () => {},
+    value: {
       type: Object,
+      default: () => ({}),
       required: true,
     },
   });
-  const sortFields = ref([]);
-  const targetFields = ref([]);
+
+  const emits = defineEmits(['update:value']);
+
   // 获取字段设置数据列表
   const targetFieldSelectList = ref([]);
 
-  watch(
-    () => props.fieldSettingData,
-    newVal => {
-      if (newVal && JSON.stringify(newVal) !== '{}') {
-        sortFields.value = cloneDeep(newVal.sortFields) || [];
-        targetFields.value = cloneDeep(newVal.targetFields) || [];
-        initTargetFieldSelectList();
-      }
-    },
-  );
-
   const initTargetFieldSelectList = async () => {
-    if (!props?.fieldSettingData?.indexSetId) return;
     const res = await $http.request('retrieve/getLogTableHead', {
       params: {
-        index_set_id: props?.fieldSettingData?.indexSetId,
+        index_set_id: props?.value?.indexSetId,
       },
       query: {
         is_realtime: 'True',
@@ -129,20 +118,30 @@
     });
   };
 
+  watch(
+    () => props.value,
+    newVal => {
+      if (newVal && newVal?.indexSetId) {
+        initTargetFieldSelectList();
+      }
+    },
+    {
+      immediate: true,
+      deep: true,
+    },
+  );
+
   const getSortDisabledState = id => {
-    return sortFields.value.includes(id);
-  };
-  const handleAddSortFields = val => {
-    sortFields.value.push(val);
-  };
-  const handleCloseSortFiled = (item, index) => {
-    sortFields.value.splice(index, 1);
+    return props.value.sortFields?.includes(id);
   };
 
-  defineExpose({
-    sortFields,
-    targetFields,
-  });
+  const handleAddSortFields = val => {
+    props.value?.sortFields.push(val);
+  };
+
+  const handleCloseSortFiled = (item, index) => {
+    props.value?.sortFields.splice(index, 1);
+  };
 </script>
 <style lang="scss" scoped>
   .sort-box {

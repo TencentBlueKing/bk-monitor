@@ -368,7 +368,7 @@
       <FieldSetting
         v-if="isEdit"
         ref="fieldSettingRef"
-        :fieldSettingData="fieldSettingData"
+        v-model="fieldSettingData"
       ></FieldSetting>
     </bk-form>
     <div
@@ -540,9 +540,9 @@
         editStorageClusterID: null,
         isTextValid: true,
         fieldSettingData: {
-          curIndexSetId: '',
-          target_fields: [],
-          sort_fields: [],
+          indexSetId: 0,
+          targetFields: [],
+          sortFields: [],
         },
       };
     },
@@ -630,8 +630,8 @@
                   allocation_min_days: Number(this.formData.allocation_min_days),
                   es_shards: Number(this.formData.es_shards),
                   bk_biz_id: Number(this.bkBizId),
-                  sort_fields: this.$refs.fieldSettingRef?.sortFields || [],
-                  target_fields: this.$refs.fieldSettingRef?.targetFields || [],
+                  sort_fields: this.fieldSettingData.sortFields || [],
+                  target_fields: this.fieldSettingData.targetFields || [],
                 },
               })
               .then(res => {
@@ -704,7 +704,7 @@
 
           this.editStorageClusterID = storage_cluster_id;
           this.fieldSettingData = {
-            indexSetId: index_set_id || '',
+            indexSetId: index_set_id || 0,
             targetFields: target_fields || [],
             sortFields: sort_fields || [],
           };
