@@ -297,7 +297,15 @@ class EtlHandler(object):
         return {"epoch_millis": f"{epoch_second}000"}
 
     @transaction.atomic()
-    def _update_or_create_index_set(self, etl_config, storage_cluster_id, view_roles=None, username=""):
+    def _update_or_create_index_set(
+            self,
+            etl_config,
+            storage_cluster_id,
+            view_roles=None,
+            username="",
+            sort_fields=None,
+            target_fields=None,
+    ):
         """
         创建索引集
         """
@@ -316,14 +324,19 @@ class EtlHandler(object):
             index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
             if not view_roles:
                 view_roles = index_set_handler.data.view_roles
-            index_set = index_set_handler.update(
-                index_set_name=index_set_name,
-                storage_cluster_id=storage_cluster_id,
-                view_roles=view_roles,
-                category_id=self.data.category_id,
-                indexes=indexes,
-                username=username,
-            )
+            update_fields = {
+                "index_set_name": index_set_name,
+                "storage_cluster_id": storage_cluster_id,
+                "view_roles": view_roles,
+                "category_id": self.data.category_id,
+                "indexes": indexes,
+                "username": username,
+            }
+            if sort_fields:
+                update_fields.update({"sort_fields": sort_fields})
+            if target_fields:
+                update_fields.update({"target_fields": target_fields})
+            index_set = index_set_handler.update(**update_fields)
         else:
             if not view_roles:
                 view_roles = []

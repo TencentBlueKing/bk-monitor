@@ -180,9 +180,6 @@ class CollectorConfig(CollectorBase):
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
 
-    sort_fields = models.JSONField(_("排序字段"), null=True, blank=True, default=None)
-    target_fields = models.JSONField(_("目标字段"), null=True, blank=True, default=None)
-
     def get_name(self):
         return self.collector_config_name
 
