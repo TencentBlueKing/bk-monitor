@@ -124,10 +124,10 @@ export default class K8SCharts extends tsc<
     }
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container] = name.split(':');
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, false);
+      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
       return;
     }
-    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, false);
+    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
   }
 
   @Provide('onShowDetail')
@@ -416,7 +416,6 @@ export default class K8SCharts extends tsc<
               page_size: Math.abs(this.limit),
               page: 1,
               page_type: 'scrolling',
-              order_by: this.limit > 0 ? '-cpu' : 'cpu',
             })
               .then(data => {
                 if (!data?.items?.length) return [];
