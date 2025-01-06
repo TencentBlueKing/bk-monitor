@@ -100,6 +100,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   clusterLoading = true;
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
+  @ProvideReactive('filterBy')
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
   @ProvideReactive('groupInstance')
@@ -465,6 +466,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       }
       return pre;
     }, {});
+    this.showCancelDrill = false;
   }
 
   getRouteParams() {

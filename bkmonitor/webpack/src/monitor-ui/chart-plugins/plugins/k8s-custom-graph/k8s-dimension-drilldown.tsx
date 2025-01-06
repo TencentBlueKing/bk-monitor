@@ -54,6 +54,8 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @InjectReactive('groupInstance') readonly groupInstance!: K8sGroupDimension;
+  @InjectReactive('filterBy') readonly filterBy!: Record<string, string[]>;
+
   @Ref('menu')
   menuRef: any;
 
@@ -63,6 +65,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   get drillDownList() {
     const list = drillListMap[this.dimension] || [];
+    if (!this.filterBy?.[this.dimension]?.length) return list;
     return list.filter(item => item !== this.groupInstance.getResourceType());
   }
 
