@@ -299,7 +299,7 @@ export default defineComponent({
       }
 
       const stepRun = (size?) => {
-        if (textSegmentIndex > 1000) {
+        if (textSegmentIndex >= 500) {
           const text = wordList
             .slice(textSegmentIndex)
             .map(item => item.text)
@@ -328,7 +328,7 @@ export default defineComponent({
             if (refContent.value) {
               textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
               if (textLineCount.value < maxLength && !isDispose) {
-                stepRun(textLineCount.value > 3 ? 1000 : undefined);
+                stepRun(textLineCount.value > 3 ? 500 : undefined);
               }
             }
           });
