@@ -8,6 +8,25 @@
     .bk-table-header-wrapper {
       .bk-table-header {
         min-width: 100%;
+
+        .cell:has(.k8s-metrics-header) {
+          padding-left: 0;
+        }
+
+        .k8s-metrics-header {
+          display: flex;
+          align-items: center;
+          padding-left: 15px;
+          cursor: initial;
+
+          .header-label {
+            flex-basis: auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
       }
     }
 
