@@ -948,9 +948,9 @@
         });
         return data;
       },
-      getBuiltData() {
+      getAlltData() {
         const data= deepClone(this.formData.tableList)
-
+        
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;

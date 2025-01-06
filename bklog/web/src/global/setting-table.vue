@@ -703,7 +703,6 @@
       getAllData() {
         const data = cloneDeep(this.tableAllList);
         data.forEach(field => {
-          console.log(field.expand);
           if (field.hasOwnProperty('expand')) {
             if (field.expand === false) {
               data.push(...field.children)

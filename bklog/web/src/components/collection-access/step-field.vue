@@ -1547,6 +1547,13 @@
           data.etl_fields = fieldTableData;
           if( this.params.etl_config === 'bk_log_json'){
             if(!this.builtFieldShow){
+              this.copyBuiltField.forEach(field => {
+                if (field.hasOwnProperty('expand')) {
+                  if (field.expand === false) {
+                    this.copyBuiltField.push(...field.children)
+                  } 
+                }
+              })
               data.etl_fields.push(...this.copyBuiltField)
             }
             data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
