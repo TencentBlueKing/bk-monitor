@@ -219,16 +219,17 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               active: this.activeMetric === child.id,
               disabled: isDisabled,
             }}
+            v-bk-tooltips={{
+              content: isDisabled?.tooltips,
+              disabled: !isDisabled,
+              placements: ['top'],
+              interactive: false,
+            }}
           >
             <div
               class={{
                 'content-name': true,
                 select: isSelectSearch,
-              }}
-              v-bk-tooltips={{
-                content: isDisabled?.tooltips,
-                disabled: !isDisabled,
-                placements: ['left'],
               }}
               onClick={() => !isDisabled && this.handleItemClick(child.id)}
             >
