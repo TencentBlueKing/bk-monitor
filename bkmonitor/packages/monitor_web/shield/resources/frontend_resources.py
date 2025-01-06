@@ -12,6 +12,8 @@ import itertools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set
 
+from rest_framework.exceptions import ValidationError
+
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.time_tools import localtime, now
 from bkmonitor.views import serializers
@@ -59,11 +61,25 @@ class FrontendShieldListResource(Resource):
         is_active: bool = data["is_active"]
         search_terms = set()
         conditions = []
+        strategy_ids = []
         for condition in data.get("conditions", []):
             if condition["key"] == "query":
                 search_terms.add(condition["value"])
+            elif condition["key"] == "strategy_id":
+                # 查询策略关联的屏蔽配置
+                if isinstance(condition["value"], list):
+                    strategy_ids.extend(condition["value"])
+                else:
+                    strategy_ids.append(condition["value"])
             else:
                 conditions.append(condition)
+
+        # 策略id必须是数字
+        try:
+            strategy_ids = [int(strategy_id) for strategy_id in strategy_ids]
+        except (ValueError, TypeError):
+            raise ValidationError("condition strategy_id must be integer")
+
         if data.get("search"):
             search_terms.add(data["search"])
 
@@ -81,21 +97,29 @@ class FrontendShieldListResource(Resource):
 
         # 获取屏蔽列表
         result = resource.shield.shield_list(**params)
-        shields = self.enrich_shields(bk_biz_id, result["shield_list"])
+        shields = self.enrich_shields(bk_biz_id, result["shield_list"], strategy_ids)
 
         # 模糊搜索和分页处理
         if search_terms:
             shields = self.search(search_terms, shields, is_active)
             if page and page_size:
-                shields = shields[(page - 1) * page_size: page * page_size]
+                shields = shields[(page - 1) * page_size : page * page_size]
 
         return {"count": result["count"], "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
         """模糊搜索屏蔽列表。"""
-        active_fields = ["id", "category_name", "content", "begin_time", "cycle_duration", "description", "status_name",
-                         "label"]
+        active_fields = [
+            "id",
+            "category_name",
+            "content",
+            "begin_time",
+            "cycle_duration",
+            "description",
+            "status_name",
+            "label",
+        ]
         inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name", "label"]
         search_fields = active_fields if is_active else inactive_fields
 
@@ -107,14 +131,20 @@ class FrontendShieldListResource(Resource):
 
         return [shield for shield in shields if match(shield)]
 
-    def enrich_shields(self, bk_biz_id: Optional[int], shields: list) -> list:
+    def enrich_shields(self, bk_biz_id: Optional[int], shields: list, strategy_ids: list[int]) -> list:
         """补充屏蔽记录的数据便于展示。"""
         if not shields:
             return []
 
         manager = ShieldDisplayManager(bk_biz_id)
         # 获取关联策略名
-        strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
+        strategy_ids = {
+            strategy_id
+            for shield in shields
+            for strategy_id in manager.get_strategy_ids(shield)
+            if strategy_id in strategy_ids
+        }
+
         strategy_id_to_name = {
             strategy.id: strategy.name for strategy in StrategyModel.objects.filter(id__in=strategy_ids).only("name")
         }
