@@ -230,6 +230,10 @@ class PreCalculateHelper:
     def __init__(self, config: Dict[str, Any]):
         self._config: Dict[str, Any] = config
 
+    def _is_enabled(self) -> bool:
+        """启用预计算时返回 True，默认启用"""
+        return self._config.get("enabled", True)
+
     def router(self, table_id: str, metric: str, used_labels: Iterable[str]) -> Dict[str, Any]:
         """将原始指标路由到预计算指标
         :param table_id: 原结果表
@@ -238,6 +242,9 @@ class PreCalculateHelper:
         :return:
         """
         result: Dict[str, Any] = {"table_id": table_id, "metric": metric, "is_hit": False}
+        if not self._is_enabled():
+            return result
+
         try:
             pre_cal_metric_infos: List[Dict[str, Any]] = self._config["metrics"][metric]
         except KeyError:
