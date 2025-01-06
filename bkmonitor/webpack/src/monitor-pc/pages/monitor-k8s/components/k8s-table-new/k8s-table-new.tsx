@@ -30,6 +30,7 @@ import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -217,8 +218,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** 图表异步请求数据缓存 */
   asyncDataCache = new Map();
   resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
-  /** 浏览器空闲时期填充图表异步请求数据执行函数ID，重新请求时及时终止结束回调 */
-  requestIdleCallbackId = null;
   /** 指标异步请求中止控制器 */
   abortControllerQueue: Set<AbortController> = new Set();
   /** 各指标汇聚类型map（默认为 sum） */
@@ -377,10 +376,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }
     this.initSortContainer(sort);
     this.getK8sList();
-  }
-  beforeUnmount() {
-    cancelIdleCallback(this.requestIdleCallbackId);
-    this.requestIdleCallbackId = null;
   }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
@@ -596,11 +591,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       }
       this.abortControllerQueue.clear();
     }
-    // 如请求资源列表时候，发现异步渲染未全部完成，则中断
-    if (this.requestIdleCallbackId) {
-      cancelIdleCallback(this.requestIdleCallbackId);
-      this.requestIdleCallbackId = null;
-    }
   }
 
   /**
@@ -663,9 +653,23 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       chartDataForResourceIdMap = {};
       this.asyncDataCache.set(field, chartDataForResourceIdMap);
     }
+
     for (const data of tableAsyncData) {
       const resourceId = data.resource_name;
       const chartData = data[field];
+
+      // 动态转化单位
+      const chartVal = chartData?.datapoints?.[0]?.[0];
+      if (![undefined, null].includes(chartVal)) {
+        const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
+          ? getValueFormat(chartData.unit || '')
+          : (v: any) => ({ text: v });
+        const set = unitFormatter(chartVal, chartData.unitDecimal || 4);
+        chartData.datapoints[0][0] = set.text;
+        // @ts-ignore
+        chartData.unit = set.suffix;
+      }
+
       chartDataForResourceIdMap[resourceId] = chartData;
       const rowIndex = tableDataMap[resourceId];
       if (rowIndex != null) {
@@ -900,7 +904,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           />
         );
       }
-      if (chartData?.datapoints?.[0]?.[0] == null) {
+      if ([undefined, null].includes(chartData?.datapoints?.[0]?.[0])) {
         return '--';
       }
       const { datapoints, unit = '', valueTitle = this.$t('用量') } = chartData;
