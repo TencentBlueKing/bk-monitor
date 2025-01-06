@@ -9,7 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
+
+from core.drf_resource.routers import ResourceRouter
 from fta_web.action.views import (
     ActionConfigViewSet,
     ActionInstanceViewSet,
@@ -17,12 +19,10 @@ from fta_web.action.views import (
     ActionPluginViewSet,
 )
 
-from core.drf_resource.routers import ResourceRouter
-
 router = ResourceRouter()
 router.register(r"config", ActionConfigViewSet, basename="action_config")
 router.register(r"plugins", ActionPluginViewSet, basename="action_plugin")
 router.register(r"instances", ActionInstanceViewSet, basename="action_instance")
 router.register(r"plugin_curd", ActionPluginCurdViewSet, basename="action_plugin_curd")
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [re_path(r"^", include(router.urls))]
