@@ -240,7 +240,10 @@ class AIOPSManager(abc.ABC):
                     metrics = []
                     filter_dict = dimensions
                 else:
-                    where = cls.create_where_with_dimensions(query_config["agg_condition"], dimensions)
+                    where = cls.create_where_with_dimensions(
+                        query_config["agg_condition"],
+                        {key: value for key, value in dimensions.items() if key in query_config["agg_dimension"]},
+                    )
                     agg_dimension = list(set(query_config["agg_dimension"]) & set(dimensions.keys()))
                     if "le" in query_config["agg_dimension"]:
                         # 针对le做特殊处理
