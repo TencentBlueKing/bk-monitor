@@ -1178,7 +1178,7 @@ class IndexSetHandler(APIModel):
     @staticmethod
     def fetch_user_search_index_set(params):
         """
-        根据创建者、时间范围、限制条数获取某用户最近查询的索引集
+        根据创建者、空间唯一标识、时间范围、限制条数获取某用户最近查询的索引集
         """
         username = params["username"]
         space_uid = params.get("space_uid")
@@ -1237,7 +1237,7 @@ class IndexSetHandler(APIModel):
     @staticmethod
     def fetch_user_favorite_index_set(params):
         """
-        根据创建者、限制条数获取某用户收藏的索引集
+        根据创建者、空间唯一标识、限制条数获取某用户收藏的索引集
         """
         username = params["username"]
         space_uid = params.get("space_uid")
