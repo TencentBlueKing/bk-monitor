@@ -3048,6 +3048,10 @@ class HostDetailResource(GetHostOrTopoNodeDetailResource):
 class HostInstanceDetailListResource(Resource):
     """关联主机列表"""
 
+    class SpanSourceType:
+        SPAN = "通过 Span 发现"
+        SERVICE = "通过 Service 发现"
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -3059,19 +3063,17 @@ class HostInstanceDetailListResource(Resource):
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
+        span_id = data.pop("span_id", None)
+        host_instances = [
+            {**i, "source": self.SpanSourceType.SERVICE} for i in HostHandler.list_application_hosts(**data)
+        ]
 
-        host_instances = HostHandler.list_application_hosts(**data)
-
-        if data.get("span_id"):
+        if span_id:
             # 优先展示 span 关联的主机信息
-            host_instances = (
-                HostHandler.find_host_in_span(
-                    data["bk_biz_id"],
-                    data["app_name"],
-                    data["span_id"],
-                )
-                + host_instances
-            )
+            host_instances = [
+                {**i, "source": self.SpanSourceType.SPAN}
+                for i in HostHandler.find_host_in_span(data["bk_biz_id"], data["app_name"], span_id)
+            ] + host_instances
 
         host_mapping = {
             int(i["bk_host_id"]): {
