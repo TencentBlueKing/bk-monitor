@@ -208,10 +208,9 @@ else:
 # api -> api
 # worker -> worker / worker_beat
 # web -> web / web_worker / web_beat
-
 SERVICE_NAME = f"{APP_CODE}_{ROLE}"
 is_celery = any("celery" in arg for arg in sys.argv)
-if is_celery and "celery" in sys.argv and ROLE != "worker":
+if is_celery and "worker" in sys.argv and ROLE != "worker":
     SERVICE_NAME = SERVICE_NAME + "_worker"
 if is_celery and "beat" in sys.argv:
     SERVICE_NAME = SERVICE_NAME + "_beat"
