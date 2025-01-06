@@ -18,11 +18,7 @@ to the current version of the project delivered to anyone in the future.
 import logging
 
 from apm.core.deepflow.base import EBPFHandler
-from apm_ebpf.resource import (
-    AppServiceQueryResource,
-    DeepFlowProfileQueryResource,
-    TraceQueryResource,
-)
+from apm_ebpf.resource import TraceQueryResource
 
 logger = logging.getLogger("apm")
 
@@ -57,31 +53,3 @@ class DeepFlowQuery:
         except Exception as e:
             logging.info("get_ebpf, {}".format(e))
         return ebpf_spans
-
-    @classmethod
-    def list_app_service(cls, bk_biz_id: int):
-        """
-        拉取 deepflow cluster - app_service 内容
-        """
-        sql = "SELECT app_service FROM in_process group by app_service"
-        app_service_params = {"sql": sql, "bk_biz_id": bk_biz_id, "db": "profile"}
-        res = AppServiceQueryResource().request(app_service_params)
-        return res
-
-    @classmethod
-    def get_profile(cls, bk_biz_id: int, cluster_id: str, service_name: str, start: int, data_type: str, end: int):
-        """
-        调用 deepflow server 查询 profile 数据
-        """
-        profile_params = {
-            "app_service": service_name,
-            "profile_language_type": "eBPF",
-            "profile_event_type": data_type,
-            "time_start": start,
-            "time_end": end,
-            "bk_biz_id": bk_biz_id,
-            "cluster_id": cluster_id,
-            "tag_filter": "",
-        }
-        res = DeepFlowProfileQueryResource().request(profile_params)
-        return res
