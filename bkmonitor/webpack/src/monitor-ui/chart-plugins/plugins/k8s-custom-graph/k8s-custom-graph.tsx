@@ -378,7 +378,7 @@ class K8SCustomChart extends CommonSimpleChart {
               markPoint,
             };
           });
-          // 判断limit 与request是否重叠，差值小于16%为重叠
+          // 判断limit 与request是否重叠
           let min = 0;
           let max = 0;
           for (const item of this.legendData) {
@@ -391,7 +391,7 @@ class K8SCustomChart extends CommonSimpleChart {
               max = maxValue;
             }
           }
-          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 0.16;
+          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
           seriesList = seriesList.map(item => {
             if (limitEqualRequest && item.name === 'request') {
               return {
