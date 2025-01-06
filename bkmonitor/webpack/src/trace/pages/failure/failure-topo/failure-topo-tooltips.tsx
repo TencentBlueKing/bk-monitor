@@ -66,7 +66,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['viewResource', 'FeedBack', 'toDetail', 'toDetailSlider', 'toDetailTab'],
+  emits: ['viewResource', 'FeedBack', 'toDetail', 'toDetailSlider', 'toDetailTab', 'toTracePage'],
   setup(props, { emit }) {
     const bkzIds = inject<Ref<string[]>>('bkzIds');
     /** 当前点击的线和边 */
@@ -327,6 +327,7 @@ export default defineComponent({
       const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
       window.open(`${baseUrl}#${linkHandleByType?.path(node)}?${queryString.toString()}`, timestamp.toString());
     };
+
     /** 拷贝操作 */
     const handleCopy = (text: string) => {
       copyText(text);
@@ -335,14 +336,27 @@ export default defineComponent({
         message: i18n.t('复制成功'),
       });
     };
+
     /** 详情侧滑 */
     const goDetailSlider = node => {
       emit('toDetailSlider', node);
     };
+
+    /** 跳转trace详情页，高亮对应span */
+    const handleViewSpan = node => {
+      emit('toTracePage', node.entity.rca_trace_info, 'traceDetail');
+    };
+
+    /** 跳转trace详情页，打开对应span详情 */
+    const handleViewSpanDetail = node => {
+      emit('toTracePage', node.entity.rca_trace_info, 'spanDetail');
+    };
+
     /** 告警详情 */
     const goDetailTab = node => {
       emit('toDetailTab', node);
     };
+
     return {
       popover,
       activeNode,
@@ -358,6 +372,8 @@ export default defineComponent({
       handleCopy,
       goDetailSlider,
       goDetailTab,
+      handleViewSpan,
+      handleViewSpanDetail,
     };
   },
   render() {
@@ -568,7 +584,17 @@ export default defineComponent({
           onClick={() => clickFn && this[`handle${clickFn}`](node)}
         >
           {needIcon && (
-            <i class={['icon-monitor', 'btn-icon', clickFn === 'FeedBack' ? feedbackRootIcon : 'icon-ziyuantuopu']} />
+            <i
+              class={[
+                'icon-monitor',
+                'btn-icon',
+                clickFn === 'FeedBack'
+                  ? feedbackRootIcon
+                  : clickFn === 'ViewSpan'
+                    ? 'icon-fenxiang'
+                    : 'icon-ziyuantuopu',
+              ]}
+            />
           )}
           <span
             class='btn-text'
@@ -749,6 +775,18 @@ export default defineComponent({
                 node,
                 'ViewResource'
               )}
+            {isShowRootText &&
+              node.entity.rca_trace_info &&
+              Object.keys(node.entity.rca_trace_info).length > 0 &&
+              createCommonIconBtn(
+                this.$t('查看Span'),
+                {
+                  marginLeft: '16px',
+                },
+                true,
+                node,
+                'ViewSpan'
+              )}
             {this.showViewResource &&
               node.is_feedback_root &&
               createCommonIconBtn(
@@ -814,6 +852,23 @@ export default defineComponent({
                     </span>
                   )}
                 </>
+              ))}
+            {isShowRootText &&
+              node.entity.rca_trace_info &&
+              Object.keys(node.entity.rca_trace_info).length > 0 &&
+              createCommonForm(`${this.$t('异常信息')}：`, () => (
+                <div
+                  class='except-info'
+                  onClick={this.handleViewSpanDetail.bind(this, node)}
+                >
+                  <OverflowTitle
+                    type='tips'
+                    class='except-text'
+                  >
+                    <span>{node.entity.rca_trace_info.abnormal_message}</span>
+                  </OverflowTitle>
+                  <i class={['icon-monitor', 'except-icon', 'icon-fenxiang']} />
+                </div>
               ))}
             {createCommonForm(`${this.$t('分类')}：`, () => (
               <>{node.entity.rank.rank_category.category_alias}</>

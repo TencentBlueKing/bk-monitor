@@ -60,6 +60,7 @@ import {
   ref,
   watch,
 } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { useTraceStore } from '../../../../store/modules/trace';
 import { PEER_SERVICE } from '../../constants/tag-keys';
@@ -166,10 +167,11 @@ export default defineComponent({
   emits: ['itemClick', 'getCrossAppInfo', 'toggleCollapse'],
   setup(props, { emit }) {
     const { traceTree: trace } = useTraceStore();
-
+    const route = useRoute();
     const spanBarCurrentStore = useSpanBarCurrentInject();
     const focusMatchesStore = useFocusMatchesInject();
     const childrenHiddenStore = useChildrenHiddenInject();
+    const span_id = ref('');
 
     const wrapperElm = ref<HTMLElement | TNil>(null);
     const itemHolderElm = ref<HTMLElement | TNil>(null);
@@ -192,7 +194,6 @@ export default defineComponent({
     const spans = computed(() => useTraceStore().spanGroupTree);
     const getRowStates = computed<RowState[]>(() => {
       const { detailStates } = props;
-
       return trace ? generateRowStates(spans.value, childrenHiddenStore?.childrenHiddenIds.value, detailStates) : [];
     });
 
@@ -449,11 +450,12 @@ export default defineComponent({
       if (!trace) {
         return null;
       }
+      const highlightSpanId = span_id.value;
       const isCollapsed = childrenHiddenStore?.childrenHiddenIds.value.has(spanID);
       const isDetailExpanded = detailStates?.has(spanID);
       const isMatchingFilter = focusMatchesStore?.findMatchesIDs.value?.has(spanID) ?? false;
       const isFocusMatching = spanID === focusMatchesStore?.focusMatchesId.value;
-      const isActiveMatching = spanID === props.activeSpanId;
+      const isActiveMatching = spanID === props.activeSpanId || spanID === highlightSpanId;
       const isHaveRead = haveReadSpanIds.includes(spanID);
       const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(spans.value, spanIndex));
       const attributes = { ...attrs, id: spanID };
@@ -524,6 +526,28 @@ export default defineComponent({
     function handleClick(itemKey: Span) {
       emit('itemClick', itemKey);
     }
+
+    watch(
+      () => route.query,
+      () => {
+        if (!route.query.incident_query) return;
+        const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
+        if (Object.keys(spanInfo).length > 0) {
+          span_id.value = spanInfo.span_id;
+          // 打开span详情抽屉
+          if (spanInfo.type === 'spanDetail') {
+            const data = getRowStates.value.find(f => f.span.id === spanInfo.span_id);
+            if (data) {
+              setTimeout(() => {
+                document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
+              }, 50);
+              emit('itemClick', data.span, true);
+            }
+          }
+        }
+      },
+      { immediate: true }
+    );
 
     return {
       yPositions,
