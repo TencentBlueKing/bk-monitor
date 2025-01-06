@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import itertools
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from rest_framework.exceptions import ValidationError
 
@@ -92,7 +92,7 @@ class FrontendShieldListResource(Resource):
             "time_range": data.get("time_range"),
         }
         # 如果不执行模糊搜索，则由后端分页，避免后续多余处理
-        if not search_terms:
+        if not search_terms and not strategy_ids:
             params.update({"page": page, "page_size": page_size})
 
         # 获取屏蔽列表
@@ -102,10 +102,16 @@ class FrontendShieldListResource(Resource):
         # 模糊搜索和分页处理
         if search_terms:
             shields = self.search(search_terms, shields, is_active)
+
+        # 如果执行模糊搜索或过滤策略id，则需要手动分页
+        if search_terms or strategy_ids:
+            total = len(shields)
             if page and page_size:
                 shields = shields[(page - 1) * page_size : page * page_size]
+        else:
+            total = result["count"]
 
-        return {"count": result["count"], "shield_list": shields}
+        return {"count": total, "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
@@ -131,22 +137,23 @@ class FrontendShieldListResource(Resource):
 
         return [shield for shield in shields if match(shield)]
 
-    def enrich_shields(self, bk_biz_id: Optional[int], shields: list, strategy_ids: list[int]) -> list:
+    def enrich_shields(self, bk_biz_id: Optional[int], shields: List, strategy_ids: List[int]) -> List:
         """补充屏蔽记录的数据便于展示。"""
         if not shields:
             return []
 
         manager = ShieldDisplayManager(bk_biz_id)
+
+        # 过滤策略id
+        strategy_ids = set(strategy_ids)
+        shields = [shield for shield in shields if set(manager.get_strategy_ids(shield)) & strategy_ids]
+
         # 获取关联策略名
-        strategy_ids = {
-            strategy_id
-            for shield in shields
-            for strategy_id in manager.get_strategy_ids(shield)
-            if strategy_id in strategy_ids
-        }
+        shield_strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
 
         strategy_id_to_name = {
-            strategy.id: strategy.name for strategy in StrategyModel.objects.filter(id__in=strategy_ids).only("name")
+            strategy.id: strategy.name
+            for strategy in StrategyModel.objects.filter(id__in=shield_strategy_ids).only("name")
         }
 
         with ThreadPoolExecutor(max_workers=20) as executor:
