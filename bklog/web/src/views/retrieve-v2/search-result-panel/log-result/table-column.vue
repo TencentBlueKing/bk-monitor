@@ -41,6 +41,7 @@
       <text-segmentation
         :content="formatContent"
         :field="field"
+        :data="row"
         @menu-click="handleJsonSegmentClick"
       />
     </template>
@@ -70,6 +71,9 @@
       field: {
         type: Object,
         required: true,
+      },
+      row: {
+        type: Object,
       },
     },
     data() {

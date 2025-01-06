@@ -975,7 +975,6 @@ class DataFlowHandler(BaseAiopsHandler):
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
         )
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def update_predict_flow_filter_rules(self, index_set_id):
         """
@@ -1000,7 +999,6 @@ class DataFlowHandler(BaseAiopsHandler):
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
         )
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def update_online_task(self, index_set_id: int):
         """
@@ -1053,9 +1051,7 @@ class DataFlowHandler(BaseAiopsHandler):
         # 更新在线训练任务
         self.update_online_task(index_set_id=index_set_id)
 
-        # 重启 flow
-        self.operator_flow(flow_id=clustering_config.predict_flow_id, action=ActionEnum.RESTART)
-        logger.info(f"update predict_nodes and online_tasks success: flow_id -> {clustering_config.predict_flow_id}")
+        logger.info(f"update predict_nodes success: flow_id -> {clustering_config.predict_flow_id}")
 
     def get_flow_graph(self, flow_id):
         """
@@ -1256,7 +1252,6 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         flow = json.loads(pre_treat_flow)
         self.deal_pre_treat_flow(nodes=nodes, flow=flow)
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def deal_predict_flow(self, nodes, flow):
         """
@@ -1386,7 +1381,6 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         flow = json.loads(after_treat_flow)
         self.deal_after_treat_flow(nodes=nodes, flow=flow)
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def deal_after_treat_flow(self, nodes, flow):
         """
@@ -1794,8 +1788,6 @@ class DataFlowHandler(BaseAiopsHandler):
         # 更新画布结构
         self.deal_predict_flow(nodes=nodes, flow=flow)
 
-        # 重启 flow
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         clustering_config.save()

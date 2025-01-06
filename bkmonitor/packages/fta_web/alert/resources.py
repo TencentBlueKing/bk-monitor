@@ -1319,6 +1319,9 @@ class AlertGraphQueryResource(ApiAuthResource):
         logger.info("alert graph query params %s", dict(params))
         result = resource.grafana.graph_unify_query(params)
 
+        # 返回信息加上数据查询的时间范围
+        result["date_range"] = [start_time, int(end_time)]
+
         result["trace_series"] = []
         if (
             query_config

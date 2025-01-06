@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .k8s-custom-graph {
   display: flex;
   flex: 1;
@@ -6,7 +7,7 @@
   height: 100%;
   background-color: transparent;
 
-  &-header {
+  .time-series-header {
     display: flex;
     flex: 0 0 46px;
     align-items: center;
@@ -14,7 +15,7 @@
     height: 46px;
   }
 
-  &-content {
+  .time-series-content {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -23,6 +24,7 @@
     padding-bottom: 6px;
 
     &.right-legend {
+      position: relative;
       flex-direction: row;
     }
 
@@ -32,7 +34,7 @@
       flex-grow: 2;
 
       &.is-table-legend {
-        width: calc(100% - 320px);
+        min-width: 50%;
         max-width: calc(100% - 320px);
       }
     }
@@ -46,10 +48,21 @@
       overflow: auto;
 
       &.right-legend {
-        width: 320px;
+        width: auto;
         min-width: 320px;
-        max-width: 320px;
+        max-width: 50%;
         max-height: 100%;
+
+        .table-legend {
+          width: auto;
+          table-layout: auto;
+
+          & > colgroup {
+            & > col {
+              width: auto !important;
+            }
+          }
+        }
       }
     }
   }
@@ -57,6 +70,22 @@
   .k8s-legend-name {
     display: flex;
     align-items: center;
+
+    .metric-name {
+      color: #ccc;
+
+      &.is-show {
+        color: #63656e;
+      }
+
+      &.can-show-detail {
+        text-decoration: underline;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
   }
 
   .empty-chart {

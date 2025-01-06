@@ -51,6 +51,7 @@ export default class K8SCharts extends tsc<
     filterCommonParams: Record<string, any>;
     isDetailMode?: boolean;
     activeMetricId?: string;
+    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
   },
   {
     onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
@@ -62,6 +63,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   @Prop({ type: String, default: '' }) activeMetricId: string;
+  @Prop({ type: Array, default: () => [] }) resourceListData: Record<K8sTableColumnKeysEnum, string>[];
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
@@ -87,7 +89,7 @@ export default class K8SCharts extends tsc<
   }
   @Watch('hideMetrics')
   onHideMetricListChange() {
-    this.createPanelList();
+    this.createPanelList(false);
   }
   @Watch('filterCommonParams')
   onFilterCommonParamsChange(newVal: Record<string, string>, oldVal: Record<string, string>) {
@@ -156,8 +158,10 @@ export default class K8SCharts extends tsc<
     this.createPanelList();
   }
   @Debounce(300)
-  async createPanelList() {
-    this.loading = true;
+  async createPanelList(hasLoading = true) {
+    if (hasLoading) {
+      this.loading = true;
+    }
     await this.getResourceList();
     const displayMode = this.isDetailMode ? 'hidden' : 'table';
     const panelList = [];
@@ -223,7 +227,9 @@ export default class K8SCharts extends tsc<
       });
     }
     this.panels = panelList;
-    this.loading = false;
+    if (hasLoading) {
+      this.loading = false;
+    }
     await this.$nextTick();
     this.onActiveMetricIdChange(this.activeMetricId);
   }
@@ -237,7 +243,7 @@ export default class K8SCharts extends tsc<
   }
   createCommonPromqlContent(onlyNameSpace = false) {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
-    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE);
+    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
       content += `,namespace=~"^(${namespace})$"`;
       return content;
@@ -401,19 +407,21 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
-      data = await listK8sResources({
-        ...this.filterCommonParams,
-        with_history: true,
-        page_size: Math.abs(this.limit),
-        page: 1,
-        page_type: 'scrolling',
-        order_by: this.limit > 0 ? '-cpu' : 'cpu',
-      })
-        .then(data => {
-          if (!data?.items?.length) return [];
-          return data.items;
-        })
-        .catch(() => []);
+      data = this.isDetailMode
+        ? this.resourceListData
+        : await listK8sResources({
+            ...this.filterCommonParams,
+            with_history: true,
+            page_size: Math.abs(this.limit),
+            page: 1,
+            page_type: 'scrolling',
+            order_by: this.limit > 0 ? '-cpu' : 'cpu',
+          })
+            .then(data => {
+              if (!data?.items?.length) return [];
+              return data.items;
+            })
+            .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();

@@ -32,6 +32,7 @@ import { EDimensionKey, type ICommonParams, type GroupListItem } from '../../typ
 import GroupItem from './group-item';
 
 import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
+import type { K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
 import './k8s-dimension-list.scss';
 
@@ -43,7 +44,7 @@ interface K8sDimensionListProps {
 
 interface K8sDimensionListEvents {
   onFilterByChange: (id: string, dimensionId: string, isSelect: boolean) => void;
-  onDrillDown: (filterById: string, filterByDimension: string, drillDownDimension: string) => void;
+  onDrillDown: (item: K8sTableGroupByEvent, showCancelDrill?: boolean) => void;
   onGroupByChange: (groupId: string, isSelect: boolean) => void;
   onClearFilterBy: (dimensionId: string) => void;
   onDimensionTotal: (val: Record<string, number>) => void;
@@ -78,6 +79,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     };
   }
 
+  /** 各维度总数据 */
   get dimensionTotal() {
     return this.showDimensionList.reduce((pre, cur) => {
       pre[cur.id] = cur.count;
@@ -87,15 +89,13 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   get groupItemDefaultExpandIndexSet() {
     const set = new Set();
-    for (let i = 0; i < this.showDimensionList.length; i++) {
-      const item = this.showDimensionList[i];
+    for (const item of this.showDimensionList) {
       if (item.count && this.searchValue) {
-        set.add(i);
+        set.add(item.id);
       } else if (this.groupBy.includes(item.id)) {
-        set.add(i);
+        set.add(item.id);
       }
     }
-
     return set;
   }
 
@@ -152,7 +152,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   handleBlur(val: string) {
-    console.log(val);
     if (val === this.cacheSearchValue) return;
     this.handleSearch(val);
   }
@@ -163,13 +162,32 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.$emit('filterByChange', id, dimension, isSelect);
   }
 
+  handleItemClick(id, dimension: EDimensionKey) {
+    if (this.filterBy[dimension].includes(id)) return;
+    this.handleGroupSearch(
+      {
+        id,
+        isSelect: true,
+      },
+      dimension
+    );
+  }
+
   /**
    * 下钻
    * @param param0  下钻id 和下钻维度
-   * @param drillDownId
+   * @param drillDownId 下钻数据所在维度
    */
   handleDrillDown({ id, drillDownDimension }, dimension: string) {
-    this.$emit('drillDown', id, dimension, drillDownDimension);
+    this.$emit(
+      'drillDown',
+      {
+        id: dimension,
+        filterById: id,
+        dimension: drillDownDimension,
+      },
+      true
+    );
   }
 
   /** 修改groupBy */
@@ -229,6 +247,43 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     return dimension;
   }
 
+  renderContent() {
+    if (this.loading) return [this.renderGroupSkeleton(), this.renderGroupSkeleton()];
+
+    const total = Object.keys(this.dimensionTotal).reduce((pre, cur) => {
+      return pre + this.dimensionTotal[cur];
+    }, 0);
+
+    if (total === 0)
+      return (
+        <EmptyStatus
+          type={this.searchValue ? 'search-empty' : 'empty'}
+          onOperation={this.handleEmptyOperation}
+        />
+      );
+    return this.showDimensionList.map(group => (
+      <GroupItem
+        key={group.id}
+        defaultExpand={this.groupItemDefaultExpandIndexSet.has(group.id)}
+        drillDownList={this.drillDownList}
+        expandLoading={this.expandLoading}
+        isGroupBy={this.groupBy.includes(group.id)}
+        keyword={this.searchValue}
+        list={group}
+        loadMoreLoading={this.loadMoreLoading}
+        tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
+        value={this.filterBy[group.id]}
+        onClear={() => this.handleClear(group.id)}
+        onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
+        onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
+        onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
+        onHandleItemClick={val => this.handleItemClick(val, group.id)}
+        onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
+        onHandleSearch={val => this.handleGroupSearch(val, group.id)}
+      />
+    ));
+  }
+
   render() {
     return (
       <div class='k8s-dimension-list'>
@@ -246,36 +301,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
           on-right-icon-click={this.handleSearch}
         />
 
-        <div class='object-group'>
-          {this.loading
-            ? [this.renderGroupSkeleton(), this.renderGroupSkeleton()]
-            : this.showDimensionList.map((group, index) => (
-                <GroupItem
-                  key={group.id}
-                  defaultExpand={this.groupItemDefaultExpandIndexSet.has(index)}
-                  drillDownList={this.drillDownList}
-                  expandLoading={this.expandLoading}
-                  isGroupBy={this.groupBy.includes(group.id)}
-                  keyword={this.searchValue}
-                  list={group}
-                  loadMoreLoading={this.loadMoreLoading}
-                  tools={['clear', 'drillDown', 'search', group.id !== EDimensionKey.namespace ? 'groupBy' : '']}
-                  value={this.filterBy[group.id]}
-                  onClear={() => this.handleClear(group.id)}
-                  onFirstExpand={dimension => this.handleFirstExpand(dimension, group.id)}
-                  onHandleDrillDown={val => this.handleDrillDown(val, group.id)}
-                  onHandleGroupByChange={val => this.handleGroupByChange(val, group.id)}
-                  onHandleMoreClick={dimension => this.handleMoreClick(dimension, group.id)}
-                  onHandleSearch={val => this.handleGroupSearch(val, group.id)}
-                >
-                  <EmptyStatus
-                    slot='empty'
-                    type={this.searchValue ? 'search-empty' : 'empty'}
-                    onOperation={this.handleEmptyOperation}
-                  />
-                </GroupItem>
-              ))}
-        </div>
+        <div class='object-group'>{this.renderContent()}</div>
       </div>
     );
   }

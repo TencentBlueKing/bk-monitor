@@ -2467,6 +2467,17 @@
   path: /v2/monitor_v3/get_dashboard_directory_tree/
   method: GET
 
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/grafana/get_dashboard_detail/
+  is_hidden: true
+  label: 获取仪表盘详情
+  label_en: get dashboard detail
+  name: get_dashboard_detail
+  path: /v2/monitor_v3/get_dashboard_detail/
+  method: GET
+
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST

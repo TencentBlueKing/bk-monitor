@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import mock
 import pytest
-from mockredis import mock_redis_client
+from mockredis import MockRedis
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.cmdb.default import GetHostByIP
@@ -25,7 +25,7 @@ from metadata.models.bcs import BCSClusterInfo
 
 @pytest.fixture
 def patch_redis_tools(mocker):
-    client = mock_redis_client()
+    client = MockRedis()
 
     def mock_hset_redis(*args, **kwargs):
         client.hset(*args, **kwargs)
