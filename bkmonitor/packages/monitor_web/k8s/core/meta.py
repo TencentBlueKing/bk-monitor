@@ -69,8 +69,11 @@ class FilterCollection(object):
             orm_filter_dict[new_key] = value
         return orm_filter_dict
 
-    def filter_string(self):
+    def filter_string(self, exclude=""):
         for filter_type, filter_obj in self.filters.items():
+            if exclude and filter_type.startswith(exclude):
+                continue
+
             if filter_type.startswith("workload") and len(filter_obj.value) > 1:
                 # 多个 workload_id 查询支持
                 filter_obj.value = filter_obj.value[:1]
@@ -116,12 +119,18 @@ class K8sResourceMeta(object):
 
     def set_agg_interval(self, start_time, end_time):
         """设置聚合查询的间隔"""
+        if self.method == "count":
+            self.agg_interval = ""
+            return
         time_passed = end_time - start_time
         agg_interval = hms_string(time_passed, upper=True)
         self.agg_interval = agg_interval
 
     def set_agg_method(self, method="sum"):
         self.method = method
+        if method == "count":
+            # 重置interval
+            self.set_agg_interval(0, 1)
 
     def setup_filter(self):
         """
@@ -258,10 +267,10 @@ class K8sPodMeta(K8sResourceMeta):
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
                 f"({self.agg_method}_over_time(rate("
-                f"container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m])[{self.agg_interval}:])"
+                f"container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m])[{self.agg_interval}:]))"
             )
         return (
-            f"sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
@@ -272,17 +281,50 @@ class K8sPodMeta(K8sResourceMeta):
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
                 f"({self.agg_method}_over_time("
-                f"container_memory_rss{{{self.filter.filter_string()}}})[{self.agg_interval}:])"
+                f"container_memory_rss{{{self.filter.filter_string()}}})[{self.agg_interval}:]))"
             )
 
         return (
-            f"sum by (workload_kind, workload_name, namespace, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
 
+    @classmethod
+    def exclude_workload(cls, promql):
+        # kube_pod_container_resource_requests_cpu_cores 指标无 workload 维度
+        return promql.replace("(workload_kind, workload_name, namespace, pod_name)", "(namespace, pod_name)")
+
     @property
     def meta_prom_with_kube_pod_cpu_requests_ratio(self):
-        return ""
+        promql = (
+            self.meta_prom_with_container_cpu_usage_seconds_total + '/ sum by (pod_name,namespace)'
+            f'(kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_cpu_limits_ratio(self):
+        promql = (
+            self.meta_prom_with_container_cpu_usage_seconds_total + '/ sum by (pod_name,namespace)'
+            f'(kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_memory_requests_ratio(self):
+        promql = (
+            self.meta_prom_with_container_memory_rss + '/ sum by (pod_name,namespace)'
+            f'(kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_memory_limits_ratio(self):
+        promql = (
+            self.meta_prom_with_container_memory_rss + '/ sum by (pod_name,namespace)'
+            f'(kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
 
 
 class K8sNodeMeta(K8sResourceMeta):
@@ -358,7 +400,10 @@ class K8sNamespaceMeta(K8sResourceMeta):
                 f"sum by (namespace) ({self.agg_method}_over_time(rate("
                 f"container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m])[{self.agg_interval}:]))"
             )
-        return f"sum by (namespace) (rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
+        return (
+            f"{self.agg_method} by (namespace) "
+            f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
+        )
 
     @property
     def meta_prom_with_container_memory_rss(self):
@@ -368,7 +413,7 @@ class K8sNamespaceMeta(K8sResourceMeta):
                 f"sum by (namespace) ({self.agg_method}_over_time("
                 f"container_memory_rss{{{self.filter.filter_string()}}})[{self.agg_interval}:]))"
             )
-        return f"sum by (namespace) (container_memory_rss{{{self.filter.filter_string()}}})"
+        return f"{self.agg_method} by (namespace) (container_memory_rss{{{self.filter.filter_string()}}})"
 
     @classmethod
     def distinct(cls, objs):
@@ -401,7 +446,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
                 f"container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m])[{self.agg_interval}:]))"
             )
         return (
-            f"sum by (workload_kind, workload_name, namespace) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace) "
             f"(rate(container_cpu_system_seconds_total{{{self.filter.filter_string()}}}[1m]))"
         )
 
@@ -414,7 +459,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
                 f"(container_memory_rss{{{self.filter.filter_string()}}}[{self.agg_interval}:]))"
             )
         return (
-            f"sum by (workload_kind, workload_name, namespace) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace) "
             f"(container_memory_rss{{{self.filter.filter_string()}}})"
         )
 
@@ -442,7 +487,7 @@ class K8sContainerMeta(K8sResourceMeta):
                 f"(rate(container_cpu_system_seconds_total{{{self.get_filter_string()}}}[1m])[{self.agg_interval}:]))"
             )
         return (
-            f"sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, container_name, pod_name) "
             f"(rate(container_cpu_system_seconds_total{{{self.get_filter_string()}}}[1m]))"
         )
 
@@ -456,9 +501,49 @@ class K8sContainerMeta(K8sResourceMeta):
             )
         """按内存排序的资源查询promql"""
         return (
-            f"sum by (workload_kind, workload_name, namespace, container_name, pod_name)"
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, container_name, pod_name)"
             f" (container_memory_rss{{{self.get_filter_string()}}})"
         )
+
+    @classmethod
+    def exclude_workload(cls, promql):
+        # kube_pod_container_resource_requests_cpu_cores 指标无 workload 维度
+        return promql.replace(
+            "(workload_kind, workload_name, namespace, container_name, pod_name)",
+            "(namespace, container_name, pod_name)",
+        )
+
+    @property
+    def meta_prom_with_kube_pod_cpu_requests_ratio(self):
+        promql = (
+            self.meta_prom_with_container_cpu_usage_seconds_total + '/ sum by (namespace, container_name, pod_name)'
+            f'(kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_cpu_limits_ratio(self):
+        promql = (
+            self.meta_prom_with_container_cpu_usage_seconds_total + '/ sum by (namespace, container_name, pod_name)'
+            f'(kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_memory_requests_ratio(self):
+        promql = (
+            self.meta_prom_with_container_memory_rss + '/ sum by (namespace, container_name, pod_name)'
+            f'(kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
+
+    @property
+    def meta_prom_with_kube_pod_memory_limits_ratio(self):
+        promql = (
+            self.meta_prom_with_container_memory_rss + '/ sum by (namespace, container_name, pod_name)'
+            f'(kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}})'
+        )
+        return self.exclude_workload(promql)
 
 
 def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) -> Optional[K8sResourceMeta]:

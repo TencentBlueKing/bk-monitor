@@ -466,8 +466,17 @@ class ResourceTrendResource(Resource):
             "down_sample_range": "",
         }
         series = resource.grafana.graph_unify_query(query_params)["series"]
+        max_data_point = 0
         for line in series:
-            resource_name = resource_meta.get_resource_name(line)
-            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit, "value_title": metric["name"]}
+            if line["datapoints"]:
+                max_data_point = max(max_data_point, line["datapoints"][-1][1])
+
+        for line in series:
+            resource_name = line["tags"]["__name__"].split(":")[-1]
+            if line["datapoints"][-1][1] == max_data_point:
+                datapoints = line["datapoints"][-1:]
+            else:
+                datapoints = []
+            series_map[resource_name] = {"datapoints": datapoints, "unit": unit, "value_title": metric["name"]}
 
         return [{"resource_name": name, column: info} for name, info in series_map.items()]
