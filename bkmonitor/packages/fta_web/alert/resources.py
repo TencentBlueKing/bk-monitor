@@ -2807,6 +2807,11 @@ class GetAlertDataRetrievalResource(Resource):
         }
 
         if filter_dict:
+            # 条件中维度字段可能比单个 datasource 中的维度字段多，所以需要过滤。
+            # promql 的情况下，维度无法分辨，因此只能全部过滤
+            if query_config["data_source_label"] != DataSourceLabel.PROMETHEUS:
+                filter_dict = {key: value for key, value in filter_dict.items() if key in query["group_by"]}
+
             where = AIOPSManager.create_where_with_dimensions(query_config["agg_condition"], filter_dict)
             group_by = list(set(query["group_by"]) & set(filter_dict.keys()))
             if "le" in query_config.get("agg_dimension", []):

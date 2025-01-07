@@ -4794,7 +4794,17 @@ class StorageClusterRecord(models.Model):
         result = []
         for record in records:
             # 将 datetime 转换为 Unix 时间戳
-            enable_timestamp = int(record['enable_time'].timestamp())
+            try:
+                enable_timestamp = int(record['enable_time'].timestamp())
+            except Exception as e:  # pylint: disable=broad-except
+                # 避免因为类型不合法导致路由生成错误
+                logger.warning(
+                    "compose_table_id_storage_cluster_records: enable_time->[%s] is not datetime, "
+                    "set default value，error_info->[%s]",
+                    record['enable_time'],
+                    e,
+                )
+                enable_timestamp = 0
 
             result.append(
                 {
