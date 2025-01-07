@@ -91,7 +91,7 @@ from constants.apm import (
     ApmMetrics,
     MetricTemporality,
     OtlpKey,
-    SpanKind,
+    SpanKindCachedEnum,
     TelemetryDataType,
 )
 from core.drf_resource import Resource, api, resource
@@ -2393,7 +2393,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 endpoint["avg_duration"] = None
 
             endpoint["origin_kind"] = endpoint["kind"]
-            endpoint["kind"] = SpanKind.get_label_by_key(endpoint["kind"])
+            endpoint["kind"] = SpanKindCachedEnum.from_value(endpoint["kind"]).label
             endpoint["app_name"] = application.app_name
             endpoint["operation"] = {"trace": _lazy("调用链")}
             endpoint["origin_category_kind"] = endpoint["category_kind"]
