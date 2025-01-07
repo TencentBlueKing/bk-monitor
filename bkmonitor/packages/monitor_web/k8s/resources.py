@@ -250,7 +250,7 @@ class ListK8SResources(Resource):
         order_by = serializers.ChoiceField(
             required=False,
             choices=["desc", "asc"],
-            default="",
+            default="desc",
         )
         method = serializers.ChoiceField(required=False, choices=["max", "avg", "min", "sum", "count"], default="sum")
         column = serializers.ChoiceField(
@@ -299,13 +299,11 @@ class ListK8SResources(Resource):
                 pass
             return {"count": total_count, "items": resource_list}
 
-        page_count = 0
         # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
-        if order_by:
-            page_count = validated_request_data["page"] * validated_request_data["page_size"]
+        page_count = validated_request_data["page"] * validated_request_data["page_size"]
 
         order_by = column if order_by == "asc" else "-{}".format(column)
 
@@ -329,7 +327,7 @@ class ListK8SResources(Resource):
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
         # 不需要分页，全量返回
-        page_count = total_count if page_count == 0 else page_count
+        page_count = total_count
 
         if len(resource_list) < page_count:
             # 基于需要返回的数量，进行分页
