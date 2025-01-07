@@ -705,19 +705,19 @@ class ResultTable(models.Model):
                 field_dict[field.table_id] = [field.to_json_self_only()]
 
         # datasource的bk_data_id
-        # rt_datasource_dict = {
-        #     record.table_id: record.bk_data_id
-        #     for record in DataSourceResultTable.objects.filter(table_id__in=result_table_id_list)
-        # }
+        rt_datasource_dict = {
+            record.table_id: record.bk_data_id
+            for record in DataSourceResultTable.objects.filter(table_id__in=result_table_id_list)
+        }
 
         # datasource的type_label, source_label
-        # bk_data_id_list = list(rt_datasource_dict.values())
-        # datasource_dict = {
-        #     record["bk_data_id"]: record
-        #     for record in DataSource.objects.filter(bk_data_id__in=bk_data_id_list).values(
-        #         "type_label", "source_label", "bk_data_id"
-        #     )
-        # }
+        bk_data_id_list = list(rt_datasource_dict.values())
+        datasource_dict = {
+            record["bk_data_id"]: record
+            for record in DataSource.objects.filter(bk_data_id__in=bk_data_id_list).values(
+                "type_label", "source_label", "bk_data_id"
+            )
+        }
 
         field_option_dict = {}
         rt_option_dict = {}
@@ -742,10 +742,10 @@ class ResultTable(models.Model):
             # 追加字段名的内容，如果不存在，提供空数组
             result_table_info["field_list"] = field_dict.get(result_table_name, [])
             # 追加DATA_ID信息
-            # result_table_info["bk_data_id"] = rt_datasource_dict[result_table_name]
+            result_table_info["bk_data_id"] = rt_datasource_dict[result_table_name]
             # 追加datasource信息
-            # result_table_info["type_label"] = datasource_dict[result_table_info["bk_data_id"]]["type_label"]
-            # result_table_info["source_label"] = datasource_dict[result_table_info["bk_data_id"]]["source_label"]
+            result_table_info["type_label"] = datasource_dict[result_table_info["bk_data_id"]]["type_label"]
+            result_table_info["source_label"] = datasource_dict[result_table_info["bk_data_id"]]["source_label"]
 
             if with_option:
                 for field_info in result_table_info["field_list"]:
