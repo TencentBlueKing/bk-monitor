@@ -76,4 +76,22 @@ def get_metrics() -> List:
                 ),
             ],
         ),
+        Category(
+            id="network",
+            name=_lazy("流量"),
+            children=[
+                Metric(
+                    id="container_network_receive_bytes_total",
+                    name=_lazy("网络入带宽"),
+                    unit="Bps",
+                    unsupported_resource=[],
+                ),
+                Metric(
+                    id="container_network_transmit_bytes_total",
+                    name=_lazy("网络出带宽"),
+                    unit="Bps",
+                    unsupported_resource=[],
+                ),
+            ],
+        ),
     ]
