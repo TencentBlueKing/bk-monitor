@@ -16,6 +16,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework import serializers
 
+from apm_web.utils import get_interval_number
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -251,9 +252,7 @@ class ListK8SResources(Resource):
             choices=["desc", "asc"],
             default="",
         )
-        method = serializers.ChoiceField(
-            required=False, choices=["max", "avg", "min", "sum", "last", "count"], default="sum"
-        )
+        method = serializers.ChoiceField(required=False, choices=["max", "avg", "min", "sum", "count"], default="sum")
         column = serializers.ChoiceField(
             required=False,
             choices=[
@@ -402,7 +401,7 @@ class ResourceTrendResource(Resource):
             choices=["pod", "workload", "namespace", "container"],
             label="资源类型",
         )
-        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "last", "count"])
+        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
@@ -421,6 +420,7 @@ class ResourceTrendResource(Resource):
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
         agg_method = validated_request_data["method"]
         resource_meta.set_agg_method(agg_method)
+        resource_meta.set_agg_interval(start_time, end_time)
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
@@ -445,7 +445,7 @@ class ResourceTrendResource(Resource):
             # 初始化series_map
             for resource_id in resource_list:
                 series_map[resource_id] = {"datapoints": [], "unit": unit}
-        query_type, interval = K8sResourceMeta.parse_query_type(start_time, end_time, agg_method)
+        interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
@@ -461,7 +461,7 @@ class ResourceTrendResource(Resource):
             "alias": "result",
             "start_time": start_time,
             "end_time": end_time,
-            "type": query_type,
+            "type": "range",
             "slimit": 10001,
             "down_sample_range": "",
         }

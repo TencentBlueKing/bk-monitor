@@ -57,7 +57,7 @@ class TestFilter(TestCase):
         )
         self.assertEqual(
             ContainerFilter("bk-monitor-web").filter_string(),
-            'container_name="bk-monitor-web",container_name!="POD"',
+            'container_name="bk-monitor-web"',
         )
 
     def test_filter_with_resource_ns(self):
@@ -103,11 +103,12 @@ class TestFilter(TestCase):
         fc = FilterCollection(K8sContainerMeta(2, "BCS-K8S-00000"))
         fc.add(ContainerFilter("monitor-web", fuzzy=1)).add(NamespaceFilter("blueking")).add(
             PodFilter("bk-monitor-web-5dc76bbfd7-8w9c6")
-        )
+        ).add(load_resource_filter("container_exclude", ""))
+
         self.assertEqual(
             fc.filter_string(),
-            'container_name=~"(monitor-web)",container_name!="POD",'
-            'namespace="blueking",pod_name="bk-monitor-web-5dc76bbfd7-8w9c6"',
+            'container_name=~"(monitor-web)",'
+            'namespace="blueking",pod_name="bk-monitor-web-5dc76bbfd7-8w9c6",container_name!="POD"',
         )
 
     def test_filter_dict_with_workload_filter(self):
@@ -1030,7 +1031,8 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             "sum by (namespace) "
-            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
+            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
+            'bk_biz_id="2",container_name!="POD"}[1m]))',
         )
 
         # 验证基于promql 获取 namespace对象
@@ -1150,7 +1152,7 @@ class TestK8sListResources(TestCase):
                 (
                     "sum by (namespace) "
                     '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
-                    'bk_biz_id="2",namespace=~"(blue)"}[1m]))'
+                    'bk_biz_id="2",container_name!="POD",namespace=~"(blue)"}[1m]))'
                 ),
             )
             # 第一个namespace: blueking 命中 检索
@@ -1249,7 +1251,8 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace) "
-            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
+            '(rate(container_cpu_system_seconds_total{'
+            'bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m]))',
         )
         orm_resource = (
             BCSWorkload.objects.filter(**validated_request_data["filter_dict"])
@@ -1277,7 +1280,7 @@ class TestK8sListResources(TestCase):
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace) "
             '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
-            'bk_biz_id="2",namespace="blueking",workload_name=~"monitor"}[1m]))',
+            'bk_biz_id="2",container_name!="POD",namespace="blueking",workload_name=~"monitor"}[1m]))',
         )
         query_result = [
             {
@@ -1368,7 +1371,8 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace, pod_name) "
-            '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2"}[1m]))',
+            '(rate(container_cpu_system_seconds_total{'
+            'bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m]))',
         )
 
         # 校验包含更多查询的内容
@@ -1394,7 +1398,7 @@ class TestK8sListResources(TestCase):
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace, pod_name) "
             '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
-            'bk_biz_id="2",namespace="blueking",pod_name=~"(monitor)"}[1m]))',
+            'bk_biz_id="2",container_name!="POD",namespace="blueking",pod_name=~"(monitor)"}[1m]))',
         )
         query_result = [
             # mock 历史数据
@@ -1510,8 +1514,17 @@ class TestK8sListResources(TestCase):
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
             '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",'
-            'bk_biz_id="2",namespace="blueking",workload_name="bk-monitor-web",'
-            'container_name=~"(monitor)",container_name!="POD"}[1m]))',
+            'bk_biz_id="2",container_name!="POD",namespace="blueking",workload_name="bk-monitor-web",'
+            'container_name=~"(monitor)"}[1m]))',
+        )
+        meta.set_agg_interval(1732240257, 1732240257 + 1800)
+        self.assertEqual(
+            meta.meta_prom,
+            (
+                'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+                '(rate(container_cpu_system_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",'
+                'container_name!="POD"}[1m]))'
+            ),
         )
         query_result = [
             {
@@ -1572,6 +1585,7 @@ class TestK8sListResources(TestCase):
             "page_type": "scrolling",
             "bk_biz_id": 2,
             "order_by": "desc",
+            "method": "max",
             "column": "container_cpu_usage_seconds_total",
         }
         query_result = [
@@ -1602,3 +1616,9 @@ class TestK8sListResources(TestCase):
             mock_graph_unify_query.return_value = {"series": query_result}
             container_list = ListK8SResources()(validated_request_data)
             print(container_list)
+
+        meta = load_resource_meta(validated_request_data["resource_type"], 2, "BCS-K8S-00000")
+        meta.set_agg_interval(validated_request_data["start_time"], validated_request_data["end_time"])
+        meta.set_agg_method(validated_request_data["method"])
+        print(meta.meta_prom_with_container_cpu_usage_seconds_total)
+        print(meta.meta_prom_by_sort("container_cpu_usage_seconds_total"))

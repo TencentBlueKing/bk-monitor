@@ -114,11 +114,18 @@ class ContainerFilter(ResourceFilter):
     resource_type = "container"
     filter_field = "container_name"
 
-    default_filter_string = 'container_name!="POD"'
+
+@register_filter
+class DefaultContainerFilter(ResourceFilter):
+    resource_type = "container_exclude"
+    filter_field = "container_name"
 
     def filter_string(self):
-        where = super().filter_string()
-        return where + f",{self.default_filter_string}"
+        return 'container_name!="POD"'
+
+    @property
+    def filter_dict(self):
+        return {}
 
 
 @register_filter
