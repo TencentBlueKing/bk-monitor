@@ -36,10 +36,21 @@ export interface ISearchItem {
   url?: string;
   alert_id?: number;
   nameSearch?: string;
+  type?: string;
+  strategy_id?: number;
+  app_name?: string;
 }
 
 export interface ISearchListItem {
   type: string;
   name: string;
   items: ISearchItem[];
+}
+export interface IRouteItem {
+  name?: string;
+  icon?: string;
+  id?: string;
+  path?: string;
+  href?: string;
+  canStore?: boolean;
 }
