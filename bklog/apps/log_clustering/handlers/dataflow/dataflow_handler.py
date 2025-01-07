@@ -119,7 +119,7 @@ from apps.log_search.views.aggs_views import AggsViewAdapter
 from apps.log_trace.serializers import DateHistogramSerializer
 from apps.utils.drf import custom_params_valid
 from apps.utils.log import logger
-from bkm_space.utils import parse_space_uid
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class DataFlowHandler(BaseAiopsHandler):
@@ -1756,18 +1756,6 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         self.update_model_instance(model_instance_id=data_processing_id_config["id"])
 
-        try:
-            count_peak_min = self.get_index_set_count_peak(index_set_id)
-            BkDataDataFlowApi.set_dataflow_resource(
-                params={
-                    "input_count_peak_min": count_peak_min,
-                    "flow_id": result["flow_id"],
-                    "usage_type": "log_clustering_online",
-                }
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.info(f"predict flow set resource failed: index_set_id -> [{index_set_id}] check failed: {e}")
-
         online_task = self.create_online_task(index_set_id=index_set_id)
         clustering_config.online_task_id = online_task["ci_id"]
         clustering_config.save()
@@ -1903,19 +1891,6 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["agg"]["result_table_id"]
         clustering_config.signature_pattern_rt = log_count_aggregation_flow_dict["pattern"]["result_table_id"]
         clustering_config.save()
-
-        try:
-            count_peak_min = self.get_index_set_count_peak(index_set_id)
-            BkDataDataFlowApi.set_dataflow_resource(
-                params={
-                    "input_count_peak_min": count_peak_min,
-                    "flow_id": result["flow_id"],
-                    "usage_type": "log_clustering_agg",
-                }
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning(f"agg flow set resource failed: index_set_id -> [{index_set_id}] check failed: {e}")
-
         return result
 
     def update_log_count_aggregation_flow(self, index_set_id):
@@ -1958,31 +1933,42 @@ class DataFlowHandler(BaseAiopsHandler):
         logger.info(f"update agg flow success: flow_id -> {clustering_config.log_count_aggregation_flow_id}")
 
     @staticmethod
-    def get_index_set_count_peak(index_set_id, minutes_range=5):
+    def set_dataflow_resource(index_set_id, flow_id, usage_type):
         """
-        获取索引集每分钟日志计数峰值
+        设置dataflow资源信息
         """
-        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        if not log_index_set_obj:
-            return 0
-
-        _, bk_biz_id = parse_space_uid(log_index_set_obj.space_uid)
-        current_time = arrow.now().to(settings.TIME_ZONE)
-        start_time = current_time.shift(minutes=-minutes_range).timestamp
-        end_time = current_time.timestamp
-        params = {
-            "bk_biz_id": bk_biz_id,
-            "keyword": "*",
-            "start_time": start_time,
-            "end_time": end_time,
-            "begin": 0,
-            "size": 500,
-            "interval": "1m",
-            "time_range": "customized",
-        }
-        data = custom_params_valid(DateHistogramSerializer, params)
-        result = AggsViewAdapter().date_histogram(index_set_id, data)
-        count = 0
-        for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
-            count += item.get("doc_count", 0)
-        return int(count / minutes_range)
+        try:
+            log_index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
+            bk_biz_id = space_uid_to_bk_biz_id(log_index_set_obj.space_uid)
+            current_time = arrow.now().to(settings.TIME_ZONE)
+            start_time = current_time.shift(days=-1).timestamp
+            end_time = current_time.timestamp
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "keyword": "*",
+                "start_time": start_time,
+                "end_time": end_time,
+                "begin": 0,
+                "size": 0,
+                "interval": "1m",
+                "time_range": "customized",
+            }
+            data = custom_params_valid(DateHistogramSerializer, params)
+            result = AggsViewAdapter().date_histogram(index_set_id, data)
+            count_peak_min_list = [0]
+            for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
+                count_peak_min_list.append(item.get("doc_count", 0))
+            BkDataDataFlowApi.set_dataflow_resource(
+                params={
+                    "input_count_peak_min": max(count_peak_min_list),
+                    "flow_id": flow_id,
+                    "usage_type": usage_type,
+                }
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "set resource failed: index_set_id -> [%s], flow_id -> [%s] reason: %s",
+                index_set_id,
+                flow_id,
+                e,
+            )

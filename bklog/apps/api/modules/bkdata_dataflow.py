@@ -133,7 +133,7 @@ class _BkDataDataFlowApi:
             method="POST",
             url=DATAFLOW_APIGATEWAY_ROOT + "tool/job/set_resource/",
             module=self.MODULE,
-            description="获取flow信息",
+            description="设置dataflow资源",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
         )
