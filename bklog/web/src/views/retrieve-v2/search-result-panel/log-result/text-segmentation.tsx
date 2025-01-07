@@ -148,7 +148,7 @@ export default defineComponent({
     };
 
     const updateCanvas = () => {
-      canvasInstance.setHeight(Math.max(textLineCount.value * 20 + 4, 40));
+      canvasInstance.setHeight(Math.max(textBox.height + 4, 40));
       canvasInstance.renderAll();
     };
 
