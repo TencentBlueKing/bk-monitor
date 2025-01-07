@@ -652,7 +652,7 @@ class AlertDimensionFormatter:
 
         dimension_str_list = []
         for dimension in dimension_list:
-            if dimension["key"] in ["bk_cloud_id"] and str(dimension.get("value")) == "0":
+            if dimension["key"] in ["bk_cloud_id"] and str(dimension["value"]) == "0":
                 continue
             dimension_str_list.append("{display_key}({display_value})".format(**dimension))
 
@@ -677,7 +677,7 @@ class AlertDimensionFormatter:
             dimension_list.append(
                 {
                     "key": dimension["key"],
-                    "value": dimension.get("value", ""),
+                    "value": dimension["value"],
                     "display_key": dimension.get("display_key", dimension["key"]),
                     "display_value": cls.get_dimension_display_value(dimension.get("display_value", "")),
                 }
