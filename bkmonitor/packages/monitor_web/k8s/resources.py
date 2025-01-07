@@ -263,6 +263,8 @@ class ListK8SResources(Resource):
                 'kube_pod_memory_requests_ratio',
                 'kube_pod_memory_limits_ratio',
                 'container_cpu_cfs_throttled_ratio',
+                'container_network_transmit_bytes_total',
+                'container_network_receive_bytes_total',
             ],
             default="container_cpu_usage_seconds_total",
         )
@@ -392,6 +394,8 @@ class ResourceTrendResource(Resource):
                 'kube_pod_memory_requests_ratio',
                 'kube_pod_memory_limits_ratio',
                 'container_cpu_cfs_throttled_ratio',
+                'container_network_transmit_bytes_total',
+                'container_network_receive_bytes_total',
             ],
         )
         resource_type = serializers.ChoiceField(

@@ -70,6 +70,7 @@ class FilterCollection(object):
         return orm_filter_dict
 
     def filter_string(self, exclude=""):
+        where_string_list = []
         for filter_type, filter_obj in self.filters.items():
             if exclude and filter_type.startswith(exclude):
                 continue
@@ -81,7 +82,9 @@ class FilterCollection(object):
                 #                     for value in filter_obj.value]
                 # self.filters.pop(filter_type, None)
                 # return list(self.make_multi_workload_filter_string(workload_filters))
-        return ",".join([filter_obj.filter_string() for filter_obj in self.filters.values()])
+
+            where_string_list.append(filter_obj.filter_string())
+        return ",".join(where_string_list)
 
     def make_multi_workload_filter_string(self, workload_filters):
         for workload_filter in workload_filters:
@@ -181,6 +184,7 @@ class K8sResourceMeta(object):
             "down_sample_range": "",
         }
         ret = resource.grafana.graph_unify_query(query_params)["series"]
+        # todo 这里需要排序
         resource_map = {}
         for series in ret:
             resource_name = self.get_resource_name(series)
