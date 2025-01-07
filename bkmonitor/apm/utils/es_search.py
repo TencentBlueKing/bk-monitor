@@ -8,13 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import re
 import time
+from datetime import datetime
 from functools import wraps
 from threading import Semaphore
 
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import get_connection
+from elasticsearch_dsl.search import ProxyDescriptor, QueryProxy
 
 from common.log import logger
 
@@ -80,7 +83,52 @@ def _scan(
             )
 
 
+class EsQueryProxy(QueryProxy):
+    def __call__(self, *args, **kwargs):
+        filters = kwargs.get("filter", [])
+        if filters:
+            for _filter in filters:
+                if hasattr(_filter, "end_time"):
+                    # 暂时只对大于或大于等于进行索引范围收缩
+                    gt_time = getattr(_filter.end_time, "gt", None) or getattr(_filter.end_time, "gte", None)
+                    self._search.fix_index(gt_time)
+        s = super().__call__(*args, **kwargs)
+        return s
+
+
 class EsSearch(Search):
+    INDEX_PATTERN = re.compile(r".*_bkapm_trace_.+_(\d{8})_\d+$")
+
+    query = ProxyDescriptor("es_query")
+    post_filter = ProxyDescriptor("es_post_filter")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._es_query_proxy = EsQueryProxy(self, "query")
+        self._es_post_filter_proxy = EsQueryProxy(self, "post_filter")
+
+    def fix_index(self, gt_time: int):
+        fixed_index_list = []
+        # es索引以utc0时区时间为准创建
+        gt_date_str = datetime.utcfromtimestamp(gt_time / 1000000).strftime('%Y%m%d')
+        if self._index and isinstance(self._index, list):
+            for _index_parts in self._index:
+                _index_list = _index_parts.split(",")
+                for _index in _index_list:
+                    if self.check_index_date(_index, gt_date_str):
+                        fixed_index_list.append(_index)
+        if fixed_index_list:
+            self._index = [",".join(fixed_index_list)]
+
+    @classmethod
+    def check_index_date(cls, index, gt_date_str):
+        # 从索引名称中提取日期部分
+        match = cls.INDEX_PATTERN.search(index)
+        date_str = match.group(1) if match else None
+        if not date_str:
+            return False
+        return int(date_str) >= int(gt_date_str)
+
     def scan(self):
         es = get_connection(self._using)
 
