@@ -44,9 +44,8 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
 
     # 生成变量url参数
     variables = []
-    for key, values in config.variables.items():
-        for value in values:
-            variables.append(f"var-{key}={quote(value)}")
+    for key, value in config.variables.items():
+        variables.append(f"var-{key}={quote(value)}")
     variables_str = "&".join(variables)
     if variables_str:
         variables_str = f"&{variables_str}"
