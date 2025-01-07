@@ -293,7 +293,7 @@ class K8sPodMeta(K8sResourceMeta):
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
                 f"({self.agg_method}_over_time("
-                f"{metric_name}{{{self.filter.filter_string()}}})[{self.agg_interval}:]))"
+                f"{metric_name}{{{self.filter.filter_string()}}}[{self.agg_interval}:]))"
             )
 
         return (
@@ -413,7 +413,7 @@ class K8sNamespaceMeta(K8sResourceMeta):
         if self.agg_interval:
             return (
                 f"sum by (namespace) ({self.agg_method}_over_time("
-                f"{metric_name}{{{self.filter.filter_string()}}})[{self.agg_interval}:]))"
+                f"{metric_name}{{{self.filter.filter_string()}}}[{self.agg_interval}:]))"
             )
         return f"{self.agg_method} by (namespace) ({metric_name}{{{self.filter.filter_string()}}})"
 
