@@ -217,17 +217,19 @@ export default class UseJsonFormatter {
   creatSegmentNodes = (values: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
-    const tagItems = values.slice(0, 1000);
-    const staticItems = values.slice(1000);
+    const tagItems = values.slice(0, 500);
 
     tagItems.forEach(item => {
       segmentNode.append(this.getChildItem(item));
     });
 
-    const textNode = document.createElement('span');
-    textNode.classList.add('others-text');
-    textNode.innerText = staticItems.map(item => item.text).join('');
-    segmentNode.append(textNode);
+    const staticItems = values.slice(500);
+    if (staticItems.length > 0) {
+      const textNode = document.createElement('span');
+      textNode.classList.add('others-text');
+      textNode.innerText = staticItems.map(item => item.text).join('');
+      segmentNode.append(textNode);
+    }
 
     return segmentNode;
   };

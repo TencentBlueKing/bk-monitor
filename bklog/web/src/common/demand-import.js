@@ -175,5 +175,5 @@ Vue.use(bkOverflowTips);
 
 // Vue prototype mount
 Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = bkMessage;
+Vue.prototype.$bkMessage = args => bkMessage({ ...args, zIndex: 5000 });
 Vue.prototype.$bkNotify = bkNotify;

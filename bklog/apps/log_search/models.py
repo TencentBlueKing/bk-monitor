@@ -1046,6 +1046,12 @@ class IndexSetUserFavorite(models.Model):
             "index_set_id", flat=True
         )
 
+    @classmethod
+    def fetch_user_favorite_index_set(cls, username: str):
+        return cls.objects.filter(username=username).values_list(
+            "index_set_id", flat=True
+        )
+
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)

@@ -981,6 +981,8 @@ class CustomTimeSeriesDetail(Resource):
             raise ValidationError(
                 f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
             )
+        if not config.is_platform and config.bk_biz_id != params["bk_biz_id"]:
+            raise ValidationError(f"custom time series not found, bk_biz_id: {params['bk_biz_id']}")
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         if params.get("model_only"):

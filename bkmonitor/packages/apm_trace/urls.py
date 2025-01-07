@@ -10,11 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 
 
+from django.urls import re_path
+
 from apm_trace.views import apm_trace_home
-from django.conf.urls import url
 
 app_name = "apm_trace"
 
 urlpatterns = [
-    url(r"^$", apm_trace_home),
+    re_path(r"^$", apm_trace_home),
 ]

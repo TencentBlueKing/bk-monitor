@@ -54,6 +54,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @InjectReactive('groupInstance') readonly groupInstance!: K8sGroupDimension;
+
   @Ref('menu')
   menuRef: any;
 
@@ -61,11 +62,13 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
 
   popoverInstance = null;
 
+  /** 可选的下钻列表 */
   get drillDownList() {
     const list = drillListMap[this.dimension] || [];
     return list.filter(item => item !== this.groupInstance.getResourceType());
   }
 
+  /** 下钻icon是否展示 */
   get disabledDownDrill() {
     if (!this.drillDownList?.length) {
       return 'none';
