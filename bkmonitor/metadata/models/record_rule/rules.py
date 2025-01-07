@@ -21,17 +21,12 @@ from django.utils.timezone import now as tz_now
 
 from bkmonitor.dataflow.auth import batch_add_permission
 from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.time_format import parse_duration
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
-from metadata.models.record_rule.constants import (
-    DEFAULT_EVALUATION_INTERVAL,
-    DEFAULT_RULE_TYPE,
-    BkDataFlowStatus,
-)
+from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, BkDataFlowStatus
 from metadata.models.space.ds_rt import get_space_table_id_data_id
 
 logger = logging.getLogger("metadata")
@@ -50,6 +45,7 @@ class RecordRule(BaseModelWithTime):
     vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True)
     dst_vm_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     status = models.CharField("状态", max_length=32, default="created")
+    count_freq = models.IntegerField("计算频率(秒)", default=60)
 
     class Meta:
         verbose_name = "预计算规则"
@@ -65,8 +61,6 @@ class RecordRule(BaseModelWithTime):
             return {}
         # 获取所有的record
         all_rule_record = [rule["record"] for rule in rules]
-        # 如果没有设置interval，则使用默认值
-        interval = rule_dict.get("interval") or DEFAULT_EVALUATION_INTERVAL
         bksql_list, metrics, rule_metrics = [], set(), {}
         for rule in rules:
             expr = rule.get("expr")
@@ -79,7 +73,6 @@ class RecordRule(BaseModelWithTime):
 
             sql = {
                 "name": rule_metric,
-                "count_freq": parse_duration(interval),
                 "sql": sql_and_metrics["promql"],
                 "metric_name": rule_metric,
             }
@@ -194,6 +187,7 @@ class ResultTableFlow(BaseModelWithTime):
                     "from_nodes": [],
                 }
             )
+
         return nodes
 
     @classmethod
@@ -215,7 +209,11 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return {}
-        dedicated_config = {"waiting_time": waiting_time, "sql_list": rule_record.bk_sql_config}
+        dedicated_config = {
+            "waiting_time": waiting_time,
+            "count_freq": rule_record.count_freq,
+            "sql_list": rule_record.bk_sql_config,
+        }
         name = utils.compose_rule_table_id(table_id)
         return {
             "id": len(from_result_table_ids) + 1,

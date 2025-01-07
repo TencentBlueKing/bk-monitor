@@ -51,6 +51,7 @@ export default class K8SCharts extends tsc<
     filterCommonParams: Record<string, any>;
     isDetailMode?: boolean;
     activeMetricId?: string;
+    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
   },
   {
     onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
@@ -62,6 +63,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   @Prop({ type: String, default: '' }) activeMetricId: string;
+  @Prop({ type: Array, default: () => [] }) resourceListData: Record<K8sTableColumnKeysEnum, string>[];
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
@@ -122,10 +124,10 @@ export default class K8SCharts extends tsc<
     }
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container] = name.split(':');
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, false);
+      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
       return;
     }
-    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, false);
+    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
   }
 
   @Provide('onShowDetail')
@@ -306,6 +308,8 @@ export default class K8SCharts extends tsc<
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
           return `sum by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(true)}`;
         return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / sum(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+      case 'container_cpu_cfs_throttled_ratio': // CPU 限流占比
+        return '';
       case 'kube_pod_cpu_requests_ratio': // CPU request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
           return `sum by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(false)}`;
@@ -397,32 +401,6 @@ export default class K8SCharts extends tsc<
       [K8sTableColumnKeysEnum.WORKLOAD, ''],
       [K8sTableColumnKeysEnum.WORKLOAD_TYPE, ''],
     ]);
-    // todo
-    // if (this.isDetailMode) {
-    //   const workload = new Set();
-    //   const workloadKind = new Set();
-    //   for (const item of this.filterCommonParams?.filter_dict?.workload || []) {
-    //     const [workloadType, workloadName] = item.split(':');
-    //     workload.add(workloadName);
-    //     workloadKind.add(workloadType);
-    //   }
-    //   resourceMap.set(
-    //     K8sTableColumnKeysEnum.CONTAINER,
-    //     (this.filterCommonParams?.filter_dict?.container || []).filter(Boolean).join('|')
-    //   );
-    //   resourceMap.set(
-    //     K8sTableColumnKeysEnum.POD,
-    //     (this.filterCommonParams?.filter_dict?.pod || []).filter(Boolean).join('|')
-    //   );
-    //   resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD, Array.from(workload).filter(Boolean).join('|'));
-    //   resourceMap.set(
-    //     K8sTableColumnKeysEnum.NAMESPACE,
-    //     (this.filterCommonParams?.filter_dict?.namespace || []).filter(Boolean).join('|')
-    //   );
-    //   resourceMap.set(K8sTableColumnKeysEnum.WORKLOAD_TYPE, Array.from(workloadKind).filter(Boolean).join('|'));
-    //   this.resourceMap = resourceMap;
-    //   return;
-    // }
     let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER) {
       data = [
@@ -431,19 +409,21 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
-      data = await listK8sResources({
-        ...this.filterCommonParams,
-        with_history: true,
-        page_size: Math.abs(this.limit),
-        page: 1,
-        page_type: 'scrolling',
-        order_by: this.limit > 0 ? '-cpu' : 'cpu',
-      })
-        .then(data => {
-          if (!data?.items?.length) return [];
-          return data.items;
-        })
-        .catch(() => []);
+      data =
+        this.isDetailMode && this.resourceListData.length
+          ? this.resourceListData
+          : await listK8sResources({
+              ...this.filterCommonParams,
+              with_history: true,
+              page_size: Math.abs(this.limit),
+              page: 1,
+              page_type: 'scrolling',
+            })
+              .then(data => {
+                if (!data?.items?.length) return [];
+                return data.items;
+              })
+              .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();

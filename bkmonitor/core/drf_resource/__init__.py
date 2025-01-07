@@ -9,16 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib import APIResource, CacheResource
 from core.drf_resource.management.root import adapter, api, resource
-
-# from core.drf_resource.routers import ResourceRouter
-# from core.drf_resource.viewsets import ResourceViewSet
-
-default_app_config = "core.drf_resource.app.DRFResourceConfig"
-
 
 __author__ = "蓝鲸智云"
 __copyright__ = "Copyright (c)   2012-2021 Tencent BlueKing. All Rights Reserved."

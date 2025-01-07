@@ -70,7 +70,7 @@
       width: 321px;
       min-height: 50px;
       line-height: 48px;
-      background: #fdf4e8;
+      background: #F0F1F5;
       border: 1px solid #dcdee5;
 
       &.is-unselected::before {
@@ -98,6 +98,7 @@
     }
 
     .filter-header-wrap {
+      position: relative;
       // position: absolute;
       // top: 0;
       // left: 321px;
@@ -105,6 +106,7 @@
       display: flex;
       width: calc(100% - 321px);
       min-height: 48px;
+      overflow: hidden;
       background: #ffffff;
       border: 1px solid #dcdee5;
       border-left: none;
@@ -134,8 +136,8 @@
         }
 
         &.__filter-by__ {
-          min-width: 64%;
-          max-width: 64%;
+          flex: 1;
+          max-width: calc(100% - 350px);
 
           .filter-by-title {
             border-right: 1px solid #dcdee5;
@@ -148,7 +150,8 @@
 
         &.__group-by__ {
           flex: 1;
-          min-width: 440px;
+          width: 450px;
+          max-width: 450px;
         }
       }
     }

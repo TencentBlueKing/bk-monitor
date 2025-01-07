@@ -1774,6 +1774,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       promiseList.push(
         this.noticeConfigRef.validator().catch(() => {
           this.noticeConfigPanelRef.handleExpandChange(true);
+          this.noticeConfigPanelRef.$el.scrollIntoView();
           return Promise.reject();
         })
       ); // 通知设置校验
