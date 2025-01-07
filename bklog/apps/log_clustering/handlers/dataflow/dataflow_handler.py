@@ -1940,7 +1940,7 @@ class DataFlowHandler(BaseAiopsHandler):
         try:
             log_index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
             bk_biz_id = space_uid_to_bk_biz_id(log_index_set_obj.space_uid)
-            current_time = arrow.now().to(settings.TIME_ZONE)
+            current_time = arrow.now()
             start_time = current_time.shift(days=-1).timestamp
             end_time = current_time.timestamp
             params = {
