@@ -53,6 +53,7 @@ import {
   type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
 
@@ -965,16 +966,17 @@ export default defineComponent({
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
-        const result = await getSceneView({
-          scene_id: 'apm_trace',
-          id: activeTab.value.toLowerCase(),
-          bk_biz_id: window.bk_biz_id,
-          apm_app_name: props.spanDetails.app_name,
-          apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
-        sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
+        // const result = await getSceneView({
+        //   scene_id: 'apm_trace',
+        //   id: activeTab.value.toLowerCase(),
+        //   bk_biz_id: window.bk_biz_id,
+        //   apm_app_name: props.spanDetails.app_name,
+        //   apm_span_id: props.spanDetails.span_id,
+        // })
+        //   .catch(console.log)
+        //   .finally(() => (isTabPanelLoading.value = false));
+        // sceneData.value = new BookMarkModel(result);
       }
     };
 
@@ -1293,15 +1295,18 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div>
-                              <FlexDashboardPanel
-                                id={random(10)}
-                                column={3}
-                                dashboardId={random(10)}
-                                isSingleChart={isSingleChart.value}
-                                needOverviewBtn={!!sceneData.value?.list?.length}
-                                panels={sceneData.value.overview_panels}
-                              />
+                              <DashboardPanel />
                             </div>
+                            // <div>
+                            //   <FlexDashboardPanel
+                            //     id={random(10)}
+                            //     column={3}
+                            //     dashboardId={random(10)}
+                            //     isSingleChart={isSingleChart.value}
+                            //     needOverviewBtn={!!sceneData.value?.list?.length}
+                            //     panels={sceneData.value.overview_panels}
+                            //   />
+                            // </div>
                           )}
                         </Loading>
                       )
