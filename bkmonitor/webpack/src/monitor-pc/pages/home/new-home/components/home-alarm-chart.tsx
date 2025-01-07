@@ -58,6 +58,9 @@ interface IHomeAlarmChartProps {
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
 }
+interface IHomeAlarmChartEvents {
+  onMenuClick: any;
+}
 
 @Component
 class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
