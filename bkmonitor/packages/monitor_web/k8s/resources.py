@@ -445,8 +445,8 @@ class ResourceTrendResource(Resource):
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
             # 初始化series_map
-            for resource_id in resource_list:
-                series_map[resource_id] = {"datapoints": [], "unit": unit}
+            # for resource_id in resource_list:
+            #     series_map[resource_id] = {"datapoints": [], "unit": unit}
         interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
