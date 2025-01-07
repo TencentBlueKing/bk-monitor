@@ -1031,7 +1031,7 @@ class AlertCache:
                 # 如果告警未结束就更新
                 update_count += 1
             pipeline.set(
-                key, json.dumps(alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_DEDUPE_CONTENT_KEY.ttl
+                key, json.dumps(obj=alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_DEDUPE_CONTENT_KEY.ttl
             )
         pipeline.execute()
         return update_count, finished_count
