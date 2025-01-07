@@ -980,9 +980,6 @@ class RecommendMetricManager(AIOPSManager):
         field_set = pre_field_set.copy()
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
 
-        if len(recommend_metrics) == 0:
-            return []
-
         for recommend_metric in recommend_metrics:
             # 获取当前推荐指标的详情
             metric_name, dimensions = cls.parse_recommend_metric(recommend_metric[0])

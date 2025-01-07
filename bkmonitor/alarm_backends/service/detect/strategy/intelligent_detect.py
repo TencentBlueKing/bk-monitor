@@ -97,7 +97,6 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                     "values": predict_result[0],
                     "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
                 },
                 item=data_point.item,
             )

@@ -570,7 +570,6 @@ class SDKPreDetectMixin(object):
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
                 },
                 item=data_point.item,
             )
