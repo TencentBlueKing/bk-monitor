@@ -25,6 +25,7 @@ from constants.dataflow import ConsumingMode
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.common import BaseModelWithTime
+from metadata.models.data_link.utils import compose_bkdata_table_id
 from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, BkDataFlowStatus
 from metadata.models.space.ds_rt import get_space_table_id_data_id
@@ -145,7 +146,8 @@ class RecordRule(BaseModelWithTime):
     @classmethod
     def get_dst_table_id(cls, table_id: str) -> str:
         """获取要写入的结果表"""
-        return f"{settings.DEFAULT_BKDATA_BIZ_ID}_{utils.compose_rule_table_id(table_id)}"
+        # 和V4链路统一
+        return f"{settings.DEFAULT_BKDATA_BIZ_ID}_{compose_bkdata_table_id(table_id=table_id)}"
 
 
 class ResultTableFlow(BaseModelWithTime):

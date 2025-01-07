@@ -23,8 +23,41 @@ def generate_table_id(space_type: str, space_id: str, record_name: str) -> str:
     # 处理预计算的名称
     # 替换`.`|`-`|`/`为`_`, 符合标准
     # 限制长度为110，因为限制的结果表长度为128
+    space_id = space_id.replace(".", "_").replace("-", "_").replace("/", "_").strip("_")[:110]
     record_name = record_name.replace(".", "_").replace("-", "_").replace("/", "_").strip("_")[:110]
     return f"bkmonitor_{space_type}_{space_id}_{record_name}.__default__"
+
+
+def sanitize(name: str, max_length: int = 110) -> str:
+    """
+    清理名称，替换非法字符并处理命名规则：
+    - 替换非法字符 (.、-、/) 为 _
+    - 避免连续的下划线 (_ -> 单个_)
+    - 去掉首尾的下划线
+    - 限制长度为 max_length
+    """
+    # 替换非法字符 (.、-、/) 为 _
+    name = re.sub(r"[.\-\/]+", "_", name)
+    # 合并连续的下划线为一个
+    name = re.sub(r"_+", "_", name)
+    # 去掉首尾的下划线
+    name = name.strip("_")
+    # 限制长度
+    return name[:max_length]
+
+
+def generate_pre_cal_table_id(space_type: str, space_id: str, record_name: str) -> str:
+    """
+    生成符合命名规范的预计算结果表ID
+    命名规则：bkprecal_{space_type}_{space_id}_{record_name}.__default__
+    @param space_type: 空间类型
+    @param space_id: 空间ID
+    @param record_name: 预计算规则名称
+    @return: 预计算结果表ID
+    """
+    need_sanitize_name = f"bkprecal_{space_type}_{space_id}_{record_name}"
+    table_id_prefix = sanitize(name=need_sanitize_name, max_length=110)
+    return f"{table_id_prefix}.__default__"
 
 
 def transform_record_to_metric_name(record: str) -> str:
