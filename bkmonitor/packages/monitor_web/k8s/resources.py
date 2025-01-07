@@ -467,10 +467,12 @@ class ResourceTrendResource(Resource):
         max_data_point = 0
         for line in series:
             if line["datapoints"]:
-                max_data_point = max(max_data_point, line["datapoints"][-1][1])
+                for point in reversed(line["datapoints"]):
+                    if point[0]:
+                        max_data_point = max(max_data_point, point[1])
 
         for line in series:
-            resource_name = line["tags"]["__name__"].split(":")[-1]
+            resource_name = resource_meta.get_resource_name(line)
             if line["datapoints"][-1][1] == max_data_point:
                 datapoints = line["datapoints"][-1:]
             else:
