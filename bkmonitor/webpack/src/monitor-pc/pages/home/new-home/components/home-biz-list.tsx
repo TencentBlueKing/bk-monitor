@@ -384,7 +384,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   typeListWrapNextPreShowChange() {
     this.$nextTick(() => {
-      const hasScroll = this.typeListRef.scrollWidth > this.typeListRef.clientWidth;
+      const hasScroll = this.typeListRef?.scrollWidth > this.typeListRef?.clientWidth;
       this.typeWrapInfo.showBtn = hasScroll;
       this.typeWrapInfo.preDisable = true;
     });

@@ -42,7 +42,10 @@ export default {
     'After deletion, the home page will no longer display all alarm event views of the current business',
   '确定删除该业务的告警事件视图？': 'Are you sure you want to delete the alarm event view for this business?',
   新增图表: 'New charts',
+  修改图表: 'Modify chart',
   图表名称: 'Chart name',
+  清空历史: 'Clear History',
+  暂无相关记录: 'No relevant records',
   请选择策略: 'Please select a strategy',
   '请输入图表名称，默认为策略名称': 'Please enter a chart name, the default is the strategy name',
   '当前还未配置业务，快点击添加业务按钮新增图表':

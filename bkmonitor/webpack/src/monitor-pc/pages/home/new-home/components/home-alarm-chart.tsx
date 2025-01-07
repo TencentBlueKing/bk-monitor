@@ -202,7 +202,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选
       if (this.searchValue.length) {
-        conditions.push({ key: 'level', value: this.searchValue.map(val => EAlertLevel[val]) });
+        conditions.push({ key: 'severity', value: this.searchValue.map(val => EAlertLevel[val]) });
       }
       const { series } = await alertDateHistogram({
         bk_biz_ids: [this.currentActiveId],

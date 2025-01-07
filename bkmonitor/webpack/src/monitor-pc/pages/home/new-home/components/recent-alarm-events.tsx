@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
+import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -55,7 +55,7 @@ import './recent-alarm-events.scss';
 })
 export default class RecentAlarmEvents extends tsc<object> {
   tabs = [];
-
+  @Ref() taskForm;
   handleMuenMode: '' | 'delete' | 'detail' | 'edit' = '';
 
   bottomLoadingOptions = {
@@ -82,6 +82,17 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   showDelDialog = false;
   showAddTaskDialog = false; // 展示添加业务弹窗
+  /** 表单规则 */
+  rules = {
+    name: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
+    strategy_ids: [
+      {
+        validator: val => val.length,
+        message: window.i18n.tc('必填项'),
+        trigger: 'blur',
+      },
+    ],
+  };
   dragoverId = '';
   dragId = '';
 
@@ -120,7 +131,7 @@ export default class RecentAlarmEvents extends tsc<object> {
       this.loading = false;
       if (updateTab) {
         if (this.tabs.length === 0) {
-          this.activeTabId = data.tags?.[0].bk_biz_id;
+          this.activeTabId = data.tags?.[0]?.bk_biz_id;
         }
         this.tabs = data.tags || [];
       }
@@ -148,6 +159,8 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 选择标签
   selectTab(tabId: number) {
     this.activeTabId = tabId;
+    this.strategyList = [];
+    this.getData(false);
   }
 
   // 拖拽 start
@@ -203,6 +216,8 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
   // 确定新增图表
   async handleConfirm() {
+    const isPass = await this.handleValidate();
+    if (!isPass) return;
     let config = [];
     // 区分新增业务/新增图表
     if (this.isAppendMode) {
@@ -321,6 +336,13 @@ export default class RecentAlarmEvents extends tsc<object> {
     return EStatusType[status];
   }
 
+  /** 表单校验 */
+  handleValidate(): Promise<boolean> {
+    return this.taskForm
+      .validate()
+      .then(() => true)
+      .catch(() => false);
+  }
   getAddDialog() {
     return (
       <bk-dialog
@@ -335,11 +357,19 @@ export default class RecentAlarmEvents extends tsc<object> {
         <bk-form
           ref='taskForm'
           formType='vertical'
+          {...{
+            props: {
+              model: this.strategyConfig,
+              rules: this.rules,
+            },
+          }}
         >
           {
             <bk-form-item
+              iconOffset={-18}
               label={this.$t('策略')}
-              property='dir'
+              property='strategy_ids'
+              required
             >
               <bk-select
                 v-model={this.strategyConfig.strategy_ids}
@@ -371,8 +401,10 @@ export default class RecentAlarmEvents extends tsc<object> {
           }
           {
             <bk-form-item
+              iconOffset={-18}
               label={this.$t('图表名称')}
               property='name'
+              required
             >
               <bk-input
                 v-model={this.strategyConfig.name}
@@ -417,7 +449,6 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 删除业务 start
   getDelDialog() {
-    // console.log(this.tabs.filter(tab => tab?.bk_biz.id === this.currentDelId)[0]?.bk_biz_name);
     let detail = this.$t('业务：{0}', this.currentDelId);
     let tips = this.$t('删除后，首页将不再显示当前业务的所有告警事件视图');
     let handleDelFunction = this.delTaskByIndex;
@@ -552,7 +583,7 @@ export default class RecentAlarmEvents extends tsc<object> {
               config={item}
               currentActiveId={this.activeTabId}
               timeRange={JSON.parse(this.timeRange)}
-              onMenuClick={({ id }) => this.handleMuenClick(id, item, index)}
+              onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
             />
           </div>
         ))}
@@ -561,7 +592,8 @@ export default class RecentAlarmEvents extends tsc<object> {
     );
   }
 
-  handleMuenClick(mode, item, index) {
+  /** MenuList操作 */
+  handleMenuClick(mode, item, index) {
     this.handleMuenMode = mode;
     switch (mode) {
       case 'edit':
@@ -575,14 +607,25 @@ export default class RecentAlarmEvents extends tsc<object> {
         this.editChartIndex = index;
         this.showDelDialog = true;
         break;
-      case 'detail':
-        // TODO 详情
+      case 'detail': {
+        // 跳转至事件中心
+        const baseUrl = window.location.href.split('#')[0];
+        let queryString = '';
+        for (const id of item.strategy_ids) {
+          queryString += `策略ID : ${id} OR `;
+        }
+        queryString = queryString.slice(0, queryString.length - 3);
+        const [from, to] = JSON.parse(this.timeRange);
+        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
+        window.open(url, '_blank');
         break;
+      }
     }
   }
 
   async handleSelectBiz(id) {
     this.alarmGraphConfig.bizId = id;
+    this.strategyList = [];
     await this.getStrategyListByPage();
     this.isAppendMode = false;
     this.showAddTaskDialog = true;
