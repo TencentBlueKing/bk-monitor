@@ -57,7 +57,8 @@ export default defineComponent({
       },
     ];
     const selectList = ref<IItem[]>([]);
-    const selected = ref<IItem[]>([]);
+    const selected = ref<string[]>([]);
+    const tagList = ref<IItem[]>([]);
 
     init();
 
@@ -65,9 +66,29 @@ export default defineComponent({
       selectList.value = data;
     }
 
+    function handleChange(value: string[]) {
+      const vSet = new Set(value);
+      const tags = [];
+      for (const v of data) {
+        if (vSet.has(v.id)) {
+          tags.push(v);
+        }
+      }
+      tagList.value = tags;
+    }
+
+    function handleDelete(item: IItem) {
+      const delIndex = selected.value.findIndex(v => v === item.id);
+      selected.value.splice(delIndex, 1);
+      handleChange(selected.value);
+    }
+
     return {
       selectList,
       selected,
+      tagList,
+      handleChange,
+      handleDelete,
     };
   },
 
@@ -76,13 +97,16 @@ export default defineComponent({
       <div class='dashboard-panel__groups-selector'>
         <div class='left-title'>Group: </div>
         <div class='right-content'>
-          {this.selected.map(item => (
+          {this.tagList.map(item => (
             <div
               key={item.id}
               class='selected-item'
             >
               <span>{item.name}</span>
-              <span class='icon-monitor icon-mc-close' />
+              <span
+                class='icon-monitor icon-mc-close'
+                onClick={() => this.handleDelete(item)}
+              />
             </div>
           ))}
           <Select
@@ -91,6 +115,7 @@ export default defineComponent({
             popoverMinWidth={300}
             filterable
             multiple
+            onChange={this.handleChange}
           >
             {{
               trigger: () => (

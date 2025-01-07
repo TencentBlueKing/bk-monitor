@@ -13,6 +13,36 @@
   }
 
   .right-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    .selected-item {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      margin-right: 8px;
+      background: #F0F1F5;
+      border-radius: 2px;
+
+      .icon-mc-close {
+        display: none;
+        margin-left: 4px;
+        font-size: 16px;
+        color: #4D4F56;
+        cursor: pointer;
+      }
+
+      &:hover {
+        background: #DCDEE5;
+
+        .icon-mc-close {
+          display: inline-block;
+        }
+      }
+    }
+
     .select-add {
       display: flex;
       align-items: center;
