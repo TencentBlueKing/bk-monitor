@@ -85,7 +85,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
-    return (this.routeList || []).filter(item => item.name.indexOf(this.searchValue) !== -1);
+    return (this.routeList || []).filter(item => item.name.indexOf(this.highlightedValue) !== -1);
   }
   /** 是否展示搜索结果 */
   get isSearchResult() {
@@ -354,7 +354,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.localHistoryList = [];
   }
   /** 获取选中当前高亮的搜索项 */
-  getSearchHightItem(key: string = 'searchList') {
+  getSearchHightItem(key = 'searchList') {
     if (this[key].length === 0) {
       this.highlightedItem = null;
       return;
@@ -373,7 +373,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
 
   /** 键盘向上切换选中设置当前的index */
-  setHighlightIndexUp(key: string = 'searchList') {
+  setHighlightIndexUp(key = 'searchList') {
     if (this[key].length === 0) {
       return;
     }
@@ -415,12 +415,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.highlightedIndex = [parentId, ind];
   }
   /** 键盘向上切换选中设置当前的index */
-  setHighlightIndexDown(key: string = 'searchList') {
+  setHighlightIndexDown(key = 'searchList') {
     if (this[key].length === 0) {
       return;
     }
     if (key === 'searchList') {
       this.keyWordUpOrDown('down');
+      return;
     }
     this.highlightedIndex[1] = (this.highlightedIndex[1] + 1) % this[key].length;
   }
@@ -430,7 +431,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.updateSelectedItem();
   }
   /** 键盘向下切换选中 */
-  HandleHighlightDown() {
+  handleHighlightDown() {
     this.setHighlightIndexDown(this.currentListKey);
     this.updateSelectedItem();
   }
@@ -442,7 +443,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         this.handleHighlightUp();
         break;
       case 'ArrowDown':
-        this.HandleHighlightDown();
+        this.handleHighlightDown();
         break;
       /** 回车跳转 */
       case 'Enter':
