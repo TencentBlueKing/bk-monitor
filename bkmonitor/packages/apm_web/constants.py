@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from functools import lru_cache
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -967,12 +968,14 @@ class ServiceStatusCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {
-            self.NORMAL: _("无告警"),
-            self.FATAL: _("致命"),
-            self.REMIND: _("提醒"),
-            self.WARNING: _("预警"),
-        }.get(self, self.value)
+        return str(
+            {
+                self.NORMAL: _("无告警"),
+                self.FATAL: _("致命"),
+                self.REMIND: _("提醒"),
+                self.WARNING: _("预警"),
+            }.get(self, self.value)
+        )
 
     @cached_property
     def status(self):
@@ -1000,7 +1003,9 @@ class ApdexCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+        return str(
+            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+        )
 
     @cached_property
     def status(self):
@@ -1032,19 +1037,21 @@ class CategoryCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {
-            self.HTTP: _("网页"),
-            self.RPC: _("远程调用"),
-            self.DB: _("数据库"),
-            self.MESSAGING: _("消息队列"),
-            self.ASYNC_BACKEND: _("后台任务"),
-            self.ALL: _("全部"),
-            self.OTHER: _("其他"),
-        }.get(self, self.value)
+        return str(
+            {
+                self.HTTP: _("网页"),
+                self.RPC: _("远程调用"),
+                self.DB: _("数据库"),
+                self.MESSAGING: _("消息队列"),
+                self.ASYNC_BACKEND: _("后台任务"),
+                self.ALL: _("全部"),
+                self.OTHER: _("其他"),
+            }.get(self, self.value)
+        )
 
     @cached_property
     def remote_service_label(self):
-        return {self.HTTP: _("网页(自定义服务)")}.get(self, self.value)
+        return str({self.HTTP: _("网页(自定义服务)")}.get(self, self.value))
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -1052,37 +1059,37 @@ class CategoryCachedEnum(CachedEnum):
         return [
             {
                 "id": cls.ALL.value,
-                "name": _("全部"),
+                "name": gettext("全部"),
                 "icon": "icon-gailan",
             },
             {
                 "id": cls.HTTP.value,
-                "name": _("网页"),
+                "name": gettext("网页"),
                 "icon": "icon-wangye",
             },
             {
                 "id": cls.RPC.value,
-                "name": _("远程调用"),
+                "name": gettext("远程调用"),
                 "icon": "icon-yuanchengfuwu",
             },
             {
                 "id": cls.DB.value,
-                "name": _("数据库"),
+                "name": gettext("数据库"),
                 "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING.value,
-                "name": _("消息队列"),
+                "name": gettext("消息队列"),
                 "icon": "icon-xiaoxizhongjianjian",
             },
             {
                 "id": cls.ASYNC_BACKEND.value,
-                "name": _("后台任务"),
+                "name": gettext("后台任务"),
                 "icon": "icon-renwu",
             },
             {
                 "id": cls.OTHER.value,
-                "name": _("其他"),
+                "name": gettext("其他"),
                 "icon": "icon-mc-service-unknown",
             },
         ]
@@ -1143,18 +1150,18 @@ class DataStatusColumnEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return self.list().get(self, self.value)
+        return str(self.list().get(self, self.value))
 
     @cached_property
     def status(self):
         return {
-            self.NORMAL: {"type": Status.SUCCESS, "text": _("正常")},
-            self.NO_DATA: {"type": Status.FAILED, "text": _("无数据")},
+            self.NORMAL: {"type": Status.SUCCESS, "text": gettext("正常")},
+            self.NO_DATA: {"type": Status.FAILED, "text": gettext("无数据")},
         }.get(self, {"type": Status.FAILED, "text": self.value})
 
     @classmethod
     def get_default(cls, value):
         default = super().get_default(value)
-        default.label = _("未开启")
-        default.status = {"type": Status.FAILED, "text": _("未开启")}
+        default.label = gettext("未开启")
+        default.status = {"type": Status.FAILED, "text": gettext("未开启")}
         return default

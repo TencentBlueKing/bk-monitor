@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-import json
 import logging
 from abc import ABC
 from collections import defaultdict
@@ -163,7 +162,7 @@ class PageListResource(ApiAuthResource, ABC):
             for column in filterable_column_map:
                 try:
                     column, result_val = _get_column_filter_key(column, item)
-                    result_idx = json.dumps(result_val, sort_keys=True)
+                    result_idx = f"{result_val['text']}-{result_val['value']}"
                     if result_idx in _filter_mapping[column.id]:
                         continue
                     _filter_mapping[column.id][result_idx] = result_val
