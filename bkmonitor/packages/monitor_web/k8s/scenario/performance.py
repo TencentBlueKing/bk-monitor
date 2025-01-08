@@ -36,13 +36,13 @@ def get_metrics() -> List:
                     id="kube_pod_cpu_requests_ratio",
                     name=_lazy("CPU request使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
                 ),
                 Metric(
                     id="kube_pod_cpu_limits_ratio",
                     name=_lazy("CPU limit使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
                 ),
                 Metric(
                     id="container_cpu_cfs_throttled_ratio",

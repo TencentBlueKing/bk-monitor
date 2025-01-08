@@ -313,7 +313,7 @@ class K8sPodMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -330,7 +330,7 @@ class K8sPodMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -347,7 +347,7 @@ class K8sPodMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -364,7 +364,7 @@ class K8sPodMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -513,7 +513,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -530,7 +530,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -547,7 +547,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -564,7 +564,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -617,7 +617,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -634,7 +634,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -651,7 +651,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
@@ -668,7 +668,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
-    ))))"""
+    )))"""
         )
         return promql
 
