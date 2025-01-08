@@ -217,21 +217,6 @@ class QueryDataLinkInfoResource(Resource):
                 if rt.default_storage == models.ClusterInfo.TYPE_ES:
                     logger.info("QueryDataLinkInfoResource: start to get table_id: %s es storage details", table_id)
                     self.bklog_table_ids.append(rt.table_id)
-                    es_storage = models.ESStorage.objects.get(table_id=rt.table_id)
-                    es_cluster = models.ClusterInfo.objects.get(cluster_id=es_storage.storage_cluster_id)
-                    table_ids_details[table_id].update(
-                        {
-                            "ES索引大小切分阈值（GB）": es_storage.slice_size,
-                            "ES索引分片时间间隔(分钟）": es_storage.slice_gap,
-                            "ES时区配置": es_storage.time_zone,
-                            "ES索引配置信息": es_storage.index_settings,
-                            "ES别名配置信息(mapping)": es_storage.mapping_settings,
-                            "ES索引集": es_storage.index_set,
-                            "ES存储集群": es_storage.storage_cluster_id,
-                            "ES存储集群名称": es_cluster.cluster_name,
-                            "ES存储集群域名": es_cluster.domain_name,
-                        }
-                    )
 
             except Exception as e:  # pylint: disable=broad-except
                 table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
