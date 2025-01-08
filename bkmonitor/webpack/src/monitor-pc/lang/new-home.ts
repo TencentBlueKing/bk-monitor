@@ -54,4 +54,10 @@ export default {
   添加业务: 'Add a service',
   '请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索':
     'Please enter IP / traceId / container cluster / alarm ID / policy name to search',
+  清空搜索: 'Clear search',
+  关联的屏蔽配置: 'Associated blocking configuration',
+  '当前正在加载 采集任务': 'Currently loading the collection task',
+  相关功能: 'Related functions',
+  '当前输入条件无匹配结果，请清空后重新输入':
+    'There is no matching result for the current input conditions, please clear and re-enter',
 };

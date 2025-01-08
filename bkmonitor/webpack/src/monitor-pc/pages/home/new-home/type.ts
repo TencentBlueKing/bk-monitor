@@ -39,6 +39,7 @@ export interface ISearchItem {
   type?: string;
   strategy_id?: number;
   app_name?: string;
+  trace_id?: string;
 }
 
 export interface ISearchListItem {
