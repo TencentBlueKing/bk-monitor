@@ -240,13 +240,15 @@ class K8sResourceMeta(object):
         return self.meta_prom_with_container_cpu_usage_seconds_total
 
     def meta_prom_by_sort(self, order_by="", page_size=20):
-        order_type = "DESC" if order_by.startswith("-") else "ASC"
-        order_func = "topk" if order_type == "DESC" else "bottomk"
         order_field = order_by.strip("-")
 
         meta_prom_func = f"meta_prom_with_{order_field}"
         if hasattr(self, meta_prom_func):
-            return f"{order_func}({page_size}, {getattr(self, meta_prom_func)})"
+            if order_by.startswith("-"):
+                # desc
+                return f"topk({page_size}, {getattr(self, meta_prom_func)})"
+            else:
+                return f"topk({page_size}, {getattr(self, meta_prom_func)} * -1) * -1"
         raise NotImplementedError(f"metric: {order_field} not supported")
 
     @property
