@@ -203,8 +203,7 @@ class K8sResourceMeta(object):
                         max_data_point = max(max_data_point, point[1])
         for line in series:
             if line["datapoints"][-1][1] == max_data_point:
-                # 有时间点，但无数据， 比全部无数据优先级高点， 所以这里 or 1
-                lines.append([line["datapoints"][-1][0] or 1, line])
+                lines.append([line["datapoints"][-1][0] or 0, line])
             else:
                 lines.append([0, line])
         if order_by:
