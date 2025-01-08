@@ -27,8 +27,9 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
-import { type ISearchListItem, type ISearchItem } from '../type';
 import { highLightContent, ESearchType } from '../utils';
+
+import type { ISearchListItem, ISearchItem } from '../type';
 
 import './home-select.scss';
 interface IHomeSelectProps {
@@ -64,7 +65,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   isLoading = false;
   highlightedIndex = -1;
   flattenRoute(tree) {
-    let result = [];
+    const result = [];
     const traverse = node => {
       if (!node) return;
       result.push(node);
@@ -119,7 +120,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       >
         {isHost && <span class='ip-tag'>0:</span>}
         <span class='item-label'>
-          <span domPropsInnerHTML={item.nameSearch}></span>
+          <span domPropsInnerHTML={item.nameSearch} />
           {isHost && <span class='ip-sub'>{item.bk_host_name}</span>}
         </span>
         {isStrategy && (
@@ -151,7 +152,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         ]}
         onClick={() => this.handleItemClick(item, 'history')}
       >
-        <i class='icon-monitor icon-lishijilu item-icon'></i>
+        <i class='icon-monitor icon-lishijilu item-icon' />
         {item.name}
       </div>
     );
@@ -173,7 +174,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
               class='new-home-select-router-item'
               on-click={() => this.handleGoRoute(item)}
             >
-              <i class={`${item?.icon} router-item-icon`}></i>
+              <i class={`${item?.icon} router-item-icon`} />
               <span class='item-txt'>{item?.name}</span>
             </span>
           ))}
@@ -194,7 +195,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
 
   renderRouteAndWord() {
     if (this.searchValue && this.searchRouteList.length > 0) {
-      return [<div class='new-home-select-divider'></div>, this.renderRouterList()];
+      return [<div class='new-home-select-divider' />, this.renderRouterList()];
     }
   }
   /** 渲染历史搜索列表 */
@@ -235,7 +236,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
   }
   /** 清空历史 */
-  clearHistory() {}
+  clearHistory() { }
 
   handleKeydown(event) {
     switch (event.key) {
@@ -263,7 +264,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           ref='select'
           class='new-home-select-input'
         >
-          <span class='new-home-select-icon'></span>
+          <span class='new-home-select-icon' />
           {/* ip类型选中后的特殊展示处理 */}
           {/* {this.showHostView && this.searchType === ESearchType.host && (
             <span
@@ -286,13 +287,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
-            // onMousedown={this.handleMousedown}
-          ></textarea>
+          // onMousedown={this.handleMousedown}
+          />
           {this.searchValue && (
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'
               onClick={e => this.clearInput(e)}
-            ></span>
+            />
           )}
         </div>
         {this.showPopover && (
@@ -309,7 +310,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
                       class='item-list-clear'
                       on-click={this.clearHistory}
                     >
-                      <i class='icon-monitor icon-mc-clear'></i>
+                      <i class='icon-monitor icon-mc-clear' />
                       {this.$t('清空历史')}
                     </span>
                   </div>
@@ -321,7 +322,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
                 </div>
                 {this.isLoading && (
                   <div class='loading-view'>
-                    <i class='icon-monitor icon-loading1'></i>
+                    <i class='icon-monitor icon-loading1' />
                     {this.$t('当前正在加载 采集任务')}
                   </div>
                 )}
