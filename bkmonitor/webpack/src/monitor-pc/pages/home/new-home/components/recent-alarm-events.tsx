@@ -39,10 +39,13 @@ import { shortcuts } from '../../../../components/time-range/utils';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import { EStatusType } from '../utils';
 import HomeAlarmChart from './home-alarm-chart';
-import HomeBizSelect from './home-biz-list';
+// import HomeBizSelect from './home-biz-list';
+
+import RecentAlarmTab from './recent-alarm-tab';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
+import type { IRecentAlarmTab } from '../type';
 
 import './recent-alarm-events.scss';
 
@@ -54,10 +57,11 @@ import './recent-alarm-events.scss';
   },
 })
 export default class RecentAlarmEvents extends tsc<object> {
-  tabs = [];
+  tabs: IRecentAlarmTab[] = [];
   @Ref() taskForm;
   handleMeunMode: '' | 'delete' | 'detail' | 'edit' = '';
 
+  // select 底部加载配置
   bottomLoadingOptions = {
     isLoading: false,
     size: 'mini',
@@ -105,7 +109,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     status: [],
   };
 
-  timeRange = JSON.stringify(shortcuts[5].value as TimeRangeType);
+  timeRange = shortcuts[5].value as TimeRangeType;
 
   strategyList = [];
 
@@ -128,7 +132,6 @@ export default class RecentAlarmEvents extends tsc<object> {
       const data = await getAlarmGraphConfig({
         bk_biz_id: this.activeTabId,
       });
-      this.loading = false;
       if (updateTab) {
         if (this.tabs.length === 0) {
           this.activeTabId = data.tags?.[0]?.bk_biz_id;
@@ -138,6 +141,8 @@ export default class RecentAlarmEvents extends tsc<object> {
       this.content = data.config || [];
     } catch (error) {
       console.log('get Date error', error);
+    } finally {
+      this.loading = false;
     }
   }
 
@@ -146,66 +151,17 @@ export default class RecentAlarmEvents extends tsc<object> {
     this.activeTabId = this.tabs[0]?.bk_biz_id; // 默认选中第一个标签
   }
 
-  // 可以添加业务flag
-  get canAddBusiness() {
-    // 仅支持添加 10 个业务
-    return this.tabs.length <= 10;
-  }
-
-  get noBusiness() {
-    return this.tabs.length === 0;
-  }
-
-  // 选择标签
-  selectTab(tabId: number) {
-    this.activeTabId = tabId;
-    this.strategyList = [];
-    this.getData(false);
-  }
-
-  // 拖拽 start
-  // 拖拽开始，记录当前拖拽的ID
-  handleDragstart(index: number) {
-    this.dragId = index.toString();
-  }
-
-  // 拖拽经过事件，设置当前拖拽ID
-  handleDragover(index: number, e: DragEvent) {
-    e.preventDefault();
-    this.dragoverId = index.toString();
-  }
-
-  // 拖拽离开事件，清除当前拖拽的ID
-  handleDragleave() {
-    this.dragoverId = '';
-  }
-
   // 拖拽完成时逻辑
-  handleDrop() {
-    if (this.dragId !== this.dragoverId) {
-      const dragIndex = Number.parseInt(this.dragId, 10);
-      const dragoverIndex = Number.parseInt(this.dragoverId, 10);
-
-      const draggedTab = this.tabs[dragIndex];
-      this.tabs.splice(dragIndex, 1);
-      this.tabs.splice(dragoverIndex, 0, draggedTab);
-    }
-
-    this.dragId = '';
-    this.dragoverId = '';
-    // 保存排序
-    saveAlarmGraphBizIndex({
-      bk_biz_ids: this.tabs.map(tab => tab.bk_biz_id),
-    });
+  hanleDropEnd(tabs) {
+    this.tabs = tabs;
   }
-  // 拖拽 end
 
   // 新增图表
   handleAddChart(isEdit = false) {
     this.alarmGraphConfig.bizId = this.activeTabId;
     this.isAppendMode = true;
-    isEdit ? this.getStrategyListById() : this.getStrategyListByPage();
     this.showAddTaskDialog = true;
+    isEdit ? this.getStrategyListById() : this.getStrategyListByPage();
   }
 
   // 取消新增图表
@@ -295,11 +251,12 @@ export default class RecentAlarmEvents extends tsc<object> {
       isLastPage: false,
     };
     this.filterStrategyIdSet = new Set();
+    this.strategyList = [];
   }
 
   async getStrategyListByPage() {
+    if (!this.alarmGraphConfig.bizId) return;
     try {
-      if (!this.alarmGraphConfig.bizId) return;
       const { currentPage: page, limit } = this.pagination;
       const data = await getStrategyListV2({
         page,
@@ -325,9 +282,8 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
   // 根据策略 Id 获取数据
   async getStrategyListById() {
+    if (!this.alarmGraphConfig.bizId) return;
     try {
-      if (!this.alarmGraphConfig.bizId) return;
-      this.strategyList = [];
       const data = await getStrategyListV2({
         limit: 50,
         bk_biz_id: this.alarmGraphConfig.bizId,
@@ -546,13 +502,6 @@ export default class RecentAlarmEvents extends tsc<object> {
     this.showDelDialog = true;
   }
 
-  /** 业务列表 */
-  get bizIdList() {
-    return this.$store.getters.bizList.filter(
-      ({ bk_biz_id }) => !this.tabs.map(item => item.bk_biz_id).includes(bk_biz_id)
-    );
-  }
-
   // 取消删除
   handleCancelDel() {
     this.currentDelId = null;
@@ -616,7 +565,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     const add = () => (
       <div
         class='add-content list-item'
-        onClick={this.handleAddChart}
+        onClick={() => this.handleAddChart()}
       >
         <i class='icon-mc-add icon-monitor' />
         <span>{this.$t('新增图表')}</span>
@@ -632,7 +581,7 @@ export default class RecentAlarmEvents extends tsc<object> {
             <HomeAlarmChart
               config={item}
               currentActiveId={this.activeTabId}
-              timeRange={JSON.parse(this.timeRange)}
+              timeRange={this.timeRange}
               onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
             />
           </div>
@@ -665,7 +614,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           queryString += `策略ID : ${id} OR `;
         }
         queryString = queryString.slice(0, queryString.length - 3);
-        const [from, to] = JSON.parse(this.timeRange);
+        const [from, to] = this.timeRange;
         const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
         window.open(url, '_blank');
         break;
@@ -673,6 +622,8 @@ export default class RecentAlarmEvents extends tsc<object> {
     }
   }
 
+
+  // 添加业务
   async handleSelectBiz(id) {
     this.alarmGraphConfig.bizId = id;
     this.strategyList = [];
@@ -688,93 +639,27 @@ export default class RecentAlarmEvents extends tsc<object> {
           <span>{this.$t('最近告警事件')}</span>
         </div>
         {/* 头部功能区 */}
-        <div class='head'>
-          {!this.loading ? (
-            <div class='tabs'>
-              {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
-                <div
-                  key={id}
-                  class='tab'
-                  draggable={true}
-                  onDragleave={this.handleDragleave}
-                  onDragover={e => this.handleDragover(index, e)}
-                  onDragstart={() => this.handleDragstart(index)}
-                  onDrop={this.handleDrop}
-                >
-                  <span class='icon-monitor icon-mc-tuozhuai item-drag' />
-                  <span
-                    class={['tab-title', this.activeTabId === id ? 'active' : '']}
-                    onClick={() => this.selectTab(id)}
-                  >
-                    {name}
-                  </span>
-                  <div>
-                    <span
-                      class='icon-monitor item-close icon-mc-delete-line'
-                      v-bk-tooltips={{
-                        content: this.$t('删除该业务'),
-                        trigger: 'mouseenter',
-                        zIndex: 9999,
-                        boundary: document.body,
-                        allowHTML: false,
-                      }}
-                      onClick={() => this.handleDelTask(id)}
-                    />
-                  </div>
-                </div>
-              ))}
-              {!this.canAddBusiness ? (
-                <span
-                  class='add-task task-disabled'
-                  v-bk-tooltips={{
-                    content: this.$t('仅支持添加 10 个业务'),
-                    trigger: 'mouseenter',
-                    zIndex: 9999,
-                    boundary: document.body,
-                    allowHTML: false,
-                  }}
-                >
-                  <i class='bk-icon icon-plus-circle' />
-                  {this.$t('添加业务')}
-                </span>
-              ) : (
-                <HomeBizSelect
-                  bizList={this.bizIdList}
-                  canAddBusiness={this.canAddBusiness}
-                  minWidth={380}
-                  stickyList={[]}
-                  theme='light'
-                  onChange={this.handleSelectBiz}
-                />
-              )}
-            </div>
-          ) : (
-            <div class='skeleton-element' />
-          )}
-          {/* 删除业务-模态框 */}
-          {this.getDelDialog()}
-          {/* 新增业务-模态框 */}
-          {this.getAddDialog()}
-          {/* 时间选择器 */}
-          <div class='alarm-time-filter'>
-            <bk-select
-              ext-cls='alarm-time-select'
-              v-model={this.timeRange}
-              clearable={false}
-              popover-width={70}
-            >
-              {shortcuts.map(option => (
-                <bk-option
-                  id={JSON.stringify(option.value)}
-                  key={option.text}
-                  name={option.text}
-                />
-              ))}
-            </bk-select>
-          </div>
-        </div>
+        <RecentAlarmTab
+          activeTabId={this.activeTabId}
+          loading={this.loading}
+          tabs={this.tabs}
+          onChangeTab={id => {
+            // console.log(id);
+            this.activeTabId = id;
+          }}
+          onChangeTime={timeRange => {
+            this.timeRange = timeRange;
+          }}
+          onHandleDelTask={this.handleDelTask}
+          onHandleDropTab={this.hanleDropEnd}
+          onHandleSelectBiz={this.handleSelectBiz}
+        />
         {/* 主体内容 */}
         <div class='content'>{!this.content.length ? this.getEmptyContent() : this.getStrategyList(this.content)}</div>
+        {/* 删除业务-模态框 */}
+        {this.getDelDialog()}
+        {/* 新增业务-模态框 */}
+        {this.getAddDialog()}
       </div>
     );
   }

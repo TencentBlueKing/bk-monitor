@@ -206,7 +206,6 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   }
 
   changeSelect(val: string[]) {
-    console.log(val);
     this.getPanelData();
   }
   mounted() {
