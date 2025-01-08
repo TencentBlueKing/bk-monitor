@@ -79,7 +79,13 @@ class IncidentGraphEntity:
         "namespace": "k8s-xxxxx-trunk",
         "pod_name": "uid-0"
     },
-    "tags": {}
+    "tags": {},
+    "properties": {},
+    "observe_time_rage": {
+        "start_at": 11111,
+        "end_at": 1111,
+    },
+    "rca_trace_info": {}
     """
 
     entity_id: str
@@ -96,6 +102,9 @@ class IncidentGraphEntity:
     tags: Dict = field(default_factory=dict)
     aggregated_entities: List["IncidentGraphEntity"] = field(default_factory=list)
     component_type: IncidentGraphComponentType = IncidentGraphComponentType.PRIMARY
+    properties: Dict = field(default_factory=dict)
+    observe_time_rage: Dict = field(default_factory=dict)
+    rca_trace_info: Dict = field(default_factory=dict)
 
     def to_src_dict(self):
         data = asdict(self)
@@ -172,6 +181,7 @@ class IncidentGraphEdge:
     edge_cluster_id: str = None
     aggregated_edges: List["IncidentGraphEdge"] = field(default_factory=list)
     component_type: IncidentGraphComponentType = IncidentGraphComponentType.PRIMARY
+    properties: Dict = field(default_factory=dict)
 
     def to_src_dict(self):
         return {
@@ -194,6 +204,7 @@ class IncidentGraphEdge:
             "events": [event.to_src_dict() for event in self.events],
             "aggregated_edges": [edge.to_src_dict() for edge in self.aggregated_edges],
             "component_type": self.component_type.value,
+            "properties": self.properties,
         }
 
     def __str__(self):
@@ -290,6 +301,7 @@ class IncidentSnapshot(object):
                 component_type=IncidentGraphComponentType(
                     edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
                 ),
+                properties=edge_info.get("properties", {}),
             )
 
         self.bk_biz_id = self.incident_snapshot_content["bk_biz_id"]
@@ -783,6 +795,7 @@ class IncidentSnapshot(object):
                 events=self.incident_graph_edges[_from].events,
                 aggregated_edges=[],
                 component_type=self.incident_graph_edges[_from].component_type,
+                properties=self.incident_graph_edges[_from].properties,
             )
         elif _from in self.incident_graph_edges:
             self.incident_graph_edges[_to].is_anomaly = (

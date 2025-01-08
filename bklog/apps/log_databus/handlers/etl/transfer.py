@@ -54,6 +54,8 @@ class TransferEtlHandler(EtlHandler):
         view_roles=None,
         etl_params=None,
         fields=None,
+        sort_fields=None,
+        target_fields=None,
         username="",
         *args,
         **kwargs,
@@ -127,7 +129,14 @@ class TransferEtlHandler(EtlHandler):
             view_roles = []
 
         # 2. 创建索引集
-        index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+        index_set = self._update_or_create_index_set(
+            etl_config,
+            storage_cluster_id,
+            view_roles,
+            username=username,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
+        )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})

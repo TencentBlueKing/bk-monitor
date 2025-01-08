@@ -339,7 +339,7 @@ export default class FieldItem extends tsc<object> {
           width={600}
           is-show={this.ifShowMore}
           quick-close={true}
-          // transfer
+          transfer
           show-mask={false}
           onAnimation-end={this.closeSlider}
           class='sideslider'

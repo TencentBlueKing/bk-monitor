@@ -1452,11 +1452,11 @@ class ExportFileType(ChoicesEnum):
     日志下载文件类型枚举
     """
 
-    LOG = "log"
+    TXT = "txt"
     CSV = "csv"
 
     _choices_labels = (
-        (LOG, _("log类型")),
+        (TXT, _("txt类型")),
         (CSV, _("csv类型")),
     )
 
@@ -1704,3 +1704,8 @@ ES_RESERVED_CHARACTERS = [
     "/",
     " ",
 ]
+
+
+class DataFlowResourceUsageType(object):
+    online = "log_clustering_online"
+    agg = "log_clustering_agg"

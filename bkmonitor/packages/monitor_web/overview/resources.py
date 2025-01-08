@@ -325,22 +325,22 @@ class GetFunctionShortcutResource(CacheResource):
                 org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(id__in=org_ids)}
 
                 # 确定已存在的仪表盘
-                exists_dashboard_set: Set[Tuple[str, str]] = {
-                    (org_ids_to_biz_id[dashboard.org_id], dashboard.uid)
+                exists_dashboards: Dict[Tuple[str, str], Dashboard] = {
+                    (org_ids_to_biz_id[dashboard.org_id], dashboard.uid): dashboard
                     for dashboard in dashboards
                     if dashboard.org_id in org_ids_to_biz_id
                 }
 
                 for access_record in access_records:
-                    # 如果仪表盘不存在，则跳过
-                    if (str(access_record["bk_biz_id"]), access_record["dashboard_uid"]) not in exists_dashboard_set:
+                    dashboard = exists_dashboards.get((str(access_record["bk_biz_id"]), access_record["dashboard_uid"]))
+                    if not dashboard:
                         continue
 
                     items.append(
                         {
                             "bk_biz_id": access_record["bk_biz_id"],
                             "dashboard_uid": access_record["dashboard_uid"],
-                            "dashboard_title": dashboards.get(uid=access_record["dashboard_uid"]).title,
+                            "dashboard_title": dashboard.title,
                         }
                     )
 

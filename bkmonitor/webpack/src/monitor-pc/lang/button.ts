@@ -490,4 +490,7 @@ export default {
   任务终止: 'Task Termination',
   失败重试: 'Failure Retry',
   保存并接入服务: 'Save and Access Service',
+  K8s对象列表: 'K8s Object List',
+  指标视图: 'Metric View',
+  K8s集群数据详情: 'K8s Cluster Data Details',
 };

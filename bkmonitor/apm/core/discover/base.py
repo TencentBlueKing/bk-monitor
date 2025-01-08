@@ -270,15 +270,14 @@ class TopoHandler:
 
         return body
 
-    def list_trace_ids(self):
+    def list_trace_ids(self, index_name):
         start = datetime.datetime.now()
         after_key = None
 
         while True:
             query_body = self._get_after_key_body(after_key)
-            response = self.datasource.es_client.search(
-                index=self.datasource.index_name, body=query_body, request_timeout=60
-            )
+            logger.info(f"[TopoHandler] {self.bk_biz_id} {self.app_name} list_trace_ids body: {query_body}")
+            response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
             per_round_trace_ids = []
             # 处理结果
@@ -393,9 +392,10 @@ class TopoHandler:
         start = datetime.datetime.now()
         trace_id_count = 0
         span_count = 0
+        filter_span_count = 0
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
 
-        for round_index, trace_ids in enumerate(self.list_trace_ids()):
+        for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
                 continue
 
@@ -411,7 +411,8 @@ class TopoHandler:
                 per_trace_size = self.calculate_round_count(avg_group_span_count)
 
                 logger.info(
-                    f"[TopoHandler] "
+                    f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
+                    f"index_name: {index_name} "
                     f"per_trace_size: {per_trace_size} "
                     f"avg_group_span_count: {avg_group_span_count} "
                     f"span_count: {len(all_spans)}"
@@ -422,20 +423,20 @@ class TopoHandler:
             # 拓扑发现任务
             # endpoint\relation\remote_service_relation\root_endpoint 需要 kind != 0/1 数据
             # host\instance\node 需要全部 span 数据
-            topo_params = [
-                (
-                    c,
-                    [[i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND], all_spans][c.DISCOVERY_ALL_SPANS],
-                    "topo",
-                )
-                for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
-            ]
+            topo_params = []
+            filter_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
+            filter_span_count += len(filter_spans)
+            for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+                if c.DISCOVERY_ALL_SPANS:
+                    topo_params.append((c, all_spans, "topo"))
+                else:
+                    topo_params.append((c, filter_spans, "topo"))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(
             f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "
-            f"trace count: {trace_id_count} span count: {span_count} "
+            f"trace count: {trace_id_count} all span count: {span_count} filter span count: {filter_span_count}"
             f"elapsed: {(datetime.datetime.now() - start).seconds}s"
         )
         return True

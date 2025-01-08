@@ -67,6 +67,7 @@ interface IDetectionRules {
   isEdit?: boolean;
   dataMode?: dataModeType;
   needShowUnit: boolean;
+  isKpiAnomalySdkEnabled: boolean;
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>>;
 }
 interface IEvent {
@@ -90,6 +91,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   @Prop({ default: () => {}, type: Array }) metricData: MetricDetail[];
   @Prop({ default: '', type: String }) dataMode: dataModeType;
   @Prop({ default: false, type: Boolean }) needShowUnit: boolean;
+  @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean; // 是否支持智能监控
   @Prop({ default: () => new Map(), type: Map }) intelligentDetect: Map<
     IntelligentModelsType,
     Array<Record<string, any>>
@@ -223,7 +225,8 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
     return (
       this.metricData.length === 1 &&
       (['bk_data'].includes(dataSourceLabel) ||
-        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
+        (['bk_monitor'].includes(dataSourceLabel) &&
+          (this.isKpiAnomalySdkEnabled || result_table_id?.startsWith('system.')))) &&
       dataTypeLabel === 'time_series' &&
       !functions?.length
     );

@@ -8,6 +8,25 @@
     .bk-table-header-wrapper {
       .bk-table-header {
         min-width: 100%;
+
+        .cell:has(.k8s-metrics-header) {
+          padding-left: 0;
+        }
+
+        .k8s-metrics-header {
+          display: flex;
+          align-items: center;
+          padding-left: 15px;
+          cursor: initial;
+
+          .header-label {
+            flex-basis: auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
       }
     }
 
@@ -30,6 +49,11 @@
             color: #979ba5;
           }
         }
+      }
+
+      .bk-table-empty-block {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 100% !important;
       }
     }
 
@@ -54,12 +78,17 @@
       flex-basis: auto;
       min-width: 0;
       overflow: hidden;
+      color: #63656e;
       text-overflow: ellipsis;
       white-space: nowrap;
 
       &.can-click {
-        color: #3a84ff;
+        text-decoration: underline;
         cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
 

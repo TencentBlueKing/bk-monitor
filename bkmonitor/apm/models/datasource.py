@@ -844,14 +844,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
         try:
             # 获取索引名称列表
             es_index_name = self.result_table_id.replace(".", "_")
-            routes = self.es_client.transport.perform_request(
+            routes_str = self.es_client.transport.perform_request(
                 "GET",
-                f"/_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
+                f"/_cat/indices/{es_index_name}_*_*?h=index",
             )
             # 过滤出有效的索引名称
             index_names = self._filter_and_sort_valid_index_names(
                 self.app_name,
-                index_names=[i["index"] for i in routes if i.get("index")],
+                index_names=[i for i in routes_str.split("\n") if i],
             )
             if not index_names:
                 raise ValueError("[IndexName] valid indexName not found!")

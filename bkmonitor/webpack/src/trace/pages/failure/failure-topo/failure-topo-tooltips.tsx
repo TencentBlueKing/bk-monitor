@@ -116,7 +116,9 @@ export default defineComponent({
             item[0] = dayjs.tz(item[0]).format('YYYY-MM-DD HH:mm:ss');
             return item;
           });
-          const chart = echarts.init(document.getElementById(`edge-chart-${index}`) as HTMLDivElement);
+          const dom = document.getElementById(`edge-chart-${index}`) as HTMLDivElement;
+          if (!dom) return;
+          const chart = echarts.init(dom);
           chart.setOption({
             grid: {
               left: gridLeftMap[maxValue.length - 1] ?? '18%',
@@ -311,6 +313,11 @@ export default defineComponent({
       const timestamp = new Date().getTime();
       const linkHandleByType = typeToLinkHandle[node.entity.entity_type];
       const query = linkHandleByType?.query(node);
+      const { observe_time_rage } = node.entity;
+      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
+        query.from = observe_time_rage.start_at;
+        query.to = observe_time_rage.end_at;
+      }
       const queryString = Object.keys(query)
         .map(key => `${key}=${query[key]}`)
         .join('&');

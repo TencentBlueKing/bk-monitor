@@ -74,6 +74,9 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
+type RowData = Record<string, any>;
+type ColumnFiled = Record<string, any>;
+
 export default defineComponent({
   props: {
     contentType: {
@@ -95,6 +98,7 @@ export default defineComponent({
     const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
+    const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -183,11 +187,12 @@ export default defineComponent({
         .map(([, { rowIndex }]) => rowIndex);
 
       const length = idxs.length > 0 ? idxs.length : pageSize.value;
-      const max = Math.max(...idxs, 0) + length;
-      const min = idxs.length ? Math.min(...idxs) - length : 0;
+      const buffer = Math.max(length, 1);
+      const max = Math.max(...idxs, 0) + buffer;
+      const min = idxs.length ? Math.min(...idxs) - buffer : 0;
       const end = Math.min(max, tableDataSize.value);
       const start = Math.max(min, 0);
-      visibleRowLength.value = length;
+      visibleRowLength.value = buffer;
       Object.assign(rowProxy, { start, end });
     };
 
@@ -219,29 +224,20 @@ export default defineComponent({
       });
     };
 
-    const intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        const index = entry.target.getAttribute('data-row-index');
-        updateIntersectionArgs(index, entry.isIntersecting);
-      });
-      delayUpdate();
-    });
-
-    // const resizeObserver = new ResizeObserver(entries => {
-    //   entries.forEach(entry => {
-    //     const index = entry.target.getAttribute('data-row-index');
-    //     console.log('index', index, entry.contentRect);
-    //     // const changed = (rowProxy[index]?.height ?? 40) !== entry.contentRect.height;
-    //     // if (changed && !entry.target.classList.contains('is-pending')) {
-    //     //   updateIntersectionArgs(index, undefined, entry.contentRect.height);
-    //     //   entry.target.parentElement.style.setProperty('min-height', `${entry.contentRect.height}px`);
-    //     // }
-    //   });
-    // });
+    const intersectionObserver = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          const index = entry.target.getAttribute('data-row-index');
+          updateIntersectionArgs(index, entry.isIntersecting);
+        });
+        delayUpdate();
+      },
+      { threshold: 0.001 },
+    );
 
     provide('intersectionObserver', intersectionObserver);
-    // provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
+    provide('tableCellCache', tableCellCache);
 
     const searchContainerHeight = ref(52);
 
@@ -303,7 +299,7 @@ export default defineComponent({
             <TableColumn
               content={getTableColumnContent(row, field)}
               field={field}
-              is-wrap={tableLineIsWrap.value}
+              row={row}
               onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
             ></TableColumn>
           );
@@ -542,6 +538,14 @@ export default defineComponent({
       }
     };
 
+    const isRequesting = ref(false);
+
+    const debounceSetLoading = () => {
+      setTimeout(() => {
+        isRequesting.value = false;
+      }, 120);
+    };
+
     const expandOption = {
       render: ({ row }) => {
         return (
@@ -633,6 +637,9 @@ export default defineComponent({
         });
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
+      {
+        immediate: true,
+      },
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -668,18 +675,11 @@ export default defineComponent({
       const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
-      store.commit('updateVisibleFields', visibleFields.value);
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
-    };
 
-    const isRequesting = ref(false);
-
-    const debounceSetLoading = () => {
-      setTimeout(() => {
-        isRequesting.value = false;
-      }, 120);
+      store.commit('updateVisibleFields', visibleFields.value);
     };
 
     const loadMoreTableData = () => {
@@ -729,12 +729,14 @@ export default defineComponent({
       };
 
       const leftWidth = leftColumns.value.reduce(callback, 0);
-
       const rightWidth = rightColumns.value.reduce(callback, 0);
-
       const visibleWidth = getFieldColumns().reduce(callback, 0);
 
-      return leftWidth + rightWidth + visibleWidth;
+      if (isNaN(visibleWidth)) {
+        return offsetWidth.value;
+      }
+
+      return leftWidth + rightWidth + visibleWidth - 2;
     });
 
     const hasScrollX = computed(() => {
@@ -923,7 +925,11 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
-      return <div class='fixed-right-shadown'></div>;
+      if (tableDataSize.value > 0) {
+        return <div class='fixed-right-shadown'></div>;
+      }
+
+      return null;
     };
 
     const isTableLoading = computed(() => {

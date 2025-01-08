@@ -6,10 +6,15 @@
     line-height: 24px;
     text-align: center;
 
+    &:hover {
+      color: #3A84FF;
+    }
+
     &.active {
       color: #3a84ff;
       background: #cddffe;
     }
+    
   }
 }
 

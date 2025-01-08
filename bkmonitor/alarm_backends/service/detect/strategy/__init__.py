@@ -10,11 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import concurrent.futures
+import copy
 import functools
 import inspect
 import json
 import logging
-from typing import List
+from typing import Dict, List
 
 from django.conf import settings
 from django.template import Context, Template
@@ -468,6 +469,20 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 class SDKPreDetectMixin(object):
     GROUP_PREDICT_FUNC = None
     PREDICT_FUNC = None
+    WITH_HISTORY_ANOMALY = False
+
+    def generate_dimensions(self, data_point: DataPoint) -> Dict:
+        """生成维度字典.
+
+        :param data_point: 数据点
+        :return: 维度字典
+        """
+        if "agg_dimension" not in data_point.item.query_configs[0]:
+            dimensions = copy.deepcopy(data_point.dimensions)
+        else:
+            dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
+        dimensions["strategy_id"] = int(data_point.item.strategy.id)
+        return dimensions
 
     def pre_detect(self, data_points: List[DataPoint]) -> None:
         """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
@@ -488,25 +503,24 @@ class SDKPreDetectMixin(object):
         for data_point in data_points:
             dimension_md5 = data_point.record_id.split(".")[0]
             if dimension_md5 not in predict_inputs:
-                dimensions = {key: data_point.dimensions[key] for key in item.query_configs[0]["agg_dimension"]}
-                dimensions["strategy_id"] = int(data_point.item.strategy.id)
+                dimensions = self.generate_dimensions(data_point)
                 predict_inputs[dimension_md5] = {
                     "dimensions": dimensions,
                     "data": [],
-                    "extra_data": {
-                        "history_anomaly": {
-                            "source": "backfill",
-                            "retention_period": "8d",
-                            "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
-                            "backfill_conditions": [
-                                {
-                                    "field_name": "is_anomaly",
-                                    "value": 1,
-                                }
-                            ],
-                        },
-                    },
+                    "extra_data": {},
                 }
+                if self.WITH_HISTORY_ANOMALY:
+                    predict_inputs[dimension_md5]["extra_data"]["history_anomaly"] = {
+                        "source": "backfill",
+                        "retention_period": "8d",
+                        "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
+                        "backfill_conditions": [
+                            {
+                                "field_name": "is_anomaly",
+                                "value": 1,
+                            }
+                        ],
+                    }
 
             predict_inputs[dimension_md5]["data"].append(
                 {
@@ -556,6 +570,7 @@ class SDKPreDetectMixin(object):
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
+                    "dimension_fields": list(data_point.dimensions.keys()),
                 },
                 item=data_point.item,
             )

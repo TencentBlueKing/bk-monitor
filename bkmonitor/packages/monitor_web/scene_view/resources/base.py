@@ -9,14 +9,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import json
+import logging
 from abc import ABC
+from collections import defaultdict
 from functools import cmp_to_key
 
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.thread_backend import ThreadPool
 from monitor_web.scene_view.table_format import DefaultTableFormat
+
+logger = logging.getLogger(__name__)
 
 
 class PageListResource(ApiAuthResource, ABC):
+    CONCURRENT_NUMBER = 5
+
     def get_columns(self, column_type=None):
         return []
 
@@ -145,13 +153,32 @@ class PageListResource(ApiAuthResource, ABC):
         # 获取字段信息
         column_formats = self.get_columns(column_type=column_type)
         filterable_column_map = [column for column in column_formats if column.filterable and not column.filter_list]
+
         # 遍历数据获取筛选列表
-        for item in data:
-            for column in filterable_column_map:
-                item_val = column.get_filter_key(item)
-                if item_val in column.filter_list:
+        def _get_column_filter_key(column, data_item):
+            # 防止有懒加载的情况
+            return column, {str(k): str(v) for k, v in column.get_filter_key(data_item).items()}
+
+        _filter_mapping = defaultdict(dict)
+        pool = ThreadPool(self.CONCURRENT_NUMBER)
+        result_list = pool.map_ignore_exception(
+            _get_column_filter_key, [(column, item) for item in data for column in filterable_column_map]
+        )
+        pool.close()
+        pool.join()
+        for result in result_list:
+            try:
+                column, result_val = result
+                result_idx = json.dumps(result_val, sort_keys=True)
+                if result_idx in _filter_mapping[column.id]:
                     continue
-                column.filter_list.append(item_val)
+                _filter_mapping[column.id][result_idx] = result_val
+            except Exception as exc:  # pylint: disable=broad-except
+                logger.error(f"occur an exception when get filter keys, detail: {exc}")
+                raise exc
+
+        for column in filterable_column_map:
+            column.filter_list = list(_filter_mapping[column.id].values())
         return column_formats
 
     def handle_pagination(self, params, data):

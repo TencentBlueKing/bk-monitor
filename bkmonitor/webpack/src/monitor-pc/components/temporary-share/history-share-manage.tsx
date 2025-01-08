@@ -168,6 +168,7 @@ export default class HistoryShareManage extends tsc<IProps> {
   /* 当前选中的选项 */
   selected = new Set();
   loading = false; // 加载中
+  typeMap = { 'event-center': 'event', 'incident-detail': 'incident' };
 
   created() {
     this.shortcutsMap = shortcuts.reduce((map, cur) => {
@@ -243,7 +244,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       }
     });
     const data = await getShareTokenList({
-      type: this.$route.name === 'event-center' ? 'event' : query.sceneId,
+      type: this.typeMap[this.$route.name] ?? query.sceneId,
       filter_params: filterParams,
       scene_params: !!query?.dashboardId
         ? { sceneType: query.sceneType, sceneId: query.sceneId, dashboardId: query.dashboardId }
@@ -388,7 +389,7 @@ export default class HistoryShareManage extends tsc<IProps> {
   /* 回收 */
   commonRecycle(tokensSet: Set<string>, title = this.$t('确定回收当前分享链接')) {
     const { query } = this.$route;
-    const type = this.$route.name === 'event-center' ? 'event' : query.sceneId;
+    const type = this.typeMap[this.$route.name] ?? query.sceneId;
     this.$bkInfo({
       title,
       okText: this.$tc('回收'),
