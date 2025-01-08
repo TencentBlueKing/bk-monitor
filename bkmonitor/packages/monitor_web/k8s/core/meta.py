@@ -123,9 +123,16 @@ class K8sResourceMeta(object):
     def set_agg_interval(self, start_time, end_time):
         """设置聚合查询的间隔"""
         if self.method == "count":
+            # count表示数量 不用时间聚合
             self.agg_interval = ""
             return
-        time_passed = end_time - start_time
+
+        if self.method == "sum":
+            # 默认sum表示当前最新值 sum ( last_over_time )
+            time_passed = get_interval_number(start_time, end_time, interval=60)
+        else:
+            # 其余方法表示时间范围内的聚合 sum( avg_over_time ), sum (max_over_time), sum(min_over_time)
+            time_passed = end_time - start_time
         agg_interval = hms_string(time_passed, upper=True)
         self.agg_interval = agg_interval
 
@@ -275,6 +282,10 @@ class K8sResourceMeta(object):
     def meta_prom_with_container_network_transmit_bytes_total(self):
         return self.tpl_prom_with_rate("container_network_transmit_bytes_total", exclude="container_exclude")
 
+    @property
+    def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
+        raise NotImplementedError("metric: [container_cpu_cfs_throttled_ratio] not supported")
+
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         raise NotImplementedError(f"metric: [{metric_name}] not supported")
 
@@ -318,6 +329,22 @@ class K8sPodMeta(K8sResourceMeta):
         return (
             f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
             f"({metric_name}{{{self.filter.filter_string(exclude=exclude)}}})"
+        )
+
+    @property
+    def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
+        if self.agg_interval:
+            return (
+                f"sum by (workload_kind, workload_name, namespace, pod_name) "
+                f"({self.agg_method}_over_time((increase("
+                f"container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+                f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m]))[{self.agg_interval}:]))"
+            )
+
+        return (
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name) "
+            f"((increase(container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+            f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m])))"
         )
 
     @property
@@ -475,6 +502,22 @@ class K8sNamespaceMeta(K8sResourceMeta):
             )
         return f"{self.agg_method} by (namespace) ({metric_name}{{{self.filter.filter_string(exclude=exclude)}}})"
 
+    @property
+    def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
+        if self.agg_interval:
+            return (
+                f"sum by (namespace) "
+                f"({self.agg_method}_over_time((increase("
+                f"container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+                f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m]))[{self.agg_interval}:]))"
+            )
+
+        return (
+            f"{self.agg_method} by (namespace) "
+            f"((increase(container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+            f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m])))"
+        )
+
     @classmethod
     def distinct(cls, objs):
         unique_ns_query_set = set()
@@ -518,6 +561,22 @@ class K8sWorkloadMeta(K8sResourceMeta):
         return (
             f"{self.agg_method} by (workload_kind, workload_name, namespace) "
             f"({metric_name}{{{self.filter.filter_string(exclude=exclude)}}})"
+        )
+
+    @property
+    def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
+        if self.agg_interval:
+            return (
+                f"sum by (workload_kind, workload_name, namespace) "
+                f"({self.agg_method}_over_time((increase("
+                f"container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+                f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m]))[{self.agg_interval}:]))"
+            )
+
+        return (
+            f"{self.agg_method} by (workload_kind, workload_name, namespace) "
+            f"((increase(container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+            f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m])))"
         )
 
     @property
@@ -622,6 +681,22 @@ class K8sContainerMeta(K8sResourceMeta):
         return (
             f"{self.agg_method} by (workload_kind, workload_name, namespace, container_name, pod_name)"
             f" ({metric_name}{{{self.filter.filter_string(exclude=exclude)}}})"
+        )
+
+    @property
+    def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
+        if self.agg_interval:
+            return (
+                f"sum by (workload_kind, workload_name, namespace, pod_name, container_name) "
+                f"({self.agg_method}_over_time((increase("
+                f"container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+                f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m]))[{self.agg_interval}:]))"
+            )
+
+        return (
+            f"{self.agg_method} by (workload_kind, workload_name, namespace, pod_name, container_name) "
+            f"((increase(container_cpu_cfs_throttled_periods_total{{{self.filter.filter_string()}}}[1m]) / increase("
+            f"container_cpu_cfs_periods_total{{{self.filter.filter_string()}}}[1m])))"
         )
 
     @property
