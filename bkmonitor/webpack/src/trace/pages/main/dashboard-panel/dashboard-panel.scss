@@ -1,0 +1,26 @@
+.span-details__dashboard-panel {
+  .mr-24 {
+    margin-right: 24px;
+  }
+
+  .bk-input--text {
+    background: #F5F7FA;
+  }
+
+  .dashboard-tools {
+    display: flex;
+    align-items: center;
+    height: 48px;
+    padding: 0 16px;
+    background: #F5F7FA;
+    border-radius: 2px;
+  }
+
+  .dashboard-panel__content {
+    display: flex;
+
+    .trace-common-detail {
+      height: auto;
+    }
+  }
+}

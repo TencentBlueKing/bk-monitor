@@ -23,59 +23,69 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { defineComponent, ref } from 'vue';
 
 import { Select } from 'bkui-vue';
 
-import type { PropType } from 'vue';
+import './compare-select.scss';
 
-import './filter-var-select-simple.scss';
-
-interface IOption {
-  id: string;
-  name: string;
+/** 不对比 | 时间对比 | 目标对比 | 指标对比 */
+enum CompareId {
+  metric = 'metric',
+  none = 'none',
+  target = 'target',
+  time = 'time',
 }
 
-export default defineComponent({
-  name: 'FilterVarSelectSimple',
-  props: {
-    label: { type: String, default: '' },
-    field: { type: String, default: 'key' },
-    multiple: { default: false, type: Boolean },
-    options: { default: () => [], type: Array as PropType<IOption[]> },
-    value: { default: '', type: [String, Array, Number] },
+const COMPARE_LIST = [
+  {
+    id: CompareId.none,
+    name: window.i18n.t('不对比'),
   },
-  emits: ['change'],
-  setup(_props, { emit }) {
-    const localValue = ref('');
+  // {
+  //   id: 'target',
+  //   name: window.i18n.t('目标对比'),
+  // },
+  {
+    id: CompareId.time,
+    name: window.i18n.t('时间对比'),
+  },
+  // {
+  //   id: 'metric',
+  //   name: window.i18n.t('指标对比'),
+  // },
+];
 
-    function handleSelectChange() {
-      emit('change', localValue.value);
-    }
+export default defineComponent({
+  name: 'CompareSelect',
+  setup() {
+    const localType = ref(CompareId.none);
 
     return {
-      localValue,
-      handleSelectChange,
+      localType,
     };
   },
   render() {
+    const contentRender = () => {
+      if (this.localType === CompareId.time) {
+        return <div>时间对比</div>;
+      }
+      return undefined;
+    };
     return (
-      <span class='dashboard__filter-var-select-simple-wrap'>
-        {this.label && <span class='filter-var-label'>{this.label}</span>}
+      <div class='dashboard-panel__compare-select'>
+        <span class='compare-select-label'>{this.$t('对比方式')}</span>
         <Select
-          class='bk-select-simplicity filter-var-select'
-          v-model={this.localValue}
+          class='compare-select'
+          v-model={this.localType}
           behavior='simplicity'
           clearable={false}
           filterable={false}
-          multiple={this.multiple}
           size={'small'}
-          onChange={this.handleSelectChange}
         >
           {{
             default: () =>
-              this.options.map(item => (
+              COMPARE_LIST.map(item => (
                 <Select.Option
                   id={item.id}
                   key={item.id}
@@ -84,7 +94,8 @@ export default defineComponent({
               )),
           }}
         </Select>
-      </span>
+        <span class='compare-select-content'>{contentRender()}</span>
+      </div>
     );
   },
 });

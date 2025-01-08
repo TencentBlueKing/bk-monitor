@@ -26,65 +26,24 @@
 
 import { defineComponent, ref } from 'vue';
 
-import { Select } from 'bkui-vue';
-
-import type { PropType } from 'vue';
-
-import './filter-var-select-simple.scss';
-
-interface IOption {
-  id: string;
-  name: string;
-}
-
 export default defineComponent({
-  name: 'FilterVarSelectSimple',
+  name: 'TimeCompareSelect',
   props: {
-    label: { type: String, default: '' },
-    field: { type: String, default: 'key' },
-    multiple: { default: false, type: Boolean },
-    options: { default: () => [], type: Array as PropType<IOption[]> },
-    value: { default: '', type: [String, Array, Number] },
+    compareTimeOptions: { type: Array, default: () => [] },
+    timeValue: { type: Array, default: () => [] },
   },
-  emits: ['change'],
-  setup(_props, { emit }) {
-    const localValue = ref('');
-
-    function handleSelectChange() {
-      emit('change', localValue.value);
-    }
+  setup() {
+    const localTimeValue = ref([]);
+    const showCustomTime = ref(false);
+    const customTimeVal = ref('');
 
     return {
-      localValue,
-      handleSelectChange,
+      localTimeValue,
+      showCustomTime,
+      customTimeVal,
     };
   },
   render() {
-    return (
-      <span class='dashboard__filter-var-select-simple-wrap'>
-        {this.label && <span class='filter-var-label'>{this.label}</span>}
-        <Select
-          class='bk-select-simplicity filter-var-select'
-          v-model={this.localValue}
-          behavior='simplicity'
-          clearable={false}
-          filterable={false}
-          multiple={this.multiple}
-          size={'small'}
-          onChange={this.handleSelectChange}
-        >
-          {{
-            default: () =>
-              this.options.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              )),
-          }}
-        </Select>
-      </span>
-    );
+    return <div class='dashboard-panel__time-compare-select' />;
   },
 });

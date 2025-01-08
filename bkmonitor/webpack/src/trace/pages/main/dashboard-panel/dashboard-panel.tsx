@@ -30,8 +30,10 @@ import { random } from 'monitor-common/utils';
 
 import CommonDetail from '../../../components/common-detail/common-detail';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
+import CompareSelect from './compare-select';
 import FilterVarSelectSimple from './filter-var-select-simple';
 import GroupsSelector from './groups-selector';
+import { PANEL_INTERVAL_LIST } from './utils';
 
 import './dashboard-panel.scss';
 
@@ -56,9 +58,18 @@ export default defineComponent({
           <GroupsSelector />
         </div>
         <div class='dashboard-tools'>
-          <FilterVarSelectSimple label={this.t('汇聚周期') as string} />
+          <FilterVarSelectSimple
+            class='mr-24'
+            label={this.t('汇聚周期') as string}
+            options={PANEL_INTERVAL_LIST}
+          />
+          <FilterVarSelectSimple
+            class='mr-24'
+            label={this.t('汇聚方法') as string}
+          />
+          <CompareSelect />
         </div>
-        <div>
+        <div class='dashboard-panel__content'>
           <FlexDashboardPanel
             id={random(10)}
             column={3}
