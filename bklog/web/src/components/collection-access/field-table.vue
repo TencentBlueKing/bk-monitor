@@ -1366,7 +1366,7 @@
             }
           }
           .tooltips-icon {
-            top: 16px;
+            top: 24px;
           }
           .red-icon{
             color: #EA3636;

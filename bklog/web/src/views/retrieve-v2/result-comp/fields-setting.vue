@@ -244,14 +244,14 @@
         {{ $t('取消') }}
       </bk-button>
     </div>
-    <div class="field-alias-setting">
+    <!-- <div class="field-alias-setting">
       <span style="margin-right: 4px">{{ $t('表头显示别名') }}</span>
       <bk-switcher
         v-model="showFieldAlias"
         size="small"
         theme="primary"
       ></bk-switcher>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -275,7 +275,7 @@
       return {
         isLoading: false,
         shadowVisible: [],
-        showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+        // showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
         shadowAllTotal: [], // 所有字段
         newConfigStr: '', // 新增配置配置名
         isShowAddInput: false, // 是否展示新增配置输入框
@@ -304,6 +304,9 @@
       },
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
+      },
+      showFieldAlias() {
+        return this.$store.state.showFieldAlias
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -352,6 +355,10 @@
     },
     methods: {
       getFiledDisplay(name) {
+        if(this.showFieldAlias === 'alias_name'){
+          const field = this.shadowTotal.filter(item => item.field_name === name)
+          return field[0].query_alias || name
+        }
         const alias = this.fieldAliasMap[name];
         if (alias && alias !== name) {
           return `${name}(${alias})`;
@@ -383,7 +390,7 @@
             await this.submitFieldsSet(this.currentClickConfigData.id);
           }
           this.cancelModifyFields();
-          this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -625,7 +632,7 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+            // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
             this.$store.dispatch('requestIndexSetQuery');

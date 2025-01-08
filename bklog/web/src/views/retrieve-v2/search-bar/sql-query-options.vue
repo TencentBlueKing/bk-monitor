@@ -52,7 +52,7 @@
 
   const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
   const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
-
+  const showFieldAlias = computed(() => store.state.showFieldAlias);
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
     return totalFields.value
@@ -63,6 +63,9 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    if(showFieldAlias.value === 'alias_name'){
+      return totalFields.value.filter(filterFn).map((item: { field_name: any, query_alias: any }) => item.query_alias || item.field_name);
+    }
     return totalFields.value.filter(filterFn).map((item: { field_name: any }) => item.field_name);
   });
 

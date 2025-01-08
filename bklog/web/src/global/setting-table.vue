@@ -223,6 +223,13 @@
                     <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
                   </div>
                   <div
+                    v-else-if="props.row.is_built_in"
+                    style="width: 85%; margin-left: 15px"
+                    v-bk-tooltips.top="$t('内置字段不支持快速修改')"
+                  >
+                    {{ $t('不分词') }}
+                  </div>
+                  <div
                     v-else
                     style="width: 85%; margin-left: 15px"
                   >

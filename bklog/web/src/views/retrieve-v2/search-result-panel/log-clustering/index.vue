@@ -281,6 +281,9 @@
       bkBizId() {
         return this.$store.state.bkBizId;
       },
+      showFieldAlias() {
+        return this.$store.state.showFieldAlias
+      },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);
       },
@@ -370,6 +373,9 @@
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
       },
+      showFieldAlias(){
+        this.filterGroupList()
+      }
     },
     methods: {
       setRouteParams() {
@@ -590,7 +596,10 @@
         const filterList = this.totalFields
           .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
           .map(item => {
-            const { field_name: id, field_alias: alias } = item;
+            const { field_name: id, field_alias: alias, query_alias: query } = item;
+            if(this.showFieldAlias === 'alias_name' && query){
+              return { id, name: `${query}(${alias || id})`};
+            }
             return { id, name: alias ? `${id}(${alias})` : id };
           });
         this.fingerOperateData.groupList = filterList;

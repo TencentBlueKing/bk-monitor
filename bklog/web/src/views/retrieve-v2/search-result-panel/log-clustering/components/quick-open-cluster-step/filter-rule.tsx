@@ -94,12 +94,18 @@ export default class FilterRule extends tsc<IProps> {
       return true;
     return false;
   }
-
+  get showFieldAlias() {
+    return this.$store.state.showFieldAlias;
+  }
+  // 优先展示选中字段名
   get filterSelectList() {
     return this.totalFields
       .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
       .map(el => {
-        const { field_name: id, field_alias: alias } = el;
+        const { field_name: id, field_alias: alias, query_alias: query } = el;
+        if(this.showFieldAlias === 'alias_name' && query){
+          return { id, name: `${query}(${alias || id})`};
+        }
         return { id, name: alias ? `${id}(${alias})` : id };
       });
   }

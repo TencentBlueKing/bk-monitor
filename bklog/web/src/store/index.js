@@ -161,7 +161,7 @@ const stateTpl = {
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
-  showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+  showFieldAlias: localStorage.getItem('showFieldAlias') || 'field_name',
   clearSearchValueNum: 0,
   // 存放接口报错信息的对象
   apiErrorInfo: {},
@@ -1046,8 +1046,6 @@ const store = new Vuex.Store({
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
         .then(res => {
-          console.log(res);
-
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
