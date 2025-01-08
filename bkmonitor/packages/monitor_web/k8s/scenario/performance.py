@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import List
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from monitor_web.k8s.scenario import Category, Metric
 
@@ -36,13 +36,13 @@ def get_metrics() -> List:
                     id="kube_pod_cpu_requests_ratio",
                     name=_lazy("CPU request使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
                 ),
                 Metric(
                     id="kube_pod_cpu_limits_ratio",
                     name=_lazy("CPU limit使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
                 ),
                 Metric(
                     id="container_cpu_cfs_throttled_ratio",
@@ -66,13 +66,31 @@ def get_metrics() -> List:
                     id="kube_pod_memory_requests_ratio",
                     name=_lazy("内存 request使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
                 ),
                 Metric(
                     id="kube_pod_memory_limits_ratio",
                     name=_lazy("内存 limit使用率"),
                     unit="percentunit",
-                    unsupported_resource=["workload", "namespace"],
+                    unsupported_resource=["namespace"],
+                ),
+            ],
+        ),
+        Category(
+            id="network",
+            name=_lazy("流量"),
+            children=[
+                Metric(
+                    id="container_network_receive_bytes_total",
+                    name=_lazy("网络入带宽"),
+                    unit="Bps",
+                    unsupported_resource=["container"],
+                ),
+                Metric(
+                    id="container_network_transmit_bytes_total",
+                    name=_lazy("网络出带宽"),
+                    unit="Bps",
+                    unsupported_resource=["container"],
                 ),
             ],
         ),

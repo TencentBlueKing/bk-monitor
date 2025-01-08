@@ -446,6 +446,14 @@ class CollectorHandler(object):
             collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
 
+        # 添加索引集相关信息
+        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
+        if log_index_set_obj:
+            collector_config.update({
+                "sort_fields": log_index_set_obj.sort_fields,
+                "target_fields": log_index_set_obj.target_fields
+            })
+
         return collector_config
 
     @staticmethod
@@ -1129,7 +1137,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.create_container_release(container_config)
-            return True
 
         # 启动节点管理订阅功能
         if self.data.subscription_id:
@@ -1180,7 +1187,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.delete_container_release(container_config)
-            return True
 
         if self.data.subscription_id:
             # 停止节点管理订阅功能
@@ -2529,6 +2535,8 @@ class CollectorHandler(object):
         storage_replies=1,
         es_shards=settings.ES_SHARDS,
         is_display=True,
+        sort_fields=None,
+        target_fields=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -2598,6 +2606,8 @@ class CollectorHandler(object):
                 "etl_params": etl_params,
                 "etl_config": etl_config,
                 "fields": fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
             }
             etl_handler.update_or_create(**etl_params)
 

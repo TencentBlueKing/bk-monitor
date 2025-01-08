@@ -2344,6 +2344,7 @@ class Strategy(AbstractConfig):
                 self.items[0].query_configs[0].snapshot_config = converted_config
 
         self.supplement_inst_target_dimension()
+        need_access_aiops, algorithm_name = self.check_aiops_access()
 
         if not rollback:
             history = StrategyHistoryModel.objects.create(
@@ -2436,26 +2437,19 @@ class Strategy(AbstractConfig):
         history.status = True
         history.save()
 
-        # 接入智能监控
-        self.access_aiops()
+        if need_access_aiops:
+            self.access_aiops(algorithm_name)
 
-    def access_aiops(self):
+    def check_aiops_access(self):
         """
-        智能监控接入
+        检查智能监控接入配置
         (目前仅支持监控时序、计算平台时序数据)
-
-        - 监控时序数据(以监控管理员身份配置)
-            1. 走kafka接入，配置好清洗规则，接入到计算平台
-            2. 走dataflow，进行downsample操作，得到一张结果表，保存到metadata的bkdatastorage表中
-            3. 走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
-        - 计算平台数据(根据用户身份配置)
-            1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
         from bkmonitor.models import AlgorithmModel
 
         # 1. 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
-            return
+            return False, ""
 
         # 2. 获取配置的智能检测算法(AIOPS)
         intelligent_algorithm = None
@@ -2466,18 +2460,19 @@ class Strategy(AbstractConfig):
 
         # 3. 未找到配置的智能检测算法(AIOPS)，则直接返回
         if not intelligent_algorithm:
-            return
+            return False, ""
 
         # 4. 遍历每个监控项的查询配置，以判断数据来源并执行相应处理逻辑
+        need_access = False
         for query_config in chain(*(item.query_configs for item in self.items)):
-            self.check_and_access_aiops_query_config(query_config, intelligent_algorithm)
+            need_access = need_access or self.check_aiops_query_config(query_config)
 
-    def check_and_access_aiops_query_config(self, query_config: QueryConfig, algorithm: str):
-        from monitor_web.tasks import get_aiops_access_func
+        return need_access, intelligent_algorithm
 
+    def check_aiops_query_config(self, query_config: QueryConfig):
         # 4.1 如果数据类型不是时序数据，则跳过不处理
         if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
-            return
+            return False
 
         # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
         need_access = False
@@ -2490,10 +2485,49 @@ class Strategy(AbstractConfig):
                         raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
                 need_access = True
 
-        # 4.3.3 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
+        # 4.4 如果不需要走bkbase接入流程或者配置使用SDK进行检测，则更新query_config中关于使用sdk的配置
+        intelligent_detect = getattr(query_config, "intelligent_detect", {})
+        # 如果已经配置了使用SDK，则不再走bkbase接入的方式
+        if not need_access or intelligent_detect.get("use_sdk", False):
+            intelligent_detect["use_sdk"] = True
+            intelligent_detect["status"] = SDKDetectStatus.PREPARING
+
+        query_config.intelligent_detect = intelligent_detect
+
+        return need_access
+
+    def access_aiops(self, algorithm_name: str):
+        """执行实际AIOPS接入逻辑
+
+        :param algorithm_name: 算法名称
+
+        - 监控时序数据(以监控管理员身份配置)
+            1. 走kafka接入，配置好清洗规则，接入到计算平台
+            2. 走dataflow，进行downsample操作，得到一张结果表，保存到metadata的bkdatastorage表中
+            3. 走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
+        - 计算平台数据(根据用户身份配置)
+            1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
+        """
+        for query_config in chain(*(item.query_configs for item in self.items)):
+            self.access_algorithm_by_query_config(query_config, algorithm_name)
+
+    def access_algorithm_by_query_config(self, query_config: QueryConfig, algorithm_name: str):
+        """根据查询配置把算法对应的后台任务接入到bkbase中.
+
+        :param query_config: 查询配置
+        :param algorithm_name: 算法名称
+        """
+        from monitor_web.tasks import get_aiops_access_func
+
+        if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
+            return
+
+        # 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
         if query_config.data_source_label == DataSourceLabel.BK_DATA:
             # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
-            if algorithm in (set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)):
+            if algorithm_name in (
+                set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)
+            ):
                 # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
                 from bkmonitor.dataflow import auth
 
@@ -2503,10 +2537,10 @@ class Strategy(AbstractConfig):
                     project_id=settings.BK_DATA_PROJECT_ID,
                 )
 
-        # 4.4 接入智能检测算法
+        # 接入智能检测算法
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
         # 如果已经配置了使用SDK，则不再走bkbase接入的方式
-        if need_access and not intelligent_detect.get("use_sdk", False):
+        if not intelligent_detect.get("use_sdk", False):
             # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
             intelligent_detect["status"] = AccessStatus.PENDING
             intelligent_detect["retries"] = 0
@@ -2515,12 +2549,9 @@ class Strategy(AbstractConfig):
 
             # 4.3.2 仅在web运行模式下，异步接入智能检测算法
             if settings.ROLE == "web":
-                access_func = get_aiops_access_func(algorithm)
+                access_func = get_aiops_access_func(algorithm_name)
                 task = access_func.delay(self.id)
                 intelligent_detect["task_id"] = task.id
-        else:
-            intelligent_detect["use_sdk"] = True
-            intelligent_detect["status"] = SDKDetectStatus.PREPARING
 
         query_config.intelligent_detect = intelligent_detect
         query_config.save()

@@ -36,7 +36,7 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 // 接入OTLP
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-// import { debounce } from 'lodash';
+import { debounce } from 'lodash';
 
 import App from './App';
 import http from './api';

@@ -73,6 +73,9 @@ class EventSerializer(BaseSerializer):
         id = serializers.CharField(required=True)
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
+    # 用于移动端，快捷屏蔽，动态删除维度
+    dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
+
 
 
 class AlertSerializer(BaseSerializer):
@@ -81,6 +84,8 @@ class AlertSerializer(BaseSerializer):
         dimensions = serializers.DictField(required=False)
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
+    # 用于移动端，快捷屏蔽，动态删除维度
+    dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
 
 
 class DimensionSerializer(BaseSerializer):
