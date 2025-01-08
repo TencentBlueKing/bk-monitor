@@ -111,7 +111,7 @@ class BusinessCollector(BaseCollector):
         query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
             records = query.query_data(
-                start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+                start_time=now_ts.shift(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
             )
         except Exception:
             # 由于全业务数据量级过大，可能会在 bk_biz_id 上增加路由，从而无法直接一口气拉取到全业务数据
@@ -140,7 +140,7 @@ class BusinessCollector(BaseCollector):
         query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
             records = query.query_data(
-                start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
+                start_time=now_ts.shift(minutes=-3).int_timestamp * 1000, end_time=now_ts.int_timestamp * 1000
             )
         except Exception:
             # 由于全业务数据量级过大，可能会在 bk_biz_id 上增加路由，从而无法直接一口气拉取到全业务数据
@@ -201,9 +201,9 @@ class BusinessCollector(BaseCollector):
         """
         now = arrow.now()
         for le_en, seconds in TIME_RANGE:
-            start_time = now.replace(seconds=-seconds)
+            start_time = now.shift(seconds=-seconds)
             active_business_list = redis_cli.zrevrangebyscore(
-                ACTIVE_BIZ_LAST_VISIT_TIME, now.timestamp, start_time.timestamp
+                ACTIVE_BIZ_LAST_VISIT_TIME, now.int_timestamp, start_time.int_timestamp
             )
 
             metric.labels(time_range=le_en).set(len(active_business_list))

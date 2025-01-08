@@ -297,7 +297,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         if not self.items:
             return
 
-        now_timestamp = arrow.utcnow().timestamp
+        now_timestamp = arrow.utcnow().int_timestamp
 
         # 设置查询时间范围
         self.get_query_time_range(now_timestamp)

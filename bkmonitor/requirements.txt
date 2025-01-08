@@ -82,7 +82,7 @@ ddtrace==1.7.5
 
 # other
 pyppeteer==0.2.5
-arrow==0.6.0
+arrow==1.2.3
 six==1.16.0
 requests==2.27.1
 requests_toolbelt==0.10.1

@@ -146,7 +146,7 @@ class UnifyQuery:
                 record = {**dimensions}
                 for column, column_type, v in zip(row["columns"], row["types"], value):
                     if column_type == "time":
-                        v = arrow.get(v).timestamp * 1000
+                        v = arrow.get(v).int_timestamp * 1000
 
                     if column == "_time":
                         column = "_time_"
@@ -167,7 +167,6 @@ class UnifyQuery:
         return records
 
     def get_observe_labels(self) -> Dict[str, str]:
-
         result_tables: List[str] = []
         for data_source in self.data_sources:
             result_table = str(

@@ -161,7 +161,7 @@ class MetricHelper:
         """
 
         if not start_time or not end_time:
-            end_time = int(arrow.now().timestamp)
+            end_time = int(arrow.now().int_timestamp)
             start_time = int(end_time - 300)
 
         request_params = {

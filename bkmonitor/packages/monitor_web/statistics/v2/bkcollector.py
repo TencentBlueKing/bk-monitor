@@ -13,11 +13,11 @@ from typing import List, Optional, Tuple, Union
 
 import arrow
 from django.utils.functional import cached_property
-from monitor_web.models import CustomEventGroup, CustomTSTable
-from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from core.statistics.metric import Metric, register
+from monitor_web.models import CustomEventGroup, CustomTSTable
+from monitor_web.statistics.v2.base import BaseCollector
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class BkCollectorCollector(BaseCollector):
             }
         ]
 
-        now_ts = arrow.now().timestamp
+        now_ts = arrow.now().int_timestamp
         data_sources = []
         for query_config in query:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
