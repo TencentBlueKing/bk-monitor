@@ -259,7 +259,8 @@ class PreCalculateHelper:
             if "table_id" in self._config and "metric" in metric_info:
                 result["is_hit"] = True
                 result["metric"] = metric_info["metric"]
-                result["table_id"] = self._config["table_id"]
+                # 支持 metric 单独定义 table_id，优先级比外层高。
+                result["table_id"] = metric_info.get("table_id") or self._config["table_id"]
                 break
 
         return result

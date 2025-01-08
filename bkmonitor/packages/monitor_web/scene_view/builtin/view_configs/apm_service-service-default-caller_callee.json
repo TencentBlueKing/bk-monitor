@@ -45,6 +45,10 @@
                   {
                     "name": "fill_empty_dimensions",
                     "hook": "after_response"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "group_by_limit": {
@@ -192,6 +196,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   },
                   {
                     "name": "fill_empty_dimensions",
@@ -446,6 +454,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   },
                   {
                     "name": "fill_empty_dimensions",
@@ -728,6 +740,10 @@
                     "hook": "before_request"
                   },
                   {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
+                  },
+                  {
                     "name": "fill_empty_dimensions",
                     "hook": "after_response"
                   }
@@ -955,6 +971,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "query_configs": [
@@ -1061,6 +1081,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "query_configs": [
@@ -1167,6 +1191,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "query_configs": [
@@ -1273,6 +1301,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "query_configs": [
@@ -1399,6 +1431,10 @@
                   {
                     "name": "process_pre_calculate",
                     "hook": "before_request"
+                  },
+                  {
+                    "name": "recovery_query_metadata",
+                    "hook": "after_response"
                   }
                 ],
                 "query_configs": [

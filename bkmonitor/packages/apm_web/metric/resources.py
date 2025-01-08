@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
 import functools
 import json
@@ -441,6 +442,7 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         return {
             "format_percent": cls.format_percent,
             "fill_empty_dimensions": cls.fill_empty_dimensions,
+            "recovery_query_metadata": cls._recovery_query_metadata,
             "process_pre_calculate": cls._process_rpc_pre_calculate,
         }
 
@@ -472,6 +474,11 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         if helper is None:
             return
 
+        # 备份原查询
+        validate_data["table_map"] = {}
+        validate_data["metric_map"] = {}
+        validate_data["backup_query_params"] = copy.deepcopy(query_params)
+
         used_labels: List[str] = []
         for query_config in query_params["query_configs"]:
             used_labels.extend(query_config.get("group_by") or [])
@@ -490,6 +497,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 func for func in query_config.get("functions") or [] if func["id"] != "increase"
             ]
             # 更换 rt 及 metric
+            validate_data["table_map"][result["table_id"]] = query_config["table"]
+            validate_data["metric_map"][result["metric"]] = query_config["metrics"][0]["field"]
+
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
@@ -520,6 +530,30 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                         (format_percent(percent, precision=precision, sig_fig_cnt=sig_fig_cnt), timestamp)
                     )
             i["datapoints"] = datapoints
+
+    @classmethod
+    def _recovery_query_metadata(cls, query_params, response, validate_data):
+        """还原查询元数据信息
+        预计算等逻辑对指标、结果表的路由查询不应暴露给用户，跳转数据检索/告警配置正常还是走原指标。
+        """
+        backup_query_params: Optional[Dict[str, Any]] = validate_data.get("backup_query_params")
+        if not backup_query_params:
+            return
+
+        response["query_config"] = backup_query_params
+
+        table_metric_map: Dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
+        if not table_metric_map:
+            return
+
+        recovery_metrics: List[Dict[str, Any]] = []
+        for metric in response.get("metrics") or []:
+            metric_json = json.dumps(metric)
+            for old, new in table_metric_map.items():
+                metric_json = metric_json.replace(old, new)
+            recovery_metrics.append(json.loads(metric_json))
+
+        response["metrics"] = recovery_metrics
 
     @classmethod
     def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
