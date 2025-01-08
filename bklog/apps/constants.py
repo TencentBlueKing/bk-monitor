@@ -436,7 +436,7 @@ class ViewSetActionEnum(ChoicesEnum):
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
     )
-    # ======================================= 收藏-IndexSetViewSet =======================================
+    # ======================================= 索引-IndexSetViewSet =======================================
     INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IndexSetViewSet", view_action="mark_favorite"
     )
@@ -444,6 +444,11 @@ class ViewSetActionEnum(ChoicesEnum):
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="IndexSetViewSet",
         view_action="cancel_favorite",
+    )
+    INDEX_SET_VIEWSET_USER_CUSTOM_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="IndexSetViewSet",
+        view_action="update_or_create_config",
     )
     # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
@@ -577,9 +582,10 @@ class ViewSetActionEnum(ChoicesEnum):
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
         PATTERN_VIEWSET_SEARCH,
-        # ======================================= 收藏-IndexSetViewSet =======================================
+        # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,
+        INDEX_SET_VIEWSET_USER_CUSTOM_CONFIG,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
