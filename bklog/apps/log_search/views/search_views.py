@@ -570,7 +570,7 @@ class SearchViewSet(APIViewSet):
             output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
         response = HttpResponse(output.getvalue())
         response["Content-Type"] = "application/x-msdownload"
-        file_name = f"bk_log_search_{index}.txt"
+        file_name = f"bk_log_search_{index}.log"
         file_name = parse.quote(file_name, encoding="utf8")
         file_name = parse.unquote(file_name, encoding="ISO8859_1")
         response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
