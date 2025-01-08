@@ -287,7 +287,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   render() {
     return (
       <div class='k8s-dimension-list'>
-        <div class='panel-title'>{this.$t('K8s对象')}</div>
+        <div class='panel-title'>{this.$t('K8S对象')}</div>
         <bk-input
           class='left-panel-search'
           placeholder={this.$tc('请输入关键字')}
