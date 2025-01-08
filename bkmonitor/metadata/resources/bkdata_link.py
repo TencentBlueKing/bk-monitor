@@ -68,6 +68,7 @@ class QueryDataLinkInfoResource(Resource):
     """
 
     bklog_table_ids = []
+    time_series_table_ids = []
 
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.CharField(label="数据源ID", required=True)
@@ -90,7 +91,7 @@ class QueryDataLinkInfoResource(Resource):
         rt_infos = self._get_table_ids_details(table_ids)
 
         # 计算平台结果表信息
-        bkbase_infos = self._get_bkbase_details(table_ids)
+        bkbase_infos = self._get_bkbase_details()
 
         # 若有ES结果表，额外拼接ES结果表信息+索引/别名状态
         es_storage_infos = {}
@@ -109,7 +110,7 @@ class QueryDataLinkInfoResource(Resource):
         authorized_space_uids = self._get_authorized_space_uids(bk_data_id=bk_data_id)
 
         # 检查RT-指标路由 RESULT_TABLE_DETAIL_KEY
-        error_rt_detail_infos = self._check_result_table_detail_metric_router_status(table_ids=table_ids)
+        time_series_rt_detail_infos = self._check_result_table_detail_metric_router_status()
 
         # 检查SPACE_TO_RESULT_TABLE_DETAIL_KEY 中是否存在对应结果表的路由关系
         space_to_result_table_router_infos = self._check_space_to_result_table_router(
@@ -124,7 +125,7 @@ class QueryDataLinkInfoResource(Resource):
             "bkbase_infos": bkbase_infos,
             "authorized_space_uids": authorized_space_uids,
             "expired_metrics": expired_metrics,
-            'rt_router_infos': error_rt_detail_infos,
+            'rt_detail_router': time_series_rt_detail_infos,
             'space_to_result_table_router_infos': space_to_result_table_router_infos,
         }
 
@@ -194,6 +195,7 @@ class QueryDataLinkInfoResource(Resource):
                     "空间UID": '{}__{}'.format(space.space_type_id, space.space_id) if rt.bk_biz_id != 0 else '全局',
                     "空间名称": space.space_name if rt.bk_biz_id != 0 else '全局',
                     "是否启用": rt.is_enable,
+                    "数据标签(data_label)": rt.data_label,
                 }
 
                 backend_kafka_config = models.KafkaStorage.objects.filter(table_id=table_id)
@@ -215,20 +217,21 @@ class QueryDataLinkInfoResource(Resource):
                     )
 
                 if rt.default_storage == models.ClusterInfo.TYPE_ES:
-                    logger.info("QueryDataLinkInfoResource: start to get table_id: %s es storage details", table_id)
                     self.bklog_table_ids.append(rt.table_id)
+                else:
+                    self.time_series_table_ids.append(rt.table_id)
 
             except Exception as e:  # pylint: disable=broad-except
                 table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
 
         return table_ids_details
 
-    def _get_bkbase_details(self, table_ids):
+    def _get_bkbase_details(self):
         """
         根据table_ids，批量获取计算平台结果表详情信息
         """
         bkbase_details = []
-        for table_id in table_ids:
+        for table_id in self.time_series_table_ids:
             logger.info("QueryDataLinkInfoResource: start to get bkbase_details: %s", table_id)
             vmrts = models.AccessVMRecord.objects.filter(result_table_id=table_id)
             if not vmrts.exists():
@@ -267,11 +270,10 @@ class QueryDataLinkInfoResource(Resource):
                 )
                 index_details = es_storage.get_index_info(index_name=last_index_name)
                 table_ids_details[table_id] = {
-                    "ES索引大小切分阈值（GB）": es_storage.slice_size,
+                    "ES索引大小切分阈值(GB)": es_storage.slice_size,
                     "ES索引分片时间间隔(分钟）": es_storage.slice_gap,
                     "ES时区配置": es_storage.time_zone,
                     "ES索引配置信息": es_storage.index_settings,
-                    "ES别名配置信息(mapping)": es_storage.mapping_settings,
                     "ES索引集": es_storage.index_set,
                     "ES存储集群": es_storage.storage_cluster_id,
                     "ES存储集群名称": es_cluster.cluster_name,
@@ -280,7 +282,7 @@ class QueryDataLinkInfoResource(Resource):
                     "是否需要进行索引轮转": es_storage._should_create_index(),
                 }
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
                 continue
         return table_ids_details
@@ -335,13 +337,13 @@ class QueryDataLinkInfoResource(Resource):
         authorized_space_uids = [f"{space_type}__{space_id}" for space_type, space_id in authorized_spaces]
         return authorized_space_uids
 
-    def _check_result_table_detail_metric_router_status(self, table_ids):
+    def _check_result_table_detail_metric_router_status(self):
         """
         检查结果表指标路由
         若在Transfer/计算平台侧存在指标，但是在RESULT_TABLE_DETAIL中不存在，说明路由异常
         """
-        error_rt_detail_router_infos = []
-        for table_id in table_ids:
+        rt_detail_router_infos = []
+        for table_id in self.time_series_table_ids:
             try:
                 router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
                 ts_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
@@ -354,7 +356,7 @@ class QueryDataLinkInfoResource(Resource):
                 # 找出在 remote_metrics 中存在但在 router 中不存在的字段
                 missing_fields = remote_fields - router_fields
                 if missing_fields:
-                    error_rt_detail_router_infos.append(
+                    rt_detail_router_infos.append(
                         {
                             table_id: {
                                 "缺失指标": missing_fields,
@@ -362,12 +364,12 @@ class QueryDataLinkInfoResource(Resource):
                         }
                     )
                 else:
-                    error_rt_detail_router_infos.append({table_id: {"status": "路由正常"}})
+                    rt_detail_router_infos.append({table_id: {"status": "RT详情路由正常"}})
             except models.TimeSeriesGroup.DoesNotExist as e:
-                error_rt_detail_router_infos.append({table_id: {'status': "时序分组不存在", "info": str(e)}})
+                rt_detail_router_infos.append({table_id: {'status': "时序分组不存在", "info": str(e)}})
             except Exception as e:  # pylint: disable=broad-except
-                error_rt_detail_router_infos.append({table_id: {"status": "查询异常", "info": str(e)}})
-        return error_rt_detail_router_infos
+                rt_detail_router_infos.append({table_id: {"status": "查询异常", "info": str(e)}})
+        return rt_detail_router_infos
 
     def _check_space_to_result_table_router(self, table_ids, authorized_space_uids):
         """
