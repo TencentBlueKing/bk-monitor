@@ -210,13 +210,14 @@ class ServiceLogHandler:
             )
         relations = RelationQ.query(relation_qs, fill_with_empty=True)
         for index, r in enumerate(relations):
-            if r:
-                for n in r.nodes:
-                    source_info = n.source_info.to_source_info()
-                    bk_data_id = source_info.get("bk_data_id")
-                    if bk_data_id and bk_data_id not in data_ids and len(data_ids) <= cls.LOG_RELATION_BY_UNIFY_QUERY:
-                        datasource_infos[paths[index][-1]].append(SourceDatasource(bk_data_id=bk_data_id))
-                        data_ids.add(bk_data_id)
+            if not r:
+                continue
+            for n in r.nodes:
+                source_info = n.source_info.to_source_info()
+                bk_data_id = source_info.get("bk_data_id")
+                if bk_data_id and bk_data_id not in data_ids and len(data_ids) <= cls.LOG_RELATION_BY_UNIFY_QUERY:
+                    datasource_infos[paths[index][-1]].append(SourceDatasource(bk_data_id=bk_data_id))
+                    data_ids.add(bk_data_id)
 
         if not datasource_infos:
             return []
