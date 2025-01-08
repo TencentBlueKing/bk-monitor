@@ -328,8 +328,6 @@ class ListK8SResources(Resource):
             meta_resource_list = []
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
-        # 不需要分页，全量返回
-        page_count = total_count
 
         if len(resource_list) < page_count:
             # 基于需要返回的数量，进行分页
