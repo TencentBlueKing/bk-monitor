@@ -343,9 +343,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.searchValue = '';
     this.searchList = [];
     this.isInput = false;
+    this.highlightedIndex = [-1, -1];
+    this.highlightedItem = null;
   }
   /** 溢出动态展示输入框高度 */
   autoResize(event) {
+    this.isInput = !!event?.target?.value;
     this.highlightedValue = event?.target?.value;
     this.textareaInputRef.style.height = 'auto';
     this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
@@ -471,13 +474,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 跳转到具体的页面 */
   handleSearchJumpPage(item: ISearchItem, type: string) {
-    const baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}#/`;
+    let baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}#/`;
     let url = '';
 
     switch (type) {
       /** 告警 */
       case 'alert':
-        url = `event-center/detail/${item.alert_id}`;
+        baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}&specEvent=1#/`;
+        url = `event-center?alertId=${item.alert_id}`;
         break;
       /** 告警策略 */
       case 'strategy':
@@ -502,8 +506,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         break;
       /** 关联的屏蔽配置 */
       case 'alarm-shield':
-        const query = [{ key: 'strategy_id', value: [item.strategy_id] }];
-        url = `trace/alarm-shield?queryString=${query}`;
+        const query = JSON.stringify([{ key: 'strategy_id', value: [item.strategy_id] }]);
+        url = `alarm-shield?queryString=${encodeURIComponent(query)}`;
         break;
       default:
         console.warn(`Unknown type: ${type}`);
