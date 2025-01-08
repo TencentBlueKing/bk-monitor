@@ -1044,7 +1044,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
         app_info = {"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
         return {i[OtlpKey.TRACE_ID]: app_info for i in response.hits}
 
-    def query_event(self, start_time: int, end_time: int, name: list, filter_params: dict = None, category: str = None):
+    def query_event(self, start_time: int, end_time: int, name: list, filter_params: list = None, category: str = None):
+        if not name:
+            name = []
         have_events_data_query = (
             self.fetch.query(
                 "bool",
@@ -1068,9 +1070,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 span_dict = span.to_dict()
                 events = span_dict.get("events", [])
                 for event in events:
+                    if event.get("name") not in name:
+                        continue
                     event["service_name"] = span_dict.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
                     event["endpoint_name"] = span_dict.get("span_name")
-                result.extend(events)
+                    result.append(event)
         except Exception as e:
             logger.error(
                 f"[APM][query event] bk_biz_id => [{self.bk_biz_id}] app_name [{self.app_name}] "
