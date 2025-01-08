@@ -186,7 +186,7 @@ export default class K8SCharts extends tsc<
               legend: {
                 displayMode,
               },
-              unit: K8SPerformanceMetricUnitMap[panel.id] || '',
+              unit: panel.unit || K8SPerformanceMetricUnitMap[panel.id] || '',
             },
             targets: [
               {
@@ -303,6 +303,8 @@ export default class K8SCharts extends tsc<
   createPerformancePanelPromql(metric: string) {
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
+      case 'container_network_receive_bytes_total': // 网络入带宽
+      case 'container_network_transmit_bytes_total': // 网络出带宽
         return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent()}}[$interval] $time_shift))`;
       case 'kube_pod_cpu_limits_ratio': // CPU limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
@@ -418,6 +420,8 @@ export default class K8SCharts extends tsc<
               page_size: Math.abs(this.limit),
               page: 1,
               page_type: 'scrolling',
+              column: 'container_cpu_usage_seconds_total',
+              order_by: this.limit > 0 ? 'desc' : 'asc',
             })
               .then(data => {
                 if (!data?.items?.length) return [];
