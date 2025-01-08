@@ -2318,7 +2318,14 @@ class SearchHandler(object):
         if sort_fields:
             for index, item in enumerate(log_list):
                 for field in sort_fields + target_fields:
-                    if str(item.get(field)) != str(self.search_dict.get(field)):
+                    sub_field = field
+                    while "." in sub_field:
+                        prefix, sub_field = sub_field.split(".", 1)
+                        item = item.get(prefix, {})
+                        if sub_field in item:
+                            break
+                    item_field = item.get(sub_field)
+                    if str(item_field) != str(self.search_dict.get(field)):
                         break
                 else:
                     _index = index
