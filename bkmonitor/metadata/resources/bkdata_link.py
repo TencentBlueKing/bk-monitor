@@ -67,6 +67,8 @@ class QueryDataLinkInfoResource(Resource):
     查询链路信息
     """
 
+    bklog_table_ids = []
+
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.CharField(label="数据源ID", required=True)
 
@@ -86,8 +88,14 @@ class QueryDataLinkInfoResource(Resource):
 
         # 监控平台结果表信息
         rt_infos = self._get_table_ids_details(table_ids)
+
         # 计算平台结果表信息
         bkbase_infos = self._get_bkbase_details(table_ids)
+
+        # 若有ES结果表，额外拼接ES结果表信息+索引/别名状态
+        es_storage_infos = {}
+        if self.bklog_table_ids:
+            es_storage_infos = self._get_es_storage_details()
 
         # 健康状态
         # TimeSeriesGroup -- 指标过期问题
@@ -112,10 +120,11 @@ class QueryDataLinkInfoResource(Resource):
             "ds_infos": ds_infos,
             "etl_infos": etl_infos,
             "rt_infos": rt_infos,
+            "es_storage_infos": es_storage_infos,
             "bkbase_infos": bkbase_infos,
             "authorized_space_uids": authorized_space_uids,
             "expired_metrics": expired_metrics,
-            'error_rt_detail_infos': error_rt_detail_infos,
+            'rt_router_infos': error_rt_detail_infos,
             'space_to_result_table_router_infos': space_to_result_table_router_infos,
         }
 
@@ -129,11 +138,11 @@ class QueryDataLinkInfoResource(Resource):
         return {
             "数据源ID": ds.bk_data_id,
             "数据源名称": ds.data_name,
+            "请求来源系统": ds.source_system,
             "清洗配置(etl_config)": ds.etl_config,
             "是否启用": ds.is_enable,
             "是否是平台级别": ds.is_platform_data_id,
             "数据源来源": ds.created_from,
-            "消息队列集群ID": ds.mq_cluster_id,
             'Consul路径': ds.consul_config_path,
             "Transfer集群ID": ds.transfer_cluster_id,
             "链路版本": "V4链路" if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else 'V3链路',
@@ -152,11 +161,11 @@ class QueryDataLinkInfoResource(Resource):
 
             etl_infos.update(
                 {
-                    "Kafka集群ID": cluster.cluster_id,
-                    "Kafka集群名称": cluster.cluster_name,
-                    "Kafka集群域名": cluster.domain_name,
-                    "Topic": mq_config.topic,
-                    "分区数量": mq_config.partition,
+                    "前端Kafka集群ID": cluster.cluster_id,
+                    "前端Kafka集群名称": cluster.cluster_name,
+                    "前端Kafka集群域名": cluster.domain_name,
+                    "前端Kafka-Topic": mq_config.topic,
+                    "前端Kafka分区数量": mq_config.partition,
                 }
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -187,8 +196,27 @@ class QueryDataLinkInfoResource(Resource):
                     "是否启用": rt.is_enable,
                 }
 
+                backend_kafka_config = models.KafkaStorage.objects.filter(table_id=table_id)
+                if backend_kafka_config:  # 若存在对应的后端Kafka配置，添加至返回信息
+                    backend_kafka_cluster_id = backend_kafka_config[0].storage_cluster_id
+                    backend_kafka_topic = backend_kafka_config[0].topic
+                    backend_kafka_partition = backend_kafka_config[0].partition
+                    backend_kafka_cluster = models.ClusterInfo.objects.get(cluster_id=backend_kafka_cluster_id)
+                    backend_kafka_cluster_name = backend_kafka_cluster.cluster_name
+                    backend_kafka_domain_name = backend_kafka_cluster.domain_name
+                    table_ids_details[table_id].update(
+                        {
+                            "后端Kafka集群ID": backend_kafka_cluster_id,
+                            "后端Kafka集群名称": backend_kafka_cluster_name,
+                            "后端Kafka集群域名": backend_kafka_domain_name,
+                            "后端Kafka-Topic": backend_kafka_topic,
+                            "后端Kafka分区数量": backend_kafka_partition,
+                        }
+                    )
+
                 if rt.default_storage == models.ClusterInfo.TYPE_ES:
                     logger.info("QueryDataLinkInfoResource: start to get table_id: %s es storage details", table_id)
+                    self.bklog_table_ids.append(rt.table_id)
                     es_storage = models.ESStorage.objects.get(table_id=rt.table_id)
                     es_cluster = models.ClusterInfo.objects.get(cluster_id=es_storage.storage_cluster_id)
                     table_ids_details[table_id].update(
@@ -197,7 +225,7 @@ class QueryDataLinkInfoResource(Resource):
                             "ES索引分片时间间隔(分钟）": es_storage.slice_gap,
                             "ES时区配置": es_storage.time_zone,
                             "ES索引配置信息": es_storage.index_settings,
-                            "ES别名配置信息": es_storage.mapping_settings,
+                            "ES别名配置信息(mapping)": es_storage.mapping_settings,
                             "ES索引集": es_storage.index_set,
                             "ES存储集群": es_storage.storage_cluster_id,
                             "ES存储集群名称": es_cluster.cluster_name,
@@ -233,6 +261,44 @@ class QueryDataLinkInfoResource(Resource):
                     }
                 )
         return bkbase_details
+
+    def _get_es_storage_details(self):
+        """
+        根据bklog_table_ids，批量获取ES存储详情信息,现阶段仅获取当前索引信息供排障使用
+        """
+        logger.info(
+            "QueryDataLinkInfoResource: start to get es_storage_details, bklog_table_ids->[%s]", self.bklog_table_ids
+        )
+        table_ids_details = {}
+        for table_id in self.bklog_table_ids:
+            try:
+                es_storage = models.ESStorage.objects.get(table_id=table_id)
+                es_cluster = models.ClusterInfo.objects.get(cluster_id=es_storage.storage_cluster_id)
+                current_index_info = es_storage.current_index_info()
+                last_index_name = es_storage.make_index_name(
+                    current_index_info["datetime_object"],
+                    current_index_info["index"],
+                    current_index_info["index_version"],
+                )
+                index_details = es_storage.get_index_info(index_name=last_index_name)
+                table_ids_details[table_id] = {
+                    "ES索引大小切分阈值（GB）": es_storage.slice_size,
+                    "ES索引分片时间间隔(分钟）": es_storage.slice_gap,
+                    "ES时区配置": es_storage.time_zone,
+                    "ES索引配置信息": es_storage.index_settings,
+                    "ES别名配置信息(mapping)": es_storage.mapping_settings,
+                    "ES索引集": es_storage.index_set,
+                    "ES存储集群": es_storage.storage_cluster_id,
+                    "ES存储集群名称": es_cluster.cluster_name,
+                    "ES存储集群域名": es_cluster.domain_name,
+                    "当前索引详情信息": index_details,
+                    "是否需要进行索引轮转": es_storage._should_create_index(),
+                }
+
+            except Exception as e:
+                table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
+                continue
+        return table_ids_details
 
     def _check_expired_metrics(self, bk_data_id):
         """
