@@ -294,8 +294,7 @@ class ListK8SResources(Resource):
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                total_count: int = resource_meta.get_from_meta().count()
-                resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+                resource_meta, total_count = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
                 resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
             except FieldError:
                 pass
@@ -343,7 +342,7 @@ class ListK8SResources(Resource):
 
     def get_resource_meta_by_pagination(
         self, resource_meta: K8sResourceMeta, validated_request_data: Dict
-    ) -> K8sResourceMeta:
+    ) -> (K8sResourceMeta, int):
         """
         获取分页后的 K8sResourceMeta
         """
@@ -361,7 +360,7 @@ class ListK8SResources(Resource):
 
         paginator = Paginator(resource_meta.filter.query_set, page_size)
         resource_meta.filter.query_set = paginator.get_page(page).object_list
-        return resource_meta
+        return resource_meta, paginator.count
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
