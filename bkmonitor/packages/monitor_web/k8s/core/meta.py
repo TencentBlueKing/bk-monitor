@@ -183,16 +183,36 @@ class K8sResourceMeta(object):
             "slimit": 10001,
             "down_sample_range": "",
         }
-        ret = resource.grafana.graph_unify_query(query_params)["series"]
-        # todo 这里需要排序
-        resource_map = {}
-        for series in ret:
-            resource_name = self.get_resource_name(series)
-            if resource_name not in resource_map:
+        series = resource.grafana.graph_unify_query(query_params)["series"]
+        # 这里需要排序
+        # 1. 得到最新时间点
+        # 2. 基于最新时间点数据进行排序
+        lines = []
+        max_data_point = 0
+        for line in series:
+            if line["datapoints"]:
+                for point in reversed(line["datapoints"]):
+                    if point[0]:
+                        max_data_point = max(max_data_point, point[1])
+        for line in series:
+            if line["datapoints"][-1][1] == max_data_point:
+                # 有时间点，但无数据， 比全部无数据优先级高点， 所以这里 or 1
+                lines.append([line["datapoints"][-1][0] or 1, line])
+            else:
+                lines.append([0, line])
+        if order_by:
+            reverse = order_by.startswith("-")
+            lines.sort(key=lambda x: x[0], reverse=reverse)
+        obj_list = []
+        resource_id_list = []
+        for _, line in lines:
+            resource_name = self.get_resource_name(line)
+            if resource_name not in resource_id_list:
                 resource_obj = self.resource_class()
-                resource_map[resource_name] = self.clean_resource_obj(resource_obj, series)
+                obj_list.append(self.clean_resource_obj(resource_obj, line))
+                resource_id_list.append(resource_name)
         self.set_agg_method()
-        return list(resource_map.values())
+        return obj_list
 
     def get_resource_name(self, series):
         meta_field_list = [series["dimensions"][field] for field in self.resource_field_list]
