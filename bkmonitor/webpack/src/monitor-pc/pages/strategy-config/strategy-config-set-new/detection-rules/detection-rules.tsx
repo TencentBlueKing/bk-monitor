@@ -46,6 +46,7 @@ import {
   type IDetectionTypeRuleData,
   type MetricDetail,
   type dataModeType,
+  type EditModeType,
 } from '../typings/index';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
 import RulesSelect from './rules-select';
@@ -68,6 +69,8 @@ interface IDetectionRules {
   dataMode?: dataModeType;
   needShowUnit: boolean;
   isKpiAnomalySdkEnabled: boolean;
+  dataTypeLabel?: string;
+  editMode?: EditModeType;
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>>;
 }
 interface IEvent {
@@ -92,6 +95,8 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   @Prop({ default: '', type: String }) dataMode: dataModeType;
   @Prop({ default: false, type: Boolean }) needShowUnit: boolean;
   @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean; // 是否支持智能监控
+  @Prop({ default: 'time_series', type: String }) dataTypeLabel: string; // 当前的数据类型
+  @Prop({ default: 'Edit', type: String }) editMode: EditModeType;
   @Prop({ default: () => new Map(), type: Map }) intelligentDetect: Map<
     IntelligentModelsType,
     Array<Record<string, any>>
@@ -222,14 +227,15 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       functions,
       result_table_id,
     } = this.metricData[0] || {};
-    return (
+
+    const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
+    const isValidMetricData = this.metricData.length <= 1 && this.isKpiAnomalySdkEnabled;
+    const isSingleValidSource =
       this.metricData.length === 1 &&
       (['bk_data'].includes(dataSourceLabel) ||
-        (['bk_monitor'].includes(dataSourceLabel) &&
-          (this.isKpiAnomalySdkEnabled || result_table_id?.startsWith('system.')))) &&
-      dataTypeLabel === 'time_series' &&
-      !functions?.length
-    );
+        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
+      !functions?.length;
+    return (isValidMetricData || isSingleValidSource) && isTimeSeries;
   }
 
   get getMethodList() {
@@ -375,7 +381,9 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
    * @param val 指标数据
    */
   @Watch('metricData')
-  watchMetricDataChange() {
+  watchMetricDataChange(_newValue: MetricDetail[], oldValue: MetricDetail[]) {
+    // 编辑 && PromQL模式
+    if (this.isEdit && this.editMode === 'Source' && !oldValue.length) return;
     const val = this.addType;
     /**
      * 如果直接拿当前算法的禁用状态进行过滤，会导致一些特殊的算法规则（算法数量选择上限）被过滤掉
