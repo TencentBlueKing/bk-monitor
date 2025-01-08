@@ -77,6 +77,10 @@ class QueryDataLinkInfoResource(Resource):
         bk_data_id = data["bk_data_id"]
         logger.info("QueryDataLinkInfoResource: start to query bk_data_id: %s", bk_data_id)
 
+        # 避免缓存问题
+        self.bklog_table_ids = []
+        self.time_series_table_ids = []
+
         # 数据源信息
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
         ds_infos = self._get_data_id_details(ds=ds)
