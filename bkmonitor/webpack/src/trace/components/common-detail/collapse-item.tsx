@@ -23,52 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { random } from 'monitor-common/utils';
+import { defineComponent, ref, Transition } from 'vue';
 
-import CommonDetail from '../../../components/common-detail/common-detail';
-import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
-import FilterVarSelectSimple from './filter-var-select-simple';
-import GroupsSelector from './groups-selector';
-
-import './dashboard-panel.scss';
-
+import './collapse-item.scss';
 export default defineComponent({
-  name: 'DashboardPanel',
+  name: 'CollapseItem',
   props: {
-    sceneViewParams: { type: Object, default: () => ({}) },
+    showContent: {
+      type: Boolean,
+      default: true,
+    },
   },
-
   setup() {
-    const { t } = useI18n();
+    const expand = ref(false);
+
+    function handleHeaderClick() {
+      expand.value = !expand.value;
+    }
 
     return {
-      t,
+      expand,
+      handleHeaderClick,
     };
   },
-
   render() {
     return (
-      <div class='span-details__dashboard-panel'>
-        <div class='groups-header'>
-          <GroupsSelector />
+      <div class='collapse-item-comp'>
+        <div
+          class='item-header'
+          onClick={this.handleHeaderClick}
+        >
+          <div class='title-container'>{this.$slots.header?.()}</div>
+          {this.showContent && (
+            <span class={{ arrow: true, 'collapse-expand': this.expand }}>
+              <i class='icon-monitor icon-arrow-right' />
+            </span>
+          )}
         </div>
-        <div class='dashboard-tools'>
-          <FilterVarSelectSimple label={this.t('汇聚周期') as string} />
-        </div>
-        <div>
-          <FlexDashboardPanel
-            id={random(10)}
-            column={3}
-            dashboardId={random(10)}
-            isSingleChart={false}
-            needOverviewBtn={true}
-            panels={[]}
-          />
-          <CommonDetail />
-        </div>
+        <Transition name='collapse'>
+          {this.showContent && (
+            <div
+              style={this.expand ? {} : { display: 'none' }}
+              class='item-content'
+            >
+              {this.$slots.content?.()}
+            </div>
+          )}
+        </Transition>
       </div>
     );
   },

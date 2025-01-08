@@ -59,7 +59,6 @@ import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
-
 const guideInfoData: Record<string, IGuideInfo> = {
   Event: {
     type: '',
@@ -1427,6 +1426,7 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
+      sceneData,
       // countOfInfo,
     };
   },

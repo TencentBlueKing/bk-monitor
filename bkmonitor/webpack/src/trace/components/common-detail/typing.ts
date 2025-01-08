@@ -23,53 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
+export type IDetailValItem<T extends CommonDetailType> = Pick<IDetailItemMap, T>[T];
 
-import { random } from 'monitor-common/utils';
+export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
 
-import CommonDetail from '../../../components/common-detail/common-detail';
-import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
-import FilterVarSelectSimple from './filter-var-select-simple';
-import GroupsSelector from './groups-selector';
+interface Children {
+  name: string;
+  type: string;
+  value: string | string[];
+}
 
-import './dashboard-panel.scss';
+export interface IDetailItem {
+  name: string;
+  value: IDetailValItem<CommonDetailType>;
+  type: CommonDetailType;
+  isExpand?: boolean; // 是否展开显示
+  isOverflow?: boolean; // 是否已溢出
+  need_copy?: boolean; // 是否需要复制文本按钮
+  count?: number; // 如果为 0 ，则不需要渲染展开数据
+  children?: Children[];
+}
 
-export default defineComponent({
-  name: 'DashboardPanel',
-  props: {
-    sceneViewParams: { type: Object, default: () => ({}) },
-  },
+export interface IStatusData {
+  name: string;
+  type: string;
+  value: IStatusDataSubValue | string;
+}
 
-  setup() {
-    const { t } = useI18n();
-
-    return {
-      t,
-    };
-  },
-
-  render() {
-    return (
-      <div class='span-details__dashboard-panel'>
-        <div class='groups-header'>
-          <GroupsSelector />
-        </div>
-        <div class='dashboard-tools'>
-          <FilterVarSelectSimple label={this.t('汇聚周期') as string} />
-        </div>
-        <div>
-          <FlexDashboardPanel
-            id={random(10)}
-            column={3}
-            dashboardId={random(10)}
-            isSingleChart={false}
-            needOverviewBtn={true}
-            panels={[]}
-          />
-          <CommonDetail />
-        </div>
-      </div>
-    );
-  },
-});
+export interface IStatusDataSubValue {
+  name: string;
+  type: string;
+  text: string;
+}
