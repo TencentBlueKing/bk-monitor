@@ -3896,7 +3896,7 @@ class ESStorage(models.Model, StorageResultTable):
                 "initializing_shards": cluster_health["initializing_shards"],  # 初始化中分片数
                 "number_of_pending_tasks": cluster_health["number_of_pending_tasks"],  # 待处理任务数
             }
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "get_index_info: table_id->[%s] error occurred when get index info for->[%s],error->[%s]",
                 self.table_id,
