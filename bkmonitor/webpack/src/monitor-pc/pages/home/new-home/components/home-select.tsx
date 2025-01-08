@@ -478,8 +478,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     switch (type) {
       /** 告警 */
       case 'alert':
-        baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}&homeSearch=1#/`;
-        url = `event-center?searchAlertId=${item.alert_id}`;
+        baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}&specEvent=1#/`;
+        url = `event-center?alertId=${item.alert_id}`;
         break;
       /** 告警策略 */
       case 'strategy':
