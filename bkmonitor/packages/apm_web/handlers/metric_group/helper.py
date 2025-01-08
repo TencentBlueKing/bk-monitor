@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import arrow
 from django.db.models import Q
@@ -222,3 +222,45 @@ class MetricHelper:
             logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
 
         return monitor_info_mapping
+
+
+class PreCalculateHelper:
+    """指标预计算工具类"""
+
+    def __init__(self, config: Dict[str, Any]):
+        self._config: Dict[str, Any] = config
+
+    def _is_enabled(self) -> bool:
+        """启用预计算时返回 True，默认启用"""
+        return self._config.get("enabled", True)
+
+    def router(self, table_id: str, metric: str, used_labels: Iterable[str]) -> Dict[str, Any]:
+        """将原始指标路由到预计算指标
+        :param table_id: 原结果表
+        :param metric: 原指标
+        :param used_labels: 本次计算使用到的维度
+        :return:
+        """
+        result: Dict[str, Any] = {"table_id": table_id, "metric": metric, "is_hit": False}
+        if not self._is_enabled():
+            return result
+
+        try:
+            pre_cal_metric_infos: List[Dict[str, Any]] = self._config["metrics"][metric]
+        except KeyError:
+            return result
+
+        used_labels: Set[str] = set(used_labels)
+        for metric_info in pre_cal_metric_infos:
+            drop_labels: Set[str] = set(metric_info.get("drop_labels") or [])
+            if used_labels & drop_labels:
+                continue
+
+            if "table_id" in self._config and "metric" in metric_info:
+                result["is_hit"] = True
+                result["metric"] = metric_info["metric"]
+                # 支持 metric 单独定义 table_id，优先级比外层高。
+                result["table_id"] = metric_info.get("table_id") or self._config["table_id"]
+                break
+
+        return result
