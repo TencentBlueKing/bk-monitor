@@ -12,8 +12,8 @@ import time
 
 import mock
 import pytest
-from attrdict import AttrDict
 from django.test import TestCase
+from elasticsearch_dsl import AttrDict
 
 from metadata import models
 from monitor_web.models import CollectorPluginMeta
