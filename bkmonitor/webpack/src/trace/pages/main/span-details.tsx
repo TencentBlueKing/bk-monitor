@@ -33,6 +33,7 @@ import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
+import CommonDetail from '../../components/common-detail/common-detail';
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
@@ -58,7 +59,6 @@ import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
-
 const guideInfoData: Record<string, IGuideInfo> = {
   Event: {
     type: '',
@@ -970,6 +970,7 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
+          apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
         })
           .catch(console.log)
@@ -1292,7 +1293,7 @@ export default defineComponent({
                         >
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
-                            <div>
+                            <div class='host-tab-container'>
                               <FlexDashboardPanel
                                 id={random(10)}
                                 column={3}
@@ -1301,6 +1302,9 @@ export default defineComponent({
                                 needOverviewBtn={!!sceneData.value?.list?.length}
                                 panels={sceneData.value.overview_panels}
                               />
+                              {sceneData.value?.overviewDetailPanel && (
+                                <CommonDetail panel={sceneData.value?.overviewDetailPanel} />
+                              )}
                             </div>
                           )}
                         </Loading>
@@ -1422,6 +1426,7 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
+      sceneData,
       // countOfInfo,
     };
   },
