@@ -47,7 +47,13 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
   @Watch('detailData', { immediate: true })
   handleDetailDataChange(val: DetailData) {
     if (val) {
-      this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
+      this.metricList = [];
+      for (const item of val.metric_list) {
+        setTimeout(() => {
+          this.metricList.push({ ...item, collapse: true });
+        }, 17);
+      }
+      // this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
     }
   }
 
