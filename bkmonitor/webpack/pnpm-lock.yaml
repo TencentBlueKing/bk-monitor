@@ -196,8 +196,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.28-beta.2
-        version: 0.0.28-beta.2
+        specifier: 0.0.29-beta.3
+        version: 0.0.29-beta.3
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -342,8 +342,8 @@ importers:
         specifier: 0.3.17
         version: 0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
-        specifier: 0.0.28-beta.2
-        version: 0.0.28-beta.2
+        specifier: 0.0.29-beta.3
+        version: 0.0.29-beta.3
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -1404,8 +1404,8 @@ packages:
       markdown-it: ^13.0.1
       markdown-it-code-copy: ^0.2.1
 
-  '@blueking/bk-weweb@0.0.28-beta.2':
-    resolution: {integrity: sha512-W/YZEJkkzdqzvK14f/rECp4OYcpy5P1RrW+L46DEJLsA37MYckZLZVOyQYbRZr7Wa0AUuOEN1r4OCL1QjVNi5Q==}
+  '@blueking/bk-weweb@0.0.29-beta.3':
+    resolution: {integrity: sha512-Jxhbnl/oEAgCf3ZFT4IXjebKs48HhdFfHZXBECCOqaNhiSCU7hPhljEdqEW6/7seTLPJJd315KJD70WyAehHEA==}
     engines: {node: '>=14.18.1'}
 
   '@blueking/bkmonitor-cli@5.0.0-beta.21':
@@ -9223,7 +9223,7 @@ snapshots:
       markdown-it: 13.0.2
       markdown-it-code-copy: 0.2.1
 
-  '@blueking/bk-weweb@0.0.28-beta.2': {}
+  '@blueking/bk-weweb@0.0.29-beta.3': {}
 
   '@blueking/bkmonitor-cli@5.0.0-beta.21(@types/node@22.9.0)(@vue/compiler-sfc@3.5.12)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)(vue@3.5.12(typescript@5.6.3))':
     dependencies:
