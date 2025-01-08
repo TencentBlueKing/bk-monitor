@@ -2735,6 +2735,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   backfillData={this.detectionDataBackfill}
                   connector={this.detectionConfig.connector}
                   dataMode={this.dataMode}
+                  dataTypeLabel={this.metricSelector.dataTypeLabel}
+                  editMode={this.monitorDataEditMode}
                   intelligentDetect={this.intelligentDetect}
                   isEdit={this.isEdit}
                   isKpiAnomalySdkEnabled={this.isKpiAnomalySdkEnabled}
