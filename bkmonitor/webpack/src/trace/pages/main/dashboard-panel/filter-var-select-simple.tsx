@@ -23,49 +23,66 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { random } from 'monitor-common/utils';
+import { defineComponent, ref } from 'vue';
 
-import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
-import FilterVarSelectSimple from './filter-var-select-simple';
-import GroupsSelector from './groups-selector';
+import { Select } from 'bkui-vue';
 
-import './dashboard-panel.scss';
+import type { PropType } from 'vue';
+
+import './filter-var-select-simple.scss';
+
+interface IOption {
+  id: string;
+  name: string;
+}
 
 export default defineComponent({
-  name: 'DashboardPanel',
+  name: 'FilterVarSelectSimple',
   props: {
-    sceneViewParams: { type: Object, default: () => ({}) },
+    label: { type: String, default: '' },
+    field: { type: String, default: 'key' },
+    multiple: { default: false, type: Boolean },
+    options: { default: () => [], type: Array as PropType<IOption[]> },
+    value: { default: '', type: [String, Array, Number] },
   },
+  emits: ['change'],
+  setup(_props, { emit }) {
+    const localValue = ref('');
 
-  setup() {
-    const { t } = useI18n();
+    function handleSelectChange() {
+      emit('change', localValue.value);
+    }
 
     return {
-      t,
+      localValue,
+      handleSelectChange,
     };
   },
-
   render() {
     return (
-      <div class='span-details__dashboard-panel'>
-        <div class='groups-header'>
-          <GroupsSelector />
-        </div>
-        <div class='dashboard-tools'>
-          <FilterVarSelectSimple label={this.t('汇聚周期') as string} />
-        </div>
-        <FlexDashboardPanel
-          id={random(10)}
-          column={3}
-          dashboardId={random(10)}
-          isSingleChart={false}
-          needOverviewBtn={true}
-          panels={[]}
-        />
-      </div>
+      <span class='dashboard__filter-var-select-simple-wrap'>
+        {this.label && <span class='filter-var-label'>{this.label}</span>}
+        <Select
+          class='bk-select-simplicity filter-var-select'
+          v-model={this.localValue}
+          behavior='simplicity'
+          clearable={false}
+          multiple={this.multiple}
+          onChange={this.handleSelectChange}
+        >
+          {{
+            default: () =>
+              this.options.map(item => (
+                <Select.Option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                />
+              )),
+          }}
+        </Select>
+      </span>
     );
   },
 });
