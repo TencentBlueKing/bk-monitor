@@ -543,7 +543,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     tableData: K8sTableRow[],
     resourceType: K8sTableColumnResourceKey,
     requestColumns?: K8sTableColumnChartKey[]
-  ): Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number> }> {
+  ): Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number[]> }> {
     let asyncColumns = requestColumns;
     if (!requestColumns) {
       asyncColumns = this.tableChartColumns.ids;
@@ -569,7 +569,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           }
           const { ids, indexForId } = prev.get(columnKey);
           // 获取需要请求指标数据后需要更新数据的数据行索引，
-          indexForId[id] = index;
+          if (indexForId[id]) {
+            indexForId[id].push(index);
+          } else {
+            indexForId[id] = [index];
+          }
           // 获取需要请求指标数据的行id，
           if (!ids.has(id)) {
             ids.add(id);
@@ -598,7 +602,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   loadAsyncData(
     resourceType: K8sTableColumnResourceKey,
-    resourceParam: Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number> }>,
+    resourceParam: Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number[]> }>,
     requestColumns?: K8sTableColumnChartKey[]
   ) {
     let asyncColumns = requestColumns;
@@ -647,7 +651,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param tableAsyncData 异步数据
    * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射数组
    */
-  renderTableBatchByBatch(field: K8sTableColumnChartKey, tableAsyncData, tableDataMap: Record<string, number>) {
+  renderTableBatchByBatch(field: K8sTableColumnChartKey, tableAsyncData, tableDataMap: Record<string, number[]>) {
     let chartDataForResourceIdMap = this.asyncDataCache.get(field);
     if (!chartDataForResourceIdMap) {
       chartDataForResourceIdMap = {};
@@ -660,7 +664,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
       // 动态转化单位
       const chartVal = chartData?.datapoints?.[0]?.[0];
-      if (![undefined, null].includes(chartVal)) {
+      if (!chartData?.datapoints) {
+        chartData.datapoints = [];
+      } else if (![undefined, null].includes(chartVal)) {
         const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
           ? getValueFormat(chartData.unit || '')
           : (v: any) => ({ text: v });
@@ -671,22 +677,26 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       }
 
       chartDataForResourceIdMap[resourceId] = chartData;
-      const rowIndex = tableDataMap[resourceId];
-      if (rowIndex != null) {
-        const rowData = this.tableData[rowIndex];
-        rowData[field] = chartData || [];
+      const rowIndexArr = tableDataMap[resourceId];
+      if (rowIndexArr?.length) {
+        for (const rowIndex of rowIndexArr) {
+          const rowData = this.tableData[rowIndex];
+          rowData[field] = chartData || [];
+        }
         delete tableDataMap[resourceId];
       }
     }
     // 查看是否有剩余后端未返回的数据，如果有则赋值空数组消除loading状态
     const indexArr = Object.values(tableDataMap);
-    for (const rowIndex of indexArr) {
-      this.tableData[rowIndex][field] = {
-        datapoints: [],
-        unit: '',
-        unitDecimal: null,
-        valueTitle: this.$tc('用量'),
-      };
+    for (const rowIndexArr of indexArr) {
+      for (const rowIndex of rowIndexArr) {
+        this.tableData[rowIndex][field] = {
+          datapoints: [],
+          unit: '',
+          unitDecimal: null,
+          valueTitle: this.$tc('用量'),
+        };
+      }
     }
   }
 
