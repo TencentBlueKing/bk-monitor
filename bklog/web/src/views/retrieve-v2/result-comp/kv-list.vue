@@ -42,7 +42,7 @@
             :class="getFieldIcon(field)"
             :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
-          <span class="field-text">{{ field }}</span>
+          <span class="field-text">{{ fieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field))">
@@ -159,6 +159,7 @@
       }),
       ...mapState({
         formatJson: state => state.tableJsonFormat,
+        showFieldAlias: state => state.showFieldAlias ?? 'field_name'
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -330,6 +331,13 @@
       getFieldItem(fieldName) {
         return this.fieldList.find(item => item.field_name === fieldName);
       },
+      fieldName(name){
+        if(this.showFieldAlias === 'alias_name'){
+          const field = this.totalFields.filter(item => item.field_name === name)
+          return field[0].query_alias || name
+        }
+        return name
+      }
     },
   };
 </script>

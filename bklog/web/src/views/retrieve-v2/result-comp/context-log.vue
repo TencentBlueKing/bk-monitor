@@ -220,6 +220,9 @@
           return acc;
         }, '');
       },
+      showFieldAlias() {
+        return this.$store.state.showFieldAlias
+      },
     },
     created() {
       this.deepClone(this.logParams);
@@ -275,7 +278,11 @@
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
           this.displayFieldNames = res.data.display_fields;
-          this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
+          if(this.showFieldAlias === 'alias_name'){
+            this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name );
+          }else{
+            this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
+          }
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
           });

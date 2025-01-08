@@ -79,7 +79,7 @@ export default {
       required: true,
     },
     showFieldAlias: {
-      type: Boolean,
+      type: String,
       default: false,
     },
     isWrap: {
@@ -301,15 +301,8 @@ export default {
       const fieldIndex = args.column.index;
       const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
-      const fieldShowName = JSON.parse(localStorage.getItem('fieldShowName'))
       if (field) {
-        // const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
-        let fieldName; 
-        if (fieldShowName.value === 'alias_name') {
-          fieldName = field.query_alias || field.field_name;
-        } else {
-          fieldName = field.field_name;
-        }
+        const fieldName = this.showFieldAlias === 'alias_name' ? field.query_alias || field.field_name : field.field_name;
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
