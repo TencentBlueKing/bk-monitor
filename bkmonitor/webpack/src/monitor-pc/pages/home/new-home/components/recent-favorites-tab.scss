@@ -8,7 +8,7 @@
   margin: 0 12px;
   overflow: hidden;
   font-size: 12px;
-  color: #63656e;
+  color: #DCDEE5;
 }
 
 @mixin customize {
@@ -319,6 +319,10 @@
         max-height: 160px;
         overflow: auto;
 
+        &.no-ai-whale {
+          max-height: 220px;
+        }
+
         &-empty {
           display: flex;
           flex-direction: column;
@@ -398,7 +402,6 @@
       margin-bottom: 4px;
 
       .icon-mc-tuozhuai {
-        color: #DCDEE5;
         cursor: move;
         @include common-route-icon;
       }

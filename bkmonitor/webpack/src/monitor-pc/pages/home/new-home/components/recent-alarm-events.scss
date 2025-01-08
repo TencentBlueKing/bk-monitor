@@ -264,7 +264,7 @@
 
 .add-task-select-ext {
   padding: 3px 0;
-  background: #fff!important;
+  background: #fff !important;
   .bk-option-content {
     display: flex;
     align-items: center;
@@ -279,13 +279,19 @@
       @include ellipsis();
 
       &.selected {
-        color: #3A84FF;
+        color: #3a84ff;
+      }
+      &.has-tag {
+        color: #c4c6cc;
+        .icon-monitor {
+          color: #c4c6cc;
+        }
       }
     }
 
     .strategy-status {
-      // display: flex;display
-      // align-items: center;align-items
+      // display: flex;
+      // align-items: center;
       .strategy-tag {
         display: inline-block;
         padding: 0 12px;
@@ -298,27 +304,27 @@
       }
 
       .icon-monitor {
-        font-size: 20px;
+        font-size: 24px;
         color: #3a84ff;
         vertical-align: middle;
       }
     }
     &:hover {
-      background: #F5F7FA;
+      background: #f5f7fa;
     }
   }
   &.is-deleted {
     .bk-option-content {
       .strategy-tag {
-        color: #E71818;
-        background-color: #FFEBEB;
+        color: #e71818;
+        background-color: #ffebeb;
       }
       .strategy-name {
-        color: #C4C6CC;
+        color: #c4c6cc;
         text-decoration: line-through;
       }
       .icon-monitor {
-        color: #C4C6CC;
+        color: #c4c6cc;
       }
     }
   }

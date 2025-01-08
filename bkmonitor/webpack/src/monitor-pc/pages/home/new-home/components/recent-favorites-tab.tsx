@@ -451,7 +451,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             </div>
           </div>
           <div class='quick-list'>
-            <ul class='quick-items'>
+            <ul class={{ 'quick-items': true, 'no-ai-whale': !this.enableAiAssistant }}>
               {this.userStoreRoutes.length ? (
                 this.userStoreRoutes
                   ?.filter(item => item.id)

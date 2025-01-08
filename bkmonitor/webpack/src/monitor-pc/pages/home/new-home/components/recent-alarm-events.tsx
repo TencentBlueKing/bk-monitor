@@ -56,7 +56,7 @@ import './recent-alarm-events.scss';
 export default class RecentAlarmEvents extends tsc<object> {
   tabs = [];
   @Ref() taskForm;
-  handleMuenMode: '' | 'delete' | 'detail' | 'edit' = '';
+  handleMeunMode: '' | 'delete' | 'detail' | 'edit' = '';
 
   bottomLoadingOptions = {
     isLoading: false,
@@ -218,46 +218,76 @@ export default class RecentAlarmEvents extends tsc<object> {
   async handleConfirm() {
     const isPass = await this.handleValidate();
     if (!isPass) return;
-    let config = [];
-    // 区分新增业务/新增图表
+    this.processBusiness();
+  }
+
+  // 获取业务配置 ID
+  getBusinessConfigId() {
+    // 返回业务配置 ID，如果没有则返回当前活动的 Tab ID
+    return this.alarmGraphConfig.bizId || this.activeTabId;
+  }
+
+  // 生成配置
+  generateConfig() {
+    // 如果是追加模式，遍历内容生成配置
     if (this.isAppendMode) {
-      config = this.content.map(({ name, strategy_ids }) => ({
+      return this.content.map(({ name, strategy_ids }) => ({
         name,
         strategy_ids,
       }));
     }
-    // 区分修改/新增
+    // 否则，返回空数组
+    return [];
+  }
+
+  async processBusiness() {
+    // 生成初始配置
+    const config = this.generateConfig();
+
+    // 如果在编辑模式下，处理修改或删除操作
     if (this.editChartIndex !== null) {
-      // 区分删除/修改
-      if (this.handleMuenMode === 'delete') {
+      if (this.handleMeunMode === 'delete') {
+        // 删除指定索引的配置
         config.splice(this.editChartIndex, 1);
       } else {
+        // 修改指定索引的配置
         config.splice(this.editChartIndex, 1, this.strategyConfig);
       }
     } else {
+      // 如果不是编辑模式，添加新的配置
       config.push(this.strategyConfig);
     }
+
     try {
+      // 保存告警图表配置
       await saveAlarmGraphConfig({
-        bk_biz_id: this.alarmGraphConfig.bizId || this.activeTabId,
+        bk_biz_id: this.getBusinessConfigId(),
         config,
       });
-      // 新增业务，需刷新tabs
+      // 如果是新增业务，需要刷新 tabs
       await this.getData(!this.isAppendMode);
     } catch (error) {
-      console.log('error', error);
+      // 捕获并处理错误
+      console.error('Error saving alarm graph config:', error);
+      this.$bkMessage({
+        theme: 'error',
+        message: this.$t('保存告警图表配置时出错，请稍后重试'),
+      });
+    } finally {
+      // 重置编辑索引，关闭对话框，清除策略配置
+      this.editChartIndex = null;
+      this.showAddTaskDialog = false;
+      this.clearStrategyConfig();
     }
-    this.editChartIndex = null;
-    this.showAddTaskDialog = false;
-    this.clearStrategyConfig();
   }
 
   // 清除相关数据
   clearStrategyConfig() {
+    this.taskForm.clearError();
     this.strategyConfig.strategy_ids = [];
     this.strategyConfig.name = '';
     this.editChartIndex = null;
-    this.handleMuenMode = '';
+    this.handleMeunMode = '';
     this.showDelDialog = false;
     this.pagination = {
       currentPage: 1,
@@ -269,6 +299,7 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   async getStrategyListByPage() {
     try {
+      if (!this.alarmGraphConfig.bizId) return;
       const { currentPage: page, limit } = this.pagination;
       const data = await getStrategyListV2({
         page,
@@ -276,7 +307,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         bk_biz_id: this.alarmGraphConfig.bizId,
       });
       this.pagination.isLastPage = data.total <= page * limit;
-      if (this.handleMuenMode === 'edit') {
+      if (this.handleMeunMode === 'edit') {
         this.strategyList.push(
           ...(data.strategy_config_list.filter(item => {
             if (!this.filterStrategyIdSet.has(item.id)) {
@@ -295,6 +326,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   // 根据策略 Id 获取数据
   async getStrategyListById() {
     try {
+      if (!this.alarmGraphConfig.bizId) return;
       this.strategyList = [];
       const data = await getStrategyListV2({
         limit: 50,
@@ -318,10 +350,9 @@ export default class RecentAlarmEvents extends tsc<object> {
         this.handleScrollToBottom();
       }
     } catch (error) {
-      console.log('getStrategyListByPage error', error);
+      console.log('getStrategyListByPage error2', error);
     }
   }
-
   getStrategyStatus(isDeleted = false, isInvalid = false, isEnabled = true) {
     let status = ''; // 默认状态
 
@@ -343,6 +374,7 @@ export default class RecentAlarmEvents extends tsc<object> {
       .then(() => true)
       .catch(() => false);
   }
+
   getAddDialog() {
     return (
       <bk-dialog
@@ -350,7 +382,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         ext-cls='task-add-dialog'
         v-model={this.showAddTaskDialog}
         header-position='left'
-        title={this.handleMuenMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
+        title={this.handleMeunMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
         show-footer
         onCancel={this.handleCancel}
       >
@@ -387,7 +419,23 @@ export default class RecentAlarmEvents extends tsc<object> {
                     class={{ 'add-task-select-ext': true, 'is-deleted': item.is_deleted }}
                     name={item.name}
                   >
-                    <div class={{ 'strategy-name': true, selected: this.isSelected(item.id) }}>{item.name}</div>
+                    <div
+                      class={{
+                        'strategy-name': true,
+                        'has-tag': this.getStrategyStatus(item.is_deleted, item.is_invalid, item.is_enabled),
+                        selected: this.isSelected(item.id),
+                      }}
+                      v-bk-tooltips={{
+                        content: item.name,
+                        trigger: 'mouseenter',
+                        zIndex: 9999,
+                        boundary: document.body,
+                        allowHTML: false,
+                        delay: [1000, 0],
+                      }}
+                    >
+                      {item.name}
+                    </div>
                     <div class='strategy-status'>
                       <span class='strategy-tag'>
                         {this.getStrategyStatus(item.is_deleted, item.is_invalid, item.is_enabled)}
@@ -449,15 +497,17 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 删除业务 start
   getDelDialog() {
-    let detail = this.$t('业务：{0}', this.currentDelId);
+    let detail = this.$t('业务：{0}', {
+      0: this.tabs.filter(item => item.bk_biz_id === this.currentDelId)[0]?.bk_biz_name,
+    });
     let tips = this.$t('删除后，首页将不再显示当前业务的所有告警事件视图');
     let handleDelFunction = this.delTaskByIndex;
-    if (this.handleMuenMode === 'delete') {
+    if (this.handleMeunMode === 'delete') {
       detail = '';
       tips = '';
       this.alarmGraphConfig.bizId = this.activeTabId;
       this.isAppendMode = true;
-      handleDelFunction = this.handleConfirm;
+      handleDelFunction = this.processBusiness;
     }
     return (
       <bk-dialog
@@ -507,7 +557,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   handleCancelDel() {
     this.currentDelId = null;
     this.showDelDialog = false;
-    this.handleMuenMode = '';
+    this.handleMeunMode = '';
   }
 
   // 删除
@@ -594,7 +644,7 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   /** MenuList操作 */
   handleMenuClick(mode, item, index) {
-    this.handleMuenMode = mode;
+    this.handleMeunMode = mode;
     switch (mode) {
       case 'edit':
         this.strategyConfig.name = item.name;
@@ -626,9 +676,9 @@ export default class RecentAlarmEvents extends tsc<object> {
   async handleSelectBiz(id) {
     this.alarmGraphConfig.bizId = id;
     this.strategyList = [];
-    await this.getStrategyListByPage();
-    this.isAppendMode = false;
     this.showAddTaskDialog = true;
+    this.isAppendMode = false;
+    await this.getStrategyListByPage();
   }
 
   render() {

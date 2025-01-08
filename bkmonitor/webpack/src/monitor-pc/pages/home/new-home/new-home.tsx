@@ -26,11 +26,9 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import HomeSelect from './components/home-select';
 import RecentAlarmEvents from './components/recent-alarm-events';
 import RecentFavoritesTab from './components/recent-favorites-tab';
-// import HomeAlarmChart from './components/home-alarm-chart';
-import HomeSelect from './components/home-select';
-import { testData } from './testData';
 
 import './new-home.scss';
 
@@ -38,44 +36,12 @@ import './new-home.scss';
   name: 'NewHome',
 })
 export default class NewHome extends tsc<object> {
-  data = [
-    {
-      name: 'Monitor】componentNodeExporterRestart ',
-      bk_biz_name: '蓝鲸',
-    },
-    {
-      name: '容器实战(BCS-K8S-25973)',
-      bk_biz_name: '王者荣耀',
-    },
-    {
-      name: '1732613611426664637',
-      bk_biz_name: '蓝鲸',
-      type: 'strategy',
-    },
-    {
-      name: '99b658b5392b3fbc9fd1a588dc965711',
-      bk_biz_name: '王者荣耀',
-      type: 'strategy',
-    },
-    {
-      name: '1.1.2.1.44',
-      bk_biz_name: '王者荣耀',
-      type: 'host',
-      sub: '（demo/demo_k8s/k8s)',
-    },
-  ];
-  handleGetAlertDateHistogram() {
-    return testData;
-  }
   render() {
     return (
       <div class='monitor-new-home'>
         <div class='new-home-bg' />
         <div class='new-home-content'>
-          <HomeSelect
-            historyList={this.data}
-            searchList={testData}
-          />
+          <HomeSelect />
           <div class='new-home-tool'>
             <RecentFavoritesTab />
           </div>
