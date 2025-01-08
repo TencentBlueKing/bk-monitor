@@ -32,7 +32,7 @@ export enum ESearchType {
   // alert: 告警
   alert = 'alert',
   // apm_application: APM应用
-  'apm_application' = 'apm_application',
+  apm_application = 'apm_application',
   // host: 主机
   host = 'host',
   // strategy: 策略
@@ -43,9 +43,29 @@ export enum ESearchType {
 /* status */
 export const EStatusType = {
   deleted: '已删除',
-  stop: '已停用',
-  shield: '已屏蔽',
+  disabled: '已停用',
+  shielded: '已屏蔽',
+  normal: '正常',
 };
+
+/* 告警级别 */
+export enum EAlertLevel {
+  FATAL = 1,
+  WARNING = 2,
+  // eslint-disable-next-line perfectionist/sort-enums
+  INFO = 3,
+}
+
+/* functionName */
+export const EFunctionNameType = {
+  dashboard: '仪表盘',
+  apm_service: '服务',
+  log_retrieve: '日志索引集',
+  metric_retrieve: '指标集',
+  // TODO
+};
+export const RECENT_FAVORITE_STORE_KEY = 'recent_favorite_store_key'.toLocaleUpperCase();
+
 /**
  * @description 输入字段匹配字段高亮
  * @param searchValue 输入的字段

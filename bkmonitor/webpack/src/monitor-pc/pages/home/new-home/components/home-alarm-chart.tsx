@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Mixins } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Mixins, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import {
@@ -40,15 +41,25 @@ import {
 } from 'monitor-ui/chart-plugins/mixins';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
-import { handleYAxisLabelFormatter, EStatusType } from '../utils';
-import { chartData } from './data';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
 
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IAlarmGraphConfig } from '../type';
 import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './home-alarm-chart.scss';
 
 interface IHomeAlarmChartProps {
-  config: object;
+  config: IAlarmGraphConfig;
+  timeRange: TimeRangeType;
+  currentActiveId: number;
+}
+interface IHomeAlarmChartEvents {
+  onMenuClick: any;
+}
+interface IHomeAlarmChartEvents {
+  onMenuClick: any;
 }
 
 @Component
@@ -60,7 +71,9 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   LegendMixin,
   ErrorMsgMixins
 ) {
-  @Prop({ default: () => ({}) }) config: object;
+  @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
+  @Prop() currentActiveId: number;
+  @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
   @Ref('menuPopover') menuPopoverRef: HTMLDivElement;
   // 高度
   height = 100;
@@ -74,15 +87,15 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   colorList = ['#F8B4B4', '#A1E3BA', '#C4C6CC'];
   searchList = [
     {
-      name: 'ABNORMAL',
+      name: 'FATAL',
       display_name: window.i18n.tc('致命'),
     },
     {
-      name: 'RECOVERED',
+      name: 'WARNING',
       display_name: window.i18n.tc('预警'),
     },
     {
-      name: 'CLOSED',
+      name: 'INFO',
       display_name: window.i18n.tc('提醒'),
     },
   ];
@@ -105,7 +118,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       id: 'delete',
     },
   ];
-  searchValue = ['ABNORMAL', 'RECOVERED', 'CLOSED'];
+  searchValue = ['FATAL', 'WARNING', 'INFO'];
   options = {};
   chartOption = {
     color: this.colorList,
@@ -172,6 +185,11 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   mounted() {
     this.getPanelData();
   }
+
+  @Watch('timeRange')
+  handleTimeRangeChange() {
+    this.getPanelData();
+  }
   /**
    * @description: 获取图表数据
    */
@@ -182,9 +200,21 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     if (this.init) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
-      const seriesData = chartData.series;
+      // const seriesData = chartData.series;
+      const [start, end] = handleTransformToTimestamp(this.timeRange);
+      const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
+      // 下拉切换告警级别筛选
+      if (this.searchValue.length) {
+        conditions.push({ key: 'severity', value: this.searchValue.map(val => EAlertLevel[val]) });
+      }
+      const { series } = await alertDateHistogram({
+        bk_biz_ids: [this.currentActiveId],
+        conditions,
+        start_time: start,
+        end_time: end,
+      });
       // const res = await aipHandle;
-      this.updateChartData(seriesData);
+      this.updateChartData(series);
       // if (res) {
       //   this.init = true;
       //   this.empty = false;
@@ -192,7 +222,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       //   this.emptyText = window.i18n.tc('查无数据');
       //   this.empty = true;
       // }
-    } catch (e) {
+    } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
     }
@@ -202,7 +232,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    * @description: 更新图表的数据
    */
   updateChartData(srcData) {
-    console.log(srcData, 'srcData');
+    // console.log(srcData, 'srcData');
     const legendList = [];
     const dataList = [];
     srcData.forEach((item, ind) => {
@@ -233,16 +263,19 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             theme='light'
           >
             <span class='chart-tips'>
-              <i class='icon-monitor icon-mind-fill'></i>
+              <i class='icon-monitor icon-mind-fill' />
             </span>
             <div
               class='home-chart-tips-list'
               slot='content'
             >
-              {(this.config.tips || []).map(item => (
-                <div class={`tips-item ${item.status}`}>
+              {(this.config.status || []).map((item, index) => (
+                <div
+                  key={item.name + index}
+                  class={`tips-item ${item.status}`}
+                >
                   <span class='tips-item-tag'>{EStatusType[item.status]}</span>
-                  <span class='txt'>{item.label}</span>
+                  <span class='txt'>{item.name}</span>
                 </div>
               ))}
             </div>
@@ -280,7 +313,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             trigger='click'
           >
             <span class='more-operation'>
-              <i class='icon-monitor icon-mc-more'></i>
+              <i class='icon-monitor icon-mc-more' />
             </span>
             <div
               class='home-chart-more-list'
@@ -288,6 +321,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             >
               {this.menuList.map(item => (
                 <span
+                  key={item.id}
                   class={`more-list-item ${item.id}`}
                   on-click={() => this.handleMenuClick(item)}
                 >
@@ -326,4 +360,4 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     );
   }
 }
-export default ofType<IHomeAlarmChartProps>().convert(HomeAlarmChart);
+export default ofType<IHomeAlarmChartProps, IHomeAlarmChartEvents>().convert(HomeAlarmChart);

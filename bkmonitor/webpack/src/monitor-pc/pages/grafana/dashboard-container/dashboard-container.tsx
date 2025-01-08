@@ -26,6 +26,8 @@
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import { addAccessRecord } from 'monitor-api/modules/overview';
+
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as grafanaAuth from '../authority-map';
 import DashboardAside, { GRAFANA_HOME_ID } from './dashboard-aside';
@@ -67,13 +69,18 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
       this.handleGotoFavaritate(item as any);
     }
   }
-  handleGotoFavaritate(item: IFavListItem) {
+  async handleGotoFavaritate(item: IFavListItem) {
     if (item.uid === GRAFANA_HOME_ID) {
       this.$router.push({
         name: 'grafana-home',
       });
     } else {
       // console.info(item.url, '+++++++++++++++++');
+      // 新版首页最近使用埋点
+      await addAccessRecord({
+        function: 'dashboard',
+        config: { dashboard_uid: item.uid },
+      });
       this.$router.push({
         path: item.url?.startsWith?.('/grafana') ? item.url : `/grafana/d/${item.uid}`,
         params: {

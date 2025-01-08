@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils/utils';
 
-import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../../../common/constant';
+import { SPACE_TYPE_MAP } from '../../../../common/constant';
 import List, { type IListItem } from '../../../../components/biz-select/list';
 import { Storage } from '../../../../utils';
 
 import type { ISpaceItem } from '../../../../types';
 
-import './new-biz-list.scss';
+import './home-biz-list.scss';
 
 /** 业务组件常用的业务缓存key */
 const BIZ_SELECTOR_COMMON_IDS = 'BIZ_SELECTOR_COMMON_IDS';
@@ -54,7 +54,6 @@ const BIZ_COLOR_LIST = [
 ];
 
 interface IProps {
-  value: number;
   zIndex?: number;
   bizList: ISpaceItem[];
   isShrink?: boolean;
@@ -74,9 +73,8 @@ interface IEvents {
  * 业务选择器组件
  */
 @Component
-export default class BizSelect extends tsc<IProps, IEvents> {
+export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
-  @Prop({ default: '', type: [Number, String] }) value: number;
   @Prop({ default: false, type: Boolean }) isShrink: boolean;
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean;
   @Prop({ default: null, type: Number }) zIndex: number;
@@ -129,7 +127,6 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   firstCodeBgColor = '';
 
   created() {
-    this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
@@ -151,12 +148,12 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.commonListIds = this.storage.get(BIZ_SELECTOR_COMMON_IDS) || [];
   }
 
-  @Watch('value')
-  valueChange(val: number) {
-    this.localValue = val;
-    this.bizBgColor = this.getRandomColor();
-    this.getFirstCodeBgColor();
-  }
+  // @Watch('value')
+  // valueChange(val: number) {
+  //   this.localValue = val;
+  //   this.bizBgColor = this.getRandomColor();
+  //   this.getFirstCodeBgColor();
+  // }
 
   @Debounce(300)
   handleBizSearch(keyword?: string) {
@@ -166,8 +163,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   @Emit('change')
   handleBizChange(id: number) {
-    this.popoverRef.instance.hide();
-    this.localValue = id;
+    // this.popoverRef.instance.hide();
+    // this.localValue = id;
     this.getFirstCodeBgColor();
     this.handleCacheBizId(id);
     return id;
@@ -387,7 +384,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   typeListWrapNextPreShowChange() {
     this.$nextTick(() => {
-      const hasScroll = this.typeListRef.scrollWidth > this.typeListRef.clientWidth;
+      const hasScroll = this.typeListRef?.scrollWidth > this.typeListRef?.clientWidth;
       this.typeWrapInfo.showBtn = hasScroll;
       this.typeWrapInfo.preDisable = true;
     });
@@ -427,17 +424,17 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   }
 
   getFirstCodeBgColor() {
-    let tags = [];
-    for (const item of this.bizList) {
-      if (item.id === this.localValue) {
-        tags = [item.space_type_id];
-        if (item.space_type_id === 'bkci' && item.space_code) {
-          tags.push('bcs');
-        }
-      }
-    }
-    this.firstCodeBgColor =
-      SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
+    // let tags = [];
+    // for (const item of this.bizList) {
+    //   // if (item.id === this.localValue) {
+    //   //   tags = [item.space_type_id];
+    //   //   if (item.space_type_id === 'bkci' && item.space_code) {
+    //   //     tags.push('bcs');
+    //   //   }
+    //   // }
+    // }
+    // this.firstCodeBgColor =
+    //   SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
   }
 
   render() {
@@ -526,7 +523,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  checked={this.localValue}
+                  // checked={this.localValue}
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}

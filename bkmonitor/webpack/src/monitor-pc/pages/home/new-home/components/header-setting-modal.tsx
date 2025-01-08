@@ -113,36 +113,22 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
 
   // 获取存储的路由配置
   getStoreRoutes() {
-    const configList = !this.storeUserConfigList?.length ? DEFAULT_ROUTE_LIST : this.storeUserConfigList;
+    // 判断 storeUserConfigList 是否为数组
+    const configList =
+      !Array.isArray(this.storeUserConfigList) || this.storeUserConfigList.length === 0
+        ? DEFAULT_ROUTE_LIST
+        : this.storeUserConfigList;
     return this.getStoreRoutesByIdList(configList);
   }
 
   // 根据路由ID列表获取路由配置
-  // getStoreRoutesByIdList(routeIds: string[]) {
-  //   const routes = [];
-  //   this.flatRoutes.forEach(item => {
-  //     const list = item.children?.filter(set => routeIds.includes(set.id));
-  //     list?.length && routes.push(...list);
-  //   });
-  //   return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
-  // }
   getStoreRoutesByIdList(routeIds: string[]) {
-    const routeMap = new Map();
-
-    // 使用 for...of 遍历 this.flatRoutes
-    for (const item of this.flatRoutes) {
-      if (item.children) {
-        for (const child of item.children) {
-          // 如果 routeId 在列表中，则存储在 Map 中
-          if (routeIds.includes(child.id)) {
-            routeMap.set(child.id, child);
-          }
-        }
-      }
-    }
-
-    // 按照 routeIds 的顺序返回对应的路由
-    return routeIds.map(id => routeMap.get(id)).filter(Boolean);
+    const routes = [];
+    this.flatRoutes.forEach(item => {
+      const list = item.children?.filter(set => routeIds.includes(set.id));
+      list?.length && routes.push(...list);
+    });
+    return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
   }
 
   // 设置存储的路由配置并同步到用户配置

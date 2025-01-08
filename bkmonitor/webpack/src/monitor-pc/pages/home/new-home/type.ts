@@ -54,3 +54,15 @@ export interface IRouteItem {
   href?: string;
   canStore?: boolean;
 }
+export interface IAlarmGraphConfig {
+  name: string;
+  strategy_ids: number[];
+  status?: IAlarmGraphStatus[];
+  strategy_names?: string[];
+}
+
+interface IAlarmGraphStatus {
+  name: string;
+  status: string;
+  strategy_id: number;
+}

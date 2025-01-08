@@ -1,0 +1,57 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+export default {
+  // Messages :  Success |  Warning  | Error |  Info
+  // 规范： 动词-主体-结果  如 新建应用成功 New application successful
+  // 规范： 仅首字母大写
+  容器服务: 'Container service',
+  关联的告警: 'Related Alarms',
+  关联的屏蔽策略: 'Associated blocking policy',
+  '有问题就问 AI 小鲸': 'If you have any questions, ask Xiaojing',
+  最近使用: 'Recently Used',
+  展示模块: 'Display module',
+  快捷入口: 'Quick access',
+  暂无快捷入口: 'No quick entry',
+  快捷入口管理: 'Quick entry management',
+  最近告警事件: 'Recent warning events',
+  '业务：{0}': 'Business: {0}',
+  '删除后，首页将不再显示当前业务的所有告警事件视图':
+    'After deletion, the home page will no longer display all alarm event views of the current business',
+  '确定删除该业务的告警事件视图？': 'Are you sure you want to delete the alarm event view for this business?',
+  新增图表: 'New charts',
+  修改图表: 'Modify chart',
+  图表名称: 'Chart name',
+  清空历史: 'Clear History',
+  暂无相关记录: 'No relevant records',
+  请选择策略: 'Please select a strategy',
+  '请输入图表名称，默认为策略名称': 'Please enter a chart name, the default is the strategy name',
+  '当前还未配置业务，快点击添加业务按钮新增图表':
+    'There is no service configured yet. Click the Add Service button to add a new chart.',
+  删除该业务: 'Delete this business',
+  添加业务: 'Add a service',
+  '请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索':
+    'Please enter IP / traceId / container cluster / alarm ID / policy name to search',
+};

@@ -62,6 +62,7 @@ import './app.scss';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 import GlobalConfigMixin from '../mixins/globalConfig';
+import aiwhaleStore from '../store/modules/ai-whale';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -80,7 +81,6 @@ const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
-const AI_USER_LIST = 'AI_USER_LIST';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
@@ -114,7 +114,6 @@ export default class App extends tsc<object> {
   headerNav = 'home';
   headerNavChange = true;
   overseaGlobalList: IOverseasConfig[] = [];
-  enableAiAssistant = false; // 是否显示AI智能助手
   menuStore = '';
   hideNavCount = 0;
   spacestickyList: string[] = []; /** 置顶的空间列表 */
@@ -126,6 +125,10 @@ export default class App extends tsc<object> {
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
   routeViewKey = random(10);
+  // 是否显示AI智能助手
+  get enableAiAssistant() {
+    return aiwhaleStore.enableAiAssistant;
+  }
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -695,12 +698,7 @@ export default class App extends tsc<object> {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
   async getAiUserConfig() {
-    if (!window.enable_ai_assistant) {
-      this.enableAiAssistant = false;
-      return;
-    }
-    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
-    this.enableAiAssistant = list.includes(window.username);
+    aiwhaleStore.setEnableAiAssistantAction();
   }
 
   render() {

@@ -85,7 +85,10 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     }
   }
   getStoreRoutes() {
-    const configList = !this.storeUserConfigList?.length ? DEFAULT_ROUTE_LIST : this.storeUserConfigList;
+    const configList =
+      !Array.isArray(this.storeUserConfigList) || this.storeUserConfigList.length === 0
+        ? DEFAULT_ROUTE_LIST
+        : this.storeUserConfigList;
     return this.getStoreRoutesByIdList(configList);
   }
   getStoreRoutesByIdList(routeIds: string[]) {
@@ -177,6 +180,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
             <ul class='route-list'>
               {item.children?.map(child => (
                 <li
+                  key={child.id}
                   class={`route-item ${this.isStoredRoute(child.id) ? 'is-stored' : ''}`}
                   onClick={() => this.handleStoreRoute(child)}
                 >
