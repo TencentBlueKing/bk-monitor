@@ -278,7 +278,7 @@
     // margin-top: 24px;
     height: calc(100% - 166px);
     padding: 0 40px 14px;
-    overflow: auto;
+    overflow-y: auto;
     background: #fff;
 
     .time-series {
@@ -307,6 +307,20 @@
         margin-bottom: 0;
 
         .monitor-trace-log {
+          padding-right: 40px;
+        }
+      }
+    }
+
+    &.is-host-tab {
+      padding: 0 0  0 40px;
+
+      .host-tab-container {
+        display: flex;
+        height: 100%;
+        overflow-x: hidden;
+
+        .dashboard-panel {
           padding-right: 40px;
         }
       }
@@ -778,6 +792,7 @@
   }
 
   &.is-main {
+    height: 100%;
     padding: 0 16px;
 
     .header {
@@ -844,8 +859,13 @@
     }
 
     .content-list {
-      height: calc(100% - 155px);
+      height: calc(100% - 150px);
       padding: 0 16px 14px;
+
+      &.is-host-tab {
+        padding-right: 0;
+        padding-bottom: 0;
+      }
     }
 
     .retrieve-v2-index {
