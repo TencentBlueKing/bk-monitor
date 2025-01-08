@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
 import functools
 import json
@@ -15,9 +16,11 @@ import logging
 import math
 import operator
 from collections import defaultdict
+from enum import Enum
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Q
 from django.utils.translation import gettext as _
@@ -47,6 +50,7 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_group import PreCalculateHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
 from apm_web.metric.constants import (
@@ -177,7 +181,38 @@ class UnifyQueryResource(Resource):
         return resource.grafana.graph_unify_query(validated_request_data["unify_query_param"])
 
 
-class DynamicUnifyQueryResource(Resource):
+class ProcessorHookType(Enum):
+    """处理器钩子类型"""
+
+    BEFORE_REQUEST = "before_request"
+    AFTER_RESPONSE = "after_response"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.BEFORE_REQUEST.value, cls.BEFORE_REQUEST.value),
+            (cls.AFTER_RESPONSE.value, cls.AFTER_RESPONSE.value),
+        ]
+
+
+class PreCalculateHelperMixin:
+
+    DEFAULT_APP_CONFIG_KEY: str = "APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG"
+
+    @classmethod
+    def get_helper_or_none(
+        cls, bk_biz_id: str, app_name: str, app_config_key: Optional[str] = None
+    ) -> Optional[PreCalculateHelper]:
+        try:
+            app_config: Dict[str, Any] = getattr(settings, app_config_key or cls.DEFAULT_APP_CONFIG_KEY)
+            pre_calculate_config: Dict[str, Any] = app_config[f"{bk_biz_id}-{app_name}"]["pre_calculate"]
+        except (KeyError, AttributeError):
+            return None
+
+        return PreCalculateHelper(pre_calculate_config)
+
+
+class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
     """
     组件指标值查询
     不同分类的组件 查询unify-query参数会有所变化
@@ -229,6 +264,7 @@ class DynamicUnifyQueryResource(Resource):
                 return attrs
 
         class ProcessorSerializer(serializers.Serializer):
+            hook = serializers.ChoiceField(label="处理器钩子", required=True, choices=ProcessorHookType.choices())
             name = serializers.CharField(label="处理器名称", required=True)
             options = serializers.DictField(label="处理器参数", required=False, default={})
 
@@ -250,6 +286,17 @@ class DynamicUnifyQueryResource(Resource):
         alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
         extra_filter_dict = serializers.DictField(label="额外查询条件", required=False, default={})
         group_by_limit = GroupByLimitSerializer(label="聚合排序", required=False)
+
+        # 预处理参数
+        hook_processors = serializers.DictField(label="每个 hook 对应的处理器列表", required=False, default={})
+
+        def validate(self, attrs):
+            hook_processors: Dict[str, Any] = {}
+            for processor in attrs.get("processors") or []:
+                hook_processors.setdefault(processor["hook"], []).append(processor)
+
+            attrs["hook_processors"] = hook_processors
+            return attrs
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -299,6 +346,8 @@ class DynamicUnifyQueryResource(Resource):
         if validate_data.get("extra_filter_dict"):
             for config in unify_query_params["query_configs"]:
                 config["filter_dict"].update(validate_data["extra_filter_dict"])
+
+        self._run_processors(ProcessorHookType.BEFORE_REQUEST.value, unify_query_params, None, validate_data)
 
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
@@ -389,6 +438,72 @@ class DynamicUnifyQueryResource(Resource):
         )
 
     @classmethod
+    def _process_map(cls) -> Dict[str, Callable]:
+        return {
+            "format_percent": cls.format_percent,
+            "fill_empty_dimensions": cls.fill_empty_dimensions,
+            "recovery_query_metadata": cls._recovery_query_metadata,
+            "process_pre_calculate": cls._process_rpc_pre_calculate,
+        }
+
+    @classmethod
+    def _run_processors(cls, hook: str, query_params, response, validate_data):
+        processor_map = cls._process_map()
+        for processor_info in validate_data["hook_processors"].get(hook) or []:
+            processor = processor_map.get(processor_info["name"])
+            if processor is None:
+                continue
+            processor(query_params, response, validate_data, **processor_info.get("options", {}))
+
+    @classmethod
+    def _process_rpc_pre_calculate(cls, query_params, response, validate_data, app_config_key=None):
+        """预计算处理
+        处理流程
+        1）在给定的 app_config_key 下找到应用配置。
+        2）尝试找到预计算指标。
+        3）查询参数处理：替换 rt / 指标、去掉可能存在的 increase。
+        :param query_params:
+        :param response:
+        :param validate_data:
+        :param app_config_key:
+        :return:
+        """
+        helper: Optional[PreCalculateHelper] = cls.get_helper_or_none(
+            validate_data["bk_biz_id"], validate_data["app_name"], app_config_key
+        )
+        if helper is None:
+            return
+
+        # 备份原查询
+        validate_data["table_map"] = {}
+        validate_data["metric_map"] = {}
+        validate_data["backup_query_params"] = copy.deepcopy(query_params)
+
+        used_labels: List[str] = []
+        for query_config in query_params["query_configs"]:
+            used_labels.extend(query_config.get("group_by") or [])
+            for cond in query_config.get("where") or []:
+                used_labels.append(cond["key"])
+
+            table_id: str = query_config["table"]
+            metric: str = query_config["metrics"][0]["field"]
+            result: Dict[str, Any] = helper.router(table_id, metric, used_labels)
+
+            if not result["is_hit"]:
+                continue
+
+            # 预计算是聚合后的 Gauge 指标，需要去掉 increase
+            query_config["functions"] = [
+                func for func in query_config.get("functions") or [] if func["id"] != "increase"
+            ]
+            # 更换 rt 及 metric
+            validate_data["table_map"][result["table_id"]] = query_config["table"]
+            validate_data["metric_map"][result["metric"]] = query_config["metrics"][0]["field"]
+
+            query_config["table"] = result["table_id"]
+            query_config["metrics"][0]["field"] = result["metric"]
+
+    @classmethod
     def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):
         try:
             dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
@@ -415,6 +530,30 @@ class DynamicUnifyQueryResource(Resource):
                         (format_percent(percent, precision=precision, sig_fig_cnt=sig_fig_cnt), timestamp)
                     )
             i["datapoints"] = datapoints
+
+    @classmethod
+    def _recovery_query_metadata(cls, query_params, response, validate_data):
+        """还原查询元数据信息
+        预计算等逻辑对指标、结果表的路由查询不应暴露给用户，跳转数据检索/告警配置正常还是走原指标。
+        """
+        backup_query_params: Optional[Dict[str, Any]] = validate_data.get("backup_query_params")
+        if not backup_query_params:
+            return
+
+        response["query_config"] = backup_query_params
+
+        table_metric_map: Dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
+        if not table_metric_map:
+            return
+
+        recovery_metrics: List[Dict[str, Any]] = []
+        for metric in response.get("metrics") or []:
+            metric_json = json.dumps(metric)
+            for old, new in table_metric_map.items():
+                metric_json = metric_json.replace(old, new)
+            recovery_metrics.append(json.loads(metric_json))
+
+        response["metrics"] = recovery_metrics
 
     @classmethod
     def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
@@ -453,12 +592,7 @@ class DynamicUnifyQueryResource(Resource):
         # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
         response["query_config"] = query_params
 
-        processor_map = {"fill_empty_dimensions": cls.fill_empty_dimensions, "format_percent": cls.format_percent}
-        for processor_info in validate_data.get("processors") or []:
-            processor = processor_map.get(processor_info["name"])
-            if processor is None:
-                continue
-            processor(query_params, response, validate_data, **processor_info.get("options", {}))
+        cls._run_processors(ProcessorHookType.AFTER_RESPONSE.value, query_params, response, validate_data)
 
         return response
 
@@ -3208,7 +3342,7 @@ class RecordHelperMixin:
         return value
 
 
-class CalculateByRangeResource(Resource, RecordHelperMixin):
+class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMixin):
     class RequestSerializer(serializers.Serializer):
         ZERO_TIME_SHIFT: str = "0s"
 
@@ -3344,6 +3478,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
                 group_by=group_fields,
                 filter_dict=validated_request_data.get("filter_dict"),
                 time_shift=_alias,
+                pre_calculate_helper=pre_calculate_helper,
                 **(validated_request_data["options"].get(group_name) or {}),
             )
             alias_aggregated_records_map[_alias] = _group.handle(metric_cal_type, **_kwargs)
@@ -3353,6 +3488,9 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
         alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
         group_name: str = validated_request_data["metric_group_name"]
         group_fields: List[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
 
         run_threads(
             [
@@ -3381,7 +3519,7 @@ class CalculateByRangeResource(Resource, RecordHelperMixin):
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
 
-class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
+class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHelperMixin):
     ZERO_TIME_SHIFT: str = "0s"
     CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
 
@@ -3494,6 +3632,9 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
         metric_cal_type: str = validated_request_data["metric_cal_type"]
         time_shift: str = validated_request_data.get("time_shift") or "0s"
         group_fields: List[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
         group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
             group_name,
             validated_request_data["bk_biz_id"],
@@ -3501,6 +3642,7 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin):
             time_shift=time_shift,
             group_by=group_fields,
             filter_dict=validated_request_data.get("filter_dict"),
+            pre_calculate_helper=pre_calculate_helper,
             **(validated_request_data["options"].get(group_name) or {}),
         )
         records: List[Dict[str, Any]] = group.handle(
