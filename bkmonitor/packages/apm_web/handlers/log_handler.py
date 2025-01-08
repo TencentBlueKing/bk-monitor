@@ -210,6 +210,8 @@ class ServiceLogHandler:
             )
         relations = RelationQ.query(relation_qs, fill_with_empty=True)
         for index, r in enumerate(relations):
+            if not r:
+                continue
             for n in r.nodes:
                 source_info = n.source_info.to_source_info()
                 bk_data_id = source_info.get("bk_data_id")
