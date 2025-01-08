@@ -3861,6 +3861,52 @@ class ESStorage(models.Model, StorageResultTable):
         else:
             logger.info("table_id->[%s] index->[%s] allocate success!", self.table_id, ilo.indices)
 
+    def get_index_info(self, index_name: str):
+        """
+        获取单个索引的详细信息（索引大小、索引状态、索引关联别名）
+        @param index_name: 索引名称
+        """
+        try:
+            logger.info(
+                "get_index_info: table_id->[%s],try to get index details for index->[%s]", self.table_id, index_name
+            )
+
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")  # 采集项别名信息
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+
+            # 索引关联别名信息 {'expired_alias':[],'not_expired_alias':[]}
+            index_related_alias_info = filter_result.get(index_name, {})
+
+            # 集群健康情况
+            cluster_health = self.es_client.cluster.health(index=index_name)
+            stats = self.es_client.indices.stats(index=index_name, metric="store")
+
+            # 从统计信息中提取存储大小（以字节为单位）
+            size_in_bytes = stats["indices"][index_name]["total"]["store"]["size_in_bytes"]
+            # 转换为 GB
+            size_in_gb = size_in_bytes / (1024**3)
+
+            index_info = {
+                "index_name": index_name,  # 索引名称
+                "index_size(GB)": size_in_gb,  # 索引大小（以 GB 为单位）
+                "index_status": cluster_health["status"],  # 索引状态
+                "index_related_alias_info": index_related_alias_info,  # 索引关联别名信息
+                "unassigned_shards": cluster_health["unassigned_shards"],  # 未分配分片数
+                "active_shards": cluster_health["active_shards"],  # 活跃分片数
+                "initializing_shards": cluster_health["initializing_shards"],  # 初始化中分片数
+                "number_of_pending_tasks": cluster_health["number_of_pending_tasks"],  # 待处理任务数
+            }
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "get_index_info: table_id->[%s] error occurred when get index info for->[%s],error->[%s]",
+                self.table_id,
+                index_name,
+                e,
+            )
+            index_info = {}
+
+        return index_info
+
     @property
     def snapshot_date_format(self):
         return "%Y%m%d"
