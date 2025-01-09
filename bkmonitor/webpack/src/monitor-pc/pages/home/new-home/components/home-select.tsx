@@ -30,6 +30,8 @@ import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import { type ISearchListItem, type ISearchItem, type IRouteItem } from '../type';
 import { highLightContent, ESearchType } from '../utils';
 
+import type { ISearchListItem, ISearchItem } from '../type';
+
 import './home-select.scss';
 
 interface IHomeSelectProps {
@@ -72,7 +74,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
 
   /** 处理数据 */
   flattenRoute(tree) {
-    let result = [];
+    const result = [];
     const traverse = node => {
       if (!node) return;
       result.push(node);
@@ -273,7 +275,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
               class='new-home-select-router-item'
               on-click={() => this.handleGoRoute(item)}
             >
-              <i class={`${item?.icon} router-item-icon`}></i>
+              <i class={`${item?.icon} router-item-icon`} />
               <span class='item-txt'>{item?.name}</span>
             </span>
           ))}
@@ -317,7 +319,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 相关功能/文档渲染 */
   renderRouteAndWord() {
     if (this.searchValue && this.searchRouteList.length > 0) {
-      return [<div class='new-home-select-divider'></div>, this.renderRouterList()];
+      return [<div class='new-home-select-divider' />, this.renderRouterList()];
     }
   }
   /** 渲染搜索列表 */
@@ -602,7 +604,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'
               onClick={e => this.clearInput(e)}
-            ></span>
+            />
           )}
         </div>
         {this.showPopover && (
