@@ -88,7 +88,7 @@ requests_toolbelt==1.0.0
 sqlparse==0.4.4
 ujson==5.7.0
 Pillow==9.5.0
-PyYAML==6.0.2
+PyYAML==6.0.1
 kafka-python==1.4.6
 babel==2.14.1
 python-consul==1.1.0
