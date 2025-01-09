@@ -39,7 +39,7 @@ class MetricJsonSerializer(serializers.Serializer):
         is_diff_metric = serializers.BooleanField(default=False, label="是否为差值指标")
         is_active = serializers.BooleanField(default=True, label="是否启用")
         source_name = serializers.CharField(default="", allow_blank=True, label="原指标名")
-        dimensions = serializers.ListField(required=False, label="聚合维度")
+        dimensions = serializers.ListField(required=False, label="聚合维度", allow_empty=True)
         is_manual = serializers.BooleanField(required=False, default=True, label="是否手动添加")
 
         def validate_unit(self, value):
