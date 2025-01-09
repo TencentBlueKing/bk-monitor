@@ -869,7 +869,6 @@
         if (isDelete) {
           return true;
         }
-        console.log(queryAlias);
         this.$set(row, 'aliasErr', '');
         if (queryAlias) {
           // 设置了别名

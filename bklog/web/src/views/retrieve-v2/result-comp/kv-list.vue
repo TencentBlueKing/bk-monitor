@@ -42,7 +42,7 @@
             :class="getFieldIcon(field)"
             :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
-          <span class="field-text">{{ fieldName(field) }}</span>
+          <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field))">
@@ -83,7 +83,7 @@
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-
+  import getFieldNameHook from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -161,7 +161,7 @@
       }),
       ...mapState({
         formatJson: state => state.tableJsonFormat,
-        showFieldAlias: state => state.showFieldAlias ?? 'field_name'
+        showFieldAlias: state => state.showFieldAlias ?? false
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -333,12 +333,14 @@
       getFieldItem(fieldName) {
         return this.fieldList.find(item => item.field_name === fieldName);
       },
-      fieldName(name){
-        if(this.showFieldAlias === 'alias_name'){
-          const field = this.totalFields.filter(item => item.field_name === name)
-          return field[0].query_alias || name
-        }
-        return name
+      getFieldName(name){
+        // if(this.showFieldAlias){
+        //   const field = this.totalFields.filter(item => item.field_name === name)
+        //   return field[0].query_alias || name
+        // }
+        // return name
+        const { getFieldName } = getFieldNameHook({ store: this.$store });
+        return getFieldName(name);
       }
     },
   };
