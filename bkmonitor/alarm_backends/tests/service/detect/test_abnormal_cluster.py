@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from alarm_backends.service.detect import DataPoint
-from alarm_backends.service.detect.strategy.abnormal_cluster import AbnormalCluster, parse_cluster
-from alarm_backends.tests.service.detect.test_threshold import mocked_item
+from alarm_backends.service.detect.strategy.abnormal_cluster import (
+    AbnormalCluster,
+    parse_cluster,
+)
+from alarm_backends.tests.service.detect.mocked_data import mocked_item
 
 
 class TestAbnormalCluster:

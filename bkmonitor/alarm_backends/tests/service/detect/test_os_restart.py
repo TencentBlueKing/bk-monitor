@@ -83,7 +83,7 @@ class TestOsRestart(object):
             "alarm_backends.service.detect.strategy." "os_restart.OsRestart.history_point_fetcher",
             return_value=[datapoint200, datapoint800, datapoint30, datapoint700],
         ):
-            from .test_threshold import datapoint99
+            from .mocked_data import datapoint99
 
             detect_engine = OsRestart(config={})
             anomaly_result = detect_engine.detect_records(datapoint99, 1)
