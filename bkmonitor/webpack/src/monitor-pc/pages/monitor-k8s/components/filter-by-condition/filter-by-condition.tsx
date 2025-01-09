@@ -530,6 +530,7 @@ export default class FilterByCondition extends tsc<IProps> {
     this.searchValue = '';
     this.setGroupOptions();
     this.handleAdd(event);
+    this.handleSearchChange('');
   }
   /**
    * @description 点击了某条tag准备进行更新操作
@@ -962,6 +963,7 @@ export default class FilterByCondition extends tsc<IProps> {
                   <div class='values-search'>
                     <bk-input
                       behavior='simplicity'
+                      clearable={true}
                       left-icon='bk-icon icon-search'
                       placeholder={this.$t('请输入关键字')}
                       value={this.searchValue}
