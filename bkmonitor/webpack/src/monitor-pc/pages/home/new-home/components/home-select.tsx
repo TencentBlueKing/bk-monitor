@@ -135,7 +135,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     }
   }
   // 从给定的事件字符串中提取数据，如果事件字符串以"data:"开头，则截取并解析其中的JSON数据，否则返回null
-  extractDataFromEventString(eventString) {
+  extractDataFromEventString(eventString: string) {
     if (eventString.startsWith('data:')) {
       const eventData = eventString.slice(5).trim();
       return JSON.parse(eventData);
@@ -146,7 +146,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   // 根据传入的已解析数据（parsedData）来更新搜索列表（searchList）
   // 如果已解析数据的类型在搜索列表中已存在，则过滤掉原列表中同类型的数据，然后将新数据加入列表
   // 如果不存在，则直接将新数据添加到搜索列表末尾，并返回更新后的搜索列表
-  updateSearchList(searchList, parsedData) {
+  updateSearchList(searchList: ISearchListItem[], parsedData: ISearchListItem) {
     const index = searchList.findIndex(item => item.type === parsedData.type);
     if (index !== -1) {
       const data = searchList.filter(item => item.type !== parsedData.type);
@@ -254,7 +254,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     );
   }
   /** 点击选中历史搜索Item */
-  handleClickHistoryItem(e, item) {
+  handleClickHistoryItem(e, item: ISearchItem) {
     e.stopPropagation();
     this.searchValue = item.name;
     this.handleGetSearchData();
