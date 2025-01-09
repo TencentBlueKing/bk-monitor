@@ -106,7 +106,7 @@ class CollectorViewSet(ModelViewSet):
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["list_scenarios", "batch_subscription_status"]:
+        if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:
             return []
         if self.action in ["create", "only_create", "custom_create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
@@ -2440,3 +2440,7 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["GET"], url_path="report_host")
     def report_host(self, request):
         return Response(CollectorHandler().get_report_host())
+
+    @list_route(methods=["GET"], url_path="search_object_attribute")
+    def search_object_attribute(self, request):
+        return Response(CollectorHandler.search_object_attribute())

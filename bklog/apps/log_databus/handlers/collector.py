@@ -4847,6 +4847,20 @@ class CollectorHandler(object):
 
         NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
 
+    @staticmethod
+    def search_object_attribute():
+        return_data = defaultdict(list)
+        response = CCApi.search_object_attribute()
+        for data in response:
+            if data["bk_obj_id"] == "host" and data["bk_property_id"] in CC_HOST_FIELDS:
+                cmdb_data = {
+                    "field": data["bk_property_id"],
+                    "name": data["bk_property_name"],
+                    "group_name": data["bk_property_group_name"]
+                }
+                return_data["host"].append(cmdb_data)
+        return return_data
+
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:
     """
