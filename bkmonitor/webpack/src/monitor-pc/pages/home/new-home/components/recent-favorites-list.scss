@@ -148,4 +148,11 @@
       }
     }
   }
+  &.loading-element {
+    height: 258px;
+    width: 100%;
+    &.has-two-row {
+      height: 500px;
+    }
+  }
 }
