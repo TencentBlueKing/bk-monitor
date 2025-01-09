@@ -10,11 +10,10 @@ django-mysql==4.3.0
 django-db-connection-pool==1.2.5
 django-cors-headers==3.2.1
 django-versionlog==1.6.0
-django-bulk-update==2.2.0
 
 # prometheus & django
-prometheus-client==0.16.0
-django-prometheus==2.2.0
+prometheus-client==0.17.1
+django-prometheus==2.3.1
 
 # redis & django
 redis==4.6.0

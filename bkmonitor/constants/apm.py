@@ -1087,7 +1087,7 @@ class SpanKindCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {label["value"]: label["text"] for label in self.list()}.get(self, self.value)
+        return str({label["value"]: label["text"] for label in self.list()}.get(self, self.value))
 
     @classmethod
     @lru_cache(maxsize=1)

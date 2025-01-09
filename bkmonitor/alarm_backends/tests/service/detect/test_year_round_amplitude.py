@@ -13,7 +13,9 @@ specific language governing permissions and limitations under the License.
 import mock
 import pytest
 
-from alarm_backends.service.detect.strategy.year_round_amplitude import YearRoundAmplitude
+from alarm_backends.service.detect.strategy.year_round_amplitude import (
+    YearRoundAmplitude,
+)
 from alarm_backends.tests.service.detect import DataPoint
 from core.errors.alarm_backends.detect import InvalidAlgorithmsConfig, InvalidDataPoint
 
@@ -42,7 +44,7 @@ class TestYearRoundAmplitude(object):
         ):
             algorithms_config = {"method": "gte", "days": 2, "ratio": 0.9, "shock": 1}
             detect_engine = YearRoundAmplitude(config=algorithms_config, unit="percent")
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint99 = mock_datapoint_with_value(99)
             detect_result = detect_engine.detect_records([_datapoint99], 1)

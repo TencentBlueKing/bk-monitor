@@ -122,7 +122,7 @@ class TestProcPort(object):
         assert len(detect_engine.detect(port_ok_with_nulll)) == 0
 
     def test_anomaly_message(self):
-        from .test_threshold import datapoint_example as mocked_point
+        from .mocked_data import datapoint_example as mocked_point
 
         # proc down
         mocked_point.value = 0
