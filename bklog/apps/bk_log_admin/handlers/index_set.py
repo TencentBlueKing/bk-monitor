@@ -19,61 +19,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import Any, Dict, List
-
 import arrow
 import pytz
-from django.conf import settings
 from django.db.models import Case, CharField, Count, Value, When
 from django.db.models.functions import TruncDate
+from django.utils.encoding import force_text
 
-from apps.bk_log_admin.constants import (
-    BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-    BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
-    OPERATION_PIE_CHOICE_MAP,
-)
+from apps.bk_log_admin.constants import OPERATION_PIE_CHOICE_MAP
 from apps.log_search.models import UserIndexSetSearchHistory
 from apps.models import model_to_dict
 from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import get_local_param
-from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
-from bk_monitor.api.client import Client
-from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
 class IndexSetHandler(object):
-    def __init__(self):
-        self._client = Client(
-            bk_app_code=settings.APP_CODE,
-            bk_app_secret=settings.SECRET_KEY,
-            monitor_host=MONITOR_APIGATEWAY_ROOT,
-            report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-            bk_username="admin",
-        )
-
-    @property
-    def data_label(self):
-        data_label = "{bk_biz_id}_{app_code}_{table}".format(
-            bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
-            app_code=settings.APP_CODE.replace("-", "_"),
-            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-        )
-        return data_label
-
-    @property
-    def table(self):
-        return f"{self.data_label}.base"
-
-    @property
-    def prometheus_table(self):
-        return "custom:{bk_biz_id}_{app_code}_{table}:{field}".format(
-            bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
-            app_code=settings.APP_CODE.replace("-", "_"),
-            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-            field=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
-        )
-
     @staticmethod
     def get_user_index_set_history_objs(index_set_id, start_time, end_time):
         """
@@ -156,11 +116,11 @@ class IndexSetHandler(object):
         # 根据分组范围和对应的标签构建Case表达式
         case_expression = Case(
             *[
-                When(duration__gte=item["min"], duration__lt=item["max"], then=Value(item["label"]))
-                for item in OPERATION_PIE_CHOICE_MAP
+                When(duration__gte=item["min"], duration__lt=item["max"], then=Value(force_text(item["label"])))
                 if item.get("max")
+                else When(duration__gte=item["min"], then=Value(force_text(item["label"])))
+                for item in OPERATION_PIE_CHOICE_MAP
             ],
-            default=Value(OPERATION_PIE_CHOICE_MAP[0]["label"]),
             output_field=CharField(),
         )
         results = user_index_set_history_objs.annotate(duration_range=case_expression)
@@ -201,106 +161,3 @@ class IndexSetHandler(object):
     def build_query_string(history):
         history["query_string"] = generate_query_string(history["params"])
         return history
-
-    @staticmethod
-    def _get_start_end_time(user_search_history_operation_time):
-        start_time = int(user_search_history_operation_time["start_time"])
-        end_time = int(user_search_history_operation_time["end_time"])
-        return start_time, end_time
-
-    def call_unify_query(
-        self,
-        start_time: int,
-        end_time: int,
-        metrics: List[Dict[str, Any]] = None,
-        where: List[Dict[str, Any]] = None,
-        group_by: List = None,
-        interval: int = None,
-    ):
-        """
-        以通用的形式查询unify_query
-        """
-        if not metrics:
-            metrics = []
-        if not where:
-            where = []
-        if not group_by:
-            group_by = []
-        if not interval:
-            interval = "auto"
-        params = {
-            "down_sample_range": "15m",
-            "step": interval,
-            "format": "time_series",
-            "type": "range",
-            "start_time": start_time,
-            "end_time": end_time,
-            "expression": "a",
-            "display": True,
-            "query_configs": [
-                {
-                    "data_label": self.data_label,
-                    "data_source_label": "custom",
-                    "data_type_label": "time_series",
-                    "metrics": metrics,
-                    "table": self.table,
-                    "group_by": group_by,
-                    "display": True,
-                    "where": where,
-                    "interval": interval,
-                    "interval_unit": "s",
-                    "time_field": "time",
-                    "filter_dict": {},
-                    "functions": [],
-                }
-            ],
-            "target": [],
-            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID),
-        }
-        try:
-            return self._client.unify_query(params)
-        except Exception as e:
-            logger.error(f"unify_query error, params: {params}, error: {e}")
-        return {
-            "metrics": [],
-            "series": [],
-        }
-
-    def call_unify_query_by_promql(self, start_time: int, end_time: int, promql: str, interval: int = None):
-        """
-        以promql的形式查询unify_query
-        """
-        if not interval:
-            interval = "auto"
-        params = {
-            "down_sample_range": "15m",
-            "step": interval,
-            "format": "time_series",
-            "type": "range",
-            "start_time": start_time,
-            "end_time": end_time,
-            "expression": "a",
-            "display": True,
-            "query_configs": [
-                {
-                    "data_label": self.data_label,
-                    "data_source_label": "prometheus",
-                    "data_type_label": "time_series",
-                    "display": True,
-                    "interval": interval,
-                    "interval_unit": "s",
-                    "time_field": "time",
-                    "promql": promql,
-                }
-            ],
-            "target": [],
-            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID),
-        }
-        try:
-            return self._client.unify_query(params)
-        except Exception as e:
-            logger.error(f"unify_query_by_promql error, params: {params}, error: {e}")
-        return {
-            "metrics": [],
-            "series": [],
-        }
