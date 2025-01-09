@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, Optional
 
+from django.db.models import F, Max, Value
+from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
@@ -29,7 +31,7 @@ class FilterCollection(object):
     def __init__(self, meta):
         self.filters = dict()
         self.meta = meta
-        self.query_set = meta.resource_class.objects.all()
+        self.query_set = meta.resource_class.objects.all().order_by("id")
         if meta.only_fields:
             self.query_set = self.query_set.only(*self.meta.only_fields)
 
@@ -163,6 +165,10 @@ class K8sResourceMeta(object):
         从 meta 获取数据
         """
         return self.filter.filter_queryset
+
+    @classmethod
+    def distinct(cls, queryset):
+        return queryset
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
         """
@@ -658,6 +664,18 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def resource_field_list(self):
         return ["pod_name", self.resource_field]
+
+    @classmethod
+    def distinct(cls, queryset):
+        query_set = (
+            queryset.values('name', "namespace", "workload_type", "workload_name")
+            .annotate(distinct_name=Max("id"))
+            .annotate(
+                workload=Concat(F("workload_type"), Value(":"), F("workload_name")), pod=Value(""), container=F("name")
+            )
+            .values("container", "namespace", "workload", "pod")
+        )
+        return query_set
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         if self.agg_interval:

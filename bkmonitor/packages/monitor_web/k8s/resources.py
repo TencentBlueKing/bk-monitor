@@ -244,7 +244,7 @@ class ListK8SResources(Resource):
         page_type = serializers.ChoiceField(
             required=False,
             choices=["scrolling", "traditional"],
-            default="traditional",
+            default="scrolling",
             label="分页标识",
         )
         order_by = serializers.ChoiceField(
@@ -291,11 +291,31 @@ class ListK8SResources(Resource):
             )
         resource_list = []
         total_count = 0
+        # scrolling 分页特性
+        page_count = validated_request_data["page"] * validated_request_data["page_size"]
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                resource_meta, total_count = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
-                resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
+                page_size: int = validated_request_data["page_size"]
+                page: int = validated_request_data["page"]
+
+                # 将传统分页转化为滚动分页
+                if validated_request_data["page_type"] == "scrolling":
+                    page_size = page_count
+                    page = 1
+
+                obj_list = resource_meta.get_from_meta()
+                if resource_meta.resource_field == "container_name":
+                    # 容器场景，需要去重(pod_name)
+                    obj_list = resource_meta.distinct(obj_list)
+
+                paginator = Paginator(obj_list, page_size)
+                total_count = paginator.count
+                for k8s_resource in paginator.get_page(page).object_list:
+                    if isinstance(k8s_resource, dict):
+                        resource_list.append(k8s_resource)
+                    else:
+                        resource_list.append(k8s_resource.to_meta_dict())
             except FieldError:
                 pass
             return {"count": total_count, "items": resource_list}
@@ -304,8 +324,6 @@ class ListK8SResources(Resource):
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
-        page_count = validated_request_data["page"] * validated_request_data["page_size"]
-
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -339,28 +357,6 @@ class ListK8SResources(Resource):
         else:
             resource_list = resource_list[:page_count]
         return {"count": total_count, "items": resource_list}
-
-    def get_resource_meta_by_pagination(
-        self, resource_meta: K8sResourceMeta, validated_request_data: Dict
-    ) -> (K8sResourceMeta, int):
-        """
-        获取分页后的 K8sResourceMeta
-        """
-        page_size: int = validated_request_data["page_size"]
-        page: int = validated_request_data["page"]
-        page_type: str = validated_request_data["page_type"]
-
-        # 将传统分页转化为滚动分页
-        if page_type == "scrolling":
-            page_size = page * page_size
-            page = 1
-
-        # 添加默认 id 排序
-        resource_meta.filter.query_set = resource_meta.get_from_meta().order_by("id")
-
-        paginator = Paginator(resource_meta.filter.query_set, page_size)
-        resource_meta.filter.query_set = paginator.get_page(page).object_list
-        return resource_meta, paginator.count
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
