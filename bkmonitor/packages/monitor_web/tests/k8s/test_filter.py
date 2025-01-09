@@ -1148,8 +1148,8 @@ class TestK8sListResources(TestCase):
         # 验证get_from_meta
         workload_list = ListK8SResources()(validated_request_data)
         expect_workload_list = [
-            {'namespace': '', 'workload': 'Deployment:bk-monitor-web'},
-            {'namespace': '', 'workload': 'Deployment:bk-monitor-web-worker'},
+            {'workload': 'Deployment:bk-monitor-web'},
+            {'workload': 'Deployment:bk-monitor-web-worker'},
         ]
         self.assertEqual(
             workload_list,
@@ -1387,9 +1387,7 @@ class TestK8sListResources(TestCase):
         )
         # 验证 get_from_meta
         contianer_list = ListK8SResources()(validated_request_data)
-        expect_container_list = [
-            {'container': 'bk-monitor-web', 'namespace': 'blueking', 'pod': '', 'workload': 'Deployment:bk-monitor-web'}
-        ]
+        expect_container_list = [{'container': 'bk-monitor-web'}]
         self.assertEqual(
             contianer_list,
             {"count": len(expect_container_list), "items": expect_container_list},

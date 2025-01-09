@@ -662,9 +662,8 @@ class K8sWorkloadMeta(K8sResourceMeta):
             .annotate(distinct_name=Max("id"))
             .annotate(
                 workload=Concat(F("type"), Value(":"), F("name")),
-                namespace=Value(""),
             )
-            .values("namespace", "workload")
+            .values("workload")
         )
         return query_set
 
@@ -682,12 +681,7 @@ class K8sContainerMeta(K8sResourceMeta):
     @classmethod
     def distinct(cls, queryset):
         query_set = (
-            queryset.values('name')
-            .annotate(distinct_name=Max("id"))
-            .annotate(
-                workload=Concat(F("workload_type"), Value(":"), F("workload_name")), pod=Value(""), container=F("name")
-            )
-            .values("container", "namespace", "workload", "pod")
+            queryset.values('name').annotate(distinct_name=Max("id")).annotate(container=F("name")).values("container")
         )
         return query_set
 

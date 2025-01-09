@@ -62,7 +62,7 @@ class WorkloadOverview(Resource):
             {"type": "xxx", "count": 0}
         ]
         """
-        result = queryset.values('type').annotate(count=Count('name'))
+        result = queryset.values('type').annotate(count=Count('name', distinct=True))
         kind_map = OrderedDict.fromkeys(["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"], 0)
         for item in result:
             if item["type"] not in kind_map:
