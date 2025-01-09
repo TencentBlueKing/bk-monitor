@@ -84,9 +84,10 @@ export const setGlobalBizId = () => {
     return false;
   };
   if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
-    if (hasAuth(localBizId)) {
-      window.bk_biz_id = +localBizId;
-      window.cc_biz_id = +localBizId;
+    const newBizId = defaultBizId || localBizId;
+    if (hasAuth(newBizId)) {
+      window.bk_biz_id = +newBizId;
+      window.cc_biz_id = +newBizId;
     }
     const url = new URL(window.location.href);
     const { searchParams } = url;
@@ -115,7 +116,6 @@ export const setGlobalBizId = () => {
       return setLocationSearch(bizList[0].bk_biz_id);
     }
     if (newBizId && newBizId !== -1) {
-      // alert('4')
       return setLocationSearch(newBizId);
     }
     if (!bizList.length) {
