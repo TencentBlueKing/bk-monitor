@@ -115,7 +115,11 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet
+from apps.log_search.views.aggs_views import AggsViewAdapter
+from apps.log_trace.serializers import DateHistogramSerializer
+from apps.utils.drf import custom_params_valid
 from apps.utils.log import logger
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class DataFlowHandler(BaseAiopsHandler):
@@ -975,7 +979,6 @@ class DataFlowHandler(BaseAiopsHandler):
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
         )
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def update_predict_flow_filter_rules(self, index_set_id):
         """
@@ -1000,7 +1003,6 @@ class DataFlowHandler(BaseAiopsHandler):
             not_clustering_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             flow_id=flow_id,
         )
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def update_online_task(self, index_set_id: int):
         """
@@ -1053,9 +1055,7 @@ class DataFlowHandler(BaseAiopsHandler):
         # 更新在线训练任务
         self.update_online_task(index_set_id=index_set_id)
 
-        # 重启 flow
-        self.operator_flow(flow_id=clustering_config.predict_flow_id, action=ActionEnum.RESTART)
-        logger.info(f"update predict_nodes and online_tasks success: flow_id -> {clustering_config.predict_flow_id}")
+        logger.info(f"update predict_nodes success: flow_id -> {clustering_config.predict_flow_id}")
 
     def get_flow_graph(self, flow_id):
         """
@@ -1256,7 +1256,6 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         flow = json.loads(pre_treat_flow)
         self.deal_pre_treat_flow(nodes=nodes, flow=flow)
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def deal_predict_flow(self, nodes, flow):
         """
@@ -1386,7 +1385,6 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         flow = json.loads(after_treat_flow)
         self.deal_after_treat_flow(nodes=nodes, flow=flow)
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
 
     def deal_after_treat_flow(self, nodes, flow):
         """
@@ -1794,8 +1792,6 @@ class DataFlowHandler(BaseAiopsHandler):
         # 更新画布结构
         self.deal_predict_flow(nodes=nodes, flow=flow)
 
-        # 重启 flow
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         clustering_config.save()
@@ -1927,3 +1923,44 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.save(update_fields=["log_count_aggregation_flow"])
         logger.info(f"update agg flow success: flow_id -> {clustering_config.log_count_aggregation_flow_id}")
+
+    @staticmethod
+    def set_dataflow_resource(index_set_id, flow_id, usage_type):
+        """
+        设置dataflow资源信息
+        """
+        try:
+            log_index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
+            bk_biz_id = space_uid_to_bk_biz_id(log_index_set_obj.space_uid)
+            current_time = arrow.now()
+            start_time = current_time.shift(days=-1).timestamp
+            end_time = current_time.timestamp
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "keyword": "*",
+                "start_time": start_time,
+                "end_time": end_time,
+                "begin": 0,
+                "size": 0,
+                "interval": "1m",
+                "time_range": "customized",
+            }
+            data = custom_params_valid(DateHistogramSerializer, params)
+            result = AggsViewAdapter().date_histogram(index_set_id, data)
+            count_peak_min_list = [0]
+            for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
+                count_peak_min_list.append(item.get("doc_count", 0))
+            BkDataDataFlowApi.set_dataflow_resource(
+                params={
+                    "input_count_peak_min": max(count_peak_min_list),
+                    "flow_id": flow_id,
+                    "usage_type": usage_type,
+                }
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "set resource failed: index_set_id -> [%s], flow_id -> [%s] reason: %s",
+                index_set_id,
+                flow_id,
+                e,
+            )

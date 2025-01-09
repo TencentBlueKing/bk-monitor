@@ -28,8 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
-
 import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
@@ -42,11 +40,13 @@ interface GroupItemProps {
   isGroupBy?: boolean;
   tools?: Tools[];
   hiddenList?: string[];
+  disabledList?: { id: string; tooltips: string }[];
   defaultExpand?: { [key: string]: boolean } | boolean;
   drillDownList?: string[];
   expandLoading?: Record<string, boolean>;
   loadMoreLoading?: Record<string, boolean>;
   activeMetric?: string;
+  keyword?: string;
 }
 
 interface GroupItemEvent {
@@ -69,12 +69,14 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Prop({ default: false }) isGroupBy: boolean;
   /** 隐藏项列表 */
   @Prop({ default: () => [] }) hiddenList: string[];
+  @Prop({ default: () => [] }) disabledList: GroupItemProps['disabledList'];
   @Prop({ default: () => ['clear', 'drillDown', 'groupBy', 'search'] }) tools: Tools[];
   @Prop({ default: false }) defaultExpand: GroupItemProps['defaultExpand'];
   @Prop({ default: () => [] }) drillDownList: string[];
   @Prop({ default: () => ({}) }) expandLoading: Record<string, boolean>;
   @Prop({ default: () => ({}) }) loadMoreLoading: Record<string, boolean>;
   @Prop({ default: '' }) activeMetric: string;
+  @Prop({ default: '' }) keyword: string;
 
   /** 展开的组  */
   expand = {};
@@ -84,6 +86,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   @Watch('defaultExpand', { immediate: true })
   handleDefaultExpandChange(val: GroupItemProps['defaultExpand']) {
     if (typeof val === 'boolean') {
+      if (val === this.expand[this.list.id]) return;
       this.expand = {
         [this.list.id]: val,
       };
@@ -110,7 +113,8 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   @Emit('handleSearch')
-  handleSearch(id: string, isSelect: boolean) {
+  handleSearch(id: string, isSelect: boolean, e: Event) {
+    e.stopPropagation();
     return {
       id,
       isSelect,
@@ -178,11 +182,13 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
   }
 
   renderGroupContent(item: GroupListItem) {
-    if (!item.children?.length) return this.$slots.empty || <EmptyStatus type='empty' />;
+    if (!item.children?.length) return;
     return [
       item.children.map((child, ind) => {
         const isSelectSearch = this.value.includes(child.id);
-        const isHidden = this.hiddenList.includes(child.id);
+        const isDisabled = this.disabledList.find(item => item.id === child.id);
+        const isHidden = this.hiddenList.includes(child.id) || isDisabled;
+
         if (child.children) {
           return (
             <div class='child-item'>
@@ -203,32 +209,55 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             </div>
           );
         }
+
+        const keywordPick = this.keyword ? child.name.indexOf(this.keyword) : -1;
         return (
           <div
             key={`${child.id}-${ind}`}
             class={{
               'group-content-item': true,
               active: this.activeMetric === child.id,
+              disabled: isDisabled,
             }}
-            onClick={() => this.handleItemClick(child.id)}
+            v-bk-tooltips={{
+              content: isDisabled?.tooltips,
+              disabled: !isDisabled,
+              placements: ['top'],
+              interactive: false,
+            }}
           >
-            <span
-              class='content-name'
-              v-bk-overflow-tips
-            >
-              {child.name}
-            </span>
             <div
-              class='tools'
-              onClick={e => e.stopPropagation()}
+              class={{
+                'content-name': true,
+                select: isSelectSearch,
+              }}
+              onClick={() => !isDisabled && this.handleItemClick(child.id)}
             >
+              <span
+                class='name'
+                v-bk-overflow-tips
+              >
+                {keywordPick > -1 ? (
+                  <span>
+                    <span>{child.name.slice(0, keywordPick)}</span>
+                    <span class='pick-name'>{this.keyword}</span>
+                    <span>{child.name.slice(keywordPick + this.keyword.length)}</span>
+                  </span>
+                ) : (
+                  child.name
+                )}
+              </span>
               {this.tools.includes('search') && (
                 <i
-                  class={`icon-monitor ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
-                  v-bk-tooltips={{ content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项') }}
-                  onClick={() => this.handleSearch(child.id, !isSelectSearch)}
+                  class={`icon-monitor search-tools ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
+                  v-bk-tooltips={{
+                    content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项'),
+                  }}
+                  onClick={e => this.handleSearch(child.id, !isSelectSearch, e)}
                 />
               )}
+            </div>
+            <div class='tools'>
               {this.tools.includes('drillDown') && (
                 <K8sDimensionDrillDown
                   dimension={this.list.id}
@@ -239,8 +268,11 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               {this.tools.includes('view') && (
                 <i
                   class={`icon-monitor view-icon ${isHidden ? 'icon-mc-invisible' : 'icon-mc-visual'}`}
-                  v-bk-tooltips={{ content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标') }}
-                  onClick={() => this.handleHiddenChange(child.id)}
+                  v-bk-tooltips={{
+                    content: this.$t(isHidden ? '点击显示该指标' : '点击隐藏该指标'),
+                    disabled: isDisabled,
+                  }}
+                  onClick={() => !isDisabled && this.handleHiddenChange(child.id)}
                 />
               )}
             </div>

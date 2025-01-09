@@ -240,7 +240,10 @@ class AIOPSManager(abc.ABC):
                     metrics = []
                     filter_dict = dimensions
                 else:
-                    where = cls.create_where_with_dimensions(query_config["agg_condition"], dimensions)
+                    where = cls.create_where_with_dimensions(
+                        query_config["agg_condition"],
+                        {key: value for key, value in dimensions.items() if key in query_config["agg_dimension"]},
+                    )
                     agg_dimension = list(set(query_config["agg_dimension"]) & set(dimensions.keys()))
                     if "le" in query_config["agg_dimension"]:
                         # 针对le做特殊处理
@@ -563,7 +566,6 @@ class DimensionDrillManager(AIOPSManager):
             query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
             for query_config in query_configs:
                 query_config["group_by"] = []
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
 
             # 补充维度下钻的维度过滤条件
             dimension_keys = sorted(dimension["root"].keys())
@@ -980,6 +982,9 @@ class RecommendMetricManager(AIOPSManager):
         # 总的查询需要显示的字段集合
         field_set = pre_field_set.copy()
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
+
+        if len(recommend_metrics) == 0:
+            return []
 
         for recommend_metric in recommend_metrics:
             # 获取当前推荐指标的详情

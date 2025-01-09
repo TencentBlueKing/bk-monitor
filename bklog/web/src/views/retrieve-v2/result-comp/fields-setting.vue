@@ -258,7 +258,7 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-
+  import getFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
 
   export default {
@@ -275,7 +275,6 @@
       return {
         isLoading: false,
         shadowVisible: [],
-        // showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
         shadowAllTotal: [], // 所有字段
         newConfigStr: '', // 新增配置配置名
         isShowAddInput: false, // 是否展示新增配置输入框
@@ -355,9 +354,10 @@
     },
     methods: {
       getFiledDisplay(name) {
-        if(this.showFieldAlias === 'alias_name'){
-          const field = this.shadowTotal.filter(item => item.field_name === name)
-          return field[0].query_alias || name
+        const { getFieldName } = getFieldNameHook({ store: this.$store });
+        const field = getFieldName(name);
+        if(this.showFieldAlias){
+          return field || name
         }
         const alias = this.fieldAliasMap[name];
         if (alias && alias !== name) {

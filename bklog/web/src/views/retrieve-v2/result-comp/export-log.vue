@@ -138,7 +138,7 @@
               v-for="option in totalFields"
               :id="option.field_name"
               :key="option.field_name"
-              :name="showFieldAlias === 'alias_name'? option.query_alias || option.field_name : option.field_name"
+              :name="showFieldAlias ? option.query_alias || option.field_name : option.field_name"
             >
             </bk-option>
           </bk-select>
@@ -271,8 +271,8 @@
           //   name: 'csv',
           // },
           {
-            id: 'txt',
-            name: 'txt',
+            id: 'log',
+            name: 'log',
           },
         ],
         modeHintMap: {},
@@ -291,7 +291,7 @@
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.showFieldAlias ?? 'field_name'
+        showFieldAlias: state => state.showFieldAlias ?? false
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',

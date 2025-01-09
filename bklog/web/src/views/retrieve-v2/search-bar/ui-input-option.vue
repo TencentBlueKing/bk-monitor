@@ -468,10 +468,7 @@
   const conditionValueInputVal = ref('');
 
   const activeItemMatchList = computed(() => {
-    const regExp = getRegExp(conditionValueInputVal.value);
-    return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(val =>
-      regExp.test(val),
-    );
+    return store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? [];
   });
 
   /**
@@ -563,8 +560,9 @@
     });
   };
 
-  const handleConditionValueInputFocus = () => {
+  const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
+    handleInputVlaueChange(e);
   };
 
   const hanleDeleteTagItem = index => {
@@ -884,6 +882,8 @@
       e.target.value = '';
       appendConditionValue(value);
     }
+
+    handleInputVlaueChange(e);
   };
 
   const handleConditionValueInputBlur = e => {
@@ -1094,6 +1094,7 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
+                      @input="handleInputVlaueChange"
                       @blur.stop="handleTagInputBlur"
                       @keyup.enter="handleTagInputEnter"
                     />

@@ -72,7 +72,7 @@ export default {
       required: true,
     },
     showFieldAlias: {
-      type: String,
+      type: Boolean,
       default: false,
     },
     isWrap: {
@@ -297,7 +297,7 @@ export default {
       const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
-        const fieldName = this.showFieldAlias === 'alias_name' ? field.query_alias || field.field_name : field.field_name;
+        const fieldName = this.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);

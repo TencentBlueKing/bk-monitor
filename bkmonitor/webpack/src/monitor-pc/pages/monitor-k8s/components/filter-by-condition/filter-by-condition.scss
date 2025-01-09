@@ -253,6 +253,23 @@
               color: #3A84FF;
             }
           }
+          
+        }
+
+        &.value-items--workload {
+          .value-item {
+            &.checked {
+              background: #F5F7FA;
+
+              .value-item-name {
+                color: #3A84FF;
+              }
+            }
+
+            &:hover {
+              background: #F0F5FF;
+            }
+          }
         }
 
         .scroll-loading-wrap {

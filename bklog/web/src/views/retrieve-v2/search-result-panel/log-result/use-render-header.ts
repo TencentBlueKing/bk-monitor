@@ -55,9 +55,7 @@ export default () => {
     const isAsc = currentSort === 'asc';
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
-      console.log(field);
-      
-      const fieldName = showFieldAlias.value === 'alias_name' ? field.query_alias || field.field_alias || field.field_name : field.field_alias || field.field_name;
+      const fieldName = showFieldAlias.value ? field.query_alias || field.field_alias || field.field_name : field.field_alias || field.field_name;
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';

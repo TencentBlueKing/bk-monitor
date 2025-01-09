@@ -13,5 +13,3 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.getcwd(), "packages"))  # TODO: move requirements from packages to root
-
-default_app_config = "kernel_api.app.KernelAPIConfig"

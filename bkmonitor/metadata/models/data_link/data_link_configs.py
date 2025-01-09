@@ -93,7 +93,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"},
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
                     "alias": "{{name}}",
@@ -140,7 +140,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"},
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
                     "alias": "{{name}}",
@@ -192,7 +192,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"},
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
                     "data": {
@@ -259,7 +259,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "name": "{{name}}",
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"},
+                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -323,7 +323,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "namespace": "{{namespace}}",
                 "name": "{{name}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"},
+                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
                 "conditions": {{conditions}}

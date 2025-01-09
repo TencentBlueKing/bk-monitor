@@ -210,4 +210,5 @@ export default {
   'route-订阅配置': 'Subscription configuration',
   'route-配置服务': 'Configuration Service',
   智能: 'AI',
+  'route-容器监控': 'Container Monitor',
 };
