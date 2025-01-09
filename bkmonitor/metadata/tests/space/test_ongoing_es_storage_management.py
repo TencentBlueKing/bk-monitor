@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -64,6 +65,9 @@ def create_or_delete_records(mocker):
         enable_time=base_time - timedelta(days=60),
         disable_time=base_time - timedelta(days=30),
     )
+    models.StorageClusterRecord.objects.create(
+        table_id='1001_bklog.stdout', cluster_id=13, is_current=True, enable_time=None
+    )
 
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -92,9 +96,34 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "options": {},
         "storage_type": "elasticsearch",
         "storage_cluster_records": [
+            {"storage_id": 13, "enable_time": 0},
             {"storage_id": 12, "enable_time": enable_timestamp_12},
             {"storage_id": 11, "enable_time": enable_timestamp},
         ],
     }
     expected = {'1001_bklog.stdout': json.dumps(expected_json)}
     assert data == expected
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_push_es_table_id_details(create_or_delete_records):
+    with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
+        with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
+            client = SpaceTableIDRedis()
+
+            table_id = "1001_bklog.stdout"
+
+            client.push_es_table_id_detail(table_id_list=['1001_bklog.stdout'], is_publish=True)
+
+            expected = {
+                '1001_bklog.stdout': '{"storage_id":11,"db":null,"measurement":"__default__",'
+                '"source_type":"log","options":{},"storage_type":"elasticsearch",'
+                '"storage_cluster_records":[{"storage_id":12,"enable_time":1572652800},'
+                '{"storage_id":11,"enable_time":1575244800}]}'
+            }
+
+            # 验证 RedisTools.hmset_to_redis 是否被正确调用
+            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+
+            # 验证 RedisTools.publish 是否被正确调用
+            mock_publish.assert_called_once_with("bkmonitorv3:spaces:result_table_detail:channel", [table_id])

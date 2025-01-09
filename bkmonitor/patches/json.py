@@ -90,11 +90,9 @@ def dump(*args, **kwargs):
             return ujson.dump(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
-        except TypeError as e:
+        except TypeError:
             kwargs.pop("escape_forward_slashes")
-            logger.error("ujson dump error: %s" % e)
             return json_dump(*args, cls=CustomJSONEncoder, **kwargs)
-
     return json_dump(*args, **kwargs)
 
 
@@ -126,8 +124,7 @@ def dumps(*args, **kwargs):
             return ujson.dumps(*args, **kwargs)
         except OverflowError:
             kwargs.pop("escape_forward_slashes")
-        except TypeError as e:
+        except TypeError:
             kwargs.pop("escape_forward_slashes")
-            logger.error("ujson dumps error: %s" % e)
             return json_dumps(*args, cls=CustomJSONEncoder, **kwargs)
     return json_dumps(*args, **kwargs)

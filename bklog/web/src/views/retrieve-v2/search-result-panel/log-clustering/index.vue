@@ -368,6 +368,7 @@
       },
       routerIndexSet() {
         this.isShowClusterStep = true;
+        this.confirmClusterStepStatus();
       },
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
@@ -690,8 +691,9 @@
         }
       },
     },
-    activated() {
+    async activated() {
       this.isClusterActive = true;
+      await this.confirmClusterStepStatus();
       if (this.isClickSearch && !this.isInitPage) this.requestFinger();
       if (!this.isInitPage) {
         this.$store.commit('updateClusterParams', this.requestData);

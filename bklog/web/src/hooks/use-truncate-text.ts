@@ -33,12 +33,16 @@ type TextOption = {
   showAll: boolean;
 };
 export default (options: ComputedRef<TextOption>) => {
+  let canvas;
   const getTextWidth = (text, font) => {
-    const canvas = document.createElement('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+    }
     const context = canvas.getContext('2d');
     context.font = font;
     const metrics = context.measureText(text);
-    return metrics.width;
+    const width = metrics.width;
+    return width;
   };
 
   const truncateTextWithCanvas = () => {
@@ -57,7 +61,7 @@ export default (options: ComputedRef<TextOption>) => {
     const groups = text.split(/<\/?mark>/g);
 
     // 计算最大宽度字符串
-    let truncatedText = '';
+    let truncatedText = text;
     let currentWidth = 0;
     let temp = true;
     const length = groups.length;

@@ -685,6 +685,7 @@ class StorageResultTable(object):
                         self.table_id,
                         record.cluster_id,
                     )
+
                     # 创建新纪录
                     new_record, _ = StorageClusterRecord.objects.update_or_create(
                         table_id=self.table_id,
@@ -701,9 +702,8 @@ class StorageResultTable(object):
                     )
 
                 # 刷新RESULT_TABLE_DETAIL路由
-                space_client.push_table_id_detail(
-                    table_id_list=[self.table_id], is_publish=True, include_es_table_ids=True
-                )
+                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
+                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
@@ -2041,6 +2041,7 @@ class ESStorage(models.Model, StorageResultTable):
         try:
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
+            logger.info("create_table: table_id->[%s] push detail start", table_id)
             SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
@@ -3293,6 +3294,12 @@ class ESStorage(models.Model, StorageResultTable):
         now_datetime_str = self.now.strftime(self.date_format)
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
+        logger.info(
+            "clean_index_v2: table_id->[%s] in es->[%s] got filter_result ->[%s]",
+            self.table_id,
+            self.storage_cluster_id,
+            filter_result,
+        )
 
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
@@ -3347,10 +3354,173 @@ class ESStorage(models.Model, StorageResultTable):
                     index_name,
                 )
                 continue
-            logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
+            logger.warning("clean_index_v2: table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
 
-        logger.info("table_id->[%s] is process done.", self.table_id)
+        logger.info("clean_index_v2: table_id->[%s] is process done.", self.table_id)
 
+        return True
+
+    def clean_history_es_index(self):
+        """
+        清理过期的写入别名及 index 的操作，支持对所有关联的集群进行清理。
+        如果某个集群内不再存在该采集项的数据，则将对应的 StorageClusterRecord 中的 is_deleted 设置为 True。
+        :return: bool | raise Exception
+        """
+        # 没有快照任务可以直接删除
+        if not self.can_delete():
+            logger.info("clean_history_es_index:table_id->[%s] clean index is not allowed, skip", self.table_id)
+            return False
+
+        logger.info("clean_history_es_index:table_id->[%s] start cleaning indices", self.table_id)
+
+        # 获取 StorageClusterRecord 中的所有关联集群记录（包括当前和历史集群）
+        storage_records = StorageClusterRecord.objects.filter(
+            table_id=self.table_id, is_deleted=False, is_current=False
+        )
+
+        # 遍历所有集群记录
+        for record in storage_records:
+            cluster_id = record.cluster_id  # 提取当前轮次处理的ES集群ID
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] start cleaning", self.table_id, cluster_id
+            )
+            # 初始化对应存储集群的 ES 客户端
+            try:
+                es_client = es_tools.get_client(cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_history_es_index:table_id->[%s] failed to get ES client for cluster_id->[%s]: %s",
+                    self.table_id,
+                    cluster_id,
+                    str(e),
+                )
+                continue
+
+            # 获取该集群的所有写入别名
+            try:
+                alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "clean_history_es_index:table_id->[%s] failed to get aliases for cluster_id->[%s]: %s",
+                    self.table_id,
+                    cluster_id,
+                    str(e),
+                )
+                continue
+
+            # 当前日期字符串，用于判断是否是当前的索引
+            now_datetime_str = self.now.strftime(self.date_format)
+
+            # 分组索引中的过期和未过期别名
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] got filter_result ->[%s]",
+                self.table_id,
+                cluster_id,
+                filter_result,
+            )
+
+            # 跟踪是否集群中还存在该采集项相关的数据
+            has_active_indices = False
+
+            # 遍历所有索引进行处理
+            for index_name, alias_info in filter_result.items():
+                # 跳过回溯索引
+                if index_name.startswith(self.restore_index_prefix):
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s],is restore index, skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                    continue
+
+                # 跳过当前日期相关的索引
+                if now_datetime_str in index_name:
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s] "
+                        "contains now_datetime_str->[%s], skip",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        now_datetime_str,
+                    )
+                    has_active_indices = True
+                    continue
+
+                # 如果索引有未过期别名，保留索引，只清理过期别名
+                if alias_info["not_expired_alias"]:
+                    has_active_indices = True
+                    if alias_info["expired_alias"]:
+                        try:
+                            es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
+                            logger.info(
+                                "clean_history_es_index:table_id->[%s] expired aliases for index->[%s] "
+                                "in cluster_id->[%s] ,deleted: [%s]",
+                                self.table_id,
+                                index_name,
+                                cluster_id,
+                                alias_info["expired_alias"],
+                            )
+                        except Exception as e:  # pylint: disable=broad-except
+                            logger.warning(
+                                "clean_history_es_index:table_id->[%s] ,cluster_id->[%s],failed to delete expired "
+                                "aliases"
+                                "for index->[%s]: %s",
+                                self.table_id,
+                                cluster_id,
+                                index_name,
+                                str(e),
+                            )
+                    continue
+
+                logger.info(
+                    "clean_history_es_index: table_id->[%s] index->[%s] in cluster_id->[%s]has no alias to keep,"
+                    "deleting",
+                    self.table_id,
+                    index_name,
+                    record.cluster_id,
+                )
+                # 如果索引没有未过期的别名，直接删除索引
+                try:
+                    es_client.indices.delete(index=index_name)
+                    logger.info(
+                        "clean_history_es_index:table_id->[%s] index->[%s] in cluster_id->[%s],is deleted.",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "clean_history_es_index:table_id->[%s] failed to delete index->[%s]in cluster_id->[%s],"
+                        "error->%s",
+                        self.table_id,
+                        index_name,
+                        cluster_id,
+                        str(e),
+                    )
+                    continue
+
+            # 如果当前集群中没有任何属于该采集项的未过期索引，则更新 StorageClusterRecord 为 is_deleted=True
+            if not has_active_indices:
+                logger.info(
+                    "clean_history_es_index:table_id->[%s] no active indices found in cluster_id->[%s], marking as "
+                    "deleted",
+                    self.table_id,
+                    cluster_id,
+                )
+                record.is_deleted = True
+                record.save(update_fields=["is_deleted"])
+
+            logger.info(
+                "clean_history_es_index:table_id->[%s] cluster_id->[%s] cleaning process is complete.",
+                self.table_id,
+                cluster_id,
+            )
+
+        logger.info("clean_history_es_index:table_id->[%s] cleaning process is complete.", self.table_id)
         return True
 
     def is_mapping_same(self, index_name):
@@ -3690,6 +3860,52 @@ class ESStorage(models.Model, StorageResultTable):
             logger.exception("table_id->[%s] error occurred when allocate: %s", self.table_id, e)
         else:
             logger.info("table_id->[%s] index->[%s] allocate success!", self.table_id, ilo.indices)
+
+    def get_index_info(self, index_name: str):
+        """
+        获取单个索引的详细信息（索引大小、索引状态、索引关联别名）
+        @param index_name: 索引名称
+        """
+        try:
+            logger.info(
+                "get_index_info: table_id->[%s],try to get index details for index->[%s]", self.table_id, index_name
+            )
+
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")  # 采集项别名信息
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+
+            # 索引关联别名信息 {'expired_alias':[],'not_expired_alias':[]}
+            index_related_alias_info = filter_result.get(index_name, {})
+
+            # 集群健康情况
+            cluster_health = self.es_client.cluster.health(index=index_name)
+            stats = self.es_client.indices.stats(index=index_name, metric="store")
+
+            # 从统计信息中提取存储大小（以字节为单位）
+            size_in_bytes = stats["indices"][index_name]["total"]["store"]["size_in_bytes"]
+            # 转换为 GB
+            size_in_gb = size_in_bytes / (1024**3)
+
+            index_info = {
+                "index_name": index_name,  # 索引名称
+                "index_size(GB)": size_in_gb,  # 索引大小（以 GB 为单位）
+                "index_status": cluster_health["status"],  # 索引状态
+                "index_related_alias_info": index_related_alias_info,  # 索引关联别名信息
+                "unassigned_shards": cluster_health["unassigned_shards"],  # 未分配分片数
+                "active_shards": cluster_health["active_shards"],  # 活跃分片数
+                "initializing_shards": cluster_health["initializing_shards"],  # 初始化中分片数
+                "number_of_pending_tasks": cluster_health["number_of_pending_tasks"],  # 待处理任务数
+            }
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "get_index_info: table_id->[%s] error occurred when get index info for->[%s],error->[%s]",
+                self.table_id,
+                index_name,
+                e,
+            )
+            index_info = {}
+
+        return index_info
 
     @property
     def snapshot_date_format(self):
@@ -4624,7 +4840,17 @@ class StorageClusterRecord(models.Model):
         result = []
         for record in records:
             # 将 datetime 转换为 Unix 时间戳
-            enable_timestamp = int(record['enable_time'].timestamp())
+            try:
+                enable_timestamp = int(record['enable_time'].timestamp())
+            except Exception as e:  # pylint: disable=broad-except
+                # 避免因为类型不合法导致路由生成错误
+                logger.warning(
+                    "compose_table_id_storage_cluster_records: enable_time->[%s] is not datetime, "
+                    "set default value，error_info->[%s]",
+                    record['enable_time'],
+                    e,
+                )
+                enable_timestamp = 0
 
             result.append(
                 {

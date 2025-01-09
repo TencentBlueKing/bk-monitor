@@ -31,7 +31,8 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
-from monitor_web.scene_view.builtin import BuiltinProcessor
+from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
+from monitor_web.scene_view.builtin.utils import gen_string_md5
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
         "apm_trace-host",
+        "apm_trace-container",
     ]
 
     REQUIRE_ADD_PARAMS_VIEW_IDS = [
@@ -190,9 +192,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if not span_id:
                     raise ValueError(_("缺少SpanId参数"))
 
-                span_host = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
+                span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
 
-                if span_host:
+                if span_hosts:
+                    # TODO 关联主机页面后续需要改为多主机 现在先直接取第一个
+                    span_host = span_hosts[0]
                     cls._add_config_from_host(view, view_config)
                     # 替换模版中变量
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
@@ -210,7 +214,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
                 view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                 view_config = cls._replace_variable(view_config, "${span_id}", span_id)
-
+            elif builtin_view == f"{cls.APM_TRACE_PREFIX}-container":
+                return cls.get_container_view(
+                    params,
+                    bk_biz_id,
+                    app_name,
+                    service_name,
+                    view,
+                    view_config,
+                    builtin_view,
+                )
             return view_config
 
         # APM观测场景处
@@ -239,28 +252,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # k8s 场景
         if builtin_view == "apm_service-service-default-container":
-            # 时间范围必传
-            start_time = params.get("start_time")
-            end_time = params.get("end_time")
-            if not start_time or not end_time:
-                raise ValueError("没有传递 start_time, end_time")
-
-            if app_name and service_name:
-                from apm_web.container.resources import ListServicePodsResource
-
-                response = ListServicePodsResource()(
-                    bk_biz_id=bk_biz_id,
-                    app_name=app_name,
-                    service_name=service_name,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
-
-                if response:
-                    # 实际有 Pod 数据才返回
-                    return cls._add_config_from_container(app_name, service_name, view, view_config)
-
-            return cls._get_non_container_view_config(builtin_view, params)
+            return cls.get_container_view(params, bk_biz_id, app_name, service_name, view, view_config, builtin_view)
 
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
@@ -434,9 +426,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             metric_group_mapping[monitor_name] = group_panel
                         metric_panel_instance = copy.deepcopy(metric_panel)
                         # 设置monitor_name的id
-                        metric_panel_instance = cls._replace_variable(
-                            metric_panel_instance, "${id}", f"{monitor_name}_{idx}"
-                        )
+                        graph_idx = gen_string_md5(f"{monitor_name}_{idx}")
+                        metric_panel_instance = cls._replace_variable(metric_panel_instance, "${id}", graph_idx)
                         # 设置monitor_name和metric_panel
                         metric_panel_instance = cls._replace_variable(
                             metric_panel_instance, "${scope_name_value}", monitor_name
@@ -449,6 +440,32 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             option_variables = {"request_total_name": _("请求总数")}
             view_config = cls._multi_replace_variables(view_config, option_variables)
         return view_config
+
+    @classmethod
+    def get_container_view(cls, params, bk_biz_id, app_name, service_name, view, view_config, builtin_view):
+        # 获取观测场景或 span 检索处关联容器的图表配置
+        # 时间范围必传
+        start_time = params.get("start_time")
+        end_time = params.get("end_time")
+        if not start_time or not end_time:
+            raise ValueError("没有传递 start_time, end_time")
+
+        if app_name and service_name:
+            from apm_web.container.resources import ListServicePodsResource
+
+            response = ListServicePodsResource()(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                service_name=service_name,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+            if response:
+                # 实际有 Pod 数据才返回
+                return cls._add_config_from_container(app_name, service_name, view, view_config)
+
+        return cls._get_non_container_view_config(builtin_view, params)
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
@@ -524,7 +541,13 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             scene_id="kubernetes",
             name="pod",
             type="",
-        ).first()
+        )
+        if pod_view.exists():
+            pod_view = pod_view.first()
+        else:
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="kubernetes", view_type="", existed_views=pod_view)
+            pod_view = pod_view.first()
+
         pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
         pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config)
 
@@ -552,9 +575,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         from monitor_web.scene_view.builtin.host import get_auto_view_panels
 
         # 特殊处理服务主机页面 -> 为主机监控panel配置
-        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail").first()
-        if host_view:
-            view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
+        host_view = SceneViewModel.objects.filter(bk_biz_id=view.bk_biz_id, scene_id="host", type="detail")
+        if not host_view.exists():
+            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="host", view_type="detail", existed_views=host_view)
+
+        view_config["overview_panels"], view_config["order"] = get_auto_view_panels(view)
         if "overview_panel" in view_config.get("options"):
             # 去除顶部栏中的策略告警信息
             del view_config["options"]["overview_panel"]
@@ -747,6 +772,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
                 "only_simple_info": params.get("only_simple_info") or False,
+                "start_time": params.get("start_time"),
+                "end_time": params.get("end_time"),
             }
 
         converted_params = {

@@ -25,7 +25,7 @@
  */
 import { debounce } from 'lodash';
 export class TaskPool {
-  public poolList: [() => void, ...args: any, mark: unknown][];
+  public poolList: [() => void, ...args: any, mark?: unknown][];
   public isRunning: boolean;
   public runningTask: () => void;
   private clearingPromise?: Promise<any>;
@@ -84,7 +84,7 @@ export class TaskPool {
           try {
             const args = task[1]?.[0];
             const selfThis = args?.slice(-1)?.[0] ?? null;
-            Reflect.apply(task[0], selfThis, task[1]);
+            Reflect.apply(task[0], selfThis, task[1] ?? []);
             this.clearingPromise?.then(() => {
               resolve(true);
             }) ?? resolve(true);

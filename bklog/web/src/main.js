@@ -27,7 +27,6 @@
 import './public-path';
 
 import Vue from 'vue';
-// import VueJsonPretty from 'vue-json-pretty';
 
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
@@ -139,7 +138,7 @@ if (process.env.NODE_ENV === 'development') {
 const _ResizeObserver = window.ResizeObserver;
 window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
   constructor(callback) {
-    callback = debounce(callback, 61);
+    callback = debounce(callback);
     super(callback);
   }
 };

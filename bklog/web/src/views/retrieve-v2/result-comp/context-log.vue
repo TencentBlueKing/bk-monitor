@@ -66,6 +66,7 @@
       <data-filter
         :is-screen-full="isScreenFull"
         @handle-filter="handleFilter"
+        @fix-current-row="handleFixCurrentRow"
       />
       <!-- 暂停、复制、全屏 -->
       <div class="controls">
@@ -241,17 +242,25 @@
       document.removeEventListener('keyup', this.handleKeyup);
     },
     methods: {
+      handleFixCurrentRow() {
+        const target = this.$refs.contextLog;
+        const listElement = target.querySelector('#log-content');
+        const activeRow = listElement.querySelector('.line.log-init');
+        const scrollTop = activeRow.offsetTop;
+        target.scrollTo({ left: 0, top: scrollTop, behavior: 'smooth' });
+      },
       handleKeyup(event) {
         if (event.keyCode === 27) {
           this.$emit('close-dialog');
         }
       },
-      deepClone(obj) {
+      deepClone(obj, prefix = '') {
         for (const key in obj) {
+          const prefixKey = prefix ? `${prefix}.${key}` : key;
           if (typeof obj[key] === 'object') {
-            this.deepClone(obj[key]);
+            this.deepClone(obj[key], prefixKey);
           } else {
-            this.params[key] = String(obj[key])
+            this.params[prefixKey] = String(obj[key])
               .replace(/<mark>/g, '')
               .replace(/<\/mark>/g, '');
           }

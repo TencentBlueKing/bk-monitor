@@ -14,14 +14,8 @@ from django.db.models import Q
 from django.db.models.sql import AND, OR
 
 from bkmonitor.data_source.backends.base import compiler
+from bkmonitor.data_source.backends.time_series import escape_sql_field_name
 from constants.data_source import DataSourceLabel
-
-
-def escape_sql_field_name(field_name):
-    for k in ["`", " ", "(", ")"]:
-        if k in field_name:
-            return field_name
-    return "`%s`" % field_name
 
 
 class SQLCompiler(compiler.SQLCompiler):

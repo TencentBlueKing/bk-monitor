@@ -16,7 +16,7 @@ import arrow
 from arrow.parser import ParserError
 from django.utils.translation import gettext_lazy as _lazy
 
-from apm_web.constants import DataStatus
+from apm_web.constants import DataStatusColumnEnum
 from core.unit import load_unit
 
 
@@ -157,9 +157,13 @@ class StringLabelTableFormat(StringTableFormat):
 
     def format(self, row: dict):
         if not self.icon_getter:
-            return {"text": self.label_getter(row[self.id]), "type": row[self.id]}
+            return {"text": self.label_getter.from_value(row[self.id]).label, "type": row[self.id]}
 
-        return {"text": self.label_getter(row[self.id]), "type": row[self.id], "icon": self.icon_getter(row)}
+        return {
+            "text": self.label_getter.from_value(row[self.id]).label,
+            "type": row[self.id],
+            "icon": self.icon_getter(row),
+        }
 
     def column(self):
         res = super(StringTableFormat, self).column()
@@ -167,7 +171,7 @@ class StringLabelTableFormat(StringTableFormat):
 
     def get_filter_key(self, row):
         default_key = row.get(self.id, "--")
-        return {"value": default_key, "text": self.label_getter(default_key)}
+        return {"value": default_key, "text": self.label_getter.from_value(default_key).label}
 
 
 class TimestampTableFormat(TableFormat):
@@ -428,18 +432,18 @@ class StatusTableFormat(TableFormat):
         self.show_tips = show_tips
 
     def get_filter_key(self, row):
-        status = self.status_map_cls.get_status_by_key(row.get(self.id, ""))
+        status = self.status_map_cls.from_value(row.get(self.id, "")).status
         text = status.get("text", "")
         value = self.get_map_value(status.get("type", ""))
         return {"text": text, "value": value}
 
     def get_value(self, row):
-        status = self.status_map_cls.get_status_by_key(row.get(self.id, ""))
+        status = self.status_map_cls.from_value(row.get(self.id, "")).status
         type_value = status.get("type", "")
         return self.get_map_value(type_value)
 
     def format(self, row):
-        status = self.status_map_cls.get_status_by_key(row[self.id])
+        status = self.status_map_cls.from_value(row[self.id]).status
         if self.tips_format and self.show_tips(row[self.id]):
             status["tips"] = self.tips_format.format(**row)
         return status
@@ -453,16 +457,10 @@ class DataStatusTableFormat(TableFormat):
     3. 灰色叉叉: 未开启功能
     """
 
-    value_map = {
-        DataStatus.NO_DATA: _lazy("无数据"),
-        DataStatus.NORMAL: _lazy("正常"),
-        DataStatus.DISABLED: _lazy("未开启"),
-    }
-
     column_type = "data_status"
 
     def get_filter_key(self, row):
-        text = self.value_map.get(row.get(self.id), _lazy("未开启"))
+        text = DataStatusColumnEnum.from_value(row.get(self.id)).label
         return {"text": text, "value": row.get(self.id)}
 
     def format(self, row):

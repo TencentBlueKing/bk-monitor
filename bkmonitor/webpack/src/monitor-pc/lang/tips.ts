@@ -318,4 +318,8 @@ export default {
   'Grafana已经升级到10版本，来看看有哪些功能差异':
     'Grafana has been upgraded to version 10.1. What are the differences in functions?',
   '稍等几分钟后，前往 {0} 查看相关数据': 'Wait a few minutes and go to {0} to view related data',
+  移除下钻: 'Remove drill down',
+  添加为筛选项: 'Add as filter',
+  移除该筛选项: 'Remove this filter',
+  点击加载更多: 'Click to load more',
 };

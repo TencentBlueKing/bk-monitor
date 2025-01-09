@@ -47,7 +47,9 @@ interface IBaseProps extends IChartProps {
   needTooltips?: boolean;
   sortTooltipsValue?: boolean;
   needZrClick?: boolean;
+  needMenuClick?: boolean;
   tooltipsContentLastItemFn?: (v: any) => string;
+  customTooltips?: (v: any) => string; // 自定义tooltip内容
 }
 @Component
 class MonitorBaseEchart extends BaseEchart {
@@ -59,8 +61,11 @@ class MonitorBaseEchart extends BaseEchart {
   @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
   @Prop({ type: Boolean, default: false }) needZrClick: boolean;
+  /** 是否需要图表的鼠标右击事件 */
+  @Prop({ type: Boolean, default: false }) needMenuClick: boolean;
   /* tooltips内容最后一项格式化函数 */
   @Prop({ type: Function, default: null }) tooltipsContentLastItemFn: (v: any) => string;
+  @Prop({ type: Function, default: null }) customTooltips: (v: any) => string; // 自定义tooltip内容
   // hover视图上 当前对应最近点数据
   curPoint: ICurPoint = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
   // tooltips大小 [width, height]
@@ -141,6 +146,14 @@ class MonitorBaseEchart extends BaseEchart {
         (this as any).curChartOption = (this as any).instance.getOption();
         this.groupId && ((this as any).instance.group = this.groupId);
         (this as any).instance.on('dataZoom', this.handleDataZoom);
+        if (this.needMenuClick) {
+          (this as any).instance.on('contextmenu', params => {
+            /** 返回当前鼠标右击选择图表的数据下标 */
+            this.$emit('menuClick', {
+              dataIndex: params.dataIndex,
+            });
+          });
+        }
         if (this.needZrClick) {
           (this as any).instance.getZr().on('click', params => {
             const options = (this as any).instance.getOption();
@@ -295,6 +308,9 @@ class MonitorBaseEchart extends BaseEchart {
     if (params[0]?.data?.tooltips) {
       liHtmls.push(params[0].data.tooltips);
     } else {
+      if (typeof this.customTooltips === 'function') {
+        return this.customTooltips(params);
+      }
       const data = params
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
@@ -322,9 +338,9 @@ class MonitorBaseEchart extends BaseEchart {
         const precision =
           !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
         const valueObj = unitFormater(item.value[1] - minBase, precision);
-        return `<li class="tooltips-content-item">
-                  <span class="item-series"
-                   style="background-color:${item.color};">
+        return `<li class="tooltips-content-item" style="--series-color: ${curSeries.lineStyle?.color || item.color}">
+                  <span class="item-series is-${curSeries.lineStyle?.type}"
+                   style="background-color:${curSeries.lineStyle?.color || item.color};">
                   </span>
                   <span class="item-name" style="${markColor}">${item.seriesName}:</span>
                   <span class="item-value" style="${markColor}">

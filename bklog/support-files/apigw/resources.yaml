@@ -1,11 +1,10 @@
-swagger: '2.0'
-basePath: /
+openapi: 3.0.1
+servers:
+- url: /
 info:
-  version: '0.1'
+  version: '2.0'
   title: API Gateway Resources
   description: ''
-schemes:
-- http
 paths:
   /esquery_search/:
     post:
@@ -13,22 +12,2138 @@ paths:
       description: 日志系统索引集查询接口
       tags:
       - 查询
-      responses:
-        default:
-          description: ''
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: post
           path: /api/v1/esquery/search/
           matchSubpath: false
           timeout: 0
-          upstreams: {}
-          transformHeaders: {}
+        pluginConfigs:
+        - type: bk-rate-limit
+          yaml: |
+            rates:
+              __default:
+              - tokens: 200
+                period: 1
+              bkmonitorv3:
+              - tokens: 10000
+                period: 60
         authConfig:
           userVerifiedRequired: false
-        disabledStages: []
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_dsl/:
+    post:
+      operationId: esquery_dsl
+      description: ES-DSL查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/esquery/dsl/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs:
+        - type: bk-rate-limit
+          yaml: |
+            rates:
+              __default:
+              - tokens: 200
+                period: 1
+              bkmonitorv3:
+              - tokens: 10000
+                period: 60
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_mapping/:
+    post:
+      operationId: esquery_mapping
+      description: esquery_mapping
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/esquery/mapping/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /index_set/:
+    post:
+      operationId: create_index_set
+      description: 创建索引集
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/index_set/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /index_set/{index_set_id}/:
+    put:
+      operationId: update_index_set
+      description: 更新索引集
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/index_set/{index_set_id}/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_index_set/:
+    get:
+      operationId: search_index_set
+      description: 日志系统-索引集列表
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/index_set/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_index_set/{index_set_id}/fields/:
+    get:
+      operationId: index_set_fields
+      description: 日志系统-索引集字段
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/index_set/{index_set_id}/fields/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_index_set/operators/:
+    get:
+      operationId: search_operators
+      description: 日志系统-检索条件
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/index_set/operators/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_history/:
+    get:
+      operationId: search_history
+      description: 日志平台-检索历史
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/index_set/history/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /auth/groups/:
+    post:
+      operationId: create_user_group
+      description: 创建用户组
+      tags:
+      - 权限
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/auth/groups/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /auth/groups/{group_id}/:
+    put:
+      operationId: update_user_group
+      description: 更新用户组
+      tags:
+      - 权限
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/auth/groups/{group_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_scroll/:
+    post:
+      operationId: esquery_scroll
+      description: esquery_scroll
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/esquery/scroll/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs:
+        - type: bk-rate-limit
+          yaml: |
+            rates:
+              __default:
+              - tokens: 200
+                period: 1
+              bkmonitorv3:
+              - tokens: 10000
+                period: 60
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_indices/:
+    get:
+      operationId: esquery_indices
+      description: 查询采集项列表
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/esquery/indices/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_cluster/:
+    get:
+      operationId: esquery_cluster
+      description: esquery_cluster
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/esquery/cluster/
+          matchSubpath: false
+          timeout: 10
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /index_set/replace/:
+    post:
+      operationId: replace_index_set
+      description: 索引集配置
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/index_set/replace/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/tail/:
+    get:
+      operationId: databus_collectors_tail
+      description: 获取采样详情
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/tail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_es_route/:
+    get:
+      operationId: esquery_es_route
+      description: esquery_es_route
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/esquery/es_route/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_index_set/{index_set_id}/context/:
+    post:
+      operationId: search_index_set_context
+      description: 日志系统索引集查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/index_set/{index_set_id}/context/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/list_collectors_by_host/:
+    get:
+      operationId: databus_collectors_list_collectors_by_host
+      description: 获取ip对应的采集项
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/list_collectors_by_host/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /esquery_monitor/:
+    post:
+      operationId: esquery_monitor
+      description: 日志系统索引集查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/esquery/search/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/connectivity_detect/:
+    post:
+      operationId: databus_connectivity_detect
+      description: es连通性测试
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/storage/connectivity_detect/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/query/:
+    post:
+      operationId: grafana_query
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/grafana/query/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/query_log/:
+    post:
+      operationId: grafana_query_log
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/grafana/query_log/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/metric/:
+    get:
+      operationId: grafana_metric
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/grafana/metric/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/dimension/:
+    get:
+      operationId: grafana_dimension
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/grafana/dimension/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/target_tree/:
+    get:
+      operationId: grafana_target_tree
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/grafana/target_tree/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/get_variable_field/:
+    get:
+      operationId: grafana_get_variable_field
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/grafana/get_variable_field/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/get_variable_value/:
+    post:
+      operationId: grafana_get_variable_value
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/grafana/get_variable_value/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/options/:
+    get:
+      operationId: grafana_options
+      description: grafana查询接口
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/grafana/options/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_custom_create/:
+    post:
+      operationId: databus_custom_create
+      description: 创建自定义上报
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/custom_create/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_list_collectors/:
+    get:
+      operationId: databus_list_collectors
+      description: 采集项列表 (不分页)
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/list_collectors/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search_index_set/{index_set_id}/tailf/:
+    post:
+      operationId: search_tailf
+      description: 日志平台-检索-实时日志
+      tags:
+      - 查询
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/index_set/{index_set_id}/tailf/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/:
+    post:
+      operationId: create_databus_collectors
+      description: 日志平台-创建采集项
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    get:
+      operationId: list_databus_collectors
+      description: 日志平台-采集项列表
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/:
+    put:
+      operationId: update_databus_collectors
+      description: 日志平台-更新采集项
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/databus/collectors/{collector_config_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    get:
+      operationId: retrieve_databus_collector
+      description: 日志平台-获取采集项详情
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/update_or_create_clean_config/:
+    post:
+      operationId: databus_collectors_replace_clean_config
+      description: 日志平台-清洗入库
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/update_or_create_clean_config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collector_plugins/:
+    post:
+      operationId: create_collector_plugin
+      description: 日志平台-创建采集插件
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collector_plugins/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collector_plugins/{collector_plugin_id}/:
+    put:
+      operationId: update_collector_plugin
+      description: 日志平台-更新采集插件
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/databus/collector_plugins/{collector_plugin_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collector_plugins/{collector_plugin_id}/instances/:
+    post:
+      operationId: create_collector_plugin_instance
+      description: 日志平台-实例化采集插件
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collector_plugins/{collector_plugin_id}/instances/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collector_plugins/instance_etl/:
+    post:
+      operationId: create_collector_plugin_instance_clean_config
+      description: 日志平台-创建采集插件实例清洗规则
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collector_plugins/instance_etl/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/:
+    post:
+      operationId: create_databus_storage
+      description: 日志平台-创建存储
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/storage/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    get:
+      operationId: list_databus_storage
+      description: 日志平台-存储列表
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/storage/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/{cluster_id}/:
+    get:
+      operationId: get_databus_storage
+      description: 日志平台-存储详情
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/storage/{cluster_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    put:
+      operationId: update_databus_storage
+      description: 日志平台-更新存储
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/databus/storage/{cluster_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    delete:
+      operationId: delete_databus_storage
+      description: 日志平台-删除存储
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/databus/storage/{cluster_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/node_attrs/:
+    post:
+      operationId: databus_storage_node_attrs
+      description: 日志平台-获取集群中各节点属性
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/storage/node_attrs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/batch_connectivity_detect/:
+    post:
+      operationId: databus_storage_batch_connectivity_detect
+      description: 日志平台-批量连通性测试
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/storage/batch_connectivity_detect/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/task_status/:
+    get:
+      operationId: databus_collector_task_status
+      description: 日志平台-任务执行情况
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/task_status/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /meta/globals/:
+    get:
+      operationId: globals
+      description: 日志平台-全局配置
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/meta/globals/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/:
+    get:
+      operationId: bizs
+      description: 日志平台-业务列表
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/bizs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/topo/:
+    get:
+      operationId: bizs_topo
+      description: 日志平台-业务拓扑列表
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/bizs/{bk_biz_id}/topo/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/host_instance_by_node/:
+    post:
+      operationId: bizs_host_instance_by_node
+      description: 日志平台-根据节点获取拓扑情况（动态拓扑）
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/bizs/{bk_biz_id}/host_instance_by_node/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/host_instance_by_ip/:
+    post:
+      operationId: bizs_host_instance_by_ip
+      description: 日志平台-根据ip列表获取主机实例（静态拓扑）
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/bizs/{bk_biz_id}/host_instance_by_ip/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/list_agent_status/:
+    post:
+      operationId: bizs_list_agent_status
+      description: 日志平台-获取节点对应agent数量及异常状态agent数量
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/bizs/{bk_biz_id}/list_agent_status/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/template_topo/:
+    get:
+      operationId: bizs_template_topo
+      description: 日志平台-获取服务模板topo
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/bizs/{bk_biz_id}/template_topo/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /bizs/{bk_biz_id}/get_nodes_by_template/:
+    get:
+      operationId: bizs_get_nodes_by_template
+      description: 日志平台-获取模版topo情况
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/bizs/{bk_biz_id}/get_nodes_by_template/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/task_detail/:
+    get:
+      operationId: databus_collector_task_detail
+      description: 日志平台-任务详情
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/task_detail/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/retry/:
+    post:
+      operationId: databus_collector_retry_task
+      description: 日志平台-重试任务
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/retry/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/etl_preview/:
+    post:
+      operationId: databus_collector_etl_preview
+      description: 日志平台-预览清洗结果
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/etl_preview/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/subscription_status/:
+    get:
+      operationId: databus_collector_subscription_status
+      description: 日志平台-获取采集项订阅任务
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/subscription_status/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /meta/projects/mine/:
+    get:
+      operationId: projects
+      description: 日志平台-业务列表
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/meta/projects/mine/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /iam/meta/get_apply_data/:
+    post:
+      operationId: iam_get_apply_data
+      description: 日志平台-业务列表
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/iam/meta/get_apply_data/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /iam/meta/check_allowed/:
+    post:
+      operationId: iam_check_allowed
+      description: 日志平台-业务列表
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/iam/meta/check_allowed/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/pre_check/:
+    get:
+      operationId: databus_collector_pre_check
+      description: 日志平台-预检查采集项英文名
+      tags:
+      - 公共
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/pre_check/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/fast_create/:
+    post:
+      operationId: databus_collector_fast_create
+      description: 日志平台-快速创建采集项
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/fast_create/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/fast_update/:
+    post:
+      operationId: databus_collector_fast_update
+      description: 日志平台-快速修改采集项
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/fast_update/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/stop/:
+    post:
+      operationId: stop_databus_collectors
+      description: 日志平台-停止采集
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/stop/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_storage/cluster_groups/:
+    get:
+      operationId: databus_storage_cluster_groups
+      description: 日志平台-获取存储集群列表
+      tags:
+      - 存储
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/storage/cluster_groups/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/list_bcs_clusters/:
+    get:
+      operationId: databus_collectors_list_bcs_clusters
+      description: 日志平台-获取集群列表
+      tags:
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/list_bcs_clusters/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/validate_container_config_yaml/:
+    post:
+      operationId: databus_collector_validate_container_config_yaml
+      description: 日志平台-集群日志采集Yaml配置校验
+      tags:
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/validate_container_config_yaml/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /pattern/{index_set_id}/search/:
+    post:
+      operationId: search_pattern
+      description: 日志系统-数据指纹列表
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/pattern/{index_set_id}/search/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /list_bcs_collector/:
+    get:
+      operationId: list_bcs_collector
+      description: 日志平台-查询bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/list_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /create_bcs_collector/:
+    post:
+      operationId: create_bcs_collector
+      description: 日志平台-创建bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/create_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /update_bcs_collector/{rule_id}/:
+    post:
+      operationId: update_bcs_collector
+      description: 日志平台-更新bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{rule_id}/update_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /delete_bcs_collector/{rule_id}/:
+    delete:
+      operationId: delete_bcs_collector
+      description: 日志平台-删除bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/databus/collectors/{rule_id}/delete_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /search/index_set/{index_set_id}/search/:
+    post:
+      operationId: search_index_set_log
+      description: ''
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/index_set/{index_set_id}/search/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /create_index_set/:
+    post:
+      operationId: esb_create_index_set
+      description: 创建索引集(新)
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/index_set/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /update_index_set/{index_set_id}/:
+    put:
+      operationId: esb_update_index_set
+      description: 更新索引集
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/index_set/{index_set_id}/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /meta/spaces/mine/:
+    get:
+      operationId: meta_spaces_mine
+      description: 日志平台-获取用户空间列表
+      tags:
+      - meta
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/meta/spaces/mine/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/report_token/:
+    get:
+      operationId: databus_collector_report_token
+      description: 日志平台-获取上报Token
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/report_token/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/report_host/:
+    get:
+      operationId: databus_collector_report_host
+      description: 日志平台-获取上报Host
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/report_host/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /{collector_config_id}/databus_custom_update/:
+    post:
+      operationId: databus_custom_update
+      description: 更新自定义上报
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/custom_update/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /retry_bcs_collector/{rule_id}/:
+    post:
+      operationId: retry_bcs_collector
+      description: 日志平台-重试bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{rule_id}/retry_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /start_bcs_collector/{rule_id}/:
+    post:
+      operationId: start_bcs_collector
+      description: 日志平台-启用bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{rule_id}/start_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /stop_bcs_collector/{rule_id}/:
+    post:
+      operationId: stop_bcs_collector
+      description: 日志平台-停用bcs采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{rule_id}/stop_bcs_collector/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /list_bcs_collector_without_rule/:
+    get:
+      operationId: list_bcs_collector_without_rule
+      description: 获取非BCS创建的容器采集项
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/list_bcs_collector_without_rule/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/custom_es_datasource/{index_set_id}/_mapping:
+    get:
+      operationId: grafana_custom_es_datasource_mapping
+      description: Grafana自定义ES数据源获取Mapping
+      tags: []
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /grafana/custom_es_datasource/{index_set_id}/_mapping
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /grafana/custom_es_datasource/_msearch:
+    post:
+      operationId: grafana_custom_es_datasource_msearch
+      description: Grafana自定义ES数据源msearch
+      tags: []
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /grafana/custom_es_datasource/_msearch
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /switch_bcs_collector_storage/:
+    post:
+      operationId: switch_bcs_collector_storage
+      description: 日志平台-切换bcs采集存储集群
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/switch_bcs_collector_storage/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /clustering_config/{index_set_id}/config/:
+    get:
+      operationId: get_clustering_config
+      description: 日志平台-获取聚类配置
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/clustering_config/{index_set_id}/config/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /get_bcs_collector_storage/:
+    get:
+      operationId: get_bcs_collector_storage
+      description: 日志平台-获取bcs采集存储集群
+      tags:
+      - 采集项
+      - BCS
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/get_bcs_collector_storage/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /delete_index_set/{index_set_id}/:
+    delete:
+      operationId: esb_delete_index_set
+      description: 删除索引集
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/index_set/{index_set_id}/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/indices_info/:
+    get:
+      operationId: databus_collector_indices_info
+      description: 日志平台-获取采集项索引使用
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/indices_info/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /index_set/list_es_router/:
+    get:
+      operationId: list_es_router
+      description: ''
+      tags: []
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/index_set/list_es_router/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus_collectors/{collector_config_id}/start/:
+    post:
+      operationId: start_databus_collectors
+      description: 日志平台-启动采集
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/databus/collectors/{collector_config_id}/start/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
         descriptionEn:

@@ -390,8 +390,19 @@
             await this.submitFieldsSet(this.currentClickConfigData.id);
           }
           this.cancelModifyFields();
-          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+          this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+          this.$store.commit('updateIsSetDefaultTableColumn', false);
+          this.$store
+            .dispatch('userFieldConfigChange', {
+              displayFields: this.shadowVisible,
+              fieldsWidth: {},
+            })
+            .then(() => {
+              this.$store.commit('resetVisibleFields', this.shadowVisible);
+              this.$store.commit('updateIsSetDefaultTableColumn');
+            });
           await this.$store.dispatch('requestIndexSetFieldInfo');
+          await this.$store.dispatch('requestIndexSetQuery');
         } catch (error) {
           console.warn(error);
         } finally {
@@ -640,16 +651,17 @@
           });
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
-        this.shadowVisible = this.currentClickConfigData.display_fields
-          ?.map(displayName => {
-            for (const field of this.shadowTotal) {
-              if (field.field_name === displayName) {
-                field.is_display = true;
-                return displayName;
+        this.shadowVisible =
+          this.currentClickConfigData.display_fields
+            ?.map(displayName => {
+              for (const field of this.shadowTotal) {
+                if (field.field_name === displayName) {
+                  field.is_display = true;
+                  return displayName;
+                }
               }
-            }
-          })
-          ?.filter(Boolean) || [];
+            })
+            ?.filter(Boolean) || [];
       },
       /** 获取配置列表 */
       async getFiledConfigList() {
@@ -669,8 +681,6 @@
             isShowEdit: false,
             editStr: item.name,
           }));
-
-
         } catch (error) {
         } finally {
           this.isLoading = false;

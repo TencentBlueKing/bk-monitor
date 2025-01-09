@@ -796,6 +796,7 @@ class StartDataFlow(DataAccessAPIResource):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
         consuming_mode = serializers.CharField(default="continue", label="数据处理模式")
         cluster_group = serializers.CharField(default="default", label="计算集群组")
+        check_and_start_clean_task = serializers.BooleanField(default=True, allow_null=True, label="是否检查并启动清洗任务")
 
 
 class StopDataFlow(DataAccessAPIResource):

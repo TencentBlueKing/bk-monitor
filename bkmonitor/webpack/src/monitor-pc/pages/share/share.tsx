@@ -89,7 +89,7 @@ export default class SharePage extends tsc<object> {
         params: data.params,
         query: data.query,
       });
-      url = `${process.env.NODE_ENV === 'development' ? process.env.devUrl : location.origin}${
+      url = `${process.env.NODE_ENV === 'development' ? `http://${process.env.devUrl}` : location.origin}${
         location.pathname
       }?bizId=${this.$store.getters.bizId}/${route.href}`;
     }
@@ -106,7 +106,7 @@ export default class SharePage extends tsc<object> {
       url: this.url,
       id,
       container: this.$refs.sharePageWrap as HTMLElement,
-      showSourceCode: true,
+      showSourceCode: false,
       scopeCss: true,
       scopeLocation: true,
       setShodowDom: true,

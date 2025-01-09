@@ -8,3 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+
+def escape_sql_field_name(field_name):
+    for k in ["`", " ", "(", ")"]:
+        if k in field_name:
+            return field_name
+    return "`%s`" % field_name

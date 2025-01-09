@@ -50,6 +50,7 @@ class RecordRule(BaseModelWithTime):
     vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True)
     dst_vm_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     status = models.CharField("状态", max_length=32, default="created")
+    count_freq = models.IntegerField("计算频率(秒)", default=60)
 
     class Meta:
         verbose_name = "预计算规则"
@@ -194,6 +195,7 @@ class ResultTableFlow(BaseModelWithTime):
                     "from_nodes": [],
                 }
             )
+
         return nodes
 
     @classmethod
@@ -215,7 +217,11 @@ class ResultTableFlow(BaseModelWithTime):
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return {}
-        dedicated_config = {"waiting_time": waiting_time, "sql_list": rule_record.bk_sql_config}
+        dedicated_config = {
+            "waiting_time": waiting_time,
+            # "count_freq": rule_record.count_freq,
+            "sql_list": rule_record.bk_sql_config,
+        }
         name = utils.compose_rule_table_id(table_id)
         return {
             "id": len(from_result_table_ids) + 1,

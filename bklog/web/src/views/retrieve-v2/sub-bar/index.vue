@@ -15,6 +15,7 @@
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+  import { bus } from '@/common/bus';
 
   const props = defineProps({
     showFavorites: {
@@ -86,7 +87,7 @@
     });
   };
 
-  const handleIndexSetSelected = payload => {
+  const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
       setRouteParams(payload.ids, payload.isUnionIndex);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
@@ -96,8 +97,12 @@
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
       }
-      store.dispatch('requestIndexSetFieldInfo');
-      store.dispatch('requestIndexSetQuery');
+
+      store.commit('updateSqlQueryFieldList', []);
+      store.commit('updateIndexSetQueryResult', []);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery');
+      });
     }
   };
 

@@ -1,7 +1,7 @@
 @import '@/scss/mixins/flex.scss';
 
 .field-filter-box {
-  >.form-container {
+  > .form-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -72,6 +72,7 @@
     font-size: 12px;
     line-height: 20px;
     color: #63656e;
+    height: calc(100vh - var(--offset-search-bar) - 210px);
 
     .title {
       font-weight: 700;
@@ -82,7 +83,7 @@
       border-bottom: 1px solid #e1ecff;
     }
 
-    .field-filter-roll{
+    .field-filter-roll {
       overflow-y: auto;
     }
 
@@ -116,7 +117,8 @@
         margin-left: 8px;
       }
 
-      .bklog-expand-small, .bklog-collapse-small {
+      .bklog-expand-small,
+      .bklog-collapse-small {
         font-size: 22px;
       }
 
@@ -133,4 +135,3 @@
     }
   }
 }
-

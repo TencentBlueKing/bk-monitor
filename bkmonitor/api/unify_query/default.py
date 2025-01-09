@@ -166,7 +166,7 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
-        is_verify_dimensions = serializers.BooleanField(required=False, default=True)
+        is_verify_dimensions = serializers.BooleanField(default=False)
         start = serializers.CharField()
         end = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)

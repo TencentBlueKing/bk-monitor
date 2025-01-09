@@ -396,6 +396,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否开启场景智能检测功能 */
   showMultivariateAnomalyDetection = false;
 
+  /* 是否支持智能监控 是否智能算法支持函数 */
+  isKpiAnomalySdkEnabled = false;
+
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
   /* 时区 */
@@ -641,12 +644,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         const metricData = this.$route.query.data ? this.$route.query.data : this.$route.params.data;
         metric = typeof metricData === 'string' ? JSON.parse(decodeURIComponent(metricData)) : metricData;
         // promql
-        if (metric.mode === 'code' || metric.data?.[0]?.promql) {
+        if (metric.mode === 'code' || metric.data?.[0]?.promql || metric.query_configs?.[0].promql) {
           await this.$nextTick();
+          const promql = metric.data?.[0]?.promql || metric.query_configs?.[0].promql || '';
+          const step = metric.data?.[0]?.step || metric.query_configs?.[0].interval || 60;
           this.monitorDataEditMode = 'Source';
-          this.sourceData.sourceCode = metric.data[0]?.promql || '';
-          this.sourceData.sourceCodeCache = metric.data[0]?.promql || '';
-          this.sourceData.step = metric.data[0]?.step === 'auto' ? 60 : metric.data[0]?.step || 60;
+          this.sourceData.sourceCode = promql;
+          this.sourceData.sourceCodeCache = promql;
+          this.sourceData.step = step;
           return;
         }
       } catch (e) {
@@ -1047,10 +1052,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.actionConfigList = data;
   }
 
-  // 获取是否展示是否开启场景智能检测功能数据
+  // 获取是否展示是否开启场景智能检测功能数据 获取是否支持智能监控 是否智能算法支持函数
   async getShowMultivariateAnomalyDetection() {
     const data = await fetchAiSetting().catch(() => null);
     this.showMultivariateAnomalyDetection = !!data?.multivariate_anomaly_detection?.host?.is_enabled;
+    this.isKpiAnomalySdkEnabled = !!data?.kpi_anomaly_detection?.is_sdk_enabled;
   }
 
   // 获取告警组数据
@@ -1768,6 +1774,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       promiseList.push(
         this.noticeConfigRef.validator().catch(() => {
           this.noticeConfigPanelRef.handleExpandChange(true);
+          this.noticeConfigPanelRef.$el.scrollIntoView();
           return Promise.reject();
         })
       ); // 通知设置校验
@@ -2583,6 +2590,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         expression={this.expression}
         hasAIntelligentDetect={this.hasAIntelligentDetect}
         hasAiOpsDetect={this.hasAiOpsDetect}
+        isKpiAnomalySdkEnabled={this.isKpiAnomalySdkEnabled}
         loading={this.monitorDataLoading}
         metricData={this.metricData}
         metricTipType={this.metricTipType}
@@ -2727,8 +2735,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   backfillData={this.detectionDataBackfill}
                   connector={this.detectionConfig.connector}
                   dataMode={this.dataMode}
+                  dataTypeLabel={this.metricSelector.dataTypeLabel}
+                  editMode={this.monitorDataEditMode}
                   intelligentDetect={this.intelligentDetect}
                   isEdit={this.isEdit}
+                  isKpiAnomalySdkEnabled={this.isKpiAnomalySdkEnabled}
                   metricData={this.selectMetricData}
                   needShowUnit={this.needShowUnit}
                   readonly={this.isDetailMode}

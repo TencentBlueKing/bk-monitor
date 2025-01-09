@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List, Dict, Tuple
+import hashlib
+from typing import Dict, List, Tuple
+
 from django.utils.translation import gettext as _
 
 
@@ -72,3 +74,14 @@ def get_variable_filter_dict(variables: List):
             for field in target["fields"].values():
                 variable_filters[field] = f"${field}"
     return variable_filters
+
+
+def gen_string_md5(input_string):
+    # 创建一个 md5 对象
+    md5_obj = hashlib.md5()
+
+    # 更新 md5 对象，必须将字符串编码为字节
+    md5_obj.update(input_string.encode('utf-8'))
+
+    # 获取十六进制的 md5 哈希值
+    return md5_obj.hexdigest()

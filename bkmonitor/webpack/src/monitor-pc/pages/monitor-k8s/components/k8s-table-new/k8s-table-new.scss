@@ -1,0 +1,146 @@
+.k8s-table-new {
+  height: 100%;
+  padding: 16px;
+
+  .bk-table {
+    height: 100%;
+
+    .bk-table-header-wrapper {
+      .bk-table-header {
+        min-width: 100%;
+
+        .cell:has(.k8s-metrics-header) {
+          padding-left: 0;
+        }
+
+        .k8s-metrics-header {
+          display: flex;
+          align-items: center;
+          padding-left: 15px;
+          cursor: initial;
+
+          .header-label {
+            flex-basis: auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+
+    .bk-table-body-wrapper {
+      .bk-table-body {
+        min-width: 100%;
+      }
+
+      .bk-table-append-wrapper {
+        display: flex;
+        justify-content: center;
+
+        .bk-spin {
+          display: flex;
+          align-items: center;
+          height: 42px;
+
+          .bk-spin-title-right {
+            font-size: 12px;
+            color: #979ba5;
+          }
+        }
+      }
+
+      .bk-table-empty-block {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 100% !important;
+      }
+    }
+
+    .bk-table-row.hover-row {
+      .col-item-operate {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+
+  .mini-time-series-chart-wrap {
+    height: 42px;
+  }
+
+  .k8s-table-col-item {
+    display: flex;
+    line-height: 24px;
+
+    .col-item-label {
+      display: inline-block;
+      flex-basis: auto;
+      min-width: 0;
+      overflow: hidden;
+      color: #63656e;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &.can-click {
+        text-decoration: underline;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .col-item-operate {
+      display: none;
+      flex-shrink: 0;
+
+      .k8s-dimension-drillDown {
+        .drill-down-icon {
+          margin-left: 6px;
+        }
+
+        .icon-xiazuan {
+          margin-left: 0;
+        }
+      }
+
+      .icon-monitor {
+        width: 24px;
+        height: 24px;
+        margin-left: 6px;
+        font-size: 14px;
+        line-height: 24px;
+
+        cursor: pointer;
+
+        &.icon-a-sousuo,
+        &.icon-sousuo- {
+          display: flex;
+          justify-content: center;
+          font-size: 16px;
+
+          & + .k8s-dimension-drillDown {
+            .drill-down-icon {
+              margin-left: 0;
+            }
+          }
+        }
+
+        &.is-active {
+          color: #3a84ff;
+        }
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .loading-svg {
+    width: 16px;
+    height: 16px;
+  }
+}

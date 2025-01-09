@@ -26,6 +26,8 @@ from core.drf_resource import Resource
 from core.errors.bkmonitor.space import SpaceNotFound
 from metadata.models import space
 from metadata.models.space import constants, utils
+from metadata.models.space.constants import SpaceTypes
+from metadata.models.space.utils import get_related_spaces
 from metadata.service.space_redis import (
     get_kihan_prom_field_list,
     get_space_config_from_redis,
@@ -322,6 +324,47 @@ class GetClustersBySpaceUidResource(Resource):
             }
             for c in clusters
         ]
+
+
+class GetBizRelatedBkciSpacesResource(Resource):
+    """
+    查询业务(bkcc)关联的空间（bkci)
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        space_type = serializers.CharField(
+            label="空间类型", default=SpaceTypes.BKCC.value, required=False, allow_blank=True
+        )
+        space_id = serializers.CharField(label="空间id", required=True)
+        target_space_type_id = serializers.CharField(
+            label="目标空间类型", default=SpaceTypes.BKCI.value, required=False, allow_blank=True
+        )
+
+    def perform_request(self, validated_request_data):
+        # 提取参数
+        space_type = validated_request_data["space_type"]
+        space_id = validated_request_data["space_id"]
+        target_space_type_id = validated_request_data["target_space_type_id"]
+        logger.info(
+            "GetBizRelatedBkciSpacesResource: try to get space_type->[%s] space_id->[%s] related "
+            "space_type->[%s] spaces",
+            space_type,
+            space_id,
+            target_space_type_id,
+        )
+
+        # 获取空间列表
+        spaces = get_related_spaces(space_type, space_id, target_space_type_id=target_space_type_id)
+
+        logger.info(
+            "GetBizRelatedBkciSpacesResource: space_type->[%s] space_id->[%s] get related spaces->[%s] of "
+            "type->[%s]",
+            space_type,
+            space_id,
+            spaces,
+            target_space_type_id,
+        )
+        return spaces
 
 
 class RefreshMetricForKihan(Resource):

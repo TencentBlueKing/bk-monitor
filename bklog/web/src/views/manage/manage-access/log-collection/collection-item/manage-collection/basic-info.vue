@@ -72,7 +72,7 @@
               <span class="operate-box">
                 <span
                   v-if="showPassword"
-                  class="icon bklog-icon bklog-copy"
+                  class="bklog-icon bklog-copy-2"
                   @click="handleCopy(tokenStr)"
                 ></span>
                 <span
@@ -230,7 +230,7 @@
                         v-if="!isMatchType"
                         class="item the-column"
                       >
-                        {{ $t('第{n}行', { n: item.fieldindex + 1 }) }}
+                        {{ $t('第{n}列', { n: item.fieldindex }) }}
                       </div>
                       <div class="item the-column">{{ showOperatorObj[item.op] }}</div>
                       <p
@@ -692,23 +692,21 @@
           position: relative;
           top: -2px;
           display: inline-block;
-        }
+          margin-left: 36px;
 
-        .icon-copy {
-          position: absolute;
-          top: -2px;
-          margin-left: 8px;
-          font-size: 26px;
-          cursor: pointer;
+          .bklog-copy-2,
+          .icon-eye-slash {
+            cursor: pointer;
 
-          &:hover {
-            color: #3a84ff;
+            &:hover {
+              color: #3a84ff;
+            }
           }
         }
 
-        .icon-eye-slash {
-          margin-left: 36px;
-        }
+        // .icon-eye-slash {
+        //   margin-left: 36px;
+        // }
 
         .password-value {
           padding-top: 6px;

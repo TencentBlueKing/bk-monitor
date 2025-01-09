@@ -67,7 +67,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     { id: 'nav', name: this.$t('导航') },
     { id: 'biz', name: this.$t('空间列表') },
     { id: 'host', name: this.$t('route-主机监控') },
-    { id: 'kubernetes', name: 'Kubernetes' },
+    { id: 'kubernetes', name: '容器监控' },
     { id: 'alert', name: this.$t('route-告警事件') },
     { id: 'action', name: this.$t('route-处理记录') },
     { id: 'strategy', name: this.$t('route-告警策略') },

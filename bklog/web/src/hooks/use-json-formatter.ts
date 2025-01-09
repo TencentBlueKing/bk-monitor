@@ -204,7 +204,7 @@ export default class UseJsonFormatter {
     if (!item.isNotParticiple) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.innerHTML = item.text;
+      validTextNode.innerText = item.text;
       return validTextNode;
     }
 
@@ -214,13 +214,22 @@ export default class UseJsonFormatter {
     return textNode;
   }
 
-  creatSegmentNodes = (vlaues: any[]) => {
+  creatSegmentNodes = (values: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
+    const tagItems = values.slice(0, 500);
 
-    vlaues.forEach(item => {
+    tagItems.forEach(item => {
       segmentNode.append(this.getChildItem(item));
     });
+
+    const staticItems = values.slice(500);
+    if (staticItems.length > 0) {
+      const textNode = document.createElement('span');
+      textNode.classList.add('others-text');
+      textNode.innerText = staticItems.map(item => item.text).join('');
+      segmentNode.append(textNode);
+    }
 
     return segmentNode;
   };
@@ -317,8 +326,10 @@ export default class UseJsonFormatter {
   setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
     const root = this.getTargetRoot();
-    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
-    this.setNodeValueWordSplit(root, fieldName);
+    if (root) {
+      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(root, fieldName);
+    }
   }
 
   setValue(depth) {

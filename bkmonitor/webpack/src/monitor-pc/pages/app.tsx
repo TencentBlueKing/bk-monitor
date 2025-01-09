@@ -477,6 +477,18 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
+    } else if (navId === 'k8s' || navId === 'k8s-new') {
+      setTimeout(async () => {
+        await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+          if (hasAuth) {
+            this.routeViewKey = random(10);
+            this.$router.push({ name: navId === 'k8s' ? 'k8s-new' : 'k8s' });
+          }
+        });
+        window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
+        this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+        return;
+      });
     } else {
       await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
         if (hasAuth) {
@@ -862,12 +874,17 @@ export default class App extends tsc<object> {
                         >
                           {item.children
                             .filter(child => !child.hidden)
+                            .filter(menu => {
+                              if (menu.id === 'k8s') return !this.$store.getters.isEnableK8sV2;
+                              if (menu.id === 'k8s-new') return this.$store.getters.isEnableK8sV2;
+                              return true;
+                            })
                             .map(child => (
                               <bk-navigation-menu-item
                                 key={child.id}
                                 scopedSlots={{
                                   child: () =>
-                                    child?.children?.map(set => (
+                                    child?.children.map(set => (
                                       <bk-navigation-menu-item
                                         key={set.id}
                                         class={{ 'disabled-event': !set.href && !set.path }}

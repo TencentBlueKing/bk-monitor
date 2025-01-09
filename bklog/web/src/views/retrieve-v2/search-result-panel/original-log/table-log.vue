@@ -114,11 +114,11 @@
     <retrieve-loader
       v-if="isPageOver || isContentLoading"
       class="bklog-skeleton-loading"
+      :is-loading="false"
       :is-page-over="isPageOver || isContentLoading"
-      :visible-fields="[]"
-      :maxLength="36"
+      :max-length="36"
       :static="true"
-      :isLoading="false"
+      :visible-fields="[]"
     >
     </retrieve-loader>
   </div>
@@ -126,13 +126,14 @@
 
 <script>
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-  import { mapState } from 'vuex';
   import RetrieveLoader from '@/skeleton/retrieve-loader';
+  import { mapState } from 'vuex';
+
+  import { bigNumberToString } from '../../../../common/util';
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import OriginalList from './original-list';
   import TableList from './table-list';
-  import { bigNumberToString } from '../../../../common/util';
 
   export default {
     components: {
@@ -296,9 +297,9 @@
           const dialogNewParams = {};
           const { targetFields, sortFields } = config.indexSetValue;
           const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+          this.targetFields = targetFields ?? [];
           // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
           if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-            this.targetFields = targetFields;
             fieldParamsKey.forEach(field => {
               dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
             });
