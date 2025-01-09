@@ -65,6 +65,9 @@ def create_or_delete_records(mocker):
         enable_time=base_time - timedelta(days=60),
         disable_time=base_time - timedelta(days=30),
     )
+    models.StorageClusterRecord.objects.create(
+        table_id='1001_bklog.stdout', cluster_id=13, is_current=True, enable_time=None
+    )
 
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -93,6 +96,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "options": {},
         "storage_type": "elasticsearch",
         "storage_cluster_records": [
+            {"storage_id": 13, "enable_time": 0},
             {"storage_id": 12, "enable_time": enable_timestamp_12},
             {"storage_id": 11, "enable_time": enable_timestamp},
         ],

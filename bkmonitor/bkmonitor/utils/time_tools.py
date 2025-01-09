@@ -294,7 +294,7 @@ def datetime2timestamp(value):
     return time.mktime(localtime(value).timetuple())
 
 
-def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_unit="m", second_unit="s"):
+def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_unit="m", second_unit="s", upper=False):
     """
     将秒数转化为 人类易读时间 1d 12h 3m
     """
@@ -302,6 +302,21 @@ def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_u
     h = int((sec_elapsed - d * 24 * 3600) // 3600)
     m = int((sec_elapsed - d * 24 * 3600 - h * 3600) // 60)
     s = int(sec_elapsed - d * 24 * 3600 - h * 3600 - m * 60)
+
+    # 在上面的基本计算之外，检查是否需要向上取整
+    if upper:
+        if d:
+            if any([h, m, s]):
+                d += 1
+                h = m = s = 0
+        elif h:
+            if any([m, s]):
+                h += 1
+                m = s = 0
+        elif m:
+            if s:
+                m += 1
+                s = 0
 
     units = [(d, day_unit), (h, hour_unit), (m, minute_unit), (s, second_unit)]
     time_str = ""

@@ -61,7 +61,7 @@ export default class TraceRetrieval extends tsc<object> {
           class='trace-wrap-iframe'
           data={this.traceData}
           setShodowDom={true}
-          showSourceCode={true}
+          showSourceCode={false}
           url={this.traceUrl}
         />
       </div>

@@ -122,6 +122,7 @@ class AIOpsStrategyMaintainer:
                 ),
             }
             for strategy_id, strategy in strategies.items()
+            if not getattr(query_configs[strategy_id], "intelligent_detect", {}).get("use_sdk", False)
         }
 
     def generate_strategy_base_labels(

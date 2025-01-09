@@ -42,11 +42,12 @@ def test_create_record_rule(create_or_delete_records, mocker):
     )
     mocker.patch('django.conf.settings.DEFAULT_BKDATA_BIZ_ID', 2)
     service = RecordRuleService(
-        space_type=space_type, space_id=space_id, record_name=record_name, rule_config=rule_config
+        space_type=space_type, space_id=space_id, record_name=record_name, rule_config=rule_config, count_freq=30
     )
     service.create_record_rule()
 
     rule_ins = RecordRule.objects.get(table_id=table_id)
+    assert rule_ins.count_freq == 30
     expected_bksql_config = [
         {
             'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',

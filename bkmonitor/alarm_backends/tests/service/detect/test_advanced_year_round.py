@@ -96,7 +96,7 @@ class TestAdvancedYearRound(object):
             return_value=[datapoint99, datapoint_1, datapoint101],
         ):
             algorithms_config = {"floor": 101, "ceil": 100, "ceil_interval": 3, "floor_interval": 3}
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint200 = mock_datapoint_with_value(200)
             _datapoint_1 = mock_datapoint_with_value(-1)
@@ -120,7 +120,7 @@ class TestAdvancedYearRound(object):
                 "floor_interval": 3,
                 "fetch_type": "last",
             }
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint500 = mock_datapoint_with_value(500)
             _datapoint_5 = mock_datapoint_with_value(-5)

@@ -12,7 +12,7 @@ import functools
 from enum import Enum
 from typing import Any, Dict, List
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.handlers.strategy_group.define import AlgorithmType
 from apm_web.metric.constants import SeriesAliasType

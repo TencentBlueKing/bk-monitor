@@ -390,7 +390,7 @@
         axiosInstance
           .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
           .then(res => {
-            if (res?.result ?? true) {
+            if (typeof res !== 'string') {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),

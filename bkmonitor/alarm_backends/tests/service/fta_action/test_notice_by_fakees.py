@@ -25,14 +25,9 @@ from alarm_backends.tests.service.fta_action.test_notice_execute import (
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.models import ActionInstance, DutyPlan, UserGroup
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
 from constants.action import ActionSignal, ActionStatus
 from constants.alert import EventStatus
-from monitor_web.tests import mock
 
-_mock.patch(
-    "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
-).start()
 _mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
 _mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
 

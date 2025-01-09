@@ -14,7 +14,7 @@ from .base import BaseMetricGroup, MetricGroupRegistry
 from .define import CalculationType, GroupEnum
 from .groups.resource import ResourceMetricGroup
 from .groups.trpc import TrpcMetricGroup
-from .helper import MetricHelper
+from .helper import MetricHelper, PreCalculateHelper
 
 __all__ = [
     MetricGroupRegistry,
@@ -23,5 +23,6 @@ __all__ = [
     GroupEnum,
     CalculationType,
     MetricHelper,
+    PreCalculateHelper,
     BaseMetricGroup,
 ]

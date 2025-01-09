@@ -2,14 +2,14 @@
 from unittest import TestCase
 
 from alarm_backends.service.detect import DataPoint
-from alarm_backends.service.detect.strategy.multivariate_anomaly_detection import (
-    MultivariateAnomalyDetection,
+from alarm_backends.service.detect.strategy.host_anomaly_detection import (
+    HostAnomalyDetection,
     parse_anomaly,
 )
-from alarm_backends.tests.service.detect.test_threshold import mocked_item
+from alarm_backends.tests.service.detect.mocked_data import mocked_item
 
 
-class TestMultivariateAnomalyDetection(TestCase):
+class TestHostAnomalyDetection(TestCase):
     def test_value_0_message(self):
         datapoint_0 = DataPoint(
             {
@@ -24,13 +24,14 @@ class TestMultivariateAnomalyDetection(TestCase):
                         ", [\"system__net__speed_sent\", 128148.5, 0.489216]"
                         ", [\"system__mem__pct_used\", 46.67824363574403, 0.399225]]"
                     ),
+                    "extra_info": "{}",
                 },
                 "time": 1569246480,
             },
             mocked_item,
         )
 
-        detect_engine = MultivariateAnomalyDetection(config={})
+        detect_engine = HostAnomalyDetection(config={})
         anomaly_result = detect_engine.detect(datapoint_0)
         assert len(anomaly_result) == 0
 
@@ -48,6 +49,7 @@ class TestMultivariateAnomalyDetection(TestCase):
                         ", [\"system__net__speed_sent\", 128148.5, 0.489216]"
                         ", [\"system__mem__pct_used\", 46.67824363574403, 0.399225]]"
                     ),
+                    "extra_info": "{}",
                 },
                 "time": 1569246480,
             },
@@ -99,7 +101,7 @@ class TestMultivariateAnomalyDetection(TestCase):
                 },
             ]
         }
-        detect_engine = MultivariateAnomalyDetection(config=config)
+        detect_engine = HostAnomalyDetection(config=config)
         anomaly_result = detect_engine.detect(datapoint_1)
         anomaly_sort = parse_anomaly(datapoint_1.values["anomaly_sort"], config)
         print(anomaly_result[0].anomaly_message)

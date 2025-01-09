@@ -55,7 +55,17 @@ export default class TableLegend extends CommonLegend {
       }
     }
     if (this.sort === 0 || !title) {
-      this.list = this.legendData;
+      // 默认按avg排序
+      if (!title && !sort) {
+        const sortId = 'avgSource';
+        this.list = this.legendData.slice().sort((a, b) => {
+          const aVal = a[sortId] || 0;
+          const bVal = b[sortId] || 0;
+          return +bVal - +aVal;
+        });
+        this.sortTitle = 'Avg';
+        this.sort = 2;
+      }
       return;
     }
     const sortId = `${title.toLocaleLowerCase()}Source`;
@@ -87,11 +97,17 @@ export default class TableLegend extends CommonLegend {
                 <span class='caret-wrapper'>
                   <i
                     class={{ 'sort-caret is-asc': true, active: this.sortTitle === title && this.sort === 1 }}
-                    onClick={() => this.handleSortChange(title, 1)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSortChange(title, 1);
+                    }}
                   />
                   <i
                     class={{ 'sort-caret is-desc': true, active: this.sortTitle === title && this.sort === 2 }}
-                    onClick={() => this.handleSortChange(title, 2)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSortChange(title, 2);
+                    }}
                   />
                 </span>
               </th>

@@ -1046,6 +1046,12 @@ class IndexSetUserFavorite(models.Model):
             "index_set_id", flat=True
         )
 
+    @classmethod
+    def fetch_user_favorite_index_set(cls, username: str):
+        return cls.objects.filter(username=username).values_list(
+            "index_set_id", flat=True
+        )
+
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
@@ -1437,3 +1443,13 @@ class UserIndexSetCustomConfig(models.Model):
     @classmethod
     def get_index_set_hash(cls, index_set_id: Union[list, int]):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
+
+
+class UserCustomConfig(SoftDeleteModel):
+    user_id = models.IntegerField(_("用户ID"), db_index=True)
+    custom_config = models.JSONField(_("自定义配置"))
+
+    class Meta:
+        verbose_name = _("用户自定义配置")
+        verbose_name_plural = _("用户自定义配置")
+        ordering = ("-updated_at",)

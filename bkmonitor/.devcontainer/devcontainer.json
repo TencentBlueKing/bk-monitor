@@ -25,6 +25,7 @@
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
+			"terminal.integrated.inheritEnv": true,
 			"extensions": [
 				"ms-python.python",
 				"ms-python.debugpy",

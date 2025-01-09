@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 from bkm_ipchooser import views as ip_views
 from core.drf_resource.routers import ResourceRouter
@@ -42,5 +42,5 @@ router.register_module(report_views)
 
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import json
 from copy import copy
 
-from django.utils.encoding import smart_text
+from django.utils.encoding import smart_str
 from rest_framework.renderers import BaseRenderer
 
 from bkmonitor.utils.common_utils import DatetimeEncoder
@@ -28,7 +28,7 @@ class PlainTextRenderer(BaseRenderer):
     format = 'txt'
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
-        return smart_text(data, encoding=self.charset)
+        return smart_str(data, encoding=self.charset)
 
 
 class UJSONRenderer(BaseRenderer):
