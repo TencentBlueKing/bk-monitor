@@ -186,6 +186,12 @@ export class FilterByOptions {
 
   // 搜索
   async search(search: string, dimension: EDimensionKey, categoryDim?: string) {
+    if (dimension === EDimensionKey.workload) {
+      await this.setWorkloadOverview({
+        bcs_cluster_id: this.commonParams.bcs_cluster_id,
+        query_string: search,
+      });
+    }
     this.commonParams.query_string = search;
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
