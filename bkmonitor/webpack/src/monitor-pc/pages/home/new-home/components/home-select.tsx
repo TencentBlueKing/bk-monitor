@@ -293,12 +293,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     );
   }
   /** 设置历史搜索 */
-  setLocalHistory(type: string) {
+  setLocalHistory(value: string) {
     try {
       const listStr = localStorage.getItem(storageKey);
-      const obj = { name: type };
+      const obj = { name: value };
       const list = listStr ? JSON.parse(listStr) : [];
-      const resultList = list.filter(item => item.name !== type);
+      const resultList = list.filter(item => item.name !== value);
 
       if (resultList.length >= 50) {
         resultList.splice(resultList.length - 1, resultList.length - 50);
