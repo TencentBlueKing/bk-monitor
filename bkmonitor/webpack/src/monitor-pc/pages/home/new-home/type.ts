@@ -55,6 +55,26 @@ export interface IRouteItem {
   href?: string;
   canStore?: boolean;
 }
+
+export interface IRecentList {
+  function: string;
+  items: IRecentItem[];
+  name: string;
+  icon?: string;
+}
+
+interface IRecentItem {
+  bk_biz_id: number;
+  bk_biz_name: string;
+  name?: string;
+  url?: string;
+}
+
+export interface IRecentAlarmTab {
+  bk_biz_id: number;
+  bk_biz_name: string;
+}
+
 export interface IAlarmGraphConfig {
   name: string;
   strategy_ids: number[];

@@ -41,7 +41,7 @@ import {
 } from 'monitor-ui/chart-plugins/mixins';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -61,6 +61,30 @@ interface IHomeAlarmChartEvents {
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
 }
+
+const handleSetTooltip = params => {
+  // 获取时间并格式化
+  const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ss');
+
+  // 构建每个数据点的 HTML 列表项
+  const liHtmls = params
+    .map(item => {
+      return `
+          <li class="tooltips-content-item" style="--series-color: ${item.color}">
+              <span class="item-series" style="background-color:${item.color};"></span>
+              <span class="item-name">${item.seriesName}:</span>
+              <span class="item-value">${item.value[1]}</span>
+          </li>`;
+    })
+    .join('');
+
+  // 构建 tooltip 的 HTML
+  return `
+      <div class="monitor-chart-tooltips">
+          <p class="tooltips-header">${pointTime}</p>
+          <ul class="tooltips-content">${liHtmls}</ul>
+      </div>`;
+};
 
 @Component
 class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
@@ -99,6 +123,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       display_name: window.i18n.tc('提醒'),
     },
   ];
+  loading = false;
   legendData = [];
   /** 更多操作列表 */
   menuList = [
@@ -128,6 +153,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       axisPointer: {
         type: 'shadow',
       },
+      formatter: handleSetTooltip,
     },
     legend: {
       show: false,
@@ -140,22 +166,20 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       bottom: 6,
       backgroundColor: 'transparent',
     },
-    xAxis: {
-      type: 'category',
-      axisTick: {
-        show: false,
-      },
-      axisLine: {
-        show: false,
-      },
-      axisLabel: {
-        formatter: (v: any) => {
-          return dayjs.tz(+v).format('YYYY-MM-DD');
-        },
-        fontSize: 12,
-        color: '#979BA5',
-      },
-    },
+    // xAxis: {
+    //   type: 'category',
+    //   axisTick: {
+    //     show: false,
+    //   },
+    //   axisLine: {
+    //     show: false,
+    //   },
+    //   axisLabel: {
+    //     formatter: v => this.formatterFunc(dayjs.tz(+v)),
+    //     fontSize: 12,
+    //     color: '#979BA5',
+    //   },
+    // },
     yAxis: {
       type: 'value',
       splitLine: {
@@ -170,6 +194,9 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       },
     },
   };
+
+  formatterFunc = null;
+
   /** 更多操作 */
   @Emit('menuClick')
   handleMenuClick(item) {
@@ -179,7 +206,6 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   }
 
   changeSelect(val: string[]) {
-    console.log(val);
     this.getPanelData();
   }
   mounted() {
@@ -187,7 +213,10 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   }
 
   @Watch('timeRange')
-  handleTimeRangeChange() {
+  handleTimeRangeChange(newTime, oldTime) {
+    const [newS, newE] = newTime;
+    const [oldS, oldE] = oldTime;
+    if (newS === oldS && newE === oldE) return;
     this.getPanelData();
   }
   /**
@@ -195,16 +224,18 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    */
   @Debounce(100)
   async getPanelData() {
+    this.formatterFunc = generateFormatterFunc(this.timeRange);
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.init) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
+    this.loading = true;
     try {
       // const seriesData = chartData.series;
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选
-      if (this.searchValue.length) {
+      if (this.searchValue.length !== this.searchList.length) {
         conditions.push({ key: 'severity', value: this.searchValue.map(val => EAlertLevel[val]) });
       }
       const { series } = await alertDateHistogram({
@@ -225,6 +256,8 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
+    } finally {
+      this.loading = false;
     }
     this.handleLoadingChange(false);
   }
@@ -232,7 +265,6 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    * @description: 更新图表的数据
    */
   updateChartData(srcData) {
-    // console.log(srcData, 'srcData');
     const legendList = [];
     const dataList = [];
     srcData.forEach((item, ind) => {
@@ -249,6 +281,20 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     this.options = Object.freeze(
       deepmerge(this.chartOption, {
         series: dataList,
+        xAxis: {
+          type: 'category',
+          axisTick: {
+            show: false,
+          },
+          axisLine: {
+            show: false,
+          },
+          axisLabel: {
+            formatter: v => this.formatterFunc(dayjs.tz(+v)),
+            fontSize: 12,
+            color: '#979BA5',
+          },
+        },
       })
     ) as MonitorEchartOptions;
   }
@@ -298,6 +344,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
               <bk-option
                 id={item.name}
                 key={item.name}
+                disabled={this.searchValue.length === 1 && this.searchValue.includes(item.name)}
                 name={item.display_name}
               />
             ))}
@@ -342,6 +389,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
+                  v-bkloading={{ isLoading: this.loading }}
                   options={this.options}
                 />
               )}

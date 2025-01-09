@@ -34,44 +34,14 @@ import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 
+import type { IRecentList } from '../type';
 // import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
-import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
-import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
-import serviceSrc from '../../../../static/images/png/new-page/service.png';
-import { EFunctionNameType, RECENT_FAVORITE_STORE_KEY } from '../utils';
+import { RECENT_FAVORITE_STORE_KEY } from '../utils';
 import AiWhaleInput from './ai-whale-input';
 import HeaderSettingModal from './header-setting-modal';
+import RecentFavoritesList from './recent-favorites-list';
 
 import './recent-favorites-tab.scss';
-interface RecentItems {
-  function: string;
-  items: Item[];
-  name: string;
-  icon?: string;
-}
-
-interface Item {
-  bk_biz_id: number;
-  bk_biz_name: string;
-  name?: string;
-  url?: string;
-}
-
-const categoryIcons = {
-  dashboard: dashboardSrc,
-  retrieval: retrievalSrc,
-  apm_service: serviceSrc,
-};
-
-// 三种布局方式
-const strategies = {
-  1: 'row-1',
-  2: 'row-2',
-  3: 'row-3',
-  4: 'row-2',
-  5: 'row-3',
-  6: 'row-3',
-};
 
 // 模块名称映射
 const modeNameMap = {
@@ -105,8 +75,8 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
 
   categoriesHasTwoRows = false; // 是否两行布局
 
-  recentItems: RecentItems[] = []; // 最近使用列表
-  favoriteItems: RecentItems[] = []; // 收藏列表
+  recentItems: IRecentList[] = []; // 最近使用列表
+  favoriteItems: IRecentList[] = []; // 收藏列表
 
   // 展示AI小鲸输入框
   get enableAiAssistant() {
@@ -122,12 +92,6 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   @Watch('categoriesConfig')
   onCategoriesOrderChanged() {
     this.setStoreSelectedCategories();
-  }
-
-  // 计算布局策略
-  get rowClass() {
-    this.categoriesHasTwoRows = this.selectedCategories.length > 3;
-    return strategies[this.selectedCategories.length] || '';
   }
 
   // 获取被选中的变量名
@@ -278,97 +242,18 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     );
   }
 
-  // 触发 AI 小鲸
+  // 触发 AI 小鲸，针对回车做处理
   handleKeyDown(event) {
-    // 针对回车做处理
     if (event.key !== 'Enter') return;
-    if (!event.shiftKey && !event.ctrlKey) {
-      // TODO 触发 AI 功能
-      // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
-      event.preventDefault();
-      // 打开小鲸聊天框
-      aiWhaleStore.setShowAIBlueking(true);
-      aiWhaleStore.handleAiBluekingSend({
-        content: event.target.innerText,
-      });
-      event.target.innerText = '';
-    } else {
-      // 在按下 Shift+Enter 或 Ctrl+Enter 时插入换行符
-      // document.execCommand('insertLineBreak');
-      // 插入换行并移动光标
-      // this.insertLineBreakAndMoveCursor();
-      // event.preventDefault();
-    }
-  }
-
-  handleRecentList(type, item) {
-    // 使用 window.open 在新标签页中打开链接
-    const currentUrl = window.location.href;
-    const baseUrl = currentUrl.split('#')[0];
-    const cb = {
-      /** 仪表盘跳转 */
-      dashboard: () => {
-        const url = `${baseUrl}#/grafana/d/${item.dashboard_uid}`;
-        window.open(url, '_blank');
-      },
-      /** APM跳转 */
-      apm_service: () => {
-        const url = `${baseUrl}#/apm/service?filter-app_name=${item.app_name}&filter-service_name=${item.service_name}`;
-        window.open(url, '_blank');
-      },
-    };
-    cb[type]();
-  }
-
-  // 最近使用列表
-  listItem({ item, title = '', tag = '', type }) {
-    if (!item) return;
-    return (
-      <li
-        key={item.id}
-        class='recent-item'
-        onClick={() => this.handleRecentList(type, item)}
-      >
-        <div class='detail'>
-          {!this.isRecentView && <i class='icon-mc-collect icon-monitor favorite' />}
-          {tag && (
-            <span class='tag'>
-              <span>{tag}</span>
-            </span>
-          )}
-          <span>{title}</span>
-        </div>
-        <span class='desc'>{item.bk_biz_name}</span>
-      </li>
-    );
-  }
-
-  // 根据模块类型，获取对应参数
-  getListItemParams(type, item) {
-    const typeHandlers = {
-      dashboard: {
-        type,
-        item,
-        id: item.dashboard_uid,
-        title: item.dashboard_title,
-      },
-      apm_service: {
-        type,
-        item,
-        id: item.application_id,
-        title: `${item.app_name}/${item.service_name}`,
-      },
-      // TODO 为其他模块类型添加相关处理
-      retrieval: {
-        type,
-        item,
-        title: item.dashboard_title,
-        // tag: '',
-      },
-      default: {},
-    };
-
-    return typeHandlers[type];
+    // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
+    if (event.shiftKey || event.ctrlKey) return;
+    event.preventDefault();
+    // 打开小鲸聊天框
+    aiWhaleStore.setShowAIBlueking(true);
+    aiWhaleStore.handleAiBluekingSend({
+      content: event.target.innerText,
+    });
+    event.target.innerText = '';
   }
 
   render() {
@@ -395,47 +280,12 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             {this.getCustomize()}
           </div>
           {/* 最近/收藏列表 */}
-          <div class={['recent-content', this.rowClass, this.categoriesHasTwoRows ? 'has-line' : '']}>
-            {this.itemsToDisplay.map(shortcut => (
-              <div
-                key={shortcut.function}
-                class='category'
-              >
-                <div class='sub-head'>
-                  <div>
-                    {categoryIcons[shortcut.function] ? (
-                      <div class='img'>
-                        <img
-                          alt=''
-                          src={categoryIcons[shortcut.function]}
-                        />
-                      </div>
-                    ) : (
-                      <i class={['bk-icon bk-icon icon-search', shortcut.icon]} />
-                    )}
-                    <span class='recent-subtitle'>{EFunctionNameType[shortcut.function]}</span>
-                  </div>
-                  {/* <span class='more'>更多</span> */}
-                </div>
-                <ul class='recent-list'>
-                  {shortcut.items.length ? (
-                    shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
-                  ) : (
-                    <div class='recent-list-empty'>
-                      {' '}
-                      <div class='empty-img'>
-                        <img
-                          alt=''
-                          src={emptyImageSrc}
-                        />
-                      </div>
-                      {this.$t('暂无相关记录')}
-                    </div>
-                  )}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <RecentFavoritesList
+            hasTwoRows={this.categoriesHasTwoRows}
+            isRecentView={this.isRecentView}
+            itemsToDisplay={this.itemsToDisplay}
+            selectedCategories={this.selectedCategories}
+          />
         </div>
         {/* 快捷入口 */}
         <div class='quick-access'>
@@ -451,7 +301,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             </div>
           </div>
           <div class='quick-list'>
-            <ul class='quick-items'>
+            <ul class={{ 'quick-items': true, 'no-ai-whale': !this.enableAiAssistant }}>
               {this.userStoreRoutes.length ? (
                 this.userStoreRoutes
                   ?.filter(item => item.id)
@@ -487,6 +337,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             />
           )}
         </div>
+        {/* 快捷入口模态框 */}
         <HeaderSettingModal
           show={this.showModal}
           onChange={this.handleHeaderSettingShowChange}

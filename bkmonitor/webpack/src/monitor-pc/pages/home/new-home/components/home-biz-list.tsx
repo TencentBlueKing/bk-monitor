@@ -163,7 +163,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   @Emit('change')
   handleBizChange(id: number) {
-    // this.popoverRef.instance.hide();
+    this.popoverRef.instance.hide();
     // this.localValue = id;
     this.getFirstCodeBgColor();
     this.handleCacheBizId(id);
@@ -455,7 +455,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
           }}
           animation='slide-toggle'
           arrow={false}
-          offset={158}
+          offset={'158, 6'}
           theme={`${this.theme} common-popover list-${this.theme}`}
           trigger='click'
         >
