@@ -30,8 +30,6 @@ import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import { type ISearchListItem, type ISearchItem, type IRouteItem } from '../type';
 import { highLightContent, ESearchType } from '../utils';
 
-import type { ISearchListItem, ISearchItem } from '../type';
-
 import './home-select.scss';
 
 interface IHomeSelectProps {
@@ -340,9 +338,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 清空输入 */
   clearInput(e: MouseEvent) {
     e.stopPropagation();
-    this.searchValue = '';
     this.searchList = [];
+    this.handleResetData();
+  }
+  /** 重置相关的数据 */
+  handleResetData() {
     this.isInput = false;
+    this.searchValue = '';
     this.highlightedIndex = [-1, -1];
     this.highlightedItem = null;
   }
@@ -357,6 +359,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   clearHistory() {
     localStorage.setItem(storageKey, JSON.stringify([]));
     this.localHistoryList = [];
+    this.handleResetData();
   }
   /** 获取选中当前高亮的搜索项 */
   getSearchHightItem(key = 'searchList') {
