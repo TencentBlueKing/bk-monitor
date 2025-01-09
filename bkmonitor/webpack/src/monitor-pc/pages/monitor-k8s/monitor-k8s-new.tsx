@@ -315,7 +315,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.clusterLoading = true;
     this.clusterList = await listBcsCluster().catch(() => []);
     this.clusterLoading = false;
-    if (this.clusterList.length) {
+    if (this.clusterList.length && !this.cluster) {
       this.cluster = this.clusterList[0].id;
     }
     this.setRouteParams();
