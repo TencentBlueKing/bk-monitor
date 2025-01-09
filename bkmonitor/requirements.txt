@@ -30,6 +30,7 @@ django-filter==2.4.0
 drf-yasg==1.21.5
 
 # celery & django
+importlib-metadata==4.12.0 # 锁定间接依赖版本避免 kombu 报错
 celery==5.1.2
 django-celery-beat==2.2.1
 django-celery-results==2.2.0
@@ -127,3 +128,6 @@ pika==1.3.1
 
 # load .env
 python-dotenv==0.21.1
+
+# 间接依赖
+importlib-metadata==4.12.0
