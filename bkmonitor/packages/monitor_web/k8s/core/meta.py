@@ -658,10 +658,10 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @classmethod
     def distinct(cls, queryset):
         query_set = (
-            queryset.values('workload_type', "workload_name")
+            queryset.values('type', "name")
             .annotate(distinct_name=Max("id"))
             .annotate(
-                workload=Concat(F("workload_type"), Value(":"), F("workload_name")),
+                workload=Concat(F("type"), Value(":"), F("name")),
                 namespace=Value(""),
             )
             .values("namespace", "workload")
