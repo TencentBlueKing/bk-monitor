@@ -41,7 +41,7 @@ elasticsearch-dsl==7.4.1
 elasticsearch==7.17.12
 elasticsearch5==5.5.6
 elasticsearch6==6.8.2
-elasticsearch-curator==5.8.4
+elasticsearch-curator==5.8.4 # 锁定了pyyaml==5.4.1，要想办法去掉
 django-elasticsearch-dsl==7.2.2
 luqum==0.13.0
 
@@ -88,9 +88,9 @@ requests_toolbelt==1.0.0
 sqlparse==0.4.4
 ujson==5.7.0
 Pillow==9.5.0
-PyYAML==6.0.1
+PyYAML==5.4.1
 kafka-python==1.4.6
-babel==2.14.1
+babel==2.14.0
 python-consul==1.1.0
 ipython==7.34.0
 netifaces==0.11.0
