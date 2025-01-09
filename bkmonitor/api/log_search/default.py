@@ -482,7 +482,7 @@ class ListCollectorsResource(LogSearchAPIGWResource):
     method = "GET"
 
 
-class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
+class GetUserFavoriteIndexSetResource(LogSearchAPIByApiGwResource):
     """
     获取用户收藏的索引集
     """
@@ -496,7 +496,7 @@ class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
 
 
-class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
+class GetUserRecentIndexSetResource(LogSearchAPIByApiGwResource):
     """
     获取用户最近访问的索引集
     """
