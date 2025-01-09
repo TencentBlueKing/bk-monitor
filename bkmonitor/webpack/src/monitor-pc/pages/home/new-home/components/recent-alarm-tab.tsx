@@ -35,6 +35,8 @@ import HomeBizSelect from './home-biz-list';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IRecentAlarmTab } from '../type';
 
+import './recent-alarm-tab.scss';
+
 type IRecentAlarmTabProps = {
   tabs: IRecentAlarmTab[];
   activeTabId: number;
@@ -146,7 +148,7 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
 
   render() {
     return (
-      <div class='head'>
+      <div class='recent-alarm-tab'>
         {!this.loading ? (
           <div class='tabs'>
             {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
