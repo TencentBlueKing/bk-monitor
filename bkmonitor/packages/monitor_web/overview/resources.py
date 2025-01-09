@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import itertools
+import logging
 from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 
 from django.db import transaction
@@ -25,6 +26,7 @@ from apm_web.models.application import ApmMetaConfig, Application
 from bk_dataview.models import Dashboard, Org, Star, User
 from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import filter_data_by_permission
@@ -38,8 +40,9 @@ from bkmonitor.utils.time_tools import get_datetime_range, localtime
 from bkmonitor.views import serializers
 from bkmonitor.views.serializers import BusinessOnlySerializer
 from constants.alert import EventStatus
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 from core.drf_resource.contrib.cache import CacheResource
+from core.errors.api import BKAPIError
 from monitor.models import UserConfig
 from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.overview.tools import (
@@ -49,6 +52,8 @@ from monitor_web.overview.tools import (
     ServiceMonitorInfo,
     UptimeCheckMonitorInfo,
 )
+
+logger = logging.getLogger("monitor_web")
 
 
 class AlarmRankResource(CacheResource):
@@ -378,6 +383,24 @@ class GetFunctionShortcutResource(Resource):
                     # limit 限制
                     if len(items) >= limit:
                         break
+            elif function == "log_retrieve":
+                try:
+                    records = api.log_search.get_user_recent_index_set(username=username, limit=limit)
+                except BKAPIError as e:
+                    logger.exception("get user recent index set error: %s", e)
+                    continue
+
+                for record in records:
+                    space = SpaceApi.get_space_detail(space_uid=record["space_uid"])
+                    items.append(
+                        {
+                            "bk_biz_id": space.bk_biz_id,
+                            "bk_biz_name": space.space_name,
+                            "index_set_id": record["index_set_id"],
+                            "index_set_name": record["index_set_name"],
+                            "space_uid": space.space_uid,
+                        }
+                    )
             else:
                 continue
 
@@ -504,11 +527,28 @@ class GetFunctionShortcutResource(Resource):
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     mode="any",
                 )[:limit]
+            elif function == "log_retrieve":
+                try:
+                    records = api.log_search.get_user_favorite_index_set(username=username, limit=limit)
+                except BKAPIError as e:
+                    logger.exception("get user favorite index set error: %s", e)
+                    continue
+
+                for record in records:
+                    space: Space = SpaceApi.get_space_detail(space_uid=record["space_uid"])
+                    items.append(
+                        {
+                            "bk_biz_id": space.bk_biz_id,
+                            "bk_biz_name": space.space_name,
+                            "index_set_id": record["index_set_id"],
+                            "index_set_name": record["index_set_name"],
+                            "space_uid": space.space_uid,
+                        }
+                    )
             else:
                 continue
 
             result.append({"function": function, "name": name, "items": items})
-
         return result
 
     def perform_request(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
