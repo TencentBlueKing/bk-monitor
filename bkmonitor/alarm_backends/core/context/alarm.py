@@ -305,9 +305,11 @@ class Alarm(BaseContextObject):
         try:
             # 数据维度过滤
             for data_source in unify_query.data_sources:
-                try:
+                # 数据维度的字段可能比单个 datasource 中的维度字段多，所以需要过滤。
+                # promql 的情况下，维度无法分辨，因此只能使用 origin_alarm 中的数据维度
+                if data_source.data_source_label == DataSourceLabel.PROMETHEUS:
                     dimension_fields = alert.extra_info.origin_alarm.data.dimension_fields
-                except AttributeError:
+                else:
                     dimension_fields = data_source.group_by
 
                 for key in self.origin_dimensions:

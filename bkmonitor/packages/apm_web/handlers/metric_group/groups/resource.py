@@ -8,12 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections.abc import Mapping
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from django.db.models import Q
-
-from bkmonitor.data_source import dict_to_q
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -62,17 +58,6 @@ class ResourceMetricGroup(base.BaseMetricGroup):
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
 
         return support_get_qs_methods[calculation_type](start_time, end_time)
-
-    def _filter_dict_to_q(self) -> Q:
-        is_nested: bool = False
-        for val in self.filter_dict.values():
-            if isinstance(val, Mapping):
-                is_nested = True
-                break
-
-        if not is_nested:
-            return Q(**self.filter_dict)
-        return dict_to_q(self.filter_dict) or Q()
 
     def _q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         q: QueryConfigBuilder = (

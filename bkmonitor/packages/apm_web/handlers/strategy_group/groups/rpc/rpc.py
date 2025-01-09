@@ -18,7 +18,7 @@ from typing import Any, Callable, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import TelemetrySdkLanguageValues
 from rest_framework import exceptions as drf_exc
 from rest_framework import serializers
@@ -82,7 +82,6 @@ class RPCStrategyOptions(serializers.Serializer):
 
 
 class RPCStrategyGroup(base.BaseStrategyGroup):
-
     _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: List[str] = ["time", TRPCMetricTag.TARGET, TRPCMetricTag.SERVICE_NAME]
 
     DEPLOYMENT_POD_NAME_PATTERN = re.compile("^([a-z0-9-]+?)(-[a-z0-9]{5,10}-[a-z0-9]{5})$")
