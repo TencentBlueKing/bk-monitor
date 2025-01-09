@@ -391,8 +391,8 @@ export default class FilterByCondition extends tsc<IProps> {
     this.addValueSelectedSet(item);
     if (this.groupSelected === EDimensionKey.workload) {
       // workload 当前只能单选
-      if (this.updateActive && item.checked) {
-        this.workloadValueSelected = item.id;
+      if (this.updateActive) {
+        this.workloadValueSelected = item.checked ? item.id : '';
       }
       for (const option of this.valueCategoryOptions) {
         for (const l of option.children) {
@@ -718,6 +718,9 @@ export default class FilterByCondition extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 已选项置顶
+   */
   valueOptionsSticky() {
     if (this.groupSelected === EDimensionKey.workload) {
       const category = this.workloadValueSelected.match(/^[^:]+/)?.[0];
