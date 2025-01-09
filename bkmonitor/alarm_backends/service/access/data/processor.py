@@ -311,10 +311,10 @@ class AccessDataProcess(BaseAccessDataProcess):
         local.strategy_id = ",".join([str(item.strategy.id) for item in self.items])
         try:
             points = self.query_data(now_timestamp)
-            if local.strategy_id:
+            if getattr(local, "strategy_id", None):
                 delattr(local, "strategy_id")
         except Exception as e:
-            if local.strategy_id:
+            if getattr(local, "strategy_id", None):
                 delattr(local, "strategy_id")
             raise e
 
