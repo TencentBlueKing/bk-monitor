@@ -275,12 +275,10 @@ class MonitorInfoResource(CacheResource):
         return result_data
 
 
-class GetFunctionShortcutResource(CacheResource):
+class GetFunctionShortcutResource(Resource):
     """
     获取首页功能入口
     """
-
-    cache_type = CacheType.BIZ
 
     function_name_map = {
         "dashboard": _lazy("仪表盘"),
