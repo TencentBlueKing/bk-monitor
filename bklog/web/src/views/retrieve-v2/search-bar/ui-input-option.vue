@@ -9,9 +9,10 @@
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import { translateKeys } from './const-values';
   import { excludesFields } from './const.common';
-  import { ConditionOperator } from '@/store/condition-operator';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
+  import useFieldEgges from './use-field-egges';
+
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -128,45 +129,7 @@
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
 
-  let requestTimer = null;
-  const isRequesting = ref(false);
-  const rquestFieldEgges = (() => {
-    return (field, operator?, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
-      }
-
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const addition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
-          .then(() => {
-            callback?.();
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
-    };
-  })();
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
 
   const getFieldWeight = field => {
     if (field.field_name === '*') {
@@ -387,7 +350,7 @@
     }
 
     if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
-      rquestFieldEgges(item, null, null, () => {
+      requestFieldEgges(item, null, () => {
         if (!conditionValueInstance.repositionTippyInstance()) {
           if (!isOperatorInstanceActive()) {
             const target = refConditionInput.value?.parentNode;
@@ -544,7 +507,7 @@
     const charLen = getCharLength(value);
     input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
     conditionValueInputVal.value = input.value;
-    rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
+    requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
 

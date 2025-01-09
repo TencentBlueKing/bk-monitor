@@ -1307,6 +1307,12 @@ const store = new Vuex.Store({
       return dispatch('requestIndexSetFieldInfo');
     },
 
+    /**
+     * 请求提示词列表
+     * @param {*} param0
+     * @param {*} payload: { force: boolean; fields: []; addition: []; size: number; commit: boolean }
+     * @returns
+     */
     requestIndexSetValueList({ commit, state }, payload) {
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
@@ -1365,7 +1371,10 @@ const store = new Vuex.Store({
       };
 
       return http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+        if (payload?.commit !== false) {
+          commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+        }
+
         return resp;
       });
     },
