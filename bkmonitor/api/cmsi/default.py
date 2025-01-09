@@ -141,7 +141,7 @@ class CheckCMSIResource(CMSIBaseResource):
         ```
         """
         fields = "email,phone"
-        param = {"usernames": receivers_username, "fields": fields}
+        param = {"usernames": ",".join(receivers_username), "fields": fields}
 
         receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
 
@@ -437,7 +437,7 @@ class SendMail(CheckCMSIResource):
             if username not in receivers_info:
                 not_exist_usernames.append(username)
                 continue
-            if not receivers_info[username]["mail"]:
+            if not receivers_info[username]["email"]:
                 not_email_usernames.append(username)
                 continue
             exist_usernames.append(username)
@@ -447,7 +447,7 @@ class SendMail(CheckCMSIResource):
         # 提前获取失败原因为 "邮箱不存在" 的用户，并且不会对他们进行发送
         self.rich_message_detail_with_usernames(not_email_usernames, "user email not exists")
         # 获取最终的 receivers
-        return [receivers_info[username]["mail"] for username in exist_usernames]
+        return [receivers_info[username]["email"] for username in exist_usernames]
 
     def rich_message_detail_with_usernames(self, usernames: List[str], message_detail):
         """
