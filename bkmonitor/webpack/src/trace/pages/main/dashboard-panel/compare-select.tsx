@@ -27,6 +27,8 @@ import { defineComponent, ref } from 'vue';
 
 import { Select } from 'bkui-vue';
 
+import TimeCompareSelect from './time-compare-select';
+
 import './compare-select.scss';
 
 /** 不对比 | 时间对比 | 目标对比 | 指标对比 */
@@ -68,7 +70,11 @@ export default defineComponent({
   render() {
     const contentRender = () => {
       if (this.localType === CompareId.time) {
-        return <div>时间对比</div>;
+        return (
+          <div>
+            <TimeCompareSelect class='ml-12' />
+          </div>
+        );
       }
       return undefined;
     };

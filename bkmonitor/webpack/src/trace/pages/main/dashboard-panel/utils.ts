@@ -61,3 +61,45 @@ export const PANEL_INTERVAL_LIST = [
     id: '1h',
   },
 ];
+
+export const COMPARE_TIME_OPTIONS = [
+  {
+    id: '1h',
+    name: window.i18n.t('1 小时前'),
+  },
+  {
+    id: '1d',
+    name: window.i18n.t('昨天'),
+  },
+  {
+    id: '1w',
+    name: window.i18n.t('上周'),
+  },
+  {
+    id: '1M',
+    name: window.i18n.t('一月前'),
+  },
+];
+
+export const PANEL_LAYOUT_LIST = [
+  {
+    id: 1,
+    name: window.i18n.t('一列'),
+  },
+  {
+    id: 2,
+    name: window.i18n.t('两列'),
+  },
+  {
+    id: 3,
+    name: window.i18n.t('三列'),
+  },
+  {
+    id: 4,
+    name: window.i18n.t('四列'),
+  },
+  {
+    id: 5,
+    name: window.i18n.t('五列'),
+  },
+];
