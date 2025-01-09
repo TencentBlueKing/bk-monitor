@@ -59,8 +59,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   highlightedIndex: number[] = [-1, -1];
   /** 高亮选中的Item */
   highlightedItem: ISearchItem = {};
-
-  highlightedValue: string = '';
   /** 历史搜索数据  */
   localHistoryList: ISearchListItem[] = [];
   /** 接口搜索结果列表 */
@@ -85,7 +83,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
-    return (this.routeList || []).filter(item => item.name.indexOf(this.highlightedValue) !== -1);
+    return (this.routeList || []).filter(item => item.name.indexOf(this.searchValue) !== -1);
   }
   /** 是否展示搜索结果 */
   get isSearchResult() {
@@ -248,16 +246,29 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             active: this.highlightedIndex[1] === ind,
           },
         ]}
-        onClick={() => this.handleSearchJumpPage(item, item.type)}
+        onClick={e => this.handleClickHistoryItem(e, item)}
       >
         <i class='icon-monitor icon-lishijilu item-icon'></i>
         <span class='history-item-name'>{item.name}</span>
       </div>
     );
   }
+  /** 点击选中历史搜索Item */
+  handleClickHistoryItem(e, item) {
+    e.stopPropagation();
+    this.searchValue = item.name;
+    this.handleGetSearchData();
+    this.textareaInputRef.focus();
+  }
+  /** 获取搜索结果 */
+  handleGetSearchData() {
+    this.isInput = true;
+    this.searchValue && this.getSearchList();
+  }
   /** 跳转到具体的功能 */
   handleGoRoute(item) {
     this.showPopover = false;
+    this.searchValue && this.setLocalHistory(this.searchValue);
     window.open(location.href.replace(location.hash, item.href));
   }
   /** 相关功能Render */
@@ -282,15 +293,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     );
   }
   /** 设置历史搜索 */
-  setLocalHistory(item: ISearchItem, type: string) {
+  setLocalHistory(type: string) {
     try {
       const listStr = localStorage.getItem(storageKey);
-      const obj = {
-        ...item,
-        type,
-      };
+      const obj = { name: type };
       const list = listStr ? JSON.parse(listStr) : [];
-      const resultList = list.filter(item => item.name !== obj.name);
+      const resultList = list.filter(item => item.name !== type);
 
       if (resultList.length >= 50) {
         resultList.splice(resultList.length - 1, resultList.length - 50);
@@ -307,7 +315,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.searchType = type;
     this.showPopover = false;
     this.highlightedItem = item;
-    this.setLocalHistory(item, type);
     this.handleSearchJumpPage(item, type);
   }
   /** 渲染历史搜索列表 */
@@ -323,7 +330,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 渲染搜索列表 */
   renderGroupList() {
     return this.searchList.map((item, ind) => {
-      const data = highLightContent(this.highlightedValue, item.items, ['name']);
+      const data = highLightContent(this.searchValue, item.items, ['name']);
       return (
         <div>
           <span class='new-home-select-item-title'>
@@ -351,7 +358,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 溢出动态展示输入框高度 */
   autoResize(event) {
     this.isInput = !!event?.target?.value;
-    this.highlightedValue = event?.target?.value;
     this.textareaInputRef.style.height = 'auto';
     this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
   }
@@ -373,11 +379,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       return;
     }
     this.highlightedItem = this[key][this.highlightedIndex[1]];
-  }
-  // 键盘上下切换的时候更新选中的内容
-  updateSelectedItem() {
-    this.getSearchHightItem(this.currentListKey);
-    this.searchValue = this.highlightedItem.name;
+    this.searchValue = this[key][this.highlightedIndex[1]].name;
   }
 
   /** 键盘向上切换选中设置当前的index */
@@ -436,12 +438,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 键盘向上切换选中 */
   handleHighlightUp() {
     this.setHighlightIndexUp(this.currentListKey);
-    this.updateSelectedItem();
+    this.getSearchHightItem(this.currentListKey);
   }
   /** 键盘向下切换选中 */
   handleHighlightDown() {
     this.setHighlightIndexDown(this.currentListKey);
-    this.updateSelectedItem();
+    this.getSearchHightItem(this.currentListKey);
   }
 
   /** 键盘操作 */
@@ -456,20 +458,21 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       /** 回车跳转 */
       case 'Enter':
         event.preventDefault();
-        /** 如果是搜索结果还需要存入到历史搜索中 */
+        /** 如果是搜索结果，回车则是跳转 */
         if (this.isSearchResult) {
-          this.highlightedItem && this.setLocalHistory(this.highlightedItem, this.highlightedItem.type);
+          this.highlightedItem && this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type);
+          return;
         }
-        this.highlightedItem && this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type);
+        /** 如果是历史搜索页面回车则搜索 */
+        this.handleGetSearchData();
         break;
       default:
         const keyword = [' ', 'Backspace'];
         const combinedRegex = /^[0-9a-zA-Z]$/;
         /** 只有在输入数字/字母，空格、删除键的时候才调搜索接口 */
         if (combinedRegex.test(event.key) || keyword.includes(event.key)) {
-          this.isInput = true;
           setTimeout(() => {
-            this.searchValue && this.getSearchList();
+            this.handleGetSearchData();
           }, 5);
         }
         return;
@@ -477,6 +480,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 跳转到具体的页面 */
   handleSearchJumpPage(item: ISearchItem, type: string) {
+    /** 回车跳转了则存入到历史搜索中 */
+    this.searchValue && this.setLocalHistory(this.searchValue);
+
     let baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}#/`;
     let url = '';
 
