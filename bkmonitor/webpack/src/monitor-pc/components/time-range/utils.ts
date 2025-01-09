@@ -163,7 +163,7 @@ export const generateFormatterFunc = value => {
     if (duration < 60 * 60) {
       return time.format('HH:mm:ss');
     }
-    if (duration < 60 * 60 * 24) {
+    if (duration <= 60 * 60 * 24) {
       return time.format('HH:mm');
     }
     if (duration < 60 * 60 * 24 * 7) {
@@ -172,7 +172,7 @@ export const generateFormatterFunc = value => {
     if (duration < 60 * 60 * 24 * 30) {
       return time.format('MM-DD');
     }
-    return time.format('YYYY-MM-DD');
+    return time.format('MM-DD');
   };
 };
 

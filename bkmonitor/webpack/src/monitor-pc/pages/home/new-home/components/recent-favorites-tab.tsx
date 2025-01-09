@@ -73,7 +73,10 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     // { name: '容器服务' },
   ];
 
-  categoriesHasTwoRows = false; // 是否两行布局
+  loadingRecentList = true;
+  loadingQuickList = true;
+
+  // categoriesHasTwoRows = false;
 
   recentItems: IRecentList[] = []; // 最近使用列表
   favoriteItems: IRecentList[] = []; // 收藏列表
@@ -81,6 +84,11 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   // 展示AI小鲸输入框
   get enableAiAssistant() {
     return aiWhaleStore.enableAiAssistant;
+  }
+
+  // 是否两行布局
+  get categoriesHasTwoRows() {
+    return this.selectedCategories.length > 3;
   }
 
   @Watch('selectedCategories')
@@ -142,11 +150,11 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
 
   async updateFunctionShortcut() {
     // TODO 分页
+    this.loadingRecentList = true;
     try {
       const data = await getFunctionShortcut({
         type: this.isRecentView ? 'recent' : 'favorite',
         functions: this.selectedCategories,
-        limit: 10,
       });
       if (this.isRecentView) {
         this.recentItems = data;
@@ -155,6 +163,8 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
       }
     } catch (error) {
       console.log('error', error);
+    } finally {
+      this.loadingRecentList = false;
     }
   }
 
@@ -280,18 +290,21 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             {this.getCustomize()}
           </div>
           {/* 最近/收藏列表 */}
-          <RecentFavoritesList
-            hasTwoRows={this.categoriesHasTwoRows}
-            isRecentView={this.isRecentView}
-            itemsToDisplay={this.itemsToDisplay}
-            selectedCategories={this.selectedCategories}
-          />
+          {
+            <RecentFavoritesList
+              class={{ 'loading-element': this.loadingRecentList, 'has-two-row': this.categoriesHasTwoRows }}
+              v-bkloading={{ isLoading: this.loadingRecentList, zIndex: 10 }}
+              hasTwoRows={this.categoriesHasTwoRows}
+              isRecentView={this.isRecentView}
+              itemsToDisplay={this.itemsToDisplay}
+              selectedCategories={this.selectedCategories}
+            />
+          }
         </div>
         {/* 快捷入口 */}
         <div class='quick-access'>
           <div class='quick-head'>
             <div class='quick-title'>{this.$t('快捷入口')}</div>
-            {/* {this.getCustomize('quick-access')} */}
             <div
               class='customize'
               onClick={() => (this.showModal = true)}
@@ -300,7 +313,10 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
               <span>{this.$t('自定义')}</span>
             </div>
           </div>
-          <div class='quick-list'>
+          <div
+            class='quick-list'
+            v-bkloading={{ isLoading: this.loadingQuickList, zIndex: 10 }}
+          >
             <ul class={{ 'quick-items': true, 'no-ai-whale': !this.enableAiAssistant }}>
               {this.userStoreRoutes.length ? (
                 this.userStoreRoutes
@@ -343,7 +359,11 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           onChange={this.handleHeaderSettingShowChange}
           onConfirm={() => (this.showModal = false)}
           onStoreRoutesChange={v => {
-            this.userStoreRoutes = v;
+            this.loadingQuickList = true;
+            this.$nextTick(() => {
+              this.userStoreRoutes = v;
+              this.loadingQuickList = false;
+            });
           }}
         />
       </div>

@@ -71,7 +71,6 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
 
   // 计算布局策略
   get rowClass() {
-    this.hasTwoRows = this.selectedCategories.length > 3;
     return strategies[this.selectedCategories.length] || '';
   }
 

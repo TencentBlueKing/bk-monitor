@@ -58,9 +58,6 @@ interface IHomeAlarmChartProps {
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
 }
-interface IHomeAlarmChartEvents {
-  onMenuClick: any;
-}
 
 const handleSetTooltip = params => {
   // 获取时间并格式化
@@ -166,20 +163,6 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
       bottom: 6,
       backgroundColor: 'transparent',
     },
-    // xAxis: {
-    //   type: 'category',
-    //   axisTick: {
-    //     show: false,
-    //   },
-    //   axisLine: {
-    //     show: false,
-    //   },
-    //   axisLabel: {
-    //     formatter: v => this.formatterFunc(dayjs.tz(+v)),
-    //     fontSize: 12,
-    //     color: '#979BA5',
-    //   },
-    // },
     yAxis: {
       type: 'value',
       splitLine: {
@@ -200,15 +183,12 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
   /** 更多操作 */
   @Emit('menuClick')
   handleMenuClick(item) {
-    console.log(item);
     this.menuPopoverRef?.hideHandler();
     return item;
   }
 
-  changeSelect(val: string[]) {
-    this.getPanelData();
-  }
-  mounted() {
+  // 告警等级切换
+  changeSelect() {
     this.getPanelData();
   }
 
@@ -244,15 +224,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
         start_time: start,
         end_time: end,
       });
-      // const res = await aipHandle;
       this.updateChartData(series);
-      // if (res) {
-      //   this.init = true;
-      //   this.empty = false;
-      // } else {
-      //   this.emptyText = window.i18n.tc('查无数据');
-      //   this.empty = true;
-      // }
     } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
