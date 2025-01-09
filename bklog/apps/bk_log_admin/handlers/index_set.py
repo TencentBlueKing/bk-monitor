@@ -19,16 +19,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import arrow
+import pytz
 from django.conf import settings
+from django.db.models import Case, CharField, Count, Value, When
+from django.db.models.functions import TruncDate
 
 from apps.bk_log_admin.constants import (
     BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-    OPERATION_PIE_CHOICE_MAP,
     BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
-    DATE_HISTOGRAM_INTERVAL,
+    OPERATION_PIE_CHOICE_MAP,
 )
 from apps.log_search.models import UserIndexSetSearchHistory
 from apps.models import model_to_dict
@@ -55,7 +57,7 @@ class IndexSetHandler(object):
         data_label = "{bk_biz_id}_{app_code}_{table}".format(
             bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
             app_code=settings.APP_CODE.replace("-", "_"),
-            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY
+            table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
         )
         return data_label
 
@@ -69,8 +71,26 @@ class IndexSetHandler(object):
             bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
             app_code=settings.APP_CODE.replace("-", "_"),
             table=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY,
-            field=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD
+            field=BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
         )
+
+    @staticmethod
+    def get_user_index_set_history_objs(index_set_id, start_time, end_time):
+        """
+        获取索引集用户检索记录表数据
+        :param index_set_id: 索引集id
+        :param start_time: 起始时间
+        :param end_time: 结束时间
+        """
+        objs = UserIndexSetSearchHistory.objects.filter(
+            index_set_id=index_set_id,
+            search_type="default",
+            created_at__range=[
+                start_time.datetime,
+                end_time.datetime,
+            ],
+        )
+        return objs
 
     def get_date_histogram(self, index_set_id, user_search_history_operation_time):
         """
@@ -79,41 +99,24 @@ class IndexSetHandler(object):
         @param user_search_history_operation_time.start_time {Str} the search begin
         @param user_search_history_operation_time.end_time the search end
         """
-        start_time, end_time = self._get_start_end_time(
-            user_search_history_operation_time=user_search_history_operation_time
+        user_index_set_history_objs = self.get_user_index_set_history_objs(
+            index_set_id,
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
-        metrics = [
-            {
-                "field": BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
-                "method": "COUNT",
-                "alias": "a"
-            }
-        ]
-        where = [
-            {
-                "key": "index_set_id",
-                "method": "eq",
-                "value": [
-                    str(index_set_id)
-                ]
-            }
-        ]
-        unify_query_data = self.call_unify_query(
-            start_time=start_time,
-            end_time=end_time,
-            metrics=metrics,
-            where=where,
-            interval=DATE_HISTOGRAM_INTERVAL
+        user_index_set_history = (
+            user_index_set_history_objs.annotate(
+                day=TruncDate("created_at", tzinfo=pytz.timezone("UTC")),
+            )
+            .values("day")
+            .annotate(count=Count('id'))
         )
-        if not unify_query_data["series"]:
-            return {"labels": [], "values": []}
-
         daily_label_list = []
         daily_data_list = []
-        # 只有一个series
-        for data in unify_query_data["series"][0]["datapoints"]:
-            daily_label_list.append(arrow.get(data[1] / 1000).format())
-            daily_data_list.append(data[0] if data[0] else 0)
+        for item in user_index_set_history:
+            agg_date = arrow.get(item["day"]).format()
+            daily_label_list.append(agg_date)
+            daily_data_list.append(item["count"])
 
         return {"labels": daily_label_list, "values": daily_data_list}
 
@@ -124,41 +127,17 @@ class IndexSetHandler(object):
         @param user_search_history_operation_time.start_time {Str} the search begin
         @param user_search_history_operation_time.end_time the search end
         """
-        start_time, end_time = self._get_start_end_time(
-            user_search_history_operation_time=user_search_history_operation_time
+        user_index_set_history_objs = self.get_user_index_set_history_objs(
+            index_set_id,
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
-        metrics = [
-            {
-                "field": BK_DATA_CUSTOM_REPORT_USER_INDEX_SET_HISTORY_FIELD,
-                "method": "COUNT",
-                "alias": "a"
-            }
-        ]
-        where = [
-            {
-                "key": "index_set_id",
-                "method": "eq",
-                "value": [
-                    str(index_set_id)
-                ]
-            }
-        ]
-        group_by = ["created_by"]
-        unify_query_data = self.call_unify_query(
-            start_time=start_time,
-            end_time=end_time,
-            metrics=metrics,
-            where=where,
-            group_by=group_by
-        )
-        if not unify_query_data["series"]:
-            return {"labels": [], "values": []}
+        user_index_set_history = user_index_set_history_objs.values("created_by").annotate(count=Count("id"))
         created_by_label_list = []
         created_by_data_list = []
-        for data in unify_query_data["series"]:
-            created_by_label_list.append(data["dimensions"]["created_by"])
-            created_by_data_list.append(sum([i[0] for i in data["datapoints"] if i[0]]))
-
+        for item in user_index_set_history:
+            created_by_label_list.append(item["created_by"])
+            created_by_data_list.append(item["count"])
         return {"labels": created_by_label_list, "values": created_by_data_list}
 
     def get_duration_terms(self, index_set_id, user_search_history_operation_time):
@@ -168,33 +147,29 @@ class IndexSetHandler(object):
         @param user_search_history_operation_time.start_time {Str} the search begin
         @param user_search_history_operation_time.end_time the search end
         """
-        start_time, end_time = self._get_start_end_time(
-            user_search_history_operation_time=user_search_history_operation_time
+        user_index_set_history_objs = self.get_user_index_set_history_objs(
+            index_set_id,
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
+
+        # 根据分组范围和对应的标签构建Case表达式
+        case_expression = Case(
+            *[
+                When(duration__gte=item["min"], duration__lt=item["max"], then=Value(item["label"]))
+                for item in OPERATION_PIE_CHOICE_MAP
+                if item.get("max")
+            ],
+            default=Value(OPERATION_PIE_CHOICE_MAP[0]["label"]),
+            output_field=CharField(),
+        )
+        results = user_index_set_history_objs.annotate(duration_range=case_expression)
+        grouped_results = results.values("duration_range").annotate(count=Count("id"))
         pie_label_list = []
         pie_data_list = []
-        for pie_choice in OPERATION_PIE_CHOICE_MAP:
-            pie_label_list.append(pie_choice["label"])
-            if "min" in pie_choice and "max" in pie_choice:
-                promql = (
-                    f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} >= {pie_choice['min']} and "
-                    f"{self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} < {pie_choice['max']})"
-                )
-            elif "min" in pie_choice:
-                promql = f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} >= {pie_choice['min']})"
-            # "max" in pie_choice
-            else:
-                promql = f"count({self.prometheus_table}{{index_set_id=\"{index_set_id}\"}} < {pie_choice['max']})"
-            unify_query_data = self.call_unify_query_by_promql(
-                start_time=start_time,
-                end_time=end_time,
-                promql=promql
-            )
-            if not unify_query_data["series"]:
-                pie_data_list.append(0)
-                continue
-            pie_data_list.append(sum([i[0] for i in unify_query_data["series"][0]["datapoints"] if i[0]]))
-
+        for item in grouped_results:
+            pie_label_list.append(item["duration_range"])
+            pie_data_list.append(item["count"])
         return {"labels": pie_label_list, "values": pie_data_list}
 
     def list_user_set_history(self, start_time, end_time, request, view, index_set_id):
@@ -234,13 +209,13 @@ class IndexSetHandler(object):
         return start_time, end_time
 
     def call_unify_query(
-            self,
-            start_time: int,
-            end_time: int,
-            metrics: List[Dict[str, Any]] = None,
-            where: List[Dict[str, Any]] = None,
-            group_by: List = None,
-            interval: int = None
+        self,
+        start_time: int,
+        end_time: int,
+        metrics: List[Dict[str, Any]] = None,
+        where: List[Dict[str, Any]] = None,
+        group_by: List = None,
+        interval: int = None,
     ):
         """
         以通用的形式查询unify_query
@@ -276,11 +251,11 @@ class IndexSetHandler(object):
                     "interval_unit": "s",
                     "time_field": "time",
                     "filter_dict": {},
-                    "functions": []
+                    "functions": [],
                 }
             ],
             "target": [],
-            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID)
+            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID),
         }
         try:
             return self._client.unify_query(params)
@@ -291,13 +266,7 @@ class IndexSetHandler(object):
             "series": [],
         }
 
-    def call_unify_query_by_promql(
-            self,
-            start_time: int,
-            end_time: int,
-            promql: str,
-            interval: int = None
-    ):
+    def call_unify_query_by_promql(self, start_time: int, end_time: int, promql: str, interval: int = None):
         """
         以promql的形式查询unify_query
         """
@@ -321,11 +290,11 @@ class IndexSetHandler(object):
                     "interval": interval,
                     "interval_unit": "s",
                     "time_field": "time",
-                    "promql": promql
+                    "promql": promql,
                 }
             ],
             "target": [],
-            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID)
+            "bk_biz_id": str(settings.BLUEKING_BK_BIZ_ID),
         }
         try:
             return self._client.unify_query(params)
