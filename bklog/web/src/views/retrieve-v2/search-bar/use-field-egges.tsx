@@ -66,6 +66,7 @@ export default () => {
         pending: true,
         index: taskPool.length,
         commit: false,
+        cancelToken: true,
       };
       taskPool.forEach(task => {
         task.pending = false;
