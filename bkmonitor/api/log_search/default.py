@@ -491,7 +491,7 @@ class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        space_uid = serializers.CharField(required=True, label="空间ID")
+        space_uid = serializers.CharField(required=False, label="空间ID")
         username = serializers.CharField(required=True, label="用户名")
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
 
@@ -505,6 +505,6 @@ class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        space_uid = serializers.CharField(required=True, label="空间ID")
+        space_uid = serializers.CharField(required=False, label="空间ID")
         username = serializers.CharField(required=True, label="用户名")
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
