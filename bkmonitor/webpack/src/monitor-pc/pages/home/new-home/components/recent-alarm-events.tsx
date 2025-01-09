@@ -97,9 +97,6 @@ export default class RecentAlarmEvents extends tsc<object> {
       },
     ],
   };
-  dragoverId = '';
-  dragId = '';
-
   loading = false;
 
   currentDelId = null;
