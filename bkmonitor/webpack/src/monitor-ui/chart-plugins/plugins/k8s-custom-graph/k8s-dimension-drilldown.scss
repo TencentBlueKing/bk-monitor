@@ -1,0 +1,37 @@
+.k8s-dimension-drillDown {
+  .drill-down-icon {
+    width: 24px;
+    height: 24px;
+    margin-left: 7px;
+    line-height: 24px;
+    text-align: center;
+
+    &:hover {
+      color: #3A84FF;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background: #cddffe;
+    }
+    
+  }
+}
+
+.drill-down-list-menu {
+  width: 100px;
+  padding: 4px 0;
+
+  .menu-item {
+    height: 32px;
+    padding: 0 7px 0 12px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}

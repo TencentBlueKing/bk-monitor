@@ -38,7 +38,11 @@
                 "p90",
                 "p50",
                 "strategy_count",
-                "alert_status"
+                "alert_status",
+                "metric_data_status",
+                "log_data_status",
+                "trace_data_status",
+                "profiling_data_status"
               ]
             }
           }

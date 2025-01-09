@@ -205,13 +205,15 @@ else:
     APIGW_USER_USERNAME_KEY = "username"
 
 # Target: Observation data collection
-SERVICE_NAME = APP_CODE + "_web"
-if ROLE == "api":
-    SERVICE_NAME = APP_CODE + "_api"
-if "celery" in sys.argv or ROLE == "worker":
-    SERVICE_NAME = APP_CODE + "_worker"
-if "beat" in sys.argv:
-    SERVICE_NAME = APP_CODE + "_beat"
+# api -> api
+# worker -> worker / worker_beat
+# web -> web / web_worker / web_beat
+SERVICE_NAME = f"{APP_CODE}_{ROLE}"
+is_celery = any("celery" in arg for arg in sys.argv)
+if is_celery and "worker" in sys.argv and ROLE != "worker":
+    SERVICE_NAME = SERVICE_NAME + "_worker"
+if is_celery and "beat" in sys.argv:
+    SERVICE_NAME = SERVICE_NAME + "_beat"
 
 # space 支持
 # 请求参数是否需要注入空间属性
@@ -321,6 +323,7 @@ ACTIVE_VIEWS = {
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
         "ai_assistant": "monitor_web.ai_assistant.views",
+        "k8s": "monitor_web.k8s.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1476,5 +1479,19 @@ TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
+# k8s灰度列表，关闭灰度: [0] 或删除该配置
+K8S_V2_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
+
+# BK-Repo
+if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
+    USE_CEPH = True
+    BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
+    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
+    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
+    BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
+    BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
+
+    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"

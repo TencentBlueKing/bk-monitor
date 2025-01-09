@@ -334,7 +334,7 @@ MONITOR_API_MODELS = (
 ###############################################################################
 
 # 水印字体素材路径
-SIGNATURE_FONT_PATH = os.path.join(PROJECT_ROOT, "static", "font", "arial.ttf")
+SIGNATURE_FONT_PATH = os.getenv("BKAPP_SIGNATURE_FONT_PATH", "/usr/share/fonts/truetype/SourceHanSerifSC-VF.ttf")
 
 # 重启服务器时清除缓存
 CLEAR_CACHE_ON_RESTART = False
@@ -499,17 +499,6 @@ INGESTER_HOST = os.getenv("BKAPP_INGESTER_HOST", "http://ingester.bkfta.service.
 
 # CORS配置
 CORS_ALLOW_ALL_ORIGINS = True
-
-# BK-Repo
-if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
-    USE_CEPH = True
-    BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
-    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
-    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
-    BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
-    BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
-
-    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 
 CSRF_USE_SESSIONS = True
 

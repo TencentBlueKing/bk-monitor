@@ -1,5 +1,6 @@
 .bklog-text-segment {
   position: relative;
+  width: 100%;
   max-height: 60px;
   overflow: hidden;
   font:
@@ -55,6 +56,12 @@
 
     &.is-show {
       display: block;
+    }
+
+    &.word-fabric {
+      right: 2px;
+      bottom: 0;
+      line-height: 1;
     }
   }
 

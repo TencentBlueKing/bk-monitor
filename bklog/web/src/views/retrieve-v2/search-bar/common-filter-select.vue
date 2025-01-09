@@ -138,7 +138,7 @@
           </bk-select>
           <bk-select
             class="value-select"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false }"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
             v-model="condition[index].value"
             multiple
             searchable
@@ -168,7 +168,9 @@
 </template>
 <style lang="scss">
   .resize-layout-wrap {
-    box-shadow: 0 2px 4px 0 #1919290d;
+    box-shadow:
+      0 2px 8px 0 #00000026,
+      0 1px 0 0 #eaebf0;
 
     .bk-resize-trigger {
       display: none;
@@ -195,6 +197,7 @@
       margin-top: 8px;
       margin-right: 8px;
       border: 1px solid #dbdde1;
+      border-radius: 3px;
 
       .title {
         max-width: 125px;
@@ -209,7 +212,7 @@
         border: none;
 
         .operator-label {
-          padding: 10px;
+          padding: 4px;
           color: #ff9c01;
         }
 
@@ -228,9 +231,14 @@
           &.is-focus {
             box-shadow: none;
           }
+
+          .bk-select-name {
+            padding: 0 25px 0 0px;
+          }
         }
 
         .bk-loading .bk-loading1 {
+          margin-top: 10px;
           margin-left: -20px;
         }
       }

@@ -47,6 +47,7 @@ class BaseAnomalyConfig:
 class KpiAnomalyConfig(BaseAnomalyConfig):
     # 单指标异常检测
     default_plan_id: int = field(default_factory=lambda: settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION)
+    is_sdk_enabled: bool = field(default=False)
 
 
 @dataclass
@@ -109,7 +110,6 @@ class MetricRecommend(BaseAnomalyConfig):
 
 class ReadOnlyAiSetting:
     def __init__(self, bk_biz_id: int, config: Optional[Dict[str, Dict[str, Any]]] = None):
-
         self.bk_biz_id = bk_biz_id
         config = config or self.default_config
 
@@ -162,7 +162,6 @@ class ReadOnlyAiSetting:
 
 class AiSetting(ReadOnlyAiSetting):
     def __init__(self, bk_biz_id: int):
-
         multivariate_anomaly_detection = MultivariateAnomalyDetection()
         for scene in MultivariateAnomalyDetection.get_scene_list():
             setattr(multivariate_anomaly_detection, scene, MultivariateAnomalySceneConfig())

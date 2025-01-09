@@ -13,8 +13,6 @@ specific language governing permissions and limitations under the License.
 from django.test import TestCase
 
 from alarm_backends.core.detect_result import CheckResult
-from alarm_backends.tests.core.detect_result.mock import fakeredis, patch
-from alarm_backends.tests.core.detect_result.mock_settings import ALARM_BACKENDS_REDIS
 from bkmonitor.models import CacheNode
 from bkmonitor.utils.common_utils import count_md5
 
@@ -22,16 +20,10 @@ DIMENSION = {"bk_target_ip": "127.0.0.1", "bk_target_cloud_id": 0}
 
 
 class TestDetectResult(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
         CacheNode.refresh_from_settings()
-        self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
-        self.redis_patcher.start()
-
-    def tearDown(self):
-        self.redis_patcher.stop()
 
     def test_md5_to_dimension_key(self):
         check_result = CheckResult(

@@ -55,7 +55,17 @@ export default class TableLegend extends CommonLegend {
       }
     }
     if (this.sort === 0 || !title) {
-      this.list = this.legendData;
+      // 默认按avg排序
+      if (!title && !sort) {
+        const sortId = 'avgSource';
+        this.list = this.legendData.slice().sort((a, b) => {
+          const aVal = a[sortId] || 0;
+          const bVal = b[sortId] || 0;
+          return +bVal - +aVal;
+        });
+        this.sortTitle = 'Avg';
+        this.sort = 2;
+      }
       return;
     }
     const sortId = `${title.toLocaleLowerCase()}Source`;
@@ -87,11 +97,17 @@ export default class TableLegend extends CommonLegend {
                 <span class='caret-wrapper'>
                   <i
                     class={{ 'sort-caret is-asc': true, active: this.sortTitle === title && this.sort === 1 }}
-                    onClick={() => this.handleSortChange(title, 1)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSortChange(title, 1);
+                    }}
                   />
                   <i
                     class={{ 'sort-caret is-desc': true, active: this.sortTitle === title && this.sort === 2 }}
-                    onClick={() => this.handleSortChange(title, 2)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSortChange(title, 2);
+                    }}
                   />
                 </span>
               </th>
@@ -108,24 +124,28 @@ export default class TableLegend extends CommonLegend {
                     <div class='content-wrapper'>
                       {title === 'Min' && (
                         <div
+                          style={`--series-color: ${item.color};`}
                           class='legend-metric'
-                          onMousedown={e => this.handleLegendMouseEvent(e, 'mousedown')}
-                          onMouseenter={e => this.handleLegendEvent(e, 'highlight', item)}
-                          onMouseleave={e => this.handleLegendEvent(e, 'downplay', item)}
-                          onMousemove={e => this.handleLegendMouseEvent(e, 'mousemove')}
-                          onMouseup={e => this.handleLegendMouseEvent(e, 'mouseup', item)}
+                          onMousedown={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mousedown')}
+                          onMouseenter={e => !this.preventEvent && this.handleLegendEvent(e, 'highlight', item)}
+                          onMouseleave={e => !this.preventEvent && this.handleLegendEvent(e, 'downplay', item)}
+                          onMousemove={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mousemove')}
+                          onMouseup={e => !this.preventEvent && this.handleLegendMouseEvent(e, 'mouseup', item)}
                         >
                           <span
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
-                            class='metric-label'
+                            class={`metric-label is-${item.lineStyleType}`}
+                            onMousedown={e => this.preventEvent && this.handleLegendEvent(e, 'click', item)}
                           />
-                          <span
-                            style={{ color: item.show ? '#63656e' : '#ccc' }}
-                            class='metric-name'
-                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                          >
-                            {item.name}
-                          </span>
+                          {this.$scopedSlots.name?.({ item }) || (
+                            <span
+                              style={{ color: item.show ? '#63656e' : '#ccc' }}
+                              class='metric-name'
+                              v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
+                            >
+                              {item.name}
+                            </span>
+                          )}
                         </div>
                       )}
                       <div class='legend-value'>{item[title.toLocaleLowerCase()]}</div>

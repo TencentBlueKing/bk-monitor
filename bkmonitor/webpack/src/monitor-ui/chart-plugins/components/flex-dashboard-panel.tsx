@@ -63,6 +63,7 @@ interface IDashboardPanelProps {
   customHeightFn?: ((a: any) => number) | null;
   dashboardId?: string;
   matchFields?: Record<string, any>;
+  needCheck?: boolean;
 }
 interface IDashboardPanelEvents {
   onBackToOverview: () => void;
@@ -93,6 +94,8 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   @Prop({ type: Object }) matchFields: Record<string, any>;
   /** 自定义高度 */
   @Prop({ default: null }) customHeightFn: ((a: any) => number) | null;
+  /* 是否可选中图表 */
+  @Prop({ type: Boolean, default: true }) needCheck: boolean;
   // 视图实例集合
   // localPanels: PanelModel[] = [];
   /** 需要有响应式变化的属性 */
@@ -168,18 +171,25 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   handleInitPanelsGridpos(panels: IPanelModel[]) {
     if (!panels) return;
     const updatePanelsGridpos = (list: IPanelModel[]) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       list.forEach(item => {
         if (item.type === 'row') {
           if (item.panels?.length) {
             updatePanelsGridpos(item.panels);
           }
         } else {
+          const commonLegendOptions = {
+            displayMode: this.column === 1 ? 'table' : 'list',
+            placement: this.column === 1 ? 'right' : 'bottom',
+          };
           item.options = {
             ...item.options,
-            legend: {
-              displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom',
-            },
+            legend: ['k8s_custom_graph'].includes(item.type)
+              ? {
+                  ...commonLegendOptions,
+                  ...item.options?.legend,
+                }
+              : commonLegendOptions,
           } as any;
         }
       });
@@ -309,11 +319,11 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   handleCollapse(collapse: boolean, panel: PanelModel) {
     panel.updateCollapsed(collapse);
     this.observablePanelsField[panel.id].collapsed = collapse;
-    panel.panels?.forEach(item => {
+    for (const item of panel.panels) {
       const panel = (this as any).localPanels.find(set => set.id === item.id);
       this.observablePanelsField[panel.id].show = collapse;
       panel?.updateShow(collapse);
-    });
+    }
   }
 
   /**
@@ -388,10 +398,13 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
           </div>
         ) : (
           [
-            <div class='flex-dashboard'>
+            <div
+              key={'flex-dashboard'}
+              class='flex-dashboard'
+            >
               {(this as any).localPanels.slice(0, 1000).map((panel, index) => (
                 <div
-                  id={`${panel.id}__key__`}
+                  id={`${CSS.escape(panel.id)}__key__`}
                   key={`${panel.id}__key__`}
                   style={{
                     width: `calc(${(1 / +this.column) * 100}% - 16px)`,
@@ -408,6 +421,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
                     key={`${panel.id}__key__`}
                     chartChecked={this.observablePanelsField[panel.id].checked}
                     collapse={this.observablePanelsField[panel.id].collapsed}
+                    needCheck={this.needCheck}
                     panel={panel}
                     onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     onChartCheck={v => this.handleChartCheck(v, panel)}
@@ -421,6 +435,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             </div>,
             (this as any).localPanels.length ? (
               <ChartCollect
+                key={'collect'}
                 isCollectSingle={this.isCollectSingle}
                 localPanels={(this as any).localPanels}
                 observablePanelsField={this.observablePanelsField}

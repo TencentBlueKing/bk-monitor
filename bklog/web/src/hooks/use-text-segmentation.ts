@@ -41,6 +41,7 @@ export type SegmentAppendText = { text: string; onClick?: (...args) => void; att
 export default class UseTextSegmentation {
   getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
   onSegmentClick: (...args) => void;
+  clickValue: string;
   keyRef: any;
   options = {
     field: null,
@@ -51,21 +52,55 @@ export default class UseTextSegmentation {
     this.keyRef = {};
     this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
     this.onSegmentClick = cfg.onSegmentClick;
+    this.clickValue = '';
     Object.assign(this.options, cfg.options ?? {});
   }
 
-  getCellClickHandler(e: MouseEvent) {
+  getCellClickHandler(e: MouseEvent, value) {
+    const x = e.clientX;
+    const y = e.clientY;
+    let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
+    if (!virtualTarget) {
+      virtualTarget = document.createElement('span') as HTMLElement;
+      virtualTarget.className = 'bklog-virtual-target';
+      virtualTarget.style.setProperty('position', 'absolute');
+      virtualTarget.style.setProperty('visibility', 'hidden');
+      virtualTarget.style.setProperty('z-index', '-1');
+      document.body.appendChild(virtualTarget);
+    }
+
+    virtualTarget.style.setProperty('left', `${x}px`);
+    virtualTarget.style.setProperty('top', `${y}px`);
+
+    this.handleSegmentClick(virtualTarget, value);
+  }
+
+  getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+      this.handleSegmentClick(e.target, (e.target as HTMLElement).innerHTML);
     }
   }
 
   getChildNodes() {
-    return this.getSegmentNodes(this.getSplitList(this.options.field, this.options.content));
+    let start = 0;
+    return this.getSplitList(this.options.field, this.options.content).map(item => {
+      Object.assign(item, {
+        startIndex: start,
+        endIndex: start + item.text.length,
+      });
+      start = start + item.text.length;
+      return item;
+    });
   }
 
   update(cfg) {
     Object.assign(this.options, cfg.options ?? {});
+  }
+
+  formatValue() {
+    return this.escapeString(this.options.content)
+      .replace(/<mark>/g, '')
+      .replace(/<\/mark>/g, '');
   }
 
   private getField() {
@@ -74,7 +109,7 @@ export default class UseTextSegmentation {
 
   private onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
-    const currentValue = tippyInstance.reference.innerText;
+    const currentValue = this.clickValue;
     const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
 
     const activeField = this.getField();
@@ -98,12 +133,14 @@ export default class UseTextSegmentation {
     return traceIdPattern.test(traceId);
   }
 
-  private handleSegmentClick(e, value) {
+  private handleSegmentClick(target, value) {
     if (!value.toString() || value === '--') return;
+
+    this.clickValue = value;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
-    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
+    segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
   private getCurrentFieldRegStr(field: any) {
@@ -124,6 +161,7 @@ export default class UseTextSegmentation {
     return field?.is_analyzed ?? false;
   }
 
+  // Object.assign(item, { startIndex: start, endIndex: start + (text?.length ?? 0) });
   private splitParticipleWithStr(str: string, delimiterPattern: string) {
     if (!str) return [];
     // 转义特殊字符，并构建用于分割的正则表达式
@@ -141,26 +179,28 @@ export default class UseTextSegmentation {
     // 在高亮分割数组基础上再以分隔符分割数组
     const parts = markSplitRes.reduce((list, item) => {
       if (/^<mark>.*?<\/mark>$/.test(item)) {
-        list.push(item);
+        const formatValue = item.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+        list.push({
+          text: formatValue,
+          isMark: true,
+          isCursorText: true,
+        });
       } else {
         const arr = item.split(regex);
-        arr.forEach(i => i && list.push(i));
+        arr.forEach(text => {
+          if (text) {
+            list.push({
+              text,
+              isMark: false,
+              isCursorText: !regex.test(text),
+            });
+          }
+        });
       }
       return list;
     }, []);
 
-    // 转换结果为对象数组，包含分隔符标记
-    const result = parts
-      .filter(part => part?.length)
-      .map(part => {
-        return {
-          text: part,
-          isNotParticiple: regex.test(part),
-          isMark: /^<mark>.*?<\/mark>$/.test(part),
-        };
-      });
-
-    return result;
+    return parts;
   }
 
   private escapeString(val: string) {
@@ -186,48 +226,14 @@ export default class UseTextSegmentation {
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
     }
 
+    const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+    const isMark = new RegExp(markRegStr).test(value);
     return [
       {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
+        text: formatValue,
+        isCursorText: true,
+        isMark,
       },
     ];
   }
-
-  private getChildItem(item) {
-    if (item.text === '\n') {
-      return {
-        tag: 'br',
-      };
-    }
-
-    if (item.isMark) {
-      return {
-        tag: 'mark',
-        className: 'valid-text',
-        child: item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-      };
-    }
-
-    if (!item.isNotParticiple) {
-      return {
-        tag: 'span',
-        className: 'valid-text',
-        child: item.text,
-      };
-    }
-
-    return {
-      tag: 'span',
-      className: 'others-text',
-      child: item.text,
-    };
-  }
-
-  private getSegmentNodes = (vlaues: any[]) => {
-    const segmentNode = document.createElement('span');
-    segmentNode.classList.add('segment-content');
-    return vlaues.map(this.getChildItem);
-  };
 }

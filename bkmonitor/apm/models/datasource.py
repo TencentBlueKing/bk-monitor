@@ -844,14 +844,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
         try:
             # 获取索引名称列表
             es_index_name = self.result_table_id.replace(".", "_")
-            routes = self.es_client.transport.perform_request(
+            routes_str = self.es_client.transport.perform_request(
                 "GET",
-                f"/_cat/indices/{es_index_name}_*_*?bytes=b&format=json",
+                f"/_cat/indices/{es_index_name}_*_*?h=index",
             )
             # 过滤出有效的索引名称
             index_names = self._filter_and_sort_valid_index_names(
                 self.app_name,
-                index_names=[i["index"] for i in routes if i.get("index")],
+                index_names=[i for i in routes_str.split("\n") if i],
             )
             if not index_names:
                 raise ValueError("[IndexName] valid indexName not found!")
@@ -1044,7 +1044,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
         app_info = {"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}
         return {i[OtlpKey.TRACE_ID]: app_info for i in response.hits}
 
-    def query_event(self, start_time: int, end_time: int, name: list, filter_params: dict = None, category: str = None):
+    def query_event(self, start_time: int, end_time: int, name: list, filter_params: list = None, category: str = None):
+        if not name:
+            name = []
         have_events_data_query = (
             self.fetch.query(
                 "bool",
@@ -1068,9 +1070,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 span_dict = span.to_dict()
                 events = span_dict.get("events", [])
                 for event in events:
+                    if event.get("name") not in name:
+                        continue
                     event["service_name"] = span_dict.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME)
                     event["endpoint_name"] = span_dict.get("span_name")
-                result.extend(events)
+                    result.append(event)
         except Exception as e:
             logger.error(
                 f"[APM][query event] bk_biz_id => [{self.bk_biz_id}] app_name [{self.app_name}] "

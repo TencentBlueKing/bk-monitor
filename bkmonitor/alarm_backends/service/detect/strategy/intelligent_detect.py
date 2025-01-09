@@ -43,6 +43,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
+    WITH_HISTORY_ANOMALY = True
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -63,8 +64,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
             return super().detect(data_point)
 
     def detect_by_sdk(self, data_point):
-        dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
-        dimensions["strategy_id"] = int(data_point.item.strategy.id)
+        dimensions = self.generate_dimensions(data_point)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,
@@ -76,7 +76,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                 "history_anomaly": {
                     "source": "backfill",
                     "retention_period": "8d",
-                    "backfill_fields": ["timestamp", "anomaly_alert", "extra_info"],
+                    "backfill_fields": ["anomaly_alert", "extra_info"],
                     "backfill_conditions": [
                         {
                             "field_name": "is_anomaly",
@@ -97,6 +97,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                     "values": predict_result[0],
                     "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
+                    "dimension_fields": list(data_point.dimensions.keys()),
                 },
                 item=data_point.item,
             )

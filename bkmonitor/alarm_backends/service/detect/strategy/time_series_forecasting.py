@@ -41,6 +41,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
     PREDICT_FUNC = api.aiops_sdk.tf_predict
+    WITH_HISTORY_ANOMALY = False
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
@@ -81,8 +82,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
             return self.detect_by_bkdata(data_point)
 
     def detect_by_sdk(self, data_point):
-        dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
-        dimensions["strategy_id"] = int(data_point.item.strategy.id)
+        dimensions = self.generate_dimensions(data_point)
         predict_params = {
             "data": [{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             "dimensions": dimensions,
@@ -103,6 +103,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
                     "values": predict_result[0],
                     "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
+                    "dimension_fields": list(data_point.dimensions.keys()),
                 },
                 item=data_point.item,
             )

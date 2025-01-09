@@ -345,6 +345,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     refleshKey: '',
   };
 
+  targetDetailLoading = false;
+
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
     const needMdDesc = this.detectionConfig.data.some(item =>
@@ -446,6 +448,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
+        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -512,15 +515,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   handleDisplaybackDetail() {
     /** 基本信息 */
     this.getBaseInfo(this.detailData);
-    this.targetsDesc = handleSetTargetDesc(
-      this.targetDetail.target_detail,
-      this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
-      this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
-      this.checkedTarget.node_count,
-      this.checkedTarget.instance_count
-    );
-    /** 监控目标数据 */
-    this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
     /** 同级别算法关系 */
     const {
       detects: [{ connector, level }],
@@ -670,6 +664,58 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       this.scenarioList = data;
     });
   }
+
+  async getTargetsTableData() {
+    // 获取策略目标详情
+    this.targetDetailLoading = true;
+    const targetDetail =
+      (await getTargetDetail({ strategy_ids: [this.strategyId] }).finally(() => {
+        this.targetDetailLoading = false;
+      })) || {};
+    const strategyTarget = targetDetail[this.strategyId] || {};
+
+    // 提取目标列表和字段名称，提供默认值
+    let targetList = this.detailData?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    const field = this.detailData?.items?.[0]?.target?.[0]?.[0]?.field || '';
+    const targetType = strategyTarget.node_type || '';
+
+    // 对旧版策略的特殊处理
+    if (targetType === 'INSTANCE' && field === 'bk_target_ip') {
+      targetList = targetList.map(item => ({
+        ...item,
+        ip: item.bk_target_ip,
+        bk_cloud_id: item.bk_target_cloud_id,
+      }));
+    }
+
+    // 设置第一个目标的实例计数
+    if (targetList.length) {
+      targetList[0].instances_count = strategyTarget.instance_count || 0;
+    }
+
+    // 更新目标详情
+    this.targetDetail = {
+      ...strategyTarget,
+      detail: strategyTarget.target_detail || [],
+      target_detail: targetList,
+    };
+
+    // 更新目标描述
+    this.targetsDesc = handleSetTargetDesc(
+      this.targetDetail.target_detail,
+      this.targetDetail.node_type || '',
+      this.targetDetail.instance_type || '',
+      this.targetDetail.node_count || this.checkedTarget.node_count,
+      this.targetDetail.instance_count || this.checkedTarget.instance_count
+    );
+    for (const item of this.metricData || []) {
+      item.objectType = this.targetDetail.instance_type;
+      item.targetType = this.targetDetail.node_type;
+    }
+    /** 监控目标数据 */
+    this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
+  }
+
   /**
    * @description 策略详情数据获取
    * @param id
@@ -688,23 +734,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     }
     this.strategyId = snapshotRes?.id || id;
     // 策略快照end
-    const targetDetail = await getTargetDetail({ strategy_ids: [this.strategyId] }).catch(() => ({}));
     const strategyDetail = snapshotRes.name
       ? snapshotRes
       : await getStrategyV2({ id: this.strategyId }).catch(() => ({}));
     this.detailData = strategyDetail;
     this.detectionConfig.data = strategyDetail?.items?.[0]?.algorithms?.filter(item => !!item.type) || [];
     this.detectionConfig.unit = strategyDetail?.items?.[0]?.algorithms?.[0]?.unit_prefix || '';
-    const strategyTarget = targetDetail?.[this.strategyId];
-    const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
-    const targetType = strategyTarget?.node_type || '';
-    let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
-    // 对旧版的策略target进行特殊处理
-    if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
-      targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
-    }
-    targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
-    this.targetDetail = { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList };
+    // const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    // this.targetDetail = { target_detail: targetList };
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
@@ -1143,7 +1180,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         );
                       })()}
                     </div>
-                    {this.targetsDesc.message || this.targetsDesc.subMessage ? (
+                    {this.targetDetailLoading ? (
+                      <div class='targets-desc skeleton-element' />
+                    ) : this.targetsDesc.message || this.targetsDesc.subMessage ? (
                       <div class='targets-desc'>
                         <span onClick={this.handleShowTargetTable}>
                           <i class='icon-monitor icon-mc-tv' />
