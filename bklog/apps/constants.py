@@ -396,6 +396,11 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_DELETE_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="delete_config"
     )
+    SEARCH_VIEWSET_USER_CUSTOM_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="SearchViewSet",
+        view_action="update_or_create_config",
+    )
     # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
@@ -444,11 +449,6 @@ class ViewSetActionEnum(ChoicesEnum):
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="IndexSetViewSet",
         view_action="cancel_favorite",
-    )
-    INDEX_SET_VIEWSET_USER_CUSTOM_CONFIG = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
-        view_set="IndexSetViewSet",
-        view_action="update_or_create_config",
     )
     # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
@@ -570,6 +570,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_RETRIEVE_CONFIG,
         SEARCH_VIEWSET_LIST_CONFIG,
         SEARCH_VIEWSET_DELETE_CONFIG,
+        SEARCH_VIEWSET_USER_CUSTOM_CONFIG,
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
@@ -585,7 +586,6 @@ class ViewSetActionEnum(ChoicesEnum):
         # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,
-        INDEX_SET_VIEWSET_USER_CUSTOM_CONFIG,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
