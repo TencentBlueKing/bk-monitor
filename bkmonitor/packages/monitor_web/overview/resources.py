@@ -529,7 +529,7 @@ class GetFunctionShortcutResource(CacheResource):
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     mode="any",
                 )[:limit]
-            else:
+            elif function == "log_retrieve":
                 try:
                     records = api.log_search.get_user_favorite_index_set(username=username, limit=limit)
                 except BKAPIError as e:
@@ -547,6 +547,8 @@ class GetFunctionShortcutResource(CacheResource):
                             "space_uid": space.space_uid,
                         }
                     )
+            else:
+                continue
 
             result.append({"function": function, "name": name, "items": items})
         return result
