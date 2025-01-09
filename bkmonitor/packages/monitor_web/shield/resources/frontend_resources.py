@@ -146,7 +146,9 @@ class FrontendShieldListResource(Resource):
 
         # 过滤策略id
         strategy_ids = set(strategy_ids)
-        shields = [shield for shield in shields if set(manager.get_strategy_ids(shield)) & strategy_ids]
+        shields = [
+            shield for shield in shields if (set(manager.get_strategy_ids(shield)) & strategy_ids) or not strategy_ids
+        ]
 
         # 获取关联策略名
         shield_strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
