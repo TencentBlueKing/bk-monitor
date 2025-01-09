@@ -168,6 +168,7 @@ class K8sResourceMeta(object):
 
     @classmethod
     def distinct(cls, queryset):
+        # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
         return queryset
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
@@ -654,6 +655,19 @@ class K8sWorkloadMeta(K8sResourceMeta):
         )
         return promql
 
+    @classmethod
+    def distinct(cls, queryset):
+        query_set = (
+            queryset.values('workload_type', "workload_name")
+            .annotate(distinct_name=Max("id"))
+            .annotate(
+                workload=Concat(F("workload_type"), Value(":"), F("workload_name")),
+                namespace=Value(""),
+            )
+            .values("namespace", "workload")
+        )
+        return query_set
+
 
 class K8sContainerMeta(K8sResourceMeta):
     resource_field = "container_name"
@@ -668,7 +682,7 @@ class K8sContainerMeta(K8sResourceMeta):
     @classmethod
     def distinct(cls, queryset):
         query_set = (
-            queryset.values('name', "namespace", "workload_type", "workload_name")
+            queryset.values('name')
             .annotate(distinct_name=Max("id"))
             .annotate(
                 workload=Concat(F("workload_type"), Value(":"), F("workload_name")), pod=Value(""), container=F("name")

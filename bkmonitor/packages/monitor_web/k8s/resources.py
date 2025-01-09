@@ -304,10 +304,7 @@ class ListK8SResources(Resource):
                     page_size = page_count
                     page = 1
 
-                obj_list = resource_meta.get_from_meta()
-                if resource_meta.resource_field == "container_name":
-                    # 容器场景，需要去重(pod_name)
-                    obj_list = resource_meta.distinct(obj_list)
+                obj_list = resource_meta.distinct(resource_meta.get_from_meta())
 
                 paginator = Paginator(obj_list, page_size)
                 total_count = paginator.count
