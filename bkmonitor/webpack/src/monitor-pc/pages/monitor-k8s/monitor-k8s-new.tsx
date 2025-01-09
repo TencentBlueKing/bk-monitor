@@ -61,7 +61,7 @@ import './monitor-k8s-new.scss';
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
-    label: window.i18n.t('K8s对象列表'),
+    label: window.i18n.t('K8S对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
@@ -71,7 +71,7 @@ const tabList = [
     icon: 'icon-mc-two-column',
   },
   {
-    label: window.i18n.t('K8s集群数据详情'),
+    label: window.i18n.t('K8S集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-mingxi',
   },

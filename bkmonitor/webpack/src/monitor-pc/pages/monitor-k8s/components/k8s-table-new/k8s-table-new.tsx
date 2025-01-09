@@ -393,7 +393,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [POD]: {
         id: POD,
-        name: this.$t('Pod'),
+        name: this.$t('pod'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
