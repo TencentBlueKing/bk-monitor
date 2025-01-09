@@ -74,29 +74,26 @@ blueapps[opentelemetry]==4.7.1
 apigw-manager==2.0.0
 
 # monitor
-raven==6.9.0
 supervisor==4.2.5
-pyinstrument==3.4.2
+pyinstrument==4.6.2
 ddtrace==1.7.5
 
 # other
-pyppeteer==0.2.5
+pyppeteer==1.0.2
 arrow==0.6.0
-six==1.16.0
-requests==2.27.1
-requests_toolbelt==0.10.1
-sqlparse==0.4.2
+six==1.17.0
+requests==2.31.0
+requests_toolbelt==1.0.0
+sqlparse==0.4.4
 ujson==5.7.0
-schematics==2.0.1
-Pillow==8.4.0
+Pillow==9.5.0
 PyYAML==5.4.1
-coreapi==2.3.3
 kafka-python==1.4.6
 babel==2.5.1
 python-consul==1.1.0
-ipython==7.13.0
-netifaces==0.10.6
-psutil==5.2.2
+ipython==7.34.0
+netifaces==0.11.0
+psutil==6.1.1
 influxdb==5.2.0
 selenium==3.141.0
 python-json-logger==0.1.7
