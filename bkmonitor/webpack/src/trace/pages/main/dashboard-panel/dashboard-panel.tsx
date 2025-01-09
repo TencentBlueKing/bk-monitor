@@ -33,6 +33,7 @@ import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel
 import CompareSelect from './compare-select';
 import FilterVarSelectSimple from './filter-var-select-simple';
 import GroupsSelector from './groups-selector';
+import LayoutSelect from './layout-select';
 import { PANEL_INTERVAL_LIST } from './utils';
 
 import './dashboard-panel.scss';
@@ -68,6 +69,7 @@ export default defineComponent({
             label={this.t('汇聚方法') as string}
           />
           <CompareSelect />
+          <LayoutSelect />
         </div>
         <div class='dashboard-panel__content'>
           <FlexDashboardPanel
