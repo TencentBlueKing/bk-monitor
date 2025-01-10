@@ -351,7 +351,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
           </bk-popover>
         </div>
         {!this.empty ? (
-          <div class={'home-alarm-content'}>
+          <div class='home-alarm-content'>
             <div
               ref='chart'
               class='chart-instance'
