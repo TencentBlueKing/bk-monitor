@@ -92,7 +92,6 @@ export default defineComponent({
     function handleMouseDown(mouseDownEvent: MouseEvent) {
       const target = instance?.proxy.$el.parentElement;
       let mouseX = mouseDownEvent.clientX;
-      console.log('handleMouseDown', mouseDownEvent);
       if (props.isInPanelView && left.value) {
       }
       document.onselectstart = () => false;
@@ -142,7 +141,6 @@ export default defineComponent({
     }
 
     function handleTrigger(e: Event) {
-      console.log('handleTrigger');
       e.stopPropagation();
       emit('trigger', !props.isShow);
     }

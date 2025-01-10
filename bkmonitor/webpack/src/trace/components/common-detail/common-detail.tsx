@@ -125,30 +125,32 @@ export default defineComponent({
     return (
       <div class='trace-common-detail'>
         <div
-          style={{ width: this.isShow ? `${this.width}px` : 0, display: this.isShow ? 'block' : 'none' }}
+          style={{ width: this.isShow ? `${this.width}px` : 0 }}
           class='common-detail-container'
         >
-          <div class='common-detail-header'>
-            <div class='header-title'>{this.title || this.t('详情')}</div>
-          </div>
-          {this.loading ? (
-            <div class='skeleton-container'>
-              <div class='skeleton-element status' />
-              {new Array(6).fill(null).map((item, index) => (
-                <div
-                  key={index}
-                  class='skeleton-element'
-                />
-              ))}
+          <div class='container-padding'>
+            <div class='common-detail-header'>
+              <div class='header-title'>{this.title || this.t('详情')}</div>
             </div>
-          ) : this.data.length ? (
-            <HostDetailView data={this.data} />
-          ) : (
-            <EmptyStatus
-              scene='part'
-              type='empty'
-            />
-          )}
+            {this.loading ? (
+              <div class='skeleton-container'>
+                <div class='skeleton-element status' />
+                {new Array(6).fill(null).map((item, index) => (
+                  <div
+                    key={index}
+                    class='skeleton-element'
+                  />
+                ))}
+              </div>
+            ) : this.data.length ? (
+              <HostDetailView data={this.data} />
+            ) : (
+              <EmptyStatus
+                scene='part'
+                type='empty'
+              />
+            )}
+          </div>
         </div>
 
         <MonitorDrag

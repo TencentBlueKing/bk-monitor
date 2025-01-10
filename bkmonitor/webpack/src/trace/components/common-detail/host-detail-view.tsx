@@ -29,11 +29,14 @@ import { type PropType, reactive, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Message } from 'bkui-vue';
+import { Message, overflowTitle } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
 
-import CollapseItem from './collapse-item';
+import CollapseItem from '../collapse-item/collapse-item';
+import ContentCollapse from '../content-collapse/content-collapse';
+import CommonStatus from './common-status/common-status';
+import CommonTagList from './common-tag-list/common-tag-list';
 
 import type { ITableItem } from '../../typings/table';
 import type { IDetailItem, IDetailValItem, IStatusData, IStatusDataSubValue } from './typing';
@@ -42,6 +45,9 @@ import './host-detail-view.scss';
 
 export default defineComponent({
   name: 'HostDetailView',
+  directives: {
+    overflowTitle,
+  },
   props: {
     data: { type: Array as PropType<IDetailItem[]>, default: () => [] },
     width: { type: [Number, String] },
@@ -148,11 +154,10 @@ export default defineComponent({
     // list类型格式化
     function listFormatter(item: IDetailItem) {
       const val = item.value as ITableItem<'list'>;
-      console.log(val);
       const key = random(10);
       return (
         <div id={key}>
-          {/* <Collapse
+          <ContentCollapse
             defaultHeight={110} // 超过五条显示展开按钮
             expand={item.isExpand}
             maxHeight={300}
@@ -170,14 +175,14 @@ export default defineComponent({
                     <div
                       key={index}
                       class='list-type-item'
-                       v-overflow-title
+                      v-overflow-title
                     >
                       {item}
                     </div>,
                   ])
                 : '--'}
             </div>
-          </Collapse>
+          </ContentCollapse>
           {item.isOverflow ? (
             <span
               class='expand-btn'
@@ -187,7 +192,7 @@ export default defineComponent({
             >
               {item.isExpand ? '收起' : '展开'}
             </span>
-          ) : undefined} */}
+          ) : undefined}
         </div>
       );
     }
@@ -403,7 +408,7 @@ export default defineComponent({
             </div>
           )}
         </div>
-        <div class='detail-collapse-title'>
+        <div class='detail-collapse-panel'>
           {this.labelListData.map(item => (
             <CollapseItem
               key={item.name}

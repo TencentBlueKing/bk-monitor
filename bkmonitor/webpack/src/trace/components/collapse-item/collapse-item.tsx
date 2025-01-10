@@ -26,6 +26,8 @@
 
 import { defineComponent, ref, Transition } from 'vue';
 
+import { addClass, removeClass } from '../../utils';
+
 import './collapse-item.scss';
 export default defineComponent({
   name: 'CollapseItem',
@@ -42,8 +44,76 @@ export default defineComponent({
       expand.value = !expand.value;
     }
 
+    function beforeEnter(el) {
+      addClass(el, 'collapse-transition');
+      if (!el.dataset) {
+        el.dataset = {};
+      }
+
+      el.dataset.oldPaddingTop = el.style.paddingTop;
+      el.dataset.oldPaddingBottom = el.style.paddingBottom;
+
+      el.style.height = '0';
+      el.style.paddingTop = 0;
+      el.style.paddingBottom = 0;
+    }
+
+    function enter(el) {
+      el.dataset.oldOverflow = el.style.overflow;
+      if (el.scrollHeight !== 0) {
+        el.style.height = el.scrollHeight + 'px';
+        el.style.paddingTop = el.dataset.oldPaddingTop;
+        el.style.paddingBottom = el.dataset.oldPaddingBottom;
+      } else {
+        el.style.height = '';
+        el.style.paddingTop = el.dataset.oldPaddingTop;
+        el.style.paddingBottom = el.dataset.oldPaddingBottom;
+      }
+
+      el.style.overflow = 'hidden';
+    }
+
+    function afterEnter(el) {
+      removeClass(el, 'collapse-transition');
+      el.style.height = '';
+      el.style.overflow = el.dataset.oldOverflow;
+    }
+
+    function beforeLeave(el) {
+      if (!el.dataset) el.dataset = {};
+      el.dataset.oldPaddingTop = el.style.paddingTop;
+      el.dataset.oldPaddingBottom = el.style.paddingBottom;
+      el.dataset.oldOverflow = el.style.overflow;
+
+      el.style.height = el.scrollHeight + 'px';
+      el.style.overflow = 'hidden';
+    }
+
+    function leave(el) {
+      if (el.scrollHeight !== 0) {
+        addClass(el, 'collapse-transition');
+        el.style.height = 0;
+        el.style.paddingTop = 0;
+        el.style.paddingBottom = 0;
+      }
+    }
+
+    function afterLeave(el) {
+      removeClass(el, 'collapse-transition');
+      el.style.height = '';
+      el.style.overflow = el.dataset.oldOverflow;
+      el.style.paddingTop = el.dataset.oldPaddingTop;
+      el.style.paddingBottom = el.dataset.oldPaddingBottom;
+    }
+
     return {
       expand,
+      beforeEnter,
+      enter,
+      afterEnter,
+      beforeLeave,
+      leave,
+      afterLeave,
       handleHeaderClick,
     };
   },
@@ -61,15 +131,16 @@ export default defineComponent({
             </span>
           )}
         </div>
-        <Transition name='collapse'>
-          {this.showContent && (
-            <div
-              style={this.expand ? {} : { display: 'none' }}
-              class='item-content'
-            >
-              {this.$slots.content?.()}
-            </div>
-          )}
+        <Transition
+          name='collapse'
+          onAfterEnter={this.afterEnter}
+          onAfterLeave={this.afterLeave}
+          onBeforeEnter={this.beforeEnter}
+          onBeforeLeave={this.beforeLeave}
+          onEnter={this.enter}
+          onLeave={this.leave}
+        >
+          {this.showContent && this.expand && <div class='item-content'>{this.$slots.content?.()}</div>}
         </Transition>
       </div>
     );

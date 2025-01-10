@@ -345,14 +345,10 @@
   }
 
   // 右侧详情栏
-  .detail-collapse-title {
+  .detail-collapse-panel {
     .collapse-item-comp {
       &+.collapse-item-comp {
         margin-top: 12px;
-      }
-
-      .item-content {
-        margin-top: 10px;
       }
     }
 
@@ -455,6 +451,43 @@
       padding-bottom: 16px;
       margin-top: 10px;
       border-top: 1px solid #eaebf0;
+    }
+  }
+
+  
+    
+  .expand-btn {
+    line-height: 22px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .tag-column {
+    display: flex;
+    flex-wrap: wrap;
+
+    .tag-item {
+      margin-bottom: 2px;
+    }
+  }
+
+  .list-wrap {
+    display: flex;
+    flex-wrap: wrap;
+
+    .list-item {
+      margin-bottom: 2px;
+    }
+  }
+
+  .list-type-wrap {
+    .list-type-item {
+      line-height: 22px;
+      @include ellipsis;
+
+      &:not(:last-child) {
+        margin-right: 8px;
+      }
     }
   }
 }
