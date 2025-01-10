@@ -27,6 +27,7 @@ import { defineComponent, ref } from 'vue';
 
 import { Select } from 'bkui-vue';
 
+import TargetCompareSelect from './target-compare-select';
 import TimeCompareSelect from './time-compare-select';
 
 import './compare-select.scss';
@@ -44,10 +45,10 @@ const COMPARE_LIST = [
     id: CompareId.none,
     name: window.i18n.t('不对比'),
   },
-  // {
-  //   id: 'target',
-  //   name: window.i18n.t('目标对比'),
-  // },
+  {
+    id: CompareId.target,
+    name: window.i18n.t('目标对比'),
+  },
   {
     id: CompareId.time,
     name: window.i18n.t('时间对比'),
@@ -60,11 +61,17 @@ const COMPARE_LIST = [
 
 export default defineComponent({
   name: 'CompareSelect',
+  props: {
+    curTarget: { type: [String, Number], default: '' },
+  },
   setup() {
     const localType = ref(CompareId.none);
 
+    function handleTargetChange() {}
+
     return {
       localType,
+      handleTargetChange,
     };
   },
   render() {
@@ -74,6 +81,27 @@ export default defineComponent({
           <div>
             <TimeCompareSelect class='ml-12' />
           </div>
+        );
+      }
+      if (this.localType === CompareId.target) {
+        return (
+          <span class='compare-target-wrap ml-12'>
+            {this.curTarget && (
+              <span
+                class='compare-target-ip'
+                v-bk-overflow-tips
+              >
+                {this.curTarget}
+              </span>
+            )}
+            <span class='target-compare-select'>
+              <TargetCompareSelect
+                list={[]}
+                value={[]}
+                onChange={this.handleTargetChange}
+              />
+            </span>
+          </span>
         );
       }
       return undefined;
