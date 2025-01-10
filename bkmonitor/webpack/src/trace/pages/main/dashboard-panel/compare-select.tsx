@@ -27,6 +27,7 @@ import { defineComponent, ref } from 'vue';
 
 import { Select } from 'bkui-vue';
 
+import TargetCompareSelect from './target-compare-select';
 import TimeCompareSelect from './time-compare-select';
 
 import './compare-select.scss';
@@ -44,10 +45,10 @@ const COMPARE_LIST = [
     id: CompareId.none,
     name: window.i18n.t('不对比'),
   },
-  // {
-  //   id: 'target',
-  //   name: window.i18n.t('目标对比'),
-  // },
+  {
+    id: CompareId.target,
+    name: window.i18n.t('目标对比'),
+  },
   {
     id: CompareId.time,
     name: window.i18n.t('时间对比'),
@@ -73,6 +74,13 @@ export default defineComponent({
         return (
           <div>
             <TimeCompareSelect class='ml-12' />
+          </div>
+        );
+      }
+      if (this.localType === CompareId.target) {
+        return (
+          <div>
+            <TargetCompareSelect />
           </div>
         );
       }

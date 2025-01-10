@@ -103,3 +103,45 @@ export const PANEL_LAYOUT_LIST = [
     name: window.i18n.t('五列'),
   },
 ];
+
+/**
+ * @description 查找targetNode是否含有指定名称为targetStr className | id | tagName
+ * @param targetNode DOM节点
+ * @param targetStr className | id | tagName
+ * @returns
+ */
+export const hasTargetCondition = (targetNode: HTMLElement, targetStr: string): boolean => {
+  const [prefix, ...args] = targetStr.split('');
+  const content = args.join('');
+  return (
+    (prefix === '.' && targetNode.className?.includes(content)) ||
+    (prefix === '#' && targetNode.id?.includes(content)) ||
+    targetStr.toLocaleUpperCase() === targetNode.nodeName
+  );
+};
+/**
+ * 不传targetStr参数时: 获取event事件的父级列表
+ * 传入targetStr参数时: 查找targetStr
+ * @param event 事件对象
+ * @param targetStr 目标节点
+ * @returns event事件的父集列表 或者 targetStr
+ */
+export const getEventPaths = (event: any | Event, targetStr = ''): (any | Event)[] => {
+  if (event.path) {
+    return targetStr ? event.path : event.path.filter(dom => hasTargetCondition(dom, targetStr));
+  }
+  const path = [];
+  let target = event.target;
+  while (target) {
+    if (targetStr) {
+      if (hasTargetCondition(target, targetStr)) {
+        path.push(target);
+        return path;
+      }
+    } else {
+      path.push(target);
+    }
+    target = target.parentNode;
+  }
+  return path;
+};

@@ -69,7 +69,7 @@ export default defineComponent({
             label={this.t('汇聚方法') as string}
           />
           <CompareSelect />
-          <LayoutSelect />
+          <LayoutSelect class='ml-auto' />
         </div>
         <div class='dashboard-panel__content'>
           <FlexDashboardPanel
