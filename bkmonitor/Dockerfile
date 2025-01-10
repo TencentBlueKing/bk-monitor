@@ -67,7 +67,7 @@ RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
 
 # install vim and chromium
 RUN apt-get update  \
-    && apt-get install -y vim chromium wget strace graphviz \
+    && apt-get install -y vim chromium wget strace graphviz tini \
     && groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
@@ -87,5 +87,7 @@ WORKDIR /app/code
 # set python env
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 CMD python manage.py runserver 0.0.0.0:80
