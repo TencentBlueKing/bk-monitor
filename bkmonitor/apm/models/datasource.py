@@ -887,7 +887,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @cached_property
     def retention(self):
-        return self.storage.retention if self.storage else None
+        return self.storage.retention if self.storage else 0
 
     @cached_property
     def es_client(self):
