@@ -8,7 +8,7 @@ Django==3.2.25
 whitenoise==5.0
 django-mysql==4.3.0
 django-db-connection-pool==1.2.5
-django-cors-headers==3.2.1
+django-cors-headers==4.1.0
 django-versionlog==1.6.0
 
 # prometheus & django
@@ -25,7 +25,6 @@ django-jinja==2.7.1
 
 # django rest framework
 djangorestframework==3.12.4
-django-rest-framework-condition==0.1.1
 django-filter==2.4.0
 drf-yasg==1.21.5
 
