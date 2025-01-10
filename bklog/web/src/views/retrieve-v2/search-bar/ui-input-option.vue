@@ -12,7 +12,6 @@
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   import useFieldEgges from './use-field-egges';
-
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
