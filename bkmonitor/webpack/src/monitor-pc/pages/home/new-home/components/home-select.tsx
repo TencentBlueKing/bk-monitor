@@ -87,7 +87,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 是否展示搜索结果 */
   get isSearchResult() {
-    return this.isInput && this.searchValue;
+    return !!this.searchValue && this.isInput;
   }
 
   get currentListKey() {
@@ -256,13 +256,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 点击选中历史搜索Item */
   handleClickHistoryItem(e, item: ISearchItem) {
     e.stopPropagation();
+    this.isInput = true;
     this.searchValue = item.name;
     this.handleGetSearchData();
     this.textareaInputRef.focus();
   }
   /** 获取搜索结果 */
   handleGetSearchData() {
-    this.isInput = true;
     this.searchValue && this.getSearchList();
   }
   /** 跳转到具体的功能 */
@@ -442,6 +442,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 键盘向下切换选中 */
   handleHighlightDown() {
+    console.log(this.currentListKey, 'this.currentListKey');
     this.setHighlightIndexDown(this.currentListKey);
     this.getSearchHightItem(this.currentListKey);
   }
@@ -463,6 +464,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           this.highlightedItem && this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type);
           return;
         }
+        this.isInput = true;
         /** 如果是历史搜索页面回车则搜索 */
         this.handleGetSearchData();
         break;

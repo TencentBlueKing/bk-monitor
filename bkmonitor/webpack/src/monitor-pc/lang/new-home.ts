@@ -60,4 +60,6 @@ export default {
   相关功能: 'Related functions',
   '当前输入条件无匹配结果，请清空后重新输入':
     'There is no matching result for the current input conditions, please clear and re-enter',
+  '当前业务还未配置视图，快点击下方按钮新增图表':
+    'The current business has not configured a view. Click the button below to add a new chart.',
 };

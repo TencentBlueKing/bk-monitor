@@ -142,8 +142,8 @@ export default class RecentAlarmEvents extends tsc<object> {
     } catch (error) {
       console.log('get Date error', error);
     } finally {
-      this.loadingAlarmList = false;
       this.loading = false;
+      this.loadingAlarmList = false;
     }
   }
 
@@ -731,6 +731,10 @@ export default class RecentAlarmEvents extends tsc<object> {
     }
   }
 
+  getLoadingHeight() {
+    if (!this.content.length) return '398px';
+    return `${Math.ceil((this.content.length + 2) / 3) * 210}px`;
+  }
   // 添加业务
   async handleSelectBiz(id) {
     this.alarmGraphConfig.bizId = id;
@@ -767,7 +771,16 @@ export default class RecentAlarmEvents extends tsc<object> {
           class='content'
           v-bkloading={{ isLoading: this.loadingAlarmList, zIndex: 10 }}
         >
-          {!this.content.length ? this.getEmptyContent() : this.getStrategyList(this.content)}
+          {this.loadingAlarmList ? (
+            <div
+              style={{ height: this.getLoadingHeight() }}
+              class='loading-element'
+            />
+          ) : !this.content.length ? (
+            this.getEmptyContent()
+          ) : (
+            this.getStrategyList(this.content)
+          )}
         </div>
         {/* 删除业务-模态框 */}
         {this.getDelDialog()}

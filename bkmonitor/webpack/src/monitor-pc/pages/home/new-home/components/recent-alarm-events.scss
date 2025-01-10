@@ -16,6 +16,9 @@
 
 
   .content {
+    .loading-element {
+      transition: height 0.5s ease; /* 0.3 秒的过渡时间，可以根据需要调整 */
+    }
     .list-content {
       display: flex;
       flex-wrap: wrap;
