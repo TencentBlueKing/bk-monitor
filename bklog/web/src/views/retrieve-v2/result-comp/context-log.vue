@@ -132,7 +132,7 @@
   import logView from '@/components/log-view';
   import logViewControl from '@/components/log-view/log-view-control';
   import { getFlatObjValues } from '@/common/util';
-  import getFieldNameHook from '@/hooks/use-field-name';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import DataFilter from '../condition-comp/data-filter.vue';
 
   export default {
@@ -284,7 +284,7 @@
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
           this.displayFieldNames = res.data.display_fields;
-          const { getFieldNames } = getFieldNameHook({ store: this.$store });
+          const { getFieldNames } = useFieldNameHook({ store: this.$store });
           this.totalFieldNames = getFieldNames(res.data.fields);
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);

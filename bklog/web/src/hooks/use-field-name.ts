@@ -48,9 +48,14 @@ export default ({ store }) => {
         }
         return { id, name: alias ? `${id}(${alias})` : id };
     }
+    // 用于直接返回字段名的情况
+    const getQueryAlias = (field: any) => {
+      return store.state.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
+    }
     return {
         getFieldName,
         getFieldNames,
-        getConcatenatedFieldName
+        getConcatenatedFieldName,
+        getQueryAlias
     }
 }

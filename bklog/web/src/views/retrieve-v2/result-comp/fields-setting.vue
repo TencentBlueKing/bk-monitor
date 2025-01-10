@@ -258,7 +258,7 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-  import getFieldNameHook from '@/hooks/use-field-name';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
 
   export default {
@@ -354,7 +354,7 @@
     },
     methods: {
       getFiledDisplay(name) {
-        const { getFieldName } = getFieldNameHook({ store: this.$store });
+        const { getFieldName } = useFieldNameHook({ store: this.$store });
         const field = getFieldName(name);
         if(this.showFieldAlias){
           return field || name

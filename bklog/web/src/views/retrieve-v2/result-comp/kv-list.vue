@@ -83,7 +83,7 @@
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-  import getFieldNameHook from '@/hooks/use-field-name';
+  import useFieldNameHook from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -334,12 +334,7 @@
         return this.fieldList.find(item => item.field_name === fieldName);
       },
       getFieldName(name){
-        // if(this.showFieldAlias){
-        //   const field = this.totalFields.filter(item => item.field_name === name)
-        //   return field[0].query_alias || name
-        // }
-        // return name
-        const { getFieldName } = getFieldNameHook({ store: this.$store });
+        const { getFieldName } = useFieldNameHook({ store: this.$store });
         return getFieldName(name);
       }
     },
